@@ -74,8 +74,9 @@ namespace StingTools.Core
                     .Replace(" ", "")
                     .Substring(0, Math.Min(4, name.Length));
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"GetLevelCode failed for element {el?.Id}: {ex.Message}");
                 return "XX";
             }
         }
@@ -87,8 +88,9 @@ namespace StingTools.Core
             {
                 return el.Category?.Name ?? string.Empty;
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"GetCategoryName failed for element {el?.Id}: {ex.Message}");
                 return string.Empty;
             }
         }

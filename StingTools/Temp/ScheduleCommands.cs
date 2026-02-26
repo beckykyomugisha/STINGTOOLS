@@ -91,8 +91,9 @@ namespace StingTools.Temp
                             created++;
                             existingNames.Add(name);
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            StingLog.Warn($"Schedule create failed '{name}': {ex.Message}");
                             skipped++;
                         }
                     }
@@ -272,9 +273,9 @@ namespace StingTools.Temp
                     schedule.Export(exportDir, fileName, options);
                     exported++;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Skip schedules that can't be exported
+                    StingLog.Warn($"Schedule export failed '{schedule.Name}': {ex.Message}");
                 }
             }
 

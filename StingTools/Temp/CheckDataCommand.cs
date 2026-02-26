@@ -81,8 +81,9 @@ namespace StingTools.Temp
                         .ToLowerInvariant();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"Hash compute failed for {filePath}: {ex.Message}");
                 return "????????";
             }
         }

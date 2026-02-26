@@ -4,6 +4,7 @@ using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using StingTools.Core;
 
 namespace StingTools.Temp
 {
@@ -57,8 +58,9 @@ namespace StingTools.Temp
                         ParameterFilterElement.Create(doc, name, catIds);
                         created++;
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        StingLog.Warn($"Filter create failed '{name}': {ex.Message}");
                         skipped++;
                     }
                 }
@@ -140,8 +142,9 @@ namespace StingTools.Temp
                         Workset.Create(doc, name);
                         created++;
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        StingLog.Warn($"Workset create failed '{name}': {ex.Message}");
                         skipped++;
                     }
                 }
@@ -228,8 +231,9 @@ namespace StingTools.Temp
                             created++;
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        StingLog.Warn($"View template create failed '{name}': {ex.Message}");
                         skipped++;
                     }
                 }

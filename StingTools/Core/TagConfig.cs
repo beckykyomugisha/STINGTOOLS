@@ -67,8 +67,9 @@ namespace StingTools.Core
                 ZoneCodes = TryDeserialize<List<string>>(data, "ZONE_CODES") ?? DefaultZoneCodes();
                 ConfigSource = "project_config.json";
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"TagConfig load failed from {path}: {ex.Message}");
                 LoadDefaults();
             }
         }
@@ -118,7 +119,7 @@ namespace StingTools.Core
                 string json = JsonConvert.SerializeObject(data[key]);
                 return JsonConvert.DeserializeObject<T>(json);
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"TagConfig deserialize '{key}': {ex.Message}"); return null; }
         }
 
         // ══════════════════════════════════════════════════════════════════

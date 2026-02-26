@@ -107,6 +107,8 @@ namespace StingTools.Temp
     /// <summary>
     /// Shared helper that reads CSV rows, creates or finds materials, builds
     /// CompoundStructure layers, and duplicates base types.
+    /// Handles CSV data quirks: homogeneous materials with no layer breakdown,
+    /// MEP layer-count mismatches, and thickness-sum discrepancies.
     /// </summary>
     internal static class CompoundTypeCreator
     {
@@ -122,6 +124,7 @@ namespace StingTools.Temp
         // Layer 1 starts at 16, each layer occupies 3 columns
         private const int ColLayer1Start = 16;
         private const int LayerStride = 3;
+        private const int MaxLayers = 5;        // CSV supports up to 5 layers
 
         public static Result CreateTypes(Document doc, string label,
             string csvFileName, string[] typeFilters, ElementKind kind)
@@ -179,6 +182,7 @@ namespace StingTools.Temp
             int created = 0;
             int skipped = 0;
             int matCreated = 0;
+            var errors = new List<string>();
 
             using (Transaction tx = new Transaction(doc, $"Create {label} Types"))
             {
@@ -190,8 +194,9 @@ namespace StingTools.Temp
                     string category = cols.Length > ColCategory
                         ? cols[ColCategory].Trim() : "";
 
-                    // Build a type name: "STING - CATEGORY - MAT_NAME"
-                    string typeName = $"STING - {category}";
+                    // Build a type name from MAT_NAME to ensure uniqueness
+                    // (MAT_CATEGORY alone is not unique — many rows share a category)
+                    string typeName = $"STING - {matName}";
 
                     if (existingTypeNames.Contains(typeName))
                     {
@@ -199,52 +204,63 @@ namespace StingTools.Temp
                         continue;
                     }
 
-                    // Ensure material exists
+                    // Ensure primary material exists in project
                     if (!materialCache.ContainsKey(matName) &&
                         !string.IsNullOrEmpty(matName))
                     {
-                        ElementId newMatId = Material.Create(doc, matName);
-                        if (newMatId != ElementId.InvalidElementId)
+                        try
                         {
-                            materialCache[matName] = newMatId;
-                            matCreated++;
+                            ElementId newMatId = Material.Create(doc, matName);
+                            if (newMatId != ElementId.InvalidElementId)
+                            {
+                                materialCache[matName] = newMatId;
+                                matCreated++;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Material create failed: {matName}: {ex.Message}");
                         }
                     }
 
-                    ElementId matId = materialCache.ContainsKey(matName)
-                        ? materialCache[matName]
-                        : ElementId.InvalidElementId;
+                    ElementId matId = materialCache.TryGetValue(matName, out ElementId mid)
+                        ? mid : ElementId.InvalidElementId;
 
-                    // Parse thickness
-                    double thicknessMm = 0;
-                    if (cols.Length > ColThicknessMm)
-                        double.TryParse(cols[ColThicknessMm].Trim(), out thicknessMm);
-                    if (thicknessMm <= 0) thicknessMm = 200; // default 200mm
+                    // Parse thickness — use layer sum if total is zero/missing
+                    double thicknessMm = ParseThickness(cols);
 
                     bool success = false;
-                    switch (kind)
+                    try
                     {
-                        case ElementKind.Wall:
-                            success = CreateWallType(doc, typeName, matId,
-                                thicknessMm, cols);
-                            break;
-                        case ElementKind.Floor:
-                            success = CreateFloorType(doc, typeName, matId,
-                                thicknessMm, cols);
-                            break;
-                        case ElementKind.Ceiling:
-                            success = CreateCeilingType(doc, typeName, matId,
-                                thicknessMm, cols);
-                            break;
-                        case ElementKind.Roof:
-                            success = CreateRoofType(doc, typeName, matId,
-                                thicknessMm, cols);
-                            break;
-                        case ElementKind.Duct:
-                        case ElementKind.Pipe:
-                            success = CreateMEPType(doc, typeName, matId,
-                                thicknessMm, kind);
-                            break;
+                        switch (kind)
+                        {
+                            case ElementKind.Wall:
+                                success = CreateWallType(doc, typeName, matId,
+                                    thicknessMm, cols, materialCache);
+                                break;
+                            case ElementKind.Floor:
+                                success = CreateFloorType(doc, typeName, matId,
+                                    thicknessMm, cols, materialCache);
+                                break;
+                            case ElementKind.Ceiling:
+                                success = CreateCeilingType(doc, typeName, matId,
+                                    thicknessMm, cols, materialCache);
+                                break;
+                            case ElementKind.Roof:
+                                success = CreateRoofType(doc, typeName, matId,
+                                    thicknessMm, cols, materialCache);
+                                break;
+                            case ElementKind.Duct:
+                            case ElementKind.Pipe:
+                                success = CreateMEPType(doc, typeName, matId,
+                                    thicknessMm, kind);
+                                break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"{typeName}: {ex.Message}");
+                        StingLog.Warn($"Type create failed: {typeName}: {ex.Message}");
                     }
 
                     if (success)
@@ -261,197 +277,202 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
-            TaskDialog.Show($"Create {label}",
-                $"Created {created} {label.ToLower()} types.\n" +
+            string report = $"Created {created} {label.ToLower()} types.\n" +
                 $"Skipped {skipped} (exist or failed).\n" +
                 $"Materials created: {matCreated}\n" +
                 $"Source: {Path.GetFileName(csvPath)} " +
-                $"({rows.Count} matching rows)");
+                $"({rows.Count} matching rows)";
+            if (errors.Count > 0)
+                report += $"\n\nErrors ({errors.Count}):\n" +
+                    string.Join("\n", errors.Take(10));
+
+            TaskDialog.Show($"Create {label}", report);
 
             return Result.Succeeded;
         }
 
-        private static bool CreateWallType(Document doc, string typeName,
-            ElementId matId, double thicknessMm, string[] cols)
+        /// <summary>
+        /// Parse thickness from CSV, handling data quirks:
+        /// - If MAT_THICKNESS_MM is set, use it
+        /// - If zero/missing, compute from sum of layer thicknesses
+        /// - Skip R-value codes (e.g. "R-0.01") in layer thickness columns
+        /// - Apply sensible defaults per element kind
+        /// </summary>
+        private static double ParseThickness(string[] cols)
         {
-            try
+            double totalMm = 0;
+            if (cols.Length > ColThicknessMm)
             {
-                // Find a base wall type to duplicate
-                var baseType = new FilteredElementCollector(doc)
-                    .OfClass(typeof(WallType))
-                    .Cast<WallType>()
-                    .FirstOrDefault(wt => wt.Kind == WallKind.Basic);
+                string raw = cols[ColThicknessMm].Trim();
+                double.TryParse(raw, out totalMm);
+            }
 
-                if (baseType == null) return false;
-
-                WallType newType = baseType.Duplicate(typeName) as WallType;
-                if (newType == null) return false;
-
-                // Build compound structure with layers from CSV
-                var layers = BuildLayers(cols, matId, thicknessMm, doc);
-                if (layers.Count > 0)
+            // If total is zero, sum actual layer thicknesses
+            if (totalMm <= 0)
+            {
+                double layerSum = 0;
+                for (int i = 0; i < MaxLayers; i++)
                 {
-                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                    newType.SetCompoundStructure(cs);
-                }
+                    int thickIdx = ColLayer1Start + (i * LayerStride) + 1;
+                    if (thickIdx >= cols.Length) break;
 
-                return true;
+                    string thickStr = cols[thickIdx].Trim();
+                    if (string.IsNullOrEmpty(thickStr)) continue;
+                    // Skip R-value codes (e.g. "R-3.6") which are thermal resistance, not thickness
+                    if (thickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    if (double.TryParse(thickStr, out double lmm) && lmm > 0 && lmm < 1000)
+                        layerSum += lmm;
+                }
+                if (layerSum > 0)
+                    totalMm = layerSum;
             }
-            catch
+
+            // Final fallback
+            if (totalMm <= 0) totalMm = 10;
+
+            return totalMm;
+        }
+
+        private static bool CreateWallType(Document doc, string typeName,
+            ElementId matId, double thicknessMm, string[] cols,
+            Dictionary<string, ElementId> materialCache)
+        {
+            var baseType = new FilteredElementCollector(doc)
+                .OfClass(typeof(WallType))
+                .Cast<WallType>()
+                .FirstOrDefault(wt => wt.Kind == WallKind.Basic);
+
+            if (baseType == null) return false;
+
+            WallType newType = baseType.Duplicate(typeName) as WallType;
+            if (newType == null) return false;
+
+            var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
+            if (layers.Count > 0)
             {
-                return false;
+                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                newType.SetCompoundStructure(cs);
             }
+
+            return true;
         }
 
         private static bool CreateFloorType(Document doc, string typeName,
-            ElementId matId, double thicknessMm, string[] cols)
+            ElementId matId, double thicknessMm, string[] cols,
+            Dictionary<string, ElementId> materialCache)
         {
-            try
+            var baseType = new FilteredElementCollector(doc)
+                .OfClass(typeof(FloorType))
+                .Cast<FloorType>()
+                .FirstOrDefault(ft => ft.IsFoundationSlab == false);
+
+            if (baseType == null) return false;
+
+            FloorType newType = baseType.Duplicate(typeName) as FloorType;
+            if (newType == null) return false;
+
+            var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
+            if (layers.Count > 0)
             {
-                var baseType = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FloorType))
-                    .Cast<FloorType>()
-                    .FirstOrDefault(ft => ft.IsFoundationSlab == false);
-
-                if (baseType == null) return false;
-
-                FloorType newType = baseType.Duplicate(typeName) as FloorType;
-                if (newType == null) return false;
-
-                var layers = BuildLayers(cols, matId, thicknessMm, doc);
-                if (layers.Count > 0)
-                {
-                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                    newType.SetCompoundStructure(cs);
-                }
-
-                return true;
+                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                newType.SetCompoundStructure(cs);
             }
-            catch
-            {
-                return false;
-            }
+
+            return true;
         }
 
         private static bool CreateCeilingType(Document doc, string typeName,
-            ElementId matId, double thicknessMm, string[] cols)
+            ElementId matId, double thicknessMm, string[] cols,
+            Dictionary<string, ElementId> materialCache)
         {
-            try
+            var baseType = new FilteredElementCollector(doc)
+                .OfClass(typeof(CeilingType))
+                .Cast<CeilingType>()
+                .FirstOrDefault();
+
+            if (baseType == null) return false;
+
+            CeilingType newType = baseType.Duplicate(typeName) as CeilingType;
+            if (newType == null) return false;
+
+            var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
+            if (layers.Count > 0)
             {
-                var baseType = new FilteredElementCollector(doc)
-                    .OfClass(typeof(CeilingType))
-                    .Cast<CeilingType>()
-                    .FirstOrDefault();
-
-                if (baseType == null) return false;
-
-                CeilingType newType = baseType.Duplicate(typeName) as CeilingType;
-                if (newType == null) return false;
-
-                var layers = BuildLayers(cols, matId, thicknessMm, doc);
-                if (layers.Count > 0)
-                {
-                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                    newType.SetCompoundStructure(cs);
-                }
-
-                return true;
+                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                newType.SetCompoundStructure(cs);
             }
-            catch
-            {
-                return false;
-            }
+
+            return true;
         }
 
         private static bool CreateRoofType(Document doc, string typeName,
-            ElementId matId, double thicknessMm, string[] cols)
+            ElementId matId, double thicknessMm, string[] cols,
+            Dictionary<string, ElementId> materialCache)
         {
-            try
+            var baseType = new FilteredElementCollector(doc)
+                .OfClass(typeof(RoofType))
+                .Cast<RoofType>()
+                .FirstOrDefault();
+
+            if (baseType == null) return false;
+
+            RoofType newType = baseType.Duplicate(typeName) as RoofType;
+            if (newType == null) return false;
+
+            var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
+            if (layers.Count > 0)
             {
-                var baseType = new FilteredElementCollector(doc)
-                    .OfClass(typeof(RoofType))
-                    .Cast<RoofType>()
-                    .FirstOrDefault();
-
-                if (baseType == null) return false;
-
-                RoofType newType = baseType.Duplicate(typeName) as RoofType;
-                if (newType == null) return false;
-
-                var layers = BuildLayers(cols, matId, thicknessMm, doc);
-                if (layers.Count > 0)
-                {
-                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                    newType.SetCompoundStructure(cs);
-                }
-
-                return true;
+                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                newType.SetCompoundStructure(cs);
             }
-            catch
-            {
-                return false;
-            }
+
+            return true;
         }
 
         private static bool CreateMEPType(Document doc, string typeName,
             ElementId matId, double thicknessMm, ElementKind kind)
         {
-            try
+            if (kind == ElementKind.Duct)
             {
-                if (kind == ElementKind.Duct)
-                {
-                    var baseType = new FilteredElementCollector(doc)
-                        .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
-                        .FirstOrDefault();
+                var baseType = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
+                    .FirstOrDefault();
 
-                    if (baseType == null) return false;
-                    var newType = baseType.Duplicate(typeName);
-                    return newType != null;
-                }
-                else // Pipe
-                {
-                    var baseType = new FilteredElementCollector(doc)
-                        .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
-                        .FirstOrDefault();
-
-                    if (baseType == null) return false;
-                    var newType = baseType.Duplicate(typeName);
-                    return newType != null;
-                }
+                if (baseType == null) return false;
+                var newType = baseType.Duplicate(typeName);
+                return newType != null;
             }
-            catch
+            else // Pipe
             {
-                return false;
+                var baseType = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
+                    .FirstOrDefault();
+
+                if (baseType == null) return false;
+                var newType = baseType.Duplicate(typeName);
+                return newType != null;
             }
         }
 
         /// <summary>
         /// Build CompoundStructureLayers from CSV layer columns.
-        /// Falls back to a single-layer structure if no layer data is present.
+        /// Detects actual layer count by scanning columns (handles MAT_LAYER_COUNT mismatches).
+        /// Falls back to a single-layer structure for homogeneous materials with no layer data.
+        /// Skips R-value codes and cable cross-section values stored in thickness columns.
         /// </summary>
         private static IList<CompoundStructureLayer> BuildLayers(
             string[] cols, ElementId defaultMatId, double defaultThickMm,
-            Document doc)
+            Document doc, Dictionary<string, ElementId> materialCache)
         {
             var layers = new List<CompoundStructureLayer>();
 
-            // Try to read layer count from CSV
-            int layerCount = 0;
-            if (cols.Length > ColLayerCount)
-                int.TryParse(cols[ColLayerCount].Trim(), out layerCount);
+            // Scan actual populated layers (don't trust MAT_LAYER_COUNT — 94 MEP rows wrong)
+            int actualLayers = CountActualLayers(cols);
 
-            if (layerCount > 0 && layerCount <= 10)
+            if (actualLayers > 0)
             {
-                // Build material cache for layer material lookups
-                var matCache = new Dictionary<string, ElementId>(
-                    StringComparer.OrdinalIgnoreCase);
-                foreach (Material m in new FilteredElementCollector(doc)
-                    .OfClass(typeof(Material)).Cast<Material>())
-                {
-                    matCache[m.Name] = m.Id;
-                }
-
-                for (int i = 0; i < layerCount; i++)
+                for (int i = 0; i < actualLayers; i++)
                 {
                     int baseIdx = ColLayer1Start + (i * LayerStride);
                     if (baseIdx + 2 >= cols.Length) break;
@@ -460,30 +481,57 @@ namespace StingTools.Temp
                     string layerThickStr = cols[baseIdx + 1].Trim();
                     string layerFuncStr = cols[baseIdx + 2].Trim();
 
+                    // Skip R-value codes in material column (thermal resistance, not materials)
+                    if (layerMatName.StartsWith("R-", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
                     double layerThickMm = 0;
-                    double.TryParse(layerThickStr, out layerThickMm);
+                    if (!string.IsNullOrEmpty(layerThickStr) &&
+                        !layerThickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase))
+                    {
+                        double.TryParse(layerThickStr, out layerThickMm);
+                    }
+
+                    // Skip cable cross-section values (mm² stored as mm, e.g. 300.0 for a 300mm² conductor)
+                    if (layerThickMm > 500) continue;
                     if (layerThickMm <= 0) layerThickMm = 10;
 
                     // Convert mm to feet (Revit internal units)
                     double thickFeet = layerThickMm / 304.8;
 
-                    // Resolve material
+                    // Resolve layer material — create if missing
                     ElementId layerMatId = defaultMatId;
-                    if (!string.IsNullOrEmpty(layerMatName) &&
-                        matCache.TryGetValue(layerMatName, out ElementId foundId))
+                    if (!string.IsNullOrEmpty(layerMatName))
                     {
-                        layerMatId = foundId;
+                        if (materialCache.TryGetValue(layerMatName, out ElementId foundId))
+                        {
+                            layerMatId = foundId;
+                        }
+                        else
+                        {
+                            // Auto-create sub-materials (GALVANIZED STEEL, TILE ADHESIVE, etc.)
+                            try
+                            {
+                                ElementId newId = Material.Create(doc, layerMatName);
+                                if (newId != ElementId.InvalidElementId)
+                                {
+                                    materialCache[layerMatName] = newId;
+                                    layerMatId = newId;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"Layer material create failed '{layerMatName}': {ex.Message}");
+                            }
+                        }
                     }
 
-                    // Map CSV function to Revit MaterialFunctionAssignment
                     MaterialFunctionAssignment func = MapLayerFunction(layerFuncStr);
-
-                    layers.Add(new CompoundStructureLayer(
-                        thickFeet, func, layerMatId));
+                    layers.Add(new CompoundStructureLayer(thickFeet, func, layerMatId));
                 }
             }
 
-            // Fallback: single layer with default material and thickness
+            // Fallback: single-layer homogeneous material (covers 165+ BLE rows with no layer data)
             if (layers.Count == 0)
             {
                 double thickFeet = defaultThickMm / 304.8;
@@ -497,7 +545,44 @@ namespace StingTools.Temp
         }
 
         /// <summary>
+        /// Count actual populated layers by scanning columns, ignoring MAT_LAYER_COUNT.
+        /// A layer is considered populated if its material name column is non-empty
+        /// and its thickness is parseable and positive.
+        /// </summary>
+        private static int CountActualLayers(string[] cols)
+        {
+            int count = 0;
+            for (int i = 0; i < MaxLayers; i++)
+            {
+                int matIdx = ColLayer1Start + (i * LayerStride);
+                int thickIdx = matIdx + 1;
+                if (matIdx >= cols.Length) break;
+
+                string matName = cols[matIdx].Trim();
+                if (string.IsNullOrEmpty(matName)) continue;
+
+                // Check if thickness column has a valid number
+                if (thickIdx < cols.Length)
+                {
+                    string thickStr = cols[thickIdx].Trim();
+                    if (!string.IsNullOrEmpty(thickStr))
+                    {
+                        // R-value codes count as populated (they indicate a real layer)
+                        if (thickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase) ||
+                            (double.TryParse(thickStr, out double v) && v > 0))
+                        {
+                            count++;
+                        }
+                    }
+                }
+            }
+            return count;
+        }
+
+        /// <summary>
         /// Map CSV layer function strings to Revit MaterialFunctionAssignment.
+        /// Handles the exact strings from BLE/MEP CSVs: "FINISH 1 [4]", "STRUCTURE [1]",
+        /// "SUBSTRATE [2]", "THERMAL/AIR LAYER [3]", "MEMBRANE LAYER", etc.
         /// </summary>
         private static MaterialFunctionAssignment MapLayerFunction(string func)
         {
@@ -505,16 +590,19 @@ namespace StingTools.Temp
                 return MaterialFunctionAssignment.Structure;
 
             string upper = func.ToUpperInvariant().Trim();
-            if (upper.Contains("STRUCT") || upper.Contains("CORE"))
-                return MaterialFunctionAssignment.Structure;
-            if (upper.Contains("FINISH") || upper.Contains("SURFACE"))
+
+            // Match exact CSV patterns: "FINISH 1 [4]", "FINISH 2 [5]"
+            if (upper.StartsWith("FINISH 2"))
+                return MaterialFunctionAssignment.Finish2;
+            if (upper.StartsWith("FINISH") || upper.Contains("SURFACE"))
                 return MaterialFunctionAssignment.Finish1;
-            if (upper.Contains("SUBSTRATE") || upper.Contains("BOARD"))
+            if (upper.Contains("STRUCT") || upper.Contains("CORE") || upper.StartsWith("STRUCTURE"))
+                return MaterialFunctionAssignment.Structure;
+            if (upper.Contains("SUBSTRATE"))
                 return MaterialFunctionAssignment.Substrate;
-            if (upper.Contains("INSUL") || upper.Contains("THERMAL"))
+            if (upper.Contains("THERMAL") || upper.Contains("AIR LAYER") || upper.Contains("INSUL"))
                 return MaterialFunctionAssignment.ThermalOrAir;
-            if (upper.Contains("MEMBRANE") || upper.Contains("BARRIER") ||
-                upper.Contains("VAPOR"))
+            if (upper.Contains("MEMBRANE") || upper.Contains("BARRIER") || upper.Contains("VAPOR"))
                 return MaterialFunctionAssignment.MembraneLayer;
 
             return MaterialFunctionAssignment.Structure;

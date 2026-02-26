@@ -60,8 +60,10 @@ namespace StingTools.Tags
                     }
 
                     string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-                    string loc = "BLD1";
-                    string zone = "Z01";
+                    string loc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
+                    if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                    string zone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
+                    if (string.IsNullOrEmpty(zone)) zone = "Z01";
                     string lvl = ParameterHelpers.GetLevelCode(doc, el);
                     string sys = TagConfig.GetSysCode(catName);
                     string func = TagConfig.GetFuncCode(sys);

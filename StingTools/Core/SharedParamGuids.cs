@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Autodesk.Revit.DB;
 
 namespace StingTools.Core
 {
@@ -8,6 +9,7 @@ namespace StingTools.Core
     /// from MR_PARAMETERS.txt. Two binding passes:
     ///   Pass 1 (UniversalParams) — 17 ASS_MNG parameters → all 53 categories.
     ///   Pass 2 (DisciplineParams) — discipline-specific tag containers → correct category subsets.
+    /// Uses BuiltInCategory enum values directly for type-safe category resolution.
     /// </summary>
     public static class SharedParamGuids
     {
@@ -100,29 +102,185 @@ namespace StingTools.Core
             "ASS_STATUS_TXT", "ASS_INST_DETAIL_NUM_TXT", "MNT_TYPE_TXT",
         };
 
-        /// <summary>All 53 built-in category names targeted by Pass 1.</summary>
-        public static readonly string[] AllCategories = new[]
+        /// <summary>
+        /// All 53 built-in categories targeted by Pass 1, using type-safe BuiltInCategory
+        /// enum values. No string parsing needed — direct enum-to-Category resolution.
+        /// </summary>
+        public static readonly BuiltInCategory[] AllCategoryEnums = new[]
         {
-            "OST_MechanicalEquipment", "OST_DuctCurves", "OST_DuctFitting",
-            "OST_DuctAccessory", "OST_DuctTerminal", "OST_FlexDuctCurves",
-            "OST_PipeCurves", "OST_PipeFitting", "OST_PipeAccessory",
-            "OST_FlexPipeCurves", "OST_Sprinklers", "OST_PlumbingFixtures",
-            "OST_ElectricalEquipment", "OST_ElectricalFixtures",
-            "OST_LightingFixtures", "OST_LightingDevices",
-            "OST_Conduit", "OST_ConduitFitting",
-            "OST_CableTray", "OST_CableTrayFitting",
-            "OST_FireAlarmDevices", "OST_CommunicationDevices",
-            "OST_DataDevices", "OST_NurseCallDevices",
-            "OST_SecurityDevices", "OST_TelephoneDevices",
-            "OST_Doors", "OST_Windows", "OST_Walls", "OST_Floors",
-            "OST_Ceilings", "OST_Roofs", "OST_Rooms",
-            "OST_Furniture", "OST_FurnitureSystems", "OST_Casework",
-            "OST_Columns", "OST_StructuralColumns",
-            "OST_StructuralFraming", "OST_StructuralFoundation",
-            "OST_StructuralStiffener", "OST_Railings", "OST_Stairs",
-            "OST_Ramps", "OST_GenericModel", "OST_SpecialityEquipment",
-            "OST_MedicalEquipment", "OST_Parking", "OST_Site",
-            "OST_Mass", "OST_Parts", "OST_Assemblies", "OST_DetailComponents",
+            // MEP — Mechanical
+            BuiltInCategory.OST_MechanicalEquipment,
+            BuiltInCategory.OST_DuctCurves,
+            BuiltInCategory.OST_DuctFitting,
+            BuiltInCategory.OST_DuctAccessory,
+            BuiltInCategory.OST_DuctTerminal,
+            BuiltInCategory.OST_FlexDuctCurves,
+            BuiltInCategory.OST_PipeCurves,
+            BuiltInCategory.OST_PipeFitting,
+            BuiltInCategory.OST_PipeAccessory,
+            BuiltInCategory.OST_FlexPipeCurves,
+            // MEP — Fire Protection
+            BuiltInCategory.OST_Sprinklers,
+            // MEP — Plumbing
+            BuiltInCategory.OST_PlumbingFixtures,
+            // MEP — Electrical
+            BuiltInCategory.OST_ElectricalEquipment,
+            BuiltInCategory.OST_ElectricalFixtures,
+            BuiltInCategory.OST_LightingFixtures,
+            BuiltInCategory.OST_LightingDevices,
+            BuiltInCategory.OST_Conduit,
+            BuiltInCategory.OST_ConduitFitting,
+            BuiltInCategory.OST_CableTray,
+            BuiltInCategory.OST_CableTrayFitting,
+            // MEP — Life Safety / Low Voltage
+            BuiltInCategory.OST_FireAlarmDevices,
+            BuiltInCategory.OST_CommunicationDevices,
+            BuiltInCategory.OST_DataDevices,
+            BuiltInCategory.OST_NurseCallDevices,
+            BuiltInCategory.OST_SecurityDevices,
+            BuiltInCategory.OST_TelephoneDevices,
+            // Architecture
+            BuiltInCategory.OST_Doors,
+            BuiltInCategory.OST_Windows,
+            BuiltInCategory.OST_Walls,
+            BuiltInCategory.OST_Floors,
+            BuiltInCategory.OST_Ceilings,
+            BuiltInCategory.OST_Roofs,
+            BuiltInCategory.OST_Rooms,
+            BuiltInCategory.OST_Furniture,
+            BuiltInCategory.OST_FurnitureSystems,
+            BuiltInCategory.OST_Casework,
+            // Structure
+            BuiltInCategory.OST_Columns,
+            BuiltInCategory.OST_StructuralColumns,
+            BuiltInCategory.OST_StructuralFraming,
+            BuiltInCategory.OST_StructuralFoundation,
+            BuiltInCategory.OST_StructuralStiffener,
+            // Architecture — Circulation
+            BuiltInCategory.OST_Railings,
+            BuiltInCategory.OST_Stairs,
+            BuiltInCategory.OST_Ramps,
+            // Generic / Specialty
+            BuiltInCategory.OST_GenericModel,
+            BuiltInCategory.OST_SpecialityEquipment,
+            BuiltInCategory.OST_MedicalEquipment,
+            // Site
+            BuiltInCategory.OST_Parking,
+            BuiltInCategory.OST_Site,
+            // Other
+            BuiltInCategory.OST_Mass,
+            BuiltInCategory.OST_Parts,
+            BuiltInCategory.OST_Assemblies,
+            BuiltInCategory.OST_DetailComponents,
         };
+
+        /// <summary>
+        /// Discipline-specific parameter → category mappings for Pass 2.
+        /// Maps each discipline tag parameter to the specific categories it should bind to.
+        /// </summary>
+        public static readonly Dictionary<string, BuiltInCategory[]> DisciplineBindings =
+            new Dictionary<string, BuiltInCategory[]>
+        {
+            // HVAC Equipment tags → Mechanical Equipment only
+            { "HVC_EQP_TAG_01_TXT", new[] { BuiltInCategory.OST_MechanicalEquipment } },
+            { "HVC_EQP_TAG_02_TXT", new[] { BuiltInCategory.OST_MechanicalEquipment } },
+            { "HVC_EQP_TAG_03_TXT", new[] { BuiltInCategory.OST_MechanicalEquipment } },
+            // Duct tags → Ducts, Duct Fittings, Flex Ducts, Air Terminals, Duct Accessories
+            { "HVC_DCT_TAG_01_TXT", new[] {
+                BuiltInCategory.OST_DuctCurves, BuiltInCategory.OST_DuctFitting,
+                BuiltInCategory.OST_FlexDuctCurves, BuiltInCategory.OST_DuctTerminal,
+                BuiltInCategory.OST_DuctAccessory } },
+            { "HVC_DCT_TAG_02_TXT", new[] {
+                BuiltInCategory.OST_DuctCurves, BuiltInCategory.OST_DuctFitting,
+                BuiltInCategory.OST_FlexDuctCurves, BuiltInCategory.OST_DuctTerminal,
+                BuiltInCategory.OST_DuctAccessory } },
+            { "HVC_DCT_TAG_03_TXT", new[] {
+                BuiltInCategory.OST_DuctCurves, BuiltInCategory.OST_DuctFitting,
+                BuiltInCategory.OST_FlexDuctCurves, BuiltInCategory.OST_DuctTerminal,
+                BuiltInCategory.OST_DuctAccessory } },
+            { "HVC_FLX_TAG_01_TXT", new[] { BuiltInCategory.OST_FlexDuctCurves } },
+            // Electrical Equipment tags
+            { "ELC_EQP_TAG_01_TXT", new[] { BuiltInCategory.OST_ElectricalEquipment } },
+            { "ELC_EQP_TAG_02_TXT", new[] { BuiltInCategory.OST_ElectricalEquipment } },
+            // Electrical Fixtures + Lighting
+            { "ELE_FIX_TAG_1_TXT", new[] { BuiltInCategory.OST_ElectricalFixtures } },
+            { "ELE_FIX_TAG_2_TXT", new[] { BuiltInCategory.OST_ElectricalFixtures } },
+            { "LTG_FIX_TAG_01_TXT", new[] {
+                BuiltInCategory.OST_LightingFixtures, BuiltInCategory.OST_LightingDevices } },
+            { "LTG_FIX_TAG_02_TXT", new[] {
+                BuiltInCategory.OST_LightingFixtures, BuiltInCategory.OST_LightingDevices } },
+            // Pipework
+            { "PLM_EQP_TAG_01_TXT", new[] {
+                BuiltInCategory.OST_PipeCurves, BuiltInCategory.OST_PipeFitting,
+                BuiltInCategory.OST_PipeAccessory, BuiltInCategory.OST_FlexPipeCurves,
+                BuiltInCategory.OST_PlumbingFixtures } },
+            { "PLM_EQP_TAG_02_TXT", new[] {
+                BuiltInCategory.OST_PipeCurves, BuiltInCategory.OST_PipeFitting,
+                BuiltInCategory.OST_PipeAccessory, BuiltInCategory.OST_FlexPipeCurves,
+                BuiltInCategory.OST_PlumbingFixtures } },
+            // Fire & Life Safety
+            { "FLS_DEV_TAG_01_TXT", new[] {
+                BuiltInCategory.OST_Sprinklers, BuiltInCategory.OST_FireAlarmDevices } },
+            { "FLS_DEV_TAG_02_TXT", new[] {
+                BuiltInCategory.OST_Sprinklers, BuiltInCategory.OST_FireAlarmDevices } },
+            // Conduits
+            { "ELC_CDT_TAG_01_TXT", new[] {
+                BuiltInCategory.OST_Conduit, BuiltInCategory.OST_ConduitFitting } },
+            { "ELC_CDT_TAG_02_TXT", new[] {
+                BuiltInCategory.OST_Conduit, BuiltInCategory.OST_ConduitFitting } },
+            // Cable Trays
+            { "ELC_CTR_TAG_01_TXT", new[] {
+                BuiltInCategory.OST_CableTray, BuiltInCategory.OST_CableTrayFitting } },
+            // Low-voltage / Communications
+            { "COM_DEV_TAG_01_TXT", new[] { BuiltInCategory.OST_CommunicationDevices,
+                BuiltInCategory.OST_TelephoneDevices } },
+            { "SEC_DEV_TAG_01_TXT", new[] { BuiltInCategory.OST_SecurityDevices } },
+            { "NCL_DEV_TAG_01_TXT", new[] { BuiltInCategory.OST_NurseCallDevices } },
+            { "ICT_DEV_TAG_01_TXT", new[] { BuiltInCategory.OST_DataDevices } },
+            // Material Tags → all compound-structure categories
+            { "MAT_TAG_1_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs,
+                BuiltInCategory.OST_Doors, BuiltInCategory.OST_Windows } },
+            { "MAT_TAG_2_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs,
+                BuiltInCategory.OST_Doors, BuiltInCategory.OST_Windows } },
+            { "MAT_TAG_3_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs } },
+            { "MAT_TAG_4_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs } },
+            { "MAT_TAG_5_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs } },
+            { "MAT_TAG_6_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs } },
+        };
+
+        /// <summary>
+        /// Build a CategorySet from BuiltInCategory enum values (type-safe).
+        /// </summary>
+        public static CategorySet BuildCategorySet(Document doc, BuiltInCategory[] categories)
+        {
+            CategorySet catSet = new CategorySet();
+            Categories cats = doc.Settings.Categories;
+            foreach (BuiltInCategory bic in categories)
+            {
+                try
+                {
+                    Category cat = cats.get_Item(bic);
+                    if (cat != null && cat.AllowsBoundParameters)
+                        catSet.Insert(cat);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Category {bic} not available: {ex.Message}");
+                }
+            }
+            return catSet;
+        }
     }
 }
