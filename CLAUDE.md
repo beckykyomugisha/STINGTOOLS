@@ -407,7 +407,9 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 
 ## Automation Gap Analysis & Feature Roadmap
 
-### Current Automation Gaps
+> **IMPLEMENTATION STATUS (verified 2026-02-26): NONE of the enhancements, proposed commands, or gap fixes described in this section have been implemented.** Everything below is a design specification and aspirational roadmap. The codebase contains only the 79 commands documented in the sections above. When implementing any item below, create the new files/classes from scratch — no partial implementations exist.
+
+### Current Automation Gaps (all still present)
 
 #### A. Gaps That Hinder Full Automation
 
@@ -422,7 +424,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | **Fixed tag format** | `TagConfig.cs:16-18` | `NumPad=4`, `Separator="-"` hardcoded — can't change segment count, order, or separator | Medium |
 | **Unused data files** | `Data/` directory | 6 files never loaded: FORMULAS_WITH_DEPENDENCIES.csv (199 rules), MATERIAL_SCHEMA.json, SCHEDULE_FIELD_REMAP.csv, BINDING_COVERAGE_MATRIX.csv, CATEGORY_BINDINGS.csv (10,661 entries), VALIDAT_BIM_TEMPLATE.py (45 checks) | Medium |
 
-#### B. Enhancement Opportunities
+#### B. Enhancement Opportunities (none implemented)
 
 | Enhancement | Why Needed | Effort | Priority |
 |-------------|-----------|--------|----------|
@@ -437,7 +439,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 
 ---
 
-### New Feature: Color By Parameter (Graitec Lookup Style)
+### New Feature: Color By Parameter (Graitec Lookup Style) — NOT IMPLEMENTED
 
 Inspired by GRAITEC PowerPack Element Lookup, Naviate Color Elements (Symetri), BIM One Color Splasher (open-source), DiRoots OneFilter Visualize, ModPlus mprColorizer, and Future BIM Colors by Parameters. Provides element coloring by any parameter value with full graphic control.
 
@@ -527,7 +529,7 @@ using (Transaction t = new Transaction(doc, "STING Color By Parameter"))
 
 ---
 
-### New Feature: Smart Tag Placement
+### New Feature: Smart Tag Placement — NOT IMPLEMENTED
 
 Inspired by BIMLOGiQ Smart Annotation, Naviate Tag from Template, and academic Automatic Label Placement (ALP) research. Goal: perfect, collision-free automated tag annotation.
 
@@ -737,7 +739,7 @@ var untagged = new FilteredElementCollector(doc, viewId)
 
 ---
 
-### Missing View Commands
+### Missing View Commands — NOT IMPLEMENTED
 
 #### Proposed New Commands
 
@@ -767,7 +769,7 @@ var untagged = new FilteredElementCollector(doc, viewId)
 
 ---
 
-### Tagging Intelligence Improvements
+### Tagging Intelligence Improvements — NOT IMPLEMENTED
 
 #### Current Tagging Logic (what exists)
 
@@ -805,7 +807,7 @@ var untagged = new FilteredElementCollector(doc, viewId)
 
 ---
 
-### Underutilized Data Files
+### Underutilized Data Files (still unused)
 
 | File | Rows | Current Status | Proposed Usage |
 |------|------|----------------|----------------|
@@ -819,7 +821,7 @@ var untagged = new FilteredElementCollector(doc, viewId)
 
 ---
 
-### Implementation Priority Matrix
+### Implementation Priority Matrix (none started)
 
 #### Phase 1 — Critical Fixes (Low effort, high impact)
 
