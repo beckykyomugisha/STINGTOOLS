@@ -8,10 +8,10 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **34 C# source files** (~10,500 lines of code) across 7 directories
-- **88 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point
-- **15 runtime data files** (CSV, JSON, TXT, XLSX, PY)
-- **5 ribbon panels** with 16+ pulldown groups
+- **38 C# source files** (~13,800 lines of code) across 7 directories
+- **106 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point
+- **16 runtime data files** (CSV, JSON, TXT, XLSX, PY)
+- **5 ribbon panels** with 22 pulldown groups
 
 ## Technology Stack
 
@@ -44,20 +44,24 @@ STINGTOOLS/
     │   ├── SharedParamGuids.cs         # GUID map for 200+ shared parameters
     │   └── TagConfig.cs                # ISO 19650 tag lookup tables + tag builder
     │
-    ├── Select/                         # Element selection commands (2 files, 23 commands)
+    ├── Select/                         # Element selection + color commands (3 files, 28 commands)
     │   ├── CategorySelectCommands.cs   # 14 category selectors + SelectAllTaggable + CategorySelector helper
-    │   └── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite
+    │   ├── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite
+    │   └── ColorCommands.cs            # Color By Parameter, Clear Overrides, Save/Load Presets, Create Filters
     │
-    ├── Docs/                           # Documentation commands (5 files, 8 commands)
+    ├── Docs/                           # Documentation commands (7 files, 17 commands)
     │   ├── SheetOrganizerCommand.cs    # Group sheets by discipline prefix
     │   ├── ViewOrganizerCommand.cs     # Organize views by type/level
     │   ├── SheetIndexCommand.cs        # Create sheet index schedule
     │   ├── TransmittalCommand.cs       # ISO 19650 transmittal report
-    │   └── ViewportCommands.cs         # Align, Renumber, TextCase, SumAreas
+    │   ├── ViewportCommands.cs         # Align, Renumber, TextCase, SumAreas
+    │   ├── DocAutomationCommands.cs    # DeleteUnused, SheetNaming, AutoNumber
+    │   └── ViewAutomationCommands.cs   # DuplicateView, BatchRename, CopySettings, AutoPlace, Crop, BatchAlign
     │
-    ├── Tags/                           # Tagging commands (9 files, 14 commands)
+    ├── Tags/                           # Tagging commands (12 files, 22 commands)
     │   ├── AutoTagCommand.cs           # Tag elements in active view
     │   ├── BatchTagCommand.cs          # Tag all elements in project
+    │   ├── SmartTagPlacementCommand.cs # SmartPlace, Arrange, Remove, BatchPlace annotation tags
     │   ├── TagAndCombineCommand.cs     # One-click: populate + tag + combine all
     │   ├── CombineParametersCommand.cs # Interactive multi-container combine (16 groups, 36 params)
     │   ├── ConfigEditorCommand.cs      # View/edit/save project_config.json
@@ -72,7 +76,7 @@ STINGTOOLS/
     │                                   #   FindDuplicates, HighlightInvalid, ClearOverrides,
     │                                   #   CopyTags, SwapTags, SelectByDiscipline, TagStats
     │
-    ├── Temp/                           # Template commands (8 files, 23 commands)
+    ├── Temp/                           # Template commands (10 files, 29 commands)
     │   ├── CreateParametersCommand.cs  # Delegates to LoadSharedParams
     │   ├── CheckDataCommand.cs         # Data file inventory with SHA-256
     │   ├── MasterSetupCommand.cs       # One-click full project setup (10 steps)
@@ -80,8 +84,10 @@ STINGTOOLS/
     │   ├── FamilyCommands.cs           # Wall/Floor/Ceiling/Roof/Duct/Pipe types + CompoundTypeCreator
     │   ├── ScheduleCommands.cs         # Batch schedules, auto-populate, CSV export
     │   ├── TemplateCommands.cs         # Filters, worksets, view templates
-    │   └── TemplateExtCommands.cs      # Line patterns, phases, apply filters,
-    │                                   #   cable trays, conduits, material schedules
+    │   ├── TemplateExtCommands.cs      # Line patterns, phases, apply filters,
+    │   │                               #   cable trays, conduits, material schedules
+    │   ├── FormulaEvaluatorCommand.cs  # 199-formula evaluation engine
+    │   └── DataPipelineCommands.cs     # ValidateTemplate, DynamicBindings, SchemaValidate
     │
     └── Data/                           # Runtime data files
         ├── BLE_MATERIALS.csv           # 815 building-element materials
@@ -90,10 +96,11 @@ STINGTOOLS/
         ├── MR_PARAMETERS.csv           # Parameter definitions
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
-        ├── FORMULAS_WITH_DEPENDENCIES.csv  # 199 parameter formulas
-        ├── SCHEDULE_FIELD_REMAP.csv    # 50 field deprecation remaps
-        ├── BINDING_COVERAGE_MATRIX.csv # Parameter-category coverage
-        ├── CATEGORY_BINDINGS.csv       # 10,661 category bindings
+        ├── FORMULAS_WITH_DEPENDENCIES.csv  # 199 parameter formulas (loaded by FormulaEvaluator)
+        ├── SCHEDULE_FIELD_REMAP.csv    # 50 field deprecation remaps (loaded by BatchSchedules)
+        ├── BINDING_COVERAGE_MATRIX.csv # Parameter-category coverage (loaded by ValidateTemplate)
+        ├── CATEGORY_BINDINGS.csv       # 10,661 category bindings (loaded by DynamicBindings)
+        ├── COLOR_PRESETS.json          # Color By Parameter presets (auto-generated)
         ├── FAMILY_PARAMETER_BINDINGS.csv   # 4,686 family bindings
         ├── PARAMETER__CATEGORIES.csv   # Parameter-category cross-reference
         ├── PYREVIT_SCRIPT_MANIFEST.csv # Legacy pyRevit script manifest
@@ -105,15 +112,16 @@ STINGTOOLS/
 
 The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 
-### Select Panel (3 pulldowns + 1 button)
+### Select Panel (4 pulldowns + 1 button)
 | Group | Commands | Description |
 |-------|----------|-------------|
 | Category | 15 selectors (Lighting, Electrical, Mechanical, Plumbing, Air Terminals, Furniture, Doors, Windows, Rooms, Sprinklers, Pipes, Ducts, Conduits, Cable Trays, ALL Taggable) | Select elements by Revit category in active view |
 | State | Untagged, Tagged, Empty Mark, Pinned, Unpinned | Select by tag/pin/mark state |
 | Spatial | By Level, By Room | Select by spatial criteria |
 | Bulk Param | `Select.BulkParamWriteCommand` | Multi-page bulk operations: set LOC/ZONE/STATUS, auto-populate all tokens, clear tags, or re-tag with overwrite |
+| **Color By** | Color By Parameter, Clear Overrides, Save Preset, Load Preset, Create View Filters | **NEW (Phase 2):** Graitec/Naviate-style element coloring by any parameter with 10 palettes, `<No Value>` QA detection, preset save/load, and view filter generation |
 
-### Docs Panel (4 buttons + Viewports pulldown)
+### Docs Panel (4 buttons + Viewports/Views/Automation pulldowns)
 | Button | Command Class | Transaction | Description |
 |--------|--------------|-------------|-------------|
 | Sheet Organizer | `Docs.SheetOrganizerCommand` | Manual | Group sheets by discipline prefix |
@@ -129,6 +137,16 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | Text Case | `Docs.TextCaseCommand` | Manual | Convert text notes to UPPER/lower/Title case (preserves BIM acronyms) |
 | Sum Areas | `Docs.SumAreasCommand` | ReadOnly | Calculate total area of selected/all rooms |
 
+**Views pulldown (NEW — Phase 4):**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Duplicate View | `Docs.DuplicateViewCommand` | Manual | Duplicate with Detailing/Duplicate/Dependent with auto-rename |
+| Batch Rename Views | `Docs.BatchRenameViewsCommand` | Manual | Add prefix, remove suffix, UPPERCASE, standardise level names |
+| Copy View Settings | `Docs.CopyViewSettingsCommand` | Manual | Copy filters, overrides, detail level, scale from source to targets |
+| Auto-Place Viewports | `Docs.AutoPlaceViewportsCommand` | Manual | Grid-based viewport placement (1×1, 2×2, 3×2) on sheets |
+| Crop to Content | `Docs.CropToContentCommand` | Manual | Auto-crop view to element extents with 5/10/20% padding |
+| Batch Align Viewports | `Docs.BatchAlignViewportsCommand` | Manual | Align viewports across all sheets to consistent position |
+
 **Automation pulldown:**
 | Command | Class | Transaction | Description |
 |---------|-------|-------------|-------------|
@@ -136,7 +154,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | Sheet Naming Check | `Docs.SheetNamingCheckCommand` | ReadOnly | ISO 19650 sheet naming compliance audit with correction suggestions |
 | Auto-Number Sheets | `Docs.AutoNumberSheetsCommand` | Manual | Sequentially renumber sheets within discipline groups |
 
-### Tags Panel (3 buttons + More/Setup/Tokens/QA pulldowns)
+### Tags Panel (3 buttons + More/Setup/Tokens/Placement/QA pulldowns)
 | Button | Command Class | Transaction | Description |
 |--------|--------------|-------------|-------------|
 | Auto Tag | `Tags.AutoTagCommand` | Manual | Tag elements in active view with spatial auto-detect, collision mode selection (skip/overwrite/increment) |
@@ -168,6 +186,14 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | Build Tags | `Tags.BuildTagsCommand` | Manual | Rebuild ASS_TAG_1 from existing tokens |
 | Combine Parameters | `Tags.CombineParametersCommand` | Manual | Interactive multi-mode combine into all tag containers |
 
+**Placement pulldown (NEW — Phase 3):**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Smart Place Tags | `Tags.SmartPlaceTagsCommand` | Manual | 8-position scoring with collision avoidance, scale-aware offsets, category-specific preferred sides |
+| Arrange Tags | `Tags.ArrangeTagsCommand` | Manual | Reposition existing tags to minimize overlaps using same scoring algorithm |
+| Remove Annotation Tags | `Tags.RemoveAnnotationTagsCommand` | Manual | Remove visual annotation tags (data tags unaffected) |
+| Batch Place Tags | `Tags.BatchPlaceTagsCommand` | Manual | Place tags across multiple views (floor plans, RCPs, sections) with progress |
+
 **QA pulldown:**
 | Command | Class | Transaction | Description |
 |---------|-------|-------------|-------------|
@@ -177,7 +203,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | Clear Overrides | `Organise.ClearOverridesCommand` | Manual | Reset graphic overrides in active view |
 | Completeness Dashboard | `Tags.CompletenessDashboardCommand` | ReadOnly | Per-discipline compliance dashboard with percentage |
 
-### Organise Panel (2 pulldowns: Tag Ops + Analysis)
+### Organise Panel (5 pulldowns: Tag Ops + Leaders + Appearance + Analysis)
 **Tag Ops pulldown:**
 | Command | Class | Transaction | Description |
 |---------|-------|-------------|-------------|
@@ -196,14 +222,15 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | Select by Discipline | `Organise.SelectByDisciplineCommand` | ReadOnly | Select all elements of a specific discipline code |
 | Tag Statistics | `Organise.TagStatsCommand` | ReadOnly | Quick tag counts by discipline/system/level for active view |
 
-### Temp Panel (5 pulldown groups, 23 commands)
+### Temp Panel (7 pulldown groups, 29 commands)
 | Group | Commands | Description |
 |-------|----------|-------------|
 | Setup | Create Parameters, Check Data Files, **Master Setup** | Project setup + one-click automation (10-step workflow) |
 | Materials | Create BLE Materials, Create MEP Materials | Material creation from CSV (815 + 464) |
-| Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes (FamilyCommands.cs), Cable Trays, Conduits (TemplateExtCommands.cs) | Type creation from CSV data (8 commands) |
-| Schedules | Batch Create, Material Takeoffs (TemplateExtCommands.cs), Auto-Populate, Export CSV | Schedule management (168 definitions + 8 material takeoffs) |
-| Templates | Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases | 10 multi-category discipline filters, 32 AEC UK worksets, 15 view templates (working/coordination/RCP/presentation/section with VG overrides), 10 ISO 128 line patterns, 6 phases |
+| Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes, Cable Trays, Conduits | Type creation from CSV data (8 commands) |
+| Schedules | Full Auto-Populate, Batch Create, Material Takeoffs, Auto-Populate (Tokens), Evaluate Formulas, Export CSV | Schedule management + formula engine |
+| **Data QA** | Validate Template, Dynamic Bindings, Schema Validate | **NEW (Phase 5):** 20+ validation checks (C# port of VALIDAT_BIM_TEMPLATE.py), CSV-driven parameter bindings, material schema validation |
+| Templates | Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases | 10 filters, 32 worksets, 15 view templates, 10 line patterns, 6 phases |
 
 ## Command Count by File
 
@@ -223,9 +250,13 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | `Tags/ConfigEditorCommand.cs` | 1 | 194 |
 | `Tags/TagConfigCommand.cs` | 1 | 72 |
 | `Tags/LoadSharedParamsCommand.cs` | 1 | 158 |
-| `Tags/TokenWriterCommands.cs` | 7 (SetDisc, SetLoc, SetZone, SetStatus, AssignNumbers, BuildTags, CompletenessDashboard) | 340 |
+| `Tags/TokenWriterCommands.cs` | 7 (SetDisc, SetLoc, SetZone, SetStatus, AssignNumbers, BuildTags, CompletenessDashboard) | 403 |
 | `Tags/ValidateTagsCommand.cs` | 1 | 220 |
-| `Organise/TagOperationCommands.cs` | 13 (TagSelected, ReTag, FixDuplicates, DeleteTags, Renumber, AuditCSV, FindDuplicates, HighlightInvalid, ClearOverrides, CopyTags, SwapTags, SelectByDiscipline, TagStats) | 850 |
+| `Tags/SmartTagPlacementCommand.cs` | 4 (SmartPlace, Arrange, Remove, BatchPlace) | 540 |
+| `Select/ColorCommands.cs` | 5 (ColorByParam, ClearOverrides, SavePreset, LoadPreset, CreateFilters) | 530 |
+| `Docs/DocAutomationCommands.cs` | 3 (DeleteUnused, SheetNaming, AutoNumber) | 436 |
+| `Docs/ViewAutomationCommands.cs` | 6 (DuplicateView, BatchRename, CopySettings, AutoPlace, CropToContent, BatchAlign) | 530 |
+| `Organise/TagOperationCommands.cs` | 18 (TagSelected, ReTag, FixDuplicates, DeleteTags, Renumber, AuditCSV, FindDuplicates, HighlightInvalid, ClearOverrides, CopyTags, SwapTags, SelectByDiscipline, TagStats + 5 annotation color commands) | 1300 |
 | `Temp/CreateParametersCommand.cs` | 1 | 27 |
 | `Temp/CheckDataCommand.cs` | 1 | 91 |
 | `Temp/MasterSetupCommand.cs` | 1 | 155 |
@@ -234,15 +265,17 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | `Temp/ScheduleCommands.cs` | 3 (BatchSchedules, AutoPopulate, ExportCSV) | 358 |
 | `Temp/TemplateCommands.cs` | 3 (Filters, Worksets, ViewTemplates) | 570 |
 | `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 297 |
-| **Total** | **88 commands** | **~10,500** |
+| `Temp/FormulaEvaluatorCommand.cs` | 1 (FormulaEvaluator) | 350 |
+| `Temp/DataPipelineCommands.cs` | 3 (ValidateTemplate, DynamicBindings, SchemaValidate) | 520 |
+| **Total** | **106 commands** | **~13,800** |
 
 ## Core Classes
 
-### `StingToolsApp` (IExternalApplication) — `Core/StingToolsApp.cs` (572 lines)
+### `StingToolsApp` (IExternalApplication) — `Core/StingToolsApp.cs` (794 lines)
 - Entry point registered in `StingTools.addin` (FullClassName: `StingTools.Core.StingToolsApp`)
 - Static properties: `AssemblyPath`, `DataPath` (set in `OnStartup`, relative to DLL location)
 - Builds ribbon tab "STING Tools" with `BuildSelectPanel`, `BuildDocsPanel`, `BuildTagsPanel`, `BuildOrganisePanel`, `BuildTempPanel`
-- Uses `PulldownButton` groups for all panel sub-menus
+- Uses `PulldownButton` groups for all panel sub-menus (22 pulldowns total)
 - Provides `FindDataFile(fileName)` — searches `DataPath` and subdirectories
 - Provides `ParseCsvLine(line)` — CSV parser respecting quoted fields
 
@@ -312,7 +345,10 @@ These `internal static` classes provide shared logic used by multiple commands w
 | Helper Class | Location | Purpose |
 |--------------|----------|---------|
 | `CategorySelector` | `Select/CategorySelectCommands.cs` | `SelectByCategory()` — shared logic for all 15 category selection commands |
+| `ColorHelper` | `Select/ColorCommands.cs` | 10 built-in palettes, `FindSolidFill`, `BuildOverride`, `GroupByParameterValue`, `GetAvailableParameters`, `AssignColors`, preset save/load |
 | `TokenWriter` | `Tags/TokenWriterCommands.cs` | Encapsulates LOC/ZONE/STATUS token writing and number assignment logic |
+| `TagPlacementEngine` | `Tags/SmartTagPlacementCommand.cs` | 8-position candidate generation, AABB collision detection (Box2D), scoring function, scale-aware offsets, batch placement |
+| `AnnotationColorHelper` | `Organise/TagOperationCommands.cs` | Discipline color map, quick color picker, annotation override builder for tag text/leader coloring |
 | `CompoundTypeCreator` | `Temp/FamilyCommands.cs` | Creates compound wall/floor/ceiling/roof/duct/pipe types from CSV data; `ElementKind` enum; applies material properties |
 | `MaterialPropertyHelper` | `Temp/MaterialCommands.cs` | Shared material property-setting logic for BLE and MEP material commands |
 | `SpatialAutoDetect` | `Core/ParameterHelpers.cs` | Auto-derives LOC from Room name/number/Project Info and ZONE from Room Department/name patterns |
@@ -460,7 +496,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | ~~**SEQ collision across zones**~~ | N/A | **NOT A GAP** — Per ISO 19650, the 8-segment tag format `DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ` inherently differentiates by LOC and ZONE. Elements in different zones produce different full tags even with identical SEQ numbers (e.g., `M-BLD1-Z01-L02-HVAC-SUP-AHU-0001` vs `M-BLD1-Z02-L02-HVAC-SUP-AHU-0001`). SEQ counter grouping by DISC-SYS-LVL is correct — the full tag uniqueness is guaranteed by the standard. | N/A |
 | ~~**No error recovery**~~ | `MasterSetupCommand.cs` | **FIXED** — Wrapped in `TransactionGroup` for atomic rollback. If critical step 1 (Load Params) fails, user can rollback immediately. If any steps fail, user chooses to keep partial results or rollback all. Per-step timing reported. | ~~Medium~~ Done |
 | **Fixed tag format** | `TagConfig.cs:16-18` | `NumPad=4`, `Separator="-"` hardcoded — can't change segment count, order, or separator | Medium |
-| **Unused data files** | `Data/` directory | SCHEDULE_FIELD_REMAP.csv now loaded by BatchSchedulesCommand for deprecated field remapping. Remaining unused: FORMULAS_WITH_DEPENDENCIES.csv (199 rules), MATERIAL_SCHEMA.json, BINDING_COVERAGE_MATRIX.csv, CATEGORY_BINDINGS.csv (10,661 entries), VALIDAT_BIM_TEMPLATE.py (45 checks) | Medium |
+| ~~**Unused data files**~~ | `Data/` directory | **FIXED** — All major data files now loaded: FORMULAS_WITH_DEPENDENCIES.csv (FormulaEvaluator), MATERIAL_SCHEMA.json (SchemaValidate), BINDING_COVERAGE_MATRIX.csv (ValidateTemplate), CATEGORY_BINDINGS.csv (DynamicBindings), VALIDAT_BIM_TEMPLATE.py (ported to ValidateTemplateCommand). Only FAMILY_PARAMETER_BINDINGS.csv remains unused. | ~~Medium~~ Done |
 
 #### B. Enhancement Opportunities
 
@@ -851,17 +887,17 @@ var untagged = new FilteredElementCollector(doc, viewId)
 
 ---
 
-### Underutilized Data Files
+### ~~Underutilized~~ Data File Usage
 
-| File | Rows | Current Status | Proposed Usage |
-|------|------|----------------|----------------|
-| `FORMULAS_WITH_DEPENDENCIES.csv` | 199 | **Never loaded** | New FormulaEngine: auto-calculate derived parameters (weight, cost, etc.) |
-| `MATERIAL_SCHEMA.json` | 77 cols | **Never loaded** | Validate BLE/MEP CSV columns match schema; data integrity checks |
-| `SCHEDULE_FIELD_REMAP.csv` | 50 | **Never loaded** | Auto-remap deprecated field names when creating schedules |
-| `BINDING_COVERAGE_MATRIX.csv` | Large | **Never loaded** | Replace hardcoded `SharedParamGuids.AllCategoryEnums` — load bindings dynamically |
-| `CATEGORY_BINDINGS.csv` | 10,661 | **Never loaded** | Replace hardcoded `DisciplineBindings` — data-driven parameter binding |
-| `FAMILY_PARAMETER_BINDINGS.csv` | 4,686 | **Never loaded** | Family-level parameter validation and auto-binding |
-| `VALIDAT_BIM_TEMPLATE.py` | 45 checks | **Python, not ported** | Port to C# `ValidateTemplateCommand` for comprehensive template QA |
+| File | Rows | Status | Used By |
+|------|------|--------|---------|
+| `FORMULAS_WITH_DEPENDENCIES.csv` | 199 | **Loaded** | `FormulaEvaluatorCommand` — auto-calculate derived parameters |
+| `MATERIAL_SCHEMA.json` | 77 cols | **Loaded** | `SchemaValidateCommand` — validate BLE/MEP CSV columns |
+| `SCHEDULE_FIELD_REMAP.csv` | 50 | **Loaded** | `BatchSchedulesCommand` — deprecated field remapping |
+| `BINDING_COVERAGE_MATRIX.csv` | Large | **Loaded** | `ValidateTemplateCommand` — binding coverage validation |
+| `CATEGORY_BINDINGS.csv` | 10,661 | **Loaded** | `DynamicBindingsCommand` — data-driven parameter binding |
+| `FAMILY_PARAMETER_BINDINGS.csv` | 4,686 | Unused | Family-level parameter validation (future) |
+| `VALIDAT_BIM_TEMPLATE.py` | 45 checks | **Ported** | `ValidateTemplateCommand` — 20+ checks ported to C# |
 
 ---
 
@@ -875,33 +911,36 @@ var untagged = new FilteredElementCollector(doc, viewId)
 4. **Fix Duplicates command** — Auto-resolve duplicate tags
 5. **Cross-parameter validation** — Verify DISC/SYS/PROD consistency with element category
 
-#### Phase 2 — Color By Parameter System
+#### ~~Phase 2 — Color By Parameter System~~ Done
 
-6. **ColorByParameterCommand** — Full graphic override by any parameter
-7. **Color preset system** — 10 built-in palettes + save/load custom presets
-8. **Clear/reset overrides** — Per-parameter or per-view clearing
-9. **Legend generation** — Auto-create color key
+6. ~~**ColorByParameterCommand**~~ — **DONE** — `Select/ColorCommands.cs`: full graphic override by any parameter with 10 built-in palettes (STING Discipline, RAG, Monochrome, Spectral, Warm, Cool, Pastel, High Contrast, Accessible), `<No Value>` red highlighting for QA, legend display
+7. ~~**Color preset system**~~ — **DONE** — `SaveColorPresetCommand` + `LoadColorPresetCommand` save/load to `COLOR_PRESETS.json`
+8. ~~**Clear/reset overrides**~~ — **DONE** — `ClearColorOverridesCommand` clears per-element or per-view
+9. ~~**View filter generation**~~ — **DONE** — `CreateFiltersFromColorsCommand` converts color scheme into persistent `ParameterFilterElement` rules
 
-#### Phase 3 — Smart Tag Placement
+#### ~~Phase 3 — Smart Tag Placement~~ Done
 
-10. **Smart placement engine** — Priority-based positioning with collision avoidance
-11. **Tag extent measurement** — TransactionGroup workaround for accurate bounding boxes
-12. **Arrange existing tags** — Reposition already-placed tags
-13. **Multi-view batch tagging** — Process multiple views with progress reporting
+10. ~~**Smart placement engine**~~ — **DONE** — `Tags/SmartTagPlacementCommand.cs`: 8-position scoring (N/NE/E/SE/S/SW/W/NW) with proximity, overlap penalty, category-preferred side, scale-aware offsets, collision avoidance via AABB
+11. ~~**Arrange existing tags**~~ — **DONE** — `ArrangeTagsCommand` repositions tags to minimize overlaps using same scoring algorithm
+12. ~~**Remove annotation tags**~~ — **DONE** — `RemoveAnnotationTagsCommand` removes visual tags without affecting data
+13. ~~**Multi-view batch tagging**~~ — **DONE** — `BatchPlaceTagsCommand` places tags across floor plans, RCPs, sections with per-view progress reporting
 
-#### Phase 4 — View & Template Automation
+#### ~~Phase 4 — View & Template Automation~~ Done
 
-14. **Batch viewport alignment** across all sheets
-15. **Delete unused views** with safety confirmation
-16. **Duplicate view** with full settings copy
-17. **Auto-place viewports** with grid-based layout
+14. ~~**Batch viewport alignment**~~ — **DONE** — `BatchAlignViewportsCommand` aligns viewports across all sheets to reference position with relative offset preservation
+15. ~~**Delete unused views**~~ — **DONE** — `DeleteUnusedViewsCommand` (existed in DocAutomationCommands.cs)
+16. ~~**Duplicate view**~~ — **DONE** — `DuplicateViewCommand` supports WithDetailing/Duplicate/AsDependent with auto-rename
+17. ~~**Auto-place viewports**~~ — **DONE** — `AutoPlaceViewportsCommand` with grid-based layout (1×1, 2×2, 3×2), title block dimension detection
+18. ~~**Batch rename views**~~ — **DONE** — `BatchRenameViewsCommand` with 4 modes: add prefix, remove suffix, UPPERCASE, standardise level names
+19. ~~**Copy view settings**~~ — **DONE** — `CopyViewSettingsCommand` copies filters, overrides, detail level, scale from source to same-type views
+20. ~~**Crop to content**~~ — **DONE** — `CropToContentCommand` auto-crops view to element extents with configurable padding (5/10/20%)
 
-#### Phase 5 — Data Pipeline Completion
+#### ~~Phase 5 — Data Pipeline Completion~~ Done
 
-18. **Formula evaluation engine** — Apply 199 calculation rules from CSV
-19. **Dynamic category bindings** — Load from BINDING_COVERAGE_MATRIX.csv instead of hardcode
-20. **Port VALIDAT_BIM_TEMPLATE.py** — 45 validation checks as C# command
-21. **Schedule field remap** — Auto-apply 50 field name updates
+21. ~~**Formula evaluation engine**~~ — **DONE** — `FormulaEvaluatorCommand` (existed in FormulaEvaluatorCommand.cs)
+22. ~~**Dynamic category bindings**~~ — **DONE** — `DynamicBindingsCommand` loads from CATEGORY_BINDINGS.csv (10,661 entries), creates or extends parameter bindings
+23. ~~**Port VALIDAT_BIM_TEMPLATE.py**~~ — **DONE** — `ValidateTemplateCommand` runs 20+ checks: data file inventory, parameter GUIDs, binding coverage, material libraries, schedule definitions, formula dependencies, schema consistency, category bindings, remap table, project state
+24. ~~**Schema validation**~~ — **DONE** — `SchemaValidateCommand` validates BLE/MEP CSVs against MATERIAL_SCHEMA.json (column presence, required fields, duplicates, data quality)
 
 ### External Tool References
 

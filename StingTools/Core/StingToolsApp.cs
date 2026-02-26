@@ -154,6 +154,29 @@ namespace StingTools.Core
             AddButton(panel, "btnBulkWrite", "Bulk\nParam",
                 asmPath, typeof(Select.BulkParamWriteCommand).FullName,
                 "Write parameter values to all selected elements");
+
+            // Color By Parameter pulldown (Phase 2)
+            var colorGroup = panel.AddItem(
+                new PulldownButtonData("grpColorBy", "Color By")) as PulldownButton;
+            if (colorGroup != null)
+            {
+                colorGroup.LongDescription = "Color elements by parameter value (Graitec/Naviate-style)";
+                AddPulldownItem(colorGroup, "btnColorByParam", "Color By Parameter",
+                    asmPath, typeof(Select.ColorByParameterCommand).FullName,
+                    "Color elements by any parameter value with 10 built-in palettes");
+                AddPulldownItem(colorGroup, "btnClearColorOvr", "Clear Color Overrides",
+                    asmPath, typeof(Select.ClearColorOverridesCommand).FullName,
+                    "Clear per-element graphic overrides in active view");
+                AddPulldownItem(colorGroup, "btnSavePreset", "Save Color Preset",
+                    asmPath, typeof(Select.SaveColorPresetCommand).FullName,
+                    "Save current color scheme to COLOR_PRESETS.json");
+                AddPulldownItem(colorGroup, "btnLoadPreset", "Load Color Preset",
+                    asmPath, typeof(Select.LoadColorPresetCommand).FullName,
+                    "Load and apply a saved color preset");
+                AddPulldownItem(colorGroup, "btnCreateFilters", "Create View Filters",
+                    asmPath, typeof(Select.CreateFiltersFromColorsCommand).FullName,
+                    "Convert color scheme to persistent Revit ParameterFilterElements");
+            }
         }
 
         // ── Docs Panel ──────────────────────────────────────────────────
@@ -204,6 +227,32 @@ namespace StingTools.Core
                 AddPulldownItem(vpGroup, "btnSumAreas", "Sum Areas",
                     asmPath, typeof(Docs.SumAreasCommand).FullName,
                     "Calculate total area of selected rooms");
+            }
+
+            // View management pulldown (Phase 4)
+            var viewMgmt = panel.AddItem(
+                new PulldownButtonData("grpViewMgmt", "Views")) as PulldownButton;
+            if (viewMgmt != null)
+            {
+                viewMgmt.LongDescription = "View duplication, renaming, settings, and crop tools";
+                AddPulldownItem(viewMgmt, "btnDupView", "Duplicate View",
+                    asmPath, typeof(Docs.DuplicateViewCommand).FullName,
+                    "Duplicate active view with all settings (filters, overrides, visibility)");
+                AddPulldownItem(viewMgmt, "btnBatchRename", "Batch Rename Views",
+                    asmPath, typeof(Docs.BatchRenameViewsCommand).FullName,
+                    "Batch rename views: add prefix, remove suffix, UPPERCASE, standardise levels");
+                AddPulldownItem(viewMgmt, "btnCopySettings", "Copy View Settings",
+                    asmPath, typeof(Docs.CopyViewSettingsCommand).FullName,
+                    "Copy filters and overrides from active view to other views");
+                AddPulldownItem(viewMgmt, "btnAutoPlace", "Auto-Place Viewports",
+                    asmPath, typeof(Docs.AutoPlaceViewportsCommand).FullName,
+                    "Grid-based intelligent viewport placement on sheets");
+                AddPulldownItem(viewMgmt, "btnCropContent", "Crop to Content",
+                    asmPath, typeof(Docs.CropToContentCommand).FullName,
+                    "Auto-crop view boundaries to element extents with padding");
+                AddPulldownItem(viewMgmt, "btnBatchAlignVP", "Batch Align Viewports",
+                    asmPath, typeof(Docs.BatchAlignViewportsCommand).FullName,
+                    "Align viewports across all sheets to consistent position");
             }
 
             // Document automation pulldown
@@ -315,6 +364,26 @@ namespace StingTools.Core
                 AddPulldownItem(tokenGroup, "btnCombineParams", "Combine Parameters",
                     asmPath, typeof(Tags.CombineParametersCommand).FullName,
                     "Populate all tag containers (ASS_TAG_1-6 + discipline tags) from tokens");
+            }
+
+            // Smart Tag Placement pulldown (Phase 3)
+            var placementGroup = panel.AddItem(
+                new PulldownButtonData("grpPlacement", "Placement")) as PulldownButton;
+            if (placementGroup != null)
+            {
+                placementGroup.LongDescription = "Smart annotation tag placement with collision avoidance";
+                AddPulldownItem(placementGroup, "btnSmartPlace", "Smart Place Tags",
+                    asmPath, typeof(Tags.SmartPlaceTagsCommand).FullName,
+                    "Place annotation tags with 8-position scoring and collision avoidance");
+                AddPulldownItem(placementGroup, "btnArrangeTags", "Arrange Tags",
+                    asmPath, typeof(Tags.ArrangeTagsCommand).FullName,
+                    "Reposition existing tags to minimize overlaps");
+                AddPulldownItem(placementGroup, "btnRemoveAnnotTags", "Remove Annotation Tags",
+                    asmPath, typeof(Tags.RemoveAnnotationTagsCommand).FullName,
+                    "Remove visual annotation tags (data tags unaffected)");
+                AddPulldownItem(placementGroup, "btnBatchPlaceTags", "Batch Place Tags",
+                    asmPath, typeof(Tags.BatchPlaceTagsCommand).FullName,
+                    "Place annotation tags across multiple views with progress");
             }
 
             // QA pulldown
@@ -583,6 +652,29 @@ namespace StingTools.Core
                     asmPath,
                     typeof(Temp.ExportCSVCommand).FullName,
                     "Export schedule data to CSV files");
+            }
+
+            // Data Pipeline group (Phase 5)
+            var pipeGroup = panel.AddItem(
+                new PulldownButtonData("grpDataPipeline", "Data QA")) as PulldownButton;
+            if (pipeGroup != null)
+            {
+                pipeGroup.LongDescription = "Data pipeline validation and dynamic bindings";
+                AddPulldownItem(pipeGroup, "btnValidateTemplate",
+                    "Validate Template",
+                    asmPath,
+                    typeof(Temp.ValidateTemplateCommand).FullName,
+                    "Run 20+ validation checks on data files, parameters, and project state (C# port of VALIDAT_BIM_TEMPLATE.py)");
+                AddPulldownItem(pipeGroup, "btnDynamicBindings",
+                    "Dynamic Bindings",
+                    asmPath,
+                    typeof(Temp.DynamicBindingsCommand).FullName,
+                    "Load parameter-category bindings from CATEGORY_BINDINGS.csv (replaces hardcoded bindings)");
+                AddPulldownItem(pipeGroup, "btnSchemaValidate",
+                    "Schema Validate",
+                    asmPath,
+                    typeof(Temp.SchemaValidateCommand).FullName,
+                    "Validate BLE/MEP material CSVs against MATERIAL_SCHEMA.json");
             }
 
             // Templates group
