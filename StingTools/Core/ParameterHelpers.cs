@@ -110,8 +110,9 @@ namespace StingTools.Core
                     return fi.Symbol.Family.Name;
                 return string.Empty;
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"GetFamilyName failed for {el?.Id}: {ex.Message}");
                 return string.Empty;
             }
         }
@@ -128,8 +129,9 @@ namespace StingTools.Core
                     return fi.Symbol.Name;
                 return string.Empty;
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"GetFamilySymbolName failed for {el?.Id}: {ex.Message}");
                 return string.Empty;
             }
         }
@@ -375,6 +377,233 @@ namespace StingTools.Core
                 return "Z04";
 
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Maps Revit native/built-in parameters to STING shared parameters.
+    /// Reads values that Revit populates automatically (Mark, Comments, Description,
+    /// Room Name, Room Number, Area, Volume, etc.) and writes them to corresponding
+    /// STING shared parameters for schedule/tag consistency.
+    ///
+    /// Also reads type parameters (from ElementType) when instance parameters are empty,
+    /// providing type-level fallback for manufacturer, model, description, etc.
+    ///
+    /// This eliminates manual data entry for ~30 parameters that Revit already knows.
+    /// </summary>
+    public static class NativeParamMapper
+    {
+        /// <summary>
+        /// Auto-map all applicable Revit native parameters to STING shared parameters.
+        /// Only writes to empty STING parameters (non-destructive).
+        /// Returns the number of values written.
+        /// </summary>
+        public static int MapAll(Document doc, Element el)
+        {
+            int written = 0;
+
+            // ── Identity & Classification ──────────────────────────────────────
+            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MARK, "ASS_ID_TXT");
+            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS, "PRJ_COMMENTS_TXT");
+            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_DESCRIPTION, "ASS_DESCRIPTION_TXT");
+            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MODEL, "ASS_MODEL_NR_TXT");
+            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MANUFACTURER, "ASS_MANUFACTURER_TXT");
+
+            // Type Name → ASS_TYPE_NAME_TXT (from the family symbol name)
+            string typeName = GetFamilySymbolName(el);
+            if (!string.IsNullOrEmpty(typeName))
+                written += SetIfEmptyInt(el, "ASS_TYPE_NAME_TXT", typeName);
+
+            // Family Name → ASS_FAMILY_NAME_TXT
+            string familyName = GetFamilyName(el);
+            if (!string.IsNullOrEmpty(familyName))
+                written += SetIfEmptyInt(el, "ASS_FAMILY_NAME_TXT", familyName);
+
+            // ── Spatial / Room data ────────────────────────────────────────────
+            Room room = GetRoomAtElement(doc, el);
+            if (room != null)
+            {
+                written += SetIfEmptyInt(el, "ASS_ROOM_NAME_TXT", room.Name ?? "");
+                written += SetIfEmptyInt(el, "ASS_ROOM_NUM_TXT", room.Number ?? "");
+
+                // Room area in m² (Revit stores in sq ft, convert)
+                double areaSqFt = room.Area;
+                if (areaSqFt > 0)
+                {
+                    string areaM2 = (areaSqFt * 0.092903).ToString("F2",
+                        System.Globalization.CultureInfo.InvariantCulture);
+                    written += SetIfEmptyInt(el, "ASS_ROOM_AREA_SQ_M", areaM2);
+                }
+
+                // Room Department
+                try
+                {
+                    Parameter dept = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT);
+                    if (dept != null && dept.HasValue)
+                        written += SetIfEmptyInt(el, "ASS_DEPARTMENT_ASSIGNMENT_TXT",
+                            dept.AsString() ?? "");
+                }
+                catch { }
+            }
+
+            // ── MEP-specific parameters ────────────────────────────────────────
+            written += MapMepParams(el);
+
+            // ── Type parameter fallback ────────────────────────────────────────
+            // If instance params are still empty, try reading from the element type
+            written += MapFromType(doc, el);
+
+            return written;
+        }
+
+        /// <summary>
+        /// Map MEP-specific native parameters (flow rates, voltages, pressures, etc.)
+        /// to corresponding STING shared parameters.
+        /// </summary>
+        private static int MapMepParams(Element el)
+        {
+            int written = 0;
+            string catName = (el.Category?.Name ?? "").ToUpperInvariant();
+
+            // Electrical parameters
+            if (catName.Contains("ELECTRICAL") || catName.Contains("LIGHTING") ||
+                catName.Contains("CONDUIT") || catName.Contains("CABLE"))
+            {
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_APPARENT_LOAD, "ELC_CKT_PWR_KW");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_VOLTAGE, "ELC_CKT_VLT_V");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER, "ELC_CKT_NUM_TXT");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_CIRCUIT_PANEL_PARAM, "ELC_CKT_PANEL_TXT");
+            }
+
+            // Duct parameters
+            if (catName.Contains("DUCT") || catName.Contains("AIR TERMINAL"))
+            {
+                written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, "HVC_AIRFLOW_LPS");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, "HVC_VEL_MPS");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_LOSS_COEFFICIENT, "HVC_PRESSURE_DROP_PA");
+            }
+
+            // Pipe parameters
+            if (catName.Contains("PIPE") || catName.Contains("PLUMBING") ||
+                catName.Contains("SPRINKLER"))
+            {
+                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM, "PLM_FLOW_RATE_LPS");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_DIAMETER_PARAM, "PLM_PPE_SZ_MM");
+            }
+
+            // Size parameters (generic MEP)
+            written += MapBuiltIn(el, BuiltInParameter.RBS_CALCULATED_SIZE, "ASS_SIZE_TXT");
+
+            return written;
+        }
+
+        /// <summary>
+        /// Read type-level parameters as fallback when instance parameters are empty.
+        /// Useful for manufacturer, model, description which are often on the type.
+        /// </summary>
+        private static int MapFromType(Document doc, Element el)
+        {
+            int written = 0;
+            try
+            {
+                ElementId typeId = el.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return 0;
+
+                Element elType = doc.GetElement(typeId);
+                if (elType == null) return 0;
+
+                // Only fill STING params that are still empty after instance-level mapping
+                if (string.IsNullOrEmpty(GetString(el, "ASS_DESCRIPTION_TXT")))
+                    written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_DESCRIPTION,
+                        "ASS_DESCRIPTION_TXT", el);
+                if (string.IsNullOrEmpty(GetString(el, "ASS_MODEL_NR_TXT")))
+                    written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_MODEL,
+                        "ASS_MODEL_NR_TXT", el);
+                if (string.IsNullOrEmpty(GetString(el, "ASS_MANUFACTURER_TXT")))
+                    written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_MANUFACTURER,
+                        "ASS_MANUFACTURER_TXT", el);
+
+                // Type Mark → ASS_TYPE_MARK_TXT (commonly used for spec references)
+                written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_TYPE_MARK,
+                    "ASS_TYPE_MARK_TXT", el);
+
+                // Type Comments
+                written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_TYPE_COMMENTS,
+                    "ASS_TYPE_COMMENTS_TXT", el);
+
+                // Keynote
+                written += MapBuiltIn(elType, BuiltInParameter.KEYNOTE_PARAM,
+                    "ASS_KEYNOTE_TXT", el);
+
+                // Assembly Code (Uniformat)
+                written += MapBuiltIn(elType, BuiltInParameter.UNIFORMAT_CODE,
+                    "ASS_UNIFORMAT_TXT", el);
+
+                // Assembly Description
+                written += MapBuiltIn(elType, BuiltInParameter.UNIFORMAT_DESCRIPTION,
+                    "ASS_UNIFORMAT_DESC_TXT", el);
+
+                // OmniClass Title
+                written += MapBuiltIn(elType, BuiltInParameter.OMNICLASS_CODE,
+                    "ASS_OMNICLASS_TXT", el);
+
+                // Cost (if available)
+                written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_COST,
+                    "ASS_CST_UNIT_PRICE_UGX_NR", el);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MapFromType failed for {el?.Id}: {ex.Message}");
+            }
+            return written;
+        }
+
+        /// <summary>
+        /// Read a built-in parameter from a source element and write to a shared
+        /// parameter on a target element (or same element if target is null).
+        /// Only writes if the target parameter is empty.
+        /// </summary>
+        private static int MapBuiltIn(Element source, BuiltInParameter bip,
+            string targetParamName, Element target = null)
+        {
+            try
+            {
+                Parameter p = source.get_Parameter(bip);
+                if (p == null || !p.HasValue) return 0;
+
+                string val;
+                switch (p.StorageType)
+                {
+                    case StorageType.String:
+                        val = p.AsString();
+                        break;
+                    case StorageType.Double:
+                        val = p.AsDouble().ToString("G6",
+                            System.Globalization.CultureInfo.InvariantCulture);
+                        break;
+                    case StorageType.Integer:
+                        val = p.AsInteger().ToString();
+                        break;
+                    default:
+                        val = p.AsValueString();
+                        break;
+                }
+
+                if (string.IsNullOrEmpty(val) || val == "0") return 0;
+
+                Element writeTarget = target ?? source;
+                return SetIfEmptyInt(writeTarget, targetParamName, val);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>SetIfEmpty returning 1 on success, 0 on skip/failure.</summary>
+        private static int SetIfEmptyInt(Element el, string paramName, string value)
+        {
+            return ParameterHelpers.SetIfEmpty(el, paramName, value) ? 1 : 0;
         }
     }
 }

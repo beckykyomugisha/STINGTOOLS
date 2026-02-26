@@ -89,6 +89,7 @@ namespace StingTools.Tags
 
     /// <summary>Set the DISC (discipline) token on selected/view elements.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class SetDiscCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -97,6 +98,7 @@ namespace StingTools.Tags
     }
 
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class SetLocCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -105,6 +107,7 @@ namespace StingTools.Tags
     }
 
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class SetZoneCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -113,6 +116,7 @@ namespace StingTools.Tags
     }
 
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class SetStatusCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -125,6 +129,7 @@ namespace StingTools.Tags
     /// Standalone version of the sequence numbering embedded in AutoTag.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class AssignNumbersCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -200,6 +205,7 @@ namespace StingTools.Tags
     /// parameters without changing any token values. Respects existing LOC/ZONE values.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class BuildTagsCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)

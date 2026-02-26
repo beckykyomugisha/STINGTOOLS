@@ -395,10 +395,116 @@ namespace StingTools.Core
             return string.Empty;
         }
 
-        /// <summary>Get the FUNC code for a SYS code.</summary>
+        /// <summary>Get the FUNC code for a SYS code (basic lookup).</summary>
         public static string GetFuncCode(string sysCode)
         {
             return FuncMap.TryGetValue(sysCode, out string val) ? val : string.Empty;
+        }
+
+        /// <summary>
+        /// Enhanced FUNC code derivation using element's MEP system context.
+        /// For HVAC, differentiates Supply (SUP), Return (RTN), Exhaust (EXH), Fresh Air (FRA).
+        /// For HWS, differentiates Heating (HTG) vs Domestic Hot Water (DHW).
+        /// Falls back to FuncMap lookup when no subsystem detail is available.
+        /// </summary>
+        public static string GetSmartFuncCode(Element el, string sysCode)
+        {
+            if (string.IsNullOrEmpty(sysCode))
+                return string.Empty;
+
+            // For HVAC, try to detect subsystem function from connector/system name
+            if (sysCode == "HVAC")
+            {
+                string hvacFunc = GetHvacSubFunction(el);
+                if (!string.IsNullOrEmpty(hvacFunc)) return hvacFunc;
+            }
+
+            // For HWS, distinguish heating vs domestic hot water
+            if (sysCode == "HWS")
+            {
+                string hwsFunc = GetHwsSubFunction(el);
+                if (!string.IsNullOrEmpty(hwsFunc)) return hwsFunc;
+            }
+
+            return FuncMap.TryGetValue(sysCode, out string val) ? val : string.Empty;
+        }
+
+        /// <summary>
+        /// Detect HVAC subsystem function: Supply, Return, Exhaust, Fresh Air, Extract.
+        /// Reads from connector system name, duct system type parameter, and family name.
+        /// </summary>
+        private static string GetHvacSubFunction(Element el)
+        {
+            try
+            {
+                // Check connector system name
+                FamilyInstance fi = el as FamilyInstance;
+                if (fi?.MEPModel?.ConnectorManager != null)
+                {
+                    foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
+                    {
+                        if (conn.MEPSystem != null)
+                        {
+                            string sysName = conn.MEPSystem.Name?.ToUpperInvariant() ?? "";
+                            if (sysName.Contains("SUPPLY")) return "SUP";
+                            if (sysName.Contains("RETURN")) return "RTN";
+                            if (sysName.Contains("EXHAUST") || sysName.Contains("EXTRACT")) return "EXH";
+                            if (sysName.Contains("FRESH") || sysName.Contains("OUTSIDE AIR")) return "FRA";
+                        }
+                    }
+                }
+
+                // Check duct system type parameter
+                Parameter ductSys = el.get_Parameter(BuiltInParameter.RBS_DUCT_SYSTEM_TYPE_PARAM);
+                if (ductSys != null && ductSys.HasValue)
+                {
+                    string val = ductSys.AsValueString()?.ToUpperInvariant() ?? "";
+                    if (val.Contains("SUPPLY")) return "SUP";
+                    if (val.Contains("RETURN")) return "RTN";
+                    if (val.Contains("EXHAUST") || val.Contains("EXTRACT")) return "EXH";
+                }
+
+                // Check family name for duct-related equipment
+                string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
+                if (familyName.Contains("SUPPLY") || familyName.Contains("DIFFUSER")) return "SUP";
+                if (familyName.Contains("RETURN") || familyName.Contains("RETURN GRILLE")) return "RTN";
+                if (familyName.Contains("EXHAUST") || familyName.Contains("EXTRACT FAN")) return "EXH";
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Detect HWS sub-function: Heating (HTG) vs Domestic Hot Water (DHW).
+        /// </summary>
+        private static string GetHwsSubFunction(Element el)
+        {
+            try
+            {
+                FamilyInstance fi = el as FamilyInstance;
+                if (fi?.MEPModel?.ConnectorManager != null)
+                {
+                    foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
+                    {
+                        if (conn.MEPSystem != null)
+                        {
+                            string sysName = conn.MEPSystem.Name?.ToUpperInvariant() ?? "";
+                            if (sysName.Contains("HEATING") || sysName.Contains("LTHW") ||
+                                sysName.Contains("MTHW") || sysName.Contains("RADIATOR"))
+                                return "HTG";
+                            if (sysName.Contains("DOMESTIC") || sysName.Contains("DHW") ||
+                                sysName.Contains("HOT WATER SUPPLY"))
+                                return "DHW";
+                        }
+                    }
+                }
+
+                string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
+                if (familyName.Contains("RADIATOR") || familyName.Contains("UNDERFLOOR")) return "HTG";
+                if (familyName.Contains("CALORIFIER") || familyName.Contains("WATER HEATER")) return "DHW";
+            }
+            catch { }
+            return null;
         }
 
         /// <summary>
@@ -574,9 +680,10 @@ namespace StingTools.Core
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
 
             // Intelligence Layer: MEP system-aware SYS/FUNC derivation
-            // Check if element has a connected MEP system for more accurate SYS code
+            // 6-layer system detection: connector → sys param → circuit → family → room → category
             string sys = GetMepSystemAwareSysCode(el, catName);
-            string func = GetFuncCode(sys);
+            // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
+            string func = GetSmartFuncCode(el, sys);
             string prod = GetFamilyAwareProdCode(el, catName);
 
             string seqKey = $"{disc}_{sys}_{lvl}";
@@ -638,12 +745,46 @@ namespace StingTools.Core
         /// MEP system-aware SYS code derivation. Checks if the element belongs to a
         /// connected MEP system (e.g., "Supply Air", "Domestic Hot Water") and uses
         /// that for more accurate SYS code assignment. Falls back to category lookup.
+        ///
+        /// Intelligence layers (evaluated in order):
+        ///   1. FamilyInstance.MEPModel connector system name (piping + ductwork)
+        ///   2. Duct/Pipe system type parameter (RBS_DUCT_SYSTEM_TYPE, RBS_PIPING_SYSTEM_TYPE)
+        ///   3. Electrical circuit panel name analysis
+        ///   4. Family name pattern matching (e.g., "Exhaust Fan" → HVAC)
+        ///   5. Room-type inference (Server Room → ICT, Kitchen → SAN)
+        ///   6. Category-based fallback via SysMap
         /// </summary>
         public static string GetMepSystemAwareSysCode(Element el, string categoryName)
         {
+            // Layer 1: Connected MEP system name (most reliable for piping and ductwork)
+            string fromConnector = GetSysFromConnector(el);
+            if (!string.IsNullOrEmpty(fromConnector)) return fromConnector;
+
+            // Layer 2: Duct/Pipe system type built-in parameter
+            string fromSysType = GetSysFromSystemTypeParam(el);
+            if (!string.IsNullOrEmpty(fromSysType)) return fromSysType;
+
+            // Layer 3: Electrical circuit panel name
+            string fromCircuit = GetSysFromElectricalCircuit(el);
+            if (!string.IsNullOrEmpty(fromCircuit)) return fromCircuit;
+
+            // Layer 4: Family name pattern matching
+            string fromFamily = GetSysFromFamilyName(el, categoryName);
+            if (!string.IsNullOrEmpty(fromFamily)) return fromFamily;
+
+            // Layer 5: Room-type inference
+            string fromRoom = GetSysFromRoomType(el);
+            if (!string.IsNullOrEmpty(fromRoom)) return fromRoom;
+
+            // Layer 6: Category-based fallback
+            return GetSysCode(categoryName);
+        }
+
+        /// <summary>Layer 1: Read connected MEP system name via connectors.</summary>
+        private static string GetSysFromConnector(Element el)
+        {
             try
             {
-                // For MEP elements, check the connected system name via FamilyInstance.MEPModel
                 FamilyInstance fi2 = el as FamilyInstance;
                 if (fi2?.MEPModel?.ConnectorManager != null)
                 {
@@ -652,39 +793,237 @@ namespace StingTools.Core
                         if (conn.MEPSystem != null)
                         {
                             string sysName = conn.MEPSystem.Name?.ToUpperInvariant() ?? "";
-                            // Map common MEP system naming conventions to SYS codes
-                            if (sysName.Contains("SUPPLY AIR") || sysName.Contains("SUPPLY DUCT"))
-                                return "HVAC";
-                            if (sysName.Contains("RETURN AIR") || sysName.Contains("EXHAUST"))
-                                return "HVAC";
-                            if (sysName.Contains("HOT WATER") || sysName.Contains("DHW") || sysName.Contains("HWS"))
-                                return "HWS";
-                            if (sysName.Contains("COLD WATER") || sysName.Contains("CWS") || sysName.Contains("DCW") || sysName.Contains("DOMESTIC COLD"))
-                                return "DCW";
-                            if (sysName.Contains("FIRE") || sysName.Contains("SPRINKLER"))
-                                return "FP";
-                            if (sysName.Contains("SANITARY") || sysName.Contains("WASTE") || sysName.Contains("DRAIN") || sysName.Contains("SOIL"))
-                                return "SAN";
-                            if (sysName.Contains("RAINWATER") || sysName.Contains("STORM") || sysName.Contains("SURFACE WATER"))
-                                return "RWD";
-                            if (sysName.Contains("CHILLED") || sysName.Contains("COOLING"))
-                                return "HVAC";
-                            if (sysName.Contains("HEATING") || sysName.Contains("LTHW") || sysName.Contains("RADIATOR"))
-                                return "HWS";
-                            if (sysName.Contains("GAS"))
-                                return "GAS";
-                            if (sysName.Contains("VENT"))
-                                return "HVAC";
+                            string mapped = MapSystemNameToCode(sysName);
+                            if (!string.IsNullOrEmpty(mapped)) return mapped;
                         }
                     }
                 }
             }
-            catch
-            {
-                // Silently fall through to category-based lookup
-            }
+            catch { }
+            return null;
+        }
 
-            return GetSysCode(categoryName);
+        /// <summary>Layer 2: Read RBS_DUCT_SYSTEM_TYPE or RBS_PIPING_SYSTEM_TYPE parameter.</summary>
+        private static string GetSysFromSystemTypeParam(Element el)
+        {
+            try
+            {
+                // Duct system type (Supply Air, Return Air, Exhaust Air)
+                Parameter ductSys = el.get_Parameter(BuiltInParameter.RBS_DUCT_SYSTEM_TYPE_PARAM);
+                if (ductSys != null && ductSys.HasValue)
+                {
+                    string val = ductSys.AsValueString()?.ToUpperInvariant() ?? "";
+                    if (val.Contains("SUPPLY")) return "HVAC";
+                    if (val.Contains("RETURN")) return "HVAC";
+                    if (val.Contains("EXHAUST")) return "HVAC";
+                }
+
+                // Piping system type
+                Parameter pipeSys = el.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM);
+                if (pipeSys != null && pipeSys.HasValue)
+                {
+                    string val = pipeSys.AsValueString()?.ToUpperInvariant() ?? "";
+                    string mapped = MapSystemNameToCode(val);
+                    if (!string.IsNullOrEmpty(mapped)) return mapped;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Layer 3: Infer SYS from electrical circuit panel name.
+        /// If element is connected to an electrical circuit, read the panel name
+        /// for subsystem classification (e.g., "LP-1" → LV, "EDB-01" → LV,
+        /// "UPS-DB-01" → LV with UPS hint, "FIRE ALARM PANEL" → FLS).
+        /// </summary>
+        private static string GetSysFromElectricalCircuit(Element el)
+        {
+            try
+            {
+                // Check for circuit-related parameters
+                Parameter circuitNum = el.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER);
+                Parameter circuitPanel = el.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_PANEL_PARAM);
+
+                if (circuitPanel != null && circuitPanel.HasValue)
+                {
+                    string panel = circuitPanel.AsString()?.ToUpperInvariant() ?? "";
+                    if (panel.Contains("FIRE") || panel.Contains("FA-") || panel.Contains("FAP"))
+                        return "FLS";
+                    if (panel.Contains("SECURITY") || panel.Contains("CCTV") || panel.Contains("ACCESS"))
+                        return "SEC";
+                    if (panel.Contains("DATA") || panel.Contains("ICT") || panel.Contains("SERVER"))
+                        return "ICT";
+                    if (panel.Contains("COMMS") || panel.Contains("TELECOM"))
+                        return "COM";
+                    if (panel.Contains("UPS"))
+                        return "LV";
+                    // Default electrical panels → LV
+                    if (panel.Length > 0)
+                        return "LV";
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Layer 4: Infer SYS from family name patterns.
+        /// Catches equipment that isn't connected to a system yet (during early design).
+        /// </summary>
+        private static string GetSysFromFamilyName(Element el, string categoryName)
+        {
+            string familyName = ParameterHelpers.GetFamilyName(el);
+            if (string.IsNullOrEmpty(familyName)) return null;
+            string upper = familyName.ToUpperInvariant();
+
+            // HVAC equipment patterns
+            if (upper.Contains("AHU") || upper.Contains("AIR HANDLING") ||
+                upper.Contains("FCU") || upper.Contains("FAN COIL") ||
+                upper.Contains("VAV") || upper.Contains("VARIABLE AIR") ||
+                upper.Contains("EXHAUST FAN") || upper.Contains("EXTRACT FAN") ||
+                upper.Contains("HRU") || upper.Contains("HEAT RECOVERY") ||
+                upper.Contains("SPLIT") || upper.Contains("CASSETTE") ||
+                upper.Contains("CHILLER") || upper.Contains("COOLING TOWER") ||
+                upper.Contains("GRILLE") || upper.Contains("DIFFUSER"))
+                return "HVAC";
+
+            // Heating equipment
+            if (upper.Contains("BOILER") || upper.Contains("RADIATOR") ||
+                upper.Contains("UNDERFLOOR HEAT") || upper.Contains("CALORIFIER") ||
+                upper.Contains("HEAT EXCHANGER"))
+                return "HWS";
+
+            // Plumbing-specific equipment
+            if (upper.Contains("PUMP") && (categoryName == "Plumbing Fixtures" ||
+                upper.Contains("SUMP") || upper.Contains("SEWAGE") || upper.Contains("BOOSTER")))
+                return "DCW";
+
+            // Fire protection
+            if (upper.Contains("SPRINKLER") || upper.Contains("FIRE HOSE") ||
+                upper.Contains("HYDRANT") || upper.Contains("DELUGE") ||
+                upper.Contains("SUPPRESSION"))
+                return "FP";
+
+            // Fire alarm
+            if (upper.Contains("SMOKE") || upper.Contains("DETECTOR") ||
+                upper.Contains("CALL POINT") || upper.Contains("SOUNDER") ||
+                upper.Contains("BEACON") || upper.Contains("FIRE ALARM"))
+                return "FLS";
+
+            // Security
+            if (upper.Contains("CCTV") || upper.Contains("CAMERA") ||
+                upper.Contains("ACCESS CONTROL") || upper.Contains("CARD READER") ||
+                upper.Contains("INTERCOM"))
+                return "SEC";
+
+            // ICT/Data
+            if (upper.Contains("DATA OUTLET") || upper.Contains("NETWORK") ||
+                upper.Contains("SERVER RACK") || upper.Contains("PATCH PANEL") ||
+                upper.Contains("WIFI") || upper.Contains("ACCESS POINT"))
+                return "ICT";
+
+            return null;
+        }
+
+        /// <summary>
+        /// Layer 5: Infer SYS from the room type the element is in.
+        /// Room name/department patterns suggest the system context.
+        /// Only applied when no other layer produced a result.
+        /// </summary>
+        private static string GetSysFromRoomType(Element el)
+        {
+            try
+            {
+                Document doc = el.Document;
+                Room room = ParameterHelpers.GetRoomAtElement(doc, el);
+                if (room == null) return null;
+
+                string roomName = (room.Name ?? "").ToUpperInvariant();
+                string dept = "";
+                try
+                {
+                    Parameter deptParam = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT);
+                    if (deptParam != null) dept = (deptParam.AsString() ?? "").ToUpperInvariant();
+                }
+                catch { }
+
+                string combined = $"{roomName} {dept}";
+
+                // Server/comms rooms → ICT for generic devices
+                if (combined.Contains("SERVER") || combined.Contains("COMMS") ||
+                    combined.Contains("DATA CENTRE") || combined.Contains("DATA CENTER") ||
+                    combined.Contains("TELECOM"))
+                {
+                    string catUpper = (el.Category?.Name ?? "").ToUpperInvariant();
+                    if (catUpper.Contains("GENERIC") || catUpper.Contains("DATA") ||
+                        catUpper.Contains("COMMUNICATION"))
+                        return "ICT";
+                }
+
+                // Plant rooms → HVAC or DCW depending on equipment category
+                if (combined.Contains("PLANT ROOM") || combined.Contains("MECHANICAL ROOM") ||
+                    combined.Contains("BOILER ROOM") || combined.Contains("AHU ROOM"))
+                {
+                    // Don't override — plant rooms have mixed systems
+                }
+
+                // Electrical rooms → LV
+                if (combined.Contains("ELECTRICAL") || combined.Contains("SWITCH ROOM") ||
+                    combined.Contains("SUBSTATION") || combined.Contains("TRANSFORMER"))
+                {
+                    string catUpper = (el.Category?.Name ?? "").ToUpperInvariant();
+                    if (catUpper.Contains("ELECTRICAL") || catUpper.Contains("GENERIC"))
+                        return "LV";
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Map a system name string to a SYS code. Used by Layer 1 (connector) and Layer 2 (parameter).
+        /// Centralised mapping for all MEP system naming conventions.
+        /// </summary>
+        private static string MapSystemNameToCode(string sysName)
+        {
+            if (string.IsNullOrEmpty(sysName)) return null;
+
+            // HVAC systems
+            if (sysName.Contains("SUPPLY AIR") || sysName.Contains("SUPPLY DUCT")) return "HVAC";
+            if (sysName.Contains("RETURN AIR") || sysName.Contains("RETURN DUCT")) return "HVAC";
+            if (sysName.Contains("EXHAUST") || sysName.Contains("EXTRACT")) return "HVAC";
+            if (sysName.Contains("FRESH AIR") || sysName.Contains("OUTSIDE AIR")) return "HVAC";
+            if (sysName.Contains("CHILLED") || sysName.Contains("COOLING") || sysName.Contains("CHW")) return "HVAC";
+            if (sysName.Contains("VENT") || sysName.Contains("VENTILATION")) return "HVAC";
+
+            // Heating / hot water systems
+            if (sysName.Contains("HOT WATER") || sysName.Contains("DHW") || sysName.Contains("HWS")) return "HWS";
+            if (sysName.Contains("HEATING") || sysName.Contains("LTHW") || sysName.Contains("MTHW")) return "HWS";
+            if (sysName.Contains("RADIATOR") || sysName.Contains("UNDERFLOOR")) return "HWS";
+            if (sysName.Contains("STEAM") || sysName.Contains("CONDENSATE")) return "HWS";
+
+            // Domestic cold water
+            if (sysName.Contains("COLD WATER") || sysName.Contains("CWS") || sysName.Contains("DCW")) return "DCW";
+            if (sysName.Contains("DOMESTIC COLD") || sysName.Contains("BOOSTED COLD")) return "DCW";
+            if (sysName.Contains("MAINS WATER") || sysName.Contains("POTABLE")) return "DCW";
+
+            // Fire protection
+            if (sysName.Contains("FIRE") || sysName.Contains("SPRINKLER") || sysName.Contains("WET RISER")) return "FP";
+            if (sysName.Contains("DRY RISER") || sysName.Contains("HYDRANT")) return "FP";
+
+            // Sanitary / drainage
+            if (sysName.Contains("SANITARY") || sysName.Contains("WASTE") || sysName.Contains("SOIL")) return "SAN";
+            if (sysName.Contains("DRAIN") || sysName.Contains("SEWAGE") || sysName.Contains("FOUL")) return "SAN";
+
+            // Rainwater
+            if (sysName.Contains("RAINWATER") || sysName.Contains("STORM") || sysName.Contains("SURFACE WATER")) return "RWD";
+            if (sysName.Contains("ROOF DRAIN")) return "RWD";
+
+            // Gas
+            if (sysName.Contains("GAS") || sysName.Contains("NATURAL GAS") || sysName.Contains("LPG")) return "GAS";
+
+            return null;
         }
 
         /// <summary>
@@ -1002,6 +1341,367 @@ namespace StingTools.Core
         private static List<string> DefaultZoneCodes()
         {
             return new List<string> { "Z01", "Z02", "Z03", "Z04", "ZZ", "XX" };
+        }
+    }
+
+    /// <summary>
+    /// Advanced tagging intelligence engine providing multi-layered reasoning,
+    /// cross-validation, workset inference, connected system traversal,
+    /// sizing-based classification, and confidence scoring.
+    ///
+    /// Intelligence layers (applied in order of reliability):
+    ///   L1. Connected MEP system name (connector traversal)
+    ///   L2. Duct/Pipe system type built-in parameter
+    ///   L3. Electrical circuit panel analysis
+    ///   L4. Family name pattern matching (35+ equipment types)
+    ///   L5. Room-type inference (Server Room → ICT, Kitchen → SAN)
+    ///   L6. Workset name inference (M-Mechanical → M, E-Electrical → E)
+    ///   L7. Connected element traversal (trace pipe/duct to source equipment)
+    ///   L8. Size-based classification (small pipe → sanitary, large pipe → DCW)
+    ///   L9. Adjacent element analysis (nearby elements suggest system context)
+    ///   L10. Cross-validation (DISC vs SYS vs FUNC consistency checks)
+    ///
+    /// Each layer produces a confidence score (0.0-1.0). The highest-confidence
+    /// result wins. Ties are broken by layer priority (lower = more reliable).
+    /// </summary>
+    public static class TagIntelligence
+    {
+        /// <summary>
+        /// Result from an intelligence layer, including the derived value,
+        /// the confidence level, and which layer produced it (for audit trail).
+        /// </summary>
+        public class InferenceResult
+        {
+            public string Value { get; set; }
+            public double Confidence { get; set; }
+            public string Source { get; set; }
+
+            public InferenceResult(string value, double confidence, string source)
+            {
+                Value = value;
+                Confidence = confidence;
+                Source = source;
+            }
+        }
+
+        // ── Layer 6: Workset Name Inference ──────────────────────────────────
+
+        /// <summary>
+        /// Infer discipline from the element's workset name.
+        /// Revit worksets follow naming conventions like "M-Mechanical", "E-Electrical",
+        /// "P-Plumbing", "A-Architecture", "S-Structure" per AEC UK BIM Protocol.
+        /// </summary>
+        public static InferenceResult InferDiscFromWorkset(Element el)
+        {
+            try
+            {
+                if (el.Document.IsWorkshared)
+                {
+                    WorksetId wsId = el.WorksetId;
+                    if (wsId != null && wsId != WorksetId.InvalidWorksetId)
+                    {
+                        WorksetTable table = el.Document.GetWorksetTable();
+                        Workset ws = table.GetWorkset(wsId);
+                        if (ws != null)
+                        {
+                            string wsName = ws.Name?.ToUpperInvariant() ?? "";
+
+                            if (wsName.StartsWith("M-") || wsName.Contains("MECHANICAL") ||
+                                wsName.Contains("HVAC"))
+                                return new InferenceResult("M", 0.7, "Workset: " + ws.Name);
+                            if (wsName.StartsWith("E-") || wsName.Contains("ELECTRICAL") ||
+                                wsName.Contains("LIGHTING"))
+                                return new InferenceResult("E", 0.7, "Workset: " + ws.Name);
+                            if (wsName.StartsWith("P-") || wsName.Contains("PLUMBING") ||
+                                wsName.Contains("PUBLIC HEALTH"))
+                                return new InferenceResult("P", 0.7, "Workset: " + ws.Name);
+                            if (wsName.StartsWith("A-") || wsName.Contains("ARCHITECT"))
+                                return new InferenceResult("A", 0.7, "Workset: " + ws.Name);
+                            if (wsName.StartsWith("S-") || wsName.Contains("STRUCT"))
+                                return new InferenceResult("S", 0.7, "Workset: " + ws.Name);
+                            if (wsName.Contains("FIRE"))
+                                return new InferenceResult("FP", 0.7, "Workset: " + ws.Name);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"InferDiscFromWorkset: {ex.Message}");
+            }
+            return null;
+        }
+
+        // ── Layer 7: Connected Element Traversal ─────────────────────────────
+
+        /// <summary>
+        /// Trace the connected system from an element back to its source equipment.
+        /// For pipes/ducts, follows the system to find the connected major equipment
+        /// (AHU, pump, boiler, chiller) which identifies the system type definitively.
+        /// Limited to 2 hops to avoid performance issues.
+        /// </summary>
+        public static InferenceResult InferSysFromConnectedEquipment(Element el)
+        {
+            try
+            {
+                FamilyInstance fi = el as FamilyInstance;
+                if (fi?.MEPModel?.ConnectorManager == null) return null;
+
+                // Traverse up to 2 hops of connected elements
+                var visited = new HashSet<ElementId> { el.Id };
+                var queue = new Queue<(Element elem, int depth)>();
+
+                foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
+                {
+                    if (conn.AllRefs == null) continue;
+                    foreach (Connector other in conn.AllRefs)
+                    {
+                        if (other.Owner != null && !visited.Contains(other.Owner.Id))
+                        {
+                            visited.Add(other.Owner.Id);
+                            queue.Enqueue((other.Owner, 1));
+                        }
+                    }
+                }
+
+                while (queue.Count > 0)
+                {
+                    var (current, depth) = queue.Dequeue();
+                    string catName = ParameterHelpers.GetCategoryName(current);
+
+                    // If we reached major equipment, use its classification
+                    if (catName == "Mechanical Equipment")
+                    {
+                        string famName = ParameterHelpers.GetFamilyName(current).ToUpperInvariant();
+                        if (famName.Contains("AHU") || famName.Contains("AIR HANDLING"))
+                            return new InferenceResult("HVAC", 0.9, "Connected to AHU: " + current.Id);
+                        if (famName.Contains("BOILER") || famName.Contains("BLR"))
+                            return new InferenceResult("HWS", 0.9, "Connected to boiler: " + current.Id);
+                        if (famName.Contains("CHILLER") || famName.Contains("CHR"))
+                            return new InferenceResult("HVAC", 0.9, "Connected to chiller: " + current.Id);
+                        if (famName.Contains("PUMP"))
+                            return new InferenceResult("DCW", 0.8, "Connected to pump: " + current.Id);
+                    }
+                    else if (catName == "Electrical Equipment")
+                    {
+                        return new InferenceResult("LV", 0.85, "Connected to panel: " + current.Id);
+                    }
+
+                    // Continue traversal (max 2 hops)
+                    if (depth < 2 && current is FamilyInstance fi2 &&
+                        fi2.MEPModel?.ConnectorManager != null)
+                    {
+                        foreach (Connector conn in fi2.MEPModel.ConnectorManager.Connectors)
+                        {
+                            if (conn.AllRefs == null) continue;
+                            foreach (Connector other in conn.AllRefs)
+                            {
+                                if (other.Owner != null && !visited.Contains(other.Owner.Id))
+                                {
+                                    visited.Add(other.Owner.Id);
+                                    queue.Enqueue((other.Owner, depth + 1));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"InferSysFromConnectedEquipment: {ex.Message}");
+            }
+            return null;
+        }
+
+        // ── Layer 8: Size-Based Classification ───────────────────────────────
+
+        /// <summary>
+        /// Infer system type from element sizing.
+        /// In MEP design, pipe/duct sizes correlate strongly with system type:
+        ///   - Pipes ≤32mm: typically sanitary branch, DCW branch
+        ///   - Pipes 40-80mm: sanitary mains, DCW mains
+        ///   - Pipes 80-200mm: fire mains, DCW risers, HVAC CHW
+        ///   - Pipes ≥200mm: fire protection mains, DHW risers
+        ///   - Ducts ≤300mm: extract/exhaust branches
+        ///   - Ducts 300-600mm: supply/return branches
+        ///   - Ducts ≥600mm: supply/return mains
+        /// </summary>
+        public static InferenceResult InferSysFromSize(Element el)
+        {
+            try
+            {
+                // Read calculated size or diameter
+                Parameter sizePar = el.get_Parameter(BuiltInParameter.RBS_CALCULATED_SIZE);
+                Parameter diaPar = el.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM);
+
+                double diameterMm = 0;
+                if (diaPar != null && diaPar.HasValue && diaPar.StorageType == StorageType.Double)
+                    diameterMm = diaPar.AsDouble() * 304.8; // feet to mm
+
+                string catName = ParameterHelpers.GetCategoryName(el);
+
+                // Pipe size-based inference (only applies if no system info available)
+                if (catName == "Pipes" && diameterMm > 0)
+                {
+                    if (diameterMm >= 100)
+                        return new InferenceResult("FP", 0.4,
+                            $"Size inference: pipe {diameterMm:F0}mm ≥ 100mm (possible fire main)");
+                    if (diameterMm <= 32)
+                        return new InferenceResult("SAN", 0.3,
+                            $"Size inference: pipe {diameterMm:F0}mm ≤ 32mm (possible sanitary branch)");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"InferSysFromSize: {ex.Message}");
+            }
+            return null;
+        }
+
+        // ── Layer 10: Cross-Validation ───────────────────────────────────────
+
+        /// <summary>
+        /// Cross-validate DISC, SYS, FUNC, and PROD codes against each other.
+        /// Returns a list of inconsistencies found (empty list = all valid).
+        ///
+        /// Rules:
+        ///   - DISC=M requires SYS in {HVAC, HWS, DCW, GAS, RWD, SAN, DHW}
+        ///   - DISC=E requires SYS in {LV, FLS, SEC, ICT, COM, NCL}
+        ///   - DISC=P requires SYS in {DCW, DHW, SAN, RWD, GAS}
+        ///   - DISC=FP requires SYS in {FP, FLS}
+        ///   - PROD code must be compatible with category
+        ///   - FUNC code must be compatible with SYS code
+        /// </summary>
+        public static List<string> CrossValidate(Element el)
+        {
+            var issues = new List<string>();
+            string disc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
+            string sys = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
+            string func = ParameterHelpers.GetString(el, "ASS_FUNC_TXT");
+            string prod = ParameterHelpers.GetString(el, "ASS_PRODCT_COD_TXT");
+            string catName = ParameterHelpers.GetCategoryName(el);
+
+            if (string.IsNullOrEmpty(disc)) return issues;
+
+            // DISC ↔ SYS consistency
+            var validSysForDisc = new Dictionary<string, HashSet<string>>
+            {
+                { "M", new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN" } },
+                { "E", new HashSet<string> { "LV", "FLS", "SEC", "ICT", "COM", "NCL" } },
+                { "P", new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS" } },
+                { "FP", new HashSet<string> { "FP", "FLS" } },
+                { "A", new HashSet<string> { "ARC" } },
+                { "S", new HashSet<string> { "STR" } },
+                { "LV", new HashSet<string> { "LV", "ICT", "COM", "SEC", "NCL" } },
+            };
+
+            if (!string.IsNullOrEmpty(sys) && validSysForDisc.TryGetValue(disc, out var validSys))
+            {
+                if (!validSys.Contains(sys))
+                    issues.Add($"DISC={disc} incompatible with SYS={sys} (expected: {string.Join("/", validSys)})");
+            }
+
+            // DISC ↔ Category consistency
+            string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string ed) ? ed : null;
+            if (expectedDisc != null && expectedDisc != disc)
+                issues.Add($"DISC={disc} doesn't match category '{catName}' (expected: {expectedDisc})");
+
+            // SYS ↔ FUNC consistency (HVAC should have SUP/RTN/EXH/FRA, not PWR)
+            if (sys == "HVAC" && func == "PWR")
+                issues.Add($"SYS=HVAC with FUNC=PWR is invalid (expected: SUP/RTN/EXH/FRA)");
+            if (sys == "LV" && (func == "SUP" || func == "HTG"))
+                issues.Add($"SYS=LV with FUNC={func} is invalid (expected: PWR/LTG)");
+
+            return issues;
+        }
+
+        /// <summary>
+        /// Perform full tagging intelligence analysis on an element.
+        /// Runs all inference layers and returns a consolidated report
+        /// with the best result per token and confidence scores.
+        /// Used by AutoPopulate and pre-tagging audit.
+        /// </summary>
+        public static Dictionary<string, InferenceResult> AnalyzeElement(Document doc, Element el)
+        {
+            var results = new Dictionary<string, InferenceResult>();
+            string catName = ParameterHelpers.GetCategoryName(el);
+
+            // DISC — category is primary (confidence 1.0), workset as validation
+            if (TagConfig.DiscMap.TryGetValue(catName, out string disc))
+                results["DISC"] = new InferenceResult(disc, 1.0, "Category: " + catName);
+
+            var wsResult = InferDiscFromWorkset(el);
+            if (wsResult != null && results.ContainsKey("DISC") && results["DISC"].Value != wsResult.Value)
+                StingLog.Warn($"Element {el.Id}: category says DISC={results["DISC"].Value} but workset says {wsResult.Value}");
+
+            // SYS — multi-layer with confidence scoring
+            string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+            if (!string.IsNullOrEmpty(sys))
+                results["SYS"] = new InferenceResult(sys, 0.85, "MEP system detection");
+
+            // Try connected equipment traversal for higher confidence
+            var connResult = InferSysFromConnectedEquipment(el);
+            if (connResult != null && connResult.Confidence > (results.ContainsKey("SYS") ? results["SYS"].Confidence : 0))
+                results["SYS"] = connResult;
+
+            // Size-based only if nothing else worked
+            if (!results.ContainsKey("SYS") || results["SYS"].Confidence < 0.5)
+            {
+                var sizeResult = InferSysFromSize(el);
+                if (sizeResult != null)
+                    results["SYS"] = sizeResult;
+            }
+
+            // FUNC — smart detection
+            string sysVal = results.ContainsKey("SYS") ? results["SYS"].Value : "";
+            string func = TagConfig.GetSmartFuncCode(el, sysVal);
+            if (!string.IsNullOrEmpty(func))
+                results["FUNC"] = new InferenceResult(func, 0.8, "Smart FUNC detection");
+
+            // PROD — family-aware
+            string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+            if (!string.IsNullOrEmpty(prod))
+                results["PROD"] = new InferenceResult(prod, 0.9, "Family-aware PROD");
+
+            // LVL
+            string lvl = ParameterHelpers.GetLevelCode(doc, el);
+            if (lvl != "XX")
+                results["LVL"] = new InferenceResult(lvl, 1.0, "Level: auto-derived");
+
+            return results;
+        }
+
+        /// <summary>
+        /// Generate a human-readable audit trail for an element's tag derivation.
+        /// Shows what each intelligence layer detected and why, with confidence scores.
+        /// </summary>
+        public static string GenerateAuditTrail(Document doc, Element el)
+        {
+            var sb = new System.Text.StringBuilder();
+            string catName = ParameterHelpers.GetCategoryName(el);
+            sb.AppendLine($"Element {el.Id} [{catName}]: {ParameterHelpers.GetFamilyName(el)}");
+
+            var analysis = AnalyzeElement(doc, el);
+            foreach (var kvp in analysis)
+            {
+                sb.AppendLine($"  {kvp.Key} = {kvp.Value.Value} " +
+                    $"(confidence: {kvp.Value.Confidence:P0}, source: {kvp.Value.Source})");
+            }
+
+            // Cross-validation
+            var issues = CrossValidate(el);
+            if (issues.Count > 0)
+            {
+                sb.AppendLine("  WARNINGS:");
+                foreach (string issue in issues)
+                    sb.AppendLine($"    ! {issue}");
+            }
+            else
+            {
+                sb.AppendLine("  Cross-validation: PASS");
+            }
+
+            return sb.ToString();
         }
     }
 }

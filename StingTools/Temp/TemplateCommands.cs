@@ -62,7 +62,7 @@ namespace StingTools.Temp
                 BuiltInCategory.OST_Rooms }),
             ("STING - Generic & Specialty", new[] {
                 BuiltInCategory.OST_GenericModel, BuiltInCategory.OST_SpecialityEquipment,
-                BuiltInCategory.OST_MedicalEquipment }),
+                BuiltInCategory.OST_Casework }),  // Medical equipment falls under SpecialityEquipment (above)
         };
 
         public Result Execute(ExternalCommandData commandData,

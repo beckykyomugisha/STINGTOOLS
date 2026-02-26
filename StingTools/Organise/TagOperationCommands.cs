@@ -12,6 +12,7 @@ namespace StingTools.Organise
     /// <summary>Tag selected elements only (Tag Sel from STINGTags ORGANISE tab).
     /// Includes collision mode selection for handling already-tagged elements.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class TagSelectedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -99,6 +100,7 @@ namespace StingTools.Organise
     /// Use when elements need fresh tags (e.g., after category changes or corrections).
     /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class ReTagCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -154,6 +156,7 @@ namespace StingTools.Organise
     /// reassigns subsequent duplicates with new unique SEQ values.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class FixDuplicateTagsCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -247,6 +250,7 @@ namespace StingTools.Organise
 
     /// <summary>Delete tag parameter values from selected elements.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class DeleteTagsCommand : IExternalCommand
     {
         private static readonly string[] TagParams = new[]
@@ -302,6 +306,7 @@ namespace StingTools.Organise
 
     /// <summary>Renumber sequence numbers for selected elements within their group key.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class RenumberTagsCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -488,6 +493,7 @@ namespace StingTools.Organise
 
     /// <summary>Highlight elements with incomplete/missing tags using graphic overrides.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class HighlightInvalidCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -541,6 +547,7 @@ namespace StingTools.Organise
 
     /// <summary>Clear graphic overrides from all elements in active view.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class ClearOverridesCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -573,6 +580,7 @@ namespace StingTools.Organise
     /// Picks the first selected element as source; writes its tag tokens to all others.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class CopyTagsCommand : IExternalCommand
     {
         private static readonly string[] CopyParams = new[]
@@ -643,6 +651,7 @@ namespace StingTools.Organise
     /// Useful for correcting tag assignment errors.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class SwapTagsCommand : IExternalCommand
     {
         private static readonly string[] SwapParams = new[]

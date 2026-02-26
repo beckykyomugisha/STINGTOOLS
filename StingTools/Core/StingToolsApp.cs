@@ -497,7 +497,12 @@ namespace StingTools.Core
                     "Auto-Populate",
                     asmPath,
                     typeof(Temp.AutoPopulateCommand).FullName,
-                    "Auto-populate DISC/PROD/SYS/FUNC/LVL on all elements");
+                    "Auto-populate all tokens + native param mapping (Mark, Comments, MEP params, Room, Type)");
+                AddPulldownItem(schGroup, "btnFormulaEval",
+                    "Evaluate Formulas",
+                    asmPath,
+                    typeof(Temp.FormulaEvaluatorCommand).FullName,
+                    "Evaluate 199 engineering formulas from FORMULAS_WITH_DEPENDENCIES.csv (areas, volumes, flow rates, costs)");
                 AddPulldownItem(schGroup, "btnExportCSV",
                     "Export to CSV",
                     asmPath,

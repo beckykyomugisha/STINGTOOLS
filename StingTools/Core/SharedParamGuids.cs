@@ -165,7 +165,8 @@ namespace StingTools.Core
             // Generic / Specialty
             BuiltInCategory.OST_GenericModel,
             BuiltInCategory.OST_SpecialityEquipment,
-            BuiltInCategory.OST_MedicalEquipment,
+            // OST_MedicalEquipment does not exist in Revit API — medical equipment
+            // falls under OST_SpecialityEquipment (already listed above)
             // Site
             BuiltInCategory.OST_Parking,
             BuiltInCategory.OST_Site,
