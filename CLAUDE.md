@@ -278,7 +278,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 - `BuildReport()` generates multi-line formatted report for TaskDialog display
 
 ### `ISO19650Validator` (static) — `Core/TagConfig.cs`
-- **Code validation**: `ValidDiscCodes`, `ValidSysCodes`, `ValidFuncCodes` — allowed ISO 19650 / Uniclass code lists (WSP, DRN, GAS aligned with MEP_MATERIALS.csv)
+- **Code validation**: `ValidDiscCodes`, `ValidSysCodes`, `ValidFuncCodes` — CIBSE / Uniclass 2015 code lists (DCW=Domestic Cold Water per CAWS S10, SAN=Sanitary per CAWS R11, RWD=Rainwater per CAWS R10, GAS per CAWS S63)
 - **Token validation**: `ValidateToken(tokenName, value)` — validates individual token values against allowed lists
 - **Element validation**: `ValidateElement(el)` — validates all 8 tokens + cross-validates DISC/SYS against element category
 - **Tag format validation**: `ValidateTagFormat(tag)` — validates complete 8-segment tag string format and all segments
@@ -287,7 +287,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 ### `TagConfig` (static, singleton) — `Core/TagConfig.cs` (~1000 lines)
 - **Lookup tables** (all configurable via `project_config.json`):
   - `DiscMap` — 41 category → discipline code mappings (M, E, P, A, S, FP, LV, G)
-  - `SysMap` — 16 system codes → category lists (HVAC, WSP, DHW, HWS, DRN, GAS, FP, LV, FLS, COM, ICT, NCL, SEC, ARC, STR, GEN)
+  - `SysMap` — 17 system codes → category lists (HVAC, DCW, DHW, HWS, SAN, RWD, GAS, FP, LV, FLS, COM, ICT, NCL, SEC, ARC, STR, GEN)
   - `ProdMap` — 41 category → product codes
   - `FuncMap` — 16 system → function code mappings
   - `LocCodes` — location codes (BLD1, BLD2, BLD3, EXT, XX)
@@ -327,8 +327,8 @@ Tags follow the 8-segment format: `DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ`
 | LOC | ASS_LOC_TXT | BLD1, EXT | Location/building code |
 | ZONE | ASS_ZONE_TXT | Z01, Z02 | Zone code |
 | LVL | ASS_LVL_COD_TXT | L01, GF, B1 | Level code |
-| SYS | ASS_SYSTEM_TYPE_TXT | HVAC, HWS, LV | System type |
-| FUNC | ASS_FUNC_TXT | SUP, HTG, PWR | Function code |
+| SYS | ASS_SYSTEM_TYPE_TXT | HVAC, DCW, SAN, HWS, LV | System type (CIBSE/Uniclass) |
+| FUNC | ASS_FUNC_TXT | SUP, HTG, DCW, SAN, PWR | Function code (CIBSE/Uniclass) |
 | PROD | ASS_PRODCT_COD_TXT | AHU, DB, DR | Product code |
 | SEQ | ASS_SEQ_NUM_TXT | 0001, 0042 | 4-digit sequence number |
 

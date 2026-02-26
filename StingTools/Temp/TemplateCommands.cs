@@ -16,7 +16,7 @@ namespace StingTools.Temp
     ///
     /// Filter groups:
     ///   1. Discipline filters (multi-category: M, E, P, A, S, FP, LV)
-    ///   2. System filters (HVAC-SUP, HVAC-RET, HWS, WSP, DRN, etc.)
+    ///   2. System filters (HVAC-SUP, HVAC-RET, HWS, DCW, SAN, RWD, etc.)
     ///   3. Tag status filters (Tagged, Untagged, Incomplete)
     ///   4. QA filters (Missing DISC, Missing SEQ, No Room)
     /// </summary>

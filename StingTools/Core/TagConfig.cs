@@ -147,26 +147,30 @@ namespace StingTools.Core
         };
 
         /// <summary>
-        /// Valid system codes per ISO 19650 / Uniclass Ss_55.
-        /// WSP = Water Supply (Ss_55_70), DRN = Drainage (Ss_55_30),
-        /// GAS = Gas Supply (Ss_55_40), HWS = Heating Water System,
-        /// DHW = Domestic Hot Water. Aligned with MEP_MATERIALS.csv codes.
+        /// Valid system codes per CIBSE / Uniclass 2015 / ISO 19650.
+        /// DCW = Domestic Cold Water (Uniclass Ss_55_70_38_15, CAWS S10)
+        /// DHW = Domestic Hot Water (Uniclass Ss_55_70_38, CAWS S11)
+        /// HWS = Heating Water System (LTHW heating circuits)
+        /// SAN = Sanitary drainage (Uniclass Ss_50_30_04, CAWS R11)
+        /// GAS = Gas Supply (Uniclass Ss_55_20_34, CAWS S63)
+        /// RWD = Rainwater Drainage (Uniclass Ss_50_30_02, CAWS R10)
+        /// CSV element type codes (P-WSP, P-DRN) map to these system codes.
         /// </summary>
         public static readonly HashSet<string> ValidSysCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "HVAC", "HWS", "DHW", "WSP", "DRN", "GAS", "FP", "LV",
+            "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "FP", "LV",
             "FLS", "COM", "ICT", "NCL", "SEC",
             "ARC", "STR", "GEN", ""
         };
 
         /// <summary>
-        /// Valid function codes per ISO 19650 / Uniclass.
-        /// WSP = Water Supply, DRN = Drainage, GAS = Gas Supply.
-        /// Aligned with MEP_MATERIALS.csv element type codes (P-WSP, P-DRN).
+        /// Valid function codes per CIBSE / Uniclass 2015.
+        /// DCW = Cold Water Supply (CAWS S10), SAN = Sanitary (CAWS R11),
+        /// GAS = Gas Supply (CAWS S63), RWD = Rainwater Drainage (CAWS R10).
         /// </summary>
         public static readonly HashSet<string> ValidFuncCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "SUP", "HTG", "DRN", "WSP", "GAS", "FP", "PWR", "FLS",
+            "SUP", "HTG", "DCW", "SAN", "RWD", "GAS", "FP", "PWR", "FLS",
             "COM", "ICT", "NCL", "SEC",
             "FIT", "STR", "GEN", ""
         };
@@ -319,7 +323,7 @@ namespace StingTools.Core
         /// <summary>Category name → product code (GRL, AHU, DR, WIN, etc.).</summary>
         public static Dictionary<string, string> ProdMap { get; private set; }
 
-        /// <summary>System code → function code (SUP, HTG, DRN, WSP, etc.).</summary>
+        /// <summary>System code → function code (SUP, HTG, DCW, SAN, RWD, etc.).</summary>
         public static Dictionary<string, string> FuncMap { get; private set; }
 
         /// <summary>Available location codes.</summary>
@@ -655,12 +659,14 @@ namespace StingTools.Core
                                 return "HVAC";
                             if (sysName.Contains("HOT WATER") || sysName.Contains("DHW") || sysName.Contains("HWS"))
                                 return "HWS";
-                            if (sysName.Contains("COLD WATER") || sysName.Contains("CWS") || sysName.Contains("DOMESTIC"))
-                                return "WSP";
+                            if (sysName.Contains("COLD WATER") || sysName.Contains("CWS") || sysName.Contains("DCW") || sysName.Contains("DOMESTIC COLD"))
+                                return "DCW";
                             if (sysName.Contains("FIRE") || sysName.Contains("SPRINKLER"))
                                 return "FP";
-                            if (sysName.Contains("SANITARY") || sysName.Contains("WASTE") || sysName.Contains("DRAIN"))
-                                return "DRN";
+                            if (sysName.Contains("SANITARY") || sysName.Contains("WASTE") || sysName.Contains("DRAIN") || sysName.Contains("SOIL"))
+                                return "SAN";
+                            if (sysName.Contains("RAINWATER") || sysName.Contains("STORM") || sysName.Contains("SURFACE WATER"))
+                                return "RWD";
                             if (sysName.Contains("CHILLED") || sysName.Contains("COOLING"))
                                 return "HVAC";
                             if (sysName.Contains("HEATING") || sysName.Contains("LTHW") || sysName.Contains("RADIATOR"))
@@ -925,9 +931,9 @@ namespace StingTools.Core
             return new Dictionary<string, List<string>>
             {
                 { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Flex Ducts", "Mechanical Equipment" } },
-                // Pipes default to WSP (Water Supply per P-WSP in CSV); runtime MEP system
-                // detection in GetMepSystemAwareSysCode overrides to HWS/DRN/GAS as appropriate
-                { "WSP", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories" } },
+                // Pipes default to DCW (Domestic Cold Water per CIBSE/CAWS S10); runtime MEP
+                // system detection in GetMepSystemAwareSysCode overrides to HWS/SAN/GAS as needed
+                { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories" } },
                 { "DHW", new List<string> { "Plumbing Fixtures", "Flex Pipes" } },
                 { "FP", new List<string> { "Sprinklers" } },
                 { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings" } },
@@ -979,8 +985,8 @@ namespace StingTools.Core
         {
             return new Dictionary<string, string>
             {
-                { "HVAC", "SUP" }, { "HWS", "HTG" }, { "DHW", "WSP" },
-                { "WSP", "WSP" }, { "DRN", "DRN" }, { "GAS", "GAS" },
+                { "HVAC", "SUP" }, { "HWS", "HTG" }, { "DHW", "DCW" },
+                { "DCW", "DCW" }, { "SAN", "SAN" }, { "RWD", "RWD" }, { "GAS", "GAS" },
                 { "FP", "FP" }, { "LV", "PWR" }, { "FLS", "FLS" },
                 { "COM", "COM" }, { "ICT", "ICT" }, { "NCL", "NCL" },
                 { "SEC", "SEC" },
