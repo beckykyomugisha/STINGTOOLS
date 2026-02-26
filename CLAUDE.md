@@ -45,7 +45,7 @@ STINGTOOLS/
     │   └── TagConfig.cs                # ISO 19650 tag lookup tables + tag builder
     │
     ├── Select/                         # Element selection commands (2 files, 23 commands)
-    │   ├── CategorySelectCommands.cs   # 15 category selectors + SelectAllTaggable + CategorySelector helper
+    │   ├── CategorySelectCommands.cs   # 14 category selectors + SelectAllTaggable + CategorySelector helper
     │   └── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite
     │
     ├── Docs/                           # Documentation commands (5 files, 8 commands)
@@ -192,7 +192,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 
 | File | Commands | Lines |
 |------|----------|-------|
-| `Select/CategorySelectCommands.cs` | 16 (15 category selectors + SelectAllTaggable) | 168 |
+| `Select/CategorySelectCommands.cs` | 15 (14 category selectors + SelectAllTaggable) | 168 |
 | `Select/StateSelectCommands.cs` | 8 (5 state + 2 spatial + BulkParamWrite) | 289 |
 | `Docs/SheetOrganizerCommand.cs` | 1 | 100 |
 | `Docs/ViewOrganizerCommand.cs` | 1 | 91 |
@@ -272,7 +272,7 @@ These `internal static` classes provide shared logic used by multiple commands w
 
 | Helper Class | Location | Purpose |
 |--------------|----------|---------|
-| `CategorySelector` | `Select/CategorySelectCommands.cs` | `SelectByCategory()` — shared logic for all 16 category selection commands |
+| `CategorySelector` | `Select/CategorySelectCommands.cs` | `SelectByCategory()` — shared logic for all 15 category selection commands |
 | `TokenWriter` | `Tags/TokenWriterCommands.cs` | Encapsulates LOC/ZONE/STATUS token writing and number assignment logic |
 | `CompoundTypeCreator` | `Temp/FamilyCommands.cs` | Creates compound wall/floor/ceiling/roof/duct/pipe types from CSV data; `ElementKind` enum |
 | `MaterialPropertyHelper` | `Temp/MaterialCommands.cs` | Shared material property-setting logic for BLE and MEP material commands |
