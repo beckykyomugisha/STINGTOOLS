@@ -446,8 +446,14 @@ namespace StingTools.Core
                 catch { }
             }
 
+            // ── Dimensional parameters (BLE_ schedule fields) ──────────────────
+            written += MapDimensionalParams(el);
+
             // ── MEP-specific parameters ────────────────────────────────────────
             written += MapMepParams(el);
+
+            // ── Default values ─────────────────────────────────────────────────
+            written += MapDefaults(el);
 
             // ── Type parameter fallback ────────────────────────────────────────
             // If instance params are still empty, try reading from the element type
@@ -457,41 +463,398 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Map Revit built-in dimensional parameters to STING BLE_ shared parameters.
+        /// These are the parameters referenced in MR_SCHEDULES.csv Formulas column
+        /// (e.g., BLE_WALL_HEIGHT_MM=Unconnected Height, BLE_DOOR_WIDTH_MM=Width).
+        /// Converts from Revit internal units (feet) to metric mm/m²/degrees.
+        /// </summary>
+        private static int MapDimensionalParams(Element el)
+        {
+            int written = 0;
+            string catName = (el.Category?.Name ?? "");
+
+            const double ftToMm = 304.8;
+            const double sqFtToSqM = 0.092903;
+            const double radToDeg = 180.0 / Math.PI;
+
+            try
+            {
+                switch (catName)
+                {
+                    case "Walls":
+                        written += MapDimension(el, BuiltInParameter.WALL_USER_HEIGHT_PARAM,
+                            "BLE_WALL_HEIGHT_MM", ftToMm);
+                        written += MapDimension(el, BuiltInParameter.CURVE_ELEM_LENGTH,
+                            "BLE_WALL_LENGTH_MM", ftToMm);
+                        written += MapDimension(el, BuiltInParameter.WALL_ATTR_WIDTH_PARAM,
+                            "BLE_WALL_THICKNESS_MM", ftToMm);
+                        // Fire rating from type
+                        written += MapStringParam(el, "Fire Rating",
+                            "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN");
+                        break;
+
+                    case "Doors":
+                        written += MapDimension(el, BuiltInParameter.FAMILY_WIDTH_PARAM,
+                            "BLE_DOOR_WIDTH_MM", ftToMm);
+                        written += MapDimension(el, BuiltInParameter.FAMILY_HEIGHT_PARAM,
+                            "BLE_DOOR_HEIGHT_MM", ftToMm);
+                        written += MapStringParam(el, "Fire Rating",
+                            "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN");
+                        break;
+
+                    case "Windows":
+                        written += MapDimension(el, BuiltInParameter.FAMILY_WIDTH_PARAM,
+                            "BLE_WINDOW_WIDTH_MM", ftToMm);
+                        written += MapDimension(el, BuiltInParameter.FAMILY_HEIGHT_PARAM,
+                            "BLE_WINDOW_HEIGHT_MM", ftToMm);
+                        written += MapDimension(el, BuiltInParameter.INSTANCE_SILL_HEIGHT_PARAM,
+                            "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM", ftToMm);
+                        break;
+
+                    case "Floors":
+                        written += MapFloorThickness(el, "BLE_FLR_THICKNESS_MM");
+                        written += MapDimension(el, BuiltInParameter.HOST_AREA_COMPUTED,
+                            "BLE_ELE_AREA_SQ_M", sqFtToSqM);
+                        break;
+
+                    case "Ceilings":
+                        written += MapDimension(el, BuiltInParameter.CEILING_HEIGHTABOVELEVEL_PARAM,
+                            "BLE_CEILING_HEIGHT_MM", ftToMm);
+                        written += MapDimension(el, BuiltInParameter.HOST_AREA_COMPUTED,
+                            "BLE_ELE_AREA_SQ_M", sqFtToSqM);
+                        written += MapStringParam(el, "Fire Rating",
+                            "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN");
+                        break;
+
+                    case "Roofs":
+                        written += MapRoofSlope(el, "BLE_ROOF_SLOPE_DEG");
+                        written += MapDimension(el, BuiltInParameter.HOST_AREA_COMPUTED,
+                            "BLE_ELE_AREA_SQ_M", sqFtToSqM);
+                        break;
+
+                    case "Stairs":
+                        written += MapDimension(el, BuiltInParameter.STAIRS_ACTUAL_TREAD_DEPTH,
+                            "BLE_STAIR_GOING_MM", ftToMm);
+                        written += MapDimension(el, BuiltInParameter.STAIRS_ACTUAL_RISER_HEIGHT,
+                            "BLE_STAIR_RISE_MM", ftToMm);
+                        written += MapStairWidth(el, "BLE_STAIR_WIDTH_MM");
+                        break;
+
+                    case "Ramps":
+                        written += MapRampSlope(el, "BLE_RAMP_SLOPE_PCT");
+                        written += MapLookup(el, "Width", "BLE_RAMP_WIDTH_MM", ftToMm);
+                        break;
+
+                    case "Structural Framing":
+                    case "Structural Columns":
+                    case "Structural Foundations":
+                        written += MapStructuralType(el, "BLE_STRUCT_ELE_TYPE_TXT");
+                        break;
+
+                    case "Rooms":
+                        written += MapDimension(el, BuiltInParameter.ROOM_AREA,
+                            "ASS_ROOM_AREA_SQ_M", sqFtToSqM);
+                        written += MapDimension(el, BuiltInParameter.ROOM_VOLUME,
+                            "ASS_ROOM_VOLUME_CU_M", 0.0283168); // cu ft → cu m
+                        written += MapDimension(el, BuiltInParameter.ROOM_UPPER_OFFSET,
+                            "BLE_CEILING_HEIGHT_MM", ftToMm);
+                        written += MapRoomNameNumber(el);
+                        break;
+                }
+
+                // Category name → ASS_CAT_TXT (all elements)
+                if (!string.IsNullOrEmpty(catName))
+                    written += SetIfEmptyInt(el, "ASS_CAT_TXT", catName);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MapDimensionalParams failed for {el?.Id}: {ex.Message}");
+            }
+
+            return written;
+        }
+
+        /// <summary>Map a built-in dimension parameter with unit conversion.</summary>
+        private static int MapDimension(Element el, BuiltInParameter bip,
+            string targetParam, double conversionFactor)
+        {
+            try
+            {
+                Parameter p = el.get_Parameter(bip);
+                if (p == null || !p.HasValue || p.StorageType != StorageType.Double) return 0;
+
+                double val = p.AsDouble() * conversionFactor;
+                if (val <= 0.001) return 0;
+
+                string formatted = conversionFactor > 1
+                    ? Math.Round(val, 0).ToString("F0",
+                        System.Globalization.CultureInfo.InvariantCulture)
+                    : val.ToString("F2",
+                        System.Globalization.CultureInfo.InvariantCulture);
+
+                return SetIfEmptyInt(el, targetParam, formatted);
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>Map a named lookup parameter with unit conversion.</summary>
+        private static int MapLookup(Element el, string paramName,
+            string targetParam, double conversionFactor)
+        {
+            try
+            {
+                Parameter p = el.LookupParameter(paramName);
+                if (p == null || !p.HasValue || p.StorageType != StorageType.Double) return 0;
+
+                double val = p.AsDouble() * conversionFactor;
+                if (val <= 0.001) return 0;
+
+                string formatted = Math.Round(val, 0).ToString("F0",
+                    System.Globalization.CultureInfo.InvariantCulture);
+                return SetIfEmptyInt(el, targetParam, formatted);
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>Map a named parameter string value (e.g., Fire Rating).</summary>
+        private static int MapStringParam(Element el, string sourceName, string targetParam)
+        {
+            try
+            {
+                Parameter p = el.LookupParameter(sourceName);
+                if (p == null || !p.HasValue) return 0;
+
+                string val = p.StorageType == StorageType.String
+                    ? p.AsString()
+                    : p.AsValueString();
+
+                if (string.IsNullOrEmpty(val)) return 0;
+                return SetIfEmptyInt(el, targetParam, val);
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>Get floor thickness from compound structure or parameter.</summary>
+        private static int MapFloorThickness(Element el, string targetParam)
+        {
+            try
+            {
+                // Try FLOOR_ATTR_THICKNESS_PARAM first
+                Parameter p = el.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
+                if (p != null && p.HasValue && p.StorageType == StorageType.Double)
+                {
+                    double mm = p.AsDouble() * 304.8;
+                    if (mm > 0.1)
+                        return SetIfEmptyInt(el, targetParam,
+                            Math.Round(mm, 0).ToString("F0",
+                                System.Globalization.CultureInfo.InvariantCulture));
+                }
+                // Fallback: try "Thickness" named parameter
+                return MapLookup(el, "Thickness", targetParam, 304.8);
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>Get roof slope in degrees.</summary>
+        private static int MapRoofSlope(Element el, string targetParam)
+        {
+            try
+            {
+                Parameter p = el.get_Parameter(BuiltInParameter.ROOF_SLOPE);
+                if (p != null && p.HasValue && p.StorageType == StorageType.Double)
+                {
+                    // Revit stores slope as rise/12 ratio
+                    double slope = p.AsDouble();
+                    double degrees = Math.Atan(slope) * 180.0 / Math.PI;
+                    if (degrees > 0)
+                        return SetIfEmptyInt(el, targetParam,
+                            degrees.ToString("F1",
+                                System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
+            catch { }
+            return 0;
+        }
+
+        /// <summary>Get stair actual run width.</summary>
+        private static int MapStairWidth(Element el, string targetParam)
+        {
+            try
+            {
+                Parameter p = el.get_Parameter(BuiltInParameter.STAIRS_ATTR_TREAD_WIDTH);
+                if (p == null || !p.HasValue)
+                    p = el.LookupParameter("Actual Run Width");
+
+                if (p != null && p.HasValue && p.StorageType == StorageType.Double)
+                {
+                    double mm = p.AsDouble() * 304.8;
+                    if (mm > 0)
+                        return SetIfEmptyInt(el, targetParam,
+                            Math.Round(mm, 0).ToString("F0",
+                                System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
+            catch { }
+            return 0;
+        }
+
+        /// <summary>Get ramp slope as percentage.</summary>
+        private static int MapRampSlope(Element el, string targetParam)
+        {
+            try
+            {
+                Parameter p = el.LookupParameter("Slope");
+                if (p != null && p.HasValue && p.StorageType == StorageType.Double)
+                {
+                    double slopePct = p.AsDouble() * 100.0;
+                    if (slopePct > 0)
+                        return SetIfEmptyInt(el, targetParam,
+                            slopePct.ToString("F1",
+                                System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
+            catch { }
+            return 0;
+        }
+
+        /// <summary>Get structural element type name for BLE_STRUCT_ELE_TYPE_TXT.</summary>
+        private static int MapStructuralType(Element el, string targetParam)
+        {
+            try
+            {
+                string typeName = GetFamilySymbolName(el);
+                if (!string.IsNullOrEmpty(typeName))
+                    return SetIfEmptyInt(el, targetParam, typeName);
+            }
+            catch { }
+            return 0;
+        }
+
+        /// <summary>Map Room Name and Number for Room elements.</summary>
+        private static int MapRoomNameNumber(Element el)
+        {
+            int written = 0;
+            try
+            {
+                Parameter name = el.get_Parameter(BuiltInParameter.ROOM_NAME);
+                if (name != null && name.HasValue)
+                    written += SetIfEmptyInt(el, "BLE_ROOM_NAME_TXT", name.AsString() ?? "");
+
+                Parameter num = el.get_Parameter(BuiltInParameter.ROOM_NUMBER);
+                if (num != null && num.HasValue)
+                    written += SetIfEmptyInt(el, "BLE_ROOM_NUMBER_TXT", num.AsString() ?? "");
+
+                Parameter dept = el.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT);
+                if (dept != null && dept.HasValue)
+                    written += SetIfEmptyInt(el, "ASS_DEPARTMENT_ASSIGNMENT_TXT",
+                        dept.AsString() ?? "");
+            }
+            catch { }
+            return written;
+        }
+
+        /// <summary>
+        /// Set default values for parameters that have sensible defaults.
+        /// ASS_STATUS_TXT defaults to "NEW" for all elements.
+        /// </summary>
+        private static int MapDefaults(Element el)
+        {
+            int written = 0;
+            written += SetIfEmptyInt(el, "ASS_STATUS_TXT", "NEW");
+            return written;
+        }
+
+        /// <summary>
         /// Map MEP-specific native parameters (flow rates, voltages, pressures, etc.)
         /// to corresponding STING shared parameters.
+        /// Expanded for comprehensive schedule field coverage.
         /// </summary>
         private static int MapMepParams(Element el)
         {
             int written = 0;
-            string catName = (el.Category?.Name ?? "").ToUpperInvariant();
+            string catName = (el.Category?.Name ?? "");
+            string catUpper = catName.ToUpperInvariant();
 
-            // Electrical parameters
-            if (catName.Contains("ELECTRICAL") || catName.Contains("LIGHTING") ||
-                catName.Contains("CONDUIT") || catName.Contains("CABLE"))
+            // ── Electrical Equipment & Fixtures ────────────────────────────────
+            if (catUpper.Contains("ELECTRICAL") || catUpper.Contains("LIGHTING") ||
+                catUpper.Contains("CONDUIT") || catUpper.Contains("CABLE"))
             {
+                // Core electrical params
                 written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_APPARENT_LOAD, "ELC_CKT_PWR_KW");
                 written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_VOLTAGE, "ELC_CKT_VLT_V");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER, "ELC_CKT_NUM_TXT");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_CIRCUIT_PANEL_PARAM, "ELC_CKT_PANEL_TXT");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER, "ELC_CKT_NR");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_CIRCUIT_PANEL_PARAM, "ELC_PNL_DESIGNATION_NAME_TXT");
+
+                // Also write to legacy param names used by schedules
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_VOLTAGE, "ELC_VLT_PRIMARY_RATING_V");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES, "ELC_CKT_PHASE_COUNT_NR");
+
+                // Panel-specific params
+                if (catUpper.Contains("EQUIPMENT"))
+                {
+                    written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM,
+                        "ELC_PNL_CONNECTED_LOAD_KW");
+                    written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_PANEL_FEED_PARAM,
+                        "ELC_PNL_FED_FROM_PNL_TXT");
+                    written += MapStringParam(el, "Mains", "ELC_PNL_MAIN_BRK_A");
+                    written += MapStringParam(el, "Max #1 Pole Breakers",
+                        "ELC_PNL_NUM_OF_WAYS_NR");
+                    written += MapStringParam(el, "IP Rating", "ELC_IP_RATING_TXT");
+                }
+
+                // Lighting-specific params
+                if (catUpper.Contains("LIGHTING"))
+                {
+                    written += MapStringParam(el, "Wattage", "LTG_FIX_LMP_WATTAGE_W");
+                    written += MapStringParam(el, "Initial Intensity", "CST_FIX_LUMEN_OUTPUT_LM");
+                    written += MapStringParam(el, "Efficacy", "LTG_FIX_EFFICACY_LM_W");
+                    written += MapStringParam(el, "Lamp", "LTG_FIX_LAMP_TYPE_TXT");
+                }
             }
 
-            // Duct parameters
-            if (catName.Contains("DUCT") || catName.Contains("AIR TERMINAL"))
+            // ── Duct & Air Terminal parameters ─────────────────────────────────
+            if (catUpper.Contains("DUCT") || catUpper.Contains("AIR TERMINAL"))
             {
-                written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, "HVC_AIRFLOW_LPS");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, "HVC_DCT_FLW_CFM");
                 written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, "HVC_VEL_MPS");
                 written += MapBuiltIn(el, BuiltInParameter.RBS_LOSS_COEFFICIENT, "HVC_PRESSURE_DROP_PA");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, "HVC_AIRFLOW_LPS");
+                // System type name for schedule grouping
+                written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
+                    "ASS_SYSTEM_TYPE_TXT");
             }
 
-            // Pipe parameters
-            if (catName.Contains("PIPE") || catName.Contains("PLUMBING") ||
-                catName.Contains("SPRINKLER"))
+            // ── Mechanical Equipment ───────────────────────────────────────────
+            if (catName == "Mechanical Equipment")
             {
-                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM, "PLM_FLOW_RATE_LPS");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_DIAMETER_PARAM, "PLM_PPE_SZ_MM");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
+                    "ASS_SYSTEM_TYPE_TXT");
             }
 
-            // Size parameters (generic MEP)
+            // ── Pipe parameters ────────────────────────────────────────────────
+            if (catUpper.Contains("PIPE") || catUpper.Contains("PLUMBING") ||
+                catUpper.Contains("SPRINKLER"))
+            {
+                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM, "PLM_PPE_FLW_LPS");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_DIAMETER_PARAM, "PLM_PPE_SZ_MM");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, "PLM_VEL_MPS");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM, "PLM_FLOW_RATE_LPS");
+                // Pipe length
+                written += MapDimension(el, BuiltInParameter.CURVE_ELEM_LENGTH,
+                    "PLM_PPE_LENGTH_M", 0.3048); // ft → m
+                // System type
+                written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
+                    "ASS_SYSTEM_TYPE_TXT");
+            }
+
+            // ── Fire Alarm Devices ─────────────────────────────────────────────
+            if (catName == "Fire Alarm Devices")
+            {
+                written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
+                    "ASS_SYSTEM_TYPE_TXT");
+            }
+
+            // ── Size parameters (generic MEP) ──────────────────────────────────
             written += MapBuiltIn(el, BuiltInParameter.RBS_CALCULATED_SIZE, "ASS_SIZE_TXT");
 
             return written;

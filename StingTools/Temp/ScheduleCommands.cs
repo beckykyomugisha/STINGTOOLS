@@ -688,6 +688,374 @@ namespace StingTools.Temp
     }
 
     /// <summary>
+    /// Full Schedule Automation — zero-manual-input, one-click pipeline that chains:
+    ///   Step 1: Auto-populate all 7 tag tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD)
+    ///   Step 2: Map Revit native params → STING shared params (dimensional, MEP, identity)
+    ///   Step 3: Evaluate 199 engineering formulas (areas, volumes, flow rates, costs)
+    ///   Step 4: Build ISO 19650 tags (ASS_TAG_1_TXT) and assign SEQ numbers
+    ///   Step 5: Combine into all 37 discipline-specific tag containers
+    ///   Step 6: Auto-populate Grid Reference from nearest grid lines
+    ///
+    /// This is the "ultimate automation" command — a project that runs this once
+    /// will have all schedule fields populated without any manual input.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class FullAutoPopulateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            // ── Prepare indexes ────────────────────────────────────────────────
+            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            // Load formula engine
+            string csvPath = StingToolsApp.FindDataFile("FORMULAS_WITH_DEPENDENCIES.csv");
+            var formulas = new List<FormulaEngine.FormulaDefinition>();
+            if (csvPath != null)
+            {
+                formulas = FormulaEngine.LoadFormulas(csvPath);
+                formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
+            }
+
+            // Grid lines for grid reference auto-detection
+            var gridLines = new FilteredElementCollector(doc)
+                .OfClass(typeof(Grid))
+                .Cast<Grid>()
+                .ToList();
+
+            // Collect all elements
+            var allElements = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            int tokensFilled = 0, nativesMapped = 0, formulasWritten = 0;
+            int tagged = 0, combined = 0, gridRefSet = 0;
+            int totalElements = 0;
+
+            // Token arrays for combine step (reuse TagAndCombine layout)
+            string[] allTokenParams = new[]
+            {
+                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+            };
+            string[] shortIdTokens = new[]
+            {
+                "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+            };
+            string[] sysRefTokens = new[]
+            {
+                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT",
+            };
+            string[] locationTokens = new[]
+            {
+                "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
+            };
+            string[] systemTokens = new[]
+            {
+                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+            };
+            string[] line1Tokens = new[]
+            {
+                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
+            };
+            string[] line2Tokens = new[]
+            {
+                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+            };
+
+            var universalContainers = new (string param, string[] tokens)[]
+            {
+                ("ASS_TAG_1_TXT", allTokenParams),
+                ("ASS_TAG_2_TXT", shortIdTokens),
+                ("ASS_TAG_3_TXT", locationTokens),
+                ("ASS_TAG_4_TXT", systemTokens),
+                ("ASS_TAG_5_TXT", line1Tokens),
+                ("ASS_TAG_6_TXT", line2Tokens),
+            };
+
+            var disciplineContainers = new (string param, string[] tokens, HashSet<string> cats)[]
+            {
+                ("HVC_EQP_TAG_01_TXT", allTokenParams, new HashSet<string> { "Mechanical Equipment" }),
+                ("HVC_EQP_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Mechanical Equipment" }),
+                ("HVC_EQP_TAG_03_TXT", sysRefTokens, new HashSet<string> { "Mechanical Equipment" }),
+                ("HVC_DCT_TAG_01_TXT", allTokenParams, new HashSet<string> { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" }),
+                ("HVC_DCT_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" }),
+                ("HVC_DCT_TAG_03_TXT", systemTokens, new HashSet<string> { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" }),
+                ("HVC_FLX_TAG_01_TXT", allTokenParams, new HashSet<string> { "Flex Ducts" }),
+                ("ELC_EQP_TAG_01_TXT", allTokenParams, new HashSet<string> { "Electrical Equipment" }),
+                ("ELC_EQP_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Electrical Equipment" }),
+                ("ELE_FIX_TAG_1_TXT", allTokenParams, new HashSet<string> { "Electrical Fixtures" }),
+                ("ELE_FIX_TAG_2_TXT", shortIdTokens, new HashSet<string> { "Electrical Fixtures" }),
+                ("LTG_FIX_TAG_01_TXT", allTokenParams, new HashSet<string> { "Lighting Fixtures", "Lighting Devices" }),
+                ("LTG_FIX_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Lighting Fixtures", "Lighting Devices" }),
+                ("PLM_EQP_TAG_01_TXT", allTokenParams, new HashSet<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" }),
+                ("PLM_EQP_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" }),
+                ("FLS_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Sprinklers", "Fire Alarm Devices" }),
+                ("FLS_DEV_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Sprinklers", "Fire Alarm Devices" }),
+                ("ELC_CDT_TAG_01_TXT", allTokenParams, new HashSet<string> { "Conduits", "Conduit Fittings" }),
+                ("ELC_CDT_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Conduits", "Conduit Fittings" }),
+                ("ELC_CTR_TAG_01_TXT", allTokenParams, new HashSet<string> { "Cable Trays", "Cable Tray Fittings" }),
+                ("COM_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Communication Devices", "Telephone Devices" }),
+                ("SEC_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Security Devices" }),
+                ("NCL_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Nurse Call Devices" }),
+                ("ICT_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Data Devices" }),
+                ("MAT_TAG_1_TXT", allTokenParams, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs", "Doors", "Windows" }),
+                ("MAT_TAG_2_TXT", shortIdTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs", "Doors", "Windows" }),
+                ("MAT_TAG_3_TXT", locationTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
+                ("MAT_TAG_4_TXT", systemTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
+                ("MAT_TAG_5_TXT", line1Tokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
+                ("MAT_TAG_6_TXT", line2Tokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
+            };
+
+            using (Transaction tx = new Transaction(doc, "STING Full Auto-Populate"))
+            {
+                tx.Start();
+
+                foreach (Element el in allElements)
+                {
+                    string catName = ParameterHelpers.GetCategoryName(el);
+                    if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
+                        continue;
+
+                    totalElements++;
+
+                    // ── STEP 1: Tag token population ───────────────────────────
+                    if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT",
+                        TagConfig.DiscMap[catName])) tokensFilled++;
+
+                    string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+                    if (!string.IsNullOrEmpty(prod))
+                        if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod)) tokensFilled++;
+
+                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                    if (!string.IsNullOrEmpty(sys))
+                        if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys)) tokensFilled++;
+
+                    string func = TagConfig.GetSmartFuncCode(el, sys);
+                    if (!string.IsNullOrEmpty(func))
+                        if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func)) tokensFilled++;
+
+                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                    if (lvl != "XX")
+                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl)) tokensFilled++;
+
+                    // LOC from spatial
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                    {
+                        string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                        if (!string.IsNullOrEmpty(loc) && ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc))
+                            tokensFilled++;
+                    }
+
+                    // ZONE from room
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
+                    {
+                        string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                        if (!string.IsNullOrEmpty(zone) && ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone))
+                            tokensFilled++;
+                    }
+
+                    // ── STEP 2: Native parameter mapping ───────────────────────
+                    nativesMapped += NativeParamMapper.MapAll(doc, el);
+
+                    // ── STEP 3: Formula evaluation ─────────────────────────────
+                    foreach (var formula in formulas)
+                    {
+                        try
+                        {
+                            Parameter targetParam = el.LookupParameter(formula.ParameterName);
+                            if (targetParam == null || targetParam.IsReadOnly) continue;
+
+                            var context = FormulaEngine.BuildContext(el, formula);
+                            if (context == null) continue;
+
+                            if (formula.DataType == "TEXT")
+                            {
+                                string result = FormulaEngine.EvaluateText(formula.Expression, context);
+                                if (result != null && targetParam.StorageType == StorageType.String)
+                                {
+                                    if (string.IsNullOrEmpty(targetParam.AsString()))
+                                    {
+                                        targetParam.Set(result);
+                                        formulasWritten++;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                double? result = FormulaEngine.EvaluateNumeric(formula.Expression, context);
+                                if (result.HasValue && !double.IsNaN(result.Value) && !double.IsInfinity(result.Value))
+                                {
+                                    if (FormulaEngine.WriteNumericResult(targetParam, result.Value))
+                                        formulasWritten++;
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Formula '{formula.ParameterName}' el {el.Id}: {ex.Message}");
+                        }
+                    }
+
+                    // ── STEP 4: Build tag (with collision detection) ───────────
+                    if (TagConfig.BuildAndWriteTag(doc, el, seqCounters, existingTags: tagIndex))
+                        tagged++;
+
+                    // ── STEP 5: Combine into all 37 containers ─────────────────
+                    var tokenValues = new Dictionary<string, string>();
+                    foreach (string param in allTokenParams)
+                        tokenValues[param] = ParameterHelpers.GetString(el, param);
+
+                    if (tokenValues.Values.Any(v => !string.IsNullOrEmpty(v)))
+                    {
+                        foreach (var (param, tokens) in universalContainers)
+                        {
+                            var parts = tokens.Select(t =>
+                                tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
+                            string assembled = string.Join(TagConfig.Separator, parts);
+                            if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
+                                combined++;
+                        }
+
+                        foreach (var (param, tokens, cats) in disciplineContainers)
+                        {
+                            if (!cats.Contains(catName)) continue;
+                            var parts = tokens.Select(t =>
+                                tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
+                            string assembled = string.Join(TagConfig.Separator, parts);
+                            if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
+                                combined++;
+                        }
+                    }
+
+                    // ── STEP 6: Grid Reference ─────────────────────────────────
+                    if (gridLines.Count > 0 &&
+                        string.IsNullOrEmpty(ParameterHelpers.GetString(el, "PRJ_GRID_REF_TXT")))
+                    {
+                        string gridRef = GetNearestGridRef(el, gridLines);
+                        if (!string.IsNullOrEmpty(gridRef) &&
+                            ParameterHelpers.SetIfEmpty(el, "PRJ_GRID_REF_TXT", gridRef))
+                            gridRefSet++;
+                    }
+
+                    // Progress logging
+                    if (totalElements % 500 == 0)
+                        StingLog.Info($"FullAutoPopulate: {totalElements} elements processed...");
+                }
+
+                tx.Commit();
+            }
+
+            sw.Stop();
+
+            var report = new StringBuilder();
+            report.AppendLine("Full Schedule Auto-Populate Complete");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"  Elements processed:    {totalElements}");
+            report.AppendLine($"  Tag tokens filled:     {tokensFilled}");
+            report.AppendLine($"  Native params mapped:  {nativesMapped}");
+            report.AppendLine($"  Formulas evaluated:    {formulasWritten}");
+            report.AppendLine($"  Tags built (SEQ):      {tagged}");
+            report.AppendLine($"  Containers combined:   {combined}");
+            if (gridRefSet > 0)
+                report.AppendLine($"  Grid refs assigned:    {gridRefSet}");
+            report.AppendLine($"  Duration:              {sw.Elapsed.TotalSeconds:F1}s");
+            report.AppendLine();
+            report.AppendLine("Pipeline: Tokens → Dimensions → MEP → Formulas → Tags → Combine → Grid");
+
+            TaskDialog.Show("Full Auto-Populate", report.ToString());
+
+            StingLog.Info($"FullAutoPopulate: {totalElements} elements, " +
+                $"tokens={tokensFilled}, natives={nativesMapped}, formulas={formulasWritten}, " +
+                $"tags={tagged}, combined={combined}, grids={gridRefSet}, " +
+                $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
+
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Find nearest grid intersection reference for an element.
+        /// Returns grid reference like "A/3" (nearest X-grid / nearest Y-grid).
+        /// </summary>
+        private static string GetNearestGridRef(Element el, List<Grid> grids)
+        {
+            try
+            {
+                // Get element location point
+                LocationPoint lp = el.Location as LocationPoint;
+                LocationCurve lc = el.Location as LocationCurve;
+                XYZ point;
+
+                if (lp != null)
+                    point = lp.Point;
+                else if (lc != null)
+                    point = (lc.Curve.GetEndPoint(0) + lc.Curve.GetEndPoint(1)) / 2.0;
+                else
+                    return null;
+
+                string nearestX = null;
+                string nearestY = null;
+                double minDistX = double.MaxValue;
+                double minDistY = double.MaxValue;
+
+                foreach (Grid grid in grids)
+                {
+                    try
+                    {
+                        Curve curve = grid.Curve;
+                        XYZ start = curve.GetEndPoint(0);
+                        XYZ end = curve.GetEndPoint(1);
+                        XYZ dir = (end - start).Normalize();
+
+                        // Classify grid as X-direction or Y-direction
+                        bool isXGrid = Math.Abs(dir.X) > Math.Abs(dir.Y); // runs along X = horizontal
+                        double dist = curve.Distance(point);
+
+                        if (isXGrid)
+                        {
+                            // Horizontal grid → Y reference
+                            if (dist < minDistY)
+                            {
+                                minDistY = dist;
+                                nearestY = grid.Name;
+                            }
+                        }
+                        else
+                        {
+                            // Vertical grid → X reference
+                            if (dist < minDistX)
+                            {
+                                minDistX = dist;
+                                nearestX = grid.Name;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                if (nearestX != null && nearestY != null)
+                    return $"{nearestX}/{nearestY}";
+                if (nearestX != null)
+                    return nearestX;
+                if (nearestY != null)
+                    return nearestY;
+            }
+            catch { }
+
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Ported from STINGTemp 5_Schedules.panel — AutoPopulate.
     /// Enhanced for zero-manual-input: auto-populates ALL 7 token fields including
     /// LOC (from room/project data) and ZONE (from room department/name).
