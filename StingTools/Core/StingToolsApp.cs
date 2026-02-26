@@ -246,7 +246,7 @@ namespace StingTools.Core
                 "Tag &\nCombine",
                 asmPath,
                 typeof(Tags.TagAndCombineCommand).FullName,
-                "One-click: auto-detect LOC/ZONE + populate tokens + tag + combine all 37 containers");
+                "One-click: auto-detect LOC/ZONE + populate tokens + tag + combine all 36 containers");
 
             // Additional tagging modes pulldown
             var tagModes = panel.AddItem(
@@ -526,7 +526,7 @@ namespace StingTools.Core
                     "Create Worksets",
                     asmPath,
                     typeof(Temp.CreateWorksetsCommand).FullName,
-                    "Create 27 discipline worksets");
+                    "Create 32 AEC UK-aligned discipline worksets");
                 AddPulldownItem(tplGroup, "btnViewTemplates",
                     "View Templates",
                     asmPath,
@@ -541,7 +541,7 @@ namespace StingTools.Core
                     "Phases",
                     asmPath,
                     typeof(Temp.CreatePhasesCommand).FullName,
-                    "Create 7 project phases");
+                    "Create 6 project phases (per ISO 19650 best practice)");
             }
         }
 

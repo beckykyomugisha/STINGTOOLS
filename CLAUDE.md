@@ -59,7 +59,7 @@ STINGTOOLS/
     │   ├── AutoTagCommand.cs           # Tag elements in active view
     │   ├── BatchTagCommand.cs          # Tag all elements in project
     │   ├── TagAndCombineCommand.cs     # One-click: populate + tag + combine all
-    │   ├── CombineParametersCommand.cs # Interactive multi-container combine (16 groups, 37 params)
+    │   ├── CombineParametersCommand.cs # Interactive multi-container combine (16 groups, 36 params)
     │   ├── ConfigEditorCommand.cs      # View/edit/save project_config.json
     │   ├── TagConfigCommand.cs         # Display tag configuration
     │   ├── LoadSharedParamsCommand.cs   # Bind shared parameters (2-pass)
@@ -141,7 +141,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 |--------|--------------|-------------|-------------|
 | Auto Tag | `Tags.AutoTagCommand` | Manual | Tag elements in active view with spatial auto-detect, collision mode selection (skip/overwrite/increment) |
 | Batch Tag | `Tags.BatchTagCommand` | Manual | Tag all elements in entire project with collision mode selection and spatial auto-detect |
-| Tag & Combine | `Tags.TagAndCombineCommand` | Manual | One-click: auto-detect LOC/ZONE + populate tokens + tag + combine ALL 37 containers (view/selection/project scope) |
+| Tag & Combine | `Tags.TagAndCombineCommand` | Manual | One-click: auto-detect LOC/ZONE + populate tokens + tag + combine ALL 36 containers (view/selection/project scope) |
 
 **More pulldown:**
 | Command | Class | Transaction | Description |
@@ -203,7 +203,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | Materials | Create BLE Materials, Create MEP Materials | Material creation from CSV (815 + 464) |
 | Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes (FamilyCommands.cs), Cable Trays, Conduits (TemplateExtCommands.cs) | Type creation from CSV data (8 commands) |
 | Schedules | Batch Create, Material Takeoffs (TemplateExtCommands.cs), Auto-Populate, Export CSV | Schedule management (168 definitions + 8 material takeoffs) |
-| Templates | Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases | 10 multi-category discipline filters, 34 AEC UK worksets, 15 view templates (working/coordination/RCP/presentation/section with VG overrides), 10 ISO 128 line patterns, 6 phases |
+| Templates | Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases | 10 multi-category discipline filters, 32 AEC UK worksets, 15 view templates (working/coordination/RCP/presentation/section with VG overrides), 10 ISO 128 line patterns, 6 phases |
 
 ## Command Count by File
 
@@ -334,7 +334,7 @@ Tags follow the 8-segment format: `DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ`
 
 Example tag: `M-BLD1-Z01-L02-HVAC-SUP-AHU-0003`
 
-### Tag Containers (37 parameters across 16 groups)
+### Tag Containers (36 parameters across 16 groups)
 - **Universal**: ASS_TAG_1 (full 8-segment) through ASS_TAG_6 (multi-line bottom)
 - **HVAC**: HVC_EQP_TAG, HVC_DCT_TAG, HVC_FLX_TAG
 - **Electrical**: ELC_EQP_TAG, ELE_FIX_TAG, LTG_FIX_TAG, ELC_CDT_TAG, ELC_CTR_TAG
@@ -470,7 +470,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | ~~Tag collision auto-fix (increment SEQ on duplicate)~~ | **DONE** — `BuildAndWriteTag` now auto-increments SEQ on collision via `existingTags` index. User can also choose Skip or Overwrite mode via `TagCollisionMode` enum. | ~~Low~~ | ~~High~~ Done |
 | ~~LOC/ZONE auto-detection from rooms and project info~~ | **DONE** — `SpatialAutoDetect` class in `ParameterHelpers.cs` auto-derives LOC from Room name/number/Project Info and ZONE from Room Department/name. Integrated into TagAndCombine, AutoPopulate, TagNewOnly. Eliminates manual SetLoc/SetZone in most cases. | ~~Medium~~ | ~~High~~ Done |
 | ~~Family-aware PROD codes (FCU, VAV, AHU, DB, MCC, WC, etc.)~~ | **DONE** — `TagConfig.GetFamilyAwareProdCode()` inspects element family name to assign specific PROD codes instead of generic category codes. Covers Mechanical (8 types), Electrical (8 types), Lighting (4 types), Plumbing (7 types), Fire Alarm (4 types). | ~~Low~~ | ~~High~~ Done |
-| ~~TagAndCombine writes only 6 containers (ASS_TAG_1-6)~~ | **DONE** — Now writes ALL 37 containers (6 universal + 31 discipline-specific including HVAC, Electrical, Plumbing, Fire/Safety, Comms, Material). Category-filtered for correctness. | ~~Medium~~ | ~~High~~ Done |
+| ~~TagAndCombine writes only 6 containers (ASS_TAG_1-6)~~ | **DONE** — Now writes ALL 36 containers (6 universal + 31 discipline-specific including HVAC, Electrical, Plumbing, Fire/Safety, Comms, Material). Category-filtered for correctness. | ~~Medium~~ | ~~High~~ Done |
 | ~~No incremental tagging mode~~ | **DONE** — `TagNewOnlyCommand` pre-filters to only elements with empty ASS_TAG_1_TXT. Much faster than BatchTag for adding new elements to an existing project. Includes spatial auto-detect and family-aware PROD. | ~~Low~~ | ~~High~~ Done |
 | ~~CompoundTypeCreator doesn't apply material properties~~ | **DONE** — Now applies color, transparency, smoothness, shininess from CSV columns when creating materials during type creation. | ~~Low~~ | ~~Medium~~ Done |
 | Configurable tag format in project_config.json (separator, padding, segments) | Flexibility for different standards | Medium | Medium |
@@ -823,7 +823,7 @@ var untagged = new FilteredElementCollector(doc, viewId)
 | Level code | Auto-derived from element's level (L01, GF, B1, RF) | `ParameterHelpers.GetLevelCode()` |
 | Sequencing | Continues from max existing SEQ per DISC-SYS-LVL group | `TagConfig.GetExistingSequenceCounters()` |
 | Completeness check | Validates 8-segment format, checks for empty segments | `TagConfig.TagIsComplete()` |
-| Combine parameters | Writes assembled tag to 37 container parameters (16 groups) | `CombineParametersCommand.cs` |
+| Combine parameters | Writes assembled tag to 36 container parameters (16 groups) | `CombineParametersCommand.cs` |
 | Duplicate detection | `FindDuplicateTagsCommand` finds but doesn't fix duplicates | `Organise/TagOperationCommands.cs` |
 
 #### Intelligence Gaps to Address

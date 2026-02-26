@@ -345,6 +345,18 @@ namespace StingTools.Core
                     { "Telephone Devices", BuiltInCategory.OST_TelephoneDevices },
                     { "Walls", BuiltInCategory.OST_Walls },
                     { "Windows", BuiltInCategory.OST_Windows },
+                    // Additional categories from CATEGORY_BINDINGS.csv
+                    { "Curtain Panels", BuiltInCategory.OST_CurtainWallPanels },
+                    { "Curtain Wall Mullions", BuiltInCategory.OST_CurtainWallMullions },
+                    { "Electrical Circuits", BuiltInCategory.OST_ElectricalCircuit },
+                    // Note: Revit has no separate OST_PlumbingEquipment; plumbing equipment
+                    // falls under Mechanical Equipment or Plumbing Fixtures depending on type
+                    { "Ramps", BuiltInCategory.OST_Ramps },
+                    { "Rooms", BuiltInCategory.OST_Rooms },
+                    { "Specialty Equipment", BuiltInCategory.OST_SpecialityEquipment },
+                    { "Stairs", BuiltInCategory.OST_Stairs },
+                    { "Furniture Systems", BuiltInCategory.OST_FurnitureSystems },
+                    { "Columns", BuiltInCategory.OST_Columns },
                 };
 
                 // Build set of hardcoded bindings: "ParamName|CategoryEnum"

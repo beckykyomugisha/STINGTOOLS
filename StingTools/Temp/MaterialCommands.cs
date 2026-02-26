@@ -15,14 +15,15 @@ namespace StingTools.Temp
     {
         /// <summary>
         /// Apply material appearance properties from CSV columns.
-        /// CSV column indices (header row 2):
+        /// CSV column indices (0-based from header row):
         ///   35: BLE_APP-IDENTITY-CLASS
         ///   36: BLE_APP-COLOR (e.g., "RGB 221-221-219")
         ///   37: BLE_APP-TRANSPARENCY
         ///   38: BLE_APP-SMOOTHNESS
         ///   39: BLE_APP-SHININESS
-        ///   44: BLE_APP-DESCRIPTION
-        ///   45: BLE_APP-COMMENTS
+        ///   44: BLE_APP-IMAGE
+        ///   45: BLE_APP-DESCRIPTION
+        ///   46: BLE_APP-COMMENTS
         /// </summary>
         public static void ApplyMaterialProperties(Material mat, string[] cols)
         {
