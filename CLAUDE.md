@@ -19,6 +19,7 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ```
 STINGTOOLS/
+├── .gitignore                          # Build output, IDE files, NuGet, OS files
 ├── CLAUDE.md                           # AI assistant guide (this file)
 ├── StingTools.addin                    # Revit addin manifest (XML)
 ├── extract_plugin.sh                   # Plugin extraction/deployment script
@@ -29,32 +30,51 @@ STINGTOOLS/
     ├── Properties/
     │   └── AssemblyInfo.cs             # Assembly metadata (v1.0.0.0)
     │
-    ├── Core/                           # Shared infrastructure
-    │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI builder
+    ├── Core/                           # Shared infrastructure (5 files)
+    │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI builder (5 panels)
+    │   ├── StingLog.cs                 # Thread-safe file logger (Info/Warn/Error)
     │   ├── ParameterHelpers.cs         # Parameter read/write utilities
     │   ├── SharedParamGuids.cs         # GUID map for 200+ shared parameters
-    │   └── TagConfig.cs                # ISO 19650 tag lookup tables
+    │   └── TagConfig.cs                # ISO 19650 tag lookup tables + tag builder
     │
-    ├── Docs/                           # Documentation commands (4 commands)
+    ├── Select/                         # Element selection commands (2 files, ~23 commands)
+    │   ├── CategorySelectCommands.cs   # 15 category selectors + SelectAllTaggable
+    │   └── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite
+    │
+    ├── Docs/                           # Documentation commands (5 files, 8 commands)
     │   ├── SheetOrganizerCommand.cs    # Group sheets by discipline prefix
     │   ├── ViewOrganizerCommand.cs     # Organize views by type/level
     │   ├── SheetIndexCommand.cs        # Create sheet index schedule
-    │   └── TransmittalCommand.cs       # ISO 19650 transmittal report
+    │   ├── TransmittalCommand.cs       # ISO 19650 transmittal report
+    │   └── ViewportCommands.cs         # Align, Renumber, TextCase, SumAreas
     │
-    ├── Tags/                           # Tagging commands (5 commands)
+    ├── Tags/                           # Tagging commands (9 files, ~20 commands)
     │   ├── AutoTagCommand.cs           # Tag elements in active view
     │   ├── BatchTagCommand.cs          # Tag all elements in project
+    │   ├── TagAndCombineCommand.cs     # One-click: populate + tag + combine all
+    │   ├── CombineParametersCommand.cs # Interactive multi-container combine (16 groups, 37 params)
+    │   ├── ConfigEditorCommand.cs      # View/edit/save project_config.json
     │   ├── TagConfigCommand.cs         # Display tag configuration
     │   ├── LoadSharedParamsCommand.cs   # Bind shared parameters (2-pass)
+    │   ├── TokenWriterCommands.cs      # SetLoc, SetZone, SetStatus, AssignNumbers,
+    │   │                               #   BuildTags, CompletenessDashboard
     │   └── ValidateTagsCommand.cs      # Validate tag completeness
     │
-    ├── Temp/                           # Template commands (17 commands)
+    ├── Organise/                       # Tag management commands (1 file, ~10 commands)
+    │   └── TagOperationCommands.cs     # TagSelected, DeleteTags, Renumber, AuditCSV,
+    │                                   #   FindDuplicates, HighlightInvalid, ClearOverrides,
+    │                                   #   CopyTags, SwapTags, SelectByDiscipline, TagStats
+    │
+    ├── Temp/                           # Template commands (8 files, ~25 commands)
     │   ├── CreateParametersCommand.cs  # Delegates to LoadSharedParams
     │   ├── CheckDataCommand.cs         # Data file inventory with SHA-256
+    │   ├── MasterSetupCommand.cs       # One-click full project setup (10 steps)
     │   ├── MaterialCommands.cs         # BLE + MEP material creation
     │   ├── FamilyCommands.cs           # Wall/Floor/Ceiling/Roof/Duct/Pipe types
     │   ├── ScheduleCommands.cs         # Batch schedules, auto-populate, CSV export
-    │   └── TemplateCommands.cs         # Filters, worksets, view templates
+    │   ├── TemplateCommands.cs         # Filters, worksets, view templates
+    │   └── TemplateExtCommands.cs      # Line patterns, phases, apply filters,
+    │                                   #   cable trays, conduits, material schedules
     │
     └── Data/                           # Runtime data files
         ├── BLE_MATERIALS.csv           # 815 building-element materials
@@ -81,10 +101,10 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 ### Select Panel (3 pulldowns + 1 button)
 | Group | Commands | Description |
 |-------|----------|-------------|
-| Category | 15 selectors (Lighting, Electrical, Mechanical, etc.) | Select elements by Revit category |
+| Category | 15 selectors (Lighting, Electrical, Mechanical, Plumbing, Air Terminals, Furniture, Doors, Windows, Rooms, Sprinklers, Pipes, Ducts, Conduits, Cable Trays, ALL Taggable) | Select elements by Revit category in active view |
 | State | Untagged, Tagged, Empty Mark, Pinned, Unpinned | Select by tag/pin/mark state |
 | Spatial | By Level, By Room | Select by spatial criteria |
-| Bulk Param | BulkParamWriteCommand | Write values to all selected elements |
+| Bulk Param | `Select.BulkParamWriteCommand` | Write LOC/ZONE/STATUS values or clear tags on selected elements |
 
 ### Docs Panel (4 buttons + Viewports pulldown)
 | Button | Command Class | Transaction | Description |
@@ -93,67 +113,145 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | View Organizer | `Docs.ViewOrganizerCommand` | ReadOnly | Organize views by type, report placed/unplaced |
 | Sheet Index | `Docs.SheetIndexCommand` | Manual | Create "STING - Sheet Index" schedule |
 | Document Transmittal | `Docs.TransmittalCommand` | ReadOnly | ISO 19650 transmittal report |
-| Viewports | Align, Renumber, Text Case, Sum Areas | Viewport and annotation tools |
 
-### Tags Panel (2 buttons + Setup/Tokens/QA pulldowns)
+**Viewports pulldown:**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Align Viewports | `Docs.AlignViewportsCommand` | Manual | Align viewports on sheet (top/left/center H/V) |
+| Renumber Viewports | `Docs.RenumberViewportsCommand` | Manual | Renumber viewports left-to-right, top-to-bottom |
+| Text Case | `Docs.TextCaseCommand` | Manual | Convert text notes to UPPER/lower/Title case (preserves BIM acronyms) |
+| Sum Areas | `Docs.SumAreasCommand` | ReadOnly | Calculate total area of selected/all rooms |
+
+### Tags Panel (3 buttons + Setup/Tokens/QA pulldowns)
 | Button | Command Class | Transaction | Description |
 |--------|--------------|-------------|-------------|
 | Auto Tag | `Tags.AutoTagCommand` | Manual | Tag elements in active view (continues from max existing SEQ) |
 | Batch Tag | `Tags.BatchTagCommand` | Manual | Tag all elements in entire project |
-| Setup > Tag Config | `Tags.TagConfigCommand` | ReadOnly | Display/configure lookup tables |
-| Setup > Load Params | `Tags.LoadSharedParamsCommand` | Manual | 2-pass shared parameter binding |
-| Tokens > Set Location | `Tags.SetLocCommand` | Manual | Set LOC token on selected elements |
-| Tokens > Set Zone | `Tags.SetZoneCommand` | Manual | Set ZONE token on selected elements |
-| Tokens > Set Status | `Tags.SetStatusCommand` | Manual | Set STATUS token |
-| Tokens > Assign Numbers | `Tags.AssignNumbersCommand` | Manual | Sequential numbering by DISC/SYS/LVL |
-| Tokens > Build Tags | `Tags.BuildTagsCommand` | Manual | Rebuild ASS_TAG_1 from existing tokens |
-| Tokens > Combine Parameters | `Tags.CombineParametersCommand` | Manual | Populate ALL tag containers (ASS_TAG_1-6 + discipline tags) |
-| QA > Validate | `Tags.ValidateTagsCommand` | ReadOnly | Validate tag completeness (checks empty segments) |
-| QA > Find Duplicates | `Organise.FindDuplicateTagsCommand` | ReadOnly | Find duplicate tag values |
-| QA > Highlight Invalid | `Organise.HighlightInvalidCommand` | Manual | Colour-code missing/incomplete tags |
-| QA > Completeness Dashboard | `Tags.CompletenessDashboardCommand` | ReadOnly | Per-discipline compliance dashboard |
+| Tag & Combine | `Tags.TagAndCombineCommand` | Manual | One-click: populate tokens + tag + combine all containers (view/selection/project scope) |
 
-### Organise Panel (Tag Ops pulldown)
-| Command | Class | Description |
-|---------|-------|-------------|
-| Tag Selected | `Organise.TagSelectedCommand` | Tag selected elements only |
-| Delete Tags | `Organise.DeleteTagsCommand` | Clear all tag params from selection |
-| Renumber | `Organise.RenumberTagsCommand` | Re-sequence tags for selection |
-| Audit to CSV | `Organise.AuditTagsCSVCommand` | Export full tag audit to CSV |
+**Setup pulldown:**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Tag Config | `Tags.TagConfigCommand` | ReadOnly | Display/configure lookup tables |
+| Load Params | `Tags.LoadSharedParamsCommand` | Manual | 2-pass shared parameter binding |
+| Configure | `Tags.ConfigEditorCommand` | ReadOnly | View/edit/save/reload project_config.json |
 
-### Temp Panel (5 pulldown groups, 19 commands)
+**Tokens pulldown:**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Set Location | `Tags.SetLocCommand` | Manual | Set LOC token (BLD1, BLD2, BLD3, EXT) |
+| Set Zone | `Tags.SetZoneCommand` | Manual | Set ZONE token (Z01-Z04) |
+| Set Status | `Tags.SetStatusCommand` | Manual | Set STATUS token (EXISTING, NEW, DEMOLISHED, TEMPORARY) |
+| Assign Numbers | `Tags.AssignNumbersCommand` | Manual | Sequential numbering by DISC/SYS/LVL (continues from max existing) |
+| Build Tags | `Tags.BuildTagsCommand` | Manual | Rebuild ASS_TAG_1 from existing tokens |
+| Combine Parameters | `Tags.CombineParametersCommand` | Manual | Interactive multi-mode combine into all tag containers |
+
+**QA pulldown:**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Validate | `Tags.ValidateTagsCommand` | ReadOnly | Validate tag completeness (checks empty segments) |
+| Find Duplicates | `Organise.FindDuplicateTagsCommand` | ReadOnly | Find duplicate tag values, select affected elements |
+| Highlight Invalid | `Organise.HighlightInvalidCommand` | Manual | Colour-code missing (red) and incomplete (orange) tags |
+| Clear Overrides | `Organise.ClearOverridesCommand` | Manual | Reset graphic overrides in active view |
+| Completeness Dashboard | `Tags.CompletenessDashboardCommand` | ReadOnly | Per-discipline compliance dashboard with percentage |
+
+### Organise Panel (2 pulldowns: Tag Ops + Analysis)
+**Tag Ops pulldown:**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Tag Selected | `Organise.TagSelectedCommand` | Manual | Tag selected elements only |
+| Delete Tags | `Organise.DeleteTagsCommand` | Manual | Clear all 15 tag params from selection (with confirmation) |
+| Renumber | `Organise.RenumberTagsCommand` | Manual | Re-sequence tags within (DISC, SYS, LVL) groups |
+| Copy Tags | `Organise.CopyTagsCommand` | Manual | Copy tag values from first selected to all others (excludes SEQ) |
+| Swap Tags | `Organise.SwapTagsCommand` | Manual | Swap all tag values between exactly 2 selected elements |
+
+**Analysis pulldown:**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Audit to CSV | `Organise.AuditTagsCSVCommand` | ReadOnly | Export full tag audit to CSV file |
+| Select by Discipline | `Organise.SelectByDisciplineCommand` | ReadOnly | Select all elements of a specific discipline code |
+| Tag Statistics | `Organise.TagStatsCommand` | ReadOnly | Quick tag counts by discipline/system/level for active view |
+
+### Temp Panel (5 pulldown groups, ~25 commands)
 | Group | Commands | Description |
 |-------|----------|-------------|
-| Setup | Create Parameters, Check Data Files, **Master Setup** | Project setup + one-click automation |
+| Setup | Create Parameters, Check Data Files, **Master Setup** | Project setup + one-click automation (10-step workflow) |
 | Materials | Create BLE Materials, Create MEP Materials | Material creation from CSV (815 + 464) |
-| Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes | Type creation from CSV data |
-| Schedules | Batch Create, Auto-Populate, Export CSV | Schedule management (168 definitions) |
-| Templates | Create Filters, Create Worksets, View Templates | 6 filters, 27 worksets, 7 view templates |
+| Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes, Cable Trays, Conduits | Type creation from CSV data (8 commands) |
+| Schedules | Batch Create, Material Takeoffs, Auto-Populate, Export CSV | Schedule management (168 definitions + 8 material takeoffs) |
+| Templates | Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases | 6 filters, 27 worksets, 7 view templates, 6 line patterns, 7 phases |
 
 ## Core Classes
 
-### `StingToolsApp` (IExternalApplication)
+### `StingToolsApp` (IExternalApplication) — `Core/StingToolsApp.cs`
 - Entry point registered in `StingTools.addin`
 - Sets `AssemblyPath` and `DataPath` (relative to DLL location)
-- Builds ribbon tab with `BuildDocsPanel`, `BuildTagsPanel`, `BuildTempPanel`
-- Uses `PulldownButton` groups for the Temp panel
+- Builds ribbon tab with `BuildSelectPanel`, `BuildDocsPanel`, `BuildTagsPanel`, `BuildOrganisePanel`, `BuildTempPanel`
+- Uses `PulldownButton` groups for all panel sub-menus
+- Provides `FindDataFile(fileName)` — searches `DataPath` and subdirectories
+- Provides `ParseCsvLine(line)` — CSV parser respecting quoted fields
 
-### `ParameterHelpers` (static)
-- `GetString/SetString/SetIfEmpty` — parameter read/write with null safety
-- `GetLevelCode` — derives short level codes (L01, GF, B1, RF, XX)
-- `GetCategoryName` — safe category name retrieval
+### `StingLog` (static) — `Core/StingLog.cs`
+- Thread-safe file logger (`StingTools.log` alongside the DLL)
+- Methods: `Info(msg)`, `Warn(msg)`, `Error(msg, ex?)`
+- Used throughout the codebase for error tracing; replaces silent catch blocks
+- Last-resort: silently swallows its own IO failures
 
-### `SharedParamGuids` (static)
+### `ParameterHelpers` (static) — `Core/ParameterHelpers.cs`
+- `GetString(el, paramName)` — read text parameter, returns empty string on null
+- `SetString(el, paramName, value, overwrite)` — write text parameter, skips read-only/non-empty unless overwrite
+- `SetIfEmpty(el, paramName, value)` — set only when currently empty
+- `GetLevelCode(doc, el)` — derives short level codes (L01, GF, B1, RF, XX)
+- `GetCategoryName(el)` — safe category name retrieval
+
+### `SharedParamGuids` (static) — `Core/SharedParamGuids.cs`
 - 50+ parameter GUID mappings from `MR_PARAMETERS.txt`
 - `UniversalParams` — 17 ASS_MNG parameters for Pass 1
-- `AllCategories` — 53 `OST_*` built-in category names
+- `AllCategories` / `AllCategoryEnums` — 53 `OST_*` built-in category names/enums
+- `DisciplineBindings` — maps discipline-specific params to category subsets
+- `BuildCategorySet(doc, enums)` — type-safe category set builder
 
-### `TagConfig` (static, singleton)
-- `DiscMap` — 41 category → discipline code mappings (M, E, P, A, S, FP, LV, G)
-- `SysMap` — 10 system codes → category lists
-- `ProdMap` — 41 category → product codes
-- `FuncMap` — 10 system → function code mappings
-- Supports loading from `project_config.json` or built-in defaults
+### `TagConfig` (static, singleton) — `Core/TagConfig.cs`
+- **Lookup tables** (all configurable via `project_config.json`):
+  - `DiscMap` — 41 category → discipline code mappings (M, E, P, A, S, FP, LV, G)
+  - `SysMap` — 13 system codes → category lists
+  - `ProdMap` — 41 category → product codes
+  - `FuncMap` — 13 system → function code mappings
+  - `LocCodes` — location codes (BLD1, BLD2, BLD3, EXT, XX)
+  - `ZoneCodes` — zone codes (Z01-Z04, ZZ, XX)
+- **Configuration management**: `LoadFromFile(path)`, `LoadDefaults()`, `ConfigSource`
+- **Tag operations**:
+  - `TagIsComplete(tagValue, expectedTokens=8)` — validates 8-segment tag completeness
+  - `BuildAndWriteTag(doc, el, seqCounters, skipComplete)` — shared tagging logic for all tag commands
+  - `GetExistingSequenceCounters(doc)` — scans project for highest SEQ per group
+  - `GetSysCode(categoryName)`, `GetFuncCode(sysCode)` — reverse lookups
+- **Constants**: `NumPad = 4`, `Separator = "-"`
+
+## ISO 19650 Tag Format
+
+Tags follow the 8-segment format: `DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ`
+
+| Segment | Parameter | Example | Description |
+|---------|-----------|---------|-------------|
+| DISC | ASS_DISCIPLINE_COD_TXT | M, E, P, A, S | Discipline code |
+| LOC | ASS_LOC_TXT | BLD1, EXT | Location/building code |
+| ZONE | ASS_ZONE_TXT | Z01, Z02 | Zone code |
+| LVL | ASS_LVL_COD_TXT | L01, GF, B1 | Level code |
+| SYS | ASS_SYSTEM_TYPE_TXT | HVAC, HWS, LV | System type |
+| FUNC | ASS_FUNC_TXT | SUP, HTG, PWR | Function code |
+| PROD | ASS_PRODCT_COD_TXT | AHU, DB, DR | Product code |
+| SEQ | ASS_SEQ_NUM_TXT | 0001, 0042 | 4-digit sequence number |
+
+Example tag: `M-BLD1-Z01-L02-HVAC-SUP-AHU-0003`
+
+### Tag Containers (37 parameters across 16 groups)
+- **Universal**: ASS_TAG_1 (full 8-segment) through ASS_TAG_6 (multi-line bottom)
+- **HVAC**: HVC_EQP_TAG, HVC_DCT_TAG, HVC_FLX_TAG
+- **Electrical**: ELC_EQP_TAG, ELE_FIX_TAG, LTG_FIX_TAG, ELC_CDT_TAG, ELC_CTR_TAG
+- **Plumbing**: PLM_EQP_TAG
+- **Fire/Safety**: FLS_DEV_TAG
+- **Comms/LV**: COM_DEV_TAG, SEC_DEV_TAG, NCL_DEV_TAG, ICT_DEV_TAG
+- **Material**: MAT_TAG_1 through MAT_TAG_6
 
 ## Development Workflow
 
@@ -203,13 +301,24 @@ dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Auto
 ### C# / Revit API Style
 
 - Follow existing naming conventions: `PascalCase` for public members, `camelCase` for locals
-- Always wrap DB modifications in `Transaction` blocks with descriptive names
+- Always wrap DB modifications in `Transaction` blocks with descriptive names (prefix with "STING")
 - Use `[Transaction(TransactionMode.Manual)]` for state-changing commands
 - Use `[Transaction(TransactionMode.ReadOnly)]` for query-only commands
 - Use `TaskDialog` for user-facing messages (not `MessageBox`)
+- Use `StingLog.Info/Warn/Error` for all logging — never use silent catch blocks
 - Dispose of Revit API objects properly
 - Handle `OperationCanceledException` for user-cancelled operations
 - Use `FilteredElementCollector` with appropriate filters for performance
+- For selection commands, use `uidoc.Selection.SetElementIds()` to set the selection
+- For new commands, use the shared helpers: `TagConfig.BuildAndWriteTag()`, `ParameterHelpers.SetIfEmpty()`, `CategorySelector.SelectByCategory()`
+
+### Multi-file Command Patterns
+
+The codebase uses two patterns for organising commands:
+1. **One class per file** — for complex commands (e.g., `CombineParametersCommand.cs`, `MasterSetupCommand.cs`)
+2. **Multiple classes per file** — for related simple commands (e.g., `CategorySelectCommands.cs` has 15 selectors, `TokenWriterCommands.cs` has 6 commands)
+
+When adding new commands, follow the existing pattern for the directory. Use shared static helper classes (e.g., `CategorySelector`, `TokenWriter`) to reduce duplication.
 
 ### Data File Conventions
 
@@ -217,6 +326,8 @@ dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Auto
 - JSON files should be well-formatted with consistent indentation
 - When modifying data files, preserve the existing structure and column order
 - Data files are read at runtime from the `data/` directory alongside the DLL
+- Use `StingToolsApp.FindDataFile(fileName)` to locate data files
+- Use `StingToolsApp.ParseCsvLine(line)` to parse CSV lines with quoted fields
 
 ### Testing
 
@@ -236,4 +347,5 @@ dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Auto
 - **Revit API**: `RevitAPI.dll`, `RevitAPIUI.dll` (referenced via `$(RevitApiPath)` — not distributed)
 - **Newtonsoft.Json**: v13.0.3 (NuGet package)
 - **Target framework**: .NET 8.0 Windows (Revit 2025+)
+- **WPF**: Enabled (`UseWPF=true` in csproj) for `System.Windows.Media.Imaging`
 - **Data files**: CSV/JSON/TXT files in `StingTools/Data/` are required at runtime
