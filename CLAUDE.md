@@ -402,3 +402,331 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 - **Output**: Library (DLL), `AppendTargetFrameworkToOutputPath=false`, `CopyLocalLockFileAssemblies=true`
 - **Assembly**: v1.0.0.0, GUID `A1B2C3D4-5678-9ABC-DEF0-123456789ABC`, Vendor: StingBIM
 - **Data files**: CSV/JSON/TXT files in `StingTools/Data/` copied to output `data/` directory at build time
+
+---
+
+## Automation Gap Analysis & Feature Roadmap
+
+### Current Automation Gaps
+
+#### A. Gaps That Hinder Full Automation
+
+| Gap | Location | Problem | Impact |
+|-----|----------|---------|--------|
+| **No tag collision detection** | `TagConfig.cs:133-175` | `BuildAndWriteTag` doesn't check if generated tag already exists — two elements can get identical tags | Critical |
+| **No progress reporting** | `BatchTagCommand`, `MasterSetupCommand`, material creation | Long operations (10,000+ elements) run with no feedback, no ETA, no cancellation | High |
+| **No cancellation support** | All batch commands | Once started, user must wait until completion — no abort mechanism | High |
+| **Hardcoded category bindings** | `SharedParamGuids.cs:109-261` | 53 categories + discipline bindings hardcoded; adding a category requires code rebuild (BINDING_COVERAGE_MATRIX.csv exists but unused) | Medium |
+| **SEQ collision across zones** | `TagConfig.cs:157-161` | Sequence groups by DISC-SYS-LVL only — different rooms on same level can get same tag | Medium |
+| **No error recovery** | `MasterSetupCommand.cs:62-116` | 10-step workflow: if step 5 fails, steps 1-4 already committed with no rollback | Medium |
+| **Fixed tag format** | `TagConfig.cs:16-18` | `NumPad=4`, `Separator="-"` hardcoded — can't change segment count, order, or separator | Medium |
+| **Unused data files** | `Data/` directory | 6 files never loaded: FORMULAS_WITH_DEPENDENCIES.csv (199 rules), MATERIAL_SCHEMA.json, SCHEDULE_FIELD_REMAP.csv, BINDING_COVERAGE_MATRIX.csv, CATEGORY_BINDINGS.csv (10,661 entries), VALIDAT_BIM_TEMPLATE.py (45 checks) | Medium |
+
+#### B. Enhancement Opportunities
+
+| Enhancement | Why Needed | Effort | Priority |
+|-------------|-----------|--------|----------|
+| Pre-tagging audit ("Will create X tags, Y overwrites, Z collisions") | Prevents errors before they happen | Low | High |
+| Tag collision auto-fix (increment SEQ on duplicate) | Data integrity | Low | High |
+| Configurable tag format in project_config.json (separator, padding, segments) | Flexibility for different standards | Medium | Medium |
+| Formula evaluation engine (reads FORMULAS_WITH_DEPENDENCIES.csv) | Auto-populate computed parameters (199 rules exist unused) | High | High |
+| Port VALIDAT_BIM_TEMPLATE.py (45 checks) to C# ValidateTemplateCommand | Template compliance checking | Medium | Medium |
+| Conditional parameter set ("Set LOC=BLD2 where DISC=E") | Bulk intelligent updates | Medium | Medium |
+| Cross-parameter validation (SEQ uniqueness, impossible combos like E+DHW) | Data quality | Low | Medium |
+| Batch command chaining / workflow presets | Queue: AutoTag → Validate → Export | Medium | Low |
+
+---
+
+### New Feature: Color By Parameter (Graitec Lookup Style)
+
+Inspired by GRAITEC PowerPack Element Lookup, BIM One Color Splasher, ModPlus mprColorizer, and Future BIM Colors by Parameters. Provides element coloring by any parameter value with full graphic control.
+
+#### Proposed Commands
+
+| Command | Class | Transaction | Panel |
+|---------|-------|-------------|-------|
+| Color By Parameter | `Select.ColorByParameterCommand` | Manual | Select |
+| Clear Color Overrides | `Select.ClearColorOverridesCommand` | Manual | Select |
+| Save Color Preset | `Select.SaveColorPresetCommand` | ReadOnly | Select |
+| Load Color Preset | `Select.LoadColorPresetCommand` | Manual | Select |
+
+#### Core Capabilities
+
+1. **Parameter Selection**: Color by ANY parameter (instance or type, text or numeric) — user picks from parameter list filtered by selected categories
+2. **Scope**: Active view, selected elements, or entire project
+3. **Graphic Override Options** (via `OverrideGraphicSettings`):
+
+| Property | API Method | Description |
+|----------|-----------|-------------|
+| Projection line color | `SetProjectionLineColor(Color)` | Outline/edge color |
+| Projection line weight | `SetProjectionLineWeight(int)` | Outline thickness (1-16) |
+| Projection line pattern | `SetProjectionLinePatternId(ElementId)` | Dash, dot, etc. |
+| Surface foreground color | `SetSurfaceForegroundPatternColor(Color)` | Fill color |
+| Surface foreground pattern | `SetSurfaceForegroundPatternId(ElementId)` | Solid, crosshatch, etc. |
+| Surface background color | `SetSurfaceBackgroundPatternColor(Color)` | Background fill |
+| Surface transparency | `SetSurfaceTransparency(int)` | 0-100% transparency |
+| Cut line color | `SetCutLineColor(Color)` | Section cut outline |
+| Cut line weight | `SetCutLineWeight(int)` | Section cut thickness |
+| Cut foreground color | `SetCutForegroundPatternColor(Color)` | Section cut fill |
+| Halftone | `SetHalftone(bool)` | Greyed-out appearance |
+
+4. **Color Palette Presets** (saved as JSON in `Data/COLOR_PRESETS.json`):
+
+| Preset | Colors | Use Case |
+|--------|--------|----------|
+| STING Discipline | M=Blue, E=Yellow, P=Green, A=Grey, S=Red, FP=Orange, LV=Purple, G=Brown | Discipline isolation |
+| RAG Status | Red/Amber/Green | Compliance checking |
+| Monochrome | Black/DarkGrey/MedGrey/LightGrey/White | Print-friendly |
+| Spectral | Rainbow gradient (8-12 steps) | Continuous value ranges |
+| Warm | Red→Orange→Yellow→Cream | Heat/load mapping |
+| Cool | Navy→Blue→Cyan→Mint | Cooling/flow mapping |
+| Pastel | Soft muted tones | Presentation views |
+| High Contrast | Saturated primaries + black outlines | QA/checking |
+| Accessible | Colorblind-safe (viridis-like) | Universal accessibility |
+| Custom | User-defined | Project-specific |
+
+5. **Preset Management**: Save/load/delete named presets, export/import between projects
+6. **Legend Generation**: Auto-create a color legend (drafting view or schedule) showing parameter value → color mapping
+
+#### Implementation Pattern
+
+```
+// Core API pattern
+OverrideGraphicSettings ogs = new OverrideGraphicSettings();
+ogs.SetProjectionLineColor(color);
+ogs.SetProjectionLineWeight(weight);
+ogs.SetSurfaceForegroundPatternColor(fillColor);
+ogs.SetSurfaceForegroundPatternId(solidPatternId); // solid fill
+ogs.SetSurfaceTransparency(transparency);
+
+using (Transaction t = new Transaction(doc, "STING Color By Parameter"))
+{
+    t.Start();
+    foreach (ElementId id in matchingElements)
+        view.SetElementOverrides(id, ogs);
+    t.Commit();
+}
+```
+
+---
+
+### New Feature: Smart Tag Placement
+
+Inspired by BIMLOGiQ Smart Annotation, Naviate Tag from Template, and academic Automatic Label Placement (ALP) research. Goal: perfect, collision-free automated tag annotation.
+
+#### Key Research Findings
+
+**Naviate (Symetri) — Tag from Template approach:**
+- Tags follow templates with priority positions per family type
+- Parameters: `NV Priority` (1, 2, 3...), `NVLinearTranslation`, `NVVectorTranslation`
+- If priority 1 fails, try priority 2, then 3, then linear/vector displacement
+- `NVVectorMoveTolerance` controls when leader lines are added
+- Templates stored in cloud, shareable across projects
+
+**BIMLOGiQ Smart Annotation — AI-powered placement:**
+- Scans available space around each element for optimal position
+- Collision avoidance: tag-to-tag, tag-to-element, leader-to-tag
+- Leader modes: Auto (recommended), Always On, Off
+- Pin preferred side to prioritize placement direction
+- Filter by: min length, direction (horizontal/vertical/offset), system type
+- Batch: Tag and Arrange (single view), Add Job (multi-view)
+- Standard vs PRO: PRO handles dense/complex views better
+
+**Revit API limitations (critical constraints):**
+- No built-in collision avoidance — must implement from scratch
+- Tag bounding box includes leader line to host → inaccurate extents
+- Workaround: use TransactionGroup commit/rollback to measure true tag dimensions
+- Performance degrades with tag count — solution: disable annotations via temporary view properties during bulk placement
+- `IndependentTag.Create(doc, viewId, reference, addLeader, tagMode, orientation, headPosition)`
+- `TagHeadPosition` property controls placement point
+- No native overlap detection between tags
+
+#### Proposed Implementation Architecture
+
+**Phase 1: Smart Tag Placement Engine** (new file `Tags/SmartTagPlacementCommand.cs`)
+
+```
+Algorithm: Priority-Based Placement with Collision Avoidance
+1. Collect all elements to tag in scope (view/selection/project)
+2. For each element:
+   a. Calculate element center point and bounding box in view
+   b. Generate candidate positions (8 quadrants: N, NE, E, SE, S, SW, W, NW)
+   c. Score each candidate:
+      - Distance from element center (closer = better)
+      - Overlap with existing tags (any overlap = penalty)
+      - Overlap with other elements (penalty)
+      - Alignment with nearby tags (bonus for grid alignment)
+      - Preferred side bias (configurable per category)
+   d. Place tag at highest-scoring position
+   e. If all positions overlap, add leader line and extend search radius
+   f. Register placed tag bounding box for future collision checks
+3. Performance: use R-tree or grid-based spatial index for O(log n) overlap queries
+4. Batch optimization: disable annotation visibility during placement, re-enable after
+```
+
+**Phase 2: Tag Template System** (Naviate-inspired)
+
+| Feature | Description |
+|---------|-------------|
+| Tag family priority | Each tag family gets priority positions (P1, P2, P3) as shared parameters |
+| Category-specific rules | Different placement rules per category (ducts: above, pipes: left, equipment: right) |
+| Leader line thresholds | Auto-add leader when displacement exceeds configurable distance |
+| Alignment snapping | Snap tag heads to alignment grid (horizontal/vertical rows) |
+| Template save/load | Save placement rules as project_config.json section |
+
+**Phase 3: Advanced Features**
+
+| Feature | Description | Technique |
+|---------|-------------|-----------|
+| Collision detection | Tag-to-tag and tag-to-element overlap checking | Bounding box intersection with R-tree spatial index |
+| Tag extent measurement | Get true tag dimensions (not inflated bounding box) | TransactionGroup commit/rollback workaround |
+| Force-directed refinement | Post-placement optimization to minimize overlaps | Simulated annealing or spring-force model |
+| Multi-view batch | Tag all views in a set (floor plans, sections) | Process view list with progress reporting |
+| Arrange existing tags | Reposition already-placed tags to resolve overlaps | Same scoring algorithm on existing tags |
+| Dense view handling | Special logic for crowded views | Tag clustering, grouping nearby elements, shared leaders |
+| Scale awareness | Adjust placement offset based on view scale | Scale factor × base offset distance |
+
+#### Tag Placement Scoring Function
+
+```
+Score(candidate) =
+    + ProximityBonus(distToElement)          // closer is better (0-100)
+    - OverlapPenalty(tagOverlaps) × 1000     // heavy penalty for any overlap
+    - ElementOverlapPenalty(elemOverlaps) × 500  // avoid covering elements
+    + AlignmentBonus(gridSnap)               // reward alignment with neighbors (0-50)
+    + PreferredSideBonus(matchesPref)        // bonus if matches category preference (0-30)
+    - LeaderPenalty(needsLeader)             // small penalty for needing a leader (0-20)
+```
+
+---
+
+### Missing View Commands
+
+#### Proposed New Commands
+
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Batch Viewport Align | `Docs.BatchAlignViewportsCommand` | Manual | Align viewports across all/selected sheets |
+| Batch Text Case | `Docs.BatchTextCaseCommand` | Manual | Apply text case conversion across all sheets |
+| Delete Unused Views | `Docs.DeleteUnusedViewsCommand` | Manual | Remove views not placed on any sheet (with confirmation) |
+| Duplicate View | `Docs.DuplicateViewCommand` | Manual | Copy view with filters, overrides, visibility state |
+| Batch Rename Views | `Docs.BatchRenameViewsCommand` | Manual | Find/replace or pattern-based view renaming |
+| Copy View Settings | `Docs.CopyViewSettingsCommand` | Manual | Copy filters + overrides from source view to targets |
+| Auto-Place Viewports | `Docs.AutoPlaceViewportsCommand` | Manual | Grid-based intelligent viewport placement on sheets |
+| View Crop to Content | `Docs.CropToContentCommand` | Manual | Auto-crop view boundaries to element extents |
+
+#### Existing View Commands (for reference)
+
+| Command | File | Current Capability |
+|---------|------|--------------------|
+| ViewOrganizerCommand | `Docs/ViewOrganizerCommand.cs` | List/report views by type, placed vs unplaced |
+| AlignViewportsCommand | `Docs/ViewportCommands.cs` | Align viewports on single active sheet |
+| RenumberViewportsCommand | `Docs/ViewportCommands.cs` | Renumber viewports on single active sheet |
+| TextCaseCommand | `Docs/ViewportCommands.cs` | Convert text notes on single active sheet |
+| SumAreasCommand | `Docs/ViewportCommands.cs` | Sum room areas in active view |
+| ViewTemplatesCommand | `Temp/TemplateCommands.cs` | Create 7 discipline view templates |
+| CreateFiltersCommand | `Temp/TemplateCommands.cs` | Create 6 discipline filters |
+| ApplyFiltersToViewsCommand | `Temp/TemplateExtCommands.cs` | Apply discipline filters to views |
+
+---
+
+### Tagging Intelligence Improvements
+
+#### Current Tagging Logic (what exists)
+
+| Aspect | Current State | Location |
+|--------|---------------|----------|
+| Token derivation | Category → DISC/SYS/PROD/FUNC via lookup tables | `TagConfig.cs` DiscMap, SysMap, ProdMap, FuncMap |
+| Level code | Auto-derived from element's level (L01, GF, B1, RF) | `ParameterHelpers.GetLevelCode()` |
+| Sequencing | Continues from max existing SEQ per DISC-SYS-LVL group | `TagConfig.GetExistingSequenceCounters()` |
+| Completeness check | Validates 8-segment format, checks for empty segments | `TagConfig.TagIsComplete()` |
+| Combine parameters | Writes assembled tag to 37 container parameters (16 groups) | `CombineParametersCommand.cs` |
+| Duplicate detection | `FindDuplicateTagsCommand` finds but doesn't fix duplicates | `Organise/TagOperationCommands.cs` |
+
+#### Intelligence Gaps to Address
+
+| Gap | Problem | Proposed Solution |
+|-----|---------|-------------------|
+| **No collision prevention** | `BuildAndWriteTag` doesn't check existing tags before writing | Add pre-write check: query project for matching tag, auto-increment SEQ if collision found |
+| **No system validation** | Can tag a lighting device as HVAC-SUP-AHU (nonsensical) | Cross-validate DISC against element category; warn on mismatches |
+| **No spatial scoping** | Tags are globally unique but don't account for building/zone | Add optional namespace: LOC+ZONE prefix isolation for multi-building projects |
+| **No family-aware product codes** | Uses category only, ignores family name | Add family name → product code overrides in project_config.json |
+| **No quantity sanity checks** | 50 supply terminals + 1 return = no warning | Post-tagging analytics: flag system imbalances |
+| **No annotation placement** | Tags are parameter values only — no physical annotation in views | Integrate with Smart Tag Placement (above) to auto-place annotation families |
+| **No incremental tagging** | BatchTag re-processes all elements even if only 5 are new | Add "Tag New Only" mode: skip elements with complete ASS_TAG_1 |
+| **No undo granularity** | Undo reverses entire batch, not individual elements | Per-element transaction isolation or selective undo |
+
+#### Proposed New Commands
+
+| Command | Class | Description |
+|---------|-------|-------------|
+| Smart Tag | `Tags.SmartTagCommand` | Tag with collision avoidance + smart annotation placement |
+| Tag New Only | `Tags.TagNewOnlyCommand` | Only tag elements without existing ASS_TAG_1 |
+| Fix Duplicates | `Tags.FixDuplicateTagsCommand` | Auto-resolve duplicate tags by incrementing SEQ |
+| Tag Audit | `Tags.TagAuditCommand` | Pre-tagging audit: predict results, show collisions, report |
+| Validate Systems | `Tags.ValidateSystemsCommand` | Cross-check DISC/SYS/PROD against element categories |
+
+---
+
+### Underutilized Data Files
+
+| File | Rows | Current Status | Proposed Usage |
+|------|------|----------------|----------------|
+| `FORMULAS_WITH_DEPENDENCIES.csv` | 199 | **Never loaded** | New FormulaEngine: auto-calculate derived parameters (weight, cost, etc.) |
+| `MATERIAL_SCHEMA.json` | 77 cols | **Never loaded** | Validate BLE/MEP CSV columns match schema; data integrity checks |
+| `SCHEDULE_FIELD_REMAP.csv` | 50 | **Never loaded** | Auto-remap deprecated field names when creating schedules |
+| `BINDING_COVERAGE_MATRIX.csv` | Large | **Never loaded** | Replace hardcoded `SharedParamGuids.AllCategoryEnums` — load bindings dynamically |
+| `CATEGORY_BINDINGS.csv` | 10,661 | **Never loaded** | Replace hardcoded `DisciplineBindings` — data-driven parameter binding |
+| `FAMILY_PARAMETER_BINDINGS.csv` | 4,686 | **Never loaded** | Family-level parameter validation and auto-binding |
+| `VALIDAT_BIM_TEMPLATE.py` | 45 checks | **Python, not ported** | Port to C# `ValidateTemplateCommand` for comprehensive template QA |
+
+---
+
+### Implementation Priority Matrix
+
+#### Phase 1 — Critical Fixes (Low effort, high impact)
+
+1. **Tag collision detection** — Check existing tags before writing in `BuildAndWriteTag`, auto-increment SEQ
+2. **Pre-tagging audit** — New command showing predicted tag assignments before applying
+3. **Tag New Only mode** — Skip already-tagged elements in BatchTag
+4. **Fix Duplicates command** — Auto-resolve duplicate tags
+5. **Cross-parameter validation** — Verify DISC/SYS/PROD consistency with element category
+
+#### Phase 2 — Color By Parameter System
+
+6. **ColorByParameterCommand** — Full graphic override by any parameter
+7. **Color preset system** — 10 built-in palettes + save/load custom presets
+8. **Clear/reset overrides** — Per-parameter or per-view clearing
+9. **Legend generation** — Auto-create color key
+
+#### Phase 3 — Smart Tag Placement
+
+10. **Smart placement engine** — Priority-based positioning with collision avoidance
+11. **Tag extent measurement** — TransactionGroup workaround for accurate bounding boxes
+12. **Arrange existing tags** — Reposition already-placed tags
+13. **Multi-view batch tagging** — Process multiple views with progress reporting
+
+#### Phase 4 — View & Template Automation
+
+14. **Batch viewport alignment** across all sheets
+15. **Delete unused views** with safety confirmation
+16. **Duplicate view** with full settings copy
+17. **Auto-place viewports** with grid-based layout
+
+#### Phase 5 — Data Pipeline Completion
+
+18. **Formula evaluation engine** — Apply 199 calculation rules from CSV
+19. **Dynamic category bindings** — Load from BINDING_COVERAGE_MATRIX.csv instead of hardcode
+20. **Port VALIDAT_BIM_TEMPLATE.py** — 45 validation checks as C# command
+21. **Schedule field remap** — Auto-apply 50 field name updates
+
+### External Tool References
+
+- [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance
+- [Naviate Tag from Template](https://www.naviate.com/release-news/naviate-structure-may-release-2025-2/) — Priority-based tag positioning with templates
+- [GRAITEC PowerPack Element Lookup](https://graitec.com/uk/resources/technical-support/documentation/powerpack-for-revit-technical-articles/element-lookup-powerpack-for-revit/) — Advanced element search and filtering
+- [BIM One Color Splasher](https://github.com/bimone/addins-colorsplasher) — Open-source color by parameter (GitHub)
+- [ModPlus mprColorizer](https://modplus.org/en/revitplugins/mprcolorizer) — Color by conditions with preset saving
+- [The Building Coder — Tag Extents](https://thebuildingcoder.typepad.com/blog/2022/07/tag-extents-and-lazy-detail-components.html) — Getting accurate tag bounding boxes
+- [Revit API — OverrideGraphicSettings](https://www.revitapidocs.com/2025/eb2bd6b6-b7b2-5452-2070-2dbadb9e068a.htm) — Complete graphic override API
+- [Revit API — IndependentTag](https://www.revitapidocs.com/2025/e52073e2-9d98-6fb5-eb43-288cf9ed2e28.htm) — Tag creation and positioning API
