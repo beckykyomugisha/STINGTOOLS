@@ -37,6 +37,7 @@ namespace StingTools.Tags
             int tagged = 0;
             int skipped = 0;
             var sequenceCounters = TagConfig.GetExistingSequenceCounters(doc);
+            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
 
             using (Transaction tx = new Transaction(doc, "STING Auto Tag"))
             {
@@ -44,7 +45,8 @@ namespace StingTools.Tags
 
                 foreach (Element el in collector)
                 {
-                    if (TagConfig.BuildAndWriteTag(doc, el, sequenceCounters))
+                    if (TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
+                        existingTags: tagIndex))
                         tagged++;
                     else
                         skipped++;

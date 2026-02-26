@@ -128,10 +128,18 @@ namespace StingTools.Core
         /// Shared tag-building logic. Derives all 8 tokens for an element and writes
         /// both the individual token parameters and the assembled tag.
         /// Used by AutoTag, BatchTag, TagSelected to eliminate code duplication.
+        /// Includes collision detection: if the generated tag already exists in the
+        /// project, the SEQ is auto-incremented until a unique tag is found.
         /// </summary>
+        /// <param name="existingTags">
+        /// Project-wide tag index for collision detection. Pass null to skip collision
+        /// checks (legacy behaviour). Build once per batch via <see cref="BuildExistingTagIndex"/>.
+        /// New tags are added to this set automatically so subsequent calls stay current.
+        /// </param>
         /// <returns>True if the element was tagged, false if skipped.</returns>
         public static bool BuildAndWriteTag(Document doc, Element el,
-            Dictionary<string, int> sequenceCounters, bool skipComplete = true)
+            Dictionary<string, int> sequenceCounters, bool skipComplete = true,
+            HashSet<string> existingTags = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName) || !DiscMap.ContainsKey(catName))
@@ -162,6 +170,19 @@ namespace StingTools.Core
 
             string tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
 
+            // Collision detection: if this exact tag already exists, increment SEQ
+            if (existingTags != null)
+            {
+                int safetyLimit = 10000;
+                while (existingTags.Contains(tag) && safetyLimit-- > 0)
+                {
+                    sequenceCounters[seqKey]++;
+                    seq = sequenceCounters[seqKey].ToString().PadLeft(NumPad, '0');
+                    tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
+                }
+                existingTags.Add(tag);
+            }
+
             ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc);
             ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc);
             ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone);
@@ -172,6 +193,24 @@ namespace StingTools.Core
             ParameterHelpers.SetIfEmpty(el, "ASS_SEQ_NUM_TXT", seq);
             ParameterHelpers.SetString(el, "ASS_TAG_1_TXT", tag, overwrite: true);
             return true;
+        }
+
+        /// <summary>
+        /// Build a HashSet of all existing ASS_TAG_1_TXT values in the project.
+        /// Call once before a batch tagging loop and pass to BuildAndWriteTag
+        /// for collision detection. O(n) scan, O(1) per lookup thereafter.
+        /// </summary>
+        public static HashSet<string> BuildExistingTagIndex(Document doc)
+        {
+            var index = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                if (!string.IsNullOrEmpty(tag))
+                    index.Add(tag);
+            }
+            StingLog.Info($"Tag index built: {index.Count} existing tags");
+            return index;
         }
 
         /// <summary>

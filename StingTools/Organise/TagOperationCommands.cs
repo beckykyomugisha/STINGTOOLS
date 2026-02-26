@@ -27,6 +27,7 @@ namespace StingTools.Organise
 
             int tagged = 0;
             var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
 
             using (Transaction tx = new Transaction(doc, "STING Tag Selected"))
             {
@@ -35,7 +36,8 @@ namespace StingTools.Organise
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
-                    if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters))
+                    if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                        existingTags: tagIndex))
                         tagged++;
                 }
                 tx.Commit();

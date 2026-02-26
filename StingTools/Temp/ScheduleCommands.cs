@@ -13,6 +13,7 @@ namespace StingTools.Temp
     /// <summary>
     /// Ported from STINGTemp 5_Schedules.panel — Batch Create Schedules.
     /// Multi-discipline schedule creation from CSV definition files.
+    /// Loads SCHEDULE_FIELD_REMAP.csv to auto-remap deprecated field names.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -43,8 +44,15 @@ namespace StingTools.Temp
             }
             var scheduleFiles = new[] { csvPath };
 
+            // Load deprecated field remaps from SCHEDULE_FIELD_REMAP.csv
+            var fieldRemaps = LoadFieldRemaps();
+            int remapCount = fieldRemaps.Count;
+            if (remapCount > 0)
+                StingLog.Info($"Loaded {remapCount} field remaps from SCHEDULE_FIELD_REMAP.csv");
+
             int created = 0;
             int skipped = 0;
+            int remapped = 0;
             var existingNames = new HashSet<string>(
                 new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSchedule))
@@ -92,7 +100,7 @@ namespace StingTools.Temp
                             // Add fields from CSV column 6 (Fields)
                             if (cols.Length > 6 && !string.IsNullOrWhiteSpace(cols[6]))
                             {
-                                AddFieldsToSchedule(doc, vs, cols[6].Trim());
+                                remapped += AddFieldsToSchedule(doc, vs, cols[6].Trim(), fieldRemaps);
                             }
 
                             created++;
@@ -109,18 +117,68 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
-            TaskDialog.Show("Batch Schedules",
-                $"Created {created} schedules.\nSkipped {skipped} (exist or failed).\n" +
-                $"Scanned {scheduleFiles.Length} definition file(s).");
+            string report = $"Created {created} schedules.\nSkipped {skipped} (exist or failed).\n" +
+                $"Scanned {scheduleFiles.Length} definition file(s).";
+            if (remapped > 0)
+                report += $"\nRemapped {remapped} deprecated field name(s).";
+
+            TaskDialog.Show("Batch Schedules", report);
 
             return Result.Succeeded;
         }
 
         /// <summary>
+        /// Load SCHEDULE_FIELD_REMAP.csv — maps deprecated field names to their
+        /// consolidated replacements. CSV format:
+        ///   Old_Schedule_Field, Consolidated_Parameter, Action, ...
+        /// Only rows with Action=REMAPPED are loaded.
+        /// </summary>
+        private static Dictionary<string, string> LoadFieldRemaps()
+        {
+            var remaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            string path = StingToolsApp.FindDataFile("SCHEDULE_FIELD_REMAP.csv");
+            if (path == null) return remaps;
+
+            try
+            {
+                var lines = File.ReadAllLines(path)
+                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
+                    .Skip(1); // skip header
+
+                foreach (string line in lines)
+                {
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 3) continue;
+
+                    string oldField = cols[0].Trim();
+                    string newField = cols[1].Trim();
+                    string action = cols[2].Trim();
+
+                    if (action.Equals("REMAPPED", StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrEmpty(oldField)
+                        && !string.IsNullOrEmpty(newField))
+                    {
+                        remaps[oldField] = newField;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Failed to load SCHEDULE_FIELD_REMAP.csv: {ex.Message}");
+            }
+
+            return remaps;
+        }
+
+        /// <summary>
         /// Add fields to a schedule from a comma-separated field spec string.
         /// Format: "FieldName1, FieldName2, FieldName3" — matches schedulable field names.
+        /// If a field name is found in the remap dictionary, the consolidated name is
+        /// tried first (auto-migration of deprecated fields).
         /// </summary>
-        private static void AddFieldsToSchedule(Document doc, ViewSchedule vs, string fieldSpec)
+        /// <returns>Number of fields that were remapped from deprecated names.</returns>
+        private static int AddFieldsToSchedule(Document doc, ViewSchedule vs, string fieldSpec,
+            Dictionary<string, string> fieldRemaps)
         {
             // Parse field names (may contain "=" for formula remaps like "ASS_ID_TXT=Mark")
             string[] fieldEntries = fieldSpec.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
@@ -135,6 +193,8 @@ namespace StingTools.Temp
                     fieldLookup[sfName] = sf;
             }
 
+            int remappedCount = 0;
+
             foreach (string entry in fieldEntries)
             {
                 string fieldName = entry.Trim();
@@ -146,9 +206,18 @@ namespace StingTools.Temp
 
                 try
                 {
+                    // Try the field name as-is first
                     if (fieldLookup.TryGetValue(fieldName, out SchedulableField sf))
                     {
                         vs.Definition.AddField(sf);
+                    }
+                    // If not found, check if it's a deprecated field with a remap
+                    else if (fieldRemaps.TryGetValue(fieldName, out string remappedName)
+                        && fieldLookup.TryGetValue(remappedName, out sf))
+                    {
+                        vs.Definition.AddField(sf);
+                        remappedCount++;
+                        StingLog.Info($"Schedule field remapped: '{fieldName}' → '{remappedName}'");
                     }
                 }
                 catch (Exception ex)
@@ -156,6 +225,8 @@ namespace StingTools.Temp
                     StingLog.Warn($"Schedule field add '{fieldName}': {ex.Message}");
                 }
             }
+
+            return remappedCount;
         }
 
         private static bool TryGetCategory(string name, out BuiltInCategory bic)

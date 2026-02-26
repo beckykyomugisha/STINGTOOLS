@@ -413,21 +413,21 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 
 | Gap | Location | Problem | Impact |
 |-----|----------|---------|--------|
-| **No tag collision detection** | `TagConfig.cs:133-175` | `BuildAndWriteTag` doesn't check if generated tag already exists — two elements can get identical tags | Critical |
-| **No progress reporting** | `BatchTagCommand`, `MasterSetupCommand`, material creation | Long operations (10,000+ elements) run with no feedback, no ETA, no cancellation | High |
+| ~~**No tag collision detection**~~ | `TagConfig.cs` | **FIXED** — `BuildAndWriteTag` now accepts an `existingTags` HashSet for O(1) collision detection; auto-increments SEQ on duplicate. `BuildExistingTagIndex()` builds the index once per batch. All callers (AutoTag, BatchTag, TagAndCombine, TagSelected) updated. | ~~Critical~~ Done |
+| ~~**No progress reporting**~~ | `BatchTagCommand`, `MasterSetupCommand` | **FIXED** — BatchTag shows element count upfront, logs every 500 elements, reports duration. MasterSetup reports per-step timing. | ~~High~~ Done |
 | **No cancellation support** | All batch commands | Once started, user must wait until completion — no abort mechanism | High |
 | **Hardcoded category bindings** | `SharedParamGuids.cs:109-261` | 53 categories + discipline bindings hardcoded; adding a category requires code rebuild (BINDING_COVERAGE_MATRIX.csv exists but unused) | Medium |
-| **SEQ collision across zones** | `TagConfig.cs:157-161` | Sequence groups by DISC-SYS-LVL only — different rooms on same level can get same tag | Medium |
-| **No error recovery** | `MasterSetupCommand.cs:62-116` | 10-step workflow: if step 5 fails, steps 1-4 already committed with no rollback | Medium |
+| ~~**SEQ collision across zones**~~ | N/A | **NOT A GAP** — Per ISO 19650, the 8-segment tag format `DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ` inherently differentiates by LOC and ZONE. Elements in different zones produce different full tags even with identical SEQ numbers (e.g., `M-BLD1-Z01-L02-HVAC-SUP-AHU-0001` vs `M-BLD1-Z02-L02-HVAC-SUP-AHU-0001`). SEQ counter grouping by DISC-SYS-LVL is correct — the full tag uniqueness is guaranteed by the standard. | N/A |
+| ~~**No error recovery**~~ | `MasterSetupCommand.cs` | **FIXED** — Wrapped in `TransactionGroup` for atomic rollback. If critical step 1 (Load Params) fails, user can rollback immediately. If any steps fail, user chooses to keep partial results or rollback all. Per-step timing reported. | ~~Medium~~ Done |
 | **Fixed tag format** | `TagConfig.cs:16-18` | `NumPad=4`, `Separator="-"` hardcoded — can't change segment count, order, or separator | Medium |
-| **Unused data files** | `Data/` directory | 6 files never loaded: FORMULAS_WITH_DEPENDENCIES.csv (199 rules), MATERIAL_SCHEMA.json, SCHEDULE_FIELD_REMAP.csv, BINDING_COVERAGE_MATRIX.csv, CATEGORY_BINDINGS.csv (10,661 entries), VALIDAT_BIM_TEMPLATE.py (45 checks) | Medium |
+| **Unused data files** | `Data/` directory | SCHEDULE_FIELD_REMAP.csv now loaded by BatchSchedulesCommand for deprecated field remapping. Remaining unused: FORMULAS_WITH_DEPENDENCIES.csv (199 rules), MATERIAL_SCHEMA.json, BINDING_COVERAGE_MATRIX.csv, CATEGORY_BINDINGS.csv (10,661 entries), VALIDAT_BIM_TEMPLATE.py (45 checks) | Medium |
 
 #### B. Enhancement Opportunities
 
 | Enhancement | Why Needed | Effort | Priority |
 |-------------|-----------|--------|----------|
 | Pre-tagging audit ("Will create X tags, Y overwrites, Z collisions") | Prevents errors before they happen | Low | High |
-| Tag collision auto-fix (increment SEQ on duplicate) | Data integrity | Low | High |
+| ~~Tag collision auto-fix (increment SEQ on duplicate)~~ | **DONE** — `BuildAndWriteTag` now auto-increments SEQ on collision via `existingTags` index | ~~Low~~ | ~~High~~ Done |
 | Configurable tag format in project_config.json (separator, padding, segments) | Flexibility for different standards | Medium | Medium |
 | Formula evaluation engine (reads FORMULAS_WITH_DEPENDENCIES.csv) | Auto-populate computed parameters (199 rules exist unused) | High | High |
 | Port VALIDAT_BIM_TEMPLATE.py (45 checks) to C# ValidateTemplateCommand | Template compliance checking | Medium | Medium |

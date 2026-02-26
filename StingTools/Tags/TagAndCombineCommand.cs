@@ -87,6 +87,7 @@ namespace StingTools.Tags
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
             var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
 
             int populated = 0;
             int tagged = 0;
@@ -142,8 +143,9 @@ namespace StingTools.Tags
                     if (lvl != "XX")
                         if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl)) populated++;
 
-                    // Step 2: Tag if not already complete
-                    if (TagConfig.BuildAndWriteTag(doc, el, seqCounters))
+                    // Step 2: Tag if not already complete (with collision detection)
+                    if (TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                        existingTags: tagIndex))
                         tagged++;
 
                     // Step 3: Combine into all containers

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -21,7 +22,9 @@ namespace StingTools.Temp
     ///   9. Create worksets (27 standard worksets)
     ///  10. Create view templates (7 discipline templates)
     ///
-    /// Each step reports its result. Failed steps do not block subsequent steps.
+    /// Wrapped in a TransactionGroup for atomic rollback: if any critical step
+    /// fails, the user can choose to rollback all changes or keep partial results.
+    /// Each step reports its result with timing information.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -44,11 +47,14 @@ namespace StingTools.Temp
                 "  8.  Create view filters\n" +
                 "  9.  Create worksets\n" +
                 " 10.  Create view templates\n\n" +
+                "All steps are grouped atomically — if critical steps fail,\n" +
+                "you can rollback all changes.\n\n" +
                 "This may take several minutes for a new project.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
+            Document doc = commandData.Application.ActiveUIDocument.Document;
             StingLog.Info("Master Setup: starting full automation workflow");
             var report = new StringBuilder();
             report.AppendLine("STING Master Setup Results");
@@ -57,68 +63,123 @@ namespace StingTools.Temp
             int stepNum = 0;
             int passed = 0;
             int failed = 0;
+            var totalSw = Stopwatch.StartNew();
 
-            // Step 1: Load shared parameters
-            passed += RunStep(ref stepNum, report, "Load Shared Parameters",
-                () => new Tags.LoadSharedParamsCommand().Execute(commandData, ref message, elements));
-
-            // Step 2: Create BLE Materials
-            passed += RunStep(ref stepNum, report, "Create BLE Materials",
-                () => new CreateBLEMaterialsCommand().Execute(commandData, ref message, elements));
-
-            // Step 3: Create MEP Materials
-            passed += RunStep(ref stepNum, report, "Create MEP Materials",
-                () => new CreateMEPMaterialsCommand().Execute(commandData, ref message, elements));
-
-            // Step 4: Create compound types (Walls, Floors, Ceilings, Roofs)
-            passed += RunStep(ref stepNum, report, "Create Wall Types",
-                () => new CreateWallsCommand().Execute(commandData, ref message, elements));
-            passed += RunStep(ref stepNum, report, "Create Floor Types",
-                () => new CreateFloorsCommand().Execute(commandData, ref message, elements));
-            passed += RunStep(ref stepNum, report, "Create Ceiling Types",
-                () => new CreateCeilingsCommand().Execute(commandData, ref message, elements));
-            passed += RunStep(ref stepNum, report, "Create Roof Types",
-                () => new CreateRoofsCommand().Execute(commandData, ref message, elements));
-
-            // Step 5: Create MEP types (Ducts, Pipes)
-            passed += RunStep(ref stepNum, report, "Create Duct Types",
-                () => new CreateDuctsCommand().Execute(commandData, ref message, elements));
-            passed += RunStep(ref stepNum, report, "Create Pipe Types",
-                () => new CreatePipesCommand().Execute(commandData, ref message, elements));
-
-            // Step 6: Batch create schedules
-            passed += RunStep(ref stepNum, report, "Batch Create Schedules",
-                () => new BatchSchedulesCommand().Execute(commandData, ref message, elements));
-
-            // Step 7: Auto-populate tag tokens
-            passed += RunStep(ref stepNum, report, "Auto-Populate Tags",
-                () => new AutoPopulateCommand().Execute(commandData, ref message, elements));
-
-            // Step 8: Create view filters
-            passed += RunStep(ref stepNum, report, "Create View Filters",
-                () => new CreateFiltersCommand().Execute(commandData, ref message, elements));
-
-            // Step 9: Create worksets (only if worksharing enabled)
-            Document doc = commandData.Application.ActiveUIDocument.Document;
-            if (doc.IsWorkshared)
+            using (TransactionGroup tg = new TransactionGroup(doc, "STING Master Setup"))
             {
-                passed += RunStep(ref stepNum, report, "Create Worksets",
-                    () => new CreateWorksetsCommand().Execute(commandData, ref message, elements));
-            }
-            else
-            {
-                stepNum++;
-                report.AppendLine($"  {stepNum,2}. Create Worksets — SKIPPED (not workshared)");
-            }
+                tg.Start();
 
-            // Step 10: Create view templates
-            passed += RunStep(ref stepNum, report, "Create View Templates",
-                () => new ViewTemplatesCommand().Execute(commandData, ref message, elements));
+                // Step 1: Load shared parameters (critical — other steps depend on it)
+                passed += RunStep(ref stepNum, report, "Load Shared Parameters",
+                    () => new Tags.LoadSharedParamsCommand().Execute(commandData, ref message, elements));
 
-            failed = stepNum - passed;
+                // If parameter loading failed, offer rollback
+                if (passed == 0)
+                {
+                    StingLog.Error("Master Setup: critical step 1 failed — offering rollback");
+                    TaskDialog critFail = new TaskDialog("Master Setup — Critical Failure");
+                    critFail.MainInstruction = "Shared parameter loading failed";
+                    critFail.MainContent =
+                        "Step 1 (Load Shared Parameters) failed. Subsequent steps\n" +
+                        "depend on these parameters. Continue anyway or rollback?";
+                    critFail.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Continue anyway", "Attempt remaining steps despite the failure");
+                    critFail.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "Rollback all", "Undo all changes and abort");
+                    if (critFail.Show() == TaskDialogResult.CommandLink2)
+                    {
+                        tg.RollBack();
+                        TaskDialog.Show("Master Setup", "All changes rolled back.");
+                        return Result.Cancelled;
+                    }
+                }
+
+                // Step 2: Create BLE Materials
+                passed += RunStep(ref stepNum, report, "Create BLE Materials",
+                    () => new CreateBLEMaterialsCommand().Execute(commandData, ref message, elements));
+
+                // Step 3: Create MEP Materials
+                passed += RunStep(ref stepNum, report, "Create MEP Materials",
+                    () => new CreateMEPMaterialsCommand().Execute(commandData, ref message, elements));
+
+                // Step 4: Create compound types (Walls, Floors, Ceilings, Roofs)
+                passed += RunStep(ref stepNum, report, "Create Wall Types",
+                    () => new CreateWallsCommand().Execute(commandData, ref message, elements));
+                passed += RunStep(ref stepNum, report, "Create Floor Types",
+                    () => new CreateFloorsCommand().Execute(commandData, ref message, elements));
+                passed += RunStep(ref stepNum, report, "Create Ceiling Types",
+                    () => new CreateCeilingsCommand().Execute(commandData, ref message, elements));
+                passed += RunStep(ref stepNum, report, "Create Roof Types",
+                    () => new CreateRoofsCommand().Execute(commandData, ref message, elements));
+
+                // Step 5: Create MEP types (Ducts, Pipes)
+                passed += RunStep(ref stepNum, report, "Create Duct Types",
+                    () => new CreateDuctsCommand().Execute(commandData, ref message, elements));
+                passed += RunStep(ref stepNum, report, "Create Pipe Types",
+                    () => new CreatePipesCommand().Execute(commandData, ref message, elements));
+
+                // Step 6: Batch create schedules
+                passed += RunStep(ref stepNum, report, "Batch Create Schedules",
+                    () => new BatchSchedulesCommand().Execute(commandData, ref message, elements));
+
+                // Step 7: Auto-populate tag tokens
+                passed += RunStep(ref stepNum, report, "Auto-Populate Tags",
+                    () => new AutoPopulateCommand().Execute(commandData, ref message, elements));
+
+                // Step 8: Create view filters
+                passed += RunStep(ref stepNum, report, "Create View Filters",
+                    () => new CreateFiltersCommand().Execute(commandData, ref message, elements));
+
+                // Step 9: Create worksets (only if worksharing enabled)
+                if (doc.IsWorkshared)
+                {
+                    passed += RunStep(ref stepNum, report, "Create Worksets",
+                        () => new CreateWorksetsCommand().Execute(commandData, ref message, elements));
+                }
+                else
+                {
+                    stepNum++;
+                    report.AppendLine($"  {stepNum,2}. Create Worksets — SKIPPED (not workshared)");
+                }
+
+                // Step 10: Create view templates
+                passed += RunStep(ref stepNum, report, "Create View Templates",
+                    () => new ViewTemplatesCommand().Execute(commandData, ref message, elements));
+
+                failed = stepNum - passed;
+                totalSw.Stop();
+
+                // If failures occurred, offer rollback
+                if (failed > 0)
+                {
+                    report.AppendLine(new string('─', 45));
+                    report.AppendLine($"  {passed}/{stepNum} succeeded, {failed} failed");
+                    report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
+
+                    TaskDialog rollbackDlg = new TaskDialog("Master Setup — Failures Detected");
+                    rollbackDlg.MainInstruction = $"{failed} step(s) failed";
+                    rollbackDlg.MainContent = report.ToString() +
+                        "\n\nKeep partial results or rollback all changes?";
+                    rollbackDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Keep results", $"Commit {passed} successful steps");
+                    rollbackDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "Rollback all", "Undo all changes from this session");
+
+                    if (rollbackDlg.Show() == TaskDialogResult.CommandLink2)
+                    {
+                        tg.RollBack();
+                        StingLog.Info("Master Setup: user chose rollback after failures");
+                        TaskDialog.Show("Master Setup", "All changes rolled back.");
+                        return Result.Cancelled;
+                    }
+                }
+
+                tg.Assimilate();
+            }
 
             report.AppendLine(new string('─', 45));
             report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");
+            report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
             if (failed > 0)
                 report.AppendLine($"  Failed: {failed} — check StingTools.log for details");
 
@@ -127,7 +188,8 @@ namespace StingTools.Temp
             td.MainContent = report.ToString();
             td.Show();
 
-            StingLog.Info($"Master Setup complete: {passed}/{stepNum} passed");
+            StingLog.Info($"Master Setup complete: {passed}/{stepNum} passed, " +
+                $"elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
 
             return passed > 0 ? Result.Succeeded : Result.Failed;
         }
@@ -136,16 +198,19 @@ namespace StingTools.Temp
             string label, Func<Result> action)
         {
             stepNum++;
+            var sw = Stopwatch.StartNew();
             try
             {
                 Result result = action();
+                sw.Stop();
                 string status = result == Result.Succeeded ? "OK" : "WARN";
-                report.AppendLine($"  {stepNum,2}. {label} — {status}");
-                StingLog.Info($"Master Setup step {stepNum}: {label} — {status}");
+                report.AppendLine($"  {stepNum,2}. {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
+                StingLog.Info($"Master Setup step {stepNum}: {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
                 return result == Result.Succeeded ? 1 : 0;
             }
             catch (Exception ex)
             {
+                sw.Stop();
                 report.AppendLine($"  {stepNum,2}. {label} — FAILED: {ex.Message}");
                 StingLog.Error($"Master Setup step {stepNum}: {label}", ex);
                 return 0;
