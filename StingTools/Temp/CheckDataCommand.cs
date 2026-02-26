@@ -60,6 +60,16 @@ namespace StingTools.Temp
             report.AppendLine(
                 $"  {fileCount} files | {totalSize / (1024.0 * 1024.0):F1} MB total");
 
+            // Validate category bindings against CATEGORY_BINDINGS.csv
+            report.AppendLine();
+            int bindingResult = SharedParamGuids.ValidateBindingsFromCsv();
+            if (bindingResult == 0)
+                report.AppendLine("  Binding validation: PASS (code matches CSV)");
+            else if (bindingResult > 0)
+                report.AppendLine($"  Binding validation: {bindingResult} discrepancy(ies) — see log");
+            else
+                report.AppendLine("  Binding validation: skipped (CSV not found)");
+
             TaskDialog td = new TaskDialog("Check Data");
             td.MainInstruction = $"{fileCount} data files found";
             td.MainContent = report.ToString();

@@ -215,6 +215,10 @@ namespace StingTools.Temp
                             {
                                 materialCache[matName] = newMatId;
                                 matCreated++;
+                                // Apply material appearance properties from CSV
+                                Material newMat = doc.GetElement(newMatId) as Material;
+                                if (newMat != null)
+                                    MaterialPropertyHelper.ApplyMaterialProperties(newMat, cols);
                             }
                         }
                         catch (Exception ex)

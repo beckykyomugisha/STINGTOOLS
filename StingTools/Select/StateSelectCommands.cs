@@ -209,7 +209,10 @@ namespace StingTools.Select
         }
     }
 
-    /// <summary>Bulk write a parameter value to all selected elements.</summary>
+    /// <summary>
+    /// Bulk write parameter values to selected elements. Provides quick-access
+    /// presets for common operations plus multi-page options for all token types.
+    /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class BulkParamWriteCommand : IExternalCommand
     {
@@ -225,64 +228,179 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            // Prompt for parameter name and value
-            // Use TaskDialog with input (Revit doesn't have input dialogs, use common params)
+            // Page 1: Operation category
             TaskDialog td = new TaskDialog("Bulk Param Write");
-            td.MainInstruction = $"Write parameter to {selected.Count} selected elements";
-            td.MainContent =
-                "This will write a value to a named parameter on all selected elements.\n\n" +
-                "Common parameters:\n" +
-                "  ASS_LOC_TXT, ASS_ZONE_TXT, ASS_STATUS_TXT,\n" +
-                "  ASS_DISCIPLINE_COD_TXT, ASS_SYSTEM_TYPE_TXT";
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Set LOC to BLD1");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Set ZONE to Z01");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Set STATUS to EXISTING");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Clear all tags");
+            td.MainInstruction = $"Bulk operation on {selected.Count} selected elements";
+            td.MainContent = "Choose an operation category:";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Location / Zone / Status",
+                "Set LOC, ZONE, or STATUS tokens");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Auto-populate all tokens",
+                "Auto-derive DISC, PROD, SYS, FUNC, LVL, LOC, ZONE from category and spatial data");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Clear tags",
+                "Clear ASS_TAG_1 and all token values (with confirmation)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Re-tag with overwrite",
+                "Force re-derive all tokens and regenerate tags for selected elements");
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
 
-            var result = td.Show();
-            string paramName = null;
-            string paramValue = null;
-            bool overwrite = false;
+            var page1 = td.Show();
 
-            switch (result)
+            switch (page1)
             {
                 case TaskDialogResult.CommandLink1:
-                    paramName = "ASS_LOC_TXT"; paramValue = "BLD1"; break;
+                    return BulkSetToken(doc, selected);
                 case TaskDialogResult.CommandLink2:
-                    paramName = "ASS_ZONE_TXT"; paramValue = "Z01"; break;
+                    return BulkAutoPopulate(doc, selected);
                 case TaskDialogResult.CommandLink3:
-                    paramName = "ASS_STATUS_TXT"; paramValue = "EXISTING"; break;
+                    return BulkClearTags(doc, selected);
                 case TaskDialogResult.CommandLink4:
-                    paramName = "ASS_TAG_1_TXT"; paramValue = ""; overwrite = true; break;
+                    return BulkRetag(doc, selected);
                 default:
                     return Result.Cancelled;
             }
+        }
+
+        private static Result BulkSetToken(Document doc, ICollection<ElementId> selected)
+        {
+            TaskDialog td2 = new TaskDialog("Set Token");
+            td2.MainInstruction = $"Set token on {selected.Count} elements";
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Set LOC to BLD1");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Set ZONE to Z01");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Set STATUS to NEW");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Set STATUS to EXISTING");
+            td2.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string paramName; string paramValue;
+            switch (td2.Show())
+            {
+                case TaskDialogResult.CommandLink1: paramName = "ASS_LOC_TXT"; paramValue = "BLD1"; break;
+                case TaskDialogResult.CommandLink2: paramName = "ASS_ZONE_TXT"; paramValue = "Z01"; break;
+                case TaskDialogResult.CommandLink3: paramName = "ASS_STATUS_TXT"; paramValue = "NEW"; break;
+                case TaskDialogResult.CommandLink4: paramName = "ASS_STATUS_TXT"; paramValue = "EXISTING"; break;
+                default: return Result.Cancelled;
+            }
 
             int written = 0;
-            using (Transaction tx = new Transaction(doc, "Bulk Parameter Write"))
+            using (Transaction tx = new Transaction(doc, "STING Bulk Set Token"))
+            {
+                tx.Start();
+                foreach (ElementId id in selected)
+                {
+                    Element elem = doc.GetElement(id);
+                    if (elem != null && ParameterHelpers.SetString(elem, paramName, paramValue, overwrite: true))
+                        written++;
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Bulk Set Token", $"Set '{paramName}' = '{paramValue}' on {written} elements.");
+            return Result.Succeeded;
+        }
+
+        private static Result BulkAutoPopulate(Document doc, ICollection<ElementId> selected)
+        {
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            int populated = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Bulk Auto-Populate"))
             {
                 tx.Start();
                 foreach (ElementId id in selected)
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(elem, paramName, paramValue, overwrite: true))
-                            written++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(elem, paramName, paramValue))
-                            written++;
-                    }
+                    string catName = ParameterHelpers.GetCategoryName(elem);
+                    if (!known.Contains(catName)) continue;
+
+                    // DISC
+                    string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                    if (ParameterHelpers.SetIfEmpty(elem, "ASS_DISCIPLINE_COD_TXT", disc)) populated++;
+                    // LOC
+                    string loc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
+                    if (ParameterHelpers.SetIfEmpty(elem, "ASS_LOC_TXT", loc)) populated++;
+                    // ZONE
+                    string zone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
+                    if (ParameterHelpers.SetIfEmpty(elem, "ASS_ZONE_TXT", zone)) populated++;
+                    // LVL
+                    string lvl = ParameterHelpers.GetLevelCode(doc, elem);
+                    if (lvl != "XX") if (ParameterHelpers.SetIfEmpty(elem, "ASS_LVL_COD_TXT", lvl)) populated++;
+                    // SYS
+                    string sys = TagConfig.GetSysCode(catName);
+                    if (!string.IsNullOrEmpty(sys)) if (ParameterHelpers.SetIfEmpty(elem, "ASS_SYSTEM_TYPE_TXT", sys)) populated++;
+                    // FUNC
+                    string func = TagConfig.GetFuncCode(sys);
+                    if (!string.IsNullOrEmpty(func)) if (ParameterHelpers.SetIfEmpty(elem, "ASS_FUNC_TXT", func)) populated++;
+                    // PROD (family-aware)
+                    string prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
+                    if (ParameterHelpers.SetIfEmpty(elem, "ASS_PRODCT_COD_TXT", prod)) populated++;
                 }
                 tx.Commit();
             }
+            TaskDialog.Show("Bulk Auto-Populate", $"Auto-populated {populated} token values on {selected.Count} elements.");
+            return Result.Succeeded;
+        }
 
-            TaskDialog.Show("Bulk Param Write",
-                $"Set '{paramName}' on {written} of {selected.Count} elements.");
+        private static Result BulkClearTags(Document doc, ICollection<ElementId> selected)
+        {
+            TaskDialog confirm = new TaskDialog("Clear Tags");
+            confirm.MainInstruction = $"Clear all tags from {selected.Count} elements?";
+            confirm.MainContent = "This will clear ASS_TAG_1_TXT and all 8 token parameters.";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            string[] clearParams = {
+                "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
+                "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
+                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
+            };
+
+            int cleared = 0;
+            using (Transaction tx = new Transaction(doc, "STING Clear Tags"))
+            {
+                tx.Start();
+                foreach (ElementId id in selected)
+                {
+                    Element elem = doc.GetElement(id);
+                    if (elem == null) continue;
+                    bool any = false;
+                    foreach (string p in clearParams)
+                        if (ParameterHelpers.SetString(elem, p, "", overwrite: true)) any = true;
+                    if (any) cleared++;
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Clear Tags", $"Cleared tags from {cleared} elements.");
+            return Result.Succeeded;
+        }
+
+        private static Result BulkRetag(Document doc, ICollection<ElementId> selected)
+        {
+            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            int retagged = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Bulk Re-Tag"))
+            {
+                tx.Start();
+                foreach (ElementId id in selected)
+                {
+                    Element elem = doc.GetElement(id);
+                    if (elem == null) continue;
+                    if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                        skipComplete: false,
+                        existingTags: tagIndex,
+                        collisionMode: TagCollisionMode.Overwrite))
+                        retagged++;
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Bulk Re-Tag", $"Re-tagged {retagged} of {selected.Count} elements.");
             return Result.Succeeded;
         }
     }

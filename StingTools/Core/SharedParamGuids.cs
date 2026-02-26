@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Autodesk.Revit.DB;
 
 namespace StingTools.Core
@@ -163,7 +165,8 @@ namespace StingTools.Core
             // Generic / Specialty
             BuiltInCategory.OST_GenericModel,
             BuiltInCategory.OST_SpecialityEquipment,
-            BuiltInCategory.OST_MedicalEquipment,
+            // OST_MedicalEquipment does not exist in Revit API — medical equipment
+            // falls under OST_SpecialityEquipment (already listed above)
             // Site
             BuiltInCategory.OST_Parking,
             BuiltInCategory.OST_Site,
@@ -281,6 +284,143 @@ namespace StingTools.Core
                 }
             }
             return catSet;
+        }
+
+        /// <summary>
+        /// Validate hardcoded DisciplineBindings against CATEGORY_BINDINGS.csv.
+        /// Loads the CSV and compares parameter-category pairs against what is
+        /// hardcoded in DisciplineBindings. Logs discrepancies as warnings.
+        /// Call once at startup or from CheckDataCommand for audit purposes.
+        /// </summary>
+        /// <returns>Number of discrepancies found (0 = fully consistent).</returns>
+        public static int ValidateBindingsFromCsv()
+        {
+            string path = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
+            if (path == null)
+            {
+                StingLog.Info("CATEGORY_BINDINGS.csv not found — skipping binding validation");
+                return -1;
+            }
+
+            int discrepancies = 0;
+
+            try
+            {
+                // Build reverse lookup: category name → BuiltInCategory enum
+                var catNameToEnum = new Dictionary<string, BuiltInCategory>(StringComparer.OrdinalIgnoreCase)
+                {
+                    { "Air Terminals", BuiltInCategory.OST_DuctTerminal },
+                    { "Cable Tray Fittings", BuiltInCategory.OST_CableTrayFitting },
+                    { "Cable Trays", BuiltInCategory.OST_CableTray },
+                    { "Casework", BuiltInCategory.OST_Casework },
+                    { "Ceilings", BuiltInCategory.OST_Ceilings },
+                    { "Communication Devices", BuiltInCategory.OST_CommunicationDevices },
+                    { "Conduit Fittings", BuiltInCategory.OST_ConduitFitting },
+                    { "Conduits", BuiltInCategory.OST_Conduit },
+                    { "Data Devices", BuiltInCategory.OST_DataDevices },
+                    { "Doors", BuiltInCategory.OST_Doors },
+                    { "Duct Accessories", BuiltInCategory.OST_DuctAccessory },
+                    { "Duct Fittings", BuiltInCategory.OST_DuctFitting },
+                    { "Ducts", BuiltInCategory.OST_DuctCurves },
+                    { "Electrical Equipment", BuiltInCategory.OST_ElectricalEquipment },
+                    { "Electrical Fixtures", BuiltInCategory.OST_ElectricalFixtures },
+                    { "Fire Alarm Devices", BuiltInCategory.OST_FireAlarmDevices },
+                    { "Flex Ducts", BuiltInCategory.OST_FlexDuctCurves },
+                    { "Floors", BuiltInCategory.OST_Floors },
+                    { "Furniture", BuiltInCategory.OST_Furniture },
+                    { "Generic Models", BuiltInCategory.OST_GenericModel },
+                    { "Lighting Devices", BuiltInCategory.OST_LightingDevices },
+                    { "Lighting Fixtures", BuiltInCategory.OST_LightingFixtures },
+                    { "Mechanical Equipment", BuiltInCategory.OST_MechanicalEquipment },
+                    { "Nurse Call Devices", BuiltInCategory.OST_NurseCallDevices },
+                    { "Pipe Accessories", BuiltInCategory.OST_PipeAccessory },
+                    { "Pipe Fittings", BuiltInCategory.OST_PipeFitting },
+                    { "Pipes", BuiltInCategory.OST_PipeCurves },
+                    { "Plumbing Fixtures", BuiltInCategory.OST_PlumbingFixtures },
+                    { "Roofs", BuiltInCategory.OST_Roofs },
+                    { "Security Devices", BuiltInCategory.OST_SecurityDevices },
+                    { "Sprinklers", BuiltInCategory.OST_Sprinklers },
+                    { "Structural Columns", BuiltInCategory.OST_StructuralColumns },
+                    { "Structural Foundations", BuiltInCategory.OST_StructuralFoundation },
+                    { "Structural Framing", BuiltInCategory.OST_StructuralFraming },
+                    { "Telephone Devices", BuiltInCategory.OST_TelephoneDevices },
+                    { "Walls", BuiltInCategory.OST_Walls },
+                    { "Windows", BuiltInCategory.OST_Windows },
+                    // Additional categories from CATEGORY_BINDINGS.csv
+                    { "Curtain Panels", BuiltInCategory.OST_CurtainWallPanels },
+                    { "Curtain Wall Mullions", BuiltInCategory.OST_CurtainWallMullions },
+                    { "Electrical Circuits", BuiltInCategory.OST_ElectricalCircuit },
+                    // Note: Revit has no separate OST_PlumbingEquipment; plumbing equipment
+                    // falls under Mechanical Equipment or Plumbing Fixtures depending on type
+                    { "Ramps", BuiltInCategory.OST_Ramps },
+                    { "Rooms", BuiltInCategory.OST_Rooms },
+                    { "Specialty Equipment", BuiltInCategory.OST_SpecialityEquipment },
+                    { "Stairs", BuiltInCategory.OST_Stairs },
+                    { "Furniture Systems", BuiltInCategory.OST_FurnitureSystems },
+                    { "Columns", BuiltInCategory.OST_Columns },
+                };
+
+                // Build set of hardcoded bindings: "ParamName|CategoryEnum"
+                var hardcoded = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var kvp in DisciplineBindings)
+                {
+                    foreach (var bic in kvp.Value)
+                        hardcoded.Add($"{kvp.Key}|{bic}");
+                }
+
+                // Parse CSV bindings
+                var csvBindings = new HashSet<string>(StringComparer.Ordinal);
+                var lines = File.ReadAllLines(path)
+                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
+                    .Skip(1); // skip header
+
+                foreach (string line in lines)
+                {
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 2) continue;
+
+                    string paramName = cols[0].Trim();
+                    string catName = cols[1].Trim();
+
+                    // Only validate discipline-specific params (Pass 2)
+                    if (!DisciplineBindings.ContainsKey(paramName)) continue;
+                    if (!catNameToEnum.TryGetValue(catName, out BuiltInCategory bic)) continue;
+
+                    csvBindings.Add($"{paramName}|{bic}");
+                }
+
+                // Find discrepancies: in CSV but not hardcoded
+                foreach (string binding in csvBindings)
+                {
+                    if (!hardcoded.Contains(binding))
+                    {
+                        discrepancies++;
+                        StingLog.Warn($"Binding in CSV but not hardcoded: {binding}");
+                    }
+                }
+
+                // Find discrepancies: hardcoded but not in CSV
+                foreach (string binding in hardcoded)
+                {
+                    if (!csvBindings.Contains(binding))
+                    {
+                        discrepancies++;
+                        StingLog.Warn($"Binding hardcoded but not in CSV: {binding}");
+                    }
+                }
+
+                if (discrepancies == 0)
+                    StingLog.Info($"Binding validation passed: {hardcoded.Count} hardcoded bindings match CSV");
+                else
+                    StingLog.Warn($"Binding validation: {discrepancies} discrepancies between code and CSV");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Binding validation failed", ex);
+                return -1;
+            }
+
+            return discrepancies;
         }
     }
 }

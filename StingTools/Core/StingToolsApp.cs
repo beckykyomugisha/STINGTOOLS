@@ -205,6 +205,23 @@ namespace StingTools.Core
                     asmPath, typeof(Docs.SumAreasCommand).FullName,
                     "Calculate total area of selected rooms");
             }
+
+            // Document automation pulldown
+            var docAutoGroup = panel.AddItem(
+                new PulldownButtonData("grpDocAuto", "Automation")) as PulldownButton;
+            if (docAutoGroup != null)
+            {
+                docAutoGroup.LongDescription = "Document automation and ISO 19650 compliance";
+                AddPulldownItem(docAutoGroup, "btnDeleteUnused", "Delete Unused Views",
+                    asmPath, typeof(Docs.DeleteUnusedViewsCommand).FullName,
+                    "Remove views not placed on any sheet (with confirmation)");
+                AddPulldownItem(docAutoGroup, "btnSheetNaming", "Sheet Naming Check",
+                    asmPath, typeof(Docs.SheetNamingCheckCommand).FullName,
+                    "ISO 19650 sheet naming compliance audit");
+                AddPulldownItem(docAutoGroup, "btnAutoNumSheets", "Auto-Number Sheets",
+                    asmPath, typeof(Docs.AutoNumberSheetsCommand).FullName,
+                    "Sequentially renumber sheets within discipline groups");
+            }
         }
 
         // ── Tags Panel (CREATE tab from STINGTags) ────────────────────────
@@ -229,7 +246,30 @@ namespace StingTools.Core
                 "Tag &\nCombine",
                 asmPath,
                 typeof(Tags.TagAndCombineCommand).FullName,
-                "One-click: auto-populate tokens + tag + combine all containers");
+                "One-click: auto-detect LOC/ZONE + populate tokens + tag + combine all 36 containers");
+
+            // Additional tagging modes pulldown
+            var tagModes = panel.AddItem(
+                new PulldownButtonData("grpTagModes", "More")) as PulldownButton;
+            if (tagModes != null)
+            {
+                tagModes.LongDescription = "Additional tagging modes and fix tools";
+                AddPulldownItem(tagModes, "btnTagNewOnly", "Tag New Only",
+                    asmPath, typeof(Tags.TagNewOnlyCommand).FullName,
+                    "Tag only new/untagged elements (faster incremental tagging)");
+                AddPulldownItem(tagModes, "btnReTag", "Re-Tag Selected",
+                    asmPath, typeof(Organise.ReTagCommand).FullName,
+                    "Force re-derive and overwrite tags on selected elements");
+                AddPulldownItem(tagModes, "btnFixDups", "Fix Duplicates",
+                    asmPath, typeof(Organise.FixDuplicateTagsCommand).FullName,
+                    "Auto-resolve duplicate tags by assigning new unique SEQ numbers");
+                AddPulldownItem(tagModes, "btnPreTagAudit", "Pre-Tag Audit",
+                    asmPath, typeof(Tags.PreTagAuditCommand).FullName,
+                    "Dry-run audit: predict tag assignments, collisions, ISO violations BEFORE committing");
+                AddPulldownItem(tagModes, "btnFamilyPopulate", "Family-Stage Populate",
+                    asmPath, typeof(Tags.FamilyStagePopulateCommand).FullName,
+                    "Pre-populate all 7 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD) from category and spatial data");
+            }
 
             // Setup pulldown
             var setupGroup = panel.AddItem(
@@ -254,6 +294,9 @@ namespace StingTools.Core
             if (tokenGroup != null)
             {
                 tokenGroup.LongDescription = "Set individual ISO 19650 token values";
+                AddPulldownItem(tokenGroup, "btnSetDisc", "Set Discipline",
+                    asmPath, typeof(Tags.SetDiscCommand).FullName,
+                    "Set DISC token (M, E, P, A)");
                 AddPulldownItem(tokenGroup, "btnSetLoc", "Set Location",
                     asmPath, typeof(Tags.SetLocCommand).FullName,
                     "Set LOC token (BLD1, BLD2, BLD3, EXT)");
@@ -325,6 +368,56 @@ namespace StingTools.Core
                 AddPulldownItem(tagOps, "btnSwapTags", "Swap Tags",
                     asmPath, typeof(Organise.SwapTagsCommand).FullName,
                     "Swap tag values between two selected elements");
+                AddPulldownItem(tagOps, "btnReTagOps", "Re-Tag",
+                    asmPath, typeof(Organise.ReTagCommand).FullName,
+                    "Force re-derive and overwrite all tag tokens on selected elements");
+                AddPulldownItem(tagOps, "btnFixDupsOps", "Fix Duplicates",
+                    asmPath, typeof(Organise.FixDuplicateTagsCommand).FullName,
+                    "Auto-resolve duplicate tags by incrementing SEQ numbers");
+            }
+
+            // Leader management pulldown
+            var leaderOps = panel.AddItem(
+                new PulldownButtonData("grpLeaders", "Leaders")) as PulldownButton;
+            if (leaderOps != null)
+            {
+                leaderOps.LongDescription = "Annotation tag leader management";
+                AddPulldownItem(leaderOps, "btnToggleLeaders", "Toggle Leaders",
+                    asmPath, typeof(Organise.ToggleLeadersCommand).FullName,
+                    "Toggle leaders on/off for selected tags (or all tags in view)");
+                AddPulldownItem(leaderOps, "btnAddLeaders", "Add Leaders",
+                    asmPath, typeof(Organise.AddLeadersCommand).FullName,
+                    "Add leaders to all selected annotation tags");
+                AddPulldownItem(leaderOps, "btnRemoveLeaders", "Remove Leaders",
+                    asmPath, typeof(Organise.RemoveLeadersCommand).FullName,
+                    "Remove leaders from all selected annotation tags");
+                AddPulldownItem(leaderOps, "btnAlignTags", "Align Tags",
+                    asmPath, typeof(Organise.AlignTagsCommand).FullName,
+                    "Align tag heads horizontally, vertically, or in a row");
+                AddPulldownItem(leaderOps, "btnResetTags", "Reset Tag Positions",
+                    asmPath, typeof(Organise.ResetTagPositionsCommand).FullName,
+                    "Move tags back to element centers (remove manual offsets)");
+                AddPulldownItem(leaderOps, "btnToggleOrientation", "Toggle Orientation",
+                    asmPath, typeof(Organise.ToggleTagOrientationCommand).FullName,
+                    "Switch selected tags between horizontal and vertical");
+                AddPulldownItem(leaderOps, "btnSnapElbow", "Snap Leader Elbows",
+                    asmPath, typeof(Organise.SnapLeaderElbowCommand).FullName,
+                    "Snap leader elbows to 45° or 90° angles for clean layout");
+                AddPulldownItem(leaderOps, "btnFlipTags", "Flip Tags",
+                    asmPath, typeof(Organise.FlipTagsCommand).FullName,
+                    "Mirror tag position across element center (left↔right, up↔down)");
+                AddPulldownItem(leaderOps, "btnAlignTagText", "Align Tag Text",
+                    asmPath, typeof(Organise.AlignTagTextCommand).FullName,
+                    "Align annotation text (left/center/right) for tags and text notes");
+                AddPulldownItem(leaderOps, "btnPinTags", "Pin/Unpin Tags",
+                    asmPath, typeof(Organise.PinTagsCommand).FullName,
+                    "Lock tags in place to prevent accidental movement (or unlock)");
+                AddPulldownItem(leaderOps, "btnAttachLeader", "Attach/Free Leader",
+                    asmPath, typeof(Organise.AttachLeaderCommand).FullName,
+                    "Attach leader end to host element (follows when moved) or set free");
+                AddPulldownItem(leaderOps, "btnSelectByLeader", "Select Tags By Leader",
+                    asmPath, typeof(Organise.SelectTagsWithLeadersCommand).FullName,
+                    "Select tags with or without leaders in active view");
             }
 
             // Analysis pulldown
@@ -342,6 +435,9 @@ namespace StingTools.Core
                 AddPulldownItem(analysisOps, "btnTagStats", "Tag Statistics",
                     asmPath, typeof(Organise.TagStatsCommand).FullName,
                     "Quick tag counts by discipline/system/level for active view");
+                AddPulldownItem(analysisOps, "btnTagRegister", "★ Tag Register Export",
+                    asmPath, typeof(Organise.TagRegisterExportCommand).FullName,
+                    "Comprehensive asset register export (40+ columns: tags, identity, spatial, MEP, cost, validation)");
             }
         }
 
@@ -434,6 +530,11 @@ namespace StingTools.Core
             {
                 schGroup.LongDescription =
                     "Schedule creation, auto-populate, and CSV export";
+                AddPulldownItem(schGroup, "btnFullAutoPopulate",
+                    "★ Full Auto-Populate",
+                    asmPath,
+                    typeof(Temp.FullAutoPopulateCommand).FullName,
+                    "ONE-CLICK: Tokens → Dimensions → MEP → Formulas → Tags → Combine → Grid (zero manual input)");
                 AddPulldownItem(schGroup, "btnBatchSchedules",
                     "Batch Create Schedules",
                     asmPath,
@@ -445,10 +546,15 @@ namespace StingTools.Core
                     typeof(Temp.CreateMaterialSchedulesCommand).FullName,
                     "Create material takeoff schedules for 8 categories");
                 AddPulldownItem(schGroup, "btnAutoPopulate",
-                    "Auto-Populate",
+                    "Auto-Populate (Tokens Only)",
                     asmPath,
                     typeof(Temp.AutoPopulateCommand).FullName,
-                    "Auto-populate DISC/PROD/SYS/FUNC/LVL on all elements");
+                    "Auto-populate tag tokens + native param mapping (lighter alternative to Full Auto-Populate)");
+                AddPulldownItem(schGroup, "btnFormulaEval",
+                    "Evaluate Formulas",
+                    asmPath,
+                    typeof(Temp.FormulaEvaluatorCommand).FullName,
+                    "Evaluate 199 engineering formulas from FORMULAS_WITH_DEPENDENCIES.csv (areas, volumes, flow rates, costs)");
                 AddPulldownItem(schGroup, "btnExportCSV",
                     "Export to CSV",
                     asmPath,
@@ -467,7 +573,7 @@ namespace StingTools.Core
                     "Create Filters",
                     asmPath,
                     typeof(Temp.CreateFiltersCommand).FullName,
-                    "Create 6 discipline view filters");
+                    "Create 10 multi-category discipline filters (M, E, P, A, S, FP, LV, conduits, rooms, generic)");
                 AddPulldownItem(tplGroup, "btnApplyFilters",
                     "Apply Filters to Views",
                     asmPath,
@@ -477,22 +583,22 @@ namespace StingTools.Core
                     "Create Worksets",
                     asmPath,
                     typeof(Temp.CreateWorksetsCommand).FullName,
-                    "Create 27 discipline worksets");
+                    "Create 32 AEC UK-aligned discipline worksets");
                 AddPulldownItem(tplGroup, "btnViewTemplates",
                     "View Templates",
                     asmPath,
                     typeof(Temp.ViewTemplatesCommand).FullName,
-                    "Create 7 discipline view templates");
+                    "Create 15 view templates: working, coordination, RCP, presentation, sections (with VG overrides)");
                 AddPulldownItem(tplGroup, "btnLinePatterns",
                     "Line Patterns",
                     asmPath,
                     typeof(Temp.CreateLinePatternsCommand).FullName,
-                    "Create 6 standard line patterns (dashed, center, hidden, etc.)");
+                    "Create 10 ISO 128 line patterns (dashed, center, hidden, fire compartment, phase boundary, etc.)");
                 AddPulldownItem(tplGroup, "btnPhases",
                     "Phases",
                     asmPath,
                     typeof(Temp.CreatePhasesCommand).FullName,
-                    "Create 7 project phases");
+                    "Create 6 project phases (per ISO 19650 best practice)");
             }
         }
 

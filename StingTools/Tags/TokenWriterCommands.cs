@@ -87,7 +87,18 @@ namespace StingTools.Tags
         }
     }
 
+    /// <summary>Set the DISC (discipline) token on selected/view elements.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetDiscCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+            => TokenWriter.WriteToken(cmd, "ASS_DISCIPLINE_COD_TXT", "Discipline (DISC)",
+                new[] { "M", "E", "P", "A" });
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class SetLocCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -96,6 +107,7 @@ namespace StingTools.Tags
     }
 
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class SetZoneCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -104,6 +116,7 @@ namespace StingTools.Tags
     }
 
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class SetStatusCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -116,6 +129,7 @@ namespace StingTools.Tags
     /// Standalone version of the sequence numbering embedded in AutoTag.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class AssignNumbersCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -134,25 +148,8 @@ namespace StingTools.Tags
                     .Select(e => e.Id).ToList();
             }
 
-            // Find highest existing sequence per group
-            var maxSeq = new Dictionary<string, int>();
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
-            {
-                string cat = ParameterHelpers.GetCategoryName(elem);
-                if (!known.Contains(cat)) continue;
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
-                string seqStr = ParameterHelpers.GetString(elem, "ASS_SEQ_NUM_TXT");
-                if (string.IsNullOrEmpty(disc)) continue;
-
-                string key = $"{disc}_{sys}_{lvl}";
-                if (int.TryParse(seqStr, out int seqNum))
-                {
-                    if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
-                        maxSeq[key] = seqNum;
-                }
-            }
+            // Use shared sequence counter scan (continues from highest existing SEQ per group)
+            var maxSeq = TagConfig.GetExistingSequenceCounters(doc);
 
             int assigned = 0;
             using (Transaction tx = new Transaction(doc, "STING Assign Numbers"))
@@ -208,6 +205,7 @@ namespace StingTools.Tags
     /// parameters without changing any token values. Respects existing LOC/ZONE values.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class BuildTagsCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -247,6 +245,15 @@ namespace StingTools.Tags
 
                     string tag = string.Join(TagConfig.Separator,
                         disc, loc, zone, lvl, sys, func, prod, seq);
+
+                    // ISO 19650 validation before writing
+                    string isoError = ISO19650Validator.ValidateTagFormat(tag);
+                    if (isoError != null)
+                    {
+                        StingLog.Warn($"BuildTags: skipping element {elem.Id} — {isoError}");
+                        continue;
+                    }
+
                     ParameterHelpers.SetString(elem, "ASS_TAG_1_TXT", tag, overwrite: true);
                     built++;
                 }
