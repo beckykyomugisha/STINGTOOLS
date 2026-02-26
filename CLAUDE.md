@@ -8,10 +8,10 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **31 C# source files** (~7,000 lines of code) across 7 directories
-- **79 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point
+- **31 C# source files** (~7,400 lines of code) across 7 directories
+- **80 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point
 - **15 runtime data files** (CSV, JSON, TXT, XLSX, PY)
-- **5 ribbon panels** with 15+ pulldown groups
+- **5 ribbon panels** with 16+ pulldown groups
 
 ## Technology Stack
 
@@ -129,12 +129,17 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | Text Case | `Docs.TextCaseCommand` | Manual | Convert text notes to UPPER/lower/Title case (preserves BIM acronyms) |
 | Sum Areas | `Docs.SumAreasCommand` | ReadOnly | Calculate total area of selected/all rooms |
 
-### Tags Panel (3 buttons + Setup/Tokens/QA pulldowns)
+### Tags Panel (3 buttons + More/Setup/Tokens/QA pulldowns)
 | Button | Command Class | Transaction | Description |
 |--------|--------------|-------------|-------------|
 | Auto Tag | `Tags.AutoTagCommand` | Manual | Tag elements in active view (continues from max existing SEQ) |
 | Batch Tag | `Tags.BatchTagCommand` | Manual | Tag all elements in entire project |
-| Tag & Combine | `Tags.TagAndCombineCommand` | Manual | One-click: populate tokens + tag + combine all containers (view/selection/project scope) |
+| Tag & Combine | `Tags.TagAndCombineCommand` | Manual | One-click: auto-detect LOC/ZONE + populate tokens + tag + combine ALL 37 containers (view/selection/project scope) |
+
+**More pulldown:**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Tag New Only | `Tags.TagNewOnlyCommand` | Manual | Tag only new/untagged elements with spatial auto-detect and family-aware PROD codes |
 
 **Setup pulldown:**
 | Command | Class | Transaction | Description |
@@ -199,9 +204,9 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | `Docs/SheetIndexCommand.cs` | 1 | 75 |
 | `Docs/TransmittalCommand.cs` | 1 | 93 |
 | `Docs/ViewportCommands.cs` | 4 (Align, Renumber, TextCase, SumAreas) | 304 |
-| `Tags/AutoTagCommand.cs` | 1 | 63 |
+| `Tags/AutoTagCommand.cs` | 2 (AutoTag, TagNewOnly) | 175 |
 | `Tags/BatchTagCommand.cs` | 1 | 65 |
-| `Tags/TagAndCombineCommand.cs` | 1 | 189 |
+| `Tags/TagAndCombineCommand.cs` | 1 | 260 |
 | `Tags/CombineParametersCommand.cs` | 1 | 511 |
 | `Tags/ConfigEditorCommand.cs` | 1 | 194 |
 | `Tags/TagConfigCommand.cs` | 1 | 72 |
@@ -217,7 +222,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | `Temp/ScheduleCommands.cs` | 3 (BatchSchedules, AutoPopulate, ExportCSV) | 358 |
 | `Temp/TemplateCommands.cs` | 3 (Filters, Worksets, ViewTemplates) | 250 |
 | `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 277 |
-| **Total** | **79 commands** | **~6,970** |
+| **Total** | **80 commands** | **~7,400** |
 
 ## Core Classes
 
@@ -274,8 +279,9 @@ These `internal static` classes provide shared logic used by multiple commands w
 |--------------|----------|---------|
 | `CategorySelector` | `Select/CategorySelectCommands.cs` | `SelectByCategory()` — shared logic for all 15 category selection commands |
 | `TokenWriter` | `Tags/TokenWriterCommands.cs` | Encapsulates LOC/ZONE/STATUS token writing and number assignment logic |
-| `CompoundTypeCreator` | `Temp/FamilyCommands.cs` | Creates compound wall/floor/ceiling/roof/duct/pipe types from CSV data; `ElementKind` enum |
+| `CompoundTypeCreator` | `Temp/FamilyCommands.cs` | Creates compound wall/floor/ceiling/roof/duct/pipe types from CSV data; `ElementKind` enum; applies material properties |
 | `MaterialPropertyHelper` | `Temp/MaterialCommands.cs` | Shared material property-setting logic for BLE and MEP material commands |
+| `SpatialAutoDetect` | `Core/ParameterHelpers.cs` | Auto-derives LOC from Room name/number/Project Info and ZONE from Room Department/name patterns |
 
 ## ISO 19650 Tag Format
 
@@ -428,10 +434,15 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 |-------------|-----------|--------|----------|
 | Pre-tagging audit ("Will create X tags, Y overwrites, Z collisions") | Prevents errors before they happen | Low | High |
 | ~~Tag collision auto-fix (increment SEQ on duplicate)~~ | **DONE** — `BuildAndWriteTag` now auto-increments SEQ on collision via `existingTags` index | ~~Low~~ | ~~High~~ Done |
+| ~~LOC/ZONE auto-detection from rooms and project info~~ | **DONE** — `SpatialAutoDetect` class in `ParameterHelpers.cs` auto-derives LOC from Room name/number/Project Info and ZONE from Room Department/name. Integrated into TagAndCombine, AutoPopulate, TagNewOnly. Eliminates manual SetLoc/SetZone in most cases. | ~~Medium~~ | ~~High~~ Done |
+| ~~Family-aware PROD codes (FCU, VAV, AHU, DB, MCC, WC, etc.)~~ | **DONE** — `TagConfig.GetFamilyAwareProdCode()` inspects element family name to assign specific PROD codes instead of generic category codes. Covers Mechanical (8 types), Electrical (8 types), Lighting (4 types), Plumbing (7 types), Fire Alarm (4 types). | ~~Low~~ | ~~High~~ Done |
+| ~~TagAndCombine writes only 6 containers (ASS_TAG_1-6)~~ | **DONE** — Now writes ALL 37 containers (6 universal + 31 discipline-specific including HVAC, Electrical, Plumbing, Fire/Safety, Comms, Material). Category-filtered for correctness. | ~~Medium~~ | ~~High~~ Done |
+| ~~No incremental tagging mode~~ | **DONE** — `TagNewOnlyCommand` pre-filters to only elements with empty ASS_TAG_1_TXT. Much faster than BatchTag for adding new elements to an existing project. Includes spatial auto-detect and family-aware PROD. | ~~Low~~ | ~~High~~ Done |
+| ~~CompoundTypeCreator doesn't apply material properties~~ | **DONE** — Now applies color, transparency, smoothness, shininess from CSV columns when creating materials during type creation. | ~~Low~~ | ~~Medium~~ Done |
 | Configurable tag format in project_config.json (separator, padding, segments) | Flexibility for different standards | Medium | Medium |
 | Formula evaluation engine (reads FORMULAS_WITH_DEPENDENCIES.csv) | Auto-populate computed parameters (199 rules exist unused) | High | High |
 | Port VALIDAT_BIM_TEMPLATE.py (45 checks) to C# ValidateTemplateCommand | Template compliance checking | Medium | Medium |
-| Conditional parameter set ("Set LOC=BLD2 where DISC=E") | Bulk intelligent updates | Medium | Medium |
+| ~~Conditional parameter set ("Set LOC=BLD2 where DISC=E")~~ | **PARTIALLY ADDRESSED** — SpatialAutoDetect eliminates most manual LOC/ZONE setting. BulkParamWrite still available for manual overrides. | ~~Medium~~ | ~~Medium~~ |
 | Cross-parameter validation (SEQ uniqueness, impossible combos like E+DHW) | Data quality | Low | Medium |
 | Batch command chaining / workflow presets | Queue: AutoTag → Validate → Export | Medium | Low |
 

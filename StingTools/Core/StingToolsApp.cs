@@ -229,7 +229,18 @@ namespace StingTools.Core
                 "Tag &\nCombine",
                 asmPath,
                 typeof(Tags.TagAndCombineCommand).FullName,
-                "One-click: auto-populate tokens + tag + combine all containers");
+                "One-click: auto-detect LOC/ZONE + populate tokens + tag + combine all 37 containers");
+
+            // Incremental tagging pulldown
+            var tagModes = panel.AddItem(
+                new PulldownButtonData("grpTagModes", "More")) as PulldownButton;
+            if (tagModes != null)
+            {
+                tagModes.LongDescription = "Additional tagging modes";
+                AddPulldownItem(tagModes, "btnTagNewOnly", "Tag New Only",
+                    asmPath, typeof(Tags.TagNewOnlyCommand).FullName,
+                    "Tag only new/untagged elements (faster incremental tagging)");
+            }
 
             // Setup pulldown
             var setupGroup = panel.AddItem(

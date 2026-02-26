@@ -281,7 +281,9 @@ namespace StingTools.Temp
 
     /// <summary>
     /// Ported from STINGTemp 5_Schedules.panel — AutoPopulate.
-    /// Apply field remaps across categories (42 remaps from the STINGTemp data).
+    /// Enhanced for zero-manual-input: auto-populates ALL 7 token fields including
+    /// LOC (from room/project data) and ZONE (from room department/name).
+    /// Uses family-aware PROD codes for more specific equipment identification.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -296,8 +298,14 @@ namespace StingTools.Temp
             var collector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType();
 
+            // Build spatial index for LOC/ZONE auto-detection
+            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+
             int updated = 0;
             int total = 0;
+            int locDetected = 0;
+            int zoneDetected = 0;
 
             using (Transaction tx = new Transaction(doc, "Auto-Populate Fields"))
             {
@@ -316,8 +324,9 @@ namespace StingTools.Temp
                         TagConfig.DiscMap[catName]))
                         updated++;
 
-                    // Auto-populate PROD code from category
-                    if (TagConfig.ProdMap.TryGetValue(catName, out string prod))
+                    // Auto-populate PROD code (family-aware: FCU, VAV, AHU, etc.)
+                    string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+                    if (!string.IsNullOrEmpty(prod))
                     {
                         if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod))
                             updated++;
@@ -346,13 +355,38 @@ namespace StingTools.Temp
                         if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl))
                             updated++;
                     }
+
+                    // Auto-populate LOC from spatial data (room / project info)
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                    {
+                        string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                        if (!string.IsNullOrEmpty(loc) && ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc))
+                        {
+                            updated++;
+                            locDetected++;
+                        }
+                    }
+
+                    // Auto-populate ZONE from room data (department, name, number)
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
+                    {
+                        string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                        if (!string.IsNullOrEmpty(zone) && ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone))
+                        {
+                            updated++;
+                            zoneDetected++;
+                        }
+                    }
                 }
 
                 tx.Commit();
             }
 
-            TaskDialog.Show("Auto-Populate",
-                $"Auto-populated {updated} field values across {total} elements.");
+            string report = $"Auto-populated {updated} field values across {total} elements.";
+            if (locDetected > 0) report += $"\nLOC auto-detected: {locDetected} (from rooms/project)";
+            if (zoneDetected > 0) report += $"\nZONE auto-detected: {zoneDetected} (from rooms)";
+
+            TaskDialog.Show("Auto-Populate", report);
 
             return Result.Succeeded;
         }

@@ -105,6 +105,81 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Family-name-aware product code resolution. Checks the element's family name
+        /// for specific equipment patterns before falling back to category-based lookup.
+        /// This gives more specific PROD codes: e.g., "FCU-01" → FCU, "VAV Box" → VAV,
+        /// instead of the generic category code like "AHU" for all Mechanical Equipment.
+        /// </summary>
+        public static string GetFamilyAwareProdCode(Element el, string categoryName)
+        {
+            string familyName = ParameterHelpers.GetFamilyName(el);
+            string symbolName = ParameterHelpers.GetFamilySymbolName(el);
+            string combinedName = $"{familyName} {symbolName}".ToUpperInvariant();
+
+            // Only apply family-level overrides for categories with diverse equipment
+            if (!string.IsNullOrEmpty(familyName))
+            {
+                string upper = familyName.ToUpperInvariant();
+
+                // Mechanical Equipment — distinguish AHU, FCU, VAV, CHR, BLR, PMP, FAN
+                if (categoryName == "Mechanical Equipment")
+                {
+                    if (upper.Contains("FCU") || upper.Contains("FAN COIL")) return "FCU";
+                    if (upper.Contains("VAV") || upper.Contains("VARIABLE AIR")) return "VAV";
+                    if (upper.Contains("CHILLER") || upper.Contains("CHR")) return "CHR";
+                    if (upper.Contains("BOILER") || upper.Contains("BLR")) return "BLR";
+                    if (upper.Contains("PUMP") || upper.Contains("PMP")) return "PMP";
+                    if (upper.Contains("FAN") || upper.Contains("EXF")) return "FAN";
+                    if (upper.Contains("HRU") || upper.Contains("HEAT RECOVERY")) return "HRU";
+                    if (upper.Contains("SPLIT") || upper.Contains("CASSETTE")) return "SPL";
+                    if (upper.Contains("AHU") || upper.Contains("AIR HANDLING")) return "AHU";
+                }
+                // Electrical Equipment — distinguish DB, MCC, MSB, SWB, UPS, TRF, GEN
+                else if (categoryName == "Electrical Equipment")
+                {
+                    if (upper.Contains("MCC") || upper.Contains("MOTOR CONTROL")) return "MCC";
+                    if (upper.Contains("MSB") || upper.Contains("MAIN SWITCH")) return "MSB";
+                    if (upper.Contains("SWB") || upper.Contains("SWITCHBOARD")) return "SWB";
+                    if (upper.Contains("UPS") || upper.Contains("UNINTERRUPT")) return "UPS";
+                    if (upper.Contains("TRANSFORMER") || upper.Contains("TRF")) return "TRF";
+                    if (upper.Contains("GENERATOR") || upper.Contains("GEN SET")) return "GEN";
+                    if (upper.Contains("ATS") || upper.Contains("AUTO TRANSFER")) return "ATS";
+                    if (upper.Contains("DB") || upper.Contains("DISTRIBUTION")) return "DB";
+                }
+                // Lighting — distinguish LUM, EML, DEC, TRK
+                else if (categoryName == "Lighting Fixtures")
+                {
+                    if (upper.Contains("EMERGENCY") || upper.Contains("EML") || upper.Contains("EXIT")) return "EML";
+                    if (upper.Contains("TRACK") || upper.Contains("TRK")) return "TRK";
+                    if (upper.Contains("DECORATIVE") || upper.Contains("PENDANT") || upper.Contains("CHANDELIER")) return "DEC";
+                    if (upper.Contains("DOWNLIGHT") || upper.Contains("RECESSED")) return "DWN";
+                }
+                // Plumbing Fixtures — distinguish WC, WHB, URN, SNK, SHW, BTH
+                else if (categoryName == "Plumbing Fixtures")
+                {
+                    if (upper.Contains("WC") || upper.Contains("WATER CLOSET") || upper.Contains("TOILET")) return "WC";
+                    if (upper.Contains("WHB") || upper.Contains("WASH HAND") || upper.Contains("BASIN")) return "WHB";
+                    if (upper.Contains("URINAL") || upper.Contains("URN")) return "URN";
+                    if (upper.Contains("SINK") || upper.Contains("SNK")) return "SNK";
+                    if (upper.Contains("SHOWER") || upper.Contains("SHW")) return "SHW";
+                    if (upper.Contains("BATH") || upper.Contains("BTH")) return "BTH";
+                    if (upper.Contains("DRINKING") || upper.Contains("FOUNTAIN")) return "DRK";
+                }
+                // Fire Alarm — distinguish FAD, SML, MCP, BLL
+                else if (categoryName == "Fire Alarm Devices")
+                {
+                    if (upper.Contains("SMOKE") || upper.Contains("DETECTOR") || upper.Contains("SML")) return "SML";
+                    if (upper.Contains("MCP") || upper.Contains("CALL POINT") || upper.Contains("MANUAL")) return "MCP";
+                    if (upper.Contains("BELL") || upper.Contains("SOUNDER") || upper.Contains("BLL")) return "BLL";
+                    if (upper.Contains("STROBE") || upper.Contains("BEACON")) return "STB";
+                }
+            }
+
+            // Fall back to category-based PROD code
+            return ProdMap.TryGetValue(categoryName, out string prod) ? prod : "GEN";
+        }
+
+        /// <summary>
         /// Check if a tag string has the expected number of non-empty tokens.
         /// A tag is only "complete" when it has exactly expectedTokens segments
         /// and none of them are empty strings.
