@@ -368,4 +368,298 @@ namespace StingTools.Organise
             return Result.Succeeded;
         }
     }
+
+    /// <summary>
+    /// Copy tag values from one element to all other selected elements.
+    /// Picks the first selected element as source; writes its tag tokens to all others.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    public class CopyTagsCommand : IExternalCommand
+    {
+        private static readonly string[] CopyParams = new[]
+        {
+            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
+            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
+            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+            "ASS_PRODCT_COD_TXT", "ASS_STATUS_TXT",
+        };
+
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            var selected = uidoc.Selection.GetElementIds().ToList();
+            if (selected.Count < 2)
+            {
+                TaskDialog.Show("Copy Tags",
+                    "Select at least 2 elements. The first selected element " +
+                    "is the source; all others receive its tag values.\n" +
+                    "(Note: SEQ numbers are NOT copied — each element keeps unique SEQ)");
+                return Result.Succeeded;
+            }
+
+            Element source = doc.GetElement(selected[0]);
+            var values = new Dictionary<string, string>();
+            foreach (string p in CopyParams)
+                values[p] = ParameterHelpers.GetString(source, p);
+
+            string sourceTag = values.TryGetValue("ASS_TAG_1_TXT", out string t) ? t : "(empty)";
+
+            TaskDialog confirm = new TaskDialog("Copy Tags");
+            confirm.MainInstruction = $"Copy tags from Element {source.Id}?";
+            confirm.MainContent =
+                $"Source tag: {sourceTag}\n" +
+                $"Target: {selected.Count - 1} elements\n\n" +
+                "Copies all tag values except SEQ (sequence stays unique).";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            int copied = 0;
+            using (Transaction tx = new Transaction(doc, "STING Copy Tags"))
+            {
+                tx.Start();
+                for (int i = 1; i < selected.Count; i++)
+                {
+                    Element target = doc.GetElement(selected[i]);
+                    if (target == null) continue;
+                    foreach (var kvp in values)
+                    {
+                        ParameterHelpers.SetString(target, kvp.Key, kvp.Value, overwrite: true);
+                    }
+                    copied++;
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Copy Tags", $"Copied tag values to {copied} elements.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Swap tag values between two selected elements (including SEQ).
+    /// Useful for correcting tag assignment errors.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    public class SwapTagsCommand : IExternalCommand
+    {
+        private static readonly string[] SwapParams = new[]
+        {
+            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
+            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
+            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
+        };
+
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            var selected = uidoc.Selection.GetElementIds().ToList();
+            if (selected.Count != 2)
+            {
+                TaskDialog.Show("Swap Tags", "Select exactly 2 elements to swap their tags.");
+                return Result.Succeeded;
+            }
+
+            Element a = doc.GetElement(selected[0]);
+            Element b = doc.GetElement(selected[1]);
+
+            string tagA = ParameterHelpers.GetString(a, "ASS_TAG_1_TXT");
+            string tagB = ParameterHelpers.GetString(b, "ASS_TAG_1_TXT");
+
+            TaskDialog confirm = new TaskDialog("Swap Tags");
+            confirm.MainInstruction = "Swap tags between two elements?";
+            confirm.MainContent =
+                $"Element A ({a.Id}): {(string.IsNullOrEmpty(tagA) ? "(empty)" : tagA)}\n" +
+                $"Element B ({b.Id}): {(string.IsNullOrEmpty(tagB) ? "(empty)" : tagB)}";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            using (Transaction tx = new Transaction(doc, "STING Swap Tags"))
+            {
+                tx.Start();
+                foreach (string param in SwapParams)
+                {
+                    string valA = ParameterHelpers.GetString(a, param);
+                    string valB = ParameterHelpers.GetString(b, param);
+                    ParameterHelpers.SetString(a, param, valB, overwrite: true);
+                    ParameterHelpers.SetString(b, param, valA, overwrite: true);
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Swap Tags", "Tags swapped successfully.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Select all elements matching a specific discipline code (M, E, P, A, S, etc.).
+    /// Presents the user with discipline options and selects matching elements.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public class SelectByDisciplineCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            // Count elements per discipline
+            var discCounts = new Dictionary<string, int>();
+            var discElements = new Dictionary<string, List<ElementId>>();
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            foreach (Element elem in new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .WhereElementIsNotElementType())
+            {
+                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
+                if (string.IsNullOrEmpty(disc)) continue;
+
+                if (!discCounts.ContainsKey(disc))
+                {
+                    discCounts[disc] = 0;
+                    discElements[disc] = new List<ElementId>();
+                }
+                discCounts[disc]++;
+                discElements[disc].Add(elem.Id);
+            }
+
+            if (discCounts.Count == 0)
+            {
+                TaskDialog.Show("Select by Discipline", "No tagged elements found in active view.");
+                return Result.Succeeded;
+            }
+
+            // Show top 4 disciplines
+            var top = discCounts.OrderByDescending(x => x.Value).Take(4).ToList();
+            TaskDialog td = new TaskDialog("Select by Discipline");
+            td.MainInstruction = "Select elements by discipline code";
+            for (int i = 0; i < top.Count; i++)
+            {
+                td.AddCommandLink((TaskDialogCommandLinkId)(i + 201),
+                    $"{top[i].Key} — {top[i].Value} elements");
+            }
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var result = td.Show();
+            int idx = -1;
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1: idx = 0; break;
+                case TaskDialogResult.CommandLink2: idx = 1; break;
+                case TaskDialogResult.CommandLink3: idx = 2; break;
+                case TaskDialogResult.CommandLink4: idx = 3; break;
+                default: return Result.Cancelled;
+            }
+
+            if (idx >= 0 && idx < top.Count)
+            {
+                string disc = top[idx].Key;
+                uidoc.Selection.SetElementIds(discElements[disc]);
+                TaskDialog.Show("Select by Discipline",
+                    $"Selected {discElements[disc].Count} elements with discipline '{disc}'.");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Quick tag statistics for the active view — shows counts per discipline,
+    /// system, level, and overall tag/untag ratio.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public class TagStatsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            Document doc = cmd.Application.ActiveUIDocument.Document;
+            View view = doc.ActiveView;
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            int total = 0, tagged = 0, untagged = 0;
+            var byDisc = new Dictionary<string, int>();
+            var bySys = new Dictionary<string, int>();
+            var byLvl = new Dictionary<string, int>();
+
+            foreach (Element elem in new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(elem);
+                if (!known.Contains(cat)) continue;
+
+                total++;
+                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                if (TagConfig.TagIsComplete(tag))
+                    tagged++;
+                else
+                    untagged++;
+
+                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
+                if (!string.IsNullOrEmpty(disc))
+                {
+                    if (!byDisc.ContainsKey(disc)) byDisc[disc] = 0;
+                    byDisc[disc]++;
+                }
+                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
+                if (!string.IsNullOrEmpty(sys))
+                {
+                    if (!bySys.ContainsKey(sys)) bySys[sys] = 0;
+                    bySys[sys]++;
+                }
+                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
+                if (!string.IsNullOrEmpty(lvl))
+                {
+                    if (!byLvl.ContainsKey(lvl)) byLvl[lvl] = 0;
+                    byLvl[lvl]++;
+                }
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Tag Statistics — {view.Name}");
+            report.AppendLine(new string('═', 45));
+            report.AppendLine($"  Total taggable: {total}");
+            report.AppendLine($"  Tagged:         {tagged}");
+            report.AppendLine($"  Untagged:       {untagged}");
+            double pct = total > 0 ? tagged * 100.0 / total : 0;
+            report.AppendLine($"  Compliance:     {pct:F1}%");
+
+            if (byDisc.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("  By Discipline:");
+                foreach (var kvp in byDisc.OrderByDescending(x => x.Value))
+                    report.AppendLine($"    {kvp.Key,-6} {kvp.Value,5}");
+            }
+            if (bySys.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("  By System:");
+                foreach (var kvp in bySys.OrderByDescending(x => x.Value).Take(10))
+                    report.AppendLine($"    {kvp.Key,-8} {kvp.Value,5}");
+            }
+            if (byLvl.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("  By Level:");
+                foreach (var kvp in byLvl.OrderBy(x => x.Key))
+                    report.AppendLine($"    {kvp.Key,-6} {kvp.Value,5}");
+            }
+
+            TaskDialog td = new TaskDialog("Tag Statistics");
+            td.MainInstruction = $"View: {tagged}/{total} tagged ({pct:F1}%)";
+            td.MainContent = report.ToString();
+            td.Show();
+
+            return Result.Succeeded;
+        }
+    }
 }

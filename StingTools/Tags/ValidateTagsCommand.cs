@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Autodesk.Revit.Attributes;
@@ -10,13 +11,32 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Validate existing tags for completeness and correct token counts.
-    /// Reports incomplete, malformed, or missing tags by category.
+    /// Validate existing tags for completeness across ALL containers:
+    ///   - ASS_TAG_1_TXT through ASS_TAG_6_TXT (primary tag + 5 containers)
+    ///   - Discipline-specific containers (HVC_EQP_TAG, ELC_EQP_TAG, etc.)
+    ///   - Individual tokens (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ)
+    ///
+    /// Reports issues by category with export-to-CSV option.
+    /// Checks for: missing tags, incomplete tags (empty segments),
+    /// unpopulated containers, missing individual tokens.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class ValidateTagsCommand : IExternalCommand
     {
+        private static readonly string[] TokenParams = new[]
+        {
+            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+        };
+
+        private static readonly string[] UniversalContainers = new[]
+        {
+            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
+            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
+        };
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -27,10 +47,17 @@ namespace StingTools.Tags
 
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
             int total = 0;
-            int valid = 0;
-            int incomplete = 0;
-            int missing = 0;
+            int fullyValid = 0; // all 8 tokens + TAG_1 complete
+            int tag1Valid = 0;
+            int tag1Incomplete = 0;
+            int tag1Missing = 0;
+            int containersEmpty = 0; // TAG_2-6 not populated
+            int tokensMissing = 0;
             var issuesByCategory = new Dictionary<string, int>();
+            var tokenIssues = new Dictionary<string, int>(); // which tokens are most often empty
+            var csvRows = new List<string>();
+
+            csvRows.Add("ElementId,Category,TAG_1_Status,EmptyTokens,EmptyContainers,TAG_1,TAG_2,TAG_3,TAG_4,TAG_5,TAG_6");
 
             foreach (Element el in collector)
             {
@@ -39,60 +66,136 @@ namespace StingTools.Tags
                     continue;
 
                 total++;
-                string tag = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
+                string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
 
-                if (string.IsNullOrEmpty(tag))
+                // Check TAG_1
+                string tag1Status;
+                if (string.IsNullOrEmpty(tag1))
                 {
-                    missing++;
-                    IncrementCategory(issuesByCategory, catName);
+                    tag1Missing++;
+                    tag1Status = "MISSING";
+                    IncrementDict(issuesByCategory, catName);
                 }
-                else if (TagConfig.TagIsComplete(tag))
+                else if (TagConfig.TagIsComplete(tag1))
                 {
-                    valid++;
+                    tag1Valid++;
+                    tag1Status = "VALID";
                 }
                 else
                 {
-                    incomplete++;
-                    IncrementCategory(issuesByCategory, catName);
+                    tag1Incomplete++;
+                    tag1Status = "INCOMPLETE";
+                    IncrementDict(issuesByCategory, catName);
                 }
+
+                // Check individual tokens
+                int emptyTokenCount = 0;
+                foreach (string token in TokenParams)
+                {
+                    string val = ParameterHelpers.GetString(el, token);
+                    if (string.IsNullOrEmpty(val))
+                    {
+                        emptyTokenCount++;
+                        tokensMissing++;
+                        IncrementDict(tokenIssues, token);
+                    }
+                }
+
+                // Check TAG_2-6 containers
+                int emptyContainers = 0;
+                var tagValues = new string[6];
+                for (int i = 0; i < UniversalContainers.Length; i++)
+                {
+                    tagValues[i] = ParameterHelpers.GetString(el, UniversalContainers[i]);
+                    if (string.IsNullOrEmpty(tagValues[i]) && i > 0) // TAG_2-6
+                        emptyContainers++;
+                }
+                containersEmpty += emptyContainers;
+
+                // Is fully valid = TAG_1 complete + all tokens filled + containers populated
+                if (tag1Status == "VALID" && emptyTokenCount == 0 && emptyContainers == 0)
+                    fullyValid++;
+
+                // CSV row
+                csvRows.Add($"{el.Id},\"{CsvEsc(catName)}\",{tag1Status},{emptyTokenCount},{emptyContainers}," +
+                    $"\"{CsvEsc(tagValues[0])}\",\"{CsvEsc(tagValues[1])}\",\"{CsvEsc(tagValues[2])}\"," +
+                    $"\"{CsvEsc(tagValues[3])}\",\"{CsvEsc(tagValues[4])}\",\"{CsvEsc(tagValues[5])}\"");
             }
 
+            // Build report
             var report = new StringBuilder();
             report.AppendLine("Tag Validation Report");
-            report.AppendLine(new string('─', 45));
-            report.AppendLine($"Total taggable elements:  {total}");
-            report.AppendLine($"Valid (8 tokens):         {valid}");
-            report.AppendLine($"Incomplete:               {incomplete}");
-            report.AppendLine($"Missing:                  {missing}");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine();
+
+            report.AppendLine("── ASS_TAG_1 Status ──");
+            report.AppendLine($"  Total taggable:   {total}");
+            report.AppendLine($"  Valid:            {tag1Valid}");
+            report.AppendLine($"  Incomplete:       {tag1Incomplete}");
+            report.AppendLine($"  Missing:          {tag1Missing}");
+            double tag1Pct = total > 0 ? tag1Valid * 100.0 / total : 0;
+            report.AppendLine($"  TAG_1 compliance: {tag1Pct:F1}%");
+
+            report.AppendLine();
+            report.AppendLine("── Full Compliance (all tokens + containers) ──");
+            double fullPct = total > 0 ? fullyValid * 100.0 / total : 0;
+            report.AppendLine($"  Fully complete:   {fullyValid}/{total} ({fullPct:F1}%)");
+            report.AppendLine($"  Empty tokens:     {tokensMissing}");
+            report.AppendLine($"  Empty containers: {containersEmpty} (TAG_2-6)");
+
+            if (tokenIssues.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("── Most Common Empty Tokens ──");
+                foreach (var kvp in tokenIssues.OrderByDescending(x => x.Value).Take(8))
+                {
+                    string shortName = kvp.Key.Replace("ASS_", "").Replace("_TXT", "").Replace("_COD", "");
+                    report.AppendLine($"  {shortName,-20} {kvp.Value,5} empty");
+                }
+            }
 
             if (issuesByCategory.Count > 0)
             {
                 report.AppendLine();
-                report.AppendLine("Issues by category:");
-                foreach (var kvp in issuesByCategory.OrderByDescending(x => x.Value))
-                {
+                report.AppendLine("── TAG_1 Issues by Category ──");
+                foreach (var kvp in issuesByCategory.OrderByDescending(x => x.Value).Take(15))
                     report.AppendLine($"  {kvp.Key,-25} {kvp.Value} issues");
-                }
             }
 
-            double pct = total > 0 ? (valid * 100.0 / total) : 0;
-            report.AppendLine();
-            report.AppendLine($"Compliance: {pct:F1}%");
+            // Export CSV
+            string csvPath = null;
+            try
+            {
+                string dir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
+                csvPath = Path.Combine(dir, "STING_Validation_Report.csv");
+                File.WriteAllText(csvPath, string.Join(Environment.NewLine, csvRows));
+                report.AppendLine();
+                report.AppendLine($"── CSV exported to: {csvPath} ──");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Validation CSV export: {ex.Message}");
+            }
 
             TaskDialog td = new TaskDialog("Validate Tags");
-            td.MainInstruction = $"Tag compliance: {pct:F1}% ({valid}/{total})";
+            td.MainInstruction = $"TAG_1: {tag1Pct:F1}% | Full: {fullPct:F1}% ({fullyValid}/{total})";
             td.MainContent = report.ToString();
             td.Show();
 
             return Result.Succeeded;
         }
 
-        private static void IncrementCategory(Dictionary<string, int> dict, string key)
+        private static void IncrementDict(Dictionary<string, int> dict, string key)
         {
-            if (dict.ContainsKey(key))
-                dict[key]++;
-            else
-                dict[key] = 1;
+            if (dict.ContainsKey(key)) dict[key]++;
+            else dict[key] = 1;
+        }
+
+        private static string CsvEsc(string v)
+        {
+            if (string.IsNullOrEmpty(v)) return "";
+            return v.Replace("\"", "\"\"");
         }
     }
 }

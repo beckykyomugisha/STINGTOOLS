@@ -225,6 +225,12 @@ namespace StingTools.Core
                 typeof(Tags.BatchTagCommand).FullName,
                 "Batch-apply tags to all taggable elements in the project");
 
+            AddButton(panel, "btnTagAndCombine",
+                "Tag &\nCombine",
+                asmPath,
+                typeof(Tags.TagAndCombineCommand).FullName,
+                "One-click: auto-populate tokens + tag + combine all containers");
+
             // Setup pulldown
             var setupGroup = panel.AddItem(
                 new PulldownButtonData("grpTagSetup", "Setup")) as PulldownButton;
@@ -237,6 +243,9 @@ namespace StingTools.Core
                 AddPulldownItem(setupGroup, "btnLoadParams", "Load Params",
                     asmPath, typeof(Tags.LoadSharedParamsCommand).FullName,
                     "Bind shared parameters (universal + discipline) to categories");
+                AddPulldownItem(setupGroup, "btnConfigEditor", "Configure",
+                    asmPath, typeof(Tags.ConfigEditorCommand).FullName,
+                    "View/edit/save tag lookup tables (DISC, SYS, PROD, FUNC, LOC, ZONE)");
             }
 
             // Token writers pulldown
@@ -310,9 +319,29 @@ namespace StingTools.Core
                 AddPulldownItem(tagOps, "btnRenumber", "Renumber",
                     asmPath, typeof(Organise.RenumberTagsCommand).FullName,
                     "Re-sequence tag numbers for selected elements");
-                AddPulldownItem(tagOps, "btnAuditCSV", "Audit to CSV",
+                AddPulldownItem(tagOps, "btnCopyTags", "Copy Tags",
+                    asmPath, typeof(Organise.CopyTagsCommand).FullName,
+                    "Copy tag values from first selected element to all others");
+                AddPulldownItem(tagOps, "btnSwapTags", "Swap Tags",
+                    asmPath, typeof(Organise.SwapTagsCommand).FullName,
+                    "Swap tag values between two selected elements");
+            }
+
+            // Analysis pulldown
+            var analysisOps = panel.AddItem(
+                new PulldownButtonData("grpAnalysis", "Analysis")) as PulldownButton;
+            if (analysisOps != null)
+            {
+                analysisOps.LongDescription = "Tag analysis, filtering, and export";
+                AddPulldownItem(analysisOps, "btnAuditCSV", "Audit to CSV",
                     asmPath, typeof(Organise.AuditTagsCSVCommand).FullName,
                     "Export complete tag audit to CSV file");
+                AddPulldownItem(analysisOps, "btnSelByDisc", "Select by Discipline",
+                    asmPath, typeof(Organise.SelectByDisciplineCommand).FullName,
+                    "Select all elements of a specific discipline (M, E, P, A, S)");
+                AddPulldownItem(analysisOps, "btnTagStats", "Tag Statistics",
+                    asmPath, typeof(Organise.TagStatsCommand).FullName,
+                    "Quick tag counts by discipline/system/level for active view");
             }
         }
 

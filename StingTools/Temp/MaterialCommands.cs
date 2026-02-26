@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -9,6 +10,73 @@ using StingTools.Core;
 
 namespace StingTools.Temp
 {
+    /// <summary>Shared material property helper for BLE and MEP commands.</summary>
+    internal static class MaterialPropertyHelper
+    {
+        /// <summary>
+        /// Apply material appearance properties from CSV columns.
+        /// CSV column indices (header row 2):
+        ///   35: BLE_APP-IDENTITY-CLASS
+        ///   36: BLE_APP-COLOR (e.g., "RGB 221-221-219")
+        ///   37: BLE_APP-TRANSPARENCY
+        ///   38: BLE_APP-SMOOTHNESS
+        ///   39: BLE_APP-SHININESS
+        ///   44: BLE_APP-DESCRIPTION
+        ///   45: BLE_APP-COMMENTS
+        /// </summary>
+        public static void ApplyMaterialProperties(Material mat, string[] cols)
+        {
+            try
+            {
+                // Color (column 36)
+                if (cols.Length > 36)
+                {
+                    Color color = ParseRgb(cols[36]);
+                    if (color != null)
+                        mat.Color = color;
+                }
+
+                // Transparency (column 37): 0-100
+                if (cols.Length > 37 && int.TryParse(cols[37].Trim(), out int transparency))
+                {
+                    mat.Transparency = Math.Max(0, Math.Min(100, transparency));
+                }
+
+                // Smoothness (column 38): 0-100
+                if (cols.Length > 38 && int.TryParse(cols[38].Trim().Replace(".0", ""), out int smoothness))
+                {
+                    mat.Smoothness = Math.Max(0, Math.Min(100, smoothness));
+                }
+
+                // Shininess (column 39): 0-128
+                if (cols.Length > 39 && int.TryParse(cols[39].Trim().Replace(".0", ""), out int shininess))
+                {
+                    mat.Shininess = Math.Max(0, Math.Min(128, shininess));
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Material props '{mat.Name}': {ex.Message}");
+            }
+        }
+
+        /// <summary>Parse "RGB 221-221-219" or "221,221,219" into a Color.</summary>
+        public static Color ParseRgb(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+
+            var match = Regex.Match(value.Trim(), @"(\d{1,3})\D+(\d{1,3})\D+(\d{1,3})");
+            if (match.Success &&
+                byte.TryParse(match.Groups[1].Value, out byte r) &&
+                byte.TryParse(match.Groups[2].Value, out byte g) &&
+                byte.TryParse(match.Groups[3].Value, out byte b))
+            {
+                return new Color(r, g, b);
+            }
+            return null;
+        }
+    }
+
     /// <summary>
     /// Ported from STINGTemp 2_Materials.panel — Create BLE Materials.
     /// Creates building-element materials from BLE_MATERIALS.csv.
@@ -71,6 +139,9 @@ namespace StingTools.Temp
                     ElementId newId = Material.Create(doc, matName);
                     if (newId != ElementId.InvalidElementId)
                     {
+                        Material mat = doc.GetElement(newId) as Material;
+                        if (mat != null)
+                            MaterialPropertyHelper.ApplyMaterialProperties(mat, cols);
                         created++;
                         existingNames.Add(matName);
                     }
@@ -146,6 +217,9 @@ namespace StingTools.Temp
                     ElementId newId = Material.Create(doc, matName);
                     if (newId != ElementId.InvalidElementId)
                     {
+                        Material mat = doc.GetElement(newId) as Material;
+                        if (mat != null)
+                            MaterialPropertyHelper.ApplyMaterialProperties(mat, cols);
                         created++;
                         existingNames.Add(matName);
                     }

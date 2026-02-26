@@ -88,6 +88,13 @@ namespace StingTools.Temp
                             ElementId catId = new ElementId(bic);
                             ViewSchedule vs = ViewSchedule.CreateSchedule(doc, catId);
                             vs.Name = name;
+
+                            // Add fields from CSV column 6 (Fields)
+                            if (cols.Length > 6 && !string.IsNullOrWhiteSpace(cols[6]))
+                            {
+                                AddFieldsToSchedule(doc, vs, cols[6].Trim());
+                            }
+
                             created++;
                             existingNames.Add(name);
                         }
@@ -107,6 +114,48 @@ namespace StingTools.Temp
                 $"Scanned {scheduleFiles.Length} definition file(s).");
 
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Add fields to a schedule from a comma-separated field spec string.
+        /// Format: "FieldName1, FieldName2, FieldName3" — matches schedulable field names.
+        /// </summary>
+        private static void AddFieldsToSchedule(Document doc, ViewSchedule vs, string fieldSpec)
+        {
+            // Parse field names (may contain "=" for formula remaps like "ASS_ID_TXT=Mark")
+            string[] fieldEntries = fieldSpec.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+            // Build lookup of available schedulable fields
+            var available = vs.Definition.GetSchedulableFields();
+            var fieldLookup = new Dictionary<string, SchedulableField>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sf in available)
+            {
+                string sfName = sf.GetName(doc);
+                if (!string.IsNullOrEmpty(sfName) && !fieldLookup.ContainsKey(sfName))
+                    fieldLookup[sfName] = sf;
+            }
+
+            foreach (string entry in fieldEntries)
+            {
+                string fieldName = entry.Trim();
+                // Handle remap format: "ASS_ID_TXT=Mark" → use the key before '='
+                if (fieldName.Contains("="))
+                    fieldName = fieldName.Split('=')[0].Trim();
+
+                if (string.IsNullOrEmpty(fieldName)) continue;
+
+                try
+                {
+                    if (fieldLookup.TryGetValue(fieldName, out SchedulableField sf))
+                    {
+                        vs.Definition.AddField(sf);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Schedule field add '{fieldName}': {ex.Message}");
+                }
+            }
         }
 
         private static bool TryGetCategory(string name, out BuiltInCategory bic)

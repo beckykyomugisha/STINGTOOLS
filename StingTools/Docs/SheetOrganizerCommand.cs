@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using StingTools.Core;
 
 namespace StingTools.Docs
 {
@@ -59,6 +62,32 @@ namespace StingTools.Docs
 
             report.AppendLine();
             report.AppendLine($"Total: {sheets.Count} sheets in {groups.Count()} groups");
+
+            // Export CSV
+            try
+            {
+                var csv = new StringBuilder();
+                csv.AppendLine("Discipline_Prefix,Sheet_Number,Sheet_Name,Revision_Status,Group_Count");
+                foreach (var group in groups)
+                {
+                    foreach (var sheet in group)
+                    {
+                        string revStatus = sheet.GetAllRevisionIds().Count > 0 ? "Revised" : "Current";
+                        csv.AppendLine($"\"{group.Key}\",\"{sheet.SheetNumber}\",\"{sheet.Name}\",{revStatus},{group.Count()}");
+                    }
+                }
+
+                string dir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
+                string csvPath = Path.Combine(dir, $"STING_SheetOrganizer_{DateTime.Now:yyyyMMdd}.csv");
+                File.WriteAllText(csvPath, csv.ToString());
+                report.AppendLine();
+                report.AppendLine($"CSV exported: {csvPath}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Sheet organizer CSV export: {ex.Message}");
+            }
 
             TaskDialog td = new TaskDialog("Sheet Organizer");
             td.MainInstruction = $"{sheets.Count} sheets organised into {groups.Count()} discipline groups";
