@@ -6,6 +6,13 @@
 
 This file provides guidance for AI assistants (Claude Code, etc.) working in this repository.
 
+### Quick Stats
+
+- **31 C# source files** (~7,000 lines of code) across 7 directories
+- **79 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point
+- **15 runtime data files** (CSV, JSON, TXT, XLSX, PY)
+- **5 ribbon panels** with 15+ pulldown groups
+
 ## Technology Stack
 
 - **Platform**: Autodesk Revit 2025/2026/2027 (BIM software)
@@ -37,8 +44,8 @@ STINGTOOLS/
     │   ├── SharedParamGuids.cs         # GUID map for 200+ shared parameters
     │   └── TagConfig.cs                # ISO 19650 tag lookup tables + tag builder
     │
-    ├── Select/                         # Element selection commands (2 files, ~23 commands)
-    │   ├── CategorySelectCommands.cs   # 15 category selectors + SelectAllTaggable
+    ├── Select/                         # Element selection commands (2 files, 23 commands)
+    │   ├── CategorySelectCommands.cs   # 15 category selectors + SelectAllTaggable + CategorySelector helper
     │   └── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite
     │
     ├── Docs/                           # Documentation commands (5 files, 8 commands)
@@ -48,7 +55,7 @@ STINGTOOLS/
     │   ├── TransmittalCommand.cs       # ISO 19650 transmittal report
     │   └── ViewportCommands.cs         # Align, Renumber, TextCase, SumAreas
     │
-    ├── Tags/                           # Tagging commands (9 files, ~20 commands)
+    ├── Tags/                           # Tagging commands (9 files, 14 commands)
     │   ├── AutoTagCommand.cs           # Tag elements in active view
     │   ├── BatchTagCommand.cs          # Tag all elements in project
     │   ├── TagAndCombineCommand.cs     # One-click: populate + tag + combine all
@@ -57,20 +64,20 @@ STINGTOOLS/
     │   ├── TagConfigCommand.cs         # Display tag configuration
     │   ├── LoadSharedParamsCommand.cs   # Bind shared parameters (2-pass)
     │   ├── TokenWriterCommands.cs      # SetLoc, SetZone, SetStatus, AssignNumbers,
-    │   │                               #   BuildTags, CompletenessDashboard
+    │   │                               #   BuildTags, CompletenessDashboard + TokenWriter helper
     │   └── ValidateTagsCommand.cs      # Validate tag completeness
     │
-    ├── Organise/                       # Tag management commands (1 file, ~10 commands)
+    ├── Organise/                       # Tag management commands (1 file, 11 commands)
     │   └── TagOperationCommands.cs     # TagSelected, DeleteTags, Renumber, AuditCSV,
     │                                   #   FindDuplicates, HighlightInvalid, ClearOverrides,
     │                                   #   CopyTags, SwapTags, SelectByDiscipline, TagStats
     │
-    ├── Temp/                           # Template commands (8 files, ~25 commands)
+    ├── Temp/                           # Template commands (8 files, 23 commands)
     │   ├── CreateParametersCommand.cs  # Delegates to LoadSharedParams
     │   ├── CheckDataCommand.cs         # Data file inventory with SHA-256
     │   ├── MasterSetupCommand.cs       # One-click full project setup (10 steps)
-    │   ├── MaterialCommands.cs         # BLE + MEP material creation
-    │   ├── FamilyCommands.cs           # Wall/Floor/Ceiling/Roof/Duct/Pipe types
+    │   ├── MaterialCommands.cs         # BLE + MEP material creation + MaterialPropertyHelper
+    │   ├── FamilyCommands.cs           # Wall/Floor/Ceiling/Roof/Duct/Pipe types + CompoundTypeCreator
     │   ├── ScheduleCommands.cs         # Batch schedules, auto-populate, CSV export
     │   ├── TemplateCommands.cs         # Filters, worksets, view templates
     │   └── TemplateExtCommands.cs      # Line patterns, phases, apply filters,
@@ -172,21 +179,52 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | Select by Discipline | `Organise.SelectByDisciplineCommand` | ReadOnly | Select all elements of a specific discipline code |
 | Tag Statistics | `Organise.TagStatsCommand` | ReadOnly | Quick tag counts by discipline/system/level for active view |
 
-### Temp Panel (5 pulldown groups, ~25 commands)
+### Temp Panel (5 pulldown groups, 23 commands)
 | Group | Commands | Description |
 |-------|----------|-------------|
 | Setup | Create Parameters, Check Data Files, **Master Setup** | Project setup + one-click automation (10-step workflow) |
 | Materials | Create BLE Materials, Create MEP Materials | Material creation from CSV (815 + 464) |
-| Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes, Cable Trays, Conduits | Type creation from CSV data (8 commands) |
-| Schedules | Batch Create, Material Takeoffs, Auto-Populate, Export CSV | Schedule management (168 definitions + 8 material takeoffs) |
+| Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes (FamilyCommands.cs), Cable Trays, Conduits (TemplateExtCommands.cs) | Type creation from CSV data (8 commands) |
+| Schedules | Batch Create, Material Takeoffs (TemplateExtCommands.cs), Auto-Populate, Export CSV | Schedule management (168 definitions + 8 material takeoffs) |
 | Templates | Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases | 6 filters, 27 worksets, 7 view templates, 6 line patterns, 7 phases |
+
+## Command Count by File
+
+| File | Commands | Lines |
+|------|----------|-------|
+| `Select/CategorySelectCommands.cs` | 16 (15 category selectors + SelectAllTaggable) | 168 |
+| `Select/StateSelectCommands.cs` | 8 (5 state + 2 spatial + BulkParamWrite) | 289 |
+| `Docs/SheetOrganizerCommand.cs` | 1 | 100 |
+| `Docs/ViewOrganizerCommand.cs` | 1 | 91 |
+| `Docs/SheetIndexCommand.cs` | 1 | 75 |
+| `Docs/TransmittalCommand.cs` | 1 | 93 |
+| `Docs/ViewportCommands.cs` | 4 (Align, Renumber, TextCase, SumAreas) | 304 |
+| `Tags/AutoTagCommand.cs` | 1 | 63 |
+| `Tags/BatchTagCommand.cs` | 1 | 65 |
+| `Tags/TagAndCombineCommand.cs` | 1 | 189 |
+| `Tags/CombineParametersCommand.cs` | 1 | 511 |
+| `Tags/ConfigEditorCommand.cs` | 1 | 194 |
+| `Tags/TagConfigCommand.cs` | 1 | 72 |
+| `Tags/LoadSharedParamsCommand.cs` | 1 | 158 |
+| `Tags/TokenWriterCommands.cs` | 6 (SetLoc, SetZone, SetStatus, AssignNumbers, BuildTags, CompletenessDashboard) | 320 |
+| `Tags/ValidateTagsCommand.cs` | 1 | 201 |
+| `Organise/TagOperationCommands.cs` | 11 (TagSelected, DeleteTags, Renumber, AuditCSV, FindDuplicates, HighlightInvalid, ClearOverrides, CopyTags, SwapTags, SelectByDiscipline, TagStats) | 665 |
+| `Temp/CreateParametersCommand.cs` | 1 | 27 |
+| `Temp/CheckDataCommand.cs` | 1 | 91 |
+| `Temp/MasterSetupCommand.cs` | 1 | 155 |
+| `Temp/MaterialCommands.cs` | 2 (BLE, MEP) | 238 |
+| `Temp/FamilyCommands.cs` | 6 (Walls, Floors, Ceilings, Roofs, Ducts, Pipes) | 654 |
+| `Temp/ScheduleCommands.cs` | 3 (BatchSchedules, AutoPopulate, ExportCSV) | 358 |
+| `Temp/TemplateCommands.cs` | 3 (Filters, Worksets, ViewTemplates) | 250 |
+| `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 277 |
+| **Total** | **79 commands** | **~6,970** |
 
 ## Core Classes
 
-### `StingToolsApp` (IExternalApplication) — `Core/StingToolsApp.cs`
-- Entry point registered in `StingTools.addin`
-- Sets `AssemblyPath` and `DataPath` (relative to DLL location)
-- Builds ribbon tab with `BuildSelectPanel`, `BuildDocsPanel`, `BuildTagsPanel`, `BuildOrganisePanel`, `BuildTempPanel`
+### `StingToolsApp` (IExternalApplication) — `Core/StingToolsApp.cs` (572 lines)
+- Entry point registered in `StingTools.addin` (FullClassName: `StingTools.Core.StingToolsApp`)
+- Static properties: `AssemblyPath`, `DataPath` (set in `OnStartup`, relative to DLL location)
+- Builds ribbon tab "STING Tools" with `BuildSelectPanel`, `BuildDocsPanel`, `BuildTagsPanel`, `BuildOrganisePanel`, `BuildTempPanel`
 - Uses `PulldownButton` groups for all panel sub-menus
 - Provides `FindDataFile(fileName)` — searches `DataPath` and subdirectories
 - Provides `ParseCsvLine(line)` — CSV parser respecting quoted fields
@@ -204,14 +242,15 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 - `GetLevelCode(doc, el)` — derives short level codes (L01, GF, B1, RF, XX)
 - `GetCategoryName(el)` — safe category name retrieval
 
-### `SharedParamGuids` (static) — `Core/SharedParamGuids.cs`
-- 50+ parameter GUID mappings from `MR_PARAMETERS.txt`
-- `UniversalParams` — 17 ASS_MNG parameters for Pass 1
+### `SharedParamGuids` (static) — `Core/SharedParamGuids.cs` (286 lines)
+- `ParamGuids` dictionary — 50+ parameter name → `Guid` mappings from `MR_PARAMETERS.txt`
+- `UniversalParams` — 17 ASS_MNG parameters for Pass 1 (bound to all 53 categories)
 - `AllCategories` / `AllCategoryEnums` — 53 `OST_*` built-in category names/enums
-- `DisciplineBindings` — maps discipline-specific params to category subsets
+- `DisciplineBindings` — maps discipline-specific params to category subsets (Pass 2)
 - `BuildCategorySet(doc, enums)` — type-safe category set builder
+- Also declares `NumPad = 4` and `Separator = "-"` constants (duplicated in `TagConfig`)
 
-### `TagConfig` (static, singleton) — `Core/TagConfig.cs`
+### `TagConfig` (static, singleton) — `Core/TagConfig.cs` (334 lines)
 - **Lookup tables** (all configurable via `project_config.json`):
   - `DiscMap` — 41 category → discipline code mappings (M, E, P, A, S, FP, LV, G)
   - `SysMap` — 13 system codes → category lists
@@ -226,6 +265,17 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
   - `GetExistingSequenceCounters(doc)` — scans project for highest SEQ per group
   - `GetSysCode(categoryName)`, `GetFuncCode(sysCode)` — reverse lookups
 - **Constants**: `NumPad = 4`, `Separator = "-"`
+
+### Internal Helper Classes
+
+These `internal static` classes provide shared logic used by multiple commands within their respective files:
+
+| Helper Class | Location | Purpose |
+|--------------|----------|---------|
+| `CategorySelector` | `Select/CategorySelectCommands.cs` | `SelectByCategory()` — shared logic for all 16 category selection commands |
+| `TokenWriter` | `Tags/TokenWriterCommands.cs` | Encapsulates LOC/ZONE/STATUS token writing and number assignment logic |
+| `CompoundTypeCreator` | `Temp/FamilyCommands.cs` | Creates compound wall/floor/ceiling/roof/duct/pipe types from CSV data; `ElementKind` enum |
+| `MaterialPropertyHelper` | `Temp/MaterialCommands.cs` | Shared material property-setting logic for BLE and MEP material commands |
 
 ## ISO 19650 Tag Format
 
@@ -304,6 +354,7 @@ dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Auto
 - Always wrap DB modifications in `Transaction` blocks with descriptive names (prefix with "STING")
 - Use `[Transaction(TransactionMode.Manual)]` for state-changing commands
 - Use `[Transaction(TransactionMode.ReadOnly)]` for query-only commands
+- Add `[Regeneration(RegenerationOption.Manual)]` for commands that modify the model (used on most commands)
 - Use `TaskDialog` for user-facing messages (not `MessageBox`)
 - Use `StingLog.Info/Warn/Error` for all logging — never use silent catch blocks
 - Dispose of Revit API objects properly
@@ -318,7 +369,7 @@ The codebase uses two patterns for organising commands:
 1. **One class per file** — for complex commands (e.g., `CombineParametersCommand.cs`, `MasterSetupCommand.cs`)
 2. **Multiple classes per file** — for related simple commands (e.g., `CategorySelectCommands.cs` has 15 selectors, `TokenWriterCommands.cs` has 6 commands)
 
-When adding new commands, follow the existing pattern for the directory. Use shared static helper classes (e.g., `CategorySelector`, `TokenWriter`) to reduce duplication.
+When adding new commands, follow the existing pattern for the directory. Use shared `internal static` helper classes (e.g., `CategorySelector`, `TokenWriter`, `CompoundTypeCreator`, `MaterialPropertyHelper`) to reduce duplication.
 
 ### Data File Conventions
 
@@ -342,10 +393,12 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 - Never run destructive git commands (`reset --hard`, `clean -f`, `branch -D`) without confirmation
 - Always commit to the correct branch — verify before pushing
 
-## Dependencies
+## Dependencies and Build Configuration
 
-- **Revit API**: `RevitAPI.dll`, `RevitAPIUI.dll` (referenced via `$(RevitApiPath)` — not distributed)
+- **Revit API**: `RevitAPI.dll`, `RevitAPIUI.dll` (referenced via `$(RevitApiPath)` — not distributed, `Private=false`)
 - **Newtonsoft.Json**: v13.0.3 (NuGet package)
-- **Target framework**: .NET 8.0 Windows (Revit 2025+)
+- **Target framework**: `net8.0-windows` (Revit 2025+), `LangVersion=latest`
 - **WPF**: Enabled (`UseWPF=true` in csproj) for `System.Windows.Media.Imaging`
-- **Data files**: CSV/JSON/TXT files in `StingTools/Data/` are required at runtime
+- **Output**: Library (DLL), `AppendTargetFrameworkToOutputPath=false`, `CopyLocalLockFileAssemblies=true`
+- **Assembly**: v1.0.0.0, GUID `A1B2C3D4-5678-9ABC-DEF0-123456789ABC`, Vendor: StingBIM
+- **Data files**: CSV/JSON/TXT files in `StingTools/Data/` copied to output `data/` directory at build time
