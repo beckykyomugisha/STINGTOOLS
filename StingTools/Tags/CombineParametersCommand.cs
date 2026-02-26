@@ -10,39 +10,31 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Naviate-style "Combine Parameters" command. Reads individual token parameters
-    /// from each element and assembles them into ALL tag containers:
-    ///   - ASS_TAG_1_TXT through ASS_TAG_6_TXT (universal containers)
-    ///   - Discipline-specific containers (HVC_EQP_TAG_01_TXT, ELC_EQP_TAG_01_TXT, etc.)
+    /// Naviate-style "Combine Parameters" command with interactive selection.
     ///
-    /// Each tag container has a configurable format:
-    ///   - Which tokens to include (segment selection)
-    ///   - Separator character (default "-")
+    /// Presents a multi-step dialog where the user:
+    ///   Step 1: Chooses a mode (All Containers, Universal Only, Discipline Only, Pick Containers)
+    ///   Step 2: In "Pick" mode, selects which tag container groups to populate
+    ///
+    /// Each tag container assembles source tokens with configurable:
+    ///   - Segment selection (which tokens to include)
+    ///   - Separator character
     ///   - Prefix and suffix strings
-    ///   - Max text lines (for multi-line label tags)
     ///
-    /// This replaces the need for Naviate's "Configure" button by computing all
-    /// tag variations automatically from the source tokens.
+    /// Containers supported (16 groups, 37 parameters):
+    ///   - Universal: ASS_TAG_1 through ASS_TAG_6
+    ///   - HVAC: HVC_EQP_TAG, HVC_DCT_TAG, HVC_FLX_TAG
+    ///   - Electrical: ELC_EQP_TAG, ELE_FIX_TAG, LTG_FIX_TAG, ELC_CDT_TAG, ELC_CTR_TAG
+    ///   - Plumbing: PLM_EQP_TAG
+    ///   - Fire/Safety: FLS_DEV_TAG
+    ///   - Comms/LV: COM_DEV_TAG, SEC_DEV_TAG, NCL_DEV_TAG, ICT_DEV_TAG
+    ///   - Material: MAT_TAG_1 through MAT_TAG_6
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class CombineParametersCommand : IExternalCommand
     {
-        /// <summary>
-        /// Defines how a tag container is assembled from source tokens.
-        /// </summary>
-        private class TagContainerDef
-        {
-            public string ParamName { get; set; }
-            public string[] SourceTokens { get; set; }
-            public string Separator { get; set; } = "-";
-            public string Prefix { get; set; } = "";
-            public string Suffix { get; set; } = "";
-            public int MaxLines { get; set; } = 1;
-            public int MaxCharsPerLine { get; set; } = 40;
-        }
-
-        // Source token parameter names in order
+        // ── Source token parameter names ──────────────────────────────
         private static readonly string[] AllTokenParams = new[]
         {
             "ASS_DISCIPLINE_COD_TXT",  // 0: DISC
@@ -55,141 +47,325 @@ namespace StingTools.Tags
             "ASS_SEQ_NUM_TXT",         // 7: SEQ
         };
 
-        /// <summary>
-        /// Universal tag container definitions. Each ASS_TAG_N_TXT gets a different
-        /// combination of tokens for different label/schedule uses:
-        ///   TAG_1: Full 8-segment tag (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ)
-        ///   TAG_2: Short ID (DISC-PROD-SEQ) — compact label for drawings
-        ///   TAG_3: Location ref (LOC-ZONE-LVL) — spatial reference
-        ///   TAG_4: System ref (SYS-FUNC) — system classification
-        ///   TAG_5: Full tag, line 1 (DISC-LOC-ZONE-LVL) — multi-line top
-        ///   TAG_6: Full tag, line 2 (SYS-FUNC-PROD-SEQ) — multi-line bottom
-        /// </summary>
-        private static readonly TagContainerDef[] UniversalContainers = new[]
+        private static readonly string[] ShortIdTokens = new[]
         {
-            new TagContainerDef
-            {
-                ParamName = "ASS_TAG_1_TXT",
-                SourceTokens = AllTokenParams,
-                Separator = "-",
-            },
-            new TagContainerDef
-            {
-                ParamName = "ASS_TAG_2_TXT",
-                SourceTokens = new[] { "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" },
-                Separator = "-",
-            },
-            new TagContainerDef
-            {
-                ParamName = "ASS_TAG_3_TXT",
-                SourceTokens = new[] { "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT" },
-                Separator = "-",
-            },
-            new TagContainerDef
-            {
-                ParamName = "ASS_TAG_4_TXT",
-                SourceTokens = new[] { "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT" },
-                Separator = "-",
-            },
-            new TagContainerDef
-            {
-                ParamName = "ASS_TAG_5_TXT",
-                SourceTokens = new[] { "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT" },
-                Separator = "-",
-                MaxLines = 1,
-            },
-            new TagContainerDef
-            {
-                ParamName = "ASS_TAG_6_TXT",
-                SourceTokens = new[] { "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" },
-                Separator = "-",
-                MaxLines = 1,
-            },
+            "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT"
         };
 
-        /// <summary>
-        /// Discipline-specific tag mappings. Maps each discipline tag parameter
-        /// to the Revit categories it applies to, and which tokens to assemble.
-        /// These tags appear in discipline-specific tag families.
-        /// </summary>
-        private static readonly DisciplineTagDef[] DisciplineTags = new[]
+        private static readonly string[] LocationTokens = new[]
         {
-            // HVAC Equipment — full tag
-            new DisciplineTagDef("HVC_EQP_TAG_01_TXT", "Mechanical Equipment",
-                AllTokenParams),
-            // HVAC Equipment — short ID
-            new DisciplineTagDef("HVC_EQP_TAG_02_TXT", "Mechanical Equipment",
-                new[] { "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" }),
-            // HVAC Equipment — system ref
-            new DisciplineTagDef("HVC_EQP_TAG_03_TXT", "Mechanical Equipment",
-                new[] { "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT" }),
-            // Duct tags
-            new DisciplineTagDef("HVC_DCT_TAG_01_TXT",
-                new[] { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" },
-                AllTokenParams),
-            new DisciplineTagDef("HVC_DCT_TAG_02_TXT",
-                new[] { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" },
-                new[] { "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" }),
-            new DisciplineTagDef("HVC_DCT_TAG_03_TXT",
-                new[] { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" },
-                new[] { "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT" }),
-            new DisciplineTagDef("HVC_FLX_TAG_01_TXT", "Flex Ducts", AllTokenParams),
-            // Electrical Equipment
-            new DisciplineTagDef("ELC_EQP_TAG_01_TXT", "Electrical Equipment", AllTokenParams),
-            new DisciplineTagDef("ELC_EQP_TAG_02_TXT", "Electrical Equipment",
-                new[] { "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" }),
-            // Electrical Fixtures + Lighting
-            new DisciplineTagDef("ELE_FIX_TAG_1_TXT", "Electrical Fixtures", AllTokenParams),
-            new DisciplineTagDef("ELE_FIX_TAG_2_TXT", "Electrical Fixtures",
-                new[] { "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" }),
-            new DisciplineTagDef("LTG_FIX_TAG_01_TXT",
-                new[] { "Lighting Fixtures", "Lighting Devices" }, AllTokenParams),
-            new DisciplineTagDef("LTG_FIX_TAG_02_TXT",
-                new[] { "Lighting Fixtures", "Lighting Devices" },
-                new[] { "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" }),
-            // Pipework
-            new DisciplineTagDef("PLM_EQP_TAG_01_TXT",
-                new[] { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" },
-                AllTokenParams),
-            new DisciplineTagDef("PLM_EQP_TAG_02_TXT",
-                new[] { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" },
-                new[] { "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" }),
-            // Fire & Life Safety
-            new DisciplineTagDef("FLS_DEV_TAG_01_TXT",
-                new[] { "Sprinklers", "Fire Alarm Devices" }, AllTokenParams),
-            new DisciplineTagDef("FLS_DEV_TAG_02_TXT",
-                new[] { "Sprinklers", "Fire Alarm Devices" },
-                new[] { "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" }),
-            // Conduits
-            new DisciplineTagDef("ELC_CDT_TAG_01_TXT",
-                new[] { "Conduits", "Conduit Fittings" }, AllTokenParams),
-            new DisciplineTagDef("ELC_CDT_TAG_02_TXT",
-                new[] { "Conduits", "Conduit Fittings" },
-                new[] { "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" }),
-            // Cable Trays
-            new DisciplineTagDef("ELC_CTR_TAG_01_TXT",
-                new[] { "Cable Trays", "Cable Tray Fittings" }, AllTokenParams),
-            // Low-voltage / Communications
-            new DisciplineTagDef("COM_DEV_TAG_01_TXT",
-                new[] { "Communication Devices", "Telephone Devices" }, AllTokenParams),
-            new DisciplineTagDef("SEC_DEV_TAG_01_TXT", "Security Devices", AllTokenParams),
-            new DisciplineTagDef("NCL_DEV_TAG_01_TXT", "Nurse Call Devices", AllTokenParams),
-            new DisciplineTagDef("ICT_DEV_TAG_01_TXT", "Data Devices", AllTokenParams),
+            "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT"
         };
+
+        private static readonly string[] SystemTokens = new[]
+        {
+            "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT"
+        };
+
+        private static readonly string[] Line1Tokens = new[]
+        {
+            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT"
+        };
+
+        private static readonly string[] Line2Tokens = new[]
+        {
+            "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT"
+        };
+
+        private static readonly string[] SysRefTokens = new[]
+        {
+            "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT"
+        };
+
+        // ── Container group definitions ──────────────────────────────
+
+        /// <summary>All selectable container groups for the interactive UI.</summary>
+        private static readonly ContainerGroup[] AllGroups = new[]
+        {
+            // Universal (applies to all tagged elements)
+            new ContainerGroup("Universal (ASS_TAG_1-6)", "UNIVERSAL", null, new[]
+            {
+                new ContainerDef("ASS_TAG_1_TXT", AllTokenParams,  "-", "", "", "Full 8-segment tag"),
+                new ContainerDef("ASS_TAG_2_TXT", ShortIdTokens,   "-", "", "", "Short ID (DISC-PROD-SEQ)"),
+                new ContainerDef("ASS_TAG_3_TXT", LocationTokens,  "-", "", "", "Location (LOC-ZONE-LVL)"),
+                new ContainerDef("ASS_TAG_4_TXT", SystemTokens,    "-", "", "", "System (SYS-FUNC)"),
+                new ContainerDef("ASS_TAG_5_TXT", Line1Tokens,     "-", "", "", "Multi-line top"),
+                new ContainerDef("ASS_TAG_6_TXT", Line2Tokens,     "-", "", "", "Multi-line bottom"),
+            }),
+
+            // HVAC Equipment
+            new ContainerGroup("HVAC Equipment", "HVC_EQP",
+                new[] { "Mechanical Equipment" }, new[]
+            {
+                new ContainerDef("HVC_EQP_TAG_01_TXT", AllTokenParams,  "-", "", "", "Full tag"),
+                new ContainerDef("HVC_EQP_TAG_02_TXT", ShortIdTokens,   "-", "", "", "Short ID"),
+                new ContainerDef("HVC_EQP_TAG_03_TXT", SysRefTokens,    "-", "", "", "System ref"),
+            }),
+
+            // HVAC Ductwork
+            new ContainerGroup("HVAC Ductwork", "HVC_DCT",
+                new[] { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" }, new[]
+            {
+                new ContainerDef("HVC_DCT_TAG_01_TXT", AllTokenParams,  "-", "", "", "Full tag"),
+                new ContainerDef("HVC_DCT_TAG_02_TXT", ShortIdTokens,   "-", "", "", "Short ID"),
+                new ContainerDef("HVC_DCT_TAG_03_TXT", SystemTokens,    "-", "", "", "System"),
+            }),
+
+            // Flex Ducts
+            new ContainerGroup("Flex Ducts", "HVC_FLX",
+                new[] { "Flex Ducts" }, new[]
+            {
+                new ContainerDef("HVC_FLX_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
+            }),
+
+            // Electrical Equipment
+            new ContainerGroup("Electrical Equipment", "ELC_EQP",
+                new[] { "Electrical Equipment" }, new[]
+            {
+                new ContainerDef("ELC_EQP_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
+                new ContainerDef("ELC_EQP_TAG_02_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
+            }),
+
+            // Electrical Fixtures
+            new ContainerGroup("Electrical Fixtures", "ELE_FIX",
+                new[] { "Electrical Fixtures" }, new[]
+            {
+                new ContainerDef("ELE_FIX_TAG_1_TXT", AllTokenParams, "-", "", "", "Full tag"),
+                new ContainerDef("ELE_FIX_TAG_2_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
+            }),
+
+            // Lighting
+            new ContainerGroup("Lighting", "LTG_FIX",
+                new[] { "Lighting Fixtures", "Lighting Devices" }, new[]
+            {
+                new ContainerDef("LTG_FIX_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
+                new ContainerDef("LTG_FIX_TAG_02_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
+            }),
+
+            // Pipework / Plumbing
+            new ContainerGroup("Pipework / Plumbing", "PLM_EQP",
+                new[] { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" }, new[]
+            {
+                new ContainerDef("PLM_EQP_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
+                new ContainerDef("PLM_EQP_TAG_02_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
+            }),
+
+            // Fire & Life Safety
+            new ContainerGroup("Fire & Life Safety", "FLS_DEV",
+                new[] { "Sprinklers", "Fire Alarm Devices" }, new[]
+            {
+                new ContainerDef("FLS_DEV_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
+                new ContainerDef("FLS_DEV_TAG_02_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
+            }),
+
+            // Conduits
+            new ContainerGroup("Conduits", "ELC_CDT",
+                new[] { "Conduits", "Conduit Fittings" }, new[]
+            {
+                new ContainerDef("ELC_CDT_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
+                new ContainerDef("ELC_CDT_TAG_02_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
+            }),
+
+            // Cable Trays
+            new ContainerGroup("Cable Trays", "ELC_CTR",
+                new[] { "Cable Trays", "Cable Tray Fittings" }, new[]
+            {
+                new ContainerDef("ELC_CTR_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
+            }),
+
+            // Communications / Low-voltage
+            new ContainerGroup("Communications", "COM_DEV",
+                new[] { "Communication Devices", "Telephone Devices" }, new[]
+            {
+                new ContainerDef("COM_DEV_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
+            }),
+            new ContainerGroup("Security", "SEC_DEV",
+                new[] { "Security Devices" }, new[]
+            {
+                new ContainerDef("SEC_DEV_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
+            }),
+            new ContainerGroup("Nurse Call", "NCL_DEV",
+                new[] { "Nurse Call Devices" }, new[]
+            {
+                new ContainerDef("NCL_DEV_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
+            }),
+            new ContainerGroup("ICT / Data", "ICT_DEV",
+                new[] { "Data Devices" }, new[]
+            {
+                new ContainerDef("ICT_DEV_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
+            }),
+
+            // Material Tags (for compound-structure elements)
+            new ContainerGroup("Material Tags (MAT_TAG_1-6)", "MAT_TAG",
+                new[] { "Walls", "Floors", "Ceilings", "Roofs", "Doors", "Windows" }, new[]
+            {
+                new ContainerDef("MAT_TAG_1_TXT", AllTokenParams,  "-", "", "", "Full tag"),
+                new ContainerDef("MAT_TAG_2_TXT", ShortIdTokens,   "-", "", "", "Short ID"),
+                new ContainerDef("MAT_TAG_3_TXT", LocationTokens,  "-", "", "", "Location"),
+                new ContainerDef("MAT_TAG_4_TXT", SystemTokens,    "-", "", "", "System"),
+                new ContainerDef("MAT_TAG_5_TXT", Line1Tokens,     "-", "", "", "Line 1"),
+                new ContainerDef("MAT_TAG_6_TXT", Line2Tokens,     "-", "", "", "Line 2"),
+            }),
+        };
+
+        // ── Main Execute ─────────────────────────────────────────────
 
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
             Document doc = commandData.Application.ActiveUIDocument.Document;
 
-            var collector = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType();
+            // Step 1: Mode selection
+            TaskDialog modeDlg = new TaskDialog("Combine Parameters");
+            modeDlg.MainInstruction = "Which tag containers to populate?";
+            modeDlg.MainContent =
+                "Reads token parameters (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ) " +
+                "and assembles them into tag container parameters.\n\n" +
+                $"Available: {AllGroups.Length} groups, " +
+                $"{AllGroups.Sum(g => g.Containers.Length)} total containers";
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "All Containers",
+                $"Populate all {AllGroups.Length} groups ({AllGroups.Sum(g => g.Containers.Length)} parameters)");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Universal Only (ASS_TAG_1-6)",
+                "6 universal containers applied to all tagged elements");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Discipline Only",
+                "MEP + Comms discipline-specific containers (excludes Universal and Material)");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Pick Container Groups...",
+                "Interactively choose which groups to populate");
+            modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var modeResult = modeDlg.Show();
+
+            HashSet<string> selectedGroupIds;
+            switch (modeResult)
+            {
+                case TaskDialogResult.CommandLink1:
+                    selectedGroupIds = new HashSet<string>(AllGroups.Select(g => g.GroupId));
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    selectedGroupIds = new HashSet<string> { "UNIVERSAL" };
+                    break;
+                case TaskDialogResult.CommandLink3:
+                    selectedGroupIds = new HashSet<string>(
+                        AllGroups.Where(g => g.GroupId != "UNIVERSAL" && g.GroupId != "MAT_TAG")
+                                 .Select(g => g.GroupId));
+                    break;
+                case TaskDialogResult.CommandLink4:
+                    selectedGroupIds = ShowGroupPicker(doc);
+                    if (selectedGroupIds == null || selectedGroupIds.Count == 0)
+                        return Result.Cancelled;
+                    break;
+                default:
+                    return Result.Cancelled;
+            }
+
+            var activeGroups = AllGroups.Where(g => selectedGroupIds.Contains(g.GroupId)).ToArray();
+            return ExecuteCombine(doc, activeGroups);
+        }
+
+        // ── Group picker: paged TaskDialog selection ─────────────────
+
+        private HashSet<string> ShowGroupPicker(Document doc)
+        {
+            // Count elements per category to show relevance
+            var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var catCounts = new Dictionary<string, int>();
+            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!knownCategories.Contains(cat)) continue;
+                if (catCounts.ContainsKey(cat)) catCounts[cat]++;
+                else catCounts[cat] = 1;
+            }
+
+            var selected = new HashSet<string>();
+            int page = 0;
+            int pageSize = 4; // Revit TaskDialog supports max 4 command links
+
+            while (true)
+            {
+                int start = page * pageSize;
+                if (start >= AllGroups.Length)
+                {
+                    // Wrap around or finish
+                    if (selected.Count > 0) break;
+                    page = 0;
+                    start = 0;
+                }
+
+                int count = Math.Min(pageSize, AllGroups.Length - start);
+                var pageGroups = AllGroups.Skip(start).Take(count).ToArray();
+                int totalPages = (int)Math.Ceiling((double)AllGroups.Length / pageSize);
+
+                TaskDialog picker = new TaskDialog("Select Container Groups");
+                picker.MainInstruction = $"Toggle groups (page {page + 1}/{totalPages})";
+                picker.MainContent = selected.Count > 0
+                    ? $"Selected: {string.Join(", ", AllGroups.Where(g => selected.Contains(g.GroupId)).Select(g => g.Label))}"
+                    : "Click a group to select/deselect it. Cancel when done selecting.";
+
+                for (int i = 0; i < pageGroups.Length; i++)
+                {
+                    var g = pageGroups[i];
+                    int elemCount = g.Categories != null
+                        ? g.Categories.Sum(c => catCounts.TryGetValue(c, out int n) ? n : 0)
+                        : catCounts.Values.Sum();
+                    string mark = selected.Contains(g.GroupId) ? "[X] " : "[ ] ";
+                    picker.AddCommandLink(
+                        (TaskDialogCommandLinkId)(i + 201),
+                        $"{mark}{g.Label}",
+                        $"{g.Containers.Length} containers | {elemCount} elements");
+                }
+
+                picker.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var pickResult = picker.Show();
+
+                int linkIndex = -1;
+                switch (pickResult)
+                {
+                    case TaskDialogResult.CommandLink1: linkIndex = 0; break;
+                    case TaskDialogResult.CommandLink2: linkIndex = 1; break;
+                    case TaskDialogResult.CommandLink3: linkIndex = 2; break;
+                    case TaskDialogResult.CommandLink4: linkIndex = 3; break;
+                    default:
+                        // Cancel or close → advance page, finish if already past end
+                        page++;
+                        if (page * pageSize >= AllGroups.Length)
+                            break;
+                        continue;
+                }
+
+                if (linkIndex >= 0 && linkIndex < pageGroups.Length)
+                {
+                    string id = pageGroups[linkIndex].GroupId;
+                    if (selected.Contains(id))
+                        selected.Remove(id);
+                    else
+                        selected.Add(id);
+                    continue; // Stay on same page for more toggles
+                }
+            }
+
+            return selected.Count > 0 ? selected : null;
+        }
+
+        // ── Core combine logic ───────────────────────────────────────
+
+        private Result ExecuteCombine(Document doc, ContainerGroup[] activeGroups)
+        {
+            var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            int universalUpdated = 0;
-            int disciplineUpdated = 0;
             int totalElements = 0;
+            int totalWrites = 0;
             int skippedNoDisc = 0;
+            var writesPerGroup = new Dictionary<string, int>();
+
+            foreach (var g in activeGroups)
+                writesPerGroup[g.GroupId] = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Combine Parameters"))
             {
@@ -201,7 +377,6 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(catName) || !knownCategories.Contains(catName))
                         continue;
 
-                    // Skip elements with no DISC token (not yet tagged)
                     string disc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
                     if (string.IsNullOrEmpty(disc))
                     {
@@ -211,32 +386,31 @@ namespace StingTools.Tags
 
                     totalElements++;
 
-                    // Read all source token values once
+                    // Read all source tokens once
                     var tokenValues = new Dictionary<string, string>();
                     foreach (string param in AllTokenParams)
                         tokenValues[param] = ParameterHelpers.GetString(el, param);
 
-                    // Assemble universal containers (ASS_TAG_1 through ASS_TAG_6)
-                    foreach (var container in UniversalContainers)
+                    foreach (var group in activeGroups)
                     {
-                        string assembled = AssembleTag(tokenValues, container);
-                        if (!string.IsNullOrEmpty(assembled))
-                        {
-                            if (ParameterHelpers.SetString(el, container.ParamName, assembled, overwrite: true))
-                                universalUpdated++;
-                        }
-                    }
+                        if (group.Categories != null && !group.Categories.Contains(catName))
+                            continue;
 
-                    // Assemble discipline-specific containers
-                    foreach (var dtag in DisciplineTags)
-                    {
-                        if (!dtag.AppliesTo(catName)) continue;
-
-                        string assembled = AssembleFromTokens(tokenValues, dtag.SourceTokens, "-", "", "");
-                        if (!string.IsNullOrEmpty(assembled))
+                        foreach (var container in group.Containers)
                         {
-                            if (ParameterHelpers.SetString(el, dtag.ParamName, assembled, overwrite: true))
-                                disciplineUpdated++;
+                            string assembled = AssembleFromTokens(
+                                tokenValues, container.SourceTokens,
+                                container.Separator, container.Prefix, container.Suffix);
+
+                            if (!string.IsNullOrEmpty(assembled))
+                            {
+                                if (ParameterHelpers.SetString(el, container.ParamName,
+                                    assembled, overwrite: true))
+                                {
+                                    totalWrites++;
+                                    writesPerGroup[group.GroupId]++;
+                                }
+                            }
                         }
                     }
                 }
@@ -244,69 +418,38 @@ namespace StingTools.Tags
                 tx.Commit();
             }
 
+            // Build report
             var report = new StringBuilder();
             report.AppendLine("Combine Parameters Complete");
-            report.AppendLine(new string('─', 40));
-            report.AppendLine($"Elements processed:     {totalElements}");
-            report.AppendLine($"Universal tags written:  {universalUpdated}");
-            report.AppendLine($"Discipline tags written: {disciplineUpdated}");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"  Elements processed:  {totalElements}");
+            report.AppendLine($"  Parameters written:  {totalWrites}");
             if (skippedNoDisc > 0)
-                report.AppendLine($"Skipped (no DISC code):  {skippedNoDisc}");
+                report.AppendLine($"  Skipped (untagged):  {skippedNoDisc}");
             report.AppendLine();
-            report.AppendLine("Tag containers populated:");
-            report.AppendLine("  ASS_TAG_1: Full 8-segment tag");
-            report.AppendLine("  ASS_TAG_2: Short ID (DISC-PROD-SEQ)");
-            report.AppendLine("  ASS_TAG_3: Location (LOC-ZONE-LVL)");
-            report.AppendLine("  ASS_TAG_4: System (SYS-FUNC)");
-            report.AppendLine("  ASS_TAG_5: Multi-line top (DISC-LOC-ZONE-LVL)");
-            report.AppendLine("  ASS_TAG_6: Multi-line bottom (SYS-FUNC-PROD-SEQ)");
-            report.AppendLine($"  + {DisciplineTags.Length} discipline-specific tags");
+            report.AppendLine("Container groups populated:");
+            report.AppendLine($"  {"Group",-35} {"Writes",7}");
+            report.AppendLine($"  {new string('─', 43)}");
+            foreach (var group in activeGroups)
+            {
+                int w = writesPerGroup[group.GroupId];
+                report.AppendLine($"  {group.Label,-35} {w,7}");
+                foreach (var c in group.Containers)
+                    report.AppendLine($"    -> {c.ParamName,-28} {c.Description}");
+            }
 
             TaskDialog td = new TaskDialog("Combine Parameters");
-            td.MainInstruction = $"Combined parameters for {totalElements} elements";
+            td.MainInstruction = $"Combined {totalWrites} parameters across {totalElements} elements";
             td.MainContent = report.ToString();
             td.Show();
 
-            StingLog.Info($"CombineParameters: {totalElements} elements, " +
-                $"{universalUpdated} universal, {disciplineUpdated} discipline tags");
+            StingLog.Info($"CombineParameters: {totalElements} elements, {totalWrites} writes, " +
+                $"{activeGroups.Length} groups");
 
             return Result.Succeeded;
         }
 
-        private static string AssembleTag(Dictionary<string, string> tokenValues,
-            TagContainerDef container)
-        {
-            string raw = AssembleFromTokens(tokenValues, container.SourceTokens,
-                container.Separator, container.Prefix, container.Suffix);
-
-            if (string.IsNullOrEmpty(raw))
-                return null;
-
-            // Apply multi-line splitting if MaxLines > 1
-            if (container.MaxLines > 1 && raw.Length > container.MaxCharsPerLine)
-            {
-                var lines = new List<string>();
-                int tokenCount = container.SourceTokens.Length;
-                int tokensPerLine = (int)Math.Ceiling((double)tokenCount / container.MaxLines);
-
-                for (int i = 0; i < container.MaxLines; i++)
-                {
-                    int start = i * tokensPerLine;
-                    int count = Math.Min(tokensPerLine, tokenCount - start);
-                    if (count <= 0) break;
-
-                    var lineTokens = container.SourceTokens.Skip(start).Take(count).ToArray();
-                    string line = AssembleFromTokens(tokenValues, lineTokens,
-                        container.Separator, "", "");
-                    if (!string.IsNullOrEmpty(line))
-                        lines.Add(line);
-                }
-
-                return container.Prefix + string.Join("\n", lines) + container.Suffix;
-            }
-
-            return raw;
-        }
+        // ── Token assembly ───────────────────────────────────────────
 
         private static string AssembleFromTokens(Dictionary<string, string> tokenValues,
             string[] sourceTokens, string separator, string prefix, string suffix)
@@ -318,36 +461,50 @@ namespace StingTools.Tags
                 parts.Add(val);
             }
 
-            // Check at least one token is non-empty
             if (parts.All(p => string.IsNullOrEmpty(p)))
                 return null;
 
             return prefix + string.Join(separator, parts) + suffix;
         }
 
-        private class DisciplineTagDef
+        // ── Data types ───────────────────────────────────────────────
+
+        private class ContainerDef
         {
             public string ParamName { get; }
-            public HashSet<string> Categories { get; }
             public string[] SourceTokens { get; }
+            public string Separator { get; }
+            public string Prefix { get; }
+            public string Suffix { get; }
+            public string Description { get; }
 
-            public DisciplineTagDef(string paramName, string category, string[] sourceTokens)
+            public ContainerDef(string paramName, string[] sourceTokens,
+                string separator, string prefix, string suffix, string description)
             {
                 ParamName = paramName;
-                Categories = new HashSet<string> { category };
                 SourceTokens = sourceTokens;
+                Separator = separator;
+                Prefix = prefix;
+                Suffix = suffix;
+                Description = description;
             }
+        }
 
-            public DisciplineTagDef(string paramName, string[] categories, string[] sourceTokens)
-            {
-                ParamName = paramName;
-                Categories = new HashSet<string>(categories);
-                SourceTokens = sourceTokens;
-            }
+        private class ContainerGroup
+        {
+            public string Label { get; }
+            public string GroupId { get; }
+            /// <summary>Categories this group applies to. Null = all categories.</summary>
+            public HashSet<string> Categories { get; }
+            public ContainerDef[] Containers { get; }
 
-            public bool AppliesTo(string categoryName)
+            public ContainerGroup(string label, string groupId,
+                string[] categories, ContainerDef[] containers)
             {
-                return Categories.Contains(categoryName);
+                Label = label;
+                GroupId = groupId;
+                Categories = categories != null ? new HashSet<string>(categories) : null;
+                Containers = containers;
             }
         }
     }
