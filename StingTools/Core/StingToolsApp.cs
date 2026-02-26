@@ -516,7 +516,7 @@ namespace StingTools.Core
                     "Create Filters",
                     asmPath,
                     typeof(Temp.CreateFiltersCommand).FullName,
-                    "Create 6 discipline view filters");
+                    "Create 10 multi-category discipline filters (M, E, P, A, S, FP, LV, conduits, rooms, generic)");
                 AddPulldownItem(tplGroup, "btnApplyFilters",
                     "Apply Filters to Views",
                     asmPath,
@@ -531,12 +531,12 @@ namespace StingTools.Core
                     "View Templates",
                     asmPath,
                     typeof(Temp.ViewTemplatesCommand).FullName,
-                    "Create 7 discipline view templates");
+                    "Create 15 view templates: working, coordination, RCP, presentation, sections (with VG overrides)");
                 AddPulldownItem(tplGroup, "btnLinePatterns",
                     "Line Patterns",
                     asmPath,
                     typeof(Temp.CreateLinePatternsCommand).FullName,
-                    "Create 6 standard line patterns (dashed, center, hidden, etc.)");
+                    "Create 10 ISO 128 line patterns (dashed, center, hidden, fire compartment, phase boundary, etc.)");
                 AddPulldownItem(tplGroup, "btnPhases",
                     "Phases",
                     asmPath,

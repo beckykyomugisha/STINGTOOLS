@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **31 C# source files** (~8,200 lines of code) across 7 directories
-- **85 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point
+- **34 C# source files** (~10,500 lines of code) across 7 directories
+- **88 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point
 - **15 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **5 ribbon panels** with 16+ pulldown groups
 
@@ -203,7 +203,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | Materials | Create BLE Materials, Create MEP Materials | Material creation from CSV (815 + 464) |
 | Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes (FamilyCommands.cs), Cable Trays, Conduits (TemplateExtCommands.cs) | Type creation from CSV data (8 commands) |
 | Schedules | Batch Create, Material Takeoffs (TemplateExtCommands.cs), Auto-Populate, Export CSV | Schedule management (168 definitions + 8 material takeoffs) |
-| Templates | Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases | 6 filters, 27 worksets, 7 view templates, 6 line patterns, 7 phases |
+| Templates | Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases | 10 multi-category discipline filters, 34 AEC UK worksets, 15 view templates (working/coordination/RCP/presentation/section with VG overrides), 10 ISO 128 line patterns, 6 phases |
 
 ## Command Count by File
 
@@ -216,8 +216,8 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | `Docs/SheetIndexCommand.cs` | 1 | 75 |
 | `Docs/TransmittalCommand.cs` | 1 | 93 |
 | `Docs/ViewportCommands.cs` | 4 (Align, Renumber, TextCase, SumAreas) | 304 |
-| `Tags/AutoTagCommand.cs` | 2 (AutoTag, TagNewOnly) | 175 |
-| `Tags/BatchTagCommand.cs` | 1 | 65 |
+| `Tags/AutoTagCommand.cs` | 2 (AutoTag, TagNewOnly) | 304 |
+| `Tags/BatchTagCommand.cs` | 1 | 199 |
 | `Tags/TagAndCombineCommand.cs` | 1 | 260 |
 | `Tags/CombineParametersCommand.cs` | 1 | 511 |
 | `Tags/ConfigEditorCommand.cs` | 1 | 194 |
@@ -232,9 +232,9 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | `Temp/MaterialCommands.cs` | 2 (BLE, MEP) | 238 |
 | `Temp/FamilyCommands.cs` | 6 (Walls, Floors, Ceilings, Roofs, Ducts, Pipes) | 654 |
 | `Temp/ScheduleCommands.cs` | 3 (BatchSchedules, AutoPopulate, ExportCSV) | 358 |
-| `Temp/TemplateCommands.cs` | 3 (Filters, Worksets, ViewTemplates) | 250 |
-| `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 277 |
-| **Total** | **85 commands** | **~8,200** |
+| `Temp/TemplateCommands.cs` | 3 (Filters, Worksets, ViewTemplates) | 570 |
+| `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 297 |
+| **Total** | **88 commands** | **~10,500** |
 
 ## Core Classes
 
@@ -271,29 +271,38 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 - Controls how tag collisions are handled: `Skip`, `Overwrite`, `AutoIncrement`
 - Used by all tagging commands (AutoTag, BatchTag, TagSelected, ReTag, TagAndCombine)
 
+### `TaggingStats` (class) — `Core/TagConfig.cs`
+- Tracks batch tagging operation statistics for rich post-operation reporting
+- Per-category, per-discipline, per-system, per-level breakdown
+- Collision detail tracking (tag, depth), skipped/overwritten counts, warnings
+- `BuildReport()` generates multi-line formatted report for TaskDialog display
+
 ### `ISO19650Validator` (static) — `Core/TagConfig.cs`
-- **Code validation**: `ValidDiscCodes`, `ValidSysCodes`, `ValidFuncCodes` — allowed ISO 19650 code lists
+- **Code validation**: `ValidDiscCodes`, `ValidSysCodes`, `ValidFuncCodes` — allowed ISO 19650 / Uniclass code lists (WSP, DRN, GAS aligned with MEP_MATERIALS.csv)
 - **Token validation**: `ValidateToken(tokenName, value)` — validates individual token values against allowed lists
 - **Element validation**: `ValidateElement(el)` — validates all 8 tokens + cross-validates DISC/SYS against element category
 - **Tag format validation**: `ValidateTagFormat(tag)` — validates complete 8-segment tag string format and all segments
 - Used by `ValidateTagsCommand` and `BuildTagsCommand` for ISO 19650 enforcement
 
-### `TagConfig` (static, singleton) — `Core/TagConfig.cs` (~600 lines)
+### `TagConfig` (static, singleton) — `Core/TagConfig.cs` (~1000 lines)
 - **Lookup tables** (all configurable via `project_config.json`):
   - `DiscMap` — 41 category → discipline code mappings (M, E, P, A, S, FP, LV, G)
-  - `SysMap` — 13 system codes → category lists
+  - `SysMap` — 16 system codes → category lists (HVAC, WSP, DHW, HWS, DRN, GAS, FP, LV, FLS, COM, ICT, NCL, SEC, ARC, STR, GEN)
   - `ProdMap` — 41 category → product codes
-  - `FuncMap` — 13 system → function code mappings
+  - `FuncMap` — 16 system → function code mappings
   - `LocCodes` — location codes (BLD1, BLD2, BLD3, EXT, XX)
   - `ZoneCodes` — zone codes (Z01-Z04, ZZ, XX)
 - **Configuration management**: `LoadFromFile(path)`, `LoadDefaults()`, `ConfigSource`
-- **Tag operations**:
+- **Tag operations** (7 intelligence layers):
   - `TagIsComplete(tagValue, expectedTokens=8)` — validates 8-segment tag completeness
-  - `BuildAndWriteTag(doc, el, seqCounters, skipComplete, existingTags, collisionMode)` — shared tagging logic with collision mode support (Skip/Overwrite/AutoIncrement)
+  - `BuildAndWriteTag(doc, el, seqCounters, skipComplete, existingTags, collisionMode, stats)` — shared tagging logic with collision mode, stats tracking, and cross-validation
   - `GetExistingSequenceCounters(doc)` — scans project for highest SEQ per group
   - `BuildExistingTagIndex(doc)` — builds HashSet of all existing tags for O(1) collision detection
   - `GetSysCode(categoryName)`, `GetFuncCode(sysCode)` — reverse lookups
+  - `GetMepSystemAwareSysCode(el, categoryName)` — derives SYS from connected MEP system name (supply air, hot water, etc.) before falling back to category
   - `GetFamilyAwareProdCode(el, categoryName)` — family-name-aware PROD code resolution (35+ specific codes)
+  - `GetViewRelevantDisciplines(view)` — inspects view name, template, and VG to determine which disciplines to tag
+  - `FilterByViewDisciplines(elements, disciplines)` — filters elements to only view-relevant disciplines
 - **Constants**: `NumPad = 4`, `Separator = "-"`
 
 ### Internal Helper Classes
@@ -797,8 +806,9 @@ var untagged = new FilteredElementCollector(doc, viewId)
 | RenumberViewportsCommand | `Docs/ViewportCommands.cs` | Renumber viewports on single active sheet |
 | TextCaseCommand | `Docs/ViewportCommands.cs` | Convert text notes on single active sheet |
 | SumAreasCommand | `Docs/ViewportCommands.cs` | Sum room areas in active view |
-| ViewTemplatesCommand | `Temp/TemplateCommands.cs` | Create 7 discipline view templates |
-| CreateFiltersCommand | `Temp/TemplateCommands.cs` | Create 6 discipline filters |
+| ViewTemplatesCommand | `Temp/TemplateCommands.cs` | Create 15 view templates with VG overrides (working, coordination, RCP, presentation, section) |
+| CreateFiltersCommand | `Temp/TemplateCommands.cs` | Create 10 multi-category discipline filters |
+| CreateWorksetsCommand | `Temp/TemplateCommands.cs` | Create 34 AEC UK-aligned worksets |
 | ApplyFiltersToViewsCommand | `Temp/TemplateExtCommands.cs` | Apply discipline filters to views |
 
 ---

@@ -21,6 +21,120 @@ namespace StingTools.Core
     }
 
     /// <summary>
+    /// Tracks tagging operation statistics across a batch for rich post-operation reporting.
+    /// Captures per-category counts, collision details, skipped elements, warnings, and
+    /// discipline/system/level breakdowns. Thread-safe for single-transaction use.
+    /// </summary>
+    public class TaggingStats
+    {
+        public int TotalTagged { get; private set; }
+        public int TotalSkipped { get; private set; }
+        public int TotalOverwritten { get; private set; }
+        public int TotalCollisions { get; private set; }
+        public int MaxCollisionDepth { get; private set; }
+        public readonly Dictionary<string, int> TaggedByCategory = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> TaggedByDisc = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> TaggedBySys = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> TaggedByLevel = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> SkippedByCategory = new Dictionary<string, int>();
+        public readonly List<string> Warnings = new List<string>();
+        public readonly List<(string tag, int depth)> CollisionDetails = new List<(string, int)>();
+
+        public void RecordTagged(string category, string disc, string sys, string lvl)
+        {
+            TotalTagged++;
+            Increment(TaggedByCategory, category);
+            if (!string.IsNullOrEmpty(disc)) Increment(TaggedByDisc, disc);
+            if (!string.IsNullOrEmpty(sys)) Increment(TaggedBySys, sys);
+            if (!string.IsNullOrEmpty(lvl)) Increment(TaggedByLevel, lvl);
+        }
+
+        public void RecordSkipped(string category)
+        {
+            TotalSkipped++;
+            Increment(SkippedByCategory, category);
+        }
+
+        public void RecordOverwritten(string category)
+        {
+            TotalOverwritten++;
+            Increment(TaggedByCategory, category);
+        }
+
+        public void RecordCollision(string tag, int depth)
+        {
+            TotalCollisions++;
+            if (depth > MaxCollisionDepth) MaxCollisionDepth = depth;
+            if (CollisionDetails.Count < 50) // Cap detail collection
+                CollisionDetails.Add((tag, depth));
+        }
+
+        public void RecordWarning(string warning)
+        {
+            if (Warnings.Count < 100)
+                Warnings.Add(warning);
+        }
+
+        /// <summary>Build a multi-line report string for TaskDialog display.</summary>
+        public string BuildReport()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"  Tagged:       {TotalTagged:N0}");
+            sb.AppendLine($"  Skipped:      {TotalSkipped:N0}");
+            if (TotalOverwritten > 0)
+                sb.AppendLine($"  Overwritten:  {TotalOverwritten:N0}");
+            if (TotalCollisions > 0)
+            {
+                sb.AppendLine($"  Collisions:   {TotalCollisions:N0} resolved (max depth: {MaxCollisionDepth})");
+                foreach (var (tag, depth) in CollisionDetails.Take(5))
+                    sb.AppendLine($"    • {tag} (bumped {depth}×)");
+                if (CollisionDetails.Count > 5)
+                    sb.AppendLine($"    ... and {CollisionDetails.Count - 5} more");
+            }
+
+            if (TaggedByDisc.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("  By Discipline:");
+                foreach (var kvp in TaggedByDisc.OrderByDescending(x => x.Value))
+                    sb.AppendLine($"    {kvp.Key,-6} {kvp.Value,5}");
+            }
+            if (TaggedBySys.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("  By System:");
+                foreach (var kvp in TaggedBySys.OrderByDescending(x => x.Value).Take(8))
+                    sb.AppendLine($"    {kvp.Key,-8} {kvp.Value,5}");
+            }
+            if (TaggedByLevel.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("  By Level:");
+                foreach (var kvp in TaggedByLevel.OrderBy(x => x.Key))
+                    sb.AppendLine($"    {kvp.Key,-6} {kvp.Value,5}");
+            }
+            if (Warnings.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"  Warnings ({Warnings.Count}):");
+                foreach (string w in Warnings.Take(10))
+                    sb.AppendLine($"    ⚠ {w}");
+                if (Warnings.Count > 10)
+                    sb.AppendLine($"    ... and {Warnings.Count - 10} more");
+            }
+
+            return sb.ToString();
+        }
+
+        private static void Increment(Dictionary<string, int> dict, string key)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            if (!dict.ContainsKey(key)) dict[key] = 0;
+            dict[key]++;
+        }
+    }
+
+    /// <summary>
     /// ISO 19650 naming and coding validation. Enforces that all token values
     /// conform to the allowed code lists defined in the tag configuration.
     /// </summary>
@@ -32,17 +146,28 @@ namespace StingTools.Core
             "M", "E", "P", "A", "S", "FP", "LV", "G", "XX"
         };
 
-        /// <summary>Valid system codes.</summary>
+        /// <summary>
+        /// Valid system codes per ISO 19650 / Uniclass Ss_55.
+        /// WSP = Water Supply (Ss_55_70), DRN = Drainage (Ss_55_30),
+        /// GAS = Gas Supply (Ss_55_40), HWS = Heating Water System,
+        /// DHW = Domestic Hot Water. Aligned with MEP_MATERIALS.csv codes.
+        /// </summary>
         public static readonly HashSet<string> ValidSysCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "HVAC", "HWS", "DHW", "FP", "LV", "FLS", "COM", "ICT", "NCL", "SEC",
+            "HVAC", "HWS", "DHW", "WSP", "DRN", "GAS", "FP", "LV",
+            "FLS", "COM", "ICT", "NCL", "SEC",
             "ARC", "STR", "GEN", ""
         };
 
-        /// <summary>Valid function codes.</summary>
+        /// <summary>
+        /// Valid function codes per ISO 19650 / Uniclass.
+        /// WSP = Water Supply, DRN = Drainage, GAS = Gas Supply.
+        /// Aligned with MEP_MATERIALS.csv element type codes (P-WSP, P-DRN).
+        /// </summary>
         public static readonly HashSet<string> ValidFuncCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "SUP", "HTG", "SAN", "FP", "PWR", "FLS", "COM", "ICT", "NCL", "SEC",
+            "SUP", "HTG", "DRN", "WSP", "GAS", "FP", "PWR", "FLS",
+            "COM", "ICT", "NCL", "SEC",
             "FIT", "STR", "GEN", ""
         };
 
@@ -194,7 +319,7 @@ namespace StingTools.Core
         /// <summary>Category name → product code (GRL, AHU, DR, WIN, etc.).</summary>
         public static Dictionary<string, string> ProdMap { get; private set; }
 
-        /// <summary>System code → function code (SUP, HTG, SAN, etc.).</summary>
+        /// <summary>System code → function code (SUP, HTG, DRN, WSP, etc.).</summary>
         public static Dictionary<string, string> FuncMap { get; private set; }
 
         /// <summary>Available location codes.</summary>
@@ -373,6 +498,15 @@ namespace StingTools.Core
         /// Used by AutoTag, BatchTag, TagSelected to eliminate code duplication.
         /// Includes collision detection: if the generated tag already exists in the
         /// project, the SEQ is auto-incremented until a unique tag is found.
+        ///
+        /// Intelligence layers:
+        ///   1. Category → DISC/SYS/FUNC/PROD lookup (with family-aware PROD)
+        ///   2. Spatial auto-detect for LOC/ZONE (pre-populated by caller)
+        ///   3. Level auto-derivation
+        ///   4. O(1) collision detection via existingTags HashSet
+        ///   5. Cross-validation: DISC vs category consistency check
+        ///   6. MEP system-aware grouping: uses connected system name for SYS/FUNC when available
+        ///   7. Collision stats tracked via TaggingStats for post-batch reporting
         /// </summary>
         /// <param name="existingTags">
         /// Project-wide tag index for collision detection. Pass null to skip collision
@@ -385,11 +519,13 @@ namespace StingTools.Core
         /// Skip = skip already-tagged elements entirely;
         /// Overwrite = overwrite all tokens with fresh values.
         /// </param>
+        /// <param name="stats">Optional stats tracker for batch reporting.</param>
         /// <returns>True if the element was tagged, false if skipped.</returns>
         public static bool BuildAndWriteTag(Document doc, Element el,
             Dictionary<string, int> sequenceCounters, bool skipComplete = true,
             HashSet<string> existingTags = null,
-            TagCollisionMode collisionMode = TagCollisionMode.AutoIncrement)
+            TagCollisionMode collisionMode = TagCollisionMode.AutoIncrement,
+            TaggingStats stats = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName) || !DiscMap.ContainsKey(catName))
@@ -404,11 +540,17 @@ namespace StingTools.Core
                 switch (collisionMode)
                 {
                     case TagCollisionMode.Skip:
+                        stats?.RecordSkipped(catName);
                         return false; // Never touch existing complete tags
                     case TagCollisionMode.AutoIncrement:
-                        if (skipComplete) return false; // Default: skip complete tags
+                        if (skipComplete)
+                        {
+                            stats?.RecordSkipped(catName);
+                            return false; // Default: skip complete tags
+                        }
                         break;
                     case TagCollisionMode.Overwrite:
+                        stats?.RecordOverwritten(catName);
                         break; // Proceed to overwrite
                 }
             }
@@ -416,12 +558,20 @@ namespace StingTools.Core
             bool overwriteTokens = (collisionMode == TagCollisionMode.Overwrite);
 
             string disc = DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+
+            // Intelligence Layer: cross-validate DISC against element category
+            if (stats != null && disc == "XX")
+                stats.RecordWarning($"Element {el.Id}: category '{catName}' has no DISC mapping");
+
             string loc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
-            if (string.IsNullOrEmpty(loc) || overwriteTokens) loc = string.IsNullOrEmpty(loc) ? "BLD1" : loc;
+            if (string.IsNullOrEmpty(loc)) loc = "BLD1";
             string zone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
-            if (string.IsNullOrEmpty(zone) || overwriteTokens) zone = string.IsNullOrEmpty(zone) ? "Z01" : zone;
+            if (string.IsNullOrEmpty(zone)) zone = "Z01";
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
-            string sys = GetSysCode(catName);
+
+            // Intelligence Layer: MEP system-aware SYS/FUNC derivation
+            // Check if element has a connected MEP system for more accurate SYS code
+            string sys = GetMepSystemAwareSysCode(el, catName);
             string func = GetFuncCode(sys);
             string prod = GetFamilyAwareProdCode(el, catName);
 
@@ -437,12 +587,16 @@ namespace StingTools.Core
             if (existingTags != null)
             {
                 int safetyLimit = 10000;
+                int collisionCount = 0;
                 while (existingTags.Contains(tag) && safetyLimit-- > 0)
                 {
+                    collisionCount++;
                     sequenceCounters[seqKey]++;
                     seq = sequenceCounters[seqKey].ToString().PadLeft(NumPad, '0');
                     tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
                 }
+                if (collisionCount > 0)
+                    stats?.RecordCollision(tag, collisionCount);
                 // Remove old tag from index if overwriting
                 if (overwriteTokens && !string.IsNullOrEmpty(existingTag))
                     existingTags.Remove(existingTag);
@@ -472,7 +626,198 @@ namespace StingTools.Core
                 ParameterHelpers.SetIfEmpty(el, "ASS_SEQ_NUM_TXT", seq);
             }
             ParameterHelpers.SetString(el, "ASS_TAG_1_TXT", tag, overwrite: true);
+            stats?.RecordTagged(catName, disc, sys, lvl);
             return true;
+        }
+
+        /// <summary>
+        /// MEP system-aware SYS code derivation. Checks if the element belongs to a
+        /// connected MEP system (e.g., "Supply Air", "Domestic Hot Water") and uses
+        /// that for more accurate SYS code assignment. Falls back to category lookup.
+        /// </summary>
+        public static string GetMepSystemAwareSysCode(Element el, string categoryName)
+        {
+            try
+            {
+                // For MEP elements, check the connected system name via FamilyInstance.MEPModel
+                FamilyInstance fi2 = el as FamilyInstance;
+                if (fi2?.MEPModel?.ConnectorManager != null)
+                {
+                    foreach (Connector conn in fi2.MEPModel.ConnectorManager.Connectors)
+                    {
+                        if (conn.MEPSystem != null)
+                        {
+                            string sysName = conn.MEPSystem.Name?.ToUpperInvariant() ?? "";
+                            // Map common MEP system naming conventions to SYS codes
+                            if (sysName.Contains("SUPPLY AIR") || sysName.Contains("SUPPLY DUCT"))
+                                return "HVAC";
+                            if (sysName.Contains("RETURN AIR") || sysName.Contains("EXHAUST"))
+                                return "HVAC";
+                            if (sysName.Contains("HOT WATER") || sysName.Contains("DHW") || sysName.Contains("HWS"))
+                                return "HWS";
+                            if (sysName.Contains("COLD WATER") || sysName.Contains("CWS") || sysName.Contains("DOMESTIC"))
+                                return "WSP";
+                            if (sysName.Contains("FIRE") || sysName.Contains("SPRINKLER"))
+                                return "FP";
+                            if (sysName.Contains("SANITARY") || sysName.Contains("WASTE") || sysName.Contains("DRAIN"))
+                                return "DRN";
+                            if (sysName.Contains("CHILLED") || sysName.Contains("COOLING"))
+                                return "HVAC";
+                            if (sysName.Contains("HEATING") || sysName.Contains("LTHW") || sysName.Contains("RADIATOR"))
+                                return "HWS";
+                            if (sysName.Contains("GAS"))
+                                return "GAS";
+                            if (sysName.Contains("VENT"))
+                                return "HVAC";
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Silently fall through to category-based lookup
+            }
+
+            return GetSysCode(categoryName);
+        }
+
+        /// <summary>
+        /// Determine which discipline codes are relevant for a given view.
+        /// Inspects the view name, view template, and visible categories to build
+        /// a set of discipline codes that should be tagged in this view.
+        ///
+        /// Intelligence layers:
+        ///   1. View name pattern matching (e.g., "Mechanical" → M, "Electrical" → E)
+        ///   2. View template name analysis for discipline hints
+        ///   3. Category visibility inspection — if Mechanical Equipment is hidden,
+        ///      the M discipline is excluded
+        ///   4. View type: 3D coordination views → all disciplines
+        ///
+        /// Returns null if all disciplines should be included (no filtering).
+        /// </summary>
+        public static HashSet<string> GetViewRelevantDisciplines(View view)
+        {
+            if (view == null) return null;
+
+            // 3D views and schedules are typically coordination — tag all
+            if (view.ViewType == ViewType.ThreeD || view.ViewType == ViewType.Schedule)
+                return null;
+
+            string viewName = (view.Name ?? "").ToUpperInvariant();
+            string templateName = "";
+            try
+            {
+                if (view.ViewTemplateId != null && view.ViewTemplateId != ElementId.InvalidElementId)
+                {
+                    View template = view.Document.GetElement(view.ViewTemplateId) as View;
+                    if (template != null)
+                        templateName = (template.Name ?? "").ToUpperInvariant();
+                }
+            }
+            catch { /* template lookup failed — proceed with view name */ }
+
+            string combined = $"{viewName} {templateName}";
+
+            // Check for specific discipline indicators in view/template name
+            var detected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (combined.Contains("MECHANICAL") || combined.Contains("HVAC") ||
+                combined.Contains("HEATING") || combined.Contains("VENTILATION"))
+                detected.Add("M");
+            if (combined.Contains("ELECTRICAL") || combined.Contains("POWER") ||
+                combined.Contains("LIGHTING"))
+                detected.Add("E");
+            if (combined.Contains("PLUMBING") || combined.Contains("DRAINAGE") ||
+                combined.Contains("SANITARY") || combined.Contains("PUBLIC HEALTH"))
+                detected.Add("P");
+            if (combined.Contains("ARCHITECT") || combined.Contains("GENERAL ARRANGEMENT"))
+                detected.Add("A");
+            if (combined.Contains("STRUCTURAL") || combined.Contains("STRUCTURE"))
+                detected.Add("S");
+            if (combined.Contains("FIRE") || combined.Contains("SPRINKLER"))
+                detected.Add("FP");
+            if (combined.Contains("LOW VOLTAGE") || combined.Contains("COMMS") ||
+                combined.Contains("DATA") || combined.Contains("SECURITY"))
+                detected.Add("LV");
+
+            // If discipline was detected from name, also check for "coordination" keyword
+            // which signals multi-discipline
+            if (combined.Contains("COORDINATION") || combined.Contains("COMBINED") ||
+                combined.Contains("ALL SERVICES") || combined.Contains("MEP"))
+            {
+                detected.Add("M");
+                detected.Add("E");
+                detected.Add("P");
+            }
+
+            // If no discipline was detected, check category visibility as fallback
+            if (detected.Count == 0)
+            {
+                try
+                {
+                    Document doc = view.Document;
+                    // Check key category visibility
+                    if (IsCategoryVisible(view, BuiltInCategory.OST_MechanicalEquipment) ||
+                        IsCategoryVisible(view, BuiltInCategory.OST_DuctCurves))
+                        detected.Add("M");
+                    if (IsCategoryVisible(view, BuiltInCategory.OST_ElectricalEquipment) ||
+                        IsCategoryVisible(view, BuiltInCategory.OST_ElectricalFixtures) ||
+                        IsCategoryVisible(view, BuiltInCategory.OST_LightingFixtures))
+                        detected.Add("E");
+                    if (IsCategoryVisible(view, BuiltInCategory.OST_PipeCurves) ||
+                        IsCategoryVisible(view, BuiltInCategory.OST_PlumbingFixtures))
+                        detected.Add("P");
+                    if (IsCategoryVisible(view, BuiltInCategory.OST_Walls) ||
+                        IsCategoryVisible(view, BuiltInCategory.OST_Doors))
+                        detected.Add("A");
+                    if (IsCategoryVisible(view, BuiltInCategory.OST_StructuralFraming) ||
+                        IsCategoryVisible(view, BuiltInCategory.OST_StructuralColumns))
+                        detected.Add("S");
+                    if (IsCategoryVisible(view, BuiltInCategory.OST_Sprinklers) ||
+                        IsCategoryVisible(view, BuiltInCategory.OST_FireAlarmDevices))
+                        detected.Add("FP");
+                }
+                catch { /* Visibility check failed — return all */ }
+            }
+
+            // If still no disciplines detected, tag everything
+            return detected.Count > 0 ? detected : null;
+        }
+
+        /// <summary>Check if a BuiltInCategory is visible in the given view.</summary>
+        private static bool IsCategoryVisible(View view, BuiltInCategory bic)
+        {
+            try
+            {
+                Category cat = view.Document.Settings.Categories.get_Item(bic);
+                if (cat == null) return false;
+                return view.GetCategoryHidden(cat.Id) == false;
+            }
+            catch { return true; } // Assume visible if check fails
+        }
+
+        /// <summary>
+        /// Filter elements to only those matching the relevant disciplines for a view.
+        /// If relevantDisciplines is null, all elements pass through (no filtering).
+        /// </summary>
+        public static List<Element> FilterByViewDisciplines(List<Element> elements,
+            HashSet<string> relevantDisciplines)
+        {
+            if (relevantDisciplines == null) return elements;
+
+            // Build reverse lookup: which categories belong to which discipline
+            var relevantCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in DiscMap)
+            {
+                if (relevantDisciplines.Contains(kvp.Value))
+                    relevantCategories.Add(kvp.Key);
+            }
+
+            return elements.Where(e =>
+            {
+                string cat = ParameterHelpers.GetCategoryName(e);
+                return relevantCategories.Contains(cat);
+            }).ToList();
         }
 
         /// <summary>
@@ -580,7 +925,9 @@ namespace StingTools.Core
             return new Dictionary<string, List<string>>
             {
                 { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Flex Ducts", "Mechanical Equipment" } },
-                { "HWS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories" } },
+                // Pipes default to WSP (Water Supply per P-WSP in CSV); runtime MEP system
+                // detection in GetMepSystemAwareSysCode overrides to HWS/DRN/GAS as appropriate
+                { "WSP", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories" } },
                 { "DHW", new List<string> { "Plumbing Fixtures", "Flex Pipes" } },
                 { "FP", new List<string> { "Sprinklers" } },
                 { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings" } },
@@ -632,7 +979,8 @@ namespace StingTools.Core
         {
             return new Dictionary<string, string>
             {
-                { "HVAC", "SUP" }, { "HWS", "HTG" }, { "DHW", "SAN" },
+                { "HVAC", "SUP" }, { "HWS", "HTG" }, { "DHW", "WSP" },
+                { "WSP", "WSP" }, { "DRN", "DRN" }, { "GAS", "GAS" },
                 { "FP", "FP" }, { "LV", "PWR" }, { "FLS", "FLS" },
                 { "COM", "COM" }, { "ICT", "ICT" }, { "NCL", "NCL" },
                 { "SEC", "SEC" },

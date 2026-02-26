@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -11,10 +12,15 @@ namespace StingTools.Tags
 {
     /// <summary>
     /// Automatically applies ISO 19650 asset tags to all taggable elements in the active view.
-    /// Assembles: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ → ASS_TAG_1_TXT.
-    /// Uses TagConfig.BuildAndWriteTag for shared tag-building logic.
-    /// Continues sequence numbering from the highest existing numbers in the project.
-    /// Includes spatial auto-detection for LOC/ZONE and collision mode selection.
+    /// Assembles: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ -> ASS_TAG_1_TXT.
+    ///
+    /// Intelligence layers:
+    ///   1. Smart element ordering by Level -> Discipline -> Category
+    ///   2. Pre-flight taggable/tagged/untagged counts shown in collision mode dialog
+    ///   3. Spatial auto-detection for LOC/ZONE
+    ///   4. MEP system-aware SYS derivation
+    ///   5. O(1) collision detection with mode selection
+    ///   6. Rich per-discipline/level/system reporting via TaggingStats
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -38,28 +44,60 @@ namespace StingTools.Tags
                 .WhereElementIsNotElementType()
                 .ToList();
 
-            // Count taggable and already-tagged
-            int taggable = 0, alreadyTagged = 0;
+            // Intelligence Layer: detect relevant disciplines from view name/template/VG
+            var relevantDiscs = TagConfig.GetViewRelevantDisciplines(activeView);
+            string discFilterLabel = relevantDiscs != null
+                ? string.Join(", ", relevantDiscs.OrderBy(x => x))
+                : "ALL";
+
+            // Pre-flight: count taggable, already-tagged, untagged
+            int taggable = 0, alreadyTagged = 0, filteredOut = 0;
+            var taggableElements = new List<Element>();
             foreach (Element e in viewElements)
             {
                 string cat = ParameterHelpers.GetCategoryName(e);
                 if (!known.Contains(cat)) continue;
+
+                // Discipline-aware filtering: skip categories not relevant to this view
+                if (relevantDiscs != null)
+                {
+                    string disc = TagConfig.DiscMap.TryGetValue(cat, out string dd) ? dd : "XX";
+                    if (!relevantDiscs.Contains(disc))
+                    {
+                        filteredOut++;
+                        continue;
+                    }
+                }
+
                 taggable++;
+                taggableElements.Add(e);
                 if (TagConfig.TagIsComplete(ParameterHelpers.GetString(e, "ASS_TAG_1_TXT")))
                     alreadyTagged++;
             }
 
-            // Collision mode dialog if any already tagged
+            if (taggable == 0)
+            {
+                string filterMsg = filteredOut > 0
+                    ? $"\n({filteredOut} elements skipped — disciplines [{discFilterLabel}] active for this view)"
+                    : "";
+                TaskDialog.Show("Auto Tag", "No taggable elements in this view." + filterMsg);
+                return Result.Succeeded;
+            }
+
+            int untagged = taggable - alreadyTagged;
+
+            // Collision mode dialog with pre-flight counts
             TagCollisionMode collisionMode = TagCollisionMode.Skip;
             if (alreadyTagged > 0)
             {
                 TaskDialog modeDlg = new TaskDialog("Auto Tag — Collision Mode");
-                modeDlg.MainInstruction = $"{taggable} taggable elements, {alreadyTagged} already tagged";
+                string filtInfo = filteredOut > 0 ? $" ({filteredOut} skipped by [{discFilterLabel}] filter)" : "";
+                modeDlg.MainInstruction = $"{taggable} taggable, {alreadyTagged} tagged, {untagged} new{filtInfo}";
                 modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    "Skip existing tags (default)",
+                    $"Skip existing — tag {untagged} new only",
                     "Only tag untagged elements in this view");
                 modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                    "Overwrite all",
+                    $"Overwrite all {taggable}",
                     "Re-derive and overwrite all tags including existing ones");
                 modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
                     "Auto-increment on collision",
@@ -75,23 +113,22 @@ namespace StingTools.Tags
                 }
             }
 
-            int tagged = 0;
-            int skipped = 0;
+            // Smart sort for contiguous SEQ assignment
+            var sorted = BatchTagCommand.SmartSortElements(doc, taggableElements);
+
             int populated = 0;
             var sequenceCounters = TagConfig.GetExistingSequenceCounters(doc);
             var tagIndex = TagConfig.BuildExistingTagIndex(doc);
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var stats = new TaggingStats();
 
             using (Transaction tx = new Transaction(doc, "STING Auto Tag"))
             {
                 tx.Start();
 
-                foreach (Element el in viewElements)
+                foreach (Element el in sorted)
                 {
-                    string catName = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(catName)) continue;
-
                     // Pre-populate LOC/ZONE from spatial data before tagging
                     if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
                     {
@@ -105,24 +142,32 @@ namespace StingTools.Tags
                     }
 
                     bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                    if (TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
+                    TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
                         skipComplete: skipComplete,
                         existingTags: tagIndex,
-                        collisionMode: collisionMode))
-                        tagged++;
-                    else
-                        skipped++;
+                        collisionMode: collisionMode,
+                        stats: stats);
                 }
 
                 tx.Commit();
             }
 
-            string report = $"Tagged {tagged} elements in '{activeView.Name}'.\n" +
-                $"Skipped {skipped} (already tagged or unsupported category).";
-            if (populated > 0)
-                report += $"\nAuto-populated {populated} LOC/ZONE values from spatial data.";
+            var report = new StringBuilder();
+            report.AppendLine($"Auto Tag — '{activeView.Name}'");
+            report.AppendLine(new string('=', 50));
+            report.AppendLine($"  Mode:       {collisionMode}");
+            report.AppendLine($"  Disciplines: {discFilterLabel}");
+            if (filteredOut > 0)
+                report.AppendLine($"  Filtered:   {filteredOut} (wrong discipline for view)");
+            report.AppendLine($"  LOC/ZONE:   {populated} auto-populated");
+            report.AppendLine();
+            report.Append(stats.BuildReport());
 
-            TaskDialog.Show("Auto Tag", report);
+            TaskDialog td = new TaskDialog("Auto Tag");
+            td.MainInstruction = $"Tagged {stats.TotalTagged} of {taggable} elements in '{activeView.Name}'";
+            td.MainContent = report.ToString();
+            td.Show();
+
             return Result.Succeeded;
         }
     }
@@ -173,20 +218,22 @@ namespace StingTools.Tags
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
+            // Smart sort for contiguous SEQ
+            var sorted = BatchTagCommand.SmartSortElements(doc, untagged);
+
             var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
             var tagIndex = TagConfig.BuildExistingTagIndex(doc);
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var stats = new TaggingStats();
             var sw = Stopwatch.StartNew();
-
-            int tagged = 0;
             int populated = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Tag New Only"))
             {
                 tx.Start();
 
-                foreach (Element el in untagged)
+                foreach (Element el in sorted)
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
 
@@ -212,8 +259,8 @@ namespace StingTools.Tags
                     string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
                     if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod)) populated++;
 
-                    // SYS and FUNC
-                    string sys = TagConfig.GetSysCode(catName);
+                    // SYS and FUNC (MEP system-aware)
+                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
                     if (!string.IsNullOrEmpty(sys))
                         if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys)) populated++;
                     string func = TagConfig.GetFuncCode(sys);
@@ -225,10 +272,9 @@ namespace StingTools.Tags
                     if (lvl != "XX")
                         if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl)) populated++;
 
-                    // Tag with collision detection
-                    if (TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                        existingTags: tagIndex))
-                        tagged++;
+                    // Tag with collision detection and stats tracking
+                    TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                        existingTags: tagIndex, stats: stats);
                 }
 
                 tx.Commit();
@@ -236,13 +282,21 @@ namespace StingTools.Tags
 
             sw.Stop();
 
-            TaskDialog.Show("Tag New Only",
-                $"Tagged {tagged} new elements.\n" +
-                $"Auto-populated {populated} token values.\n" +
-                $"Duration: {sw.Elapsed.TotalSeconds:F1}s");
+            var report = new StringBuilder();
+            report.AppendLine($"Tag New Only — {untagged.Count} elements");
+            report.AppendLine(new string('=', 50));
+            report.AppendLine($"  Populated: {populated} token values");
+            report.AppendLine($"  Duration:  {sw.Elapsed.TotalSeconds:F1}s");
+            report.AppendLine();
+            report.Append(stats.BuildReport());
 
-            StingLog.Info($"TagNewOnly: tagged={tagged}, populated={populated}, " +
-                $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
+            TaskDialog td = new TaskDialog("Tag New Only");
+            td.MainInstruction = $"Tagged {stats.TotalTagged} new elements";
+            td.MainContent = report.ToString();
+            td.Show();
+
+            StingLog.Info($"TagNewOnly: tagged={stats.TotalTagged}, populated={populated}, " +
+                $"collisions={stats.TotalCollisions}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;
         }

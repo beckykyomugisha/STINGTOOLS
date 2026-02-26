@@ -16,14 +16,25 @@ namespace StingTools.Temp
     [Transaction(TransactionMode.Manual)]
     public class CreateLinePatternsCommand : IExternalCommand
     {
+        /// <summary>
+        /// Line patterns per ISO 128-2:2020 and UK BIM drawing standards.
+        /// Segments: positive = dash length (ft), negative = space length (ft).
+        /// Values converted from mm: mm / 304.8 = feet.
+        /// </summary>
         private static readonly (string name, double[] segments)[] Patterns = new[]
         {
+            // ISO 128 standard patterns
             ("STING - Dashed", new[] { 6.0/304.8, -3.0/304.8 }),
             ("STING - Dash Dot", new[] { 6.0/304.8, -2.0/304.8, 1.0/304.8, -2.0/304.8 }),
             ("STING - Hidden", new[] { 3.0/304.8, -1.5/304.8 }),
             ("STING - Center", new[] { 12.0/304.8, -3.0/304.8, 3.0/304.8, -3.0/304.8 }),
             ("STING - Demolition", new[] { 1.0/304.8, -2.0/304.8 }),
             ("STING - Setout", new[] { 10.0/304.8, -2.0/304.8, 2.0/304.8, -2.0/304.8, 2.0/304.8, -2.0/304.8 }),
+            // Extended patterns for professional BIM templates
+            ("STING - Long Dash", new[] { 20.0/304.8, -5.0/304.8 }),
+            ("STING - Dot", new[] { 0.5/304.8, -2.0/304.8 }),
+            ("STING - Phase Boundary", new[] { 6.0/304.8, -2.0/304.8, 6.0/304.8, -2.0/304.8, 1.0/304.8, -2.0/304.8 }),
+            ("STING - Fire Compartment", new[] { 8.0/304.8, -3.0/304.8, 1.0/304.8, -3.0/304.8, 1.0/304.8, -3.0/304.8 }),
         };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -76,11 +87,20 @@ namespace StingTools.Temp
     [Transaction(TransactionMode.Manual)]
     public class CreatePhasesCommand : IExternalCommand
     {
+        /// <summary>
+        /// Standard phases per ISO 19650 / UK BIM best practice.
+        /// NOTE: "Demolition" is NOT a Revit phase — it is a Phase Status
+        /// (element's "Phase Demolished" property). Never create demolition phases.
+        /// Phases represent construction time periods only.
+        /// </summary>
         private static readonly string[] PhaseNames = new[]
         {
-            "Existing", "Phase 1 - Demolition", "Phase 1 - New Construction",
-            "Phase 2 - Demolition", "Phase 2 - New Construction",
-            "Phase 3 - Future", "Temporary Works",
+            "Existing",                 // Survey/as-built elements
+            "Enabling Works",           // Temporary works, site preparation, early demolition
+            "Phase 1 - Construction",   // First construction stage (demo shown via Phase Demolished)
+            "Phase 2 - Construction",   // Second construction stage
+            "Future Phase",             // Planned but not yet constructed
+            "Temporary Works",          // Hoarding, scaffolding, temporary roads
         };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)

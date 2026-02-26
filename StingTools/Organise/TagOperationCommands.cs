@@ -65,9 +65,9 @@ namespace StingTools.Organise
                 }
             }
 
-            int tagged = 0;
             var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
             var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var stats = new TaggingStats();
 
             using (Transaction tx = new Transaction(doc, "STING Tag Selected"))
             {
@@ -77,16 +77,19 @@ namespace StingTools.Organise
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
                     bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                    if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                    TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
                         skipComplete: skipComplete,
                         existingTags: tagIndex,
-                        collisionMode: collisionMode))
-                        tagged++;
+                        collisionMode: collisionMode,
+                        stats: stats);
                 }
                 tx.Commit();
             }
 
-            TaskDialog.Show("Tag Selected", $"Tagged {tagged} of {selected.Count} selected elements.");
+            string report = $"Tagged {stats.TotalTagged} of {selected.Count} selected elements.";
+            if (stats.TotalSkipped > 0) report += $"\nSkipped: {stats.TotalSkipped}";
+            if (stats.TotalCollisions > 0) report += $"\nCollisions resolved: {stats.TotalCollisions}";
+            TaskDialog.Show("Tag Selected", report);
             return Result.Succeeded;
         }
     }

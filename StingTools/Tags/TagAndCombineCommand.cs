@@ -245,7 +245,8 @@ namespace StingTools.Tags
                     if (!string.IsNullOrEmpty(prod))
                         if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod)) populated++;
 
-                    string sys = TagConfig.GetSysCode(catName);
+                    // MEP system-aware SYS derivation (uses connected system name when available)
+                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
                     if (!string.IsNullOrEmpty(sys))
                         if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys)) populated++;
                     string func = TagConfig.GetFuncCode(sys);
