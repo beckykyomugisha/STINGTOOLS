@@ -439,7 +439,9 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 
 ### New Feature: Color By Parameter (Graitec Lookup Style)
 
-Inspired by GRAITEC PowerPack Element Lookup, BIM One Color Splasher, ModPlus mprColorizer, and Future BIM Colors by Parameters. Provides element coloring by any parameter value with full graphic control.
+Inspired by GRAITEC PowerPack Element Lookup, Naviate Color Elements (Symetri), BIM One Color Splasher (open-source), DiRoots OneFilter Visualize, ModPlus mprColorizer, and Future BIM Colors by Parameters. Provides element coloring by any parameter value with full graphic control.
+
+**Note**: "Symmetry" in the original request likely refers to **Symetri** (makers of Naviate), not GRAITEC. Naviate Color Elements (part of Naviate Accelerate) is the most feature-rich color-by-parameter tool, with: modeless dialog, live preview, `<No Value>` red highlighting for QA, one-click view filter creation, line/fill toggle, and "keep overrides on exit" option.
 
 #### Proposed Commands
 
@@ -487,18 +489,32 @@ Inspired by GRAITEC PowerPack Element Lookup, BIM One Color Splasher, ModPlus mp
 
 5. **Preset Management**: Save/load/delete named presets, export/import between projects
 6. **Legend Generation**: Auto-create a color legend (drafting view or schedule) showing parameter value → color mapping
+7. **`<No Value>` Detection**: Elements with empty/null parameter values highlighted in distinct color (red) for instant QA — critical for finding missing data
+8. **Non-Modal Dialog**: Use `IExternalEventHandler` so the dialog doesn't block Revit interaction (modeless window pattern used by Naviate, Color Splasher, ModPlus)
+9. **View Filter Generation**: One-click conversion of color scheme into persistent Revit `ParameterFilterElement` rules (survives dialog close, visible in View Templates)
+10. **Selection Mode**: Click a parameter value in the dialog to select/isolate all matching elements in the model
 
 #### Implementation Pattern
 
-```
-// Core API pattern
+```csharp
+// CRITICAL: Find the solid fill pattern ONCE before the loop
+// Setting color without a pattern produces no visible result
+FillPatternElement solidFill = new FilteredElementCollector(doc)
+    .OfClass(typeof(FillPatternElement))
+    .Cast<FillPatternElement>()
+    .First(fp => fp.GetFillPattern().IsSolidFill);
+
+// Build override settings per unique parameter value
 OverrideGraphicSettings ogs = new OverrideGraphicSettings();
 ogs.SetProjectionLineColor(color);
 ogs.SetProjectionLineWeight(weight);
+ogs.SetSurfaceForegroundPatternId(solidFill.Id);  // must set pattern + color
 ogs.SetSurfaceForegroundPatternColor(fillColor);
-ogs.SetSurfaceForegroundPatternId(solidPatternId); // solid fill
+ogs.SetCutForegroundPatternId(solidFill.Id);       // for section views
+ogs.SetCutForegroundPatternColor(fillColor);
 ogs.SetSurfaceTransparency(transparency);
 
+// Apply in single transaction for performance
 using (Transaction t = new Transaction(doc, "STING Color By Parameter"))
 {
     t.Start();
@@ -506,6 +522,7 @@ using (Transaction t = new Transaction(doc, "STING Color By Parameter"))
         view.SetElementOverrides(id, ogs);
     t.Commit();
 }
+// Note: per-element overrides persist in view, visible to all users, not stored in view templates
 ```
 
 ---
@@ -513,6 +530,15 @@ using (Transaction t = new Transaction(doc, "STING Color By Parameter"))
 ### New Feature: Smart Tag Placement
 
 Inspired by BIMLOGiQ Smart Annotation, Naviate Tag from Template, and academic Automatic Label Placement (ALP) research. Goal: perfect, collision-free automated tag annotation.
+
+#### Critical Distinction: Data Tagging vs Visual Tagging
+
+The existing `AutoTagCommand` and `BatchTagCommand` perform **data tagging** — writing ISO 19650 parameter values (ASS_TAG_1_TXT, etc.) to elements. **Visual tagging** — creating `IndependentTag` annotation elements that display those values in views — is a separate layer that does not yet exist in StingTools. Both layers are needed for full automation.
+
+| Layer | What It Does | Current State |
+|-------|-------------|---------------|
+| Data tagging | Writes DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ to element parameters | Implemented (AutoTag, BatchTag, TagAndCombine) |
+| Visual tagging | Creates `IndependentTag` annotations in views displaying tag values | **Not implemented** — requires new commands |
 
 #### Key Research Findings
 
@@ -597,6 +623,117 @@ Score(candidate) =
     + PreferredSideBonus(matchesPref)        // bonus if matches category preference (0-30)
     - LeaderPenalty(needsLeader)             // small penalty for needing a leader (0-20)
 ```
+
+#### Revit API Implementation Patterns
+
+**Creating a tag with specific tag type (Revit 2019+):**
+```csharp
+IndependentTag tag = IndependentTag.Create(
+    doc, tagTypeId, viewId,     // Document, FamilySymbol Id, View Id
+    new Reference(element),      // element to tag
+    addLeader,                   // bool — show leader line
+    TagOrientation.Horizontal,   // or Vertical
+    headPosition                 // XYZ — tag head (no leader) or leader end (with leader)
+);
+```
+
+**Position semantics:** Without leader, `XYZ` is the tag head position. With leader, the tag gets a default-length leader, head placed near the point.
+
+**Getting accurate tag extents (TransactionGroup workaround):**
+```csharp
+// Default BoundingBox includes invisible leader → too large
+// Workaround: temporarily move tag to element, measure, then rollback
+using (TransactionGroup tg = new TransactionGroup(doc, "MeasureTag"))
+{
+    tg.Start();
+    using (Transaction t = new Transaction(doc, "Move"))
+    {
+        t.Start();
+        tag.LeaderEndCondition = LeaderEndCondition.Free;
+        XYZ leaderEnd = tag.GetLeaderEnd(reference);
+        tag.TagHeadPosition = leaderEnd;
+        tag.SetLeaderElbow(reference, leaderEnd);
+        t.Commit();
+    }
+    BoundingBoxXYZ bb = tag.get_BoundingBox(view);  // NOW accurate
+    double tagWidth = (bb.Max - bb.Min).DotProduct(view.RightDirection);
+    double tagHeight = (bb.Max - bb.Min).DotProduct(view.UpDirection);
+    tg.RollBack();  // restore original position
+}
+```
+
+**View scale-aware offset calculation:**
+```csharp
+int viewScale = view.Scale;  // e.g., 100 for 1:100
+double baseOffset = 0.01;    // ~3mm on paper (in feet, Revit internal units)
+double modelOffset = baseOffset * viewScale;
+```
+
+**Candidate position generation:**
+```csharp
+XYZ[] GetCandidates(XYZ center, double offset)
+{
+    return new XYZ[]
+    {
+        center + new XYZ(0, offset, 0),         // Above (P1)
+        center + new XYZ(offset, 0, 0),          // Right (P2)
+        center + new XYZ(0, -offset, 0),         // Below (P3)
+        center + new XYZ(-offset, 0, 0),         // Left (P4)
+        center + new XYZ(offset, offset, 0),     // NE (P5)
+        center + new XYZ(offset, -offset, 0),    // SE (P6)
+        center + new XYZ(-offset, -offset, 0),   // SW (P7)
+        center + new XYZ(-offset, offset, 0),    // NW (P8)
+    };
+}
+```
+
+**AABB overlap test (2D, for plan-view annotations):**
+```csharp
+bool Overlaps(BoundingBoxXYZ a, BoundingBoxXYZ b)
+{
+    return a.Min.X < b.Max.X && a.Max.X > b.Min.X
+        && a.Min.Y < b.Max.Y && a.Max.Y > b.Min.Y;
+}
+```
+
+**Performance: disable annotations during bulk placement:**
+```csharp
+// Prevents O(n²) slowdown (1st tag: 0.1s, 150th tag: 23s without this)
+view.EnableTemporaryViewPropertiesMode(view.Id);
+// ... place all tags ...
+view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
+```
+
+**Finding untagged elements in a view:**
+```csharp
+var existingTags = new FilteredElementCollector(doc, viewId)
+    .OfClass(typeof(IndependentTag))
+    .Cast<IndependentTag>().ToList();
+var taggedIds = new HashSet<ElementId>(
+    existingTags.Select(t => t.TaggedLocalElementId));
+var untagged = new FilteredElementCollector(doc, viewId)
+    .WhereElementIsNotElementType()
+    .Where(e => !taggedIds.Contains(e.Id)).ToList();
+```
+
+#### Dense View Strategies
+
+| Strategy | When to Use | Technique |
+|----------|-------------|-----------|
+| Tag clustering | Many identical elements nearby | Multi-reference tag (Revit 2022+) with shared leaders |
+| Tag stacking | Column of tags outside dense area | Parallel leaders, vertical tag column (Bird Tools approach) |
+| Priority suppression | Extremely dense areas | Tag every Nth element; suppress secondary elements |
+| Leader fanning | Cluster of elements with individual tags | Fan leaders at consistent angles from tag column |
+| Occupancy bitmap | 100+ elements in view | Discretize view into grid; O(1) overlap checks per cell |
+
+#### Algorithm Selection Guide
+
+| Element Count | View Density | Recommended Algorithm |
+|---------------|-------------|----------------------|
+| < 50 | Sparse | Greedy priority (8-position) — simple, fast |
+| 50-200 | Moderate | Priority + greedy with AABB list — good quality |
+| 200-500 | Dense | Priority + occupancy bitmap — O(1) overlap checks |
+| 500+ | Very dense | Bitmap + tag clustering + priority suppression |
 
 ---
 
