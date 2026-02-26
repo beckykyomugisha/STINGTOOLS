@@ -32,16 +32,16 @@ namespace StingTools.Temp
                 return Result.Failed;
             }
 
-            // Look for schedule definition CSVs
-            var scheduleFiles = Directory.GetFiles(dataDir, "*schedule*.csv",
-                SearchOption.AllDirectories);
-
-            if (scheduleFiles.Length == 0)
+            // Load the specific MR_SCHEDULES.csv definition file
+            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
+            if (csvPath == null)
             {
                 TaskDialog.Show("Batch Schedules",
-                    "No schedule definition CSV files found in data directory.");
-                return Result.Succeeded;
+                    "MR_SCHEDULES.csv not found in data directory.\n" +
+                    $"Searched: {dataDir}");
+                return Result.Failed;
             }
+            var scheduleFiles = new[] { csvPath };
 
             int created = 0;
             int skipped = 0;
@@ -66,11 +66,11 @@ namespace StingTools.Temp
                     {
                         // MR_SCHEDULES columns: Source_File(0), Discipline(1),
                         // Schedule_Name(2), Category(3), ...
-                        string[] cols = line.Split(',');
+                        string[] cols = StingToolsApp.ParseCsvLine(line);
                         if (cols.Length < 4) continue;
 
-                        string name = cols[2].Trim().Trim('"');
-                        string category = cols[3].Trim().Trim('"');
+                        string name = cols[2].Trim();
+                        string category = cols[3].Trim();
 
                         if (string.IsNullOrEmpty(name)) continue;
                         if (existingNames.Contains(name))
@@ -132,6 +132,20 @@ namespace StingTools.Temp
                 { "Cable Trays", BuiltInCategory.OST_CableTray },
                 { "Structural Columns", BuiltInCategory.OST_StructuralColumns },
                 { "Structural Framing", BuiltInCategory.OST_StructuralFraming },
+                { "Structural Foundations", BuiltInCategory.OST_StructuralFoundation },
+                { "Generic Models", BuiltInCategory.OST_GenericModel },
+                { "Air Terminals", BuiltInCategory.OST_DuctTerminal },
+                { "Sprinklers", BuiltInCategory.OST_Sprinklers },
+                { "Fire Alarm Devices", BuiltInCategory.OST_FireAlarmDevices },
+                { "Electrical Fixtures", BuiltInCategory.OST_ElectricalFixtures },
+                { "Electrical Circuits", BuiltInCategory.OST_ElectricalCircuit },
+                { "Pipe Accessories", BuiltInCategory.OST_PipeAccessory },
+                { "Pipe Fittings", BuiltInCategory.OST_PipeFitting },
+                { "Stairs", BuiltInCategory.OST_Stairs },
+                { "Ramps", BuiltInCategory.OST_Ramps },
+                { "Curtain Panels", BuiltInCategory.OST_CurtainWallPanels },
+                { "Casework", BuiltInCategory.OST_Casework },
+                { "Furniture Systems", BuiltInCategory.OST_FurnitureSystems },
             };
 
             if (map.TryGetValue(name, out bic))

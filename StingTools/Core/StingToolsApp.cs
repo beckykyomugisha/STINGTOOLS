@@ -260,6 +260,9 @@ namespace StingTools.Core
                 AddPulldownItem(tokenGroup, "btnBuildTags", "Build Tags",
                     asmPath, typeof(Tags.BuildTagsCommand).FullName,
                     "Rebuild assembled tags from existing token values");
+                AddPulldownItem(tokenGroup, "btnCombineParams", "Combine Parameters",
+                    asmPath, typeof(Tags.CombineParametersCommand).FullName,
+                    "Populate all tag containers (ASS_TAG_1-6 + discipline tags) from tokens");
             }
 
             // QA pulldown
@@ -336,6 +339,11 @@ namespace StingTools.Core
                     asmPath,
                     typeof(Temp.CheckDataCommand).FullName,
                     "Verify data files and show file inventory with SHA hashes");
+                AddPulldownItem(setupGroup, "btnMasterSetup",
+                    "Master Setup",
+                    asmPath,
+                    typeof(Temp.MasterSetupCommand).FullName,
+                    "One-click full project setup: params, materials, types, schedules, templates");
             }
 
             // Materials group

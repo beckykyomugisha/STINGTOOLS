@@ -56,13 +56,7 @@ namespace StingTools.Tags
 
             var result = td.Show();
             string value = null;
-            for (int i = 0; i < Math.Min(options.Length, 4); i++)
-            {
-                if (result == (TaskDialogResult)(i + 1001))
-                    value = options[i];
-            }
 
-            // Map TaskDialogResult back to command link
             switch (result)
             {
                 case TaskDialogResult.CommandLink1: value = options.Length > 0 ? options[0] : null; break;

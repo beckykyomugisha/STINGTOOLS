@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using Autodesk.Revit.DB;
 using Newtonsoft.Json;
 
 namespace StingTools.Core
@@ -102,12 +104,106 @@ namespace StingTools.Core
             return FuncMap.TryGetValue(sysCode, out string val) ? val : string.Empty;
         }
 
-        /// <summary>Check if a tag string has the expected number of tokens.</summary>
+        /// <summary>
+        /// Check if a tag string has the expected number of non-empty tokens.
+        /// A tag is only "complete" when it has exactly expectedTokens segments
+        /// and none of them are empty strings.
+        /// </summary>
         public static bool TagIsComplete(string tagValue, int expectedTokens = 8)
         {
             if (string.IsNullOrEmpty(tagValue))
                 return false;
-            return tagValue.Split('-').Length == expectedTokens;
+            string[] parts = tagValue.Split(new[] { Separator[0] });
+            if (parts.Length != expectedTokens)
+                return false;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(parts[i]))
+                    return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Shared tag-building logic. Derives all 8 tokens for an element and writes
+        /// both the individual token parameters and the assembled tag.
+        /// Used by AutoTag, BatchTag, TagSelected to eliminate code duplication.
+        /// </summary>
+        /// <returns>True if the element was tagged, false if skipped.</returns>
+        public static bool BuildAndWriteTag(Document doc, Element el,
+            Dictionary<string, int> sequenceCounters, bool skipComplete = true)
+        {
+            string catName = ParameterHelpers.GetCategoryName(el);
+            if (string.IsNullOrEmpty(catName) || !DiscMap.ContainsKey(catName))
+                return false;
+
+            if (skipComplete)
+            {
+                string existing = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
+                if (TagIsComplete(existing))
+                    return false;
+            }
+
+            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+            string loc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
+            if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+            string zone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
+            if (string.IsNullOrEmpty(zone)) zone = "Z01";
+            string lvl = ParameterHelpers.GetLevelCode(doc, el);
+            string sys = GetSysCode(catName);
+            string func = GetFuncCode(sys);
+            string prod = ProdMap.TryGetValue(catName, out string p) ? p : "GEN";
+
+            string seqKey = $"{disc}_{sys}_{lvl}";
+            if (!sequenceCounters.ContainsKey(seqKey))
+                sequenceCounters[seqKey] = 0;
+            sequenceCounters[seqKey]++;
+            string seq = sequenceCounters[seqKey].ToString().PadLeft(NumPad, '0');
+
+            string tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
+
+            ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc);
+            ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc);
+            ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone);
+            ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl);
+            ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys);
+            ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func);
+            ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod);
+            ParameterHelpers.SetIfEmpty(el, "ASS_SEQ_NUM_TXT", seq);
+            ParameterHelpers.SetString(el, "ASS_TAG_1_TXT", tag, overwrite: true);
+            return true;
+        }
+
+        /// <summary>
+        /// Scan the entire project and find the highest existing sequence number
+        /// for each (DISC, SYS, LVL) group. Returns a dictionary that can be passed
+        /// to BuildAndWriteTag so new tags continue from existing numbering.
+        /// </summary>
+        public static Dictionary<string, int> GetExistingSequenceCounters(Document doc)
+        {
+            var maxSeq = new Dictionary<string, int>();
+            var known = new HashSet<string>(DiscMap.Keys);
+
+            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(elem);
+                if (!known.Contains(cat)) continue;
+
+                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
+                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
+                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
+                string seqStr = ParameterHelpers.GetString(elem, "ASS_SEQ_NUM_TXT");
+                if (string.IsNullOrEmpty(disc)) continue;
+
+                string key = $"{disc}_{sys}_{lvl}";
+                if (int.TryParse(seqStr, out int seqNum))
+                {
+                    if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
+                        maxSeq[key] = seqNum;
+                }
+            }
+
+            return maxSeq;
         }
 
         private static T TryDeserialize<T>(Dictionary<string, object> data, string key)
@@ -174,6 +270,12 @@ namespace StingTools.Core
                 { "ICT", new List<string> { "Data Devices" } },
                 { "NCL", new List<string> { "Nurse Call Devices" } },
                 { "SEC", new List<string> { "Security Devices" } },
+                // Architecture
+                { "ARC", new List<string> { "Doors", "Windows", "Walls", "Floors", "Ceilings", "Roofs", "Rooms", "Furniture", "Furniture Systems", "Casework", "Railings", "Stairs", "Ramps" } },
+                // Structure
+                { "STR", new List<string> { "Structural Columns", "Structural Framing", "Structural Foundations", "Columns" } },
+                // Generic
+                { "GEN", new List<string> { "Generic Models", "Specialty Equipment", "Medical Equipment" } },
             };
         }
 
@@ -215,6 +317,7 @@ namespace StingTools.Core
                 { "FP", "FP" }, { "LV", "PWR" }, { "FLS", "FLS" },
                 { "COM", "COM" }, { "ICT", "ICT" }, { "NCL", "NCL" },
                 { "SEC", "SEC" },
+                { "ARC", "FIT" }, { "STR", "STR" }, { "GEN", "GEN" },
             };
         }
 

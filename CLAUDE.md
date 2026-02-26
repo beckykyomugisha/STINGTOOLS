@@ -76,29 +76,55 @@ STINGTOOLS/
 
 ## Ribbon UI Architecture
 
-The plugin creates a single **"STING Tools"** ribbon tab with three panels:
+The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 
-### Docs Panel (4 buttons)
+### Select Panel (3 pulldowns + 1 button)
+| Group | Commands | Description |
+|-------|----------|-------------|
+| Category | 15 selectors (Lighting, Electrical, Mechanical, etc.) | Select elements by Revit category |
+| State | Untagged, Tagged, Empty Mark, Pinned, Unpinned | Select by tag/pin/mark state |
+| Spatial | By Level, By Room | Select by spatial criteria |
+| Bulk Param | BulkParamWriteCommand | Write values to all selected elements |
+
+### Docs Panel (4 buttons + Viewports pulldown)
 | Button | Command Class | Transaction | Description |
 |--------|--------------|-------------|-------------|
 | Sheet Organizer | `Docs.SheetOrganizerCommand` | Manual | Group sheets by discipline prefix |
 | View Organizer | `Docs.ViewOrganizerCommand` | ReadOnly | Organize views by type, report placed/unplaced |
 | Sheet Index | `Docs.SheetIndexCommand` | Manual | Create "STING - Sheet Index" schedule |
 | Document Transmittal | `Docs.TransmittalCommand` | ReadOnly | ISO 19650 transmittal report |
+| Viewports | Align, Renumber, Text Case, Sum Areas | Viewport and annotation tools |
 
-### Tags Panel (5 buttons)
+### Tags Panel (2 buttons + Setup/Tokens/QA pulldowns)
 | Button | Command Class | Transaction | Description |
 |--------|--------------|-------------|-------------|
-| Auto Tag | `Tags.AutoTagCommand` | Manual | Tag elements in active view (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ) |
+| Auto Tag | `Tags.AutoTagCommand` | Manual | Tag elements in active view (continues from max existing SEQ) |
 | Batch Tag | `Tags.BatchTagCommand` | Manual | Tag all elements in entire project |
-| Tag Config | `Tags.TagConfigCommand` | ReadOnly | Display/configure lookup tables |
-| Load Params | `Tags.LoadSharedParamsCommand` | Manual | 2-pass shared parameter binding (17 universal + discipline-specific) |
-| Validate Tags | `Tags.ValidateTagsCommand` | ReadOnly | Validate tag completeness, report compliance % |
+| Setup > Tag Config | `Tags.TagConfigCommand` | ReadOnly | Display/configure lookup tables |
+| Setup > Load Params | `Tags.LoadSharedParamsCommand` | Manual | 2-pass shared parameter binding |
+| Tokens > Set Location | `Tags.SetLocCommand` | Manual | Set LOC token on selected elements |
+| Tokens > Set Zone | `Tags.SetZoneCommand` | Manual | Set ZONE token on selected elements |
+| Tokens > Set Status | `Tags.SetStatusCommand` | Manual | Set STATUS token |
+| Tokens > Assign Numbers | `Tags.AssignNumbersCommand` | Manual | Sequential numbering by DISC/SYS/LVL |
+| Tokens > Build Tags | `Tags.BuildTagsCommand` | Manual | Rebuild ASS_TAG_1 from existing tokens |
+| Tokens > Combine Parameters | `Tags.CombineParametersCommand` | Manual | Populate ALL tag containers (ASS_TAG_1-6 + discipline tags) |
+| QA > Validate | `Tags.ValidateTagsCommand` | ReadOnly | Validate tag completeness (checks empty segments) |
+| QA > Find Duplicates | `Organise.FindDuplicateTagsCommand` | ReadOnly | Find duplicate tag values |
+| QA > Highlight Invalid | `Organise.HighlightInvalidCommand` | Manual | Colour-code missing/incomplete tags |
+| QA > Completeness Dashboard | `Tags.CompletenessDashboardCommand` | ReadOnly | Per-discipline compliance dashboard |
 
-### Temp Panel (5 pulldown groups, 17 commands)
+### Organise Panel (Tag Ops pulldown)
+| Command | Class | Description |
+|---------|-------|-------------|
+| Tag Selected | `Organise.TagSelectedCommand` | Tag selected elements only |
+| Delete Tags | `Organise.DeleteTagsCommand` | Clear all tag params from selection |
+| Renumber | `Organise.RenumberTagsCommand` | Re-sequence tags for selection |
+| Audit to CSV | `Organise.AuditTagsCSVCommand` | Export full tag audit to CSV |
+
+### Temp Panel (5 pulldown groups, 19 commands)
 | Group | Commands | Description |
 |-------|----------|-------------|
-| Setup | Create Parameters, Check Data Files | Project setup and data verification |
+| Setup | Create Parameters, Check Data Files, **Master Setup** | Project setup + one-click automation |
 | Materials | Create BLE Materials, Create MEP Materials | Material creation from CSV (815 + 464) |
 | Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes | Type creation from CSV data |
 | Schedules | Batch Create, Auto-Populate, Export CSV | Schedule management (168 definitions) |

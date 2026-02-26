@@ -25,9 +25,8 @@ namespace StingTools.Organise
                 return Result.Succeeded;
             }
 
-            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
             int tagged = 0;
-            var seqCounters = new Dictionary<string, int>();
+            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
 
             using (Transaction tx = new Transaction(doc, "STING Tag Selected"))
             {
@@ -36,40 +35,8 @@ namespace StingTools.Organise
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
-                    string catName = ParameterHelpers.GetCategoryName(elem);
-                    if (!known.Contains(catName)) continue;
-
-                    string existing = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
-                    if (TagConfig.TagIsComplete(existing)) continue;
-
-                    string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-                    string loc = ParameterHelpers.GetString(elem, "ASS_LOC_TXT");
-                    if (string.IsNullOrEmpty(loc)) loc = "BLD1";
-                    string zone = ParameterHelpers.GetString(elem, "ASS_ZONE_TXT");
-                    if (string.IsNullOrEmpty(zone)) zone = "Z01";
-                    string lvl = ParameterHelpers.GetLevelCode(doc, elem);
-                    string sys = TagConfig.GetSysCode(catName);
-                    string func = TagConfig.GetFuncCode(sys);
-                    string prod = TagConfig.ProdMap.TryGetValue(catName, out string p) ? p : "GEN";
-
-                    string seqKey = $"{disc}_{sys}_{lvl}";
-                    if (!seqCounters.ContainsKey(seqKey)) seqCounters[seqKey] = 0;
-                    seqCounters[seqKey]++;
-                    string seq = seqCounters[seqKey].ToString().PadLeft(TagConfig.NumPad, '0');
-
-                    string tag = string.Join(TagConfig.Separator,
-                        disc, loc, zone, lvl, sys, func, prod, seq);
-
-                    ParameterHelpers.SetIfEmpty(elem, "ASS_DISCIPLINE_COD_TXT", disc);
-                    ParameterHelpers.SetIfEmpty(elem, "ASS_LOC_TXT", loc);
-                    ParameterHelpers.SetIfEmpty(elem, "ASS_ZONE_TXT", zone);
-                    ParameterHelpers.SetIfEmpty(elem, "ASS_LVL_COD_TXT", lvl);
-                    ParameterHelpers.SetIfEmpty(elem, "ASS_SYSTEM_TYPE_TXT", sys);
-                    ParameterHelpers.SetIfEmpty(elem, "ASS_FUNC_TXT", func);
-                    ParameterHelpers.SetIfEmpty(elem, "ASS_PRODCT_COD_TXT", prod);
-                    ParameterHelpers.SetIfEmpty(elem, "ASS_SEQ_NUM_TXT", seq);
-                    ParameterHelpers.SetString(elem, "ASS_TAG_1_TXT", tag, overwrite: true);
-                    tagged++;
+                    if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters))
+                        tagged++;
                 }
                 tx.Commit();
             }
@@ -233,7 +200,7 @@ namespace StingTools.Organise
                 string status = ParameterHelpers.GetString(elem, "ASS_STATUS_TXT");
                 bool valid = TagConfig.TagIsComplete(tag);
 
-                sb.AppendLine($"{elem.Id},{cat},{tag},{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{valid}");
+                sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{valid}");
             }
 
             // Write to file
@@ -254,6 +221,12 @@ namespace StingTools.Organise
             }
 
             return Result.Succeeded;
+        }
+
+        private static string CsvEscape(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            return value.Replace("\"", "\"\"");
         }
     }
 
