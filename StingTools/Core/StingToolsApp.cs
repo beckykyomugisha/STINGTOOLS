@@ -205,6 +205,23 @@ namespace StingTools.Core
                     asmPath, typeof(Docs.SumAreasCommand).FullName,
                     "Calculate total area of selected rooms");
             }
+
+            // Document automation pulldown
+            var docAutoGroup = panel.AddItem(
+                new PulldownButtonData("grpDocAuto", "Automation")) as PulldownButton;
+            if (docAutoGroup != null)
+            {
+                docAutoGroup.LongDescription = "Document automation and ISO 19650 compliance";
+                AddPulldownItem(docAutoGroup, "btnDeleteUnused", "Delete Unused Views",
+                    asmPath, typeof(Docs.DeleteUnusedViewsCommand).FullName,
+                    "Remove views not placed on any sheet (with confirmation)");
+                AddPulldownItem(docAutoGroup, "btnSheetNaming", "Sheet Naming Check",
+                    asmPath, typeof(Docs.SheetNamingCheckCommand).FullName,
+                    "ISO 19650 sheet naming compliance audit");
+                AddPulldownItem(docAutoGroup, "btnAutoNumSheets", "Auto-Number Sheets",
+                    asmPath, typeof(Docs.AutoNumberSheetsCommand).FullName,
+                    "Sequentially renumber sheets within discipline groups");
+            }
         }
 
         // ── Tags Panel (CREATE tab from STINGTags) ────────────────────────
@@ -246,6 +263,12 @@ namespace StingTools.Core
                 AddPulldownItem(tagModes, "btnFixDups", "Fix Duplicates",
                     asmPath, typeof(Organise.FixDuplicateTagsCommand).FullName,
                     "Auto-resolve duplicate tags by assigning new unique SEQ numbers");
+                AddPulldownItem(tagModes, "btnPreTagAudit", "Pre-Tag Audit",
+                    asmPath, typeof(Tags.PreTagAuditCommand).FullName,
+                    "Dry-run audit: predict tag assignments, collisions, ISO violations BEFORE committing");
+                AddPulldownItem(tagModes, "btnFamilyPopulate", "Family-Stage Populate",
+                    asmPath, typeof(Tags.FamilyStagePopulateCommand).FullName,
+                    "Pre-populate all 7 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD) from category and spatial data");
             }
 
             // Setup pulldown

@@ -1,0 +1,351 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using StingTools.Core;
+
+namespace StingTools.Tags
+{
+    /// <summary>
+    /// Pre-Tag Audit: the highest-logic step in the tagging workflow.
+    /// Performs a complete dry-run of the tagging process WITHOUT writing anything,
+    /// predicting exactly what will happen before the user commits.
+    ///
+    /// Reports:
+    ///   - How many elements will be tagged vs skipped
+    ///   - How many collisions will occur and how they'll be resolved
+    ///   - Missing tokens that need attention before tagging
+    ///   - ISO 19650 code violations found on existing tags
+    ///   - Per-discipline breakdown
+    ///   - Elements that will receive family-aware PROD codes
+    ///   - LOC/ZONE values that will be auto-detected from spatial data
+    ///
+    /// This is the "measure twice, cut once" approach — eliminates surprises.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PreTagAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            var sw = Stopwatch.StartNew();
+
+            // Scope selection
+            TaskDialog scopeDlg = new TaskDialog("Pre-Tag Audit");
+            scopeDlg.MainInstruction = "Audit scope — predict tag assignments";
+            scopeDlg.MainContent =
+                "This is a READ-ONLY audit. No changes will be made.\n" +
+                "It predicts exactly what tagging will do before you commit.";
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Active View", "Audit elements visible in current view");
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Entire Project", "Audit all taggable elements in the model");
+            scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            List<Element> targetElements;
+            string scopeLabel;
+            switch (scopeDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1:
+                    targetElements = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                        .WhereElementIsNotElementType().ToList();
+                    scopeLabel = $"active view '{doc.ActiveView.Name}'";
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    targetElements = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType().ToList();
+                    scopeLabel = "entire project";
+                    break;
+                default:
+                    return Result.Cancelled;
+            }
+
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var existingTags = TagConfig.BuildExistingTagIndex(doc);
+            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+
+            // Counters
+            int totalTaggable = 0;
+            int alreadyTagged = 0;
+            int willBeTagged = 0;
+            int willBeSkipped = 0;
+            int predictedCollisions = 0;
+            int missingLocCount = 0;
+            int missingZoneCount = 0;
+            int locWillAutoDetect = 0;
+            int zoneWillAutoDetect = 0;
+            int familyProdCount = 0;
+            int isoViolations = 0;
+            int missingTokenElements = 0;
+
+            // Per-discipline stats
+            var discStats = new Dictionary<string, (int total, int tagged, int untagged, int violations)>();
+
+            // Token coverage
+            var emptyTokenCounts = new Dictionary<string, int>();
+            string[] tokenParams = {
+                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT"
+            };
+            foreach (string t in tokenParams) emptyTokenCounts[t] = 0;
+
+            // Family PROD intelligence
+            var familyProdBreakdown = new Dictionary<string, int>();
+
+            // Simulate tagging
+            var simTags = new HashSet<string>(existingTags, StringComparer.Ordinal);
+            var simCounters = new Dictionary<string, int>(seqCounters);
+
+            // CSV audit rows
+            var csvRows = new List<string>();
+            csvRows.Add("ElementId,Category,Family,CurrentTag,PredictedTag,Action,LOC_Source,ZONE_Source,PROD_Source,ISOErrors");
+
+            foreach (Element el in targetElements)
+            {
+                string catName = ParameterHelpers.GetCategoryName(el);
+                if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
+                    continue;
+
+                totalTaggable++;
+
+                string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                if (!discStats.ContainsKey(disc))
+                    discStats[disc] = (0, 0, 0, 0);
+
+                string existingTag = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
+                bool hasTag = TagConfig.TagIsComplete(existingTag);
+
+                // Check token coverage
+                bool hasEmptyToken = false;
+                foreach (string param in tokenParams)
+                {
+                    string val = ParameterHelpers.GetString(el, param);
+                    if (string.IsNullOrEmpty(val))
+                    {
+                        emptyTokenCounts[param]++;
+                        hasEmptyToken = true;
+                    }
+                }
+                if (hasEmptyToken) missingTokenElements++;
+
+                // ISO validation on existing tags
+                int elementIsoErrors = 0;
+                if (hasTag)
+                {
+                    string formatError = ISO19650Validator.ValidateTagFormat(existingTag);
+                    if (formatError != null) elementIsoErrors++;
+                    var tokenErrors = ISO19650Validator.ValidateElement(el);
+                    elementIsoErrors += tokenErrors.Count;
+                }
+
+                if (elementIsoErrors > 0) isoViolations++;
+
+                // Predict LOC/ZONE auto-detection
+                string locSource = "existing";
+                string zoneSource = "existing";
+                string currentLoc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
+                string currentZone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
+
+                if (string.IsNullOrEmpty(currentLoc))
+                {
+                    missingLocCount++;
+                    string detectedLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                    if (!string.IsNullOrEmpty(detectedLoc))
+                    {
+                        locWillAutoDetect++;
+                        locSource = "spatial-auto";
+                        currentLoc = detectedLoc;
+                    }
+                    else
+                    {
+                        locSource = "DEFAULT(BLD1)";
+                        currentLoc = "BLD1";
+                    }
+                }
+
+                if (string.IsNullOrEmpty(currentZone))
+                {
+                    missingZoneCount++;
+                    string detectedZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                    if (!string.IsNullOrEmpty(detectedZone))
+                    {
+                        zoneWillAutoDetect++;
+                        zoneSource = "spatial-auto";
+                        currentZone = detectedZone;
+                    }
+                    else
+                    {
+                        zoneSource = "DEFAULT(Z01)";
+                        currentZone = "Z01";
+                    }
+                }
+
+                // Predict PROD code (family-aware)
+                string prodSource = "category";
+                string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+                string familyName = ParameterHelpers.GetFamilyName(el);
+                string catProd = TagConfig.ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+                if (prod != catProd && !string.IsNullOrEmpty(familyName))
+                {
+                    familyProdCount++;
+                    prodSource = $"family({familyName})";
+                    if (!familyProdBreakdown.ContainsKey($"{prod}({familyName})"))
+                        familyProdBreakdown[$"{prod}({familyName})"] = 0;
+                    familyProdBreakdown[$"{prod}({familyName})"]++;
+                }
+
+                // Simulate tag generation
+                string action;
+                string predictedTag = "";
+                if (hasTag)
+                {
+                    alreadyTagged++;
+                    action = "SKIP(already-tagged)";
+                    predictedTag = existingTag;
+
+                    var s = discStats[disc];
+                    discStats[disc] = (s.total + 1, s.tagged + 1, s.untagged, s.violations + (elementIsoErrors > 0 ? 1 : 0));
+                }
+                else
+                {
+                    // Simulate tag generation
+                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                    string sys = TagConfig.GetSysCode(catName);
+                    string func = TagConfig.GetFuncCode(sys);
+
+                    string seqKey = $"{disc}_{sys}_{lvl}";
+                    if (!simCounters.ContainsKey(seqKey)) simCounters[seqKey] = 0;
+                    simCounters[seqKey]++;
+                    string seq = simCounters[seqKey].ToString().PadLeft(TagConfig.NumPad, '0');
+
+                    predictedTag = string.Join(TagConfig.Separator,
+                        disc, currentLoc, currentZone, lvl, sys, func, prod, seq);
+
+                    // Check collision
+                    int collisionCount = 0;
+                    while (simTags.Contains(predictedTag) && collisionCount < 100)
+                    {
+                        collisionCount++;
+                        simCounters[seqKey]++;
+                        seq = simCounters[seqKey].ToString().PadLeft(TagConfig.NumPad, '0');
+                        predictedTag = string.Join(TagConfig.Separator,
+                            disc, currentLoc, currentZone, lvl, sys, func, prod, seq);
+                    }
+                    if (collisionCount > 0) predictedCollisions++;
+                    simTags.Add(predictedTag);
+
+                    willBeTagged++;
+                    action = collisionCount > 0 ? $"TAG(collision+{collisionCount})" : "TAG";
+
+                    var s = discStats[disc];
+                    discStats[disc] = (s.total + 1, s.tagged, s.untagged + 1, s.violations + (elementIsoErrors > 0 ? 1 : 0));
+                }
+
+                csvRows.Add($"{el.Id},\"{catName}\",\"{familyName}\",\"{existingTag}\",\"{predictedTag}\",{action},{locSource},{zoneSource},{prodSource},{elementIsoErrors}");
+            }
+
+            willBeSkipped = totalTaggable - willBeTagged - alreadyTagged;
+            sw.Stop();
+
+            // Build report
+            var report2 = new StringBuilder();
+            report2.AppendLine("══════════════════════════════════════════════════");
+            report2.AppendLine("  PRE-TAG AUDIT — DRY RUN (no changes made)");
+            report2.AppendLine("══════════════════════════════════════════════════");
+            report2.AppendLine($"  Scope: {scopeLabel}");
+            report2.AppendLine($"  Duration: {sw.Elapsed.TotalSeconds:F1}s");
+            report2.AppendLine();
+
+            // Summary
+            report2.AppendLine("── TAG PREDICTION ──");
+            report2.AppendLine($"  Total taggable:     {totalTaggable}");
+            report2.AppendLine($"  Already tagged:     {alreadyTagged} (will be skipped)");
+            report2.AppendLine($"  Will be tagged:     {willBeTagged}");
+            if (predictedCollisions > 0)
+                report2.AppendLine($"  Collisions to resolve: {predictedCollisions} (SEQ auto-increment)");
+            report2.AppendLine();
+
+            // Spatial auto-detection
+            report2.AppendLine("── SPATIAL INTELLIGENCE ──");
+            report2.AppendLine($"  LOC missing:        {missingLocCount}");
+            report2.AppendLine($"  LOC auto-detectable: {locWillAutoDetect} (from rooms/project info)");
+            report2.AppendLine($"  ZONE missing:       {missingZoneCount}");
+            report2.AppendLine($"  ZONE auto-detectable: {zoneWillAutoDetect} (from rooms)");
+            report2.AppendLine();
+
+            // Family PROD intelligence
+            report2.AppendLine("── FAMILY-AWARE PROD CODES ──");
+            report2.AppendLine($"  Family-specific PRODs: {familyProdCount}");
+            if (familyProdBreakdown.Count > 0)
+            {
+                foreach (var kvp in familyProdBreakdown.OrderByDescending(x => x.Value).Take(10))
+                    report2.AppendLine($"    {kvp.Key}: {kvp.Value}");
+            }
+            report2.AppendLine();
+
+            // Token coverage
+            report2.AppendLine("── TOKEN COVERAGE ──");
+            report2.AppendLine($"  Elements with missing tokens: {missingTokenElements}");
+            foreach (var kvp in emptyTokenCounts.Where(x => x.Value > 0).OrderByDescending(x => x.Value))
+            {
+                string shortName = kvp.Key.Replace("ASS_", "").Replace("_TXT", "").Replace("_COD", "");
+                report2.AppendLine($"    {shortName,-20} {kvp.Value} empty");
+            }
+            report2.AppendLine();
+
+            // ISO 19650 compliance
+            report2.AppendLine("── ISO 19650 COMPLIANCE ──");
+            report2.AppendLine($"  Elements with ISO violations: {isoViolations}");
+            if (isoViolations == 0)
+                report2.AppendLine("    All existing tags conform to ISO 19650");
+            report2.AppendLine();
+
+            // Per-discipline breakdown
+            report2.AppendLine("── BY DISCIPLINE ──");
+            report2.AppendLine($"  {"DISC",-6} {"Total",6} {"Tagged",7} {"New",5} {"ISO!",5}");
+            report2.AppendLine($"  {new string('─', 32)}");
+            foreach (var kvp in discStats.OrderBy(x => x.Key))
+            {
+                var s = kvp.Value;
+                report2.AppendLine($"  {kvp.Key,-6} {s.total,6} {s.tagged,7} {s.untagged,5} {s.violations,5}");
+            }
+
+            // Export CSV
+            try
+            {
+                string dir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
+                string csvPath = Path.Combine(dir, $"STING_PreTagAudit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                File.WriteAllText(csvPath, string.Join("\n", csvRows));
+                report2.AppendLine();
+                report2.AppendLine($"  CSV exported: {csvPath}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PreTagAudit CSV export: {ex.Message}");
+            }
+
+            TaskDialog td = new TaskDialog("Pre-Tag Audit");
+            td.MainInstruction = $"Will tag {willBeTagged} elements ({alreadyTagged} already tagged, {predictedCollisions} collisions)";
+            td.MainContent = report2.ToString();
+            td.Show();
+
+            StingLog.Info($"PreTagAudit: taggable={totalTaggable}, willTag={willBeTagged}, " +
+                $"collisions={predictedCollisions}, isoViolations={isoViolations}, " +
+                $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
+
+            return Result.Succeeded;
+        }
+    }
+}

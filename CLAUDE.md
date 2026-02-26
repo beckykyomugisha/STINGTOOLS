@@ -129,6 +129,13 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | Text Case | `Docs.TextCaseCommand` | Manual | Convert text notes to UPPER/lower/Title case (preserves BIM acronyms) |
 | Sum Areas | `Docs.SumAreasCommand` | ReadOnly | Calculate total area of selected/all rooms |
 
+**Automation pulldown:**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Delete Unused Views | `Docs.DeleteUnusedViewsCommand` | Manual | Remove views not placed on any sheet (with confirmation and protection) |
+| Sheet Naming Check | `Docs.SheetNamingCheckCommand` | ReadOnly | ISO 19650 sheet naming compliance audit with correction suggestions |
+| Auto-Number Sheets | `Docs.AutoNumberSheetsCommand` | Manual | Sequentially renumber sheets within discipline groups |
+
 ### Tags Panel (3 buttons + More/Setup/Tokens/QA pulldowns)
 | Button | Command Class | Transaction | Description |
 |--------|--------------|-------------|-------------|
