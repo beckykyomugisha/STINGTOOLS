@@ -9,7 +9,8 @@ using StingTools.Core;
 
 namespace StingTools.Organise
 {
-    /// <summary>Tag selected elements only (Tag Sel from STINGTags ORGANISE tab).</summary>
+    /// <summary>Tag selected elements only (Tag Sel from STINGTags ORGANISE tab).
+    /// Includes collision mode selection for handling already-tagged elements.</summary>
     [Transaction(TransactionMode.Manual)]
     public class TagSelectedCommand : IExternalCommand
     {
@@ -25,6 +26,45 @@ namespace StingTools.Organise
                 return Result.Succeeded;
             }
 
+            // Check if any are already tagged
+            int alreadyTagged = 0;
+            foreach (ElementId id in selected)
+            {
+                Element elem = doc.GetElement(id);
+                if (elem == null) continue;
+                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                if (TagConfig.TagIsComplete(tag)) alreadyTagged++;
+            }
+
+            TagCollisionMode collisionMode = TagCollisionMode.AutoIncrement;
+            if (alreadyTagged > 0)
+            {
+                TaskDialog modeDlg = new TaskDialog("Tag Selected — Collision Mode");
+                modeDlg.MainInstruction = $"{alreadyTagged} of {selected.Count} elements already have tags";
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Skip already-tagged",
+                    "Only tag elements that don't have complete tags");
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Overwrite all tags",
+                    "Re-derive and overwrite ALL tokens, including already-tagged elements");
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "Auto-increment on collision",
+                    "Tag all; auto-increment SEQ if generated tag already exists");
+                modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                switch (modeDlg.Show())
+                {
+                    case TaskDialogResult.CommandLink1:
+                        collisionMode = TagCollisionMode.Skip; break;
+                    case TaskDialogResult.CommandLink2:
+                        collisionMode = TagCollisionMode.Overwrite; break;
+                    case TaskDialogResult.CommandLink3:
+                        collisionMode = TagCollisionMode.AutoIncrement; break;
+                    default:
+                        return Result.Cancelled;
+                }
+            }
+
             int tagged = 0;
             var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
             var tagIndex = TagConfig.BuildExistingTagIndex(doc);
@@ -36,14 +76,168 @@ namespace StingTools.Organise
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
+                    bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
                     if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
-                        existingTags: tagIndex))
+                        skipComplete: skipComplete,
+                        existingTags: tagIndex,
+                        collisionMode: collisionMode))
                         tagged++;
                 }
                 tx.Commit();
             }
 
             TaskDialog.Show("Tag Selected", $"Tagged {tagged} of {selected.Count} selected elements.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Re-tag selected elements: forces overwrite of all tag tokens and the assembled tag.
+    /// Use when elements need fresh tags (e.g., after category changes or corrections).
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    public class ReTagCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            var selected = uidoc.Selection.GetElementIds();
+            if (selected.Count == 0)
+            {
+                TaskDialog.Show("Re-Tag", "Select elements to re-tag first.");
+                return Result.Succeeded;
+            }
+
+            TaskDialog confirm = new TaskDialog("Re-Tag Elements");
+            confirm.MainInstruction = $"Re-tag {selected.Count} elements?";
+            confirm.MainContent =
+                "This will OVERWRITE existing tag values with freshly derived tokens.\n" +
+                "Existing LOC/ZONE values will be preserved; all other tokens regenerated.\n" +
+                "New sequence numbers will be assigned.";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            int retagged = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Re-Tag"))
+            {
+                tx.Start();
+                foreach (ElementId id in selected)
+                {
+                    Element elem = doc.GetElement(id);
+                    if (elem == null) continue;
+                    if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                        skipComplete: false,
+                        existingTags: tagIndex,
+                        collisionMode: TagCollisionMode.Overwrite))
+                        retagged++;
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Re-Tag", $"Re-tagged {retagged} of {selected.Count} elements.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Auto-resolve duplicate tags across the entire project by incrementing
+    /// SEQ numbers on duplicate entries. Preserves the first occurrence;
+    /// reassigns subsequent duplicates with new unique SEQ values.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    public class FixDuplicateTagsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            // Find all duplicates
+            var tagMap = new Dictionary<string, List<Element>>();
+            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(elem);
+                if (!known.Contains(cat)) continue;
+                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                if (string.IsNullOrEmpty(tag)) continue;
+                if (!tagMap.ContainsKey(tag)) tagMap[tag] = new List<Element>();
+                tagMap[tag].Add(elem);
+            }
+
+            var duplicates = tagMap.Where(kvp => kvp.Value.Count > 1).ToList();
+            if (duplicates.Count == 0)
+            {
+                TaskDialog.Show("Fix Duplicates", "No duplicate tags found. Project is clean.");
+                return Result.Succeeded;
+            }
+
+            int totalDups = duplicates.Sum(d => d.Value.Count - 1);
+            TaskDialog confirm = new TaskDialog("Fix Duplicate Tags");
+            confirm.MainInstruction = $"Fix {totalDups} duplicate tags?";
+            confirm.MainContent =
+                $"Found {duplicates.Count} tag values with duplicates ({totalDups} elements to reassign).\n\n" +
+                "The first element with each tag will be kept. All subsequent duplicates will get " +
+                "new unique SEQ numbers.\n\nExisting tokens (DISC, LOC, ZONE, etc.) are preserved.";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            var tagIndex = new HashSet<string>(tagMap.Keys, StringComparer.Ordinal);
+            int fixed_ = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Fix Duplicates"))
+            {
+                tx.Start();
+                foreach (var kvp in duplicates)
+                {
+                    // Skip the first element (keep its tag); fix the rest
+                    for (int i = 1; i < kvp.Value.Count; i++)
+                    {
+                        Element elem = kvp.Value[i];
+                        string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
+                        string loc = ParameterHelpers.GetString(elem, "ASS_LOC_TXT");
+                        string zone = ParameterHelpers.GetString(elem, "ASS_ZONE_TXT");
+                        string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
+                        string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
+                        string func = ParameterHelpers.GetString(elem, "ASS_FUNC_TXT");
+                        string prod = ParameterHelpers.GetString(elem, "ASS_PRODCT_COD_TXT");
+
+                        if (string.IsNullOrEmpty(disc)) continue;
+
+                        string seqKey = $"{disc}_{sys}_{lvl}";
+                        if (!seqCounters.ContainsKey(seqKey)) seqCounters[seqKey] = 0;
+
+                        // Find next unique SEQ
+                        string newTag;
+                        string newSeq;
+                        int safety = 10000;
+                        do
+                        {
+                            seqCounters[seqKey]++;
+                            newSeq = seqCounters[seqKey].ToString().PadLeft(TagConfig.NumPad, '0');
+                            newTag = string.Join(TagConfig.Separator, disc, loc, zone, lvl, sys, func, prod, newSeq);
+                        } while (tagIndex.Contains(newTag) && safety-- > 0);
+
+                        tagIndex.Add(newTag);
+                        ParameterHelpers.SetString(elem, "ASS_SEQ_NUM_TXT", newSeq, overwrite: true);
+                        ParameterHelpers.SetString(elem, "ASS_TAG_1_TXT", newTag, overwrite: true);
+                        fixed_++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Fix Duplicates",
+                $"Fixed {fixed_} duplicate tags across {duplicates.Count} tag values.\n" +
+                "All tags are now unique.");
             return Result.Succeeded;
         }
     }

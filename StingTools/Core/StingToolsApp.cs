@@ -231,15 +231,21 @@ namespace StingTools.Core
                 typeof(Tags.TagAndCombineCommand).FullName,
                 "One-click: auto-detect LOC/ZONE + populate tokens + tag + combine all 37 containers");
 
-            // Incremental tagging pulldown
+            // Additional tagging modes pulldown
             var tagModes = panel.AddItem(
                 new PulldownButtonData("grpTagModes", "More")) as PulldownButton;
             if (tagModes != null)
             {
-                tagModes.LongDescription = "Additional tagging modes";
+                tagModes.LongDescription = "Additional tagging modes and fix tools";
                 AddPulldownItem(tagModes, "btnTagNewOnly", "Tag New Only",
                     asmPath, typeof(Tags.TagNewOnlyCommand).FullName,
                     "Tag only new/untagged elements (faster incremental tagging)");
+                AddPulldownItem(tagModes, "btnReTag", "Re-Tag Selected",
+                    asmPath, typeof(Organise.ReTagCommand).FullName,
+                    "Force re-derive and overwrite tags on selected elements");
+                AddPulldownItem(tagModes, "btnFixDups", "Fix Duplicates",
+                    asmPath, typeof(Organise.FixDuplicateTagsCommand).FullName,
+                    "Auto-resolve duplicate tags by assigning new unique SEQ numbers");
             }
 
             // Setup pulldown
@@ -265,6 +271,9 @@ namespace StingTools.Core
             if (tokenGroup != null)
             {
                 tokenGroup.LongDescription = "Set individual ISO 19650 token values";
+                AddPulldownItem(tokenGroup, "btnSetDisc", "Set Discipline",
+                    asmPath, typeof(Tags.SetDiscCommand).FullName,
+                    "Set DISC token (M, E, P, A)");
                 AddPulldownItem(tokenGroup, "btnSetLoc", "Set Location",
                     asmPath, typeof(Tags.SetLocCommand).FullName,
                     "Set LOC token (BLD1, BLD2, BLD3, EXT)");
@@ -336,6 +345,12 @@ namespace StingTools.Core
                 AddPulldownItem(tagOps, "btnSwapTags", "Swap Tags",
                     asmPath, typeof(Organise.SwapTagsCommand).FullName,
                     "Swap tag values between two selected elements");
+                AddPulldownItem(tagOps, "btnReTagOps", "Re-Tag",
+                    asmPath, typeof(Organise.ReTagCommand).FullName,
+                    "Force re-derive and overwrite all tag tokens on selected elements");
+                AddPulldownItem(tagOps, "btnFixDupsOps", "Fix Duplicates",
+                    asmPath, typeof(Organise.FixDuplicateTagsCommand).FullName,
+                    "Auto-resolve duplicate tags by incrementing SEQ numbers");
             }
 
             // Analysis pulldown

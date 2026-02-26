@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **31 C# source files** (~7,400 lines of code) across 7 directories
-- **80 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point
+- **31 C# source files** (~8,200 lines of code) across 7 directories
+- **85 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point
 - **15 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **5 ribbon panels** with 16+ pulldown groups
 
@@ -111,7 +111,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | Category | 15 selectors (Lighting, Electrical, Mechanical, Plumbing, Air Terminals, Furniture, Doors, Windows, Rooms, Sprinklers, Pipes, Ducts, Conduits, Cable Trays, ALL Taggable) | Select elements by Revit category in active view |
 | State | Untagged, Tagged, Empty Mark, Pinned, Unpinned | Select by tag/pin/mark state |
 | Spatial | By Level, By Room | Select by spatial criteria |
-| Bulk Param | `Select.BulkParamWriteCommand` | Write LOC/ZONE/STATUS values or clear tags on selected elements |
+| Bulk Param | `Select.BulkParamWriteCommand` | Multi-page bulk operations: set LOC/ZONE/STATUS, auto-populate all tokens, clear tags, or re-tag with overwrite |
 
 ### Docs Panel (4 buttons + Viewports pulldown)
 | Button | Command Class | Transaction | Description |
@@ -132,14 +132,16 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 ### Tags Panel (3 buttons + More/Setup/Tokens/QA pulldowns)
 | Button | Command Class | Transaction | Description |
 |--------|--------------|-------------|-------------|
-| Auto Tag | `Tags.AutoTagCommand` | Manual | Tag elements in active view (continues from max existing SEQ) |
-| Batch Tag | `Tags.BatchTagCommand` | Manual | Tag all elements in entire project |
+| Auto Tag | `Tags.AutoTagCommand` | Manual | Tag elements in active view with spatial auto-detect, collision mode selection (skip/overwrite/increment) |
+| Batch Tag | `Tags.BatchTagCommand` | Manual | Tag all elements in entire project with collision mode selection and spatial auto-detect |
 | Tag & Combine | `Tags.TagAndCombineCommand` | Manual | One-click: auto-detect LOC/ZONE + populate tokens + tag + combine ALL 37 containers (view/selection/project scope) |
 
 **More pulldown:**
 | Command | Class | Transaction | Description |
 |---------|-------|-------------|-------------|
 | Tag New Only | `Tags.TagNewOnlyCommand` | Manual | Tag only new/untagged elements with spatial auto-detect and family-aware PROD codes |
+| Re-Tag Selected | `Organise.ReTagCommand` | Manual | Force re-derive and overwrite tags on selected elements |
+| Fix Duplicates | `Organise.FixDuplicateTagsCommand` | Manual | Auto-resolve duplicate tags by assigning new unique SEQ numbers |
 
 **Setup pulldown:**
 | Command | Class | Transaction | Description |
@@ -151,6 +153,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 **Tokens pulldown:**
 | Command | Class | Transaction | Description |
 |---------|-------|-------------|-------------|
+| Set Discipline | `Tags.SetDiscCommand` | Manual | Set DISC token (M, E, P, A) |
 | Set Location | `Tags.SetLocCommand` | Manual | Set LOC token (BLD1, BLD2, BLD3, EXT) |
 | Set Zone | `Tags.SetZoneCommand` | Manual | Set ZONE token (Z01-Z04) |
 | Set Status | `Tags.SetStatusCommand` | Manual | Set STATUS token (EXISTING, NEW, DEMOLISHED, TEMPORARY) |
@@ -161,7 +164,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 **QA pulldown:**
 | Command | Class | Transaction | Description |
 |---------|-------|-------------|-------------|
-| Validate | `Tags.ValidateTagsCommand` | ReadOnly | Validate tag completeness (checks empty segments) |
+| Validate | `Tags.ValidateTagsCommand` | ReadOnly | Validate tag completeness with ISO 19650 code validation (DISC, LOC, ZONE, SYS, FUNC, PROD, SEQ) |
 | Find Duplicates | `Organise.FindDuplicateTagsCommand` | ReadOnly | Find duplicate tag values, select affected elements |
 | Highlight Invalid | `Organise.HighlightInvalidCommand` | Manual | Colour-code missing (red) and incomplete (orange) tags |
 | Clear Overrides | `Organise.ClearOverridesCommand` | Manual | Reset graphic overrides in active view |
@@ -176,6 +179,8 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | Renumber | `Organise.RenumberTagsCommand` | Manual | Re-sequence tags within (DISC, SYS, LVL) groups |
 | Copy Tags | `Organise.CopyTagsCommand` | Manual | Copy tag values from first selected to all others (excludes SEQ) |
 | Swap Tags | `Organise.SwapTagsCommand` | Manual | Swap all tag values between exactly 2 selected elements |
+| Re-Tag | `Organise.ReTagCommand` | Manual | Force re-derive and overwrite all tag tokens on selected elements |
+| Fix Duplicates | `Organise.FixDuplicateTagsCommand` | Manual | Auto-resolve duplicate tags by incrementing SEQ numbers |
 
 **Analysis pulldown:**
 | Command | Class | Transaction | Description |
@@ -211,9 +216,9 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | `Tags/ConfigEditorCommand.cs` | 1 | 194 |
 | `Tags/TagConfigCommand.cs` | 1 | 72 |
 | `Tags/LoadSharedParamsCommand.cs` | 1 | 158 |
-| `Tags/TokenWriterCommands.cs` | 6 (SetLoc, SetZone, SetStatus, AssignNumbers, BuildTags, CompletenessDashboard) | 320 |
-| `Tags/ValidateTagsCommand.cs` | 1 | 201 |
-| `Organise/TagOperationCommands.cs` | 11 (TagSelected, DeleteTags, Renumber, AuditCSV, FindDuplicates, HighlightInvalid, ClearOverrides, CopyTags, SwapTags, SelectByDiscipline, TagStats) | 665 |
+| `Tags/TokenWriterCommands.cs` | 7 (SetDisc, SetLoc, SetZone, SetStatus, AssignNumbers, BuildTags, CompletenessDashboard) | 340 |
+| `Tags/ValidateTagsCommand.cs` | 1 | 220 |
+| `Organise/TagOperationCommands.cs` | 13 (TagSelected, ReTag, FixDuplicates, DeleteTags, Renumber, AuditCSV, FindDuplicates, HighlightInvalid, ClearOverrides, CopyTags, SwapTags, SelectByDiscipline, TagStats) | 850 |
 | `Temp/CreateParametersCommand.cs` | 1 | 27 |
 | `Temp/CheckDataCommand.cs` | 1 | 91 |
 | `Temp/MasterSetupCommand.cs` | 1 | 155 |
@@ -222,7 +227,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 | `Temp/ScheduleCommands.cs` | 3 (BatchSchedules, AutoPopulate, ExportCSV) | 358 |
 | `Temp/TemplateCommands.cs` | 3 (Filters, Worksets, ViewTemplates) | 250 |
 | `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 277 |
-| **Total** | **80 commands** | **~7,400** |
+| **Total** | **85 commands** | **~8,200** |
 
 ## Core Classes
 
@@ -255,7 +260,18 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 - `BuildCategorySet(doc, enums)` — type-safe category set builder
 - Also declares `NumPad = 4` and `Separator = "-"` constants (duplicated in `TagConfig`)
 
-### `TagConfig` (static, singleton) — `Core/TagConfig.cs` (334 lines)
+### `TagCollisionMode` (enum) — `Core/TagConfig.cs`
+- Controls how tag collisions are handled: `Skip`, `Overwrite`, `AutoIncrement`
+- Used by all tagging commands (AutoTag, BatchTag, TagSelected, ReTag, TagAndCombine)
+
+### `ISO19650Validator` (static) — `Core/TagConfig.cs`
+- **Code validation**: `ValidDiscCodes`, `ValidSysCodes`, `ValidFuncCodes` — allowed ISO 19650 code lists
+- **Token validation**: `ValidateToken(tokenName, value)` — validates individual token values against allowed lists
+- **Element validation**: `ValidateElement(el)` — validates all 8 tokens + cross-validates DISC/SYS against element category
+- **Tag format validation**: `ValidateTagFormat(tag)` — validates complete 8-segment tag string format and all segments
+- Used by `ValidateTagsCommand` and `BuildTagsCommand` for ISO 19650 enforcement
+
+### `TagConfig` (static, singleton) — `Core/TagConfig.cs` (~600 lines)
 - **Lookup tables** (all configurable via `project_config.json`):
   - `DiscMap` — 41 category → discipline code mappings (M, E, P, A, S, FP, LV, G)
   - `SysMap` — 13 system codes → category lists
@@ -266,9 +282,11 @@ The plugin creates a single **"STING Tools"** ribbon tab with five panels:
 - **Configuration management**: `LoadFromFile(path)`, `LoadDefaults()`, `ConfigSource`
 - **Tag operations**:
   - `TagIsComplete(tagValue, expectedTokens=8)` — validates 8-segment tag completeness
-  - `BuildAndWriteTag(doc, el, seqCounters, skipComplete)` — shared tagging logic for all tag commands
+  - `BuildAndWriteTag(doc, el, seqCounters, skipComplete, existingTags, collisionMode)` — shared tagging logic with collision mode support (Skip/Overwrite/AutoIncrement)
   - `GetExistingSequenceCounters(doc)` — scans project for highest SEQ per group
+  - `BuildExistingTagIndex(doc)` — builds HashSet of all existing tags for O(1) collision detection
   - `GetSysCode(categoryName)`, `GetFuncCode(sysCode)` — reverse lookups
+  - `GetFamilyAwareProdCode(el, categoryName)` — family-name-aware PROD code resolution (35+ specific codes)
 - **Constants**: `NumPad = 4`, `Separator = "-"`
 
 ### Internal Helper Classes
@@ -432,8 +450,8 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 
 | Enhancement | Why Needed | Effort | Priority |
 |-------------|-----------|--------|----------|
-| Pre-tagging audit ("Will create X tags, Y overwrites, Z collisions") | Prevents errors before they happen | Low | High |
-| ~~Tag collision auto-fix (increment SEQ on duplicate)~~ | **DONE** — `BuildAndWriteTag` now auto-increments SEQ on collision via `existingTags` index | ~~Low~~ | ~~High~~ Done |
+| ~~Pre-tagging audit ("Will create X tags, Y overwrites, Z collisions")~~ | **ADDRESSED** — Collision mode dialogs in AutoTag/BatchTag/TagSelected now show counts of already-tagged elements and let user choose Skip/Overwrite/AutoIncrement before proceeding. | ~~Low~~ | ~~High~~ Done |
+| ~~Tag collision auto-fix (increment SEQ on duplicate)~~ | **DONE** — `BuildAndWriteTag` now auto-increments SEQ on collision via `existingTags` index. User can also choose Skip or Overwrite mode via `TagCollisionMode` enum. | ~~Low~~ | ~~High~~ Done |
 | ~~LOC/ZONE auto-detection from rooms and project info~~ | **DONE** — `SpatialAutoDetect` class in `ParameterHelpers.cs` auto-derives LOC from Room name/number/Project Info and ZONE from Room Department/name. Integrated into TagAndCombine, AutoPopulate, TagNewOnly. Eliminates manual SetLoc/SetZone in most cases. | ~~Medium~~ | ~~High~~ Done |
 | ~~Family-aware PROD codes (FCU, VAV, AHU, DB, MCC, WC, etc.)~~ | **DONE** — `TagConfig.GetFamilyAwareProdCode()` inspects element family name to assign specific PROD codes instead of generic category codes. Covers Mechanical (8 types), Electrical (8 types), Lighting (4 types), Plumbing (7 types), Fire Alarm (4 types). | ~~Low~~ | ~~High~~ Done |
 | ~~TagAndCombine writes only 6 containers (ASS_TAG_1-6)~~ | **DONE** — Now writes ALL 37 containers (6 universal + 31 discipline-specific including HVAC, Electrical, Plumbing, Fire/Safety, Comms, Material). Category-filtered for correctness. | ~~Medium~~ | ~~High~~ Done |
@@ -443,7 +461,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | Formula evaluation engine (reads FORMULAS_WITH_DEPENDENCIES.csv) | Auto-populate computed parameters (199 rules exist unused) | High | High |
 | Port VALIDAT_BIM_TEMPLATE.py (45 checks) to C# ValidateTemplateCommand | Template compliance checking | Medium | Medium |
 | ~~Conditional parameter set ("Set LOC=BLD2 where DISC=E")~~ | **PARTIALLY ADDRESSED** — SpatialAutoDetect eliminates most manual LOC/ZONE setting. BulkParamWrite still available for manual overrides. | ~~Medium~~ | ~~Medium~~ |
-| Cross-parameter validation (SEQ uniqueness, impossible combos like E+DHW) | Data quality | Low | Medium |
+| ~~Cross-parameter validation (SEQ uniqueness, impossible combos like E+DHW)~~ | **DONE** — `ISO19650Validator` class validates all tokens against allowed code lists, cross-validates DISC/SYS against element category, validates tag format. `FixDuplicateTagsCommand` auto-resolves duplicate SEQ. `ValidateTagsCommand` now reports ISO violations. | ~~Low~~ | ~~Medium~~ Done |
 | Batch command chaining / workflow presets | Queue: AutoTag → Validate → Export | Medium | Low |
 
 ---

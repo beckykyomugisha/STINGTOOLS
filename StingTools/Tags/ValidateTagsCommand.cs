@@ -53,11 +53,13 @@ namespace StingTools.Tags
             int tag1Missing = 0;
             int containersEmpty = 0; // TAG_2-6 not populated
             int tokensMissing = 0;
+            int isoViolations = 0; // ISO 19650 code violations
             var issuesByCategory = new Dictionary<string, int>();
             var tokenIssues = new Dictionary<string, int>(); // which tokens are most often empty
+            var isoIssueTypes = new Dictionary<string, int>(); // ISO violation types
             var csvRows = new List<string>();
 
-            csvRows.Add("ElementId,Category,TAG_1_Status,EmptyTokens,EmptyContainers,TAG_1,TAG_2,TAG_3,TAG_4,TAG_5,TAG_6");
+            csvRows.Add("ElementId,Category,TAG_1_Status,EmptyTokens,EmptyContainers,ISOErrors,TAG_1,TAG_2,TAG_3,TAG_4,TAG_5,TAG_6");
 
             foreach (Element el in collector)
             {
@@ -80,6 +82,16 @@ namespace StingTools.Tags
                 {
                     tag1Valid++;
                     tag1Status = "VALID";
+
+                    // ISO 19650 format validation on complete tags
+                    string formatError = ISO19650Validator.ValidateTagFormat(tag1);
+                    if (formatError != null)
+                    {
+                        tag1Status = "ISO_INVALID";
+                        isoViolations++;
+                        IncrementDict(isoIssueTypes, formatError);
+                        IncrementDict(issuesByCategory, catName);
+                    }
                 }
                 else
                 {
@@ -99,6 +111,28 @@ namespace StingTools.Tags
                         tokensMissing++;
                         IncrementDict(tokenIssues, token);
                     }
+                    else
+                    {
+                        // ISO 19650 code validation for non-empty tokens
+                        string tokenError = ISO19650Validator.ValidateToken(token, val);
+                        if (tokenError != null)
+                        {
+                            isoViolations++;
+                            IncrementDict(isoIssueTypes, tokenError);
+                        }
+                    }
+                }
+
+                // Cross-validate DISC against element category
+                string disc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
+                if (!string.IsNullOrEmpty(disc))
+                {
+                    string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string dd) ? dd : null;
+                    if (expectedDisc != null && expectedDisc != disc)
+                    {
+                        isoViolations++;
+                        IncrementDict(isoIssueTypes, $"DISC mismatch: {catName} expects {expectedDisc}");
+                    }
                 }
 
                 // Check TAG_2-6 containers
@@ -112,19 +146,20 @@ namespace StingTools.Tags
                 }
                 containersEmpty += emptyContainers;
 
-                // Is fully valid = TAG_1 complete + all tokens filled + containers populated
-                if (tag1Status == "VALID" && emptyTokenCount == 0 && emptyContainers == 0)
+                // Fully valid = TAG_1 complete + all tokens filled + containers populated + ISO valid
+                int elementIsoErrors = ISO19650Validator.ValidateElement(el).Count;
+                if (tag1Status == "VALID" && emptyTokenCount == 0 && emptyContainers == 0 && elementIsoErrors == 0)
                     fullyValid++;
 
                 // CSV row
-                csvRows.Add($"{el.Id},\"{CsvEsc(catName)}\",{tag1Status},{emptyTokenCount},{emptyContainers}," +
+                csvRows.Add($"{el.Id},\"{CsvEsc(catName)}\",{tag1Status},{emptyTokenCount},{emptyContainers},{elementIsoErrors}," +
                     $"\"{CsvEsc(tagValues[0])}\",\"{CsvEsc(tagValues[1])}\",\"{CsvEsc(tagValues[2])}\"," +
                     $"\"{CsvEsc(tagValues[3])}\",\"{CsvEsc(tagValues[4])}\",\"{CsvEsc(tagValues[5])}\"");
             }
 
             // Build report
             var report = new StringBuilder();
-            report.AppendLine("Tag Validation Report");
+            report.AppendLine("Tag Validation Report (ISO 19650)");
             report.AppendLine(new string('═', 50));
             report.AppendLine();
 
@@ -137,9 +172,22 @@ namespace StingTools.Tags
             report.AppendLine($"  TAG_1 compliance: {tag1Pct:F1}%");
 
             report.AppendLine();
-            report.AppendLine("── Full Compliance (all tokens + containers) ──");
+            report.AppendLine("── ISO 19650 Code Validation ──");
+            report.AppendLine($"  Token violations: {isoViolations}");
+            if (isoIssueTypes.Count > 0)
+            {
+                foreach (var kvp in isoIssueTypes.OrderByDescending(x => x.Value).Take(10))
+                    report.AppendLine($"    {kvp.Key}: {kvp.Value}x");
+            }
+            else
+            {
+                report.AppendLine("    All codes conform to ISO 19650");
+            }
+
+            report.AppendLine();
+            report.AppendLine("── Full Compliance (tokens + containers + ISO) ──");
             double fullPct = total > 0 ? fullyValid * 100.0 / total : 0;
-            report.AppendLine($"  Fully complete:   {fullyValid}/{total} ({fullPct:F1}%)");
+            report.AppendLine($"  Fully compliant:  {fullyValid}/{total} ({fullPct:F1}%)");
             report.AppendLine($"  Empty tokens:     {tokensMissing}");
             report.AppendLine($"  Empty containers: {containersEmpty} (TAG_2-6)");
 
@@ -157,7 +205,7 @@ namespace StingTools.Tags
             if (issuesByCategory.Count > 0)
             {
                 report.AppendLine();
-                report.AppendLine("── TAG_1 Issues by Category ──");
+                report.AppendLine("── Issues by Category ──");
                 foreach (var kvp in issuesByCategory.OrderByDescending(x => x.Value).Take(15))
                     report.AppendLine($"  {kvp.Key,-25} {kvp.Value} issues");
             }
@@ -178,8 +226,8 @@ namespace StingTools.Tags
                 StingLog.Warn($"Validation CSV export: {ex.Message}");
             }
 
-            TaskDialog td = new TaskDialog("Validate Tags");
-            td.MainInstruction = $"TAG_1: {tag1Pct:F1}% | Full: {fullPct:F1}% ({fullyValid}/{total})";
+            TaskDialog td = new TaskDialog("Validate Tags (ISO 19650)");
+            td.MainInstruction = $"TAG_1: {tag1Pct:F1}% | ISO: {fullPct:F1}% | Violations: {isoViolations}";
             td.MainContent = report.ToString();
             td.Show();
 

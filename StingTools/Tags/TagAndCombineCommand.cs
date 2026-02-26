@@ -271,7 +271,7 @@ namespace StingTools.Tags
                         foreach (var (param, tokens) in universalContainers)
                         {
                             var parts = tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
-                            string assembled = string.Join("-", parts);
+                            string assembled = string.Join(TagConfig.Separator, parts);
                             if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
                                 combined++;
                         }
@@ -281,7 +281,7 @@ namespace StingTools.Tags
                         {
                             if (!categories.Contains(catName)) continue;
                             var parts = tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
-                            string assembled = string.Join("-", parts);
+                            string assembled = string.Join(TagConfig.Separator, parts);
                             if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
                                 combined++;
                         }

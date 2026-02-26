@@ -14,6 +14,7 @@ namespace StingTools.Tags
     /// Assembles: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ → ASS_TAG_1_TXT.
     /// Uses TagConfig.BuildAndWriteTag for shared tag-building logic.
     /// Continues sequence numbering from the highest existing numbers in the project.
+    /// Includes spatial auto-detection for LOC/ZONE and collision mode selection.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -32,22 +33,82 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
-            var collector = new FilteredElementCollector(doc, activeView.Id)
-                .WhereElementIsNotElementType();
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var viewElements = new FilteredElementCollector(doc, activeView.Id)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            // Count taggable and already-tagged
+            int taggable = 0, alreadyTagged = 0;
+            foreach (Element e in viewElements)
+            {
+                string cat = ParameterHelpers.GetCategoryName(e);
+                if (!known.Contains(cat)) continue;
+                taggable++;
+                if (TagConfig.TagIsComplete(ParameterHelpers.GetString(e, "ASS_TAG_1_TXT")))
+                    alreadyTagged++;
+            }
+
+            // Collision mode dialog if any already tagged
+            TagCollisionMode collisionMode = TagCollisionMode.Skip;
+            if (alreadyTagged > 0)
+            {
+                TaskDialog modeDlg = new TaskDialog("Auto Tag — Collision Mode");
+                modeDlg.MainInstruction = $"{taggable} taggable elements, {alreadyTagged} already tagged";
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Skip existing tags (default)",
+                    "Only tag untagged elements in this view");
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Overwrite all",
+                    "Re-derive and overwrite all tags including existing ones");
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "Auto-increment on collision",
+                    "Tag untagged; auto-increment SEQ if collision found");
+                modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                switch (modeDlg.Show())
+                {
+                    case TaskDialogResult.CommandLink1: collisionMode = TagCollisionMode.Skip; break;
+                    case TaskDialogResult.CommandLink2: collisionMode = TagCollisionMode.Overwrite; break;
+                    case TaskDialogResult.CommandLink3: collisionMode = TagCollisionMode.AutoIncrement; break;
+                    default: return Result.Cancelled;
+                }
+            }
 
             int tagged = 0;
             int skipped = 0;
+            int populated = 0;
             var sequenceCounters = TagConfig.GetExistingSequenceCounters(doc);
             var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
 
             using (Transaction tx = new Transaction(doc, "STING Auto Tag"))
             {
                 tx.Start();
 
-                foreach (Element el in collector)
+                foreach (Element el in viewElements)
                 {
+                    string catName = ParameterHelpers.GetCategoryName(el);
+                    if (!known.Contains(catName)) continue;
+
+                    // Pre-populate LOC/ZONE from spatial data before tagging
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                    {
+                        string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc)) populated++;
+                    }
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
+                    {
+                        string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                        if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone)) populated++;
+                    }
+
+                    bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
                     if (TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                        existingTags: tagIndex))
+                        skipComplete: skipComplete,
+                        existingTags: tagIndex,
+                        collisionMode: collisionMode))
                         tagged++;
                     else
                         skipped++;
@@ -56,10 +117,12 @@ namespace StingTools.Tags
                 tx.Commit();
             }
 
-            TaskDialog.Show("Auto Tag",
-                $"Tagged {tagged} elements in '{activeView.Name}'.\n" +
-                $"Skipped {skipped} (already tagged or unsupported category).");
+            string report = $"Tagged {tagged} elements in '{activeView.Name}'.\n" +
+                $"Skipped {skipped} (already tagged or unsupported category).";
+            if (populated > 0)
+                report += $"\nAuto-populated {populated} LOC/ZONE values from spatial data.";
 
+            TaskDialog.Show("Auto Tag", report);
             return Result.Succeeded;
         }
     }

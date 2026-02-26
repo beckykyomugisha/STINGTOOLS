@@ -8,6 +8,174 @@ using Newtonsoft.Json;
 namespace StingTools.Core
 {
     /// <summary>
+    /// Controls how tag collisions (duplicate tags) are handled during tagging operations.
+    /// </summary>
+    public enum TagCollisionMode
+    {
+        /// <summary>Auto-increment SEQ until a unique tag is found (default).</summary>
+        AutoIncrement,
+        /// <summary>Skip elements that already have a complete tag — do not modify.</summary>
+        Skip,
+        /// <summary>Overwrite existing tags with newly generated values.</summary>
+        Overwrite,
+    }
+
+    /// <summary>
+    /// ISO 19650 naming and coding validation. Enforces that all token values
+    /// conform to the allowed code lists defined in the tag configuration.
+    /// </summary>
+    public static class ISO19650Validator
+    {
+        /// <summary>Valid discipline codes per ISO 19650.</summary>
+        public static readonly HashSet<string> ValidDiscCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "M", "E", "P", "A", "S", "FP", "LV", "G", "XX"
+        };
+
+        /// <summary>Valid system codes.</summary>
+        public static readonly HashSet<string> ValidSysCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "HVAC", "HWS", "DHW", "FP", "LV", "FLS", "COM", "ICT", "NCL", "SEC",
+            "ARC", "STR", "GEN", ""
+        };
+
+        /// <summary>Valid function codes.</summary>
+        public static readonly HashSet<string> ValidFuncCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "SUP", "HTG", "SAN", "FP", "PWR", "FLS", "COM", "ICT", "NCL", "SEC",
+            "FIT", "STR", "GEN", ""
+        };
+
+        /// <summary>
+        /// Validate a single token value against its allowed code list.
+        /// Returns null if valid, or an error message string if invalid.
+        /// </summary>
+        public static string ValidateToken(string tokenName, string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return $"{tokenName}: empty value";
+
+            switch (tokenName)
+            {
+                case "ASS_DISCIPLINE_COD_TXT":
+                    if (!ValidDiscCodes.Contains(value))
+                        return $"DISC '{value}' not in valid set ({string.Join(",", ValidDiscCodes)})";
+                    break;
+                case "ASS_LOC_TXT":
+                    if (!TagConfig.LocCodes.Contains(value))
+                        return $"LOC '{value}' not in valid set ({string.Join(",", TagConfig.LocCodes)})";
+                    break;
+                case "ASS_ZONE_TXT":
+                    if (!TagConfig.ZoneCodes.Contains(value))
+                        return $"ZONE '{value}' not in valid set ({string.Join(",", TagConfig.ZoneCodes)})";
+                    break;
+                case "ASS_SYSTEM_TYPE_TXT":
+                    if (!ValidSysCodes.Contains(value))
+                        return $"SYS '{value}' not in valid set ({string.Join(",", ValidSysCodes)})";
+                    break;
+                case "ASS_FUNC_TXT":
+                    if (!ValidFuncCodes.Contains(value))
+                        return $"FUNC '{value}' not in valid set ({string.Join(",", ValidFuncCodes)})";
+                    break;
+                case "ASS_LVL_COD_TXT":
+                    // LVL codes: L01-L99, GF, B1-B9, RF, XX, or up to 4 uppercase chars
+                    if (value.Length > 4 || value.Contains(" "))
+                        return $"LVL '{value}' exceeds 4-char limit or contains spaces";
+                    break;
+                case "ASS_PRODCT_COD_TXT":
+                    // PROD codes: 2-4 uppercase alphanumeric
+                    if (value.Length < 2 || value.Length > 4)
+                        return $"PROD '{value}' should be 2-4 characters";
+                    break;
+                case "ASS_SEQ_NUM_TXT":
+                    if (!int.TryParse(value, out _))
+                        return $"SEQ '{value}' is not a valid number";
+                    break;
+            }
+            return null; // valid
+        }
+
+        /// <summary>
+        /// Validate all 8 tokens on an element. Returns a list of validation errors
+        /// (empty list = fully valid).
+        /// </summary>
+        public static List<string> ValidateElement(Element el)
+        {
+            var errors = new List<string>();
+            string[] tokenParams = new[]
+            {
+                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+            };
+
+            foreach (string param in tokenParams)
+            {
+                string val = ParameterHelpers.GetString(el, param);
+                string error = ValidateToken(param, val);
+                if (error != null)
+                    errors.Add(error);
+            }
+
+            // Cross-validate: DISC must match element category
+            string catName = ParameterHelpers.GetCategoryName(el);
+            string disc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
+            if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(disc))
+            {
+                string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : null;
+                if (expectedDisc != null && expectedDisc != disc)
+                    errors.Add($"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'");
+            }
+
+            // Cross-validate: SYS should match category
+            string sys = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
+            if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(sys))
+            {
+                string expectedSys = TagConfig.GetSysCode(catName);
+                if (!string.IsNullOrEmpty(expectedSys) && expectedSys != sys)
+                    errors.Add($"SYS mismatch: category '{catName}' expects '{expectedSys}' but has '{sys}'");
+            }
+
+            return errors;
+        }
+
+        /// <summary>
+        /// Validate the format of a complete assembled tag string.
+        /// Returns null if valid, or an error description.
+        /// </summary>
+        public static string ValidateTagFormat(string tag)
+        {
+            if (string.IsNullOrEmpty(tag))
+                return "Tag is empty";
+
+            string[] parts = tag.Split('-');
+            if (parts.Length != 8)
+                return $"Tag has {parts.Length} segments (expected 8): {tag}";
+
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(parts[i]))
+                    return $"Segment {i + 1} is empty in tag: {tag}";
+            }
+
+            // Validate individual segments
+            string discError = ValidateToken("ASS_DISCIPLINE_COD_TXT", parts[0]);
+            if (discError != null) return discError;
+
+            string locError = ValidateToken("ASS_LOC_TXT", parts[1]);
+            if (locError != null) return locError;
+
+            string zoneError = ValidateToken("ASS_ZONE_TXT", parts[2]);
+            if (zoneError != null) return zoneError;
+
+            string seqError = ValidateToken("ASS_SEQ_NUM_TXT", parts[7]);
+            if (seqError != null) return seqError;
+
+            return null; // valid
+        }
+    }
+
+    /// <summary>
     /// Ported from tag_config.py — project-level ISO 19650 token lookup tables.
     /// Loads from project_config.json; falls back to built-in defaults that mirror
     /// Sheet 02-TAG-FAMILY-CONFIG from the STINGTOOLS template workbook.
@@ -211,31 +379,51 @@ namespace StingTools.Core
         /// checks (legacy behaviour). Build once per batch via <see cref="BuildExistingTagIndex"/>.
         /// New tags are added to this set automatically so subsequent calls stay current.
         /// </param>
+        /// <param name="collisionMode">
+        /// Controls how existing/duplicate tags are handled:
+        /// AutoIncrement (default) = auto-increment SEQ on collision;
+        /// Skip = skip already-tagged elements entirely;
+        /// Overwrite = overwrite all tokens with fresh values.
+        /// </param>
         /// <returns>True if the element was tagged, false if skipped.</returns>
         public static bool BuildAndWriteTag(Document doc, Element el,
             Dictionary<string, int> sequenceCounters, bool skipComplete = true,
-            HashSet<string> existingTags = null)
+            HashSet<string> existingTags = null,
+            TagCollisionMode collisionMode = TagCollisionMode.AutoIncrement)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName) || !DiscMap.ContainsKey(catName))
                 return false;
 
-            if (skipComplete)
+            // Handle already-tagged elements based on collision mode
+            string existingTag = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
+            bool hasCompleteTag = TagIsComplete(existingTag);
+
+            if (hasCompleteTag)
             {
-                string existing = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
-                if (TagIsComplete(existing))
-                    return false;
+                switch (collisionMode)
+                {
+                    case TagCollisionMode.Skip:
+                        return false; // Never touch existing complete tags
+                    case TagCollisionMode.AutoIncrement:
+                        if (skipComplete) return false; // Default: skip complete tags
+                        break;
+                    case TagCollisionMode.Overwrite:
+                        break; // Proceed to overwrite
+                }
             }
+
+            bool overwriteTokens = (collisionMode == TagCollisionMode.Overwrite);
 
             string disc = DiscMap.TryGetValue(catName, out string d) ? d : "XX";
             string loc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
-            if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+            if (string.IsNullOrEmpty(loc) || overwriteTokens) loc = string.IsNullOrEmpty(loc) ? "BLD1" : loc;
             string zone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
-            if (string.IsNullOrEmpty(zone)) zone = "Z01";
+            if (string.IsNullOrEmpty(zone) || overwriteTokens) zone = string.IsNullOrEmpty(zone) ? "Z01" : zone;
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
             string sys = GetSysCode(catName);
             string func = GetFuncCode(sys);
-            string prod = ProdMap.TryGetValue(catName, out string p) ? p : "GEN";
+            string prod = GetFamilyAwareProdCode(el, catName);
 
             string seqKey = $"{disc}_{sys}_{lvl}";
             if (!sequenceCounters.ContainsKey(seqKey))
@@ -255,17 +443,34 @@ namespace StingTools.Core
                     seq = sequenceCounters[seqKey].ToString().PadLeft(NumPad, '0');
                     tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
                 }
+                // Remove old tag from index if overwriting
+                if (overwriteTokens && !string.IsNullOrEmpty(existingTag))
+                    existingTags.Remove(existingTag);
                 existingTags.Add(tag);
             }
 
-            ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc);
-            ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc);
-            ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone);
-            ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl);
-            ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys);
-            ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func);
-            ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod);
-            ParameterHelpers.SetIfEmpty(el, "ASS_SEQ_NUM_TXT", seq);
+            if (overwriteTokens)
+            {
+                ParameterHelpers.SetString(el, "ASS_DISCIPLINE_COD_TXT", disc, overwrite: true);
+                ParameterHelpers.SetString(el, "ASS_LOC_TXT", loc, overwrite: true);
+                ParameterHelpers.SetString(el, "ASS_ZONE_TXT", zone, overwrite: true);
+                ParameterHelpers.SetString(el, "ASS_LVL_COD_TXT", lvl, overwrite: true);
+                ParameterHelpers.SetString(el, "ASS_SYSTEM_TYPE_TXT", sys, overwrite: true);
+                ParameterHelpers.SetString(el, "ASS_FUNC_TXT", func, overwrite: true);
+                ParameterHelpers.SetString(el, "ASS_PRODCT_COD_TXT", prod, overwrite: true);
+                ParameterHelpers.SetString(el, "ASS_SEQ_NUM_TXT", seq, overwrite: true);
+            }
+            else
+            {
+                ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc);
+                ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc);
+                ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone);
+                ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl);
+                ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys);
+                ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func);
+                ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod);
+                ParameterHelpers.SetIfEmpty(el, "ASS_SEQ_NUM_TXT", seq);
+            }
             ParameterHelpers.SetString(el, "ASS_TAG_1_TXT", tag, overwrite: true);
             return true;
         }

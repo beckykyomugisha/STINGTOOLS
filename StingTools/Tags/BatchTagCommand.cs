@@ -30,16 +30,37 @@ namespace StingTools.Tags
                 .ToList();
             int totalElements = allElements.Count;
 
-            TaskDialog confirm = new TaskDialog("Batch Tag");
-            confirm.MainInstruction = "Batch tag entire project?";
-            confirm.MainContent =
-                $"This will apply ISO 19650 tags to all untagged elements " +
-                $"across the entire model.\n\n" +
-                $"  Elements to process: {totalElements:N0}\n\n" +
-                $"This may take a while for large projects.";
-            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (confirm.Show() == TaskDialogResult.Cancel)
-                return Result.Cancelled;
+            // Step 1: Choose collision handling mode
+            TaskDialog modeDlg = new TaskDialog("Batch Tag — Collision Mode");
+            modeDlg.MainInstruction = $"Batch tag {totalElements:N0} elements — choose collision handling:";
+            modeDlg.MainContent =
+                "When an element already has a complete tag, how should it be handled?";
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Skip existing (default)",
+                "Only tag untagged elements. Already-tagged elements are left unchanged.");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Overwrite all",
+                "Re-derive and overwrite ALL tag tokens, even on already-tagged elements.");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Auto-increment on collision",
+                "Tag untagged elements; if a generated tag collides with an existing one, auto-increment SEQ.");
+            modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            TagCollisionMode collisionMode;
+            switch (modeDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1:
+                    collisionMode = TagCollisionMode.Skip;
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    collisionMode = TagCollisionMode.Overwrite;
+                    break;
+                case TaskDialogResult.CommandLink3:
+                    collisionMode = TagCollisionMode.AutoIncrement;
+                    break;
+                default:
+                    return Result.Cancelled;
+            }
 
             int tagged = 0;
             int skipped = 0;
@@ -48,7 +69,13 @@ namespace StingTools.Tags
             int indexBefore = tagIndex.Count;
             var sw = Stopwatch.StartNew();
 
-            StingLog.Info($"Batch Tag: starting — {totalElements} elements to process");
+            // Pre-build spatial index for LOC/ZONE auto-detection
+            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            int populated = 0;
+
+            StingLog.Info($"Batch Tag: starting — {totalElements} elements to process, mode={collisionMode}");
 
             using (Transaction tx = new Transaction(doc, "STING Batch Tag"))
             {
@@ -57,8 +84,28 @@ namespace StingTools.Tags
                 int processed = 0;
                 foreach (Element el in allElements)
                 {
+                    string catName = ParameterHelpers.GetCategoryName(el);
+
+                    // Pre-populate LOC/ZONE from spatial data before tagging
+                    if (known.Contains(catName))
+                    {
+                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                        {
+                            string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc)) populated++;
+                        }
+                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
+                        {
+                            string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone)) populated++;
+                        }
+                    }
+
+                    bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
                     if (TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                        existingTags: tagIndex))
+                        skipComplete: skipComplete,
+                        existingTags: tagIndex,
+                        collisionMode: collisionMode))
                         tagged++;
                     else
                         skipped++;
@@ -79,6 +126,8 @@ namespace StingTools.Tags
                 $"  Tagged:     {tagged:N0}\n" +
                 $"  Skipped:    {skipped:N0}\n" +
                 $"  Total:      {totalElements:N0}\n" +
+                $"  LOC/ZONE:   {populated} auto-populated\n" +
+                $"  Mode:       {collisionMode}\n" +
                 $"  Duration:   {sw.Elapsed.TotalSeconds:F1}s";
             if (collisionsResolved > 0)
                 report += $"\n  Collisions: {collisionsResolved} resolved (SEQ auto-incremented)";
