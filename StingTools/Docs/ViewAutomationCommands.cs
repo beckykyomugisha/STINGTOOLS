@@ -481,8 +481,6 @@ namespace StingTools.Docs
 
             TaskDialog dlg = new TaskDialog("Auto-Place Viewports");
             dlg.MainInstruction = $"Place views on '{sheet.Name}'";
-            int maxPerSheet = 4; // Safe default
-
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 $"Place first {Math.Min(4, unplacedViews.Count)} views (2×2 grid)",
                 "4 viewports in a 2-column, 2-row grid");
@@ -663,7 +661,6 @@ namespace StingTools.Docs
 
             double padX = (maxX - minX) * padFactor;
             double padY = (maxY - minY) * padFactor;
-            double padZ = (maxZ - minZ) * padFactor;
             if (padX < 1.0) padX = 1.0; // Minimum 1 foot padding
             if (padY < 1.0) padY = 1.0;
 
@@ -676,13 +673,15 @@ namespace StingTools.Docs
                 view.CropBoxVisible = true;
 
                 BoundingBoxXYZ cropBox = view.CropBox;
-                XYZ newMin = new XYZ(minX - padX, minY - padY, cropBox.Min.Z);
-                XYZ newMax = new XYZ(maxX + padX, maxY + padY, cropBox.Max.Z);
+                Transform inverse = cropBox.Transform.Inverse;
 
-                cropBox.Min = cropBox.Transform.Inverse.OfPoint(
-                    new XYZ(minX - padX, minY - padY, cropBox.Min.Z));
-                cropBox.Max = cropBox.Transform.Inverse.OfPoint(
-                    new XYZ(maxX + padX, maxY + padY, cropBox.Max.Z));
+                // Transform element extents from model coords to view coords
+                XYZ viewMin = inverse.OfPoint(new XYZ(minX - padX, minY - padY, minZ));
+                XYZ viewMax = inverse.OfPoint(new XYZ(maxX + padX, maxY + padY, maxZ));
+
+                // CropBox min/max must be in view-local coordinates
+                cropBox.Min = new XYZ(viewMin.X, viewMin.Y, cropBox.Min.Z);
+                cropBox.Max = new XYZ(viewMax.X, viewMax.Y, cropBox.Max.Z);
 
                 view.CropBox = cropBox;
                 tx.Commit();

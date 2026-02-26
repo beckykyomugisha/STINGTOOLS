@@ -832,7 +832,7 @@ namespace StingTools.Select
                     {
                         // Create filter rule
                         var rule = ParameterFilterRuleFactory.CreateEqualsRule(
-                            paramElem.Id, kvp.Key, false);
+                            paramElem.Id, kvp.Key);
                         var filter = ParameterFilterElement.Create(
                             doc, filterName, categories,
                             new ElementParameterFilter(rule));

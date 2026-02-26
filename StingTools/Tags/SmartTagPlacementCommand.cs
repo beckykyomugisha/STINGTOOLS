@@ -177,7 +177,7 @@ namespace StingTools.Tags
                         return tagType;
                     }
                 }
-                catch { /* skip invalid tag types */ }
+                catch (Exception ex) { StingLog.Warn($"FindTagType: {ex.Message}"); }
             }
 
             return null;
@@ -207,20 +207,11 @@ namespace StingTools.Tags
             {
                 try
                 {
-                    // Use GetTaggedLocalElements for Revit 2022+
-                    var refs = tag.GetTaggedLocalElements();
-                    foreach (var elem in refs)
-                        taggedIds.Add(elem.Id);
-                }
-                catch
-                {
-                    // Fallback for older API
-#pragma warning disable CS0618
-                    var id = tag.TaggedLocalElementId;
-#pragma warning restore CS0618
+                    ElementId id = tag.TaggedLocalElementId;
                     if (id != ElementId.InvalidElementId)
                         taggedIds.Add(id);
                 }
+                catch { /* skip tags with no host */ }
             }
 
             // Collect taggable elements
@@ -245,6 +236,9 @@ namespace StingTools.Tags
                     occupied.Add(Box2D.FromBoundingBox(bb));
             }
 
+            // Cache tag types per category for Revit 2025+ Create overload
+            var tagTypeCache = new Dictionary<ElementId, ElementId>();
+
             double offset = GetModelOffset(view);
             // Estimated tag dimensions (in model units)
             double tagWidth = offset * 3.0;
@@ -254,6 +248,21 @@ namespace StingTools.Tags
             {
                 XYZ center = GetElementCenter(elem, view);
                 if (center.IsAlmostEqualTo(XYZ.Zero))
+                {
+                    skipped++;
+                    continue;
+                }
+
+                // Find tag type for this element's category
+                ElementId catId = elem.Category.Id;
+                if (!tagTypeCache.TryGetValue(catId, out ElementId tagTypeId))
+                {
+                    FamilySymbol tagType = FindTagType(doc, elem.Category);
+                    tagTypeId = tagType?.Id ?? ElementId.InvalidElementId;
+                    tagTypeCache[catId] = tagTypeId;
+                }
+
+                if (tagTypeId == ElementId.InvalidElementId)
                 {
                     skipped++;
                     continue;
@@ -307,9 +316,9 @@ namespace StingTools.Tags
                     var reference = new Reference(elem);
                     bool useLeader = addLeaders || needsLeader;
 
+                    // Revit 2025+ Create: (doc, tagTypeId, viewId, ref, leader, orientation, pos)
                     IndependentTag tag = IndependentTag.Create(
-                        doc, view.Id, reference, useLeader,
-                        TagMode.TM_ADDBY_CATEGORY,
+                        doc, tagTypeId, view.Id, reference, useLeader,
                         TagOrientation.Horizontal,
                         bestPos);
 
@@ -447,10 +456,28 @@ namespace StingTools.Tags
                 using (Transaction tx = new Transaction(doc, "STING Smart Place Tags (Selected)"))
                 {
                     tx.Start();
+                    // Cache tag types per category
+                    var tagTypeCache = new Dictionary<ElementId, ElementId>();
+
                     foreach (ElementId id in selectedIds)
                     {
                         Element elem = doc.GetElement(id);
                         if (elem?.Category == null)
+                        {
+                            skipped++;
+                            continue;
+                        }
+
+                        // Find tag type for this category
+                        ElementId catId = elem.Category.Id;
+                        if (!tagTypeCache.TryGetValue(catId, out ElementId tagTypeId))
+                        {
+                            FamilySymbol tagType = TagPlacementEngine.FindTagType(doc, elem.Category);
+                            tagTypeId = tagType?.Id ?? ElementId.InvalidElementId;
+                            tagTypeCache[catId] = tagTypeId;
+                        }
+
+                        if (tagTypeId == ElementId.InvalidElementId)
                         {
                             skipped++;
                             continue;
@@ -476,9 +503,9 @@ namespace StingTools.Tags
 
                         try
                         {
+                            // Revit 2025+ Create: (doc, tagTypeId, viewId, ref, leader, orientation, pos)
                             var tag = IndependentTag.Create(
-                                doc, view.Id, new Reference(elem), addLeaders,
-                                TagMode.TM_ADDBY_CATEGORY,
+                                doc, tagTypeId, view.Id, new Reference(elem), addLeaders,
                                 TagOrientation.Horizontal, bestPos);
 
                             if (tag != null)
@@ -489,7 +516,11 @@ namespace StingTools.Tags
                                 placed++;
                             }
                         }
-                        catch { skipped++; }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Tag placement for {elem.Id}: {ex.Message}");
+                            skipped++;
+                        }
                     }
                     tx.Commit();
                 }
@@ -594,18 +625,7 @@ namespace StingTools.Tags
                     XYZ hostCenter = null;
                     try
                     {
-                        var hostElems = tag.GetTaggedLocalElements();
-                        if (hostElems.Any())
-                        {
-                            Element host = hostElems.First();
-                            hostCenter = TagPlacementEngine.GetElementCenter(host, view);
-                        }
-                    }
-                    catch
-                    {
-#pragma warning disable CS0618
-                        var hostId = tag.TaggedLocalElementId;
-#pragma warning restore CS0618
+                        ElementId hostId = tag.TaggedLocalElementId;
                         if (hostId != ElementId.InvalidElementId)
                         {
                             Element host = doc.GetElement(hostId);
@@ -613,6 +633,7 @@ namespace StingTools.Tags
                                 hostCenter = TagPlacementEngine.GetElementCenter(host, view);
                         }
                     }
+                    catch { /* skip tags with no host */ }
 
                     if (hostCenter == null || hostCenter.IsAlmostEqualTo(XYZ.Zero))
                     {

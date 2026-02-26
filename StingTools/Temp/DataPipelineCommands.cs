@@ -96,8 +96,9 @@ namespace StingTools.Temp
             // Export to CSV
             try
             {
+                string dir = Path.GetDirectoryName(doc.PathName);
                 string csvPath = Path.Combine(
-                    Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath(),
+                    string.IsNullOrEmpty(dir) ? Path.GetTempPath() : dir,
                     $"STING_Validation_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 var csvLines = new List<string> { "Check,Severity,Status,Detail" };
                 foreach (var r in results)
@@ -460,7 +461,7 @@ namespace StingTools.Temp
                         sharedParams += grp.Definitions.Size;
                 }
             }
-            catch { /* may fail if no shared param file set */ }
+            catch (Exception ex) { StingLog.Warn($"OpenSharedParameterFile: {ex.Message}"); }
 
             results.Add(new ValidationResult("Shared params loaded", "MODERATE",
                 sharedParams >= 50,
