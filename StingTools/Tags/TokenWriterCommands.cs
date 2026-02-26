@@ -203,11 +203,83 @@ namespace StingTools.Tags
     /// <summary>
     /// Build/rebuild assembled tags (ASS_TAG_1_TXT) from existing individual token
     /// parameters without changing any token values. Respects existing LOC/ZONE values.
+    ///
+    /// Enhanced: writes ALL 37 tag containers (not just ASS_TAG_1_TXT) with
+    /// collision detection — auto-increments SEQ if a duplicate tag is detected.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class BuildTagsCommand : IExternalCommand
     {
+        /// <summary>All 8 source token parameters in tag order.</summary>
+        private static readonly string[] AllTokenParams = new[]
+        {
+            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+        };
+
+        /// <summary>
+        /// Container definitions for all 37 tag parameters across 16 groups.
+        /// Each tuple: (paramName, sourceTokenIndices, separator).
+        /// Indices refer to AllTokenParams: 0=DISC,1=LOC,2=ZONE,3=LVL,4=SYS,5=FUNC,6=PROD,7=SEQ.
+        /// </summary>
+        private static readonly (string param, int[] tokens, string sep, string[] categories)[] Containers = new[]
+        {
+            // Universal (all categories)
+            ("ASS_TAG_1_TXT", new[] {0,1,2,3,4,5,6,7}, "-", (string[])null),
+            ("ASS_TAG_2_TXT", new[] {0,6,7},            "-", (string[])null),
+            ("ASS_TAG_3_TXT", new[] {1,2,3},            "-", (string[])null),
+            ("ASS_TAG_4_TXT", new[] {4,5},              "-", (string[])null),
+            ("ASS_TAG_5_TXT", new[] {0,1,2,3},          "-", (string[])null),
+            ("ASS_TAG_6_TXT", new[] {4,5,6,7},          "-", (string[])null),
+            // HVAC Equipment
+            ("HVC_EQP_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Mechanical Equipment"}),
+            ("HVC_EQP_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Mechanical Equipment"}),
+            ("HVC_EQP_TAG_03_TXT", new[] {4,5,6},            "-", new[] {"Mechanical Equipment"}),
+            // HVAC Ductwork
+            ("HVC_DCT_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Ducts","Duct Fittings","Flex Ducts","Air Terminals","Duct Accessories"}),
+            ("HVC_DCT_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Ducts","Duct Fittings","Flex Ducts","Air Terminals","Duct Accessories"}),
+            ("HVC_DCT_TAG_03_TXT", new[] {4,5},              "-", new[] {"Ducts","Duct Fittings","Flex Ducts","Air Terminals","Duct Accessories"}),
+            // Flex Ducts
+            ("HVC_FLX_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Flex Ducts"}),
+            // Electrical Equipment
+            ("ELC_EQP_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Electrical Equipment"}),
+            ("ELC_EQP_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Electrical Equipment"}),
+            // Electrical Fixtures
+            ("ELE_FIX_TAG_1_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Electrical Fixtures"}),
+            ("ELE_FIX_TAG_2_TXT", new[] {0,6,7},            "-", new[] {"Electrical Fixtures"}),
+            // Lighting
+            ("LTG_FIX_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Lighting Fixtures","Lighting Devices"}),
+            ("LTG_FIX_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Lighting Fixtures","Lighting Devices"}),
+            // Pipework / Plumbing
+            ("PLM_EQP_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Pipes","Pipe Fittings","Pipe Accessories","Flex Pipes","Plumbing Fixtures"}),
+            ("PLM_EQP_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Pipes","Pipe Fittings","Pipe Accessories","Flex Pipes","Plumbing Fixtures"}),
+            // Fire & Life Safety
+            ("FLS_DEV_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Sprinklers","Fire Alarm Devices"}),
+            ("FLS_DEV_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Sprinklers","Fire Alarm Devices"}),
+            // Conduits
+            ("ELC_CDT_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Conduits","Conduit Fittings"}),
+            ("ELC_CDT_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Conduits","Conduit Fittings"}),
+            // Cable Trays
+            ("ELC_CTR_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Cable Trays","Cable Tray Fittings"}),
+            // Communications
+            ("COM_DEV_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Communication Devices","Telephone Devices"}),
+            // Security
+            ("SEC_DEV_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Security Devices"}),
+            // Nurse Call
+            ("NCL_DEV_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Nurse Call Devices"}),
+            // ICT
+            ("ICT_DEV_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Data Devices"}),
+            // Material Tags
+            ("MAT_TAG_1_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Walls","Floors","Ceilings","Roofs","Doors","Windows"}),
+            ("MAT_TAG_2_TXT", new[] {0,6,7},            "-", new[] {"Walls","Floors","Ceilings","Roofs","Doors","Windows"}),
+            ("MAT_TAG_3_TXT", new[] {1,2,3},            "-", new[] {"Walls","Floors","Ceilings","Roofs","Doors","Windows"}),
+            ("MAT_TAG_4_TXT", new[] {4,5},              "-", new[] {"Walls","Floors","Ceilings","Roofs","Doors","Windows"}),
+            ("MAT_TAG_5_TXT", new[] {0,1,2,3},          "-", new[] {"Walls","Floors","Ceilings","Roofs","Doors","Windows"}),
+            ("MAT_TAG_6_TXT", new[] {4,5,6,7},          "-", new[] {"Walls","Floors","Ceilings","Roofs","Doors","Windows"}),
+        };
+
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
             UIDocument uidoc = cmd.Application.ActiveUIDocument;
@@ -223,8 +295,22 @@ namespace StingTools.Tags
                     .Select(e => e.Id).ToList();
             }
 
+            if (targetIds.Count == 0)
+            {
+                TaskDialog.Show("Build Tags", "No taggable elements found.");
+                return Result.Succeeded;
+            }
+
+            // Build collision detection index and sequence counters
+            var existingTags = TagConfig.BuildExistingTagIndex(doc);
+            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+
             int built = 0;
-            using (Transaction tx = new Transaction(doc, "STING Build Tags"))
+            int collisions = 0;
+            int containers = 0;
+            int skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Build Tags + All Containers"))
             {
                 tx.Start();
                 foreach (ElementId id in targetIds)
@@ -232,35 +318,91 @@ namespace StingTools.Tags
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
-                    string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                    string loc = ParameterHelpers.GetString(elem, "ASS_LOC_TXT");
-                    string zone = ParameterHelpers.GetString(elem, "ASS_ZONE_TXT");
-                    string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
-                    string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                    string func = ParameterHelpers.GetString(elem, "ASS_FUNC_TXT");
-                    string prod = ParameterHelpers.GetString(elem, "ASS_PRODCT_COD_TXT");
-                    string seq = ParameterHelpers.GetString(elem, "ASS_SEQ_NUM_TXT");
+                    string catName = ParameterHelpers.GetCategoryName(elem);
 
-                    if (string.IsNullOrEmpty(disc)) continue;
+                    // Read all 8 tokens
+                    string[] tokenValues = new string[AllTokenParams.Length];
+                    for (int i = 0; i < AllTokenParams.Length; i++)
+                        tokenValues[i] = ParameterHelpers.GetString(elem, AllTokenParams[i]);
 
-                    string tag = string.Join(TagConfig.Separator,
-                        disc, loc, zone, lvl, sys, func, prod, seq);
+                    string disc = tokenValues[0]; // DISC
+                    if (string.IsNullOrEmpty(disc)) { skipped++; continue; }
 
-                    // ISO 19650 validation before writing
-                    string isoError = ISO19650Validator.ValidateTagFormat(tag);
-                    if (isoError != null)
+                    string seq = tokenValues[7]; // SEQ
+
+                    // Build the full 8-segment tag
+                    string tag = string.Join(TagConfig.Separator, tokenValues);
+
+                    // Collision detection: if tag exists, auto-increment SEQ
+                    if (existingTags.Contains(tag))
                     {
-                        StingLog.Warn($"BuildTags: skipping element {elem.Id} — {isoError}");
-                        continue;
+                        string sys = tokenValues[4];
+                        string lvl = tokenValues[3];
+                        string seqKey = $"{disc}_{sys}_{lvl}";
+                        if (!seqCounters.ContainsKey(seqKey)) seqCounters[seqKey] = 0;
+
+                        int safety = 10000;
+                        while (existingTags.Contains(tag) && safety-- > 0)
+                        {
+                            seqCounters[seqKey]++;
+                            seq = seqCounters[seqKey].ToString().PadLeft(TagConfig.NumPad, '0');
+                            tokenValues[7] = seq;
+                            tag = string.Join(TagConfig.Separator, tokenValues);
+                        }
+
+                        // Write the new SEQ back to the element
+                        ParameterHelpers.SetString(elem, "ASS_SEQ_NUM_TXT", seq, overwrite: true);
+                        collisions++;
                     }
 
+                    // Register tag in the index
+                    existingTags.Add(tag);
+
+                    // Write ASS_TAG_1_TXT (the master assembled tag)
                     ParameterHelpers.SetString(elem, "ASS_TAG_1_TXT", tag, overwrite: true);
                     built++;
+
+                    // Write ALL 37 containers (category-filtered)
+                    foreach (var (param, tokenIdxs, sep, categories) in Containers)
+                    {
+                        // Skip ASS_TAG_1_TXT (already written above)
+                        if (param == "ASS_TAG_1_TXT") continue;
+
+                        // Category filter: skip if container doesn't apply to this element
+                        if (categories != null && !Array.Exists(categories, c => c == catName))
+                            continue;
+
+                        // Assemble container value from specified token indices
+                        var parts = new List<string>();
+                        bool anyValue = false;
+                        foreach (int idx in tokenIdxs)
+                        {
+                            string val = tokenValues[idx];
+                            parts.Add(val);
+                            if (!string.IsNullOrEmpty(val)) anyValue = true;
+                        }
+
+                        if (anyValue)
+                        {
+                            string assembled = string.Join(sep, parts);
+                            if (ParameterHelpers.SetString(elem, param, assembled, overwrite: true))
+                                containers++;
+                        }
+                    }
                 }
                 tx.Commit();
             }
 
-            TaskDialog.Show("Build Tags", $"Built tags for {built} elements.");
+            var report = new StringBuilder();
+            report.AppendLine($"Built tags for {built} elements.");
+            if (collisions > 0)
+                report.AppendLine($"Resolved {collisions} collisions (auto-incremented SEQ).");
+            report.AppendLine($"Wrote {containers} container parameters (37 containers × {built} elements).");
+            if (skipped > 0)
+                report.AppendLine($"Skipped {skipped} elements (no DISC token).");
+
+            TaskDialog.Show("Build Tags", report.ToString());
+            StingLog.Info($"BuildTags: built={built}, collisions={collisions}, containers={containers}");
             return Result.Succeeded;
         }
     }

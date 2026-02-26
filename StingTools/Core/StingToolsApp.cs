@@ -420,6 +420,29 @@ namespace StingTools.Core
                     "Select tags with or without leaders in active view");
             }
 
+            // Appearance pulldown — tag/leader color management
+            var appearOps = panel.AddItem(
+                new PulldownButtonData("grpAppearance", "Appearance")) as PulldownButton;
+            if (appearOps != null)
+            {
+                appearOps.LongDescription = "Tag text and leader color management";
+                AddPulldownItem(appearOps, "btnColorByDisc", "Color by Discipline",
+                    asmPath, typeof(Organise.ColorTagsByDisciplineCommand).FullName,
+                    "Color annotation tags by discipline (M=Blue, E=Gold, P=Green, etc.)");
+                AddPulldownItem(appearOps, "btnSetTextColor", "Set Text Color",
+                    asmPath, typeof(Organise.SetTagTextColorCommand).FullName,
+                    "Set tag text color (Red, Blue, Black, Green)");
+                AddPulldownItem(appearOps, "btnSetLeaderColor", "Set Leader Color",
+                    asmPath, typeof(Organise.SetLeaderColorCommand).FullName,
+                    "Set leader line color (only tags WITH leaders)");
+                AddPulldownItem(appearOps, "btnSplitColor", "Split Text/Leader Color",
+                    asmPath, typeof(Organise.SplitTagLeaderColorCommand).FullName,
+                    "Set different colors for text tags vs leader tags in one step");
+                AddPulldownItem(appearOps, "btnClearAnnotColors", "Clear Tag Colors",
+                    asmPath, typeof(Organise.ClearAnnotationColorsCommand).FullName,
+                    "Reset all annotation tag color overrides to default");
+            }
+
             // Analysis pulldown
             var analysisOps = panel.AddItem(
                 new PulldownButtonData("grpAnalysis", "Analysis")) as PulldownButton;
