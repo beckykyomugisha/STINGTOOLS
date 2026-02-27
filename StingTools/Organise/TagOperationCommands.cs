@@ -780,6 +780,474 @@ namespace StingTools.Organise
         }
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // Tag & Leader Appearance Commands
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Shared helper for annotation tag/leader color operations.
+    /// </summary>
+    internal static class AnnotationColorHelper
+    {
+        /// <summary>Discipline → Color mapping for annotation tags.</summary>
+        public static readonly Dictionary<string, Color> DisciplineColors =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "M", new Color(0, 128, 255) },       // Blue
+            { "E", new Color(255, 180, 0) },        // Gold
+            { "P", new Color(0, 180, 0) },           // Green
+            { "A", new Color(120, 120, 120) },       // Grey
+            { "S", new Color(200, 0, 0) },           // Red
+            { "FP", new Color(255, 100, 0) },        // Orange
+            { "LV", new Color(160, 0, 200) },        // Purple
+            { "G", new Color(128, 80, 0) },          // Brown
+        };
+
+        /// <summary>Named quick-pick colors.</summary>
+        public static readonly (string name, Color color)[] QuickColors = new[]
+        {
+            ("Red", new Color(220, 20, 20)),
+            ("Blue", new Color(0, 100, 220)),
+            ("Green", new Color(0, 160, 0)),
+            ("Black", new Color(0, 0, 0)),
+            ("Orange", new Color(255, 140, 0)),
+            ("Purple", new Color(140, 0, 200)),
+            ("Grey", new Color(128, 128, 128)),
+            ("Cyan", new Color(0, 180, 200)),
+        };
+
+        /// <summary>Find the solid fill pattern (needed for surface overrides).</summary>
+        public static FillPatternElement FindSolidFill(Document doc)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement))
+                    .Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Build override settings for annotation coloring.</summary>
+        public static OverrideGraphicSettings BuildAnnotationOverride(
+            Color lineColor, int lineWeight = -1)
+        {
+            var ogs = new OverrideGraphicSettings();
+            ogs.SetProjectionLineColor(lineColor);
+            if (lineWeight > 0) ogs.SetProjectionLineWeight(lineWeight);
+            return ogs;
+        }
+
+        /// <summary>
+        /// Get annotation tags from selection or all in view.
+        /// Returns (tags, isFromSelection).
+        /// </summary>
+        public static (List<IndependentTag> tags, bool fromSelection)
+            GetTargetTags(UIDocument uidoc)
+        {
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var selIds = uidoc.Selection.GetElementIds();
+            if (selIds.Count > 0)
+            {
+                var tags = selIds
+                    .Select(id => doc.GetElement(id))
+                    .OfType<IndependentTag>()
+                    .ToList();
+                if (tags.Count > 0) return (tags, true);
+            }
+
+            var allTags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+            return (allTags, false);
+        }
+
+        /// <summary>Get the discipline code from the element that a tag hosts.</summary>
+        public static string GetTagDiscipline(IndependentTag tag, Document doc)
+        {
+            try
+            {
+                var hostIds = tag.GetTaggedLocalElementIds();
+                if (hostIds.Count == 0) return null;
+                Element host = doc.GetElement(hostIds.First());
+                if (host == null) return null;
+                return ParameterHelpers.GetString(host, "ASS_DISCIPLINE_COD_TXT");
+            }
+            catch { return null; }
+        }
+    }
+
+    /// <summary>
+    /// Color annotation tag text and leaders by discipline (M=Blue, E=Gold, P=Green, etc.).
+    /// Applies per-element graphic overrides to IndependentTag annotation elements.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ColorTagsByDisciplineCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (tags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Color Tags", "No annotation tags found in view or selection.");
+                return Result.Succeeded;
+            }
+
+            int colored = 0;
+            var discCounts = new Dictionary<string, int>();
+
+            using (Transaction tx = new Transaction(doc, "STING Color Tags by Discipline"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    string disc = AnnotationColorHelper.GetTagDiscipline(tag, doc);
+                    if (string.IsNullOrEmpty(disc)) continue;
+
+                    if (AnnotationColorHelper.DisciplineColors.TryGetValue(disc, out Color col))
+                    {
+                        var ogs = AnnotationColorHelper.BuildAnnotationOverride(col, 2);
+                        view.SetElementOverrides(tag.Id, ogs);
+                        colored++;
+
+                        if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
+                        discCounts[disc]++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Colored {colored} of {tags.Count} annotation tags by discipline:");
+            foreach (var kvp in discCounts.OrderByDescending(x => x.Value))
+            {
+                var c = AnnotationColorHelper.DisciplineColors[kvp.Key];
+                report.AppendLine($"  {kvp.Key}: {kvp.Value} tags (RGB {c.Red},{c.Green},{c.Blue})");
+            }
+
+            TaskDialog.Show("Color Tags by Discipline", report.ToString());
+            StingLog.Info($"ColorTagsByDiscipline: colored={colored}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Set tag text color: applies a chosen color to tag annotation elements.
+    /// User picks from quick color options.
+    /// In Revit, the projection line color controls tag text rendering.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetTagTextColorCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (tags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Tag Text Color", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Filter to tags WITHOUT leaders (text-only tags)
+            var textOnlyTags = tags.Where(t =>
+            {
+                try { return !t.HasLeader; } catch { return true; }
+            }).ToList();
+
+            TaskDialog dlg = new TaskDialog("Set Tag Text Color");
+            dlg.MainInstruction = $"Choose color for {tags.Count} tags ({textOnlyTags.Count} without leaders):";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Red", "RGB 220,20,20 — for QA/checking");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Blue", "RGB 0,100,220 — for MEP tags");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Black", "RGB 0,0,0 — standard/print");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Green", "RGB 0,160,0 — for approved/verified");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            Color chosen;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: chosen = new Color(220, 20, 20); break;
+                case TaskDialogResult.CommandLink2: chosen = new Color(0, 100, 220); break;
+                case TaskDialogResult.CommandLink3: chosen = new Color(0, 0, 0); break;
+                case TaskDialogResult.CommandLink4: chosen = new Color(0, 160, 0); break;
+                default: return Result.Cancelled;
+            }
+
+            int colored = 0;
+            var ogs = AnnotationColorHelper.BuildAnnotationOverride(chosen, -1);
+
+            using (Transaction tx = new Transaction(doc, "STING Set Tag Text Color"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        view.SetElementOverrides(tag.Id, ogs);
+                        colored++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Tag Text Color",
+                $"Applied color (RGB {chosen.Red},{chosen.Green},{chosen.Blue}) to {colored} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Set leader line color: applies a chosen color to tags WITH leaders only.
+    /// Tags without leaders are unaffected, giving the visual effect of separate
+    /// text vs leader colors.
+    ///
+    /// Workflow for different text/leader colors:
+    ///   1. Use 'Set Tag Text Color' to color ALL tags (text + any leaders)
+    ///   2. Use 'Set Leader Color' to override color on leader-bearing tags only
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetLeaderColorCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (allTags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            var leaderTags = allTags.Where(t =>
+            {
+                try { return t.HasLeader; } catch { return false; }
+            }).ToList();
+
+            if (leaderTags.Count == 0)
+            {
+                TaskDialog.Show("Leader Color", "No tags with leaders found.");
+                return Result.Succeeded;
+            }
+
+            TaskDialog dlg = new TaskDialog("Set Leader Color");
+            dlg.MainInstruction = $"Choose leader color for {leaderTags.Count} tags with leaders:";
+            dlg.MainContent =
+                "This overrides the color of tags WITH leaders only.\n" +
+                "Tags without leaders keep their current color.\n\n" +
+                "Tip: Set text color first, then leader color for different colors.";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Grey", "RGB 128,128,128 — subtle leaders");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Red", "RGB 220,20,20 — highlight leaders");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Blue", "RGB 0,100,220 — standard leaders");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Black", "RGB 0,0,0 — print-ready leaders");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            Color chosen;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: chosen = new Color(128, 128, 128); break;
+                case TaskDialogResult.CommandLink2: chosen = new Color(220, 20, 20); break;
+                case TaskDialogResult.CommandLink3: chosen = new Color(0, 100, 220); break;
+                case TaskDialogResult.CommandLink4: chosen = new Color(0, 0, 0); break;
+                default: return Result.Cancelled;
+            }
+
+            int colored = 0;
+            var ogs = AnnotationColorHelper.BuildAnnotationOverride(chosen, -1);
+
+            using (Transaction tx = new Transaction(doc, "STING Set Leader Color"))
+            {
+                tx.Start();
+                foreach (var tag in leaderTags)
+                {
+                    try
+                    {
+                        view.SetElementOverrides(tag.Id, ogs);
+                        colored++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Leader Color",
+                $"Applied color (RGB {chosen.Red},{chosen.Green},{chosen.Blue}) to {colored} leader tags.\n" +
+                $"{allTags.Count - leaderTags.Count} tags without leaders unaffected.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Split color: apply one color to tag text (tags without leaders) and a different
+    /// color to leader-bearing tags. Quick two-step color application in one command.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SplitTagLeaderColorCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (allTags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (allTags.Count == 0)
+            {
+                TaskDialog.Show("Split Color", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            var withLeaders = new List<IndependentTag>();
+            var withoutLeaders = new List<IndependentTag>();
+            foreach (var tag in allTags)
+            {
+                try
+                {
+                    if (tag.HasLeader) withLeaders.Add(tag);
+                    else withoutLeaders.Add(tag);
+                }
+                catch { withoutLeaders.Add(tag); }
+            }
+
+            // Step 1: Pick text color
+            TaskDialog textDlg = new TaskDialog("Split Color — Step 1: Text Tags");
+            textDlg.MainInstruction = $"Color for {withoutLeaders.Count} tags WITHOUT leaders (text only):";
+            textDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Black", "RGB 0,0,0");
+            textDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Blue", "RGB 0,100,220");
+            textDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Red", "RGB 220,20,20");
+            textDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Green", "RGB 0,160,0");
+            textDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            Color textColor;
+            switch (textDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: textColor = new Color(0, 0, 0); break;
+                case TaskDialogResult.CommandLink2: textColor = new Color(0, 100, 220); break;
+                case TaskDialogResult.CommandLink3: textColor = new Color(220, 20, 20); break;
+                case TaskDialogResult.CommandLink4: textColor = new Color(0, 160, 0); break;
+                default: return Result.Cancelled;
+            }
+
+            // Step 2: Pick leader color
+            TaskDialog leaderDlg = new TaskDialog("Split Color — Step 2: Leader Tags");
+            leaderDlg.MainInstruction = $"Color for {withLeaders.Count} tags WITH leaders:";
+            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Grey", "RGB 128,128,128");
+            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Red", "RGB 220,20,20");
+            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Orange", "RGB 255,140,0");
+            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Cyan", "RGB 0,180,200");
+            leaderDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            Color leaderColor;
+            switch (leaderDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: leaderColor = new Color(128, 128, 128); break;
+                case TaskDialogResult.CommandLink2: leaderColor = new Color(220, 20, 20); break;
+                case TaskDialogResult.CommandLink3: leaderColor = new Color(255, 140, 0); break;
+                case TaskDialogResult.CommandLink4: leaderColor = new Color(0, 180, 200); break;
+                default: return Result.Cancelled;
+            }
+
+            var textOgs = AnnotationColorHelper.BuildAnnotationOverride(textColor, -1);
+            var leaderOgs = AnnotationColorHelper.BuildAnnotationOverride(leaderColor, -1);
+
+            int textColored = 0, leaderColored = 0;
+            using (Transaction tx = new Transaction(doc, "STING Split Tag/Leader Color"))
+            {
+                tx.Start();
+                foreach (var tag in withoutLeaders)
+                {
+                    try { view.SetElementOverrides(tag.Id, textOgs); textColored++; }
+                    catch { }
+                }
+                foreach (var tag in withLeaders)
+                {
+                    try { view.SetElementOverrides(tag.Id, leaderOgs); leaderColored++; }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Split Color",
+                $"Text tags (no leader): {textColored} colored " +
+                $"(RGB {textColor.Red},{textColor.Green},{textColor.Blue})\n" +
+                $"Leader tags: {leaderColored} colored " +
+                $"(RGB {leaderColor.Red},{leaderColor.Green},{leaderColor.Blue})");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Clear annotation tag overrides: reset tag text and leader colors to default.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ClearAnnotationColorsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (tags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Clear Colors", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            int cleared = 0;
+            var blank = new OverrideGraphicSettings();
+
+            using (Transaction tx = new Transaction(doc, "STING Clear Annotation Colors"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try { view.SetElementOverrides(tag.Id, blank); cleared++; }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Clear Colors",
+                $"Reset color overrides on {cleared} annotation tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // Statistics / Analysis
+    // ══════════════════════════════════════════════════════════════════
+
     /// <summary>
     /// Quick tag statistics for the active view — shows counts per discipline,
     /// system, level, and overall tag/untag ratio.
@@ -1418,7 +1886,8 @@ namespace StingTools.Organise
                     try
                     {
                         // Get the tagged element's location
-                        Element host = doc.GetElement(tag.TaggedLocalElementId);
+                        var _hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
                         if (host == null) continue;
 
                         XYZ center = LeaderHelper.GetElementCenter(host);
@@ -1666,7 +2135,8 @@ namespace StingTools.Organise
                     try
                     {
                         // Get tagged element center and tag head
-                        Element host = doc.GetElement(tag.TaggedLocalElementId);
+                        var _hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
                         if (host == null) continue;
 
                         XYZ hostCenter = LeaderHelper.GetElementCenter(host);
@@ -1781,7 +2251,8 @@ namespace StingTools.Organise
                 {
                     try
                     {
-                        Element host = doc.GetElement(tag.TaggedLocalElementId);
+                        var _hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
                         if (host == null) continue;
 
                         XYZ center = LeaderHelper.GetElementCenter(host);

@@ -590,8 +590,7 @@ namespace StingTools.Temp
 
                     try
                     {
-                        ElementId newId = baseView.CreateViewTemplate();
-                        View template = doc.GetElement(newId) as View;
+                        View template = baseView.CreateViewTemplate();
                         if (template != null)
                         {
                             template.Name = name;
