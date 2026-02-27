@@ -993,3 +993,60 @@ PARAM	f7c5538a-ea59-50c2-aa89-ff3e9a12f2a6	RGL_SETBACK_FRONT_M	LENGTH		15	1	Rgl 
 PARAM	9664b607-3ba6-5767-b5a5-817543440fd8	RGL_SETBACK_FRONT_MIN_M	LENGTH		15	1	Rgl Setback Front Min M [ISO 19650-1:2018]	1	0
 PARAM	e82820c5-b079-5870-9d54-ba05d2f405f7	RGL_TOTAL_FLOOR_AREA_SQ_M	AREA		15	1	Rgl Total Floor Area Sq M [ISO 19650-1:2018]	1	0
 PARAM	da35e856-3514-55f8-b002-6aadce4df5c7	RGL_WINDOW_AREA_SQ_M	AREA		15	1	Rgl Window Area Sq M [ISO 19650-1:2018]	1	0
+PARAM	eb10bd67-7b0f-5eb1-8461-235dcbe469d4	PS_AMBIENT_SHADOWS_BOOL	YESNO		8	1	Ps Ambient Shadows Bool [Presentation Style]	1	0
+PARAM	57c01355-fcde-5d21-a3d3-28d11454c3cc	PS_BACKGROUND_TYPE_TXT	TEXT		8	1	Ps Background Type Txt [Presentation Style]	1	0
+PARAM	2de8fb85-6939-58f3-8bee-faa1118905b3	PS_BEST_FOR_TXT	TEXT		8	1	Ps Best For Txt [Presentation Style]	1	0
+PARAM	6ef42159-c1ae-5218-9497-77b8ac854151	PS_MOOD_TXT	TEXT		8	1	Ps Mood Txt [Presentation Style]	1	0
+PARAM	bec0b29b-9d94-5406-8de1-ca588be6443c	PS_SHADOWS_BOOL	YESNO		8	1	Ps Shadows Bool [Presentation Style]	1	0
+PARAM	f42904fc-daf3-57af-954a-e76e7fb9fd18	PS_SILHOUETTES_BOOL	YESNO		8	1	Ps Silhouettes Bool [Presentation Style]	1	0
+PARAM	7b152ba9-8d87-5b61-bd00-be7c0f639743	PS_SKETCHY_LINES_BOOL	YESNO		8	1	Ps Sketchy Lines Bool [Presentation Style]	1	0
+PARAM	3b40231f-81b9-5480-9f7c-8edcdf024f23	PS_STYLE_CATEGORY_TXT	TEXT		8	1	Ps Style Category Txt [Presentation Style]	1	0
+PARAM	a3f8a353-cfa5-5fb4-9597-c33d5ffc8649	PS_STYLE_NAME_TXT	TEXT		8	1	Ps Style Name Txt [Presentation Style]	1	0
+PARAM	74eee741-6091-5171-96f0-d807ffbd31a9	PS_VIEW_TYPE_TXT	TEXT		8	1	Ps View Type Txt [Presentation Style]	1	0
+PARAM	e8ae8e23-0429-5a78-a230-a9f201ba600b	PS_VISUAL_STYLE_TXT	TEXT		8	1	Ps Visual Style Txt [Presentation Style]	1	0
+PARAM	87989564-bceb-5857-aef5-6e0cd9b00e64	PT_BACKGROUND_B_INT	INTEGER		8	1	Pt Background B Int [Presentation Template]	1	0
+PARAM	7f9977f6-88a1-57cc-b121-7fa17af6484e	PT_BACKGROUND_G_INT	INTEGER		8	1	Pt Background G Int [Presentation Template]	1	0
+PARAM	2c8358b2-bb5d-5a01-a82d-3bcdef7911bc	PT_BACKGROUND_R_INT	INTEGER		8	1	Pt Background R Int [Presentation Template]	1	0
+PARAM	e6042c85-f2c4-5ebc-bf1c-136ccbecce45	PT_DETAIL_LEVEL_TXT	TEXT		8	1	Pt Detail Level Txt [Presentation Template]	1	0
+PARAM	69c64190-1b78-5e89-9229-355bf5590422	PT_PURPOSE_TXT	TEXT		8	1	Pt Purpose Txt [Presentation Template]	1	0
+PARAM	ab8fbb42-d37e-57db-a90f-12a8fdfaff9c	PT_SCALE_TXT	TEXT		8	1	Pt Scale Txt [Presentation Template]	1	0
+PARAM	be1fd100-da51-59bc-a7f9-c92c3d00a126	PT_SHADOWS_BOOL	YESNO		8	1	Pt Shadows Bool [Presentation Template]	1	0
+PARAM	73fd205e-c854-595d-8fb5-af7b672ccddc	PT_STYLE_REFERENCE_TXT	TEXT		8	1	Pt Style Reference Txt [Presentation Template]	1	0
+PARAM	4fa94248-14da-56fc-8a19-0efe493739e6	PT_TEMPLATE_NAME_TXT	TEXT		8	1	Pt Template Name Txt [Presentation Template]	1	0
+PARAM	95b01292-bcd1-5e5b-b5c6-bb77cb86a2b9	PT_VG_SCHEME_TXT	TEXT		8	1	Pt Vg Scheme Txt [Presentation Template]	1	0
+PARAM	cdf82d91-f737-5266-8f78-e5640a771ca2	PT_VIEW_TYPE_TXT	TEXT		8	1	Pt View Type Txt [Presentation Template]	1	0
+PARAM	0daedf92-0281-5ed4-b7eb-f92d7ac7606b	PT_VISUAL_STYLE_TXT	TEXT		8	1	Pt Visual Style Txt [Presentation Template]	1	0
+PARAM	7ef9dc92-493d-5ba2-a0d1-b3a38f70605d	VGO_CATEGORY_TXT	TEXT		8	1	Vgo Category Txt [VG Override]	1	0
+PARAM	5d9f630b-bf3b-5f82-a01c-499bedcd7505	VGO_CUT_COLOR_B_INT	INTEGER		8	1	Vgo Cut Color B Int [VG Override]	1	0
+PARAM	9ec13206-3412-5ed2-bfed-52edc0536752	VGO_CUT_COLOR_G_INT	INTEGER		8	1	Vgo Cut Color G Int [VG Override]	1	0
+PARAM	8958a7fd-3cab-5d1d-8abc-f15766dddf49	VGO_CUT_COLOR_R_INT	INTEGER		8	1	Vgo Cut Color R Int [VG Override]	1	0
+PARAM	75eaa518-48a9-56c3-9e54-973e2921c1a9	VGO_CUT_WEIGHT_INT	INTEGER		8	1	Vgo Cut Weight Int [VG Override]	1	0
+PARAM	9ece36ca-43a8-5de1-a18e-c3cf232b49e9	VGO_HALFTONE_BOOL	YESNO		8	1	Vgo Halftone Bool [VG Override]	1	0
+PARAM	5ee1bac7-74e7-5e03-8417-3d0da51ab376	VGO_PROJ_COLOR_B_INT	INTEGER		8	1	Vgo Proj Color B Int [VG Override]	1	0
+PARAM	7924acb5-a2c5-5f52-a46e-e1254d0a2d52	VGO_PROJ_COLOR_G_INT	INTEGER		8	1	Vgo Proj Color G Int [VG Override]	1	0
+PARAM	cba67958-8e28-54c1-a9d6-fb31f824c582	VGO_PROJ_COLOR_R_INT	INTEGER		8	1	Vgo Proj Color R Int [VG Override]	1	0
+PARAM	eb1ef217-8103-5aea-b702-cc8795793692	VGO_PROJ_WEIGHT_INT	INTEGER		8	1	Vgo Proj Weight Int [VG Override]	1	0
+PARAM	061e95b1-ef09-57b8-a42d-5095546a1a3f	VGO_SCHEME_NAME_TXT	TEXT		8	1	Vgo Scheme Name Txt [VG Override]	1	0
+PARAM	243e2d09-7523-5729-a54b-0da0fae3e2ee	VGO_SURFACE_COLOR_B_INT	INTEGER		8	1	Vgo Surface Color B Int [VG Override]	1	0
+PARAM	14f750c6-b13c-5b2a-80b1-064a62e83952	VGO_SURFACE_COLOR_G_INT	INTEGER		8	1	Vgo Surface Color G Int [VG Override]	1	0
+PARAM	eb2d9cba-e82c-53e8-bf3e-ab4d91ca09f2	VGO_SURFACE_COLOR_R_INT	INTEGER		8	1	Vgo Surface Color R Int [VG Override]	1	0
+PARAM	356c76b1-685c-50f8-9040-fed91002d947	VGO_SURFACE_PATTERN_TXT	TEXT		8	1	Vgo Surface Pattern Txt [VG Override]	1	0
+PARAM	3cc87843-ba22-52e9-96b7-6c18e52378c2	VGO_TRANSPARENCY_NR	NUMBER		8	1	Vgo Transparency Nr [VG Override]	1	0
+PARAM	6ba067b0-ac14-5487-a31d-8ba7d832c0ce	VGO_VISIBLE_BOOL	YESNO		8	1	Vgo Visible Bool [VG Override]	1	0
+PARAM	10acbbc5-6a58-5fc8-95b9-55b88d525cd7	VGPS_CATEGORY_TXT	TEXT		8	1	Vgps Category Txt [VG Per-Sheet]	1	0
+PARAM	671fcf8c-b1b0-5959-8364-0f150f29115a	VGPS_CUT_COLOR_B_INT	INTEGER		8	1	Vgps Cut Color B Int [VG Per-Sheet]	1	0
+PARAM	6a30c0e6-8d4b-5f45-aa2f-52cdee31bb39	VGPS_CUT_COLOR_G_INT	INTEGER		8	1	Vgps Cut Color G Int [VG Per-Sheet]	1	0
+PARAM	1654a942-3c6e-5fe4-bfff-b5da08220e54	VGPS_CUT_COLOR_R_INT	INTEGER		8	1	Vgps Cut Color R Int [VG Per-Sheet]	1	0
+PARAM	1556ee6a-e0f3-5d62-a0f8-3aaf47f0ab0d	VGPS_CUT_WEIGHT_INT	INTEGER		8	1	Vgps Cut Weight Int [VG Per-Sheet]	1	0
+PARAM	64f3154b-8c25-56fb-ac5b-5f0e4a3686be	VGPS_HALFTONE_BOOL	YESNO		8	1	Vgps Halftone Bool [VG Per-Sheet]	1	0
+PARAM	61670bac-ef00-5e1a-93d5-7a90fe700213	VGPS_PROJ_COLOR_B_INT	INTEGER		8	1	Vgps Proj Color B Int [VG Per-Sheet]	1	0
+PARAM	e1c78fc1-95e5-55d0-9b0b-b71f13d811f4	VGPS_PROJ_COLOR_G_INT	INTEGER		8	1	Vgps Proj Color G Int [VG Per-Sheet]	1	0
+PARAM	4130dfdb-ac22-51f6-b7d1-cb5db02bb104	VGPS_PROJ_COLOR_R_INT	INTEGER		8	1	Vgps Proj Color R Int [VG Per-Sheet]	1	0
+PARAM	bd73ea00-3c38-530e-8b0e-b45fe8ba4a04	VGPS_PROJ_WEIGHT_INT	INTEGER		8	1	Vgps Proj Weight Int [VG Per-Sheet]	1	0
+PARAM	cef5f740-eadd-5283-a53b-5dbc6fd6f5cb	VGPS_SCHEME_NAME_TXT	TEXT		8	1	Vgps Scheme Name Txt [VG Per-Sheet]	1	0
+PARAM	ad99c380-48dc-5d0c-8699-1f43be74287d	VGPS_SURFACE_COLOR_B_INT	INTEGER		8	1	Vgps Surface Color B Int [VG Per-Sheet]	1	0
+PARAM	f8449bd9-8a1c-5d47-96c5-695ea9e32347	VGPS_SURFACE_COLOR_G_INT	INTEGER		8	1	Vgps Surface Color G Int [VG Per-Sheet]	1	0
+PARAM	155c8ab9-9b05-5fda-aa79-0f80cc253571	VGPS_SURFACE_COLOR_R_INT	INTEGER		8	1	Vgps Surface Color R Int [VG Per-Sheet]	1	0
+PARAM	eb1fb315-1463-585b-a074-a79397a6fdd3	VGPS_SURFACE_PATTERN_TXT	TEXT		8	1	Vgps Surface Pattern Txt [VG Per-Sheet]	1	0
+PARAM	fd444244-3d16-5f0e-8948-8d0942392bf8	VGPS_TRANSPARENCY_NR	NUMBER		8	1	Vgps Transparency Nr [VG Per-Sheet]	1	0
+PARAM	49171f71-506c-583b-9756-571eaa84c560	VGPS_VISIBLE_BOOL	YESNO		8	1	Vgps Visible Bool [VG Per-Sheet]	1	0

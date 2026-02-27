@@ -20,7 +20,7 @@ namespace StingTools.Tags
     ///   2. Auto-detect ZONE from room name patterns (eliminates SetZone)
     ///   3. Auto-populate tokens (DISC, PROD, SYS, FUNC, LVL) with family-aware PROD
     ///   4. Auto-tag all untagged elements (continues from existing sequence)
-    ///   5. Combine parameters into ALL 37 containers (universal + discipline + MAT)
+    ///   5. Combine parameters into ALL 53 containers (universal + discipline + MAT + FIN + ENV + STR + COMP + PERF + SUST + EQP)
     ///
     /// Scope options:
     ///   - Active view only
@@ -45,7 +45,7 @@ namespace StingTools.Tags
                 "  1. Auto-detect LOC/ZONE from spatial data\n" +
                 "  2. Auto-populate all tokens (DISC, PROD, SYS, FUNC, LVL)\n" +
                 "  3. Tag all untagged elements (continuing from existing numbers)\n" +
-                "  4. Combine tokens into ALL 37 tag containers\n\n" +
+                "  4. Combine tokens into ALL 53 tag containers\n\n" +
                 "Choose scope:";
             scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 "Active View",
@@ -193,6 +193,29 @@ namespace StingTools.Tags
                 ("MAT_TAG_4_TXT", systemTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
                 ("MAT_TAG_5_TXT", line1Tokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
                 ("MAT_TAG_6_TXT", line2Tokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
+                // Finish Tags
+                ("FIN_WALL_TAG_TXT", allTokenParams, new HashSet<string> { "Walls" }),
+                ("FIN_FLR_TAG_TXT", allTokenParams, new HashSet<string> { "Floors" }),
+                ("FIN_CEIL_TAG_TXT", allTokenParams, new HashSet<string> { "Ceilings" }),
+                // Environmental Tags
+                ("ENV_FAC_TAG_TXT", allTokenParams, new HashSet<string> { "Walls", "Curtain Panels" }),
+                ("ENV_WIN_TAG_TXT", allTokenParams, new HashSet<string> { "Windows" }),
+                ("ENV_ROOF_TAG_TXT", allTokenParams, new HashSet<string> { "Roofs" }),
+                // Structural Tags
+                ("STR_CONC_TAG_TXT", allTokenParams, new HashSet<string> { "Structural Columns", "Structural Framing", "Structural Foundations", "Floors" }),
+                ("STR_STEEL_TAG_TXT", allTokenParams, new HashSet<string> { "Structural Columns", "Structural Framing" }),
+                // Composite Material Tags
+                ("COMP_MAT_TAG_1_TXT", allTokenParams, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
+                ("COMP_MAT_TAG_2_TXT", shortIdTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
+                // Material Performance Tags
+                ("MAT_PERF_TAG_1_TXT", allTokenParams, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
+                ("MAT_PERF_TAG_2_TXT", shortIdTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
+                ("MAT_PERF_TAG_3_TXT", locationTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
+                // Sustainability Material Tags
+                ("SUST_MAT_TAG_1_TXT", allTokenParams, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
+                ("SUST_MAT_TAG_2_TXT", shortIdTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
+                // Equipment Tag
+                ("ASS_EQUIPMENT_TAG_TXT", allTokenParams, new HashSet<string> { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Specialty Equipment" }),
             };
 
             using (Transaction tx = new Transaction(doc, "STING Tag & Combine All"))
