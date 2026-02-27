@@ -8,11 +8,10 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **38 C# source files** + 1 XAML file (~19,600 lines of code) across 8 directories
+- **40 source files** (39 C# + 1 XAML, ~19,600 lines of code) across 8 directories
 - **121 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider`
 - **15 runtime data files** (CSV, JSON, TXT, XLSX, PY)
-- **1 WPF dockable panel** (4-tab UI — primary interface, replaces ribbon panels)
-- **5 legacy ribbon panels** with 21+ pulldown groups (retained for compatibility)
+- **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel
 
 ## Technology Stack
 
@@ -83,7 +82,7 @@ STINGTOOLS/
     ├── Temp/                           # Template commands (10 files, 42 commands)
     │   ├── CreateParametersCommand.cs  # Delegates to LoadSharedParams
     │   ├── CheckDataCommand.cs         # Data file inventory with SHA-256
-    │   ├── MasterSetupCommand.cs       # One-click full project setup (10 steps)
+    │   ├── MasterSetupCommand.cs       # One-click full project setup (15 steps)
     │   ├── MaterialCommands.cs         # BLE + MEP material creation + MaterialPropertyHelper
     │   ├── FamilyCommands.cs           # Wall/Floor/Ceiling/Roof/Duct/Pipe types + CompoundTypeCreator
     │   ├── ScheduleCommands.cs         # FullAutoPopulate, BatchSchedules, AutoPopulate, ExportCSV + ScheduleHelper
@@ -225,15 +224,21 @@ STINGTOOLS/
 | Tag Statistics | `Organise.TagStatsCommand` | ReadOnly | Quick tag counts by discipline/system/level for active view |
 | Tag Register Export | `Organise.TagRegisterExportCommand` | ReadOnly | Comprehensive asset register export (40+ columns: tags, identity, spatial, MEP, cost, validation) |
 
-### Temp Panel (6 pulldown groups, 42 commands)
+### Temp Panel (7 pulldown groups, 42 commands)
 | Group | Commands | Description |
 |-------|----------|-------------|
-| Setup | Create Parameters, Check Data Files, **Master Setup** | Project setup + one-click automation (10-step workflow) |
+| Setup | Create Parameters, Check Data Files, **Master Setup** | Project setup + one-click automation (15-step workflow) |
 | Materials | Create BLE Materials, Create MEP Materials | Material creation from CSV (815 + 464) |
 | Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes (FamilyCommands.cs), Cable Trays, Conduits (TemplateExtCommands.cs) | Type creation from CSV data (8 commands) |
 | Schedules | **Full Auto-Populate**, Batch Create, Material Takeoffs, Auto-Populate (Tokens Only), Evaluate Formulas, Export CSV | Schedule management + zero-input automation (6 commands) |
-| Templates | Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases | 10 multi-category discipline filters, 32 AEC UK worksets, 23 view templates (with VG config), 10 ISO 128 line patterns, 6 phases |
-| Template Manager | Auto-Assign Templates, Template Audit, Template Diff, Compliance Score, Auto-Fix Template, Sync Template Overrides, Create Fill Patterns, Create Line Styles, Create Object Styles, Create Text Styles, Create Dimension Styles, Create VG Overrides, Batch Add Family Params, Create Template Schedules, Template Setup Wizard, Clone Template, Batch VG Reset | Deep template intelligence engine (17 commands) — auto-assignment, compliance scoring, VG diff, style definitions |
+| Templates | **★ Template Setup Wizard**, Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases | One-click template pipeline + 28 filters, 35 worksets, 23 templates, 10 line patterns, 6 phases (7 commands) |
+| **Template Mgr** | Auto-Assign Templates, Template Audit, Template Diff, Compliance Scores, Auto-Fix Templates, Sync VG Overrides, Apply VG Overrides, Clone Template, Batch VG Reset, Batch Family Params, Template Schedules | 5-layer intelligence template management (11 commands) |
+| **Styles** | Fill Patterns, Line Styles, Object Styles, Text Styles, Dimension Styles | ISO-standard style creation (5 commands) |
+
+### Panel Panel (1 button)
+| Button | Command Class | Transaction | Description |
+|--------|--------------|-------------|-------------|
+| STING Panel | `Core.ToggleDockPanelCommand` | ReadOnly | Show/hide the STING Tools WPF dockable panel |
 
 ## Command Count by File
 

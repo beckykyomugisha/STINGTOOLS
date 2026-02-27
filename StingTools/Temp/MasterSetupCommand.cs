@@ -153,33 +153,33 @@ namespace StingTools.Temp
 
                 // Step 11: Fill patterns + line styles + object styles
                 passed += RunStep(ref stepNum, report, "Create Fill Patterns",
-                    () => new CreateFillPatternsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateFillPatternsCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Create Line Styles",
-                    () => new CreateLineStylesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateLineStylesCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Configure Object Styles",
-                    () => new CreateObjectStylesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateObjectStylesCommand(), commandData, elements));
 
                 // Step 12: Text styles + dimension styles
                 passed += RunStep(ref stepNum, report, "Create Text Styles",
-                    () => new CreateTextStylesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateTextStylesCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Create Dimension Styles",
-                    () => new CreateDimensionStylesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateDimensionStylesCommand(), commandData, elements));
 
                 // Step 13: Apply filters to templates + VG overrides
                 passed += RunStep(ref stepNum, report, "Apply Filters to Templates",
-                    () => new ApplyFiltersToViewsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new ApplyFiltersToViewsCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Apply VG Overrides (5-layer)",
-                    () => new CreateVGOverridesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateVGOverridesCommand(), commandData, elements));
 
                 // Step 14: Batch family parameters from CSV
                 passed += RunStep(ref stepNum, report, "Batch Family Params (CSV-driven)",
-                    () => new BatchAddFamilyParamsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new BatchAddFamilyParamsCommand(), commandData, elements));
 
                 // Step 15: Auto-assign templates + auto-fix
                 passed += RunStep(ref stepNum, report, "Auto-Assign Templates (5-layer)",
-                    () => new AutoAssignTemplatesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Auto-Fix Template Health",
-                    () => new AutoFixTemplateCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new AutoFixTemplateCommand(), commandData, elements));
 
                 failed = stepNum - passed;
                 totalSw.Stop();

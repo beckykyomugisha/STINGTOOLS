@@ -2770,69 +2770,69 @@ namespace StingTools.Temp
                 // Step 1: Fill Patterns
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Fill Patterns (12 ISO)",
-                    () => new CreateFillPatternsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateFillPatternsCommand(), commandData, elements));
 
                 // Step 2: Line Patterns
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Line Patterns (10 ISO 128)",
-                    () => new CreateLinePatternsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateLinePatternsCommand(), commandData, elements));
 
                 // Step 3: Line Styles
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Line Styles (16 discipline+status)",
-                    () => new CreateLineStylesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateLineStylesCommand(), commandData, elements));
 
                 // Step 4: Object Styles
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Object Styles (40 categories)",
-                    () => new CreateObjectStylesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateObjectStylesCommand(), commandData, elements));
 
                 // Step 5: Text Styles
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Text Styles (12 ISO 3098)",
-                    () => new CreateTextStylesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateTextStylesCommand(), commandData, elements));
 
                 // Step 6: Dimension Styles
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Dimension Styles (7 types)",
-                    () => new CreateDimensionStylesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateDimensionStylesCommand(), commandData, elements));
 
                 // Step 7: View Filters
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "View Filters (28+ with param rules)",
-                    () => new CreateFiltersCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateFiltersCommand(), commandData, elements));
 
                 // Step 8: View Templates
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "View Templates (23 with VG)",
-                    () => new ViewTemplatesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new ViewTemplatesCommand(), commandData, elements));
 
                 // Step 9: Apply Filters
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Apply Filters to Templates",
-                    () => new ApplyFiltersToViewsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new ApplyFiltersToViewsCommand(), commandData, elements));
 
                 // Step 10: VG Overrides
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "VG Overrides (5-layer intelligence)",
-                    () => new CreateVGOverridesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateVGOverridesCommand(), commandData, elements));
 
                 // Step 11: Batch Family Parameters
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Batch Family Parameters (CSV-driven)",
-                    () => new BatchAddFamilyParamsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new BatchAddFamilyParamsCommand(), commandData, elements));
 
                 // Step 12: Template Metadata Schedules
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Template Metadata Schedules",
-                    () => new CreateTemplateSchedulesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateTemplateSchedulesCommand(), commandData, elements));
 
                 // Step 13: Worksets
                 if (doc.IsWorkshared)
                 {
                     passed += TemplateManager.RunWizardStep(ref stepNum, report,
                         "Worksets (35 ISO 19650)",
-                        () => new CreateWorksetsCommand().Execute(commandData, ref message, elements));
+                        () => RunCommand(new CreateWorksetsCommand(), commandData, elements));
                 }
                 else
                 {
@@ -2843,12 +2843,12 @@ namespace StingTools.Temp
                 // Step 14: Auto-Assign Templates
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Auto-Assign Templates (5-layer)",
-                    () => new AutoAssignTemplatesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
 
                 // Step 15: Auto-Fix
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Auto-Fix Template Health",
-                    () => new AutoFixTemplateCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new AutoFixTemplateCommand(), commandData, elements));
 
                 int failed = stepNum - passed;
                 totalSw.Stop();
@@ -2893,6 +2893,14 @@ namespace StingTools.Temp
                 $"elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
 
             return passed > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>Execute an IExternalCommand without capturing ref message in a lambda.</summary>
+        private static Result RunCommand(IExternalCommand cmd,
+            ExternalCommandData data, ElementSet elems)
+        {
+            string msg = "";
+            return cmd.Execute(data, ref msg, elems);
         }
     }
 

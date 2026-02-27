@@ -691,7 +691,7 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
-            uidoc.ActiveView.EnableRevealHiddenMode();
+            uidoc.ActiveView.EnableTemporaryViewMode(TemporaryViewMode.RevealHiddenElements);
         }
 
         private static void ViewResetIsolate(UIApplication app)
@@ -765,7 +765,8 @@ namespace StingTools.UI
             {
                 try
                 {
-                    if (selected.Contains(tag.TaggedLocalElementId))
+                    var hostIds2 = tag.GetTaggedLocalElementIds();
+                    if (hostIds2.Any(id => selected.Contains(id)))
                         tagIds.Add(tag.Id);
                 }
                 catch { }
@@ -787,7 +788,7 @@ namespace StingTools.UI
                 var el = uidoc.Document.GetElement(id);
                 if (el is IndependentTag tag)
                 {
-                    try { hostIds.Add(tag.TaggedLocalElementId); }
+                    try { hostIds.AddRange(tag.GetTaggedLocalElementIds()); }
                     catch { }
                 }
             }

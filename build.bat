@@ -10,8 +10,18 @@ REM ── Configuration ──────────────────�
 set "PROJECT=StingTools\StingTools.csproj"
 set "CONFIG=Release"
 
+REM ── Handle clean option ──────────────────────────────────────────
+if /i "%~1"=="clean" (
+    echo Cleaning build output...
+    dotnet clean "%PROJECT%" -c %CONFIG% --verbosity quiet 2>nul
+    if exist "StingTools\bin" rd /s /q "StingTools\bin"
+    if exist "StingTools\obj" rd /s /q "StingTools\obj"
+    echo Clean complete.
+    exit /b 0
+)
+
 REM ── Detect Revit API path ────────────────────────────────────────
-REM Try common install locations, newest first
+REM Try common install locations (2025 preferred)
 if defined RevitApiPath (
     echo Using RevitApiPath from environment: %RevitApiPath%
     goto :build
@@ -97,9 +107,10 @@ if exist "%OUTDIR%\StingTools.dll" (
     echo.
     echo  Deploy to Revit:
     echo    1. Copy StingTools.dll + Newtonsoft.Json.dll + data\ to plugin folder
-    echo    2. Copy StingTools.addin to:
-    echo       %%APPDATA%%\Autodesk\Revit\Addins\2025\
-    echo    3. Restart Revit
+    echo    2. Update Assembly path in StingTools.addin to match plugin folder
+    echo    3. Copy StingTools.addin to your Revit version addins folder:
+    echo       %%APPDATA%%\Autodesk\Revit\Addins\2025\  (or 2026, 2027)
+    echo    4. Restart Revit
     echo.
 ) else (
     echo WARNING: StingTools.dll not found at expected location.
