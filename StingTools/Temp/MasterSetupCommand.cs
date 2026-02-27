@@ -44,9 +44,14 @@ namespace StingTools.Temp
                 "  5.  Create duct/pipe types\n" +
                 "  6.  Batch create schedules (168 definitions)\n" +
                 "  7.  Auto-populate tag tokens\n" +
-                "  8.  Create view filters\n" +
-                "  9.  Create worksets\n" +
-                " 10.  Create view templates\n\n" +
+                "  8.  Create view filters (28+ with parameter rules)\n" +
+                "  9.  Create worksets (35 ISO 19650)\n" +
+                " 10.  Create view templates (23 with VG overrides)\n" +
+                " 11.  Fill patterns, line styles, object styles\n" +
+                " 12.  Text styles, dimension styles\n" +
+                " 13.  Apply filters + VG overrides (5-layer intelligence)\n" +
+                " 14.  Batch family parameters (4,686 from CSV)\n" +
+                " 15.  Auto-assign templates + auto-fix health\n\n" +
                 "All steps are grouped atomically — if critical steps fail,\n" +
                 "you can rollback all changes.\n\n" +
                 "This may take several minutes for a new project.";
@@ -145,6 +150,36 @@ namespace StingTools.Temp
                 // Step 10: Create view templates
                 passed += RunStep(ref stepNum, report, "Create View Templates",
                     () => new ViewTemplatesCommand().Execute(commandData, ref message, elements));
+
+                // Step 11: Fill patterns + line styles + object styles
+                passed += RunStep(ref stepNum, report, "Create Fill Patterns",
+                    () => new CreateFillPatternsCommand().Execute(commandData, ref message, elements));
+                passed += RunStep(ref stepNum, report, "Create Line Styles",
+                    () => new CreateLineStylesCommand().Execute(commandData, ref message, elements));
+                passed += RunStep(ref stepNum, report, "Configure Object Styles",
+                    () => new CreateObjectStylesCommand().Execute(commandData, ref message, elements));
+
+                // Step 12: Text styles + dimension styles
+                passed += RunStep(ref stepNum, report, "Create Text Styles",
+                    () => new CreateTextStylesCommand().Execute(commandData, ref message, elements));
+                passed += RunStep(ref stepNum, report, "Create Dimension Styles",
+                    () => new CreateDimensionStylesCommand().Execute(commandData, ref message, elements));
+
+                // Step 13: Apply filters to templates + VG overrides
+                passed += RunStep(ref stepNum, report, "Apply Filters to Templates",
+                    () => new ApplyFiltersToViewsCommand().Execute(commandData, ref message, elements));
+                passed += RunStep(ref stepNum, report, "Apply VG Overrides (5-layer)",
+                    () => new CreateVGOverridesCommand().Execute(commandData, ref message, elements));
+
+                // Step 14: Batch family parameters from CSV
+                passed += RunStep(ref stepNum, report, "Batch Family Params (CSV-driven)",
+                    () => new BatchAddFamilyParamsCommand().Execute(commandData, ref message, elements));
+
+                // Step 15: Auto-assign templates + auto-fix
+                passed += RunStep(ref stepNum, report, "Auto-Assign Templates (5-layer)",
+                    () => new AutoAssignTemplatesCommand().Execute(commandData, ref message, elements));
+                passed += RunStep(ref stepNum, report, "Auto-Fix Template Health",
+                    () => new AutoFixTemplateCommand().Execute(commandData, ref message, elements));
 
                 failed = stepNum - passed;
                 totalSw.Stop();

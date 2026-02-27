@@ -65,6 +65,69 @@ namespace StingTools.Temp
                 BuiltInCategory.OST_Casework }),  // Medical equipment falls under SpecialityEquipment (above)
         };
 
+        /// <summary>
+        /// All taggable categories — union of all discipline filters.
+        /// Used for parameter-based cross-discipline filters (tag status, QA).
+        /// </summary>
+        private static readonly BuiltInCategory[] AllTaggableCategories = new[]
+        {
+            BuiltInCategory.OST_MechanicalEquipment, BuiltInCategory.OST_DuctCurves,
+            BuiltInCategory.OST_DuctFitting, BuiltInCategory.OST_DuctAccessory,
+            BuiltInCategory.OST_DuctTerminal, BuiltInCategory.OST_FlexDuctCurves,
+            BuiltInCategory.OST_ElectricalEquipment, BuiltInCategory.OST_ElectricalFixtures,
+            BuiltInCategory.OST_LightingFixtures, BuiltInCategory.OST_LightingDevices,
+            BuiltInCategory.OST_PlumbingFixtures, BuiltInCategory.OST_PipeCurves,
+            BuiltInCategory.OST_PipeFitting, BuiltInCategory.OST_PipeAccessory,
+            BuiltInCategory.OST_FlexPipeCurves,
+            BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+            BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs,
+            BuiltInCategory.OST_Doors, BuiltInCategory.OST_Windows,
+            BuiltInCategory.OST_Furniture, BuiltInCategory.OST_FurnitureSystems,
+            BuiltInCategory.OST_Casework, BuiltInCategory.OST_Stairs,
+            BuiltInCategory.OST_Railings, BuiltInCategory.OST_Ramps,
+            BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_StructuralFraming,
+            BuiltInCategory.OST_StructuralFoundation, BuiltInCategory.OST_Columns,
+            BuiltInCategory.OST_Sprinklers, BuiltInCategory.OST_FireAlarmDevices,
+            BuiltInCategory.OST_CommunicationDevices, BuiltInCategory.OST_DataDevices,
+            BuiltInCategory.OST_SecurityDevices, BuiltInCategory.OST_NurseCallDevices,
+            BuiltInCategory.OST_TelephoneDevices,
+            BuiltInCategory.OST_Conduit, BuiltInCategory.OST_ConduitFitting,
+            BuiltInCategory.OST_CableTray, BuiltInCategory.OST_CableTrayFitting,
+            BuiltInCategory.OST_GenericModel, BuiltInCategory.OST_SpecialityEquipment,
+        };
+
+        /// <summary>
+        /// Parameter-based filter definitions for tag-status, discipline-code, QA,
+        /// and element-status checking. Created only if shared parameters are bound.
+        /// Format: (filter name, parameter name, rule type, comparison value).
+        /// Rule types: HasValue, HasNoValue, Equals, Contains.
+        /// </summary>
+        private static readonly (string name, string paramName, string ruleType, string value)[] ParameterFilterDefs = new[]
+        {
+            // Tag status filters
+            ("STING - Tagged Elements", "ASS_TAG_1_TXT", "HasValue", ""),
+            ("STING - Untagged Elements", "ASS_TAG_1_TXT", "HasNoValue", ""),
+            ("STING - Incomplete Tags", "ASS_TAG_1_TXT", "Contains", "-XX-"),
+            // Discipline code filters (parameter-based for precision)
+            ("STING - Disc: Mechanical", "ASS_DISCIPLINE_COD_TXT", "Equals", "M"),
+            ("STING - Disc: Electrical", "ASS_DISCIPLINE_COD_TXT", "Equals", "E"),
+            ("STING - Disc: Plumbing", "ASS_DISCIPLINE_COD_TXT", "Equals", "P"),
+            ("STING - Disc: Architectural", "ASS_DISCIPLINE_COD_TXT", "Equals", "A"),
+            ("STING - Disc: Structural", "ASS_DISCIPLINE_COD_TXT", "Equals", "S"),
+            ("STING - Disc: Fire Protection", "ASS_DISCIPLINE_COD_TXT", "Equals", "FP"),
+            ("STING - Disc: Low Voltage", "ASS_DISCIPLINE_COD_TXT", "Equals", "LV"),
+            // QA / checking filters
+            ("STING - QA: Missing Discipline", "ASS_DISCIPLINE_COD_TXT", "HasNoValue", ""),
+            ("STING - QA: Missing Sequence", "ASS_SEQ_NUM_TXT", "HasNoValue", ""),
+            ("STING - QA: Missing Location", "ASS_LOC_TXT", "HasNoValue", ""),
+            ("STING - QA: Missing System", "ASS_SYSTEM_TYPE_TXT", "HasNoValue", ""),
+            // Element status filters
+            ("STING - Status: Existing", "ASS_STATUS_TXT", "Equals", "EXISTING"),
+            ("STING - Status: New", "ASS_STATUS_TXT", "Equals", "NEW"),
+            ("STING - Status: Demolished", "ASS_STATUS_TXT", "Equals", "DEMOLISHED"),
+            ("STING - Status: Temporary", "ASS_STATUS_TXT", "Equals", "TEMPORARY"),
+        };
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -82,7 +145,7 @@ namespace StingTools.Temp
             {
                 tx.Start();
 
-                // Create multi-category discipline filters
+                // ── Phase 1: Multi-category discipline filters (no parameter rules) ──
                 foreach (var (name, categories) in DisciplineFilters)
                 {
                     if (existingNames.Contains(name))
@@ -116,12 +179,103 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
-            }
+                // ── Phase 2: Parameter-based filters (tag status, QA, discipline codes) ──
+                // Requires shared parameters to be bound; gracefully skip if not available.
+                int paramCreated = 0;
+                int paramSkipped = 0;
 
-            TaskDialog.Show("Create Filters",
-                $"Created {created} view filters.\nSkipped {skipped} (exist or failed).\n" +
-                $"Total defined: {DisciplineFilters.Length}");
+                // Build shared parameter lookup by name
+                var spLookup = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+                foreach (SharedParameterElement sp in new FilteredElementCollector(doc)
+                    .OfClass(typeof(SharedParameterElement))
+                    .Cast<SharedParameterElement>())
+                {
+                    spLookup[sp.Name] = sp.Id;
+                }
+
+                // Build category ID list for parameter-based filters
+                var allCatIds = new List<ElementId>();
+                foreach (var bic in AllTaggableCategories)
+                {
+                    try
+                    {
+                        Category cat = doc.Settings.Categories.get_Item(bic);
+                        if (cat != null) allCatIds.Add(new ElementId(bic));
+                    }
+                    catch { }
+                }
+
+                if (allCatIds.Count > 0 && spLookup.Count > 0)
+                {
+                    foreach (var (name, paramName, ruleType, value) in ParameterFilterDefs)
+                    {
+                        if (existingNames.Contains(name)) { paramSkipped++; continue; }
+
+                        if (!spLookup.TryGetValue(paramName, out ElementId paramId))
+                        {
+                            paramSkipped++;
+                            continue;
+                        }
+
+                        try
+                        {
+                            FilterRule rule = null;
+                            switch (ruleType)
+                            {
+                                case "HasValue":
+                                    rule = ParameterFilterRuleFactory
+                                        .CreateHasValueParameterRule(paramId);
+                                    break;
+                                case "HasNoValue":
+                                    rule = ParameterFilterRuleFactory
+                                        .CreateHasNoValueParameterRule(paramId);
+                                    break;
+                                case "Equals":
+                                    rule = ParameterFilterRuleFactory
+                                        .CreateEqualsRule(paramId, value, false);
+                                    break;
+                                case "Contains":
+                                    rule = ParameterFilterRuleFactory
+                                        .CreateContainsRule(paramId, value, false);
+                                    break;
+                            }
+
+                            if (rule != null)
+                            {
+                                var epf = new ElementParameterFilter(rule);
+                                ParameterFilterElement.Create(doc, name, allCatIds, epf);
+                                paramCreated++;
+                                created++;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Parameter filter '{name}': {ex.Message}");
+                            paramSkipped++;
+                            skipped++;
+                        }
+                    }
+                }
+                else if (spLookup.Count == 0)
+                {
+                    StingLog.Info("No shared parameters bound — skipping parameter-based filters. " +
+                        "Run 'Load Parameters' first for tag-status and QA filters.");
+                    paramSkipped = ParameterFilterDefs.Length;
+                    skipped += paramSkipped;
+                }
+
+                tx.Commit();
+
+                string paramNote = spLookup.Count > 0
+                    ? $"\nParameter-based: {paramCreated} created, {paramSkipped} skipped."
+                    : "\nParameter-based filters skipped (load shared parameters first).";
+
+                TaskDialog.Show("Create Filters",
+                    $"Created {created} view filters.\nSkipped {skipped} (exist or failed).\n" +
+                    $"Discipline: {DisciplineFilters.Length} defined.\n" +
+                    $"Parameter-based: {ParameterFilterDefs.Length} defined." +
+                    paramNote);
+            }
 
             return Result.Succeeded;
         }
@@ -244,28 +398,45 @@ namespace StingTools.Temp
         /// Template definition: name, discipline hint for VG configuration,
         /// and optional detail level override.
         /// </summary>
-        private static readonly (string name, string discipline, ViewDetailLevel detailLevel)[] TemplateDefs = new[]
+        /// <summary>
+        /// Template definitions: name, discipline hint, detail level, required base view type.
+        /// Templates are grouped by base view type — each group requires a different
+        /// base view to duplicate (plan, section, 3D, elevation, ceiling plan).
+        /// </summary>
+        private static readonly (string name, string discipline, ViewDetailLevel detailLevel,
+            ViewType baseViewType)[] TemplateDefs = new[]
         {
             // Working Plans — per discipline
-            ("STING - Mechanical Plan", "M", ViewDetailLevel.Medium),
-            ("STING - Electrical Plan", "E", ViewDetailLevel.Medium),
-            ("STING - Plumbing Plan", "P", ViewDetailLevel.Medium),
-            ("STING - Architectural Plan", "A", ViewDetailLevel.Medium),
-            ("STING - Structural Plan", "S", ViewDetailLevel.Medium),
-            ("STING - Fire Protection Plan", "FP", ViewDetailLevel.Medium),
-            ("STING - Low Voltage Plan", "LV", ViewDetailLevel.Medium),
+            ("STING - Mechanical Plan", "M", ViewDetailLevel.Medium, ViewType.FloorPlan),
+            ("STING - Electrical Plan", "E", ViewDetailLevel.Medium, ViewType.FloorPlan),
+            ("STING - Plumbing Plan", "P", ViewDetailLevel.Medium, ViewType.FloorPlan),
+            ("STING - Architectural Plan", "A", ViewDetailLevel.Medium, ViewType.FloorPlan),
+            ("STING - Structural Plan", "S", ViewDetailLevel.Medium, ViewType.FloorPlan),
+            ("STING - Fire Protection Plan", "FP", ViewDetailLevel.Medium, ViewType.FloorPlan),
+            ("STING - Low Voltage Plan", "LV", ViewDetailLevel.Medium, ViewType.FloorPlan),
             // Coordination Plans — multi-discipline
-            ("STING - MEP Coordination", "MEP", ViewDetailLevel.Medium),
-            ("STING - Combined Services", "ALL", ViewDetailLevel.Fine),
+            ("STING - MEP Coordination", "MEP", ViewDetailLevel.Medium, ViewType.FloorPlan),
+            ("STING - Combined Services", "ALL", ViewDetailLevel.Fine, ViewType.FloorPlan),
+            // Special purpose plans
+            ("STING - Demolition Plan", "DEMO", ViewDetailLevel.Medium, ViewType.FloorPlan),
+            ("STING - As-Built Plan", "EXIST", ViewDetailLevel.Medium, ViewType.FloorPlan),
+            ("STING - Area Plan", "AREA", ViewDetailLevel.Coarse, ViewType.FloorPlan),
             // RCP — ceiling/lighting focus
-            ("STING - Lighting RCP", "RCP_LTG", ViewDetailLevel.Medium),
-            ("STING - Ceiling RCP", "RCP_CLG", ViewDetailLevel.Medium),
+            ("STING - Lighting RCP", "RCP_LTG", ViewDetailLevel.Medium, ViewType.CeilingPlan),
+            ("STING - Ceiling RCP", "RCP_CLG", ViewDetailLevel.Medium, ViewType.CeilingPlan),
             // Presentation — clean client-facing views
-            ("STING - Presentation Classic", "PRES_C", ViewDetailLevel.Fine),
-            ("STING - Presentation Enhanced", "PRES_E", ViewDetailLevel.Fine),
+            ("STING - Presentation Classic", "PRES_C", ViewDetailLevel.Fine, ViewType.FloorPlan),
+            ("STING - Presentation Enhanced", "PRES_E", ViewDetailLevel.Fine, ViewType.FloorPlan),
             // Section templates
-            ("STING - Working Section", "SEC_W", ViewDetailLevel.Medium),
-            ("STING - Presentation Section", "SEC_P", ViewDetailLevel.Fine),
+            ("STING - Working Section", "SEC_W", ViewDetailLevel.Medium, ViewType.Section),
+            ("STING - Presentation Section", "SEC_P", ViewDetailLevel.Fine, ViewType.Section),
+            ("STING - Detail Section", "SEC_D", ViewDetailLevel.Fine, ViewType.Section),
+            // 3D templates
+            ("STING - Coordination 3D", "MEP_3D", ViewDetailLevel.Medium, ViewType.ThreeD),
+            ("STING - Presentation 3D", "PRES_3D", ViewDetailLevel.Fine, ViewType.ThreeD),
+            // Elevation templates
+            ("STING - Working Elevation", "ELEV_W", ViewDetailLevel.Medium, ViewType.Elevation),
+            ("STING - Presentation Elevation", "ELEV_P", ViewDetailLevel.Fine, ViewType.Elevation),
         };
 
         /// <summary>
@@ -336,13 +507,42 @@ namespace StingTools.Temp
             }
             catch { /* OK — won't apply fill patterns */ }
 
-            // Find a floor plan view to duplicate as template base
-            var basePlan = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewPlan))
-                .Cast<ViewPlan>()
-                .FirstOrDefault(v => !v.IsTemplate && v.ViewType == ViewType.FloorPlan);
+            // Find base views for each view type to duplicate as template bases.
+            // Different view types require different base views.
+            var baseViews = new Dictionary<ViewType, View>();
 
-            if (basePlan == null)
+            // Floor plan base
+            var basePlan = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
+                .FirstOrDefault(v => !v.IsTemplate && v.ViewType == ViewType.FloorPlan);
+            if (basePlan != null) baseViews[ViewType.FloorPlan] = basePlan;
+
+            // Ceiling plan base
+            var baseRcp = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
+                .FirstOrDefault(v => !v.IsTemplate && v.ViewType == ViewType.CeilingPlan);
+            if (baseRcp != null) baseViews[ViewType.CeilingPlan] = baseRcp;
+
+            // Section base
+            var baseSection = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSection)).Cast<ViewSection>()
+                .FirstOrDefault(v => !v.IsTemplate &&
+                    (v.ViewType == ViewType.Section || v.ViewType == ViewType.Detail));
+            if (baseSection != null) baseViews[ViewType.Section] = baseSection;
+
+            // 3D view base
+            var base3D = new FilteredElementCollector(doc)
+                .OfClass(typeof(View3D)).Cast<View3D>()
+                .FirstOrDefault(v => !v.IsTemplate);
+            if (base3D != null) baseViews[ViewType.ThreeD] = base3D;
+
+            // Elevation base
+            var baseElev = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSection)).Cast<ViewSection>()
+                .FirstOrDefault(v => !v.IsTemplate && v.ViewType == ViewType.Elevation);
+            if (baseElev != null) baseViews[ViewType.Elevation] = baseElev;
+
+            if (!baseViews.ContainsKey(ViewType.FloorPlan))
             {
                 TaskDialog.Show("View Templates",
                     "No floor plan view found to use as a template base.\n" +
@@ -353,12 +553,13 @@ namespace StingTools.Temp
             int created = 0;
             int configured = 0;
             int skipped = 0;
+            int noBase = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Create View Templates"))
             {
                 tx.Start();
 
-                foreach (var (name, discipline, detailLevel) in TemplateDefs)
+                foreach (var (name, discipline, detailLevel, baseViewType) in TemplateDefs)
                 {
                     if (existingTemplates.Contains(name))
                     {
@@ -377,9 +578,19 @@ namespace StingTools.Temp
                         continue;
                     }
 
+                    // Find appropriate base view, falling back to floor plan
+                    if (!baseViews.TryGetValue(baseViewType, out View baseView))
+                    {
+                        if (!baseViews.TryGetValue(ViewType.FloorPlan, out baseView))
+                        {
+                            noBase++;
+                            continue;
+                        }
+                    }
+
                     try
                     {
-                        ElementId newId = basePlan.CreateViewTemplate();
+                        ElementId newId = baseView.CreateViewTemplate();
                         View template = doc.GetElement(newId) as View;
                         if (template != null)
                         {
@@ -399,15 +610,24 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
+            var baseReport = new StringBuilder();
+            foreach (var kvp in baseViews)
+                baseReport.Append($"{kvp.Key}, ");
+
             string result = $"Created {created} view templates.\n" +
                 $"Configured VG on {configured} existing templates.\n" +
-                $"Skipped {skipped} (already exist).\n\n" +
-                $"Templates include:\n" +
+                $"Skipped {skipped} (already exist).\n" +
+                (noBase > 0 ? $"No base view: {noBase}\n" : "") +
+                $"\nTemplates include:\n" +
                 $"  • 7 discipline working plans (M/E/P/A/S/FP/LV)\n" +
                 $"  • 2 coordination plans (MEP/Combined)\n" +
+                $"  • 3 special plans (Demolition/As-Built/Area)\n" +
                 $"  • 2 RCP templates (Lighting/Ceiling)\n" +
                 $"  • 2 presentation templates (Classic/Enhanced)\n" +
-                $"  • 2 section templates (Working/Presentation)";
+                $"  • 3 section templates (Working/Presentation/Detail)\n" +
+                $"  • 2 3D templates (Coordination/Presentation)\n" +
+                $"  • 2 elevation templates (Working/Presentation)\n" +
+                $"\nBase views found: {baseReport.ToString().TrimEnd(',', ' ')}";
 
             TaskDialog.Show("View Templates", result);
 
@@ -424,7 +644,7 @@ namespace StingTools.Temp
         /// For presentation templates:
         ///   - Clean appearance with fine detail level
         /// </summary>
-        private static void ConfigureTemplateVG(View template, string discipline,
+        internal static void ConfigureTemplateVG(View template, string discipline,
             Dictionary<string, ParameterFilterElement> filterLookup,
             FillPatternElement solidFill, ViewDetailLevel detailLevel)
         {
@@ -437,6 +657,159 @@ namespace StingTools.Temp
                 var halftone = new OverrideGraphicSettings();
                 halftone.SetHalftone(true);
                 halftone.SetSurfaceTransparency(50);
+
+                // Demolition plan: halftone everything, highlight demolished in red
+                if (discipline == "DEMO")
+                {
+                    foreach (var kvp in filterLookup)
+                    {
+                        if (!kvp.Key.StartsWith("STING - ")) continue;
+                        try
+                        {
+                            template.AddFilter(kvp.Value.Id);
+                            template.SetFilterOverrides(kvp.Value.Id, halftone);
+                        }
+                        catch { }
+                    }
+                    // If status filter exists, highlight demolished elements in red
+                    if (filterLookup.TryGetValue("STING - Status: Demolished", out var demoFilter))
+                    {
+                        try
+                        {
+                            template.AddFilter(demoFilter.Id);
+                            var redOgs = new OverrideGraphicSettings();
+                            redOgs.SetProjectionLineColor(new Color(255, 0, 0));
+                            redOgs.SetProjectionLineWeight(4);
+                            if (solidFill != null)
+                            {
+                                redOgs.SetSurfaceForegroundPatternId(solidFill.Id);
+                                redOgs.SetSurfaceForegroundPatternColor(new Color(255, 200, 200));
+                            }
+                            template.SetFilterOverrides(demoFilter.Id, redOgs);
+                        }
+                        catch { }
+                    }
+                    return;
+                }
+
+                // As-Built plan: halftone new work, highlight existing
+                if (discipline == "EXIST")
+                {
+                    foreach (var kvp in filterLookup)
+                    {
+                        if (!kvp.Key.StartsWith("STING - ")) continue;
+                        try { template.AddFilter(kvp.Value.Id); }
+                        catch { }
+                    }
+                    // Halftone new elements if the status filter exists
+                    if (filterLookup.TryGetValue("STING - Status: New", out var newFilter))
+                    {
+                        try
+                        {
+                            template.AddFilter(newFilter.Id);
+                            template.SetFilterOverrides(newFilter.Id, halftone);
+                        }
+                        catch { }
+                    }
+                    return;
+                }
+
+                // Area plan: coarse detail, rooms only focus
+                if (discipline == "AREA")
+                {
+                    template.DetailLevel = ViewDetailLevel.Coarse;
+                    foreach (var kvp in filterLookup)
+                    {
+                        if (!kvp.Key.StartsWith("STING - ")) continue;
+                        bool isRooms = kvp.Key.Contains("Rooms");
+                        try
+                        {
+                            template.AddFilter(kvp.Value.Id);
+                            if (!isRooms)
+                                template.SetFilterOverrides(kvp.Value.Id, halftone);
+                        }
+                        catch { }
+                    }
+                    return;
+                }
+
+                // 3D templates: reuse coordination/presentation logic
+                if (discipline == "MEP_3D")
+                {
+                    // Same as MEP coordination but for 3D context
+                    foreach (var kvp in filterLookup)
+                    {
+                        if (!kvp.Key.StartsWith("STING - ")) continue;
+                        try
+                        {
+                            template.AddFilter(kvp.Value.Id);
+                            if (DisciplineColors.TryGetValue(kvp.Key, out Color col3d))
+                            {
+                                var colorOgs3d = new OverrideGraphicSettings();
+                                colorOgs3d.SetProjectionLineColor(col3d);
+                                if (solidFill != null)
+                                {
+                                    colorOgs3d.SetSurfaceForegroundPatternId(solidFill.Id);
+                                    colorOgs3d.SetSurfaceForegroundPatternColor(col3d);
+                                }
+                                template.SetFilterOverrides(kvp.Value.Id, colorOgs3d);
+                            }
+                            if (kvp.Key.Contains("Architectural") || kvp.Key.Contains("Structural"))
+                                template.SetFilterOverrides(kvp.Value.Id, halftone);
+                        }
+                        catch { }
+                    }
+                    return;
+                }
+
+                if (discipline == "PRES_3D")
+                {
+                    template.DetailLevel = ViewDetailLevel.Fine;
+                    foreach (var kvp in filterLookup)
+                    {
+                        if (!kvp.Key.StartsWith("STING - ")) continue;
+                        try
+                        {
+                            template.AddFilter(kvp.Value.Id);
+                            if (DisciplineColors.TryGetValue(kvp.Key, out Color colP3d))
+                            {
+                                var cOgs = new OverrideGraphicSettings();
+                                cOgs.SetProjectionLineColor(colP3d);
+                                cOgs.SetSurfaceTransparency(30);
+                                template.SetFilterOverrides(kvp.Value.Id, cOgs);
+                            }
+                        }
+                        catch { }
+                    }
+                    return;
+                }
+
+                // Elevation templates: working = standard, presentation = fine + colours
+                if (discipline == "ELEV_W" || discipline == "ELEV_P" || discipline == "SEC_D")
+                {
+                    if (discipline == "ELEV_P")
+                        template.DetailLevel = ViewDetailLevel.Fine;
+                    if (discipline == "SEC_D")
+                        template.DetailLevel = ViewDetailLevel.Fine;
+
+                    foreach (var kvp in filterLookup)
+                    {
+                        if (!kvp.Key.StartsWith("STING - ")) continue;
+                        try
+                        {
+                            template.AddFilter(kvp.Value.Id);
+                            if (discipline != "ELEV_W" &&
+                                DisciplineColors.TryGetValue(kvp.Key, out Color colElev))
+                            {
+                                var elevOgs = new OverrideGraphicSettings();
+                                elevOgs.SetProjectionLineColor(colElev);
+                                template.SetFilterOverrides(kvp.Value.Id, elevOgs);
+                            }
+                        }
+                        catch { }
+                    }
+                    return;
+                }
 
                 // Presentation templates: set to Fine detail, no filter overrides
                 if (discipline.StartsWith("PRES") || discipline.StartsWith("SEC_P"))
