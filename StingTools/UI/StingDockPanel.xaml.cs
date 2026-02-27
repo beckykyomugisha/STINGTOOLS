@@ -9,9 +9,8 @@ namespace StingTools.UI
 {
     /// <summary>
     /// Code-behind for the STING Tools dockable panel.
-    /// Replicates the original pyRevit STINGTags dockable panel with 4 tabs:
-    /// SELECT, ORGANISE, CREATE, VIEW — plus Docs/Temp commands in VIEW tab.
-    /// All button clicks are dispatched via IExternalEventHandler for thread safety.
+    /// Unified 6-tab layout: SELECT, ORGANISE, DOCS, TEMP, CREATE, VIEW.
+    /// All button clicks dispatched via IExternalEventHandler for thread safety.
     /// </summary>
     public partial class StingDockPanel : Page
     {
@@ -19,7 +18,6 @@ namespace StingTools.UI
         private static StingCommandHandler _handler;
         private static UIApplication _uiApp;
 
-        // Selection memory slots
         private static readonly Dictionary<string, List<int>> SelectionMemory =
             new Dictionary<string, List<int>>();
 
@@ -99,7 +97,6 @@ namespace StingTools.UI
 
         private void BuildColorSwatches()
         {
-            // Material Design 500 palette
             string[] fillColors = {
                 "#F44336", "#E91E63", "#9C27B0", "#673AB7",
                 "#3F51B5", "#2196F3", "#03A9F4", "#00BCD4",
@@ -125,15 +122,14 @@ namespace StingTools.UI
                 {
                     if (s is Border b && b.Tag is string h)
                     {
-                        txtHexColor.Text = h.TrimStart('#');
-                        brdColorPreview.Background =
+                        txtHexColorView.Text = h.TrimStart('#');
+                        brdColorPreviewView.Background =
                             (SolidColorBrush)new BrushConverter().ConvertFromString(h);
                     }
                 };
-                pnlSwatches?.Children.Add(swatch);
+                pnlSwatchesView?.Children.Add(swatch);
             }
 
-            // Outline swatches (subset)
             string[] outlineColors = {
                 "#F44336", "#E91E63", "#9C27B0", "#3F51B5",
                 "#2196F3", "#009688", "#4CAF50", "#FF9800",
@@ -157,11 +153,11 @@ namespace StingTools.UI
                 {
                     if (s is Border b && b.Tag is string h)
                     {
-                        brdOutlineColor.Background =
+                        brdOutlineColorView.Background =
                             (SolidColorBrush)new BrushConverter().ConvertFromString(h);
                     }
                 };
-                pnlOutlineSwatches?.Children.Add(swatch);
+                pnlOutlineSwatchesView?.Children.Add(swatch);
             }
         }
 

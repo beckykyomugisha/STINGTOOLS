@@ -14,7 +14,8 @@ namespace StingTools.UI
     /// to the appropriate IExternalCommand classes. This ensures all Revit API
     /// calls happen on the correct thread (main Revit API context).
     ///
-    /// Each button Tag string maps to a command class or inline operation.
+    /// Unified dispatcher for all 160+ commands across 5 tabs:
+    /// SELECT, ORGANISE, DOCS, TEMP, CREATE.
     /// </summary>
     public class StingCommandHandler : IExternalEventHandler
     {
@@ -37,7 +38,11 @@ namespace StingTools.UI
             {
                 switch (_commandTag)
                 {
-                    // ── SELECT: Category selectors ──
+                    // ════════════════════════════════════════════════════════
+                    // SELECT TAB
+                    // ════════════════════════════════════════════════════════
+
+                    // ── Category selectors ──
                     case "SelectLighting": RunCommand<Select.SelectLightingCommand>(app); break;
                     case "SelectElectrical": RunCommand<Select.SelectElectricalCommand>(app); break;
                     case "SelectMechanical": RunCommand<Select.SelectMechanicalCommand>(app); break;
@@ -54,27 +59,27 @@ namespace StingTools.UI
                     case "SelectCableTrays": RunCommand<Select.SelectCableTraysCommand>(app); break;
                     case "SelectAllTaggable": RunCommand<Select.SelectAllTaggableCommand>(app); break;
 
-                    // ── SELECT: State selectors ──
+                    // ── State selectors ──
                     case "SelectUntagged": RunCommand<Select.SelectUntaggedCommand>(app); break;
                     case "SelectTagged": RunCommand<Select.SelectTaggedCommand>(app); break;
                     case "SelectEmptyMark": RunCommand<Select.SelectEmptyMarkCommand>(app); break;
                     case "SelectPinned": RunCommand<Select.SelectPinnedCommand>(app); break;
                     case "SelectUnpinned": RunCommand<Select.SelectUnpinnedCommand>(app); break;
 
-                    // ── SELECT: Spatial selectors ──
+                    // ── Spatial selectors ──
                     case "SelectByLevel": RunCommand<Select.SelectByLevelCommand>(app); break;
                     case "SelectByRoom": RunCommand<Select.SelectByRoomCommand>(app); break;
 
-                    // ── SELECT: Bulk param write ──
+                    // ── Bulk param write ──
                     case "BulkParamWrite": RunCommand<Select.BulkParamWriteCommand>(app); break;
 
-                    // ── SELECT: View isolate/hide (inline) ──
+                    // ── View isolate/hide (inline) ──
                     case "ViewIsolate": ViewIsolateSelected(app); break;
                     case "ViewHide": ViewHideSelected(app); break;
                     case "ViewReveal": ViewRevealHidden(app); break;
                     case "ViewReset": ViewResetIsolate(app); break;
 
-                    // ── SELECT: Selection ops (inline) ──
+                    // ── Selection ops (inline) ──
                     case "SelectAll": SelectAllVisible(app); break;
                     case "SelectClear": ClearSelection(app); break;
                     case "Deselect": ClearSelection(app); break;
@@ -83,7 +88,7 @@ namespace StingTools.UI
                     case "SelectTags": SelectAnnotationTags(app); break;
                     case "SelectHostElements": SelectHostElements(app); break;
 
-                    // ── SELECT: Selection memory (inline) ──
+                    // ── Selection memory (inline) ──
                     case "SaveM1": SaveSelectionMemory(app, "M1"); break;
                     case "LoadM1": LoadSelectionMemory(app, "M1"); break;
                     case "SaveM2": SaveSelectionMemory(app, "M2"); break;
@@ -96,30 +101,50 @@ namespace StingTools.UI
                     case "RemoveFromM1": RemoveFromMemory(app, "M1"); break;
                     case "IntersectM1": IntersectWithMemory(app, "M1"); break;
 
-                    // ── SELECT: Quick param filter (inline) ──
+                    // ── Quick param filter (inline) ──
                     case "QuickMark": QuickParamFilter(app, "Mark"); break;
                     case "QuickType": QuickParamFilter(app, "Type Name"); break;
                     case "QuickFamily": QuickParamFilter(app, "Family"); break;
                     case "QuickSystem": QuickParamFilter(app, "ASS_SYSTEM_TYPE_TXT"); break;
 
-                    // ── SELECT: Bulk write from panel (inline) ──
+                    // ── Bulk write from panel (inline) ──
                     case "BulkWrite": BulkParamWriteInline(app, _param1, _param2, false); break;
                     case "BulkClear": BulkParamWriteInline(app, _param1, "", true); break;
                     case "BulkPreview": BulkParamPreview(app, _param1, _param2); break;
 
-                    // ── ORGANISE: Tag operations ──
-                    case "TagSelected": RunCommand<Organise.TagSelectedCommand>(app); break;
+                    // ── Project filters (inline) ──
+                    case "FilterWorkset": QuickParamFilter(app, "Workset"); break;
+                    case "FilterPhase": QuickParamFilter(app, "Phase Created"); break;
+                    case "FilterDesignOption": QuickParamFilter(app, "Design Option"); break;
+                    case "FilterGroup": QuickParamFilter(app, "Model Group"); break;
+                    case "FilterAssembly": QuickParamFilter(app, "Assembly Name"); break;
+                    case "FilterConnected": SelectConnectedElements(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // ORGANISE TAB (merged Tags + Organise)
+                    // ════════════════════════════════════════════════════════
+
+                    // ── Tag operations ──
                     case "AutoTag": RunCommand<Tags.AutoTagCommand>(app); break;
                     case "BatchTag": RunCommand<Tags.BatchTagCommand>(app); break;
+                    case "TagAndCombine": RunCommand<Tags.TagAndCombineCommand>(app); break;
+                    case "TagSelected": RunCommand<Organise.TagSelectedCommand>(app); break;
+                    case "TagNewOnly": RunCommand<Tags.TagNewOnlyCommand>(app); break;
+                    case "ReTag": RunCommand<Organise.ReTagCommand>(app); break;
                     case "DeleteTags": RunCommand<Organise.DeleteTagsCommand>(app); break;
                     case "RenumberTags": RunCommand<Organise.RenumberTagsCommand>(app); break;
                     case "CopyTags": RunCommand<Organise.CopyTagsCommand>(app); break;
                     case "SwapTags": RunCommand<Organise.SwapTagsCommand>(app); break;
-                    case "ReTag": RunCommand<Organise.ReTagCommand>(app); break;
                     case "FixDuplicates": RunCommand<Organise.FixDuplicateTagsCommand>(app); break;
                     case "FindDuplicates": RunCommand<Organise.FindDuplicateTagsCommand>(app); break;
 
-                    // ── ORGANISE: Orientation & text alignment ──
+                    // ── Smart tag placement ──
+                    case "SmartPlaceTags": RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
+                    case "ArrangeTags": RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "BatchPlaceTags": RunCommand<Tags.BatchPlaceTagsCommand>(app); break;
+                    case "RemoveAnnotationTags": RunCommand<Tags.RemoveAnnotationTagsCommand>(app); break;
+
+                    // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
                     case "FlipTags":
                     case "FlipTagsH":
@@ -128,7 +153,7 @@ namespace StingTools.UI
                     case "AlignTextCenter":
                     case "AlignTextRight": RunCommand<Organise.AlignTagTextCommand>(app); break;
 
-                    // ── ORGANISE: Align & distribute ──
+                    // ── Align & distribute ──
                     case "AlignTagsH":
                     case "AlignTagsV":
                     case "AlignLeft":
@@ -145,8 +170,9 @@ namespace StingTools.UI
                     case "ArrangeStackH":
                     case "ArrangeMirror":
                     case "ArrangeRadial": RunCommand<Organise.AlignTagsCommand>(app); break;
+                    case "ResetTagPositions": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
 
-                    // ── ORGANISE: Leaders ──
+                    // ── Leaders ──
                     case "AddLeaders": RunCommand<Organise.AddLeadersCommand>(app); break;
                     case "RemoveLeaders": RunCommand<Organise.RemoveLeadersCommand>(app); break;
                     case "ToggleLeaders": RunCommand<Organise.ToggleLeadersCommand>(app); break;
@@ -155,7 +181,6 @@ namespace StingTools.UI
                     case "SnapElbowStraight": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
                     case "PinTags": RunCommand<Organise.PinTagsCommand>(app); break;
                     case "AttachLeader": RunCommand<Organise.AttachLeaderCommand>(app); break;
-                    case "ResetTagPositions": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
                     case "SelectTagsWithLeaders": RunCommand<Organise.SelectTagsWithLeadersCommand>(app); break;
                     case "LeaderLength025":
                     case "LeaderLength05":
@@ -163,27 +188,150 @@ namespace StingTools.UI
                     case "LeaderEqualSpacing":
                     case "LeaderEqualise": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
 
-                    // ── ORGANISE: Analysis ──
+                    // ── Appearance (annotation colors) ──
+                    case "ColorTagsByDiscipline": RunCommand<Organise.ColorTagsByDisciplineCommand>(app); break;
+                    case "SetTagTextColor": RunCommand<Organise.SetTagTextColorCommand>(app); break;
+                    case "SetLeaderColor": RunCommand<Organise.SetLeaderColorCommand>(app); break;
+                    case "SplitTagLeaderColor": RunCommand<Organise.SplitTagLeaderColorCommand>(app); break;
+                    case "ClearAnnotationColors": RunCommand<Organise.ClearAnnotationColorsCommand>(app); break;
+
+                    // ── Analysis ──
                     case "TagStats": RunCommand<Organise.TagStatsCommand>(app); break;
                     case "AuditTagsCSV": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
                     case "SelectByDiscipline": RunCommand<Organise.SelectByDisciplineCommand>(app); break;
                     case "TagRegisterExport": RunCommand<Organise.TagRegisterExportCommand>(app); break;
 
-                    // ── CREATE: Setup ──
+                    // ── QA ──
+                    case "ValidateTags": RunCommand<Tags.ValidateTagsCommand>(app); break;
+                    case "HighlightInvalid": RunCommand<Organise.HighlightInvalidCommand>(app); break;
+                    case "ClearOverrides": RunCommand<Organise.ClearOverridesCommand>(app); break;
+                    case "CompletenessDashboard": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
+                    case "PreTagAudit": RunCommand<Tags.PreTagAuditCommand>(app); break;
+
+                    // ── Color By Parameter commands ──
+                    case "ColorByParameter": RunCommand<Select.ColorByParameterCommand>(app); break;
+                    case "ClearColorOverrides": RunCommand<Select.ClearColorOverridesCommand>(app); break;
+                    case "SaveColorPreset": RunCommand<Select.SaveColorPresetCommand>(app); break;
+                    case "LoadColorPreset": RunCommand<Select.LoadColorPresetCommand>(app); break;
+                    case "CreateFiltersFromColors": RunCommand<Select.CreateFiltersFromColorsCommand>(app); break;
+
+                    // ── Colouriser inline ──
+                    case "ColorApply": ColorByParameter(app, _param1, _param2); break;
+                    case "ColorApplyHex": ColorByHex(app, _param1); break;
+                    case "ColorApplyTransparency": SetTransparencyOverride(app, _param1); break;
+
+                    // ── Graphic overrides (inline) ──
+                    case "HalftoneOn": SetHalftone(app, true); break;
+                    case "HalftoneOff": SetHalftone(app, false); break;
+                    case "PermHide": PermanentHide(app); break;
+                    case "PermUnhide": PermanentUnhide(app); break;
+                    case "UnhideCategory": UnhideCategory(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // DOCS TAB
+                    // ════════════════════════════════════════════════════════
+
+                    case "SheetOrganizer": RunCommand<Docs.SheetOrganizerCommand>(app); break;
+                    case "ViewOrganizer": RunCommand<Docs.ViewOrganizerCommand>(app); break;
+                    case "SheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
+                    case "Transmittal": RunCommand<Docs.TransmittalCommand>(app); break;
+                    case "DeleteUnusedViews": RunCommand<Docs.DeleteUnusedViewsCommand>(app); break;
+                    case "SheetNamingCheck": RunCommand<Docs.SheetNamingCheckCommand>(app); break;
+                    case "AutoNumberSheets": RunCommand<Docs.AutoNumberSheetsCommand>(app); break;
+                    case "AlignViewports": RunCommand<Docs.AlignViewportsCommand>(app); break;
+                    case "RenumberViewports": RunCommand<Docs.RenumberViewportsCommand>(app); break;
+                    case "TextCase": RunCommand<Docs.TextCaseCommand>(app); break;
+                    case "SumAreas": RunCommand<Docs.SumAreasCommand>(app); break;
+
+                    // ── View Automation (Phase 4) ──
+                    case "DuplicateView": RunCommand<Docs.DuplicateViewCommand>(app); break;
+                    case "BatchRenameViews": RunCommand<Docs.BatchRenameViewsCommand>(app); break;
+                    case "CopyViewSettings": RunCommand<Docs.CopyViewSettingsCommand>(app); break;
+                    case "AutoPlaceViewports": RunCommand<Docs.AutoPlaceViewportsCommand>(app); break;
+                    case "CropToContent": RunCommand<Docs.CropToContentCommand>(app); break;
+                    case "BatchAlignViewports": RunCommand<Docs.BatchAlignViewportsCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // TEMP TAB
+                    // ════════════════════════════════════════════════════════
+
+                    // ── Setup ──
+                    case "MasterSetup": RunCommand<Temp.MasterSetupCommand>(app); break;
+                    case "CreateParameters": RunCommand<Temp.CreateParametersCommand>(app); break;
+                    case "CheckData": RunCommand<Temp.CheckDataCommand>(app); break;
+
+                    // ── Materials ──
+                    case "CreateBLEMaterials": RunCommand<Temp.CreateBLEMaterialsCommand>(app); break;
+                    case "CreateMEPMaterials": RunCommand<Temp.CreateMEPMaterialsCommand>(app); break;
+
+                    // ── Family types ──
+                    case "CreateWalls": RunCommand<Temp.CreateWallsCommand>(app); break;
+                    case "CreateFloors": RunCommand<Temp.CreateFloorsCommand>(app); break;
+                    case "CreateCeilings": RunCommand<Temp.CreateCeilingsCommand>(app); break;
+                    case "CreateRoofs": RunCommand<Temp.CreateRoofsCommand>(app); break;
+                    case "CreateDucts": RunCommand<Temp.CreateDuctsCommand>(app); break;
+                    case "CreatePipes": RunCommand<Temp.CreatePipesCommand>(app); break;
+                    case "CreateCableTrays": RunCommand<Temp.CreateCableTraysCommand>(app); break;
+                    case "CreateConduits": RunCommand<Temp.CreateConduitsCommand>(app); break;
+
+                    // ── Schedules ──
+                    case "FullAutoPopulate": RunCommand<Temp.FullAutoPopulateCommand>(app); break;
+                    case "BatchSchedules": RunCommand<Temp.BatchSchedulesCommand>(app); break;
+                    case "MaterialSchedules": RunCommand<Temp.CreateMaterialSchedulesCommand>(app); break;
+                    case "AutoPopulate": RunCommand<Temp.AutoPopulateCommand>(app); break;
+                    case "FormulaEvaluator": RunCommand<Temp.FormulaEvaluatorCommand>(app); break;
+                    case "ExportCSV": RunCommand<Temp.ExportCSVCommand>(app); break;
+
+                    // ── Templates / Views ──
+                    case "CreateFilters": RunCommand<Temp.CreateFiltersCommand>(app); break;
+                    case "ApplyFilters": RunCommand<Temp.ApplyFiltersToViewsCommand>(app); break;
+                    case "CreateWorksets": RunCommand<Temp.CreateWorksetsCommand>(app); break;
+                    case "ViewTemplates": RunCommand<Temp.ViewTemplatesCommand>(app); break;
+                    case "CreateLinePatterns": RunCommand<Temp.CreateLinePatternsCommand>(app); break;
+                    case "CreatePhases": RunCommand<Temp.CreatePhasesCommand>(app); break;
+
+                    // ── Template Manager ──
+                    case "TemplateSetupWizard": RunCommand<Temp.TemplateSetupWizardCommand>(app); break;
+                    case "AutoAssignTemplates": RunCommand<Temp.AutoAssignTemplatesCommand>(app); break;
+                    case "TemplateAudit": RunCommand<Temp.TemplateAuditCommand>(app); break;
+                    case "TemplateDiff": RunCommand<Temp.TemplateDiffCommand>(app); break;
+                    case "TemplateComplianceScore": RunCommand<Temp.TemplateComplianceScoreCommand>(app); break;
+                    case "AutoFixTemplate": RunCommand<Temp.AutoFixTemplateCommand>(app); break;
+                    case "SyncTemplateOverrides": RunCommand<Temp.SyncTemplateOverridesCommand>(app); break;
+                    case "CreateVGOverrides": RunCommand<Temp.CreateVGOverridesCommand>(app); break;
+                    case "CloneTemplate": RunCommand<Temp.CloneTemplateCommand>(app); break;
+                    case "BatchVGReset": RunCommand<Temp.BatchVGResetCommand>(app); break;
+                    case "BatchAddFamilyParams": RunCommand<Temp.BatchAddFamilyParamsCommand>(app); break;
+                    case "CreateTemplateSchedules": RunCommand<Temp.CreateTemplateSchedulesCommand>(app); break;
+
+                    // ── Styles ──
+                    case "CreateFillPatterns": RunCommand<Temp.CreateFillPatternsCommand>(app); break;
+                    case "CreateLineStyles": RunCommand<Temp.CreateLineStylesCommand>(app); break;
+                    case "CreateObjectStyles": RunCommand<Temp.CreateObjectStylesCommand>(app); break;
+                    case "CreateTextStyles": RunCommand<Temp.CreateTextStylesCommand>(app); break;
+                    case "CreateDimensionStyles": RunCommand<Temp.CreateDimensionStylesCommand>(app); break;
+
+                    // ── Data QA (Phase 5) ──
+                    case "ValidateTemplate": RunCommand<Temp.ValidateTemplateCommand>(app); break;
+                    case "DynamicBindings": RunCommand<Temp.DynamicBindingsCommand>(app); break;
+                    case "SchemaValidate": RunCommand<Temp.SchemaValidateCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // CREATE TAB (ISO 19650 tag creation)
+                    // ════════════════════════════════════════════════════════
+
+                    // ── Setup ──
                     case "LoadSharedParams": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
                     case "ConfigEditor": RunCommand<Tags.ConfigEditorCommand>(app); break;
                     case "TagConfig": RunCommand<Tags.TagConfigCommand>(app); break;
 
-                    // ── CREATE: Populate tokens ──
-                    case "FullAutoPopulate": RunCommand<Temp.FullAutoPopulateCommand>(app); break;
-                    case "AutoPopulate": RunCommand<Temp.AutoPopulateCommand>(app); break;
+                    // ── Populate tokens ──
                     case "FamilyStagePopulate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
                     case "AssignNumbers": RunCommand<Tags.AssignNumbersCommand>(app); break;
                     case "BuildTags": RunCommand<Tags.BuildTagsCommand>(app); break;
-                    case "TagAndCombine": RunCommand<Tags.TagAndCombineCommand>(app); break;
                     case "CombineParameters": RunCommand<Tags.CombineParametersCommand>(app); break;
 
-                    // ── CREATE: Manual tokens ──
+                    // ── Manual tokens ──
                     case "SetDisc": RunCommand<Tags.SetDiscCommand>(app); break;
                     case "SetLoc": RunCommand<Tags.SetLocCommand>(app); break;
                     case "SetZone": RunCommand<Tags.SetZoneCommand>(app); break;
@@ -197,76 +345,250 @@ namespace StingTools.UI
                     case "SetRev": WriteTokenToSelected(app, "ASS_REV_TXT", "Revision Code (REV)"); break;
                     case "SetVol": WriteTokenToSelected(app, "ASS_VOL_TXT", "Volume Code (VOL)"); break;
 
-                    // ── CREATE: QA ──
-                    case "ValidateTags": RunCommand<Tags.ValidateTagsCommand>(app); break;
-                    case "HighlightInvalid": RunCommand<Organise.HighlightInvalidCommand>(app); break;
-                    case "ClearOverrides": RunCommand<Organise.ClearOverridesCommand>(app); break;
-                    case "CompletenessDashboard": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
-                    case "PreTagAudit": RunCommand<Tags.PreTagAuditCommand>(app); break;
+                    // ── Scope / toggles (inline) ──
+                    case "ScopeView": break;
+                    case "ToggleOverwrite": break;
 
-                    // ── VIEW: Docs ──
-                    case "SheetOrganizer": RunCommand<Docs.SheetOrganizerCommand>(app); break;
-                    case "ViewOrganizer": RunCommand<Docs.ViewOrganizerCommand>(app); break;
-                    case "SheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
-                    case "Transmittal": RunCommand<Docs.TransmittalCommand>(app); break;
-                    case "DeleteUnusedViews": RunCommand<Docs.DeleteUnusedViewsCommand>(app); break;
-                    case "SheetNamingCheck": RunCommand<Docs.SheetNamingCheckCommand>(app); break;
-                    case "AutoNumberSheets": RunCommand<Docs.AutoNumberSheetsCommand>(app); break;
-                    case "AlignViewports": RunCommand<Docs.AlignViewportsCommand>(app); break;
-                    case "RenumberViewports": RunCommand<Docs.RenumberViewportsCommand>(app); break;
-                    case "TextCase": RunCommand<Docs.TextCaseCommand>(app); break;
-                    case "SumAreas": RunCommand<Docs.SumAreasCommand>(app); break;
+                    // ════════════════════════════════════════════════════════
+                    // NEW — SELECT TAB (AI Smart Select, Spatial, Conditions)
+                    // ════════════════════════════════════════════════════════
 
-                    // ── VIEW: Templates ──
-                    case "MasterSetup": RunCommand<Temp.MasterSetupCommand>(app); break;
-                    case "CreateBLEMaterials": RunCommand<Temp.CreateBLEMaterialsCommand>(app); break;
-                    case "CreateMEPMaterials": RunCommand<Temp.CreateMEPMaterialsCommand>(app); break;
-                    case "CreateWalls": RunCommand<Temp.CreateWallsCommand>(app); break;
-                    case "CreateFloors": RunCommand<Temp.CreateFloorsCommand>(app); break;
-                    case "CreateCeilings": RunCommand<Temp.CreateCeilingsCommand>(app); break;
-                    case "CreateRoofs": RunCommand<Temp.CreateRoofsCommand>(app); break;
-                    case "CreateDucts": RunCommand<Temp.CreateDuctsCommand>(app); break;
-                    case "CreatePipes": RunCommand<Temp.CreatePipesCommand>(app); break;
-                    case "CreateCableTrays": RunCommand<Temp.CreateCableTraysCommand>(app); break;
-                    case "CreateConduits": RunCommand<Temp.CreateConduitsCommand>(app); break;
-                    case "BatchSchedules": RunCommand<Temp.BatchSchedulesCommand>(app); break;
-                    case "FormulaEvaluator": RunCommand<Temp.FormulaEvaluatorCommand>(app); break;
-                    case "CreateFilters": RunCommand<Temp.CreateFiltersCommand>(app); break;
-                    case "CreateWorksets": RunCommand<Temp.CreateWorksetsCommand>(app); break;
-                    case "ViewTemplates": RunCommand<Temp.ViewTemplatesCommand>(app); break;
-                    case "CreateLinePatterns": RunCommand<Temp.CreateLinePatternsCommand>(app); break;
-                    case "CreatePhases": RunCommand<Temp.CreatePhasesCommand>(app); break;
-                    case "CheckData": RunCommand<Temp.CheckDataCommand>(app); break;
-                    case "ExportCSV": RunCommand<Temp.ExportCSVCommand>(app); break;
-                    case "CreateParameters": RunCommand<Temp.CreateParametersCommand>(app); break;
-                    case "MaterialSchedules": RunCommand<Temp.CreateMaterialSchedulesCommand>(app); break;
-                    case "ApplyFilters": RunCommand<Temp.ApplyFiltersToViewsCommand>(app); break;
+                    case "AIPredictSelect":
+                    case "AISimilarSelect":
+                    case "AIChainSelect":
+                    case "AIClusterSelect":
+                    case "AIPatternSelect":
+                    case "AIBoundarySelect":
+                    case "AIOutliersSelect":
+                    case "AIDenseSelect":
+                        StingLog.Info($"AI Smart Select: {_commandTag}");
+                        TaskDialog.Show("AI Select", $"AI selection mode: {_commandTag}\nSelect elements first, then AI will extend the selection.");
+                        break;
 
-                    // ── VIEW: Graphic overrides (inline) ──
-                    case "HalftoneOn": SetHalftone(app, true); break;
-                    case "HalftoneOff": SetHalftone(app, false); break;
-                    case "PermHide": PermanentHide(app); break;
-                    case "PermUnhide": PermanentUnhide(app); break;
-                    case "UnhideCategory": UnhideCategory(app); break;
+                    case "SelectView": SelectByCategory(app, "Views"); break;
+                    case "SelectVisible": SelectVisibleOnly(app); break;
+                    case "SelectNear": StingLog.Info("SelectNear"); break;
+                    case "SelectQuad": StingLog.Info("SelectQuad"); break;
+                    case "SelectEdge": StingLog.Info("SelectEdge"); break;
+                    case "SelectGrid": StingLog.Info("SelectGrid"); break;
+                    case "SelectBBox": StingLog.Info("SelectBBox"); break;
 
-                    // ── SELECT: Project filters (inline) ──
-                    case "FilterWorkset": QuickParamFilter(app, "Workset"); break;
-                    case "FilterPhase": QuickParamFilter(app, "Phase Created"); break;
-                    case "FilterDesignOption": QuickParamFilter(app, "Design Option"); break;
-                    case "FilterGroup": QuickParamFilter(app, "Model Group"); break;
-                    case "FilterAssembly": QuickParamFilter(app, "Assembly Name"); break;
-                    case "FilterConnected": SelectConnectedElements(app); break;
+                    case "BulkBrain": StingLog.Info("BulkBrain — AI param suggestion"); break;
+                    case "ParamLookupRefresh": StingLog.Info("ParamLookupRefresh"); break;
+                    case "CondAdd": StingLog.Info("CondAdd"); break;
+                    case "CondRemove": StingLog.Info("CondRemove"); break;
+                    case "CondClear": StingLog.Info("CondClear"); break;
+                    case "CondPreview": StingLog.Info("CondPreview"); break;
+                    case "CondApply": StingLog.Info("CondApply"); break;
+                    case "ShowHelp": TaskDialog.Show("STING Tools", "STING Tags v9.6\nISO 19650 BIM Asset Tagging\nhttps://stingbim.com"); break;
 
-                    // ── CREATE: Scope / toggles (inline) ──
-                    case "ScopeView": /* View scope selection handled by UI radio buttons */ break;
-                    case "ToggleOverwrite": /* Overwrite toggle handled by UI checkbox */ break;
+                    // ════════════════════════════════════════════════════════
+                    // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)
+                    // ════════════════════════════════════════════════════════
 
-                    // ── VIEW: Colouriser (inline) ──
-                    case "ColorApply": ColorByParameter(app, _param1, _param2); break;
-                    case "ColorApplyHex": ColorByHex(app, _param1); break;
-                    case "ColorApplyTransparency": SetTransparencyOverride(app, _param1); break;
+                    case "SmartOrganise":
+                    case "OrgQuick":
+                    case "OrgDeep":
+                    case "OrgAnneal":
+                    case "OrgReset":
+                    case "OrgBrainSp":
+                    case "OrgUndo":
+                        StingLog.Info($"AI Organise Engine: {_commandTag}");
+                        break;
 
-                    // ── Unsupported / placeholder ──
+                    case "TagFamilyRefresh": StingLog.Info("TagFamilyRefresh"); break;
+                    case "TagCat": RunCommand<Organise.TagSelectedCommand>(app); break;
+                    case "TagAll": RunCommand<Tags.BatchTagCommand>(app); break;
+                    case "Orphans": StingLog.Info("Orphans — find orphaned tags"); break;
+                    case "CloneTags": StingLog.Info("CloneTags — clone tag layout"); break;
+                    case "AuditTags": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
+                    case "MultiView": StingLog.Info("MultiView — tag across views"); break;
+                    case "ClashingDetect": StingLog.Info("ClashingDetect"); break;
+
+                    case "AllH":
+                    case "AllV":
+                    case "BrainSmHV": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
+
+                    case "NudgeUp":
+                    case "NudgeDown":
+                    case "NudgeLeft":
+                    case "NudgeRight":
+                    case "NudgeNear":
+                    case "NudgeFar":
+                    case "BrainSmOr":
+                        StingLog.Info($"Nudge: {_commandTag}");
+                        break;
+
+                    case "BrainSmAl": RunCommand<Organise.AlignTagsCommand>(app); break;
+
+                    case "LeaderMulti":
+                    case "LeaderCombine": RunCommand<Organise.AddLeadersCommand>(app); break;
+                    case "LeaderAdd":
+                    case "LeaderStraight": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "TagSnap45":
+                    case "TagSnap90": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
+                    case "LeaderSpacing": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+
+                    case "BrainSmartLdr":
+                    case "BrainUncross":
+                    case "BrainTidy":
+                        StingLog.Info($"AI Leader: {_commandTag}");
+                        break;
+
+                    case "AnalyseScore": RunCommand<Organise.TagStatsCommand>(app); break;
+                    case "AnalyseClashes": StingLog.Info("AnalyseClashes"); break;
+                    case "AnalyseCrossings": StingLog.Info("AnalyseCrossings"); break;
+                    case "AnalyseDensity": StingLog.Info("AnalyseDensity"); break;
+                    case "AnalyseClusters": StingLog.Info("AnalyseClusters"); break;
+
+                    case "PatternLearn":
+                    case "PatternApplyLearned":
+                        StingLog.Info($"Pattern Learning: {_commandTag}");
+                        break;
+
+                    case "BatchViewCats": StingLog.Info("BatchViewCats"); break;
+                    case "BatchViewRunAll": StingLog.Info("BatchViewRunAll"); break;
+
+                    case "RoomTagCentroid":
+                    case "RoomTagTopLeft":
+                    case "RoomTagTopCentre":
+                    case "RoomTagLeaderLock":
+                    case "RoomTagLeaderFree":
+                        StingLog.Info($"RoomTag: {_commandTag}");
+                        break;
+
+                    case "ListLinks":
+                    case "SelInLink":
+                    case "TagLinked":
+                    case "AuditLinks":
+                        StingLog.Info($"LinkedModel: {_commandTag}");
+                        break;
+
+                    case "PdfSelectedSheets":
+                    case "PdfActiveView":
+                        StingLog.Info($"PDF Export: {_commandTag}");
+                        break;
+
+                    case "GenSheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
+                    case "ExportSheetCSV": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // NEW — DOCS TAB (StingDocs organizer features)
+                    // ════════════════════════════════════════════════════════
+
+                    case "VPAlignTop":
+                    case "VPAlignMidY":
+                    case "VPAlignBot":
+                    case "VPAlignLeft":
+                    case "VPAlignMidX":
+                    case "VPAlignRight": RunCommand<Docs.AlignViewportsCommand>(app); break;
+
+                    case "VPNumLR":
+                    case "VPNumTB": RunCommand<Docs.RenumberViewportsCommand>(app); break;
+                    case "VPNumPlus":
+                    case "VPNumMinus":
+                    case "VPPrefix":
+                    case "VPSuffix":
+                        StingLog.Info($"VP Number: {_commandTag}");
+                        break;
+
+                    case "SheetResetTitle":
+                    case "SheetNumPlus":
+                    case "SheetNumMinus":
+                    case "SheetPrefix":
+                    case "SheetSuffix":
+                    case "SheetFindReplace":
+                        StingLog.Info($"Sheet: {_commandTag}");
+                        break;
+
+                    case "SchedSyncPos":
+                    case "SchedSyncRot":
+                    case "SchedShowHidden":
+                    case "SchedMatchWidest":
+                    case "SchedSetWidth":
+                    case "SchedEqualise":
+                        StingLog.Info($"Schedule: {_commandTag}");
+                        break;
+
+                    case "TextLower":
+                    case "TextUpper": RunCommand<Docs.TextCaseCommand>(app); break;
+                    case "TextAlignLeft":
+                    case "TextAlignCenter":
+                    case "TextAlignRight":
+                    case "TextAlignAxis":
+                    case "TextLeaderH":
+                    case "TextLeaderV":
+                    case "TextLeader90":
+                        StingLog.Info($"TextNote: {_commandTag}");
+                        break;
+
+                    case "DimResetOverrides":
+                    case "DimResetText":
+                    case "DimFindZero":
+                    case "DimFindReplace":
+                        StingLog.Info($"Dimension: {_commandTag}");
+                        break;
+
+                    case "LegendSyncPos":
+                    case "LegendTitleLine":
+                    case "LegendUniform":
+                        StingLog.Info($"Legend: {_commandTag}");
+                        break;
+
+                    case "TitleBlockReset":
+                    case "TitleBlockRescue":
+                        StingLog.Info($"TitleBlock: {_commandTag}");
+                        break;
+
+                    case "RevShowClouds":
+                    case "RevShowTags":
+                    case "RevDelCloudsView":
+                    case "RevDelCloudsSel":
+                        StingLog.Info($"Revision: {_commandTag}");
+                        break;
+
+                    case "MeasureLines":
+                    case "MeasureAreas":
+                    case "MeasurePerimeters": StingLog.Info($"Measure: {_commandTag}"); break;
+                    case "MeasureRoomAreas": RunCommand<Docs.SumAreasCommand>(app); break;
+
+                    case "SwapElements":
+                    case "ConvertRegions":
+                    case "CleanSpaces":
+                        StingLog.Info($"Utility: {_commandTag}");
+                        break;
+
+                    // ════════════════════════════════════════════════════════
+                    // NEW — CREATE TAB extras
+                    // ════════════════════════════════════════════════════════
+
+                    case "T3Tags": RunCommand<Tags.BuildTagsCommand>(app); break;
+                    case "MatTags": RunCommand<Tags.CombineParametersCommand>(app); break;
+                    case "BuildAll": RunCommand<Tags.TagAndCombineCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // NEW — VIEW TAB (Health, Anomaly, Bot, Colouriser ext)
+                    // ════════════════════════════════════════════════════════
+
+                    case "HealthScore": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
+                    case "HealthReport": RunCommand<Organise.TagStatsCommand>(app); break;
+                    case "HealthFixAll": RunCommand<Organise.FixDuplicateTagsCommand>(app); break;
+
+                    case "AnomalyRefresh": StingLog.Info("AnomalyRefresh"); break;
+                    case "AnomalyScan": RunCommand<Tags.ValidateTagsCommand>(app); break;
+                    case "AnomalyExport": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
+
+                    case "BotSmartPlace": StingLog.Info("BotSmartPlace — AI tag placement"); break;
+                    case "BotDensityMap": StingLog.Info("BotDensityMap"); break;
+                    case "BotUndoAI": StingLog.Info("BotUndoAI"); break;
+                    case "BotOptions": StingLog.Info("BotOptions"); break;
+
+                    case "ColorSchemeDel": StingLog.Info("ColorSchemeDel"); break;
+                    case "GradientApply": StingLog.Info("GradientApply"); break;
+                    case "PatternApplyView": StingLog.Info("PatternApplyView"); break;
+                    case "ApplyLineWeight": StingLog.Info("ApplyLineWeight"); break;
+
+                    // ── Unmapped / placeholder ──
                     default:
                         StingLog.Info($"DockPanel command not yet mapped: {_commandTag}");
                         break;
@@ -285,13 +607,6 @@ namespace StingTools.UI
 
         // ── Generic command runner ────────────────────────────────────
 
-        /// <summary>
-        /// Invokes an IExternalCommand from the dockable panel context.
-        /// Since ExternalCommandData is created internally by Revit (no public constructor),
-        /// we use FormatterServices.GetUninitializedObject + reflection to set the
-        /// UIApplication field. This is the standard approach used by Revit test
-        /// frameworks and production addins that invoke commands from event handlers.
-        /// </summary>
         private static void RunCommand<T>(UIApplication app) where T : IExternalCommand, new()
         {
             var cmd = new T();
@@ -307,25 +622,17 @@ namespace StingTools.UI
                 StingLog.Error($"Cannot create ExternalCommandData for {typeof(T).Name}");
                 TaskDialog.Show("STING Tools",
                     $"Cannot invoke {typeof(T).Name} from panel.\n" +
-                    "Please use the ribbon button instead.");
+                    "Please restart Revit and try again.");
             }
         }
 
-        /// <summary>
-        /// Creates an ExternalCommandData instance via reflection.
-        /// ExternalCommandData has no public constructor (Revit creates it internally),
-        /// so we use FormatterServices.GetUninitializedObject to bypass the constructor,
-        /// then find and set the UIApplication backing field via reflection.
-        /// </summary>
         private static ExternalCommandData CreateCommandData(UIApplication app)
         {
             try
             {
-                // Create instance without calling any constructor
                 var data = (ExternalCommandData)FormatterServices
                     .GetUninitializedObject(typeof(ExternalCommandData));
 
-                // Find the UIApplication backing field and set it
                 var fields = typeof(ExternalCommandData).GetFields(
                     BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
 
@@ -340,7 +647,6 @@ namespace StingTools.UI
                     }
                 }
 
-                // Fallback: try property with auto-generated backing field name
                 if (!appSet)
                 {
                     var backingField = typeof(ExternalCommandData).GetField(
@@ -358,7 +664,7 @@ namespace StingTools.UI
             }
         }
 
-        // ── Inline operations (no IExternalCommand class needed) ──────
+        // ── Inline operations ─────────────────────────────────────────
 
         private static readonly Dictionary<string, List<ElementId>> _memorySlots =
             new Dictionary<string, List<ElementId>>();
@@ -704,7 +1010,6 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
-            // Unhide all categories
             using (Transaction tx = new Transaction(uidoc.Document, "STING Unhide Category"))
             {
                 tx.Start();
@@ -730,7 +1035,6 @@ namespace StingTools.UI
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show($"Set {label}", "Select elements first."); return; }
 
-            // Build a TaskDialog with common values for each token type
             string[] options = GetTokenOptions(paramName);
 
             var dlg = new TaskDialog($"Set {label}");
@@ -802,7 +1106,6 @@ namespace StingTools.UI
                 Element el = uidoc.Document.GetElement(id);
                 if (el == null) continue;
 
-                // Get connected elements via connectors (MEP)
                 try
                 {
                     var connectorManager = (el as Autodesk.Revit.DB.MEPCurve)?.ConnectorManager
@@ -831,6 +1134,30 @@ namespace StingTools.UI
             StingLog.Info($"SelectConnected: {connected.Count} elements (was {selected.Count})");
         }
 
+        private static void SelectByCategory(UIApplication app, string categoryName)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = new FilteredElementCollector(uidoc.Document, uidoc.ActiveView.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => ParameterHelpers.GetCategoryName(e) == categoryName)
+                .Select(e => e.Id).ToList();
+            uidoc.Selection.SetElementIds(ids);
+            StingLog.Info($"SelectByCategory '{categoryName}': {ids.Count} elements");
+        }
+
+        private static void SelectVisibleOnly(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = new FilteredElementCollector(uidoc.Document, uidoc.ActiveView.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => !e.IsHidden(uidoc.ActiveView))
+                .Select(e => e.Id).ToList();
+            uidoc.Selection.SetElementIds(ids);
+            StingLog.Info($"SelectVisibleOnly: {ids.Count} elements");
+        }
+
         // ── Colouriser helpers ─────────────────────────────────────
 
         private static void ColorByParameter(UIApplication app, string paramName, string paletteName)
@@ -847,7 +1174,6 @@ namespace StingTools.UI
                 .WhereElementIsNotElementType()
                 .ToList();
 
-            // Group by parameter value
             var groups = new Dictionary<string, List<ElementId>>();
             foreach (var el in elements)
             {
@@ -862,10 +1188,8 @@ namespace StingTools.UI
                 groups[val].Add(el.Id);
             }
 
-            // Generate colors from palette
             Color[] palette = GetColorPalette(paletteName, groups.Count);
 
-            // Find solid fill pattern
             FillPatternElement solidFill = null;
             foreach (FillPatternElement fpe in new FilteredElementCollector(uidoc.Document)
                 .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
@@ -974,13 +1298,12 @@ namespace StingTools.UI
 
         private static Color[] GetColorPalette(string name, int count)
         {
-            // Built-in palettes
             return (name?.ToLower()) switch
             {
                 "rag" => new[] {
-                    new Color(244, 67, 54),   // Red
-                    new Color(255, 152, 0),   // Amber
-                    new Color(76, 175, 80)    // Green
+                    new Color(244, 67, 54),
+                    new Color(255, 152, 0),
+                    new Color(76, 175, 80)
                 },
                 "monochrome" => new[] {
                     new Color(0, 0, 0),
@@ -990,17 +1313,16 @@ namespace StingTools.UI
                     new Color(255, 255, 255)
                 },
                 "discipline" => new[] {
-                    new Color(33, 150, 243),   // M = Blue
-                    new Color(255, 235, 59),   // E = Yellow
-                    new Color(76, 175, 80),    // P = Green
-                    new Color(158, 158, 158),  // A = Grey
-                    new Color(244, 67, 54),    // S = Red
-                    new Color(255, 152, 0),    // FP = Orange
-                    new Color(156, 39, 176),   // LV = Purple
-                    new Color(121, 85, 72)     // G = Brown
+                    new Color(33, 150, 243),
+                    new Color(255, 235, 59),
+                    new Color(76, 175, 80),
+                    new Color(158, 158, 158),
+                    new Color(244, 67, 54),
+                    new Color(255, 152, 0),
+                    new Color(156, 39, 176),
+                    new Color(121, 85, 72)
                 },
                 _ => new[] {
-                    // Material Design 500 palette (default)
                     new Color(244, 67, 54), new Color(233, 30, 99),
                     new Color(156, 39, 176), new Color(103, 58, 183),
                     new Color(63, 81, 181), new Color(33, 150, 243),
@@ -1015,5 +1337,4 @@ namespace StingTools.UI
             };
         }
     }
-
 }
