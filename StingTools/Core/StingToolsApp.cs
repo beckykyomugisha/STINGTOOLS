@@ -2,8 +2,10 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Windows.Media.Imaging;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.Attributes;
+using StingTools.UI;
 
 namespace StingTools.Core
 {
@@ -35,6 +37,9 @@ namespace StingTools.Core
                 BuildTagsPanel(application, tabName);
                 BuildOrganisePanel(application, tabName);
                 BuildTempPanel(application, tabName);
+
+                // Register the dockable panel
+                RegisterDockablePanel(application);
 
                 StingLog.Info("STING Tools ribbon loaded successfully");
                 return Result.Succeeded;
@@ -602,6 +607,39 @@ namespace StingTools.Core
             }
         }
 
+        // ── Dockable Panel Registration ──────────────────────────────
+
+        private void RegisterDockablePanel(UIControlledApplication application)
+        {
+            try
+            {
+                // Initialise the external event handler for panel button dispatching
+                StingDockPanel.Initialise(application);
+
+                // Register the dockable pane with Revit
+                var provider = new StingDockPanelProvider();
+                application.RegisterDockablePane(
+                    StingDockPanelProvider.PaneId,
+                    "STING Tools",
+                    provider);
+
+                // Add toggle button to the ribbon (on Select panel since it's first)
+                // The toggle is added as a separate panel for visibility
+                string asmPath = AssemblyPath;
+                const string tabName = "STING Tools";
+                var togglePanel = application.CreateRibbonPanel(tabName, "Panel");
+                AddButton(togglePanel, "btnTogglePanel", "STING\nPanel",
+                    asmPath, typeof(ToggleDockPanelCommand).FullName,
+                    "Show/hide the STING Tools dockable panel");
+
+                StingLog.Info("Dockable panel registered successfully");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to register dockable panel", ex);
+            }
+        }
+
         // ── Data file utilities ───────────────────────────────────────
 
         /// <summary>Find a data file by name, searching DataPath and subdirectories.</summary>
@@ -673,6 +711,44 @@ namespace StingTools.Core
             var data = new PushButtonData(name, text, asmPath, className);
             data.ToolTip = tooltip;
             pulldown.AddPushButton(data);
+        }
+    }
+
+    /// <summary>
+    /// Toggle the STING Tools dockable panel visibility.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ToggleDockPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                DockablePane pane = commandData.Application
+                    .GetDockablePane(StingDockPanelProvider.PaneId);
+
+                if (pane == null)
+                {
+                    TaskDialog.Show("STING Panel",
+                        "Dockable panel not found. Restart Revit to register it.");
+                    return Result.Failed;
+                }
+
+                if (pane.IsShown())
+                    pane.Hide();
+                else
+                    pane.Show();
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle dockable panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
         }
     }
 }
