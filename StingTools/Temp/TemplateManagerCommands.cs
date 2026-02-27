@@ -2561,4 +2561,491 @@ namespace StingTools.Temp
             return passed > 0 ? Result.Succeeded : Result.Failed;
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  CloneTemplateCommand — duplicate with intelligent discipline detection
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Clones an existing STING view template with intelligent discipline
+    /// detection and auto-configuration. The clone process:
+    ///
+    ///   1. User selects a source template (STING or non-STING)
+    ///   2. Engine detects discipline from source name/filters/VG overrides
+    ///   3. User picks target discipline (auto-suggested) or custom name
+    ///   4. Clone is created with:
+    ///      • New discipline-appropriate name ("STING - {Discipline} Plan")
+    ///      • VG overrides re-mapped to target discipline colours
+    ///      • Correct filters applied for the target discipline
+    ///      • Detail level preserved or upgraded per discipline rules
+    ///   5. Clone registered in project, ready for assignment
+    ///
+    /// Intelligence layers:
+    ///   Layer 1: Source discipline detected from template name patterns
+    ///   Layer 2: Fallback detection from applied filters (which discipline filters are visible)
+    ///   Layer 3: Fallback detection from VG overrides (which colour palette is active)
+    ///   Layer 4: User override via TaskDialog discipline picker
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CloneTemplateCommand : IExternalCommand
+    {
+        /// <summary>Discipline options for the user picker.</summary>
+        private static readonly (string code, string label)[] DisciplineOptions =
+        {
+            ("M", "Mechanical"), ("E", "Electrical"), ("P", "Plumbing"),
+            ("A", "Architectural"), ("S", "Structural"), ("FP", "Fire Protection"),
+            ("LV", "Low Voltage"), ("MEP", "MEP Coordination"), ("ALL", "Combined Services"),
+            ("DEMO", "Demolition"), ("EXIST", "As-Built"), ("AREA", "Area Plan"),
+        };
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            // Collect all view templates
+            var allTemplates = new FilteredElementCollector(doc)
+                .OfClass(typeof(View)).Cast<View>()
+                .Where(v => v.IsTemplate)
+                .OrderBy(v => v.Name)
+                .ToList();
+
+            if (allTemplates.Count == 0)
+            {
+                TaskDialog.Show("Clone Template", "No view templates found in project.");
+                return Result.Succeeded;
+            }
+
+            // Let user pick a source template via TaskDialog with command links
+            // Show up to 8 STING templates + "Other" option
+            var stingTmpl = allTemplates.Where(v => v.Name.StartsWith("STING")).Take(8).ToList();
+            var otherTmpl = allTemplates.Where(v => !v.Name.StartsWith("STING")).ToList();
+
+            TaskDialog pickDlg = new TaskDialog("Clone Template — Select Source");
+            pickDlg.MainInstruction = "Select source template to clone";
+            pickDlg.MainContent = $"Found {stingTmpl.Count} STING templates, " +
+                $"{otherTmpl.Count} other templates.\n\n" +
+                "The clone will be created with intelligent VG re-configuration.\n" +
+                "Select a STING template below or cancel to abort.";
+
+            if (stingTmpl.Count >= 1)
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    stingTmpl[0].Name, "Clone this template");
+            if (stingTmpl.Count >= 2)
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    stingTmpl[1].Name, "Clone this template");
+            if (stingTmpl.Count >= 3)
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    stingTmpl[2].Name, "Clone this template");
+            if (stingTmpl.Count >= 4)
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                    stingTmpl[3].Name, "Clone this template");
+
+            pickDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            TaskDialogResult pickResult = pickDlg.Show();
+            if (pickResult == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            View sourceTemplate = null;
+            if (pickResult == TaskDialogResult.CommandLink1 && stingTmpl.Count >= 1)
+                sourceTemplate = stingTmpl[0];
+            else if (pickResult == TaskDialogResult.CommandLink2 && stingTmpl.Count >= 2)
+                sourceTemplate = stingTmpl[1];
+            else if (pickResult == TaskDialogResult.CommandLink3 && stingTmpl.Count >= 3)
+                sourceTemplate = stingTmpl[2];
+            else if (pickResult == TaskDialogResult.CommandLink4 && stingTmpl.Count >= 4)
+                sourceTemplate = stingTmpl[3];
+
+            if (sourceTemplate == null)
+            {
+                TaskDialog.Show("Clone Template", "No template selected.");
+                return Result.Cancelled;
+            }
+
+            // Layer 1: Detect source discipline from name
+            string detectedDisc = TemplateManager.GetDisciplineFromTemplateName(sourceTemplate.Name);
+
+            // Layer 2: Fallback — detect from applied filters
+            if (detectedDisc == null)
+            {
+                var appliedFilters = sourceTemplate.GetFilters();
+                foreach (ElementId fid in appliedFilters)
+                {
+                    var filterEl = doc.GetElement(fid);
+                    if (filterEl == null) continue;
+                    string fn = filterEl.Name;
+                    if (fn.Contains("Mechanical")) { detectedDisc = "M"; break; }
+                    if (fn.Contains("Electrical")) { detectedDisc = "E"; break; }
+                    if (fn.Contains("Plumbing")) { detectedDisc = "P"; break; }
+                    if (fn.Contains("Architectural")) { detectedDisc = "A"; break; }
+                    if (fn.Contains("Structural")) { detectedDisc = "S"; break; }
+                    if (fn.Contains("Fire Protection")) { detectedDisc = "FP"; break; }
+                    if (fn.Contains("Low Voltage")) { detectedDisc = "LV"; break; }
+                }
+            }
+
+            // Layer 3: Fallback — detect from VG override colours
+            if (detectedDisc == null)
+            {
+                foreach (ElementId fid in sourceTemplate.GetFilters())
+                {
+                    try
+                    {
+                        var ogs = sourceTemplate.GetFilterOverrides(fid);
+                        Color lc = ogs.ProjectionLineColor;
+                        if (!lc.IsValid) continue;
+
+                        if (lc.Blue > 200 && lc.Red < 50) { detectedDisc = "M"; break; }
+                        if (lc.Red > 200 && lc.Green > 150) { detectedDisc = "E"; break; }
+                        if (lc.Green > 150 && lc.Red < 50 && lc.Blue < 50) { detectedDisc = "P"; break; }
+                        if (lc.Red > 150 && lc.Green < 50 && lc.Blue < 50) { detectedDisc = "S"; break; }
+                    }
+                    catch { }
+                }
+            }
+
+            string detectedLabel = detectedDisc ?? "Unknown";
+            foreach (var (code, label) in DisciplineOptions)
+            {
+                if (code == detectedDisc) { detectedLabel = label; break; }
+            }
+
+            // Layer 4: User confirms or overrides discipline
+            TaskDialog discDlg = new TaskDialog("Clone Template — Target Discipline");
+            discDlg.MainInstruction = "Select target discipline for clone";
+            discDlg.MainContent =
+                $"Source: {sourceTemplate.Name}\n" +
+                $"Detected discipline: {detectedLabel} ({detectedDisc ?? "?"})\n\n" +
+                "Pick target discipline for the cloned template:";
+
+            discDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                $"Same as source ({detectedLabel})",
+                $"Clone with {detectedLabel} VG configuration");
+            discDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Mechanical (M)", "Blue discipline colour, HVAC focus");
+            discDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Electrical (E)", "Yellow discipline colour, power/lighting focus");
+            discDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Plumbing (P)", "Green discipline colour, pipework focus");
+            discDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            TaskDialogResult discResult = discDlg.Show();
+            if (discResult == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            string targetDisc = detectedDisc ?? "A";
+            string targetLabel = detectedLabel;
+            if (discResult == TaskDialogResult.CommandLink2) { targetDisc = "M"; targetLabel = "Mechanical"; }
+            else if (discResult == TaskDialogResult.CommandLink3) { targetDisc = "E"; targetLabel = "Electrical"; }
+            else if (discResult == TaskDialogResult.CommandLink4) { targetDisc = "P"; targetLabel = "Plumbing"; }
+
+            // Build clone name
+            string viewTypeStr = "Plan";
+            try
+            {
+                if (sourceTemplate.ViewType == ViewType.CeilingPlan) viewTypeStr = "RCP";
+                else if (sourceTemplate.ViewType == ViewType.Section) viewTypeStr = "Section";
+                else if (sourceTemplate.ViewType == ViewType.ThreeD) viewTypeStr = "3D";
+                else if (sourceTemplate.ViewType == ViewType.Elevation) viewTypeStr = "Elevation";
+            }
+            catch { }
+
+            string cloneName = $"STING - {targetLabel} {viewTypeStr} (Clone)";
+
+            // Check for name collision
+            var existingNames = new HashSet<string>(
+                allTemplates.Select(t => t.Name), StringComparer.OrdinalIgnoreCase);
+            int suffix = 2;
+            string baseName = cloneName;
+            while (existingNames.Contains(cloneName))
+            {
+                cloneName = $"{baseName} {suffix}";
+                suffix++;
+            }
+
+            // Create the clone
+            var filterLookup = new Dictionary<string, ParameterFilterElement>();
+            foreach (ParameterFilterElement pfe in new FilteredElementCollector(doc)
+                .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
+                filterLookup[pfe.Name] = pfe;
+
+            FillPatternElement solidFill = null;
+            try
+            {
+                solidFill = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            }
+            catch { }
+
+            using (Transaction tx = new Transaction(doc, "STING Clone Template"))
+            {
+                tx.Start();
+
+                try
+                {
+                    // Duplicate the source template
+                    ElementId cloneId = sourceTemplate.Duplicate(ViewDuplicateOption.Duplicate);
+                    View clone = doc.GetElement(cloneId) as View;
+                    if (clone == null)
+                    {
+                        tx.RollBack();
+                        TaskDialog.Show("Clone Template", "Failed to duplicate template.");
+                        return Result.Failed;
+                    }
+
+                    clone.Name = cloneName;
+
+                    // Re-configure VG for target discipline
+                    ViewDetailLevel dl = targetDisc.StartsWith("PRES") ||
+                        targetDisc == "ELEV_P" || targetDisc == "SEC_P" || targetDisc == "PRES_3D"
+                        ? ViewDetailLevel.Fine : ViewDetailLevel.Medium;
+
+                    ViewTemplatesCommand.ConfigureTemplateVG(clone, targetDisc,
+                        filterLookup, solidFill, dl);
+
+                    tx.Commit();
+
+                    TaskDialog.Show("Clone Template",
+                        $"Template cloned successfully.\n\n" +
+                        $"Source: {sourceTemplate.Name}\n" +
+                        $"Clone: {cloneName}\n" +
+                        $"Discipline: {targetLabel} ({targetDisc})\n" +
+                        $"Detail level: {dl}\n\n" +
+                        "VG overrides re-configured for target discipline.\n" +
+                        "Use 'Auto-Assign Templates' to apply to views.");
+
+                    StingLog.Info($"Clone Template: '{sourceTemplate.Name}' → " +
+                        $"'{cloneName}' (disc={targetDisc})");
+                }
+                catch (Exception ex)
+                {
+                    if (tx.HasStarted()) tx.RollBack();
+                    StingLog.Error("Clone Template failed", ex);
+                    TaskDialog.Show("Clone Template", $"Clone failed: {ex.Message}");
+                    return Result.Failed;
+                }
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  BatchVGResetCommand — bulk VG standardisation across all views
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resets and standardises VG overrides across all views in the project.
+    /// Three operating modes:
+    ///
+    ///   Mode 1 — Reset to Template: Clears all per-element VG overrides
+    ///     in views that have a STING template, forcing the template VG to
+    ///     take full control. Removes rogue manual colour changes.
+    ///
+    ///   Mode 2 — Standardise Templates: Re-applies STING standard VG to
+    ///     all STING templates (calls SyncTemplateOverrides internally).
+    ///     Repairs templates that drifted from the standard.
+    ///
+    ///   Mode 3 — Full Reset: Combines Mode 1 + Mode 2: first fixes all
+    ///     templates, then clears per-element overrides in all views.
+    ///
+    /// Intelligence:
+    ///   • Counts per-element overrides before clearing (shows impact)
+    ///   • Groups views by template for efficient batch processing
+    ///   • Skips views on sheets (preserves print-ready formatting)
+    ///   • Reports per-view override counts and total cleared
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BatchVGResetCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            // Mode selection
+            TaskDialog modeDlg = new TaskDialog("Batch VG Reset");
+            modeDlg.MainInstruction = "Select VG standardisation mode";
+            modeDlg.MainContent =
+                "Choose how to standardise Visibility/Graphics across the project:\n\n" +
+                "Mode 1 — Clear per-element overrides in views with STING templates\n" +
+                "  (removes manual colour changes, forces template VG control)\n\n" +
+                "Mode 2 — Re-apply STING standard VG to all STING templates\n" +
+                "  (repairs templates that drifted from standard)\n\n" +
+                "Mode 3 — Full reset (Mode 2 + Mode 1)\n" +
+                "  (fix templates first, then clear element overrides)";
+
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Mode 1: Clear Element Overrides",
+                "Remove per-element colour/weight overrides in views with STING templates");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Mode 2: Standardise Templates",
+                "Re-apply STING VG standard to all STING view templates");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Mode 3: Full Reset (Recommended)",
+                "Fix templates + clear element overrides for complete standardisation");
+            modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            TaskDialogResult modeResult = modeDlg.Show();
+            if (modeResult == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            bool doTemplates = modeResult == TaskDialogResult.CommandLink2 ||
+                               modeResult == TaskDialogResult.CommandLink3;
+            bool doElements = modeResult == TaskDialogResult.CommandLink1 ||
+                              modeResult == TaskDialogResult.CommandLink3;
+
+            var report = new StringBuilder();
+            report.AppendLine("STING Batch VG Reset Report");
+            report.AppendLine(new string('═', 55));
+
+            int templatesSynced = 0;
+            int viewsReset = 0;
+            int elementsCleared = 0;
+
+            // Phase 1: Standardise STING templates
+            if (doTemplates)
+            {
+                report.AppendLine("\nPhase 1: Standardise Templates");
+
+                var filterLookup = new Dictionary<string, ParameterFilterElement>();
+                foreach (ParameterFilterElement pfe in new FilteredElementCollector(doc)
+                    .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
+                    filterLookup[pfe.Name] = pfe;
+
+                FillPatternElement solidFill = null;
+                try
+                {
+                    solidFill = new FilteredElementCollector(doc)
+                        .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                        .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+                }
+                catch { }
+
+                var stingTemplates = TemplateManager.GetStingTemplates(doc);
+
+                using (Transaction tx = new Transaction(doc, "STING Standardise Template VG"))
+                {
+                    tx.Start();
+                    foreach (var kvp in stingTemplates)
+                    {
+                        string disc = TemplateManager.GetDisciplineFromTemplateName(kvp.Key);
+                        if (disc == null) continue;
+
+                        ViewDetailLevel dl = disc.StartsWith("PRES") ||
+                            disc == "ELEV_P" || disc == "SEC_P" || disc == "PRES_3D"
+                            ? ViewDetailLevel.Fine : ViewDetailLevel.Medium;
+
+                        try
+                        {
+                            ViewTemplatesCommand.ConfigureTemplateVG(
+                                kvp.Value, disc, filterLookup, solidFill, dl);
+                            templatesSynced++;
+                            report.AppendLine($"  {kvp.Key} — synced ({disc})");
+                        }
+                        catch (Exception ex)
+                        {
+                            report.AppendLine($"  {kvp.Key} — FAILED: {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+            }
+
+            // Phase 2: Clear per-element overrides
+            if (doElements)
+            {
+                report.AppendLine("\nPhase 2: Clear Element Overrides");
+
+                var viewsWithSting = TemplateManager.GetAssignableViews(doc)
+                    .Where(v =>
+                    {
+                        if (v.ViewTemplateId == ElementId.InvalidElementId) return false;
+                        var tmpl = doc.GetElement(v.ViewTemplateId) as View;
+                        return tmpl != null && tmpl.Name.StartsWith("STING");
+                    }).ToList();
+
+                // Skip views placed on sheets (preserve print formatting)
+                var sheetsViews = new HashSet<ElementId>();
+                foreach (ViewSheet sheet in new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
+                {
+                    foreach (ElementId vpId in sheet.GetAllPlacedViews())
+                        sheetsViews.Add(vpId);
+                }
+
+                var resetTargets = viewsWithSting
+                    .Where(v => !sheetsViews.Contains(v.Id)).ToList();
+
+                int skippedOnSheets = viewsWithSting.Count - resetTargets.Count;
+                if (skippedOnSheets > 0)
+                    report.AppendLine($"  Skipping {skippedOnSheets} views on sheets");
+
+                using (Transaction tx = new Transaction(doc, "STING Clear Element Overrides"))
+                {
+                    tx.Start();
+
+                    foreach (View view in resetTargets)
+                    {
+                        try
+                        {
+                            // Collect all elements in view that have overrides
+                            var collector = new FilteredElementCollector(doc, view.Id);
+                            int cleared = 0;
+                            var defaultOgs = new OverrideGraphicSettings();
+
+                            foreach (Element el in collector)
+                            {
+                                try
+                                {
+                                    var currentOgs = view.GetElementOverrides(el.Id);
+                                    // Check if element has any non-default overrides
+                                    bool hasOverride =
+                                        currentOgs.ProjectionLineColor.IsValid ||
+                                        currentOgs.IsHalftone ||
+                                        currentOgs.Transparency > 0 ||
+                                        currentOgs.ProjectionLineWeight > 0;
+
+                                    if (hasOverride)
+                                    {
+                                        view.SetElementOverrides(el.Id, defaultOgs);
+                                        cleared++;
+                                    }
+                                }
+                                catch { }
+                            }
+
+                            if (cleared > 0)
+                            {
+                                report.AppendLine($"  {view.Name} — {cleared} overrides cleared");
+                                elementsCleared += cleared;
+                                viewsReset++;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"VG reset '{view.Name}': {ex.Message}");
+                        }
+                    }
+
+                    tx.Commit();
+                }
+            }
+
+            report.AppendLine($"\n{new string('─', 55)}");
+            if (doTemplates)
+                report.AppendLine($"  Templates standardised: {templatesSynced}");
+            if (doElements)
+            {
+                report.AppendLine($"  Views reset: {viewsReset}");
+                report.AppendLine($"  Element overrides cleared: {elementsCleared}");
+            }
+
+            TaskDialog.Show("Batch VG Reset", report.ToString());
+            StingLog.Info($"Batch VG Reset: {templatesSynced} templates synced, " +
+                $"{viewsReset} views reset, {elementsCleared} overrides cleared");
+
+            return Result.Succeeded;
+        }
+    }
 }

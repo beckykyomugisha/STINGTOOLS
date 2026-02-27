@@ -653,6 +653,16 @@ namespace StingTools.Core
                     asmPath,
                     typeof(Temp.CreateVGOverridesCommand).FullName,
                     "5-layer VG: discipline colours, QA highlighting, status styling, phase overrides, workset visibility");
+                AddPulldownItem(tplMgrGroup, "btnCloneTemplate",
+                    "Clone Template",
+                    asmPath,
+                    typeof(Temp.CloneTemplateCommand).FullName,
+                    "4-layer discipline detection: duplicate template with auto-VG re-configuration for target discipline");
+                AddPulldownItem(tplMgrGroup, "btnBatchVGReset",
+                    "Batch VG Reset",
+                    asmPath,
+                    typeof(Temp.BatchVGResetCommand).FullName,
+                    "3 modes: clear element overrides, standardise templates, or full reset (preserves sheet views)");
                 AddPulldownItem(tplMgrGroup, "btnBatchFamilyParams",
                     "Batch Family Params",
                     asmPath,
