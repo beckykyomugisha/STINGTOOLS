@@ -67,7 +67,9 @@ namespace StingTools.Temp
                                 segList.Add(new LinePatternSegment(
                                     LinePatternSegmentType.Space, Math.Abs(val)));
                         }
-                        LinePatternElement.Create(doc, new LinePattern(name, segList));
+                        var lp = new LinePattern(name);
+                        lp.SetSegments(segList);
+                        LinePatternElement.Create(doc, lp);
                         created++;
                     }
                     catch (Exception ex)

@@ -441,6 +441,7 @@ namespace StingTools.Temp
             {
                 var baseType = new FilteredElementCollector(doc)
                     .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
+                    .Cast<Autodesk.Revit.DB.Mechanical.DuctType>()
                     .FirstOrDefault();
 
                 if (baseType == null) return false;
@@ -451,6 +452,7 @@ namespace StingTools.Temp
             {
                 var baseType = new FilteredElementCollector(doc)
                     .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
+                    .Cast<Autodesk.Revit.DB.Plumbing.PipeType>()
                     .FirstOrDefault();
 
                 if (baseType == null) return false;
@@ -605,9 +607,9 @@ namespace StingTools.Temp
             if (upper.Contains("SUBSTRATE"))
                 return MaterialFunctionAssignment.Substrate;
             if (upper.Contains("THERMAL") || upper.Contains("AIR LAYER") || upper.Contains("INSUL"))
-                return MaterialFunctionAssignment.ThermalOrAir;
+                return MaterialFunctionAssignment.Insulation;
             if (upper.Contains("MEMBRANE") || upper.Contains("BARRIER") || upper.Contains("VAPOR"))
-                return MaterialFunctionAssignment.MembraneLayer;
+                return MaterialFunctionAssignment.Membrane;
 
             return MaterialFunctionAssignment.Structure;
         }
