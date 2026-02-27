@@ -207,8 +207,7 @@ namespace StingTools.Tags
             {
                 try
                 {
-                    ElementId id = tag.TaggedLocalElementId;
-                    if (id != ElementId.InvalidElementId)
+                    foreach (ElementId id in tag.GetTaggedLocalElementIds())
                         taggedIds.Add(id);
                 }
                 catch { /* skip tags with no host */ }
@@ -625,10 +624,10 @@ namespace StingTools.Tags
                     XYZ hostCenter = null;
                     try
                     {
-                        ElementId hostId = tag.TaggedLocalElementId;
-                        if (hostId != ElementId.InvalidElementId)
+                        var hostIds = tag.GetTaggedLocalElementIds();
+                        if (hostIds.Count > 0)
                         {
-                            Element host = doc.GetElement(hostId);
+                            Element host = doc.GetElement(hostIds.First());
                             if (host != null)
                                 hostCenter = TagPlacementEngine.GetElementCenter(host, view);
                         }

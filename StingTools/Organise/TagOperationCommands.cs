@@ -871,9 +871,9 @@ namespace StingTools.Organise
         {
             try
             {
-                ElementId hostId = tag.TaggedLocalElementId;
-                if (hostId == null || hostId == ElementId.InvalidElementId) return null;
-                Element host = doc.GetElement(hostId);
+                var hostIds = tag.GetTaggedLocalElementIds();
+                if (hostIds.Count == 0) return null;
+                Element host = doc.GetElement(hostIds.First());
                 if (host == null) return null;
                 return ParameterHelpers.GetString(host, "ASS_DISCIPLINE_COD_TXT");
             }
@@ -1886,7 +1886,8 @@ namespace StingTools.Organise
                     try
                     {
                         // Get the tagged element's location
-                        Element host = doc.GetElement(tag.TaggedLocalElementId);
+                        var _hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
                         if (host == null) continue;
 
                         XYZ center = LeaderHelper.GetElementCenter(host);
@@ -2134,7 +2135,8 @@ namespace StingTools.Organise
                     try
                     {
                         // Get tagged element center and tag head
-                        Element host = doc.GetElement(tag.TaggedLocalElementId);
+                        var _hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
                         if (host == null) continue;
 
                         XYZ hostCenter = LeaderHelper.GetElementCenter(host);
@@ -2249,7 +2251,8 @@ namespace StingTools.Organise
                 {
                     try
                     {
-                        Element host = doc.GetElement(tag.TaggedLocalElementId);
+                        var _hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
                         if (host == null) continue;
 
                         XYZ center = LeaderHelper.GetElementCenter(host);

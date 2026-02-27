@@ -503,7 +503,7 @@ namespace StingTools.Select
                     var existing = view.GetElementOverrides(id);
                     // Only clear if there are actual overrides
                     if (existing.ProjectionLineColor.IsValid ||
-                        existing.SurfaceTransparency > 0 ||
+                        existing.Halftone ||
                         existing.ProjectionLineWeight > 0)
                     {
                         view.SetElementOverrides(id, blank);
