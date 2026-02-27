@@ -91,6 +91,36 @@ namespace StingTools.Core
             { "MAT_TAG_4_TXT", new Guid("1d5e82d6-e988-4e9d-8be1-e195f2782041") },
             { "MAT_TAG_5_TXT", new Guid("c7efed83-bbd2-4a2e-b79a-292a1cfa3a18") },
             { "MAT_TAG_6_TXT", new Guid("d0d35a3a-abea-4898-9deb-4cdca865e8ee") },
+
+            // ── Finish Tags ──
+            { "FIN_CEIL_TAG_TXT", new Guid("cfbedb01-9783-403d-a273-2f2e4e215907") },
+            { "FIN_FLR_TAG_TXT", new Guid("a2b19e19-d4ad-44b4-97d4-8e80dc981228") },
+            { "FIN_WALL_TAG_TXT", new Guid("456cd8aa-e875-458c-b778-7abbe2f0563d") },
+
+            // ── Environmental Tags ──
+            { "ENV_FAC_TAG_TXT", new Guid("3eda6808-aa94-46d4-bd09-71fa6a26c090") },
+            { "ENV_WIN_TAG_TXT", new Guid("a204d24a-e981-44b4-bf39-afe03ddfa8dc") },
+            { "ENV_ROOF_TAG_TXT", new Guid("9a1ef97d-12f7-419d-93f9-60f3773e55ef") },
+
+            // ── Structural Tags ──
+            { "STR_CONC_TAG_TXT", new Guid("04a3dc69-9931-4154-809f-896df5584100") },
+            { "STR_STEEL_TAG_TXT", new Guid("e4f2fcf1-4764-4f8c-9b8d-e8512834e1aa") },
+
+            // ── Composite Material Tags ──
+            { "COMP_MAT_TAG_1_TXT", new Guid("58757592-bbc4-4cfd-8228-c89c89bb0d4a") },
+            { "COMP_MAT_TAG_2_TXT", new Guid("6eef14b4-c51c-4918-bd6c-dd05aca45813") },
+
+            // ── Material Performance Tags ──
+            { "MAT_PERF_TAG_1_TXT", new Guid("cc56b572-0538-4c37-b158-db6dbd51d3de") },
+            { "MAT_PERF_TAG_2_TXT", new Guid("28487745-251e-4555-bf56-b1d06c933cc5") },
+            { "MAT_PERF_TAG_3_TXT", new Guid("011ce782-1772-4477-bf4e-4a29a95c507a") },
+
+            // ── Sustainability Material Tags ──
+            { "SUST_MAT_TAG_1_TXT", new Guid("5491e7e3-472a-4b7a-9497-2e5170ce870b") },
+            { "SUST_MAT_TAG_2_TXT", new Guid("7f2ca957-dd29-4a9a-835a-c39dbdfed8d9") },
+
+            // ── Equipment Tag ──
+            { "ASS_EQUIPMENT_TAG_TXT", new Guid("2cebbb9e-70f2-550a-8a85-80cb1aa550d7") },
         };
 
         /// <summary>The 17 universal parameters bound to all 53 categories (Pass 1).</summary>
@@ -261,6 +291,50 @@ namespace StingTools.Core
             { "MAT_TAG_6_TXT", new[] {
                 BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
                 BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs } },
+            // Finish Tags → architectural finish categories
+            { "FIN_CEIL_TAG_TXT", new[] { BuiltInCategory.OST_Ceilings } },
+            { "FIN_FLR_TAG_TXT", new[] { BuiltInCategory.OST_Floors } },
+            { "FIN_WALL_TAG_TXT", new[] { BuiltInCategory.OST_Walls } },
+            // Environmental Tags → envelope categories
+            { "ENV_FAC_TAG_TXT", new[] { BuiltInCategory.OST_Walls,
+                BuiltInCategory.OST_CurtainWallPanels } },
+            { "ENV_WIN_TAG_TXT", new[] { BuiltInCategory.OST_Windows } },
+            { "ENV_ROOF_TAG_TXT", new[] { BuiltInCategory.OST_Roofs } },
+            // Structural Tags → structural categories
+            { "STR_CONC_TAG_TXT", new[] {
+                BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_StructuralFraming,
+                BuiltInCategory.OST_StructuralFoundation, BuiltInCategory.OST_Floors } },
+            { "STR_STEEL_TAG_TXT", new[] {
+                BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_StructuralFraming,
+                BuiltInCategory.OST_StructuralStiffener } },
+            // Composite Material Tags → compound-structure categories
+            { "COMP_MAT_TAG_1_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs } },
+            { "COMP_MAT_TAG_2_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs } },
+            // Material Performance Tags → compound-structure categories
+            { "MAT_PERF_TAG_1_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs } },
+            { "MAT_PERF_TAG_2_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs } },
+            { "MAT_PERF_TAG_3_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs } },
+            // Sustainability Material Tags → compound-structure categories
+            { "SUST_MAT_TAG_1_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs } },
+            { "SUST_MAT_TAG_2_TXT", new[] {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Roofs } },
+            // Equipment Tag → all equipment categories
+            { "ASS_EQUIPMENT_TAG_TXT", new[] {
+                BuiltInCategory.OST_MechanicalEquipment, BuiltInCategory.OST_ElectricalEquipment,
+                BuiltInCategory.OST_PlumbingFixtures, BuiltInCategory.OST_SpecialityEquipment } },
         };
 
         /// <summary>
