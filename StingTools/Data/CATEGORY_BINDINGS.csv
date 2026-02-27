@@ -1,4 +1,4 @@
-# v2.2 | 20260226 | BIM Template category_bindings
+# v2.3 | 20260227 | BIM Template category_bindings
 Parameter_Name,Revit_Category,Binding_Type,Is_Shared
 ASS_CAT_TXT,Air Terminals,Type,True
 ASS_CAT_TXT,Cable Trays,Type,True
@@ -10659,3 +10659,60 @@ PH_NAME_TXT,Casework,Type,True
 PH_NAME_TXT,Furniture,Type,True
 PH_NAME_TXT,Specialty Equipment,Type,True
 PH_NAME_TXT,Rooms,Type,True
+PS_AMBIENT_SHADOWS_BOOL,Generic Models,Type,True
+PS_BACKGROUND_TYPE_TXT,Generic Models,Type,True
+PS_BEST_FOR_TXT,Generic Models,Type,True
+PS_MOOD_TXT,Generic Models,Type,True
+PS_SHADOWS_BOOL,Generic Models,Type,True
+PS_SILHOUETTES_BOOL,Generic Models,Type,True
+PS_SKETCHY_LINES_BOOL,Generic Models,Type,True
+PS_STYLE_CATEGORY_TXT,Generic Models,Type,True
+PS_STYLE_NAME_TXT,Generic Models,Type,True
+PS_VIEW_TYPE_TXT,Generic Models,Type,True
+PS_VISUAL_STYLE_TXT,Generic Models,Type,True
+PT_BACKGROUND_B_INT,Generic Models,Type,True
+PT_BACKGROUND_G_INT,Generic Models,Type,True
+PT_BACKGROUND_R_INT,Generic Models,Type,True
+PT_DETAIL_LEVEL_TXT,Generic Models,Type,True
+PT_PURPOSE_TXT,Generic Models,Type,True
+PT_SCALE_TXT,Generic Models,Type,True
+PT_SHADOWS_BOOL,Generic Models,Type,True
+PT_STYLE_REFERENCE_TXT,Generic Models,Type,True
+PT_TEMPLATE_NAME_TXT,Generic Models,Type,True
+PT_VG_SCHEME_TXT,Generic Models,Type,True
+PT_VIEW_TYPE_TXT,Generic Models,Type,True
+PT_VISUAL_STYLE_TXT,Generic Models,Type,True
+VGO_CATEGORY_TXT,Generic Models,Type,True
+VGO_CUT_COLOR_B_INT,Generic Models,Type,True
+VGO_CUT_COLOR_G_INT,Generic Models,Type,True
+VGO_CUT_COLOR_R_INT,Generic Models,Type,True
+VGO_CUT_WEIGHT_INT,Generic Models,Type,True
+VGO_HALFTONE_BOOL,Generic Models,Type,True
+VGO_PROJ_COLOR_B_INT,Generic Models,Type,True
+VGO_PROJ_COLOR_G_INT,Generic Models,Type,True
+VGO_PROJ_COLOR_R_INT,Generic Models,Type,True
+VGO_PROJ_WEIGHT_INT,Generic Models,Type,True
+VGO_SCHEME_NAME_TXT,Generic Models,Type,True
+VGO_SURFACE_COLOR_B_INT,Generic Models,Type,True
+VGO_SURFACE_COLOR_G_INT,Generic Models,Type,True
+VGO_SURFACE_COLOR_R_INT,Generic Models,Type,True
+VGO_SURFACE_PATTERN_TXT,Generic Models,Type,True
+VGO_TRANSPARENCY_NR,Generic Models,Type,True
+VGO_VISIBLE_BOOL,Generic Models,Type,True
+VGPS_CATEGORY_TXT,Generic Models,Type,True
+VGPS_CUT_COLOR_B_INT,Generic Models,Type,True
+VGPS_CUT_COLOR_G_INT,Generic Models,Type,True
+VGPS_CUT_COLOR_R_INT,Generic Models,Type,True
+VGPS_CUT_WEIGHT_INT,Generic Models,Type,True
+VGPS_HALFTONE_BOOL,Generic Models,Type,True
+VGPS_PROJ_COLOR_B_INT,Generic Models,Type,True
+VGPS_PROJ_COLOR_G_INT,Generic Models,Type,True
+VGPS_PROJ_COLOR_R_INT,Generic Models,Type,True
+VGPS_PROJ_WEIGHT_INT,Generic Models,Type,True
+VGPS_SCHEME_NAME_TXT,Generic Models,Type,True
+VGPS_SURFACE_COLOR_B_INT,Generic Models,Type,True
+VGPS_SURFACE_COLOR_G_INT,Generic Models,Type,True
+VGPS_SURFACE_COLOR_R_INT,Generic Models,Type,True
+VGPS_SURFACE_PATTERN_TXT,Generic Models,Type,True
+VGPS_TRANSPARENCY_NR,Generic Models,Type,True
+VGPS_VISIBLE_BOOL,Generic Models,Type,True
