@@ -14,7 +14,14 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
-  <!-- Revit 2025/2026/2027 API assemblies — update HintPath per machine -->
+  <!-- Default RevitApiPath when not passed via command line (e.g. Visual Studio) -->
+  <PropertyGroup Condition="'$(RevitApiPath)' == ''">
+    <RevitApiPath Condition="Exists('C:\Program Files\Autodesk\Revit 2025\RevitAPI.dll')">C:\Program Files\Autodesk\Revit 2025</RevitApiPath>
+    <RevitApiPath Condition="'$(RevitApiPath)' == '' And Exists('C:\Program Files\Autodesk\Revit 2026\RevitAPI.dll')">C:\Program Files\Autodesk\Revit 2026</RevitApiPath>
+    <RevitApiPath Condition="'$(RevitApiPath)' == '' And Exists('C:\Program Files\Autodesk\Revit 2027\RevitAPI.dll')">C:\Program Files\Autodesk\Revit 2027</RevitApiPath>
+  </PropertyGroup>
+
+  <!-- Revit 2025/2026/2027 API assemblies -->
   <ItemGroup>
     <Reference Include="RevitAPI">
       <HintPath>$(RevitApiPath)\RevitAPI.dll</HintPath>
