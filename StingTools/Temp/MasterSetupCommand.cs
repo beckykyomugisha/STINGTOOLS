@@ -76,7 +76,7 @@ namespace StingTools.Temp
 
                 // Step 1: Load shared parameters (critical — other steps depend on it)
                 passed += RunStep(ref stepNum, report, "Load Shared Parameters",
-                    () => new Tags.LoadSharedParamsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new Tags.LoadSharedParamsCommand(), commandData, elements));
 
                 // If parameter loading failed, offer rollback
                 if (passed == 0)
@@ -101,45 +101,45 @@ namespace StingTools.Temp
 
                 // Step 2: Create BLE Materials
                 passed += RunStep(ref stepNum, report, "Create BLE Materials",
-                    () => new CreateBLEMaterialsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateBLEMaterialsCommand(), commandData, elements));
 
                 // Step 3: Create MEP Materials
                 passed += RunStep(ref stepNum, report, "Create MEP Materials",
-                    () => new CreateMEPMaterialsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateMEPMaterialsCommand(), commandData, elements));
 
                 // Step 4: Create compound types (Walls, Floors, Ceilings, Roofs)
                 passed += RunStep(ref stepNum, report, "Create Wall Types",
-                    () => new CreateWallsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateWallsCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Create Floor Types",
-                    () => new CreateFloorsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateFloorsCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Create Ceiling Types",
-                    () => new CreateCeilingsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateCeilingsCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Create Roof Types",
-                    () => new CreateRoofsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateRoofsCommand(), commandData, elements));
 
                 // Step 5: Create MEP types (Ducts, Pipes)
                 passed += RunStep(ref stepNum, report, "Create Duct Types",
-                    () => new CreateDuctsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateDuctsCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Create Pipe Types",
-                    () => new CreatePipesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreatePipesCommand(), commandData, elements));
 
                 // Step 6: Batch create schedules
                 passed += RunStep(ref stepNum, report, "Batch Create Schedules",
-                    () => new BatchSchedulesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new BatchSchedulesCommand(), commandData, elements));
 
                 // Step 7: Auto-populate tag tokens
                 passed += RunStep(ref stepNum, report, "Auto-Populate Tags",
-                    () => new AutoPopulateCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new AutoPopulateCommand(), commandData, elements));
 
                 // Step 8: Create view filters
                 passed += RunStep(ref stepNum, report, "Create View Filters",
-                    () => new CreateFiltersCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateFiltersCommand(), commandData, elements));
 
                 // Step 9: Create worksets (only if worksharing enabled)
                 if (doc.IsWorkshared)
                 {
                     passed += RunStep(ref stepNum, report, "Create Worksets",
-                        () => new CreateWorksetsCommand().Execute(commandData, ref message, elements));
+                        () => RunCommand(new CreateWorksetsCommand(), commandData, elements));
                 }
                 else
                 {
@@ -149,7 +149,7 @@ namespace StingTools.Temp
 
                 // Step 10: Create view templates
                 passed += RunStep(ref stepNum, report, "Create View Templates",
-                    () => new ViewTemplatesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new ViewTemplatesCommand(), commandData, elements));
 
                 // Step 11: Fill patterns + line styles + object styles
                 passed += RunStep(ref stepNum, report, "Create Fill Patterns",
@@ -227,6 +227,14 @@ namespace StingTools.Temp
                 $"elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
 
             return passed > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>Execute an IExternalCommand without capturing ref message in a lambda.</summary>
+        private static Result RunCommand(IExternalCommand cmd,
+            ExternalCommandData data, ElementSet elems)
+        {
+            string msg = "";
+            return cmd.Execute(data, ref msg, elems);
         }
 
         private static int RunStep(ref int stepNum, StringBuilder report,

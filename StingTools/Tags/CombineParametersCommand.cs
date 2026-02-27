@@ -206,6 +206,64 @@ namespace StingTools.Tags
                 new ContainerDef("MAT_TAG_5_TXT", Line1Tokens,     "-", "", "", "Line 1"),
                 new ContainerDef("MAT_TAG_6_TXT", Line2Tokens,     "-", "", "", "Line 2"),
             }),
+
+            // Finish Tags (architectural finish tracking)
+            new ContainerGroup("Finish Tags", "FIN_TAG",
+                new[] { "Walls", "Floors", "Ceilings" }, new[]
+            {
+                new ContainerDef("FIN_WALL_TAG_TXT", AllTokenParams, "-", "", "", "Wall finish tag"),
+                new ContainerDef("FIN_FLR_TAG_TXT", AllTokenParams,  "-", "", "", "Floor finish tag"),
+                new ContainerDef("FIN_CEIL_TAG_TXT", AllTokenParams, "-", "", "", "Ceiling finish tag"),
+            }),
+
+            // Environmental Tags (building envelope performance)
+            new ContainerGroup("Environmental Tags", "ENV_TAG",
+                new[] { "Walls", "Windows", "Roofs" }, new[]
+            {
+                new ContainerDef("ENV_FAC_TAG_TXT", AllTokenParams,  "-", "", "", "Facade tag"),
+                new ContainerDef("ENV_WIN_TAG_TXT", AllTokenParams,  "-", "", "", "Window tag"),
+                new ContainerDef("ENV_ROOF_TAG_TXT", AllTokenParams, "-", "", "", "Roof tag"),
+            }),
+
+            // Structural Tags
+            new ContainerGroup("Structural Tags", "STR_TAG",
+                new[] { "Structural Columns", "Structural Framing", "Structural Foundations", "Floors" }, new[]
+            {
+                new ContainerDef("STR_CONC_TAG_TXT", AllTokenParams,  "-", "", "", "Concrete tag"),
+                new ContainerDef("STR_STEEL_TAG_TXT", AllTokenParams, "-", "", "", "Steel tag"),
+            }),
+
+            // Composite Material Tags
+            new ContainerGroup("Composite Material Tags", "COMP_MAT",
+                new[] { "Walls", "Floors", "Ceilings", "Roofs" }, new[]
+            {
+                new ContainerDef("COMP_MAT_TAG_1_TXT", AllTokenParams, "-", "", "", "Full tag"),
+                new ContainerDef("COMP_MAT_TAG_2_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
+            }),
+
+            // Material Performance Tags
+            new ContainerGroup("Material Performance Tags", "MAT_PERF",
+                new[] { "Walls", "Floors", "Ceilings", "Roofs" }, new[]
+            {
+                new ContainerDef("MAT_PERF_TAG_1_TXT", AllTokenParams, "-", "", "", "Full tag"),
+                new ContainerDef("MAT_PERF_TAG_2_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
+                new ContainerDef("MAT_PERF_TAG_3_TXT", LocationTokens, "-", "", "", "Location"),
+            }),
+
+            // Sustainability Material Tags
+            new ContainerGroup("Sustainability Tags", "SUST_MAT",
+                new[] { "Walls", "Floors", "Ceilings", "Roofs" }, new[]
+            {
+                new ContainerDef("SUST_MAT_TAG_1_TXT", AllTokenParams, "-", "", "", "Full tag"),
+                new ContainerDef("SUST_MAT_TAG_2_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
+            }),
+
+            // Equipment Tag
+            new ContainerGroup("Equipment Tag", "ASS_EQP",
+                new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Specialty Equipment" }, new[]
+            {
+                new ContainerDef("ASS_EQUIPMENT_TAG_TXT", AllTokenParams, "-", "", "", "Equipment tag"),
+            }),
         };
 
         // ── Main Execute ─────────────────────────────────────────────

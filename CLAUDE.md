@@ -9,7 +9,7 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 ### Quick Stats
 
 - **40 source files** (39 C# + 1 XAML, ~19,600 lines of code) across 8 directories
-- **121 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point
+- **121 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider`
 - **15 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel
 
@@ -17,8 +17,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 - **Platform**: Autodesk Revit 2025/2026/2027 (BIM software)
 - **Language**: C# / .NET 8.0 (`net8.0-windows`)
-- **Plugin type**: `IExternalApplication` with `IExternalCommand` classes
-- **Dependencies**: `Newtonsoft.Json` 13.0.3, Revit API assemblies (`RevitAPI.dll`, `RevitAPIUI.dll`), WPF (`UseWPF=true`)
+- **Plugin type**: `IExternalApplication` + `IExternalEventHandler` + `IDockablePaneProvider` with `IExternalCommand` classes
+- **Dependencies**: `Newtonsoft.Json` 13.0.3, Revit API assemblies (`RevitAPI.dll`, `RevitAPIUI.dll`)
 - **Data formats**: CSV and JSON files for configuration data (materials, parameters, schedules)
 - **Deployment**: `StingTools.addin` (XML manifest) + `extract_plugin.sh` (Bash)
 
@@ -37,8 +37,8 @@ STINGTOOLS/
     ├── Properties/
     │   └── AssemblyInfo.cs             # Assembly metadata (v1.0.0.0)
     │
-    ├── Core/                           # Shared infrastructure (5 files, ~4,025 lines)
-    │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI builder (6 panels, 23 pulldowns) + dockable panel registration
+    ├── Core/                           # Shared infrastructure (5 files, ~4,024 lines)
+    │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI + dockable panel registration + ToggleDockPanelCommand
     │   ├── StingLog.cs                 # Thread-safe file logger (Info/Warn/Error)
     │   ├── ParameterHelpers.cs         # Parameter read/write + SpatialAutoDetect + NativeParamMapper
     │   ├── SharedParamGuids.cs         # GUID map for 200+ shared parameters
@@ -47,6 +47,12 @@ STINGTOOLS/
     ├── Select/                         # Element selection commands (2 files, 23 commands)
     │   ├── CategorySelectCommands.cs   # 14 category selectors + SelectAllTaggable + CategorySelector helper
     │   └── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite
+    │
+    ├── UI/                             # WPF dockable panel UI (3 C# files + 1 XAML, ~2,032 lines)
+    │   ├── StingDockPanel.xaml         # WPF markup for 4-tab dockable panel (SELECT/ORGANISE/CREATE/VIEW)
+    │   ├── StingDockPanel.xaml.cs      # Code-behind: button dispatch, colour swatches, status bar
+    │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 100+ button tags to command classes
+    │   └── StingDockPanelProvider.cs   # IDockablePaneProvider — registers panel with Revit
     │
     ├── Docs/                           # Documentation commands (6 files, 11 commands)
     │   ├── SheetOrganizerCommand.cs    # Group sheets by discipline prefix
@@ -81,17 +87,10 @@ STINGTOOLS/
     │   ├── FamilyCommands.cs           # Wall/Floor/Ceiling/Roof/Duct/Pipe types + CompoundTypeCreator
     │   ├── ScheduleCommands.cs         # FullAutoPopulate, BatchSchedules, AutoPopulate, ExportCSV + ScheduleHelper
     │   ├── FormulaEvaluatorCommand.cs  # Formula engine (199 formulas) + FormulaEngine + ExpressionParser
-    │   ├── TemplateCommands.cs         # Filters, worksets, view templates
+    │   ├── TemplateCommands.cs         # Filters, worksets, view templates (23 template defs + VG configuration)
     │   ├── TemplateExtCommands.cs      # Line patterns, phases, apply filters,
     │   │                               #   cable trays, conduits, material schedules
-    │   └── TemplateManagerCommands.cs  # 17 commands: auto-assign, audit, diff, compliance,
-    │                                   #   auto-fix, styles, VG, family params + TemplateManager helper
-    │
-    ├── UI/                             # WPF dockable panel (3 files + 1 XAML, ~1,240 lines)
-    │   ├── StingDockPanel.xaml         # WPF layout: 4-tab panel (SELECT, ORGANISE, CREATE, VIEW)
-    │   ├── StingDockPanel.xaml.cs      # Code-behind with button event routing
-    │   ├── StingDockPanelProvider.cs   # IDockablePaneProvider registration
-    │   └── StingCommandHandler.cs      # IExternalEventHandler for thread-safe command dispatch
+    │   └── TemplateManagerCommands.cs  # 17 template intelligence commands + TemplateManager engine (3,051 lines)
     │
     └── Data/                           # Runtime data files
         ├── BLE_MATERIALS.csv           # 815 building-element materials
@@ -111,9 +110,9 @@ STINGTOOLS/
         └── VALIDAT_BIM_TEMPLATE.py     # BIM template validation (45 checks)
 ```
 
-## Ribbon UI Architecture
+## Ribbon UI Architecture (Legacy)
 
-The plugin creates a single **"STING Tools"** ribbon tab with six panels:
+> **Note:** The ribbon panels have been superseded by the WPF dockable panel (see [WPF Dockable Panel](#wpf-dockable-panel-primary-ui) section). The ribbon is retained for compatibility but the dockable panel is the primary user interface. All commands are accessible from both surfaces.
 
 ### Select Panel (3 pulldowns + 1 button)
 | Group | Commands | Description |
@@ -233,8 +232,8 @@ The plugin creates a single **"STING Tools"** ribbon tab with six panels:
 | Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes (FamilyCommands.cs), Cable Trays, Conduits (TemplateExtCommands.cs) | Type creation from CSV data (8 commands) |
 | Schedules | **Full Auto-Populate**, Batch Create, Material Takeoffs, Auto-Populate (Tokens Only), Evaluate Formulas, Export CSV | Schedule management + zero-input automation (6 commands) |
 | Templates | **★ Template Setup Wizard**, Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases | One-click template pipeline + 28 filters, 35 worksets, 23 templates, 10 line patterns, 6 phases (7 commands) |
-| **Template Mgr** | Auto-Assign Templates, Template Audit, Template Diff, Compliance Scores, Auto-Fix Templates, Sync VG Overrides, Apply VG Overrides, Clone Template, Batch VG Reset, Batch Family Params, Template Schedules | **NEW** — 5-layer intelligence template management (11 commands) |
-| **Styles** | Fill Patterns, Line Styles, Object Styles, Text Styles, Dimension Styles | **NEW** — ISO-standard style creation (5 commands) |
+| **Template Mgr** | Auto-Assign Templates, Template Audit, Template Diff, Compliance Scores, Auto-Fix Templates, Sync VG Overrides, Apply VG Overrides, Clone Template, Batch VG Reset, Batch Family Params, Template Schedules | 5-layer intelligence template management (11 commands) |
+| **Styles** | Fill Patterns, Line Styles, Object Styles, Text Styles, Dimension Styles | ISO-standard style creation (5 commands) |
 
 ### Panel Panel (1 button)
 | Button | Command Class | Transaction | Description |
@@ -245,6 +244,7 @@ The plugin creates a single **"STING Tools"** ribbon tab with six panels:
 
 | File | Commands | Lines |
 |------|----------|-------|
+| `Core/StingToolsApp.cs` | 1 (ToggleDockPanelCommand) + IExternalApplication | 857 |
 | `Select/CategorySelectCommands.cs` | 15 (14 category selectors + SelectAllTaggable) | 168 |
 | `Select/StateSelectCommands.cs` | 8 (5 state + 2 spatial + BulkParamWrite) | 407 |
 | `Docs/SheetOrganizerCommand.cs` | 1 | 100 |
@@ -267,18 +267,18 @@ The plugin creates a single **"STING Tools"** ribbon tab with six panels:
 | `Organise/TagOperationCommands.cs` | 26 (7 Tag Ops + 12 Leaders + 4 Analysis + LeaderHelper + TagRegisterExport + SelectTagsWithLeaders) | 2,096 |
 | `Temp/CreateParametersCommand.cs` | 1 | 27 |
 | `Temp/CheckDataCommand.cs` | 1 | 101 |
-| `Temp/MasterSetupCommand.cs` | 1 (15-step orchestrator) | 255 |
+| `Temp/MasterSetupCommand.cs` | 1 | 255 |
 | `Temp/MaterialCommands.cs` | 2 (BLE, MEP) | 239 |
 | `Temp/FamilyCommands.cs` | 6 (Walls, Floors, Ceilings, Roofs, Ducts, Pipes) | 658 |
 | `Temp/ScheduleCommands.cs` | 4 (FullAutoPopulate, BatchSchedules, AutoPopulate, ExportCSV) | 1,266 |
 | `Temp/FormulaEvaluatorCommand.cs` | 1 (+ FormulaEngine + ExpressionParser) | 765 |
 | `Temp/TemplateCommands.cs` | 3 (Filters, Worksets, ViewTemplates) | 943 |
 | `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 302 |
-| `Temp/TemplateManagerCommands.cs` | 17 (AutoAssign, Audit, Diff, Compliance, AutoFix, SyncOverrides, FillPatterns, LineStyles, ObjectStyles, TextStyles, DimStyles, VGOverrides, FamilyParams, Schedules, Wizard, Clone, BatchReset) + TemplateManager helper | 3,051 |
-| `Core/StingToolsApp.cs` (ToggleDockPanelCommand) | 1 | (included in StingToolsApp 857 total) |
-| `UI/StingCommandHandler.cs` | 0 (IExternalEventHandler infrastructure) | 1,019 |
+| `Temp/TemplateManagerCommands.cs` | 17 (AutoAssign, Audit, Diff, Compliance, AutoFix, SyncOverrides, FillPatterns, LineStyles, ObjectStyles, TextStyles, DimStyles, VGOverrides, BatchFamilyParams, TemplateSchedules, SetupWizard, CloneTemplate, BatchVGReset) + TemplateManager engine | 3,051 |
+| `UI/StingCommandHandler.cs` | 0 (IExternalEventHandler dispatcher) | 1,019 |
 | `UI/StingDockPanel.xaml.cs` | 0 (WPF code-behind) | 182 |
 | `UI/StingDockPanelProvider.cs` | 0 (IDockablePaneProvider) | 37 |
+| `UI/StingDockPanel.xaml` | — (WPF markup) | 794 |
 | **Total** | **121 commands** | **~19,600** |
 
 ## Core Classes
@@ -286,12 +286,11 @@ The plugin creates a single **"STING Tools"** ribbon tab with six panels:
 ### `StingToolsApp` (IExternalApplication) — `Core/StingToolsApp.cs` (857 lines)
 - Entry point registered in `StingTools.addin` (FullClassName: `StingTools.Core.StingToolsApp`)
 - Static properties: `AssemblyPath`, `DataPath` (set in `OnStartup`, relative to DLL location)
-- Builds ribbon tab "STING Tools" with `BuildSelectPanel`, `BuildDocsPanel`, `BuildTagsPanel`, `BuildOrganisePanel`, `BuildTempPanel`
-- Uses `PulldownButton` groups for all panel sub-menus (23 pulldowns total)
-- `RegisterDockablePanel()` — registers the WPF dockable panel with Revit at startup
-- `ToggleDockPanelCommand` — shows/hides the dockable panel (defined in same file)
+- Registers WPF dockable panel (`StingDockPanelProvider`) — the primary user interface
+- Builds legacy ribbon tab "STING Tools" with `BuildSelectPanel`, `BuildDocsPanel`, `BuildTagsPanel`, `BuildOrganisePanel`, `BuildTempPanel` (retained for compatibility)
 - Provides `FindDataFile(fileName)` — searches `DataPath` and subdirectories
 - Provides `ParseCsvLine(line)` — CSV parser respecting quoted fields
+- Contains `ToggleDockPanelCommand` — toggles the WPF dockable panel visibility
 
 ### `StingLog` (static) — `Core/StingLog.cs` (62 lines)
 - Thread-safe file logger (`StingTools.log` alongside the DLL)
@@ -386,38 +385,10 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `LeaderHelper` | `Organise/TagOperationCommands.cs` | Shared logic for annotation tag leader operations (toggle, align, snap) |
 | `ScheduleHelper` | `Temp/ScheduleCommands.cs` | Schedule creation utilities and field remap loading from SCHEDULE_FIELD_REMAP.csv |
 | `FormulaEngine` | `Temp/FormulaEvaluatorCommand.cs` | Formula parsing, context building, text/numeric evaluation, includes `ExpressionParser` recursive descent parser |
-| `TemplateManager` | `Temp/TemplateManagerCommands.cs` | 5-layer template auto-assignment intelligence, VG diff/snapshot engine, compliance scoring, style creation tables, auto-repair logic |
-
-### WPF Dockable Panel — `UI/` directory (3 files + 1 XAML, ~1,240 lines)
-
-Provides a persistent dockable panel that replicates the original pyRevit STINGTags interface with 4 tabs.
-
-| Class | File | Purpose |
-|-------|------|---------|
-| `StingDockPanel` | `UI/StingDockPanel.xaml` + `.xaml.cs` | WPF `Page` with 4 tabs (SELECT, ORGANISE, CREATE, VIEW), button event routing, selection memory slots |
-| `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers panel with Revit; PaneGuid `B3C4D5E6-7890-ABCD-EF01-234567890ABC`; initial state: right dock, 320×400px minimum |
-| `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — thread-safe command dispatch from UI; maps 40+ button tags to command classes; creates `ExternalCommandData` via reflection |
-
-### `TemplateManager` (static) — `Temp/TemplateManagerCommands.cs` (3,051 lines, 17 commands)
-
-Intelligence engine for template management with 5-layer auto-assignment:
-
-1. **Name pattern matching** — regex-based view name to template mapping
-2. **Level awareness** — floor plan levels mapped to appropriate templates
-3. **Phase awareness** — existing/demolition/new construction phases
-4. **Scope box detection** — area-specific template variants
-5. **Type default** — fallback by view type (FloorPlan, Section, 3D, etc.)
-
-Additional capabilities:
-- **Template audit** — coverage, filters, VG, orphans, compliance scoring, discipline distribution
-- **VG diff engine** — filter-by-filter comparison between templates
-- **Compliance scoring** — 10-point weighted scale (template assigned, VG configured, filters active, etc.)
-- **Auto-repair** — diagnose and fix orphaned filters, missing filters, undefined detail, missing VG overrides
-- **Style creation** — fill patterns (12 ISO 128-2:2020), line styles (16), object styles (40), text styles (12 ISO 3098), dimension styles (7)
-- **VG overrides** — 5-layer system: discipline colours, QA highlighting, status styling, phase overrides, workset visibility
-- **Data-driven family params** — bind 4,686 parameter-to-category entries from FAMILY_PARAMETER_BINDINGS.csv
-- **Template cloning** — 4-layer discipline detection with auto-VG reconfiguration
-- **Setup wizard** — one-click 15-step complete template automation pipeline
+| `TemplateManager` | `Temp/TemplateManagerCommands.cs` | Deep template intelligence engine: 5-layer auto-assignment, compliance scoring, VG diff, style definitions |
+| `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 100+ dockable panel button clicks to command classes on the Revit API thread |
+| `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 4-tab dockable panel (SELECT/ORGANISE/CREATE/VIEW) with colour swatches and status bar |
+| `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers dockable panel with Revit; PaneGuid for panel identification |
 
 ## ISO 19650 Tag Format
 
@@ -457,6 +428,76 @@ The recommended tagging workflow is a multi-layered pipeline:
 6. **Combine** (`CombineParametersCommand`) — Write assembled tag to all 36 discipline-specific containers
 
 Alternatively, use **Tag & Combine** or **Full Auto-Populate** for one-click automation that executes the entire pipeline.
+
+## WPF Dockable Panel (Primary UI)
+
+The plugin's primary user interface is a **WPF dockable panel** that consolidates all commands from the original ribbon into a single tabbed panel docked to the right side of Revit. The ribbon panels still exist for backwards compatibility but the dockable panel is the main interaction surface.
+
+### Architecture
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `StingDockPanel.xaml` | `UI/StingDockPanel.xaml` (794 lines) | WPF markup: 4-tab layout (SELECT/ORGANISE/CREATE/VIEW), colour swatches, bulk parameter controls |
+| `StingDockPanel.xaml.cs` | `UI/StingDockPanel.xaml.cs` (182 lines) | Code-behind: button dispatch via `IExternalEventHandler`, colour swatch builder, status bar |
+| `StingCommandHandler` | `UI/StingCommandHandler.cs` (1,019 lines) | `IExternalEventHandler` — maps 100+ button Tag strings to command classes, ensures Revit API calls run on the main thread |
+| `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` (37 lines) | `IDockablePaneProvider` — registers panel with Revit, sets initial dock position (Right, 320×400 min) |
+| `ToggleDockPanelCommand` | `Core/StingToolsApp.cs` (line 825) | `IExternalCommand` — toggles panel visibility from ribbon button |
+
+### Panel Tabs
+
+| Tab | Content | Mirrors Ribbon Panel |
+|-----|---------|---------------------|
+| SELECT | Category selectors, state selectors, spatial selectors, bulk parameter write | Select |
+| ORGANISE | Tag operations, leader management, analysis/QA | Organise + Tags QA |
+| CREATE | Tagging commands, token writers, combine, setup | Tags + Temp |
+| VIEW | Document commands, viewports, template management | Docs + Temp Templates |
+
+### Thread Safety Pattern
+All button clicks dispatch through `IExternalEventHandler` to ensure Revit API calls execute on the correct thread:
+```
+Button Click → StingDockPanel.Cmd_Click → StingCommandHandler.SetCommand(tag) → ExternalEvent.Raise()
+→ Revit calls StingCommandHandler.Execute(UIApplication) → RunCommand<T>(app)
+```
+
+## Template Manager Intelligence Engine
+
+`TemplateManagerCommands.cs` (3,051 lines) provides a deep template automation engine with 17 commands and an `internal static class TemplateManager` (~867 lines) intelligence core.
+
+### TemplateManager Engine
+
+**5-Layer Auto-Assignment Algorithm** (evaluated in order, first match wins):
+1. **Name pattern matching** — 28 rules matching view name keywords to STING templates (e.g., "Mechanical" → "STING - Mechanical Plan")
+2. **Level-aware overrides** — Level name keywords override template (e.g., "Basement" → Structural Plan, "Plant Room" → Mechanical Plan)
+3. **Phase-aware mapping** — Phase name → template (e.g., "Existing" → As-Built Plan, "Demolition" → Demolition Plan)
+4. **Scope box inference** — Falls back to scope box name if view name fails
+5. **View type default** — Per-ViewType fallback (FloorPlan → Architectural, CeilingPlan → Ceiling RCP, etc.)
+
+**Compliance Scoring** (10-point weighted scale):
+HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectDiscipline, PhaseCorrect, VGConsistent, NoOrphans, ScaleAppropriate
+
+**Style Definition Tables**: Fill patterns, line styles, text styles, dimension styles, object styles — all created programmatically from hardcoded AEC/ISO standard definitions.
+
+### Template Manager Commands (17)
+
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Auto-Assign Templates | `AutoAssignTemplatesCommand` | Manual | Apply 5-layer matching to all unassigned views |
+| Template Audit | `TemplateAuditCommand` | ReadOnly | Audit all views for template assignment status |
+| Template Diff | `TemplateDiffCommand` | ReadOnly | Compare VG settings between two templates |
+| Compliance Score | `TemplateComplianceScoreCommand` | ReadOnly | Score all views on 10-point compliance scale |
+| Auto-Fix Template | `AutoFixTemplateCommand` | Manual | Auto-repair template issues (missing filters, wrong detail level) |
+| Sync Template Overrides | `SyncTemplateOverridesCommand` | Manual | Push VG overrides from template to all views using it |
+| Create Fill Patterns | `CreateFillPatternsCommand` | Manual | Standard AEC fill patterns (hatching, crosshatch, etc.) |
+| Create Line Styles | `CreateLineStylesCommand` | Manual | ISO-compliant line styles |
+| Create Object Styles | `CreateObjectStylesCommand` | Manual | Standard object style definitions |
+| Create Text Styles | `CreateTextStylesCommand` | Manual | AEC standard text styles |
+| Create Dimension Styles | `CreateDimensionStylesCommand` | Manual | AEC standard dimension styles |
+| Create VG Overrides | `CreateVGOverridesCommand` | Manual | Apply comprehensive VG overrides to templates |
+| Batch Add Family Params | `BatchAddFamilyParamsCommand` | Manual | Add shared parameters to family documents in batch |
+| Create Template Schedules | `CreateTemplateSchedulesCommand` | Manual | Create standard schedule templates |
+| Template Setup Wizard | `TemplateSetupWizardCommand` | Manual | Multi-step guided template setup |
+| Clone Template | `CloneTemplateCommand` | Manual | Deep clone template with VG, filters, and overrides |
+| Batch VG Reset | `BatchVGResetCommand` | Manual | Reset VG settings across multiple views |
 
 ## Development Workflow
 
@@ -524,7 +565,7 @@ The codebase uses two patterns for organising commands:
 1. **One class per file** — for complex commands (e.g., `CombineParametersCommand.cs`, `MasterSetupCommand.cs`, `PreTagAuditCommand.cs`)
 2. **Multiple classes per file** — for related simple commands (e.g., `CategorySelectCommands.cs` has 15 selectors, `TokenWriterCommands.cs` has 7 commands, `TagOperationCommands.cs` has 26 commands)
 
-When adding new commands, follow the existing pattern for the directory. Use shared `internal static` helper classes (e.g., `CategorySelector`, `TokenWriter`, `CompoundTypeCreator`, `MaterialPropertyHelper`, `LeaderHelper`, `ScheduleHelper`, `FormulaEngine`, `TemplateManager`) to reduce duplication.
+When adding new commands, follow the existing pattern for the directory. Use shared `internal static` helper classes (e.g., `CategorySelector`, `TokenWriter`, `CompoundTypeCreator`, `MaterialPropertyHelper`, `LeaderHelper`, `ScheduleHelper`, `FormulaEngine`) to reduce duplication.
 
 ### Data File Conventions
 
@@ -553,7 +594,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 - **Revit API**: `RevitAPI.dll`, `RevitAPIUI.dll` (referenced via `$(RevitApiPath)` — not distributed, `Private=false`)
 - **Newtonsoft.Json**: v13.0.3 (NuGet package)
 - **Target framework**: `net8.0-windows` (Revit 2025+), `LangVersion=latest`
-- **WPF**: Enabled (`UseWPF=true` in csproj) for `System.Windows.Media.Imaging` and dockable panel UI (`StingDockPanel.xaml`)
+- **WPF**: Enabled (`UseWPF=true` in csproj) for dockable panel UI and `System.Windows.Media.Imaging`
 - **Output**: Library (DLL), `AppendTargetFrameworkToOutputPath=false`, `CopyLocalLockFileAssemblies=true`
 - **Assembly**: v1.0.0.0, GUID `A1B2C3D4-5678-9ABC-DEF0-123456789ABC`, Vendor: StingBIM
 - **Data files**: CSV/JSON/TXT files in `StingTools/Data/` copied to output `data/` directory at build time
@@ -574,7 +615,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | **Hardcoded category bindings** | `SharedParamGuids.cs:109-261` | 53 categories + discipline bindings hardcoded; adding a category requires code rebuild (BINDING_COVERAGE_MATRIX.csv exists but unused) | Medium |
 | ~~**No error recovery**~~ | `MasterSetupCommand.cs` | **DONE** — Wrapped in `TransactionGroup` for atomic rollback. If critical step 1 (Load Params) fails, user can rollback immediately. Per-step timing reported. | Done |
 | **Fixed tag format** | `TagConfig.cs:16-18` | `NumPad=4`, `Separator="-"` hardcoded — can't change segment count, order, or separator | Medium |
-| **Partially unused data files** | `Data/` directory | FORMULAS_WITH_DEPENDENCIES.csv loaded by FormulaEvaluatorCommand. SCHEDULE_FIELD_REMAP.csv loaded by BatchSchedulesCommand. FAMILY_PARAMETER_BINDINGS.csv now loaded by BatchAddFamilyParamsCommand. Remaining unused: MATERIAL_SCHEMA.json, BINDING_COVERAGE_MATRIX.csv, CATEGORY_BINDINGS.csv (10,661 entries), VALIDAT_BIM_TEMPLATE.py (45 checks) | Medium |
+| **Partially unused data files** | `Data/` directory | FORMULAS_WITH_DEPENDENCIES.csv now loaded by FormulaEvaluatorCommand. SCHEDULE_FIELD_REMAP.csv loaded by BatchSchedulesCommand. Remaining unused: MATERIAL_SCHEMA.json, BINDING_COVERAGE_MATRIX.csv, CATEGORY_BINDINGS.csv (10,661 entries), VALIDAT_BIM_TEMPLATE.py (45 checks) | Medium |
 
 #### B. Enhancement Opportunities
 
@@ -587,6 +628,8 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | ~~TagAndCombine writes only 6 containers~~ | **DONE** — Now writes ALL 36 containers (6 universal + 30 discipline-specific). | Done |
 | ~~No incremental tagging~~ | **DONE** — `TagNewOnlyCommand` pre-filters to untagged elements. Much faster for adding new elements. | Done |
 | ~~CompoundTypeCreator material properties~~ | **DONE** — Applies color, transparency, smoothness, shininess from CSV. | Done |
+| ~~**No template automation**~~ | **DONE** — `TemplateManagerCommands.cs` with 17 commands and `TemplateManager` intelligence engine: 5-layer auto-assignment, compliance scoring, VG diff, style definitions. `ViewTemplatesCommand` expanded to 23 template definitions with VG configuration. | Done |
+| ~~**No dockable panel UI**~~ | **DONE** — WPF dockable panel (`UI/` directory, 4 files) with 4-tab interface (SELECT/ORGANISE/CREATE/VIEW), `IExternalEventHandler` dispatch for thread safety, colour swatches, bulk parameter controls. | Done |
 | ~~Cross-parameter validation~~ | **DONE** — `ISO19650Validator` validates all tokens, cross-validates DISC/SYS against category, validates tag format. `FixDuplicateTagsCommand` auto-resolves duplicates. | Done |
 | ~~Formula evaluation engine~~ | **DONE** — `FormulaEvaluatorCommand` + `FormulaEngine` reads 199 formulas from CSV, evaluates in dependency order (levels 0-6), supports arithmetic, conditionals, string concat, and Revit geometry inputs. | Done |
 | ~~Family-stage pre-population~~ | **DONE** — `FamilyStagePopulateCommand` pre-populates all 7 tokens before tagging (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD). | Done |
@@ -596,10 +639,6 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | ~~Native parameter mapping~~ | **DONE** — `NativeParamMapper` maps 30+ Revit built-in parameters to STING shared parameters. | Done |
 | ~~Document automation~~ | **DONE** — `DeleteUnusedViewsCommand`, `SheetNamingCheckCommand`, `AutoNumberSheetsCommand` for view cleanup and ISO 19650 sheet compliance. | Done |
 | ~~Schedule field remapping~~ | **DONE** — `ScheduleHelper.LoadFieldRemaps()` loads SCHEDULE_FIELD_REMAP.csv; `BatchSchedulesCommand` auto-remaps deprecated field names. | Done |
-| ~~Template management intelligence~~ | **DONE** — `TemplateManagerCommands.cs` (17 commands): 5-layer auto-assign, audit, diff, compliance scoring, auto-fix, VG overrides, style creation (fills/lines/objects/text/dims), clone, batch reset. | Done |
-| ~~WPF dockable panel~~ | **DONE** — `UI/` directory: 4-tab dockable panel replicating pyRevit STINGTags interface with `IExternalEventHandler` for thread-safe dispatch. | Done |
-| ~~Data-driven family params~~ | **DONE** — `BatchAddFamilyParamsCommand` loads 4,686 entries from FAMILY_PARAMETER_BINDINGS.csv. | Done |
-| ~~Master Setup 15-step pipeline~~ | **DONE** — `MasterSetupCommand` expanded from 10 to 15 steps including fill patterns, line/text/dim styles, VG overrides, family params, auto-assign + auto-fix. | Done |
 | Configurable tag format in project_config.json (separator, padding, segments) | Flexibility for different standards | Medium |
 | Port VALIDAT_BIM_TEMPLATE.py (45 checks) to C# ValidateTemplateCommand | Template compliance checking | Medium |
 | Batch command chaining / workflow presets | Queue: AutoTag, Validate, Export | Low |
@@ -784,14 +823,14 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 | `MATERIAL_SCHEMA.json` | 77 cols | **Never loaded** | Validate BLE/MEP CSV columns match schema; data integrity checks |
 | `BINDING_COVERAGE_MATRIX.csv` | Large | **Never loaded** | Replace hardcoded `SharedParamGuids.AllCategoryEnums` — load bindings dynamically |
 | `CATEGORY_BINDINGS.csv` | 10,661 | **Never loaded** | Replace hardcoded `DisciplineBindings` — data-driven parameter binding |
-| ~~`FAMILY_PARAMETER_BINDINGS.csv`~~ | 4,686 | **DONE** — Loaded by `BatchAddFamilyParamsCommand` | Data-driven parameter-to-category binding |
+| `FAMILY_PARAMETER_BINDINGS.csv` | 4,686 | **Never loaded** | Family-level parameter validation and auto-binding |
 | `VALIDAT_BIM_TEMPLATE.py` | 45 checks | **Python, not ported** | Port to C# `ValidateTemplateCommand` for comprehensive template QA |
 
 ---
 
 ### Implementation Priority Matrix
 
-#### Completed (Phases 1-4)
+#### Completed (Phases 1-3)
 
 1. **Tag collision detection** — O(1) lookup via `BuildExistingTagIndex`
 2. **Pre-tagging audit** — `PreTagAuditCommand` with full dry-run prediction
@@ -808,10 +847,10 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 13. **Native parameter mapping** — 30+ Revit built-in to STING parameter mappings
 14. **Family-stage pre-population** — All 7 tokens from category/spatial/family data
 15. **Schedule field remapping** — Auto-remap deprecated field names from CSV
-16. **Template management intelligence** — 17 commands: 5-layer auto-assign, audit, diff, compliance scoring, auto-fix, style creation, VG overrides, clone, batch reset
-17. **WPF dockable panel** — 4-tab persistent panel with `IExternalEventHandler` dispatch, replicating pyRevit STINGTags UI
-18. **Data-driven family params** — `BatchAddFamilyParamsCommand` loads 4,686 entries from CSV
-19. **15-step Master Setup** — Expanded from 10 to 15 steps including styles, VG, family params, auto-assign
+16. **WPF dockable panel** — 4-tab panel (SELECT/ORGANISE/CREATE/VIEW) replicating pyRevit interface with IExternalEventHandler dispatch
+17. **Template Manager intelligence engine** — 5-layer auto-assignment, compliance scoring, VG diff, 17 template automation commands
+18. **View templates expanded** — 23 template definitions with full VG configuration (discipline plans, coordination, RCP, presentation, sections, 3D, elevations)
+19. **Style definition commands** — Fill patterns, line styles, text styles, dimension styles, object styles created programmatically
 
 #### Next Priorities
 

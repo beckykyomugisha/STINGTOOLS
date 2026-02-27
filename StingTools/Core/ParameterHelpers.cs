@@ -410,17 +410,17 @@ namespace StingTools.Core
             written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MANUFACTURER, "ASS_MANUFACTURER_TXT");
 
             // Type Name → ASS_TYPE_NAME_TXT (from the family symbol name)
-            string typeName = GetFamilySymbolName(el);
+            string typeName = ParameterHelpers.GetFamilySymbolName(el);
             if (!string.IsNullOrEmpty(typeName))
                 written += SetIfEmptyInt(el, "ASS_TYPE_NAME_TXT", typeName);
 
             // Family Name → ASS_FAMILY_NAME_TXT
-            string familyName = GetFamilyName(el);
+            string familyName = ParameterHelpers.GetFamilyName(el);
             if (!string.IsNullOrEmpty(familyName))
                 written += SetIfEmptyInt(el, "ASS_FAMILY_NAME_TXT", familyName);
 
             // ── Spatial / Room data ────────────────────────────────────────────
-            Room room = GetRoomAtElement(doc, el);
+            Room room = ParameterHelpers.GetRoomAtElement(doc, el);
             if (room != null)
             {
                 written += SetIfEmptyInt(el, "ASS_ROOM_NAME_TXT", room.Name ?? "");
@@ -475,8 +475,6 @@ namespace StingTools.Core
 
             const double ftToMm = 304.8;
             const double sqFtToSqM = 0.092903;
-            const double radToDeg = 180.0 / Math.PI;
-
             try
             {
                 switch (catName)
@@ -722,7 +720,7 @@ namespace StingTools.Core
         {
             try
             {
-                string typeName = GetFamilySymbolName(el);
+                string typeName = ParameterHelpers.GetFamilySymbolName(el);
                 if (!string.IsNullOrEmpty(typeName))
                     return SetIfEmptyInt(el, targetParam, typeName);
             }
@@ -876,13 +874,13 @@ namespace StingTools.Core
                 if (elType == null) return 0;
 
                 // Only fill STING params that are still empty after instance-level mapping
-                if (string.IsNullOrEmpty(GetString(el, "ASS_DESCRIPTION_TXT")))
+                if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT")))
                     written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_DESCRIPTION,
                         "ASS_DESCRIPTION_TXT", el);
-                if (string.IsNullOrEmpty(GetString(el, "ASS_MODEL_NR_TXT")))
+                if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_MODEL_NR_TXT")))
                     written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_MODEL,
                         "ASS_MODEL_NR_TXT", el);
-                if (string.IsNullOrEmpty(GetString(el, "ASS_MANUFACTURER_TXT")))
+                if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_MANUFACTURER_TXT")))
                     written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_MANUFACTURER,
                         "ASS_MANUFACTURER_TXT", el);
 
