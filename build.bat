@@ -17,7 +17,7 @@ if defined RevitApiPath (
     goto :build
 )
 
-for %%V in (2027 2026 2025) do (
+for %%V in (2025 2026 2027) do (
     if exist "C:\Program Files\Autodesk\Revit %%V\RevitAPI.dll" (
         set "RevitApiPath=C:\Program Files\Autodesk\Revit %%V"
         echo Found Revit %%V API at: !RevitApiPath!
