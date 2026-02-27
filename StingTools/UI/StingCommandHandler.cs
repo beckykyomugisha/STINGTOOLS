@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Serialization;
+using System.Runtime.CompilerServices;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
@@ -630,7 +630,7 @@ namespace StingTools.UI
         {
             try
             {
-                var data = (ExternalCommandData)FormatterServices
+                var data = (ExternalCommandData)RuntimeHelpers
                     .GetUninitializedObject(typeof(ExternalCommandData));
 
                 var fields = typeof(ExternalCommandData).GetFields(
@@ -691,7 +691,21 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
-            uidoc.ActiveView.EnableTemporaryViewMode(TemporaryViewMode.RevealHiddenElements);
+            var view = uidoc.ActiveView;
+            try
+            {
+                // Use reflection — EnableTemporaryViewMode may not be available in all Revit API versions
+                var method = view.GetType().GetMethod("EnableTemporaryViewMode",
+                    new[] { typeof(TemporaryViewMode) });
+                if (method != null)
+                    method.Invoke(view, new object[] { TemporaryViewMode.RevealHiddenElements });
+                else
+                    TaskDialog.Show("Reveal", "Reveal hidden elements is not available in this Revit version.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ViewRevealHidden: {ex.Message}");
+            }
         }
 
         private static void ViewResetIsolate(UIApplication app)

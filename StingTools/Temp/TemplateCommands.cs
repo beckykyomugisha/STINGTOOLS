@@ -648,6 +648,8 @@ namespace StingTools.Temp
             int configured = 0;
             int skipped = 0;
             int noBase = 0;
+            int csvCreated = 0, csvSkipped = 0;
+            var csvTemplates = TemplateManager.LoadViewTemplatesFromCsv();
 
             using (Transaction tx = new Transaction(doc, "STING Create View Templates"))
             {
@@ -701,8 +703,6 @@ namespace StingTools.Temp
                 }
 
                 // ── Phase 2: CSV-driven templates from MR_SCHEDULES.csv VIEW_TEMPLATE rows ──
-                int csvCreated = 0, csvSkipped = 0;
-                var csvTemplates = TemplateManager.LoadViewTemplatesFromCsv();
 
                 // Refresh existing templates set after Phase 1
                 var existingAfterP1 = new HashSet<string>(
