@@ -21,7 +21,7 @@ if /i "%~1"=="clean" (
 )
 
 REM ── Detect Revit API path ────────────────────────────────────────
-REM Try common install locations, newest first
+REM Try common install locations (2025 preferred)
 if defined RevitApiPath (
     echo Using RevitApiPath from environment: %RevitApiPath%
     goto :build
