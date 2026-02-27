@@ -567,18 +567,23 @@ namespace StingTools.Core
                     "Export schedule data to CSV files");
             }
 
-            // Templates group
+            // Templates group — core creation commands
             var tplGroup = panel.AddItem(
                 new PulldownButtonData("grpTemplates", "Templates")) as PulldownButton;
             if (tplGroup != null)
             {
                 tplGroup.LongDescription =
                     "View templates, filters, line patterns, worksets, and project phases";
+                AddPulldownItem(tplGroup, "btnTemplateWizard",
+                    "★ Template Setup Wizard",
+                    asmPath,
+                    typeof(Temp.TemplateSetupWizardCommand).FullName,
+                    "ONE-CLICK: Fill Patterns → Line Patterns/Styles → Object Styles → Text/Dim Styles → Filters → Templates → Apply → Worksets → Auto-Assign");
                 AddPulldownItem(tplGroup, "btnCreateFilters",
                     "Create Filters",
                     asmPath,
                     typeof(Temp.CreateFiltersCommand).FullName,
-                    "Create 10 multi-category discipline filters (M, E, P, A, S, FP, LV, conduits, rooms, generic)");
+                    "Create 28+ view filters: 10 discipline + 18 parameter-based (tag status, QA, discipline code, element status)");
                 AddPulldownItem(tplGroup, "btnApplyFilters",
                     "Apply Filters to Views",
                     asmPath,
@@ -588,12 +593,12 @@ namespace StingTools.Core
                     "Create Worksets",
                     asmPath,
                     typeof(Temp.CreateWorksetsCommand).FullName,
-                    "Create 32 AEC UK-aligned discipline worksets");
+                    "Create 35 AEC UK / ISO 19650 discipline worksets");
                 AddPulldownItem(tplGroup, "btnViewTemplates",
                     "View Templates",
                     asmPath,
                     typeof(Temp.ViewTemplatesCommand).FullName,
-                    "Create 15 view templates: working, coordination, RCP, presentation, sections (with VG overrides)");
+                    "Create 23 view templates: plans, coordination, RCP, presentation, sections, 3D, elevations (with VG overrides)");
                 AddPulldownItem(tplGroup, "btnLinePatterns",
                     "Line Patterns",
                     asmPath,
@@ -604,6 +609,94 @@ namespace StingTools.Core
                     asmPath,
                     typeof(Temp.CreatePhasesCommand).FullName,
                     "Create 6 project phases (per ISO 19650 best practice)");
+            }
+
+            // Template Manager group — intelligent management commands
+            var tplMgrGroup = panel.AddItem(
+                new PulldownButtonData("grpTemplateMgr", "Template Mgr")) as PulldownButton;
+            if (tplMgrGroup != null)
+            {
+                tplMgrGroup.LongDescription =
+                    "Intelligent template management: auto-assign, audit, diff, compliance, auto-fix";
+                AddPulldownItem(tplMgrGroup, "btnAutoAssign",
+                    "Auto-Assign Templates",
+                    asmPath,
+                    typeof(Temp.AutoAssignTemplatesCommand).FullName,
+                    "5-layer intelligence: name pattern → level → phase → scope box → type default");
+                AddPulldownItem(tplMgrGroup, "btnTemplateAudit",
+                    "Template Audit",
+                    asmPath,
+                    typeof(Temp.TemplateAuditCommand).FullName,
+                    "Deep audit: coverage, filters, VG, orphans, compliance scoring, discipline distribution");
+                AddPulldownItem(tplMgrGroup, "btnTemplateDiff",
+                    "Template Diff",
+                    asmPath,
+                    typeof(Temp.TemplateDiffCommand).FullName,
+                    "Compare VG overrides between STING templates (filter-by-filter diff)");
+                AddPulldownItem(tplMgrGroup, "btnComplianceScore",
+                    "Compliance Scores",
+                    asmPath,
+                    typeof(Temp.TemplateComplianceScoreCommand).FullName,
+                    "Score every view against 10-point weighted compliance criteria (excellent/good/fair/poor bands)");
+                AddPulldownItem(tplMgrGroup, "btnAutoFix",
+                    "Auto-Fix Templates",
+                    asmPath,
+                    typeof(Temp.AutoFixTemplateCommand).FullName,
+                    "Diagnose and auto-repair: orphaned filters, missing filters, undefined detail, missing VG overrides");
+                AddPulldownItem(tplMgrGroup, "btnSyncOverrides",
+                    "Sync VG Overrides",
+                    asmPath,
+                    typeof(Temp.SyncTemplateOverridesCommand).FullName,
+                    "Re-apply correct VG overrides to all STING templates");
+                AddPulldownItem(tplMgrGroup, "btnVGOverrides",
+                    "Apply VG Overrides",
+                    asmPath,
+                    typeof(Temp.CreateVGOverridesCommand).FullName,
+                    "5-layer VG: discipline colours, QA highlighting, status styling, phase overrides, workset visibility");
+                AddPulldownItem(tplMgrGroup, "btnBatchFamilyParams",
+                    "Batch Family Params",
+                    asmPath,
+                    typeof(Temp.BatchAddFamilyParamsCommand).FullName,
+                    "Data-driven: bind 4,686 parameter-to-category entries from FAMILY_PARAMETER_BINDINGS.csv");
+                AddPulldownItem(tplMgrGroup, "btnTplSchedules",
+                    "Template Schedules",
+                    asmPath,
+                    typeof(Temp.CreateTemplateSchedulesCommand).FullName,
+                    "Create 13 template metadata schedules from MR_SCHEDULES.csv");
+            }
+
+            // Style Creation group — fill patterns, line styles, text, dimensions, objects
+            var styleGroup = panel.AddItem(
+                new PulldownButtonData("grpStyles", "Styles")) as PulldownButton;
+            if (styleGroup != null)
+            {
+                styleGroup.LongDescription =
+                    "Create ISO-standard styles: fills, lines, text, dimensions, object styles";
+                AddPulldownItem(styleGroup, "btnFillPatterns",
+                    "Fill Patterns",
+                    asmPath,
+                    typeof(Temp.CreateFillPatternsCommand).FullName,
+                    "12 ISO 128-2:2020 fill patterns: crosshatch, diagonal, brick, tile, insulation, concrete");
+                AddPulldownItem(styleGroup, "btnLineStyles",
+                    "Line Styles",
+                    asmPath,
+                    typeof(Temp.CreateLineStylesCommand).FullName,
+                    "16 line styles: discipline colours, status indicators, reference lines");
+                AddPulldownItem(styleGroup, "btnObjectStyles",
+                    "Object Styles",
+                    asmPath,
+                    typeof(Temp.CreateObjectStylesCommand).FullName,
+                    "40 category object styles: ISO line weights and discipline colour coding");
+                AddPulldownItem(styleGroup, "btnTextStyles",
+                    "Text Styles",
+                    asmPath,
+                    typeof(Temp.CreateTextStylesCommand).FullName,
+                    "12 text note types: ISO 3098 sizes for titles, body, tags, rooms, sheets");
+                AddPulldownItem(styleGroup, "btnDimStyles",
+                    "Dimension Styles",
+                    asmPath,
+                    typeof(Temp.CreateDimensionStylesCommand).FullName,
+                    "7 dimension types: linear mm/m, angular, ordinate, string, detail, structural");
             }
         }
 

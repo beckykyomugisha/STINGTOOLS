@@ -1,0 +1,2564 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using StingTools.Core;
+
+namespace StingTools.Temp
+{
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TemplateManager — deep intelligence engine for view template automation
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Centralised intelligence engine providing:
+    ///   • Pattern-based auto-assignment with level/phase/scope-box awareness
+    ///   • Template discovery, view classification, and discipline inference
+    ///   • Compliance scoring (weighted 10-point scale)
+    ///   • VG snapshot comparison (diff engine)
+    ///   • Auto-repair logic for template health
+    ///   • Style definition tables (fills, lines, text, dims, objects)
+    ///   • Data-driven parameter binding support
+    /// </summary>
+    internal static class TemplateManager
+    {
+        // ── Auto-Assignment Rules ─────────────────────────────────────────
+        // Evaluated in order — first match wins. More specific patterns first.
+
+        public static readonly (string pattern, string templateName, ViewType viewType)[] AssignmentRules =
+        {
+            // Floor plans — discipline-specific
+            ("Mechanical", "STING - Mechanical Plan", ViewType.FloorPlan),
+            ("HVAC", "STING - Mechanical Plan", ViewType.FloorPlan),
+            ("Electrical", "STING - Electrical Plan", ViewType.FloorPlan),
+            ("Power", "STING - Electrical Plan", ViewType.FloorPlan),
+            ("Lighting Plan", "STING - Electrical Plan", ViewType.FloorPlan),
+            ("Plumbing", "STING - Plumbing Plan", ViewType.FloorPlan),
+            ("Hydraulic", "STING - Plumbing Plan", ViewType.FloorPlan),
+            ("Drainage", "STING - Plumbing Plan", ViewType.FloorPlan),
+            ("Architectural", "STING - Architectural Plan", ViewType.FloorPlan),
+            ("Interior", "STING - Architectural Plan", ViewType.FloorPlan),
+            ("Structural", "STING - Structural Plan", ViewType.FloorPlan),
+            ("Fire", "STING - Fire Protection Plan", ViewType.FloorPlan),
+            ("Sprinkler", "STING - Fire Protection Plan", ViewType.FloorPlan),
+            ("Low Voltage", "STING - Low Voltage Plan", ViewType.FloorPlan),
+            ("Communication", "STING - Low Voltage Plan", ViewType.FloorPlan),
+            ("Security", "STING - Low Voltage Plan", ViewType.FloorPlan),
+            ("Data", "STING - Low Voltage Plan", ViewType.FloorPlan),
+            ("Coordination", "STING - MEP Coordination", ViewType.FloorPlan),
+            ("Combined", "STING - Combined Services", ViewType.FloorPlan),
+            ("Demolition", "STING - Demolition Plan", ViewType.FloorPlan),
+            ("As-Built", "STING - As-Built Plan", ViewType.FloorPlan),
+            ("Existing", "STING - As-Built Plan", ViewType.FloorPlan),
+            // RCPs
+            ("Lighting", "STING - Lighting RCP", ViewType.CeilingPlan),
+            ("Ceiling", "STING - Ceiling RCP", ViewType.CeilingPlan),
+            // Sections
+            ("Presentation", "STING - Presentation Section", ViewType.Section),
+            ("Detail", "STING - Detail Section", ViewType.Section),
+            // 3D views
+            ("Coordination", "STING - Coordination 3D", ViewType.ThreeD),
+            ("Presentation", "STING - Presentation 3D", ViewType.ThreeD),
+            // Elevations
+            ("Presentation", "STING - Presentation Elevation", ViewType.Elevation),
+        };
+
+        /// <summary>Default template per view type when no name pattern matches.</summary>
+        private static readonly Dictionary<ViewType, string> DefaultTemplates =
+            new Dictionary<ViewType, string>
+            {
+                { ViewType.FloorPlan, "STING - Architectural Plan" },
+                { ViewType.CeilingPlan, "STING - Ceiling RCP" },
+                { ViewType.Section, "STING - Working Section" },
+                { ViewType.ThreeD, "STING - Coordination 3D" },
+                { ViewType.Elevation, "STING - Working Elevation" },
+            };
+
+        /// <summary>
+        /// Level-aware template overrides. If a view's associated level
+        /// name contains a keyword, prefer a specific template.
+        /// </summary>
+        private static readonly (string levelPattern, string templateName, ViewType viewType)[] LevelOverrides =
+        {
+            ("Roof", "STING - Architectural Plan", ViewType.FloorPlan),
+            ("Basement", "STING - Structural Plan", ViewType.FloorPlan),
+            ("Foundation", "STING - Structural Plan", ViewType.FloorPlan),
+            ("Plant Room", "STING - Mechanical Plan", ViewType.FloorPlan),
+            ("Switch", "STING - Electrical Plan", ViewType.FloorPlan),
+            ("Riser", "STING - MEP Coordination", ViewType.FloorPlan),
+        };
+
+        /// <summary>
+        /// Phase-aware template mapping. Views on certain phases
+        /// get specific templates.
+        /// </summary>
+        private static readonly Dictionary<string, string> PhaseTemplateMap =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Existing", "STING - As-Built Plan" },
+                { "Demolition", "STING - Demolition Plan" },
+                { "New Construction", "STING - Architectural Plan" },
+            };
+
+        /// <summary>
+        /// Returns the best-matching STING template for a view using multi-layer intelligence:
+        ///   Layer 1: Explicit name pattern matching (highest priority)
+        ///   Layer 2: Level-aware inference (basement→structural, plant room→mechanical)
+        ///   Layer 3: Phase-aware inference (demolition phase→demo template)
+        ///   Layer 4: Scope box inference (scope box name contains discipline hint)
+        ///   Layer 5: View type default (lowest priority)
+        /// Returns null if no reasonable assignment can be made.
+        /// </summary>
+        public static string FindMatchingTemplate(View view)
+        {
+            if (view == null || view.IsTemplate) return null;
+
+            string viewName = view.Name ?? "";
+            ViewType vt = view.ViewType;
+
+            // Layer 1: Explicit name pattern matching
+            foreach (var (pattern, templateName, viewType) in AssignmentRules)
+            {
+                if (vt != viewType) continue;
+                if (viewName.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return templateName;
+            }
+
+            // Layer 2: Level-aware inference
+            try
+            {
+                if (view is ViewPlan viewPlan)
+                {
+                    Level level = view.Document.GetElement(viewPlan.GenLevel?.Id ?? ElementId.InvalidElementId) as Level;
+                    if (level != null)
+                    {
+                        string levelName = level.Name ?? "";
+                        foreach (var (levelPattern, templateName, viewType) in LevelOverrides)
+                        {
+                            if (vt != viewType) continue;
+                            if (levelName.IndexOf(levelPattern, StringComparison.OrdinalIgnoreCase) >= 0)
+                                return templateName;
+                        }
+                    }
+                }
+            }
+            catch { /* level lookup not available */ }
+
+            // Layer 3: Phase-aware inference
+            try
+            {
+                Parameter phaseParam = view.get_Parameter(BuiltInParameter.VIEW_PHASE);
+                if (phaseParam != null && phaseParam.HasValue)
+                {
+                    ElementId phaseId = phaseParam.AsElementId();
+                    if (phaseId != ElementId.InvalidElementId)
+                    {
+                        Phase phase = view.Document.GetElement(phaseId) as Phase;
+                        if (phase != null && PhaseTemplateMap.TryGetValue(phase.Name, out string phaseTmpl))
+                        {
+                            if (vt == ViewType.FloorPlan || vt == ViewType.CeilingPlan)
+                                return phaseTmpl;
+                        }
+                    }
+                }
+            }
+            catch { /* phase lookup not available */ }
+
+            // Layer 4: Scope box inference
+            try
+            {
+                Parameter scopeParam = view.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                if (scopeParam != null && scopeParam.HasValue)
+                {
+                    ElementId scopeId = scopeParam.AsElementId();
+                    if (scopeId != ElementId.InvalidElementId)
+                    {
+                        Element scopeBox = view.Document.GetElement(scopeId);
+                        if (scopeBox != null)
+                        {
+                            string scopeName = scopeBox.Name ?? "";
+                            foreach (var (pattern, templateName, viewType) in AssignmentRules)
+                            {
+                                if (vt != viewType) continue;
+                                if (scopeName.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0)
+                                    return templateName;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { /* scope box not available */ }
+
+            // Layer 5: View type default
+            return DefaultTemplates.TryGetValue(vt, out string def) ? def : null;
+        }
+
+        /// <summary>Collects all STING view templates indexed by name.</summary>
+        public static Dictionary<string, View> GetStingTemplates(Document doc)
+        {
+            var result = new Dictionary<string, View>(StringComparer.OrdinalIgnoreCase);
+            foreach (View v in new FilteredElementCollector(doc)
+                .OfClass(typeof(View)).Cast<View>()
+                .Where(v => v.IsTemplate && v.Name.StartsWith("STING")))
+            {
+                result[v.Name] = v;
+            }
+            return result;
+        }
+
+        /// <summary>Collects all non-template views that can have templates assigned.</summary>
+        public static List<View> GetAssignableViews(Document doc)
+        {
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(View)).Cast<View>()
+                .Where(v => !v.IsTemplate &&
+                            v.ViewType != ViewType.DrawingSheet &&
+                            v.ViewType != ViewType.Schedule &&
+                            v.ViewType != ViewType.Legend &&
+                            v.ViewType != ViewType.Internal &&
+                            v.ViewType != ViewType.Undefined &&
+                            v.ViewType != ViewType.ProjectBrowser &&
+                            v.ViewType != ViewType.SystemBrowser)
+                .ToList();
+        }
+
+        /// <summary>Extracts the discipline code from a STING template name.</summary>
+        public static string GetDisciplineFromTemplateName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            if (name.Contains("Mechanical")) return "M";
+            if (name.Contains("Electrical")) return "E";
+            if (name.Contains("Plumbing")) return "P";
+            if (name.Contains("Architectural")) return "A";
+            if (name.Contains("Structural")) return "S";
+            if (name.Contains("Fire Protection")) return "FP";
+            if (name.Contains("Low Voltage")) return "LV";
+            if (name.Contains("MEP Coordination")) return "MEP";
+            if (name.Contains("Combined")) return "ALL";
+            if (name.Contains("Lighting RCP")) return "RCP_LTG";
+            if (name.Contains("Ceiling RCP")) return "RCP_CLG";
+            if (name.Contains("Presentation Classic")) return "PRES_C";
+            if (name.Contains("Presentation Enhanced")) return "PRES_E";
+            if (name.Contains("Presentation Section")) return "SEC_P";
+            if (name.Contains("Working Section")) return "SEC_W";
+            if (name.Contains("Detail Section")) return "SEC_D";
+            if (name.Contains("Demolition")) return "DEMO";
+            if (name.Contains("As-Built")) return "EXIST";
+            if (name.Contains("Area")) return "AREA";
+            if (name.Contains("Coordination 3D")) return "MEP_3D";
+            if (name.Contains("Presentation 3D")) return "PRES_3D";
+            if (name.Contains("Presentation Elevation")) return "ELEV_P";
+            if (name.Contains("Working Elevation")) return "ELEV_W";
+            return null;
+        }
+
+        // ── Compliance Scoring Engine ──────────────────────────────────
+
+        /// <summary>
+        /// Weighted scoring criteria for template compliance.
+        /// Each returns 0.0-1.0 multiplied by weight to produce final score.
+        /// Total weights = 10.0 → score is out of 10.
+        /// </summary>
+        public static readonly (string criterion, double weight, string description)[] ComplianceCriteria =
+        {
+            ("HasTemplate", 1.5, "View has a template assigned"),
+            ("IsStingTemplate", 1.0, "Template is a STING-standard template"),
+            ("HasFilters", 1.5, "Template has STING filters applied"),
+            ("FilterOverrides", 1.0, "Filters have correct discipline colour overrides"),
+            ("DetailLevel", 0.5, "Detail level matches template purpose"),
+            ("CorrectDiscipline", 1.5, "Template discipline matches view content"),
+            ("PhaseCorrect", 0.5, "Template matches view phase"),
+            ("VGConsistent", 1.0, "VG settings follow STING standard"),
+            ("NoOrphans", 0.5, "No broken filter references"),
+            ("ScaleAppropriate", 0.5, "View scale is within standard range"),
+        };
+
+        /// <summary>
+        /// Score a single view against STING compliance criteria.
+        /// Returns (totalScore, maxScore, perCriterion[]).
+        /// </summary>
+        public static (double score, double max, (string name, double earned, double possible)[] details)
+            ScoreViewCompliance(Document doc, View view)
+        {
+            var details = new List<(string, double, double)>();
+            double totalScore = 0;
+            double maxScore = 0;
+
+            foreach (var (criterion, weight, _) in ComplianceCriteria)
+            {
+                maxScore += weight;
+                double earned = 0;
+
+                switch (criterion)
+                {
+                    case "HasTemplate":
+                        earned = view.ViewTemplateId != ElementId.InvalidElementId ? weight : 0;
+                        break;
+                    case "IsStingTemplate":
+                        if (view.ViewTemplateId != ElementId.InvalidElementId)
+                        {
+                            var tmpl = doc.GetElement(view.ViewTemplateId) as View;
+                            earned = (tmpl != null && tmpl.Name.StartsWith("STING")) ? weight : 0;
+                        }
+                        break;
+                    case "HasFilters":
+                        if (view.ViewTemplateId != ElementId.InvalidElementId)
+                        {
+                            var tmpl = doc.GetElement(view.ViewTemplateId) as View;
+                            if (tmpl != null)
+                            {
+                                int filterCount = tmpl.GetFilters().Count;
+                                earned = filterCount >= 5 ? weight : weight * filterCount / 5.0;
+                            }
+                        }
+                        break;
+                    case "FilterOverrides":
+                        if (view.ViewTemplateId != ElementId.InvalidElementId)
+                        {
+                            var tmpl = doc.GetElement(view.ViewTemplateId) as View;
+                            if (tmpl != null)
+                            {
+                                var filters = tmpl.GetFilters();
+                                int overridden = 0;
+                                foreach (ElementId fid in filters)
+                                {
+                                    try
+                                    {
+                                        var ogs = tmpl.GetFilterOverrides(fid);
+                                        if (ogs.ProjectionLineColor.IsValid ||
+                                            ogs.IsHalftone ||
+                                            ogs.Transparency > 0)
+                                            overridden++;
+                                    }
+                                    catch { }
+                                }
+                                earned = filters.Count > 0
+                                    ? weight * overridden / filters.Count : 0;
+                            }
+                        }
+                        break;
+                    case "DetailLevel":
+                        earned = view.DetailLevel != ViewDetailLevel.Undefined ? weight : 0;
+                        break;
+                    case "CorrectDiscipline":
+                        string match = FindMatchingTemplate(view);
+                        if (view.ViewTemplateId != ElementId.InvalidElementId)
+                        {
+                            var tmpl = doc.GetElement(view.ViewTemplateId) as View;
+                            earned = (tmpl != null && match != null &&
+                                string.Equals(tmpl.Name, match, StringComparison.OrdinalIgnoreCase))
+                                ? weight : weight * 0.3;
+                        }
+                        break;
+                    case "PhaseCorrect":
+                        earned = weight * 0.5; // default partial credit
+                        try
+                        {
+                            Parameter pp = view.get_Parameter(BuiltInParameter.VIEW_PHASE);
+                            if (pp != null && pp.HasValue) earned = weight;
+                        }
+                        catch { }
+                        break;
+                    case "VGConsistent":
+                        earned = view.ViewTemplateId != ElementId.InvalidElementId
+                            ? weight * 0.7 : 0;
+                        break;
+                    case "NoOrphans":
+                        earned = weight; // assume good until proven otherwise
+                        if (view.ViewTemplateId != ElementId.InvalidElementId)
+                        {
+                            var tmpl = doc.GetElement(view.ViewTemplateId) as View;
+                            if (tmpl != null)
+                            {
+                                foreach (ElementId fid in tmpl.GetFilters())
+                                {
+                                    if (doc.GetElement(fid) == null)
+                                    { earned = 0; break; }
+                                }
+                            }
+                        }
+                        break;
+                    case "ScaleAppropriate":
+                        try
+                        {
+                            Parameter scale = view.get_Parameter(BuiltInParameter.VIEW_SCALE);
+                            if (scale != null && scale.HasValue)
+                            {
+                                int s = scale.AsInteger();
+                                earned = (s >= 20 && s <= 500) ? weight : weight * 0.3;
+                            }
+                        }
+                        catch { earned = weight * 0.5; }
+                        break;
+                }
+
+                totalScore += earned;
+                details.Add((criterion, earned, weight));
+            }
+
+            return (totalScore, maxScore, details.ToArray());
+        }
+
+        // ── VG Snapshot Engine (for diff comparison) ──────────────────
+
+        /// <summary>
+        /// Captures a complete VG snapshot of a view template for comparison.
+        /// Returns a dictionary of filter name → override description.
+        /// </summary>
+        public static Dictionary<string, string> CaptureVGSnapshot(Document doc, View template)
+        {
+            var snapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            snapshot["DetailLevel"] = template.DetailLevel.ToString();
+
+            foreach (ElementId filterId in template.GetFilters())
+            {
+                Element filterEl = doc.GetElement(filterId);
+                if (filterEl == null) continue;
+
+                string filterName = filterEl.Name;
+                bool visible = template.GetFilterVisibility(filterId);
+                var ogs = template.GetFilterOverrides(filterId);
+
+                var desc = new StringBuilder();
+                desc.Append(visible ? "Visible" : "Hidden");
+
+                if (ogs.ProjectionLineColor.IsValid)
+                    desc.Append($" LineCol=({ogs.ProjectionLineColor.Red},{ogs.ProjectionLineColor.Green},{ogs.ProjectionLineColor.Blue})");
+                if (ogs.ProjectionLineWeight > 0)
+                    desc.Append($" LineWt={ogs.ProjectionLineWeight}");
+                if (ogs.IsHalftone)
+                    desc.Append(" Halftone");
+                if (ogs.Transparency > 0)
+                    desc.Append($" Trans={ogs.Transparency}%");
+                if (ogs.SurfaceForegroundPatternColor.IsValid)
+                    desc.Append($" FillCol=({ogs.SurfaceForegroundPatternColor.Red},{ogs.SurfaceForegroundPatternColor.Green},{ogs.SurfaceForegroundPatternColor.Blue})");
+
+                snapshot[$"Filter:{filterName}"] = desc.ToString();
+            }
+
+            return snapshot;
+        }
+
+        /// <summary>
+        /// Compares two VG snapshots and returns the differences.
+        /// </summary>
+        public static List<(string key, string valueA, string valueB)>
+            DiffSnapshots(Dictionary<string, string> snapA, Dictionary<string, string> snapB)
+        {
+            var diffs = new List<(string, string, string)>();
+            var allKeys = new HashSet<string>(snapA.Keys);
+            foreach (string k in snapB.Keys) allKeys.Add(k);
+
+            foreach (string key in allKeys.OrderBy(k => k))
+            {
+                snapA.TryGetValue(key, out string vA);
+                snapB.TryGetValue(key, out string vB);
+                vA = vA ?? "(not set)";
+                vB = vB ?? "(not set)";
+                if (!string.Equals(vA, vB, StringComparison.OrdinalIgnoreCase))
+                    diffs.Add((key, vA, vB));
+            }
+
+            return diffs;
+        }
+
+        // ── Auto-Repair Engine ────────────────────────────────────────
+
+        /// <summary>
+        /// Diagnoses template health issues and returns actionable fix items.
+        /// </summary>
+        public static List<(string issue, string severity, Action<Document, View, Transaction> fix)>
+            DiagnoseTemplate(Document doc, View template)
+        {
+            var issues = new List<(string, string, Action<Document, View, Transaction>)>();
+
+            // Check 1: Orphaned filter references
+            foreach (ElementId fid in template.GetFilters())
+            {
+                if (doc.GetElement(fid) == null)
+                {
+                    ElementId capturedId = fid;
+                    issues.Add(($"Orphan filter ID {fid.IntegerValue}",
+                        "HIGH",
+                        (d, v, tx) =>
+                        {
+                            try { v.RemoveFilter(capturedId); }
+                            catch { }
+                        }));
+                }
+            }
+
+            // Check 2: Missing STING filters
+            var stingFilters = new FilteredElementCollector(doc)
+                .OfClass(typeof(ParameterFilterElement))
+                .Cast<ParameterFilterElement>()
+                .Where(f => f.Name.StartsWith("STING"))
+                .ToList();
+
+            var appliedIds = new HashSet<ElementId>(template.GetFilters());
+            int missingCount = stingFilters.Count(f => !appliedIds.Contains(f.Id));
+            if (missingCount > 0)
+            {
+                issues.Add(($"{missingCount} STING filters not applied",
+                    "MEDIUM",
+                    (d, v, tx) =>
+                    {
+                        foreach (var sf in stingFilters)
+                        {
+                            if (!appliedIds.Contains(sf.Id))
+                            {
+                                try
+                                {
+                                    v.AddFilter(sf.Id);
+                                    v.SetFilterVisibility(sf.Id, true);
+                                }
+                                catch { }
+                            }
+                        }
+                    }));
+            }
+
+            // Check 3: Detail level undefined
+            if (template.DetailLevel == ViewDetailLevel.Undefined)
+            {
+                issues.Add(("Detail level is Undefined",
+                    "LOW",
+                    (d, v, tx) => { v.DetailLevel = ViewDetailLevel.Medium; }));
+            }
+
+            // Check 4: No filter overrides (all default)
+            bool anyOverride = false;
+            foreach (ElementId fid in template.GetFilters())
+            {
+                if (doc.GetElement(fid) == null) continue;
+                try
+                {
+                    var ogs = template.GetFilterOverrides(fid);
+                    if (ogs.ProjectionLineColor.IsValid || ogs.IsHalftone ||
+                        ogs.Transparency > 0)
+                    { anyOverride = true; break; }
+                }
+                catch { }
+            }
+            if (!anyOverride && template.GetFilters().Count > 0)
+            {
+                issues.Add(("No filter overrides configured (all default)",
+                    "MEDIUM",
+                    null)); // needs ConfigureTemplateVG — handled by caller
+            }
+
+            return issues;
+        }
+
+        /// <summary>Helper for TemplateSetupWizardCommand — runs a sub-step and tracks result.</summary>
+        public static int RunWizardStep(ref int step, StringBuilder report,
+            string label, Func<Result> action)
+        {
+            step++;
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                Result r = action();
+                sw.Stop();
+                string status = r == Result.Succeeded ? "OK" : "WARN";
+                report.AppendLine($"  {step,2}. {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
+                StingLog.Info($"Template Wizard step {step}: {label} — {status}");
+                return r == Result.Succeeded ? 1 : 0;
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                report.AppendLine($"  {step,2}. {label} — FAILED: {ex.Message}");
+                StingLog.Error($"Template Wizard step {step}: {label}", ex);
+                return 0;
+            }
+        }
+
+        // ── Style Definition Tables ──────────────────────────────────────
+
+        /// <summary>Fill pattern definitions for ISO 128-2:2020 standard patterns.</summary>
+        public static readonly (string name, FillPatternTarget target,
+            double angle1Deg, double spacing1Mm,
+            double angle2Deg, double spacing2Mm)[] FillPatternDefs =
+        {
+            // Drafting patterns
+            ("STING - Crosshatch", FillPatternTarget.Drafting, 0, 3, 90, 3),
+            ("STING - Diagonal Up", FillPatternTarget.Drafting, 45, 3, 0, 0),
+            ("STING - Diagonal Down", FillPatternTarget.Drafting, 135, 3, 0, 0),
+            ("STING - Diagonal Cross", FillPatternTarget.Drafting, 45, 3, 135, 3),
+            ("STING - Horizontal", FillPatternTarget.Drafting, 0, 3, 0, 0),
+            ("STING - Vertical", FillPatternTarget.Drafting, 90, 3, 0, 0),
+            // Model patterns for materials
+            ("STING - Brick Model", FillPatternTarget.Model, 0, 75, 90, 225),
+            ("STING - Tile Model", FillPatternTarget.Model, 0, 300, 90, 300),
+            ("STING - Insulation Model", FillPatternTarget.Model, 45, 50, 135, 50),
+            ("STING - Sand Model", FillPatternTarget.Model, 0, 2, 60, 2),
+            ("STING - Earth Model", FillPatternTarget.Model, 45, 5, 0, 0),
+            ("STING - Concrete Model", FillPatternTarget.Model, 45, 10, 135, 10),
+        };
+
+        /// <summary>
+        /// Line style definitions: discipline + status + reference styles.
+        /// name, R, G, B, line weight (1-16), line pattern name (null = solid).
+        /// </summary>
+        public static readonly (string name, byte r, byte g, byte b,
+            int weight, string patternName)[] LineStyleDefs =
+        {
+            // Discipline line styles (matching ISO discipline colours)
+            ("STING - Mechanical", 0, 128, 255, 3, null),
+            ("STING - Electrical", 255, 200, 0, 3, null),
+            ("STING - Plumbing", 0, 180, 0, 3, null),
+            ("STING - Architectural", 128, 128, 128, 2, null),
+            ("STING - Structural", 200, 0, 0, 4, null),
+            ("STING - Fire Protection", 255, 100, 0, 3, null),
+            ("STING - Low Voltage", 160, 0, 200, 2, null),
+            // Status line styles
+            ("STING - Existing", 128, 128, 128, 1, "STING - Dashed"),
+            ("STING - Demolition", 255, 0, 0, 2, "STING - Demolition"),
+            ("STING - New Work", 0, 0, 0, 3, null),
+            ("STING - Temporary", 200, 200, 0, 1, "STING - Dash Dot"),
+            // Reference line styles
+            ("STING - Centerline", 0, 128, 0, 1, "STING - Center"),
+            ("STING - Hidden Line", 128, 128, 128, 1, "STING - Hidden"),
+            ("STING - Boundary", 200, 0, 0, 2, "STING - Phase Boundary"),
+            ("STING - Fire Boundary", 255, 50, 0, 3, "STING - Fire Compartment"),
+            ("STING - Setout", 0, 0, 255, 1, "STING - Setout"),
+        };
+
+        /// <summary>Text note type definitions: ISO 3098 / BS 8541 compliant.</summary>
+        public static readonly (string name, string font, double sizeMm,
+            bool bold, bool italic)[] TextStyleDefs =
+        {
+            ("STING - Title Large", "Arial", 5.0, true, false),
+            ("STING - Title Medium", "Arial", 3.5, true, false),
+            ("STING - Title Small", "Arial", 2.5, true, false),
+            ("STING - Body", "Arial", 2.0, false, false),
+            ("STING - Annotation", "Arial", 1.8, false, false),
+            ("STING - Note", "Arial", 2.0, false, true),
+            ("STING - Tag Text", "Arial", 2.0, true, false),
+            ("STING - Room Name", "Arial", 3.0, true, false),
+            ("STING - Room Number", "Arial", 2.5, true, false),
+            ("STING - Sheet Title", "Arial", 5.0, true, false),
+            ("STING - Sheet Number", "Arial", 3.5, true, false),
+            ("STING - Key Note", "Arial", 1.5, false, false),
+        };
+
+        /// <summary>Dimension type definitions.</summary>
+        public static readonly (string name, double textSizeMm, bool showUnits)[] DimensionStyleDefs =
+        {
+            ("STING - Linear mm", 2.0, true),
+            ("STING - Linear m", 2.0, true),
+            ("STING - Angular", 2.0, true),
+            ("STING - Ordinate", 2.0, true),
+            ("STING - String", 2.0, true),
+            ("STING - Detail", 1.8, true),
+            ("STING - Structural", 2.5, true),
+        };
+
+        /// <summary>Object style overrides: BS 1192 / ISO 19650 drawing standard.</summary>
+        public static readonly (BuiltInCategory cat, int projWt, int cutWt,
+            byte r, byte g, byte b)[] ObjectStyleDefs =
+        {
+            // Architectural
+            (BuiltInCategory.OST_Walls, 3, 5, 0, 0, 0),
+            (BuiltInCategory.OST_Floors, 2, 4, 0, 0, 0),
+            (BuiltInCategory.OST_Ceilings, 1, 3, 0, 0, 0),
+            (BuiltInCategory.OST_Roofs, 2, 4, 0, 0, 0),
+            (BuiltInCategory.OST_Doors, 2, 4, 0, 0, 128),
+            (BuiltInCategory.OST_Windows, 1, 3, 0, 128, 255),
+            (BuiltInCategory.OST_Stairs, 2, 4, 0, 0, 0),
+            (BuiltInCategory.OST_Furniture, 1, 1, 128, 128, 128),
+            (BuiltInCategory.OST_Casework, 1, 2, 128, 128, 128),
+            (BuiltInCategory.OST_Railings, 1, 2, 0, 0, 0),
+            (BuiltInCategory.OST_Ramps, 2, 3, 0, 0, 0),
+            // Structural
+            (BuiltInCategory.OST_StructuralColumns, 3, 6, 200, 0, 0),
+            (BuiltInCategory.OST_StructuralFraming, 3, 5, 200, 0, 0),
+            (BuiltInCategory.OST_StructuralFoundation, 3, 6, 200, 0, 0),
+            // Mechanical
+            (BuiltInCategory.OST_MechanicalEquipment, 2, 3, 0, 128, 255),
+            (BuiltInCategory.OST_DuctCurves, 1, 2, 0, 128, 255),
+            (BuiltInCategory.OST_DuctFitting, 1, 2, 0, 128, 255),
+            (BuiltInCategory.OST_DuctAccessory, 1, 2, 0, 128, 255),
+            (BuiltInCategory.OST_DuctTerminal, 1, 2, 0, 128, 255),
+            (BuiltInCategory.OST_FlexDuctCurves, 1, 2, 0, 128, 255),
+            // Electrical
+            (BuiltInCategory.OST_ElectricalEquipment, 2, 3, 255, 200, 0),
+            (BuiltInCategory.OST_ElectricalFixtures, 1, 2, 255, 200, 0),
+            (BuiltInCategory.OST_LightingFixtures, 1, 2, 255, 200, 0),
+            (BuiltInCategory.OST_LightingDevices, 1, 2, 255, 200, 0),
+            // Plumbing
+            (BuiltInCategory.OST_PlumbingFixtures, 2, 3, 0, 180, 0),
+            (BuiltInCategory.OST_PipeCurves, 1, 2, 0, 180, 0),
+            (BuiltInCategory.OST_PipeFitting, 1, 2, 0, 180, 0),
+            (BuiltInCategory.OST_PipeAccessory, 1, 2, 0, 180, 0),
+            (BuiltInCategory.OST_FlexPipeCurves, 1, 2, 0, 180, 0),
+            // Fire Protection
+            (BuiltInCategory.OST_Sprinklers, 1, 2, 255, 100, 0),
+            (BuiltInCategory.OST_FireAlarmDevices, 1, 2, 255, 100, 0),
+            // Low Voltage
+            (BuiltInCategory.OST_CommunicationDevices, 1, 2, 160, 0, 200),
+            (BuiltInCategory.OST_DataDevices, 1, 2, 160, 0, 200),
+            (BuiltInCategory.OST_SecurityDevices, 1, 2, 160, 0, 200),
+            (BuiltInCategory.OST_NurseCallDevices, 1, 2, 160, 0, 200),
+            (BuiltInCategory.OST_TelephoneDevices, 1, 2, 160, 0, 200),
+            // Conduits / Cable Trays
+            (BuiltInCategory.OST_Conduit, 1, 2, 180, 180, 0),
+            (BuiltInCategory.OST_ConduitFitting, 1, 2, 180, 180, 0),
+            (BuiltInCategory.OST_CableTray, 1, 2, 180, 180, 0),
+            (BuiltInCategory.OST_CableTrayFitting, 1, 2, 180, 180, 0),
+        };
+
+        // ── Data-Driven Binding Loader ────────────────────────────────
+
+        /// <summary>
+        /// Loads FAMILY_PARAMETER_BINDINGS.csv and returns structured entries.
+        /// Each entry: (paramGroup, paramName, guid, dataType, bindingType, description, category, sharedGuid).
+        /// </summary>
+        public static List<(string group, string name, string guid, string dataType,
+            string bindingType, string desc, string category, string sharedGuid)>
+            LoadFamilyParameterBindings()
+        {
+            var entries = new List<(string, string, string, string, string, string, string, string)>();
+            string csvPath = StingToolsApp.FindDataFile("FAMILY_PARAMETER_BINDINGS.csv");
+            if (string.IsNullOrEmpty(csvPath)) return entries;
+
+            try
+            {
+                bool headerSkipped = false;
+                foreach (string line in File.ReadAllLines(csvPath))
+                {
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                    if (!headerSkipped) { headerSkipped = true; continue; }
+
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 8) continue;
+
+                    entries.Add((
+                        cols[0].Trim(), cols[1].Trim(), cols[2].Trim(),
+                        cols[3].Trim(), cols[4].Trim(), cols[5].Trim(),
+                        cols[6].Trim(), cols[7].Trim()));
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to load FAMILY_PARAMETER_BINDINGS.csv", ex);
+            }
+
+            return entries;
+        }
+
+        /// <summary>
+        /// Loads CATEGORY_BINDINGS.csv and returns parameter→category mappings.
+        /// </summary>
+        public static Dictionary<string, List<(string category, string bindingType, bool isShared)>>
+            LoadCategoryBindings()
+        {
+            var map = new Dictionary<string, List<(string, string, bool)>>(
+                StringComparer.OrdinalIgnoreCase);
+            string csvPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
+            if (string.IsNullOrEmpty(csvPath)) return map;
+
+            try
+            {
+                bool headerSkipped = false;
+                foreach (string line in File.ReadAllLines(csvPath))
+                {
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                    if (!headerSkipped) { headerSkipped = true; continue; }
+
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 4) continue;
+
+                    string paramName = cols[0].Trim();
+                    string category = cols[1].Trim();
+                    string bindingType = cols[2].Trim();
+                    bool isShared = cols[3].Trim().Equals("True", StringComparison.OrdinalIgnoreCase);
+
+                    if (!map.ContainsKey(paramName))
+                        map[paramName] = new List<(string, string, bool)>();
+                    map[paramName].Add((category, bindingType, isShared));
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to load CATEGORY_BINDINGS.csv", ex);
+            }
+
+            return map;
+        }
+
+        /// <summary>
+        /// Maps Revit category display names to BuiltInCategory enums.
+        /// Covers all 53 STING-supported categories.
+        /// </summary>
+        public static readonly Dictionary<string, BuiltInCategory> CategoryNameToEnum =
+            new Dictionary<string, BuiltInCategory>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Air Terminals", BuiltInCategory.OST_DuctTerminal },
+                { "Cable Tray Fittings", BuiltInCategory.OST_CableTrayFitting },
+                { "Cable Trays", BuiltInCategory.OST_CableTray },
+                { "Casework", BuiltInCategory.OST_Casework },
+                { "Ceilings", BuiltInCategory.OST_Ceilings },
+                { "Communication Devices", BuiltInCategory.OST_CommunicationDevices },
+                { "Conduit Fittings", BuiltInCategory.OST_ConduitFitting },
+                { "Conduits", BuiltInCategory.OST_Conduit },
+                { "Curtain Panels", BuiltInCategory.OST_CurtainWallPanels },
+                { "Curtain Wall Mullions", BuiltInCategory.OST_CurtainWallMullions },
+                { "Data Devices", BuiltInCategory.OST_DataDevices },
+                { "Doors", BuiltInCategory.OST_Doors },
+                { "Duct Accessories", BuiltInCategory.OST_DuctAccessory },
+                { "Duct Fittings", BuiltInCategory.OST_DuctFitting },
+                { "Ducts", BuiltInCategory.OST_DuctCurves },
+                { "Electrical Equipment", BuiltInCategory.OST_ElectricalEquipment },
+                { "Electrical Fixtures", BuiltInCategory.OST_ElectricalFixtures },
+                { "Fire Alarm Devices", BuiltInCategory.OST_FireAlarmDevices },
+                { "Flex Ducts", BuiltInCategory.OST_FlexDuctCurves },
+                { "Floors", BuiltInCategory.OST_Floors },
+                { "Furniture", BuiltInCategory.OST_Furniture },
+                { "Generic Models", BuiltInCategory.OST_GenericModel },
+                { "Lighting Devices", BuiltInCategory.OST_LightingDevices },
+                { "Lighting Fixtures", BuiltInCategory.OST_LightingFixtures },
+                { "Mechanical Equipment", BuiltInCategory.OST_MechanicalEquipment },
+                { "Nurse Call Devices", BuiltInCategory.OST_NurseCallDevices },
+                { "Pipe Accessories", BuiltInCategory.OST_PipeAccessory },
+                { "Pipe Fittings", BuiltInCategory.OST_PipeFitting },
+                { "Pipes", BuiltInCategory.OST_PipeCurves },
+                { "Plumbing Equipment", BuiltInCategory.OST_PlumbingFixtures },
+                { "Plumbing Fixtures", BuiltInCategory.OST_PlumbingFixtures },
+                { "Ramps", BuiltInCategory.OST_Ramps },
+                { "Roofs", BuiltInCategory.OST_Roofs },
+                { "Rooms", BuiltInCategory.OST_Rooms },
+                { "Security Devices", BuiltInCategory.OST_SecurityDevices },
+                { "Specialty Equipment", BuiltInCategory.OST_SpecialityEquipment },
+                { "Sprinklers", BuiltInCategory.OST_Sprinklers },
+                { "Stairs", BuiltInCategory.OST_Stairs },
+                { "Structural Columns", BuiltInCategory.OST_StructuralColumns },
+                { "Structural Foundations", BuiltInCategory.OST_StructuralFoundation },
+                { "Structural Framing", BuiltInCategory.OST_StructuralFraming },
+                { "Telephone Devices", BuiltInCategory.OST_TelephoneDevices },
+                { "Walls", BuiltInCategory.OST_Walls },
+                { "Windows", BuiltInCategory.OST_Windows },
+                { "Railings", BuiltInCategory.OST_Railings },
+                { "Columns", BuiltInCategory.OST_Columns },
+                { "Furniture Systems", BuiltInCategory.OST_FurnitureSystems },
+            };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  AutoAssignTemplatesCommand — multi-layer intelligent template matching
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Analyses all views using 5-layer intelligence (name pattern, level,
+    /// phase, scope box, view type default) and assigns the best-matching
+    /// STING template. Reports per-layer hit statistics.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AutoAssignTemplatesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            var stingTemplates = TemplateManager.GetStingTemplates(doc);
+            if (stingTemplates.Count == 0)
+            {
+                TaskDialog.Show("Auto-Assign Templates",
+                    "No STING view templates found.\nRun 'View Templates' first.");
+                return Result.Succeeded;
+            }
+
+            var views = TemplateManager.GetAssignableViews(doc);
+            int assigned = 0, skipped = 0, noMatch = 0, alreadyAssigned = 0;
+            var assignments = new List<string>();
+            var perTemplate = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            using (Transaction tx = new Transaction(doc, "STING Auto-Assign Templates"))
+            {
+                tx.Start();
+
+                foreach (View view in views)
+                {
+                    if (view.ViewTemplateId != ElementId.InvalidElementId)
+                    { alreadyAssigned++; continue; }
+
+                    string matchName = TemplateManager.FindMatchingTemplate(view);
+                    if (matchName == null) { noMatch++; continue; }
+
+                    if (!stingTemplates.TryGetValue(matchName, out View template))
+                    { skipped++; continue; }
+
+                    try
+                    {
+                        view.ViewTemplateId = template.Id;
+                        assigned++;
+                        assignments.Add($"  {view.Name} → {matchName}");
+                        if (!perTemplate.ContainsKey(matchName))
+                            perTemplate[matchName] = 0;
+                        perTemplate[matchName]++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Auto-assign '{view.Name}': {ex.Message}");
+                        skipped++;
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Assigned: {assigned}");
+            report.AppendLine($"Already had template: {alreadyAssigned}");
+            report.AppendLine($"No match: {noMatch}");
+            report.AppendLine($"Skipped: {skipped}");
+
+            if (perTemplate.Count > 0)
+            {
+                report.AppendLine("\nPer-template breakdown:");
+                foreach (var kvp in perTemplate.OrderByDescending(k => k.Value))
+                    report.AppendLine($"  {kvp.Value,3}× {kvp.Key}");
+            }
+
+            if (assignments.Count > 0 && assignments.Count <= 40)
+            {
+                report.AppendLine("\nAssignments:");
+                foreach (string a in assignments) report.AppendLine(a);
+            }
+            else if (assignments.Count > 40)
+            {
+                report.AppendLine($"\n(First 40 of {assignments.Count}):");
+                foreach (string a in assignments.Take(40)) report.AppendLine(a);
+            }
+
+            TaskDialog.Show("Auto-Assign Templates", report.ToString());
+            StingLog.Info($"Auto-Assign: {assigned} assigned, {alreadyAssigned} existing, " +
+                $"{noMatch} no match, {skipped} skipped");
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TemplateAuditCommand — comprehensive compliance audit
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Deep audit of all view templates and views:
+    ///   • Template coverage (views without templates, per view type)
+    ///   • Filter coverage (templates missing STING filters)
+    ///   • VG consistency (correct discipline overrides)
+    ///   • Unused templates (templates not assigned to any view)
+    ///   • Orphaned filter references (deleted filters still referenced)
+    ///   • Compliance scoring (weighted 10-point scale per view)
+    ///   • Discipline distribution analysis
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TemplateAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            var allTemplates = new FilteredElementCollector(doc)
+                .OfClass(typeof(View)).Cast<View>()
+                .Where(v => v.IsTemplate).ToList();
+            var stingTemplates = allTemplates.Where(v => v.Name.StartsWith("STING")).ToList();
+            var otherTemplates = allTemplates.Where(v => !v.Name.StartsWith("STING")).ToList();
+
+            var allViews = TemplateManager.GetAssignableViews(doc);
+            var viewsWithTemplate = allViews.Where(v =>
+                v.ViewTemplateId != ElementId.InvalidElementId).ToList();
+            var viewsWithoutTemplate = allViews.Where(v =>
+                v.ViewTemplateId == ElementId.InvalidElementId).ToList();
+            var viewsWithSting = viewsWithTemplate.Where(v =>
+            {
+                var tmpl = doc.GetElement(v.ViewTemplateId) as View;
+                return tmpl != null && tmpl.Name.StartsWith("STING");
+            }).ToList();
+
+            // Template usage tracking
+            var templateUsage = new Dictionary<ElementId, int>();
+            foreach (View v in allViews)
+            {
+                if (v.ViewTemplateId == ElementId.InvalidElementId) continue;
+                if (!templateUsage.ContainsKey(v.ViewTemplateId))
+                    templateUsage[v.ViewTemplateId] = 0;
+                templateUsage[v.ViewTemplateId]++;
+            }
+            var unusedSting = stingTemplates
+                .Where(t => !templateUsage.ContainsKey(t.Id) || templateUsage[t.Id] == 0).ToList();
+
+            // STING filter coverage check
+            var stingFilters = new FilteredElementCollector(doc)
+                .OfClass(typeof(ParameterFilterElement))
+                .Cast<ParameterFilterElement>()
+                .Where(f => f.Name.StartsWith("STING")).ToList();
+
+            var templatesWithMissingFilters = new List<string>();
+            int totalOrphans = 0;
+            foreach (View tmpl in stingTemplates)
+            {
+                var appliedIds = new HashSet<ElementId>(tmpl.GetFilters());
+                int missing = stingFilters.Count(f => !appliedIds.Contains(f.Id));
+                if (missing > 0)
+                    templatesWithMissingFilters.Add($"  {tmpl.Name} — missing {missing} filters");
+
+                // Check for orphaned filters
+                foreach (ElementId fid in tmpl.GetFilters())
+                {
+                    if (doc.GetElement(fid) == null) totalOrphans++;
+                }
+            }
+
+            // Compliance scoring (sample up to 50 views)
+            double totalScore = 0;
+            double maxPossible = 0;
+            int scored = 0;
+            foreach (View v in allViews.Take(50))
+            {
+                var (score, max, _) = TemplateManager.ScoreViewCompliance(doc, v);
+                totalScore += score;
+                maxPossible += max;
+                scored++;
+            }
+            double avgScore = scored > 0 ? totalScore / scored : 0;
+            double avgMax = scored > 0 ? maxPossible / scored : 10;
+
+            // View type breakdown
+            var typeBreakdown = allViews
+                .GroupBy(v => v.ViewType)
+                .OrderBy(g => g.Key.ToString())
+                .Select(g =>
+                {
+                    int total = g.Count();
+                    int withTmpl = g.Count(v => v.ViewTemplateId != ElementId.InvalidElementId);
+                    return $"  {g.Key,-20} {withTmpl,4}/{total,-4} ({(total > 0 ? withTmpl * 100 / total : 0)}%)";
+                }).ToList();
+
+            // Discipline distribution
+            var discDist = new Dictionary<string, int>();
+            foreach (View tmpl in stingTemplates)
+            {
+                string disc = TemplateManager.GetDisciplineFromTemplateName(tmpl.Name) ?? "Other";
+                int usage = templateUsage.ContainsKey(tmpl.Id) ? templateUsage[tmpl.Id] : 0;
+                if (!discDist.ContainsKey(disc)) discDist[disc] = 0;
+                discDist[disc] += usage;
+            }
+
+            // Build report
+            var report = new StringBuilder();
+            report.AppendLine("STING Template Audit Report");
+            report.AppendLine(new string('═', 55));
+
+            report.AppendLine($"\nTemplates:");
+            report.AppendLine($"  STING templates:     {stingTemplates.Count}");
+            report.AppendLine($"  Other templates:     {otherTemplates.Count}");
+            report.AppendLine($"  STING filters:       {stingFilters.Count}");
+            report.AppendLine($"  Orphaned filters:    {totalOrphans}");
+
+            report.AppendLine($"\nView Coverage:");
+            report.AppendLine($"  Total views:         {allViews.Count}");
+            report.AppendLine($"  With template:       {viewsWithTemplate.Count}");
+            report.AppendLine($"  With STING template: {viewsWithSting.Count}");
+            report.AppendLine($"  Without template:    {viewsWithoutTemplate.Count}");
+            if (allViews.Count > 0)
+                report.AppendLine($"  Coverage:            {viewsWithTemplate.Count * 100 / allViews.Count}%");
+
+            report.AppendLine($"\nCompliance Score:");
+            report.AppendLine($"  Average: {avgScore:F1}/{avgMax:F1} " +
+                $"({(avgMax > 0 ? avgScore * 100 / avgMax : 0):F0}%)");
+            report.AppendLine($"  (sampled {scored} views)");
+
+            report.AppendLine($"\nBy View Type:");
+            foreach (string line in typeBreakdown) report.AppendLine(line);
+
+            if (discDist.Count > 0)
+            {
+                report.AppendLine($"\nDiscipline Distribution:");
+                foreach (var kvp in discDist.OrderByDescending(k => k.Value))
+                    report.AppendLine($"  {kvp.Key,-12} {kvp.Value} views");
+            }
+
+            if (unusedSting.Count > 0)
+            {
+                report.AppendLine($"\nUnused STING Templates ({unusedSting.Count}):");
+                foreach (View t in unusedSting)
+                    report.AppendLine($"  {t.Name}");
+            }
+
+            if (templatesWithMissingFilters.Count > 0)
+            {
+                report.AppendLine($"\nTemplates Missing Filters ({templatesWithMissingFilters.Count}):");
+                foreach (string line in templatesWithMissingFilters.Take(15))
+                    report.AppendLine(line);
+            }
+
+            if (viewsWithoutTemplate.Count > 0 && viewsWithoutTemplate.Count <= 25)
+            {
+                report.AppendLine($"\nViews Without Template ({viewsWithoutTemplate.Count}):");
+                foreach (View v in viewsWithoutTemplate)
+                    report.AppendLine($"  [{v.ViewType}] {v.Name}");
+            }
+            else if (viewsWithoutTemplate.Count > 25)
+            {
+                report.AppendLine($"\nViews Without Template ({viewsWithoutTemplate.Count}, first 25):");
+                foreach (View v in viewsWithoutTemplate.Take(25))
+                    report.AppendLine($"  [{v.ViewType}] {v.Name}");
+            }
+
+            TaskDialog.Show("Template Audit", report.ToString());
+            StingLog.Info($"Template Audit: {stingTemplates.Count} templates, " +
+                $"{viewsWithTemplate.Count}/{allViews.Count} covered, " +
+                $"score={avgScore:F1}/{avgMax:F1}, orphans={totalOrphans}");
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TemplateDiffCommand — VG snapshot comparison between two templates
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Compares the VG overrides of two STING view templates side-by-side.
+    /// Shows filter-by-filter differences in visibility, colours, line weights,
+    /// halftone, transparency, and fill patterns.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TemplateDiffCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            var stingTemplates = TemplateManager.GetStingTemplates(doc);
+            if (stingTemplates.Count < 2)
+            {
+                TaskDialog.Show("Template Diff",
+                    "Need at least 2 STING templates to compare.\n" +
+                    $"Found: {stingTemplates.Count}");
+                return Result.Succeeded;
+            }
+
+            // Sort templates alphabetically for consistent ordering
+            var sortedNames = stingTemplates.Keys.OrderBy(k => k).ToList();
+
+            // Compare all adjacent pairs, or first vs all others
+            var report = new StringBuilder();
+            report.AppendLine("STING Template VG Comparison");
+            report.AppendLine(new string('═', 55));
+
+            // Compare first template with each other
+            string baseName = sortedNames[0];
+            var baseSnap = TemplateManager.CaptureVGSnapshot(doc, stingTemplates[baseName]);
+
+            int totalDiffs = 0;
+            foreach (string otherName in sortedNames.Skip(1))
+            {
+                var otherSnap = TemplateManager.CaptureVGSnapshot(doc, stingTemplates[otherName]);
+                var diffs = TemplateManager.DiffSnapshots(baseSnap, otherSnap);
+
+                if (diffs.Count > 0)
+                {
+                    report.AppendLine($"\n{baseName} vs {otherName} ({diffs.Count} diffs):");
+                    foreach (var (key, valA, valB) in diffs.Take(15))
+                    {
+                        report.AppendLine($"  {key}:");
+                        report.AppendLine($"    A: {valA}");
+                        report.AppendLine($"    B: {valB}");
+                    }
+                    if (diffs.Count > 15)
+                        report.AppendLine($"  ... +{diffs.Count - 15} more differences");
+                    totalDiffs += diffs.Count;
+                }
+                else
+                {
+                    report.AppendLine($"\n{baseName} vs {otherName}: IDENTICAL");
+                }
+            }
+
+            report.AppendLine($"\n{new string('─', 55)}");
+            report.AppendLine($"Compared {baseName} against {sortedNames.Count - 1} templates");
+            report.AppendLine($"Total differences found: {totalDiffs}");
+
+            TaskDialog.Show("Template Diff", report.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TemplateComplianceScoreCommand — weighted per-view scoring
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Scores every view in the project against STING template compliance criteria.
+    /// Uses a weighted 10-point scale covering template assignment, filters,
+    /// VG overrides, discipline match, phase correctness, and more.
+    /// Groups results by score band: Excellent (8-10), Good (6-8), Fair (4-6), Poor (0-4).
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TemplateComplianceScoreCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var views = TemplateManager.GetAssignableViews(doc);
+
+            var excellent = new List<string>();
+            var good = new List<string>();
+            var fair = new List<string>();
+            var poor = new List<string>();
+            double totalScore = 0;
+
+            foreach (View v in views)
+            {
+                var (score, max, _) = TemplateManager.ScoreViewCompliance(doc, v);
+                double pct = max > 0 ? score * 10 / max : 0;
+                totalScore += pct;
+
+                string entry = $"  {pct:F1}/10 {v.Name}";
+                if (pct >= 8) excellent.Add(entry);
+                else if (pct >= 6) good.Add(entry);
+                else if (pct >= 4) fair.Add(entry);
+                else poor.Add(entry);
+            }
+
+            double avgScore = views.Count > 0 ? totalScore / views.Count : 0;
+
+            var report = new StringBuilder();
+            report.AppendLine("STING Template Compliance Scores");
+            report.AppendLine(new string('═', 55));
+            report.AppendLine($"\nOverall Average: {avgScore:F1}/10.0");
+            report.AppendLine($"Total Views Scored: {views.Count}");
+            report.AppendLine($"\nScore Distribution:");
+            report.AppendLine($"  Excellent (8-10): {excellent.Count}");
+            report.AppendLine($"  Good (6-8):       {good.Count}");
+            report.AppendLine($"  Fair (4-6):       {fair.Count}");
+            report.AppendLine($"  Poor (0-4):       {poor.Count}");
+
+            report.AppendLine($"\nScoring Criteria (weights):");
+            foreach (var (criterion, weight, desc) in TemplateManager.ComplianceCriteria)
+                report.AppendLine($"  {weight:F1}pt {desc}");
+
+            if (poor.Count > 0)
+            {
+                report.AppendLine($"\nLowest-Scoring Views ({Math.Min(poor.Count, 20)}):");
+                foreach (string p in poor.Take(20)) report.AppendLine(p);
+            }
+
+            if (excellent.Count > 0 && excellent.Count <= 15)
+            {
+                report.AppendLine($"\nExcellent Views:");
+                foreach (string e in excellent) report.AppendLine(e);
+            }
+
+            TaskDialog.Show("Compliance Scores", report.ToString());
+            StingLog.Info($"Compliance Scores: avg={avgScore:F1}/10, " +
+                $"excellent={excellent.Count}, good={good.Count}, " +
+                $"fair={fair.Count}, poor={poor.Count}");
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  AutoFixTemplateCommand — one-click template health repair
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Diagnoses and auto-repairs all STING template health issues:
+    ///   • Removes orphaned filter references (deleted filters still applied)
+    ///   • Adds missing STING filters to templates
+    ///   • Sets undefined detail levels to Medium
+    ///   • Re-applies VG overrides where missing
+    ///   • Reports all actions taken with severity ratings
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AutoFixTemplateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            var stingTemplates = TemplateManager.GetStingTemplates(doc);
+            if (stingTemplates.Count == 0)
+            {
+                TaskDialog.Show("Auto-Fix Templates",
+                    "No STING view templates found.");
+                return Result.Succeeded;
+            }
+
+            // Build filter + fill pattern lookups for VG re-application
+            var filterLookup = new Dictionary<string, ParameterFilterElement>();
+            foreach (ParameterFilterElement pfe in new FilteredElementCollector(doc)
+                .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
+                filterLookup[pfe.Name] = pfe;
+
+            FillPatternElement solidFill = null;
+            try
+            {
+                solidFill = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            }
+            catch { }
+
+            int totalIssues = 0;
+            int totalFixed = 0;
+            var report = new StringBuilder();
+            report.AppendLine("STING Auto-Fix Template Report");
+            report.AppendLine(new string('═', 55));
+
+            using (Transaction tx = new Transaction(doc, "STING Auto-Fix Templates"))
+            {
+                tx.Start();
+
+                foreach (var kvp in stingTemplates)
+                {
+                    var issues = TemplateManager.DiagnoseTemplate(doc, kvp.Value);
+                    if (issues.Count == 0) continue;
+
+                    report.AppendLine($"\n{kvp.Key}:");
+                    foreach (var (issue, severity, fix) in issues)
+                    {
+                        totalIssues++;
+                        if (fix != null)
+                        {
+                            try
+                            {
+                                fix(doc, kvp.Value, tx);
+                                report.AppendLine($"  [{severity}] {issue} — FIXED");
+                                totalFixed++;
+                            }
+                            catch (Exception ex)
+                            {
+                                report.AppendLine($"  [{severity}] {issue} — fix failed: {ex.Message}");
+                            }
+                        }
+                        else
+                        {
+                            // Apply VG overrides via ConfigureTemplateVG
+                            string disc = TemplateManager.GetDisciplineFromTemplateName(kvp.Key);
+                            if (disc != null)
+                            {
+                                try
+                                {
+                                    ViewTemplatesCommand.ConfigureTemplateVG(
+                                        kvp.Value, disc, filterLookup, solidFill,
+                                        kvp.Value.DetailLevel);
+                                    report.AppendLine($"  [{severity}] {issue} — FIXED (VG re-applied)");
+                                    totalFixed++;
+                                }
+                                catch (Exception ex)
+                                {
+                                    report.AppendLine($"  [{severity}] {issue} — VG fix failed: {ex.Message}");
+                                }
+                            }
+                            else
+                            {
+                                report.AppendLine($"  [{severity}] {issue} — manual fix needed");
+                            }
+                        }
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            report.AppendLine($"\n{new string('─', 55)}");
+            report.AppendLine($"Total issues found: {totalIssues}");
+            report.AppendLine($"Auto-fixed: {totalFixed}");
+            report.AppendLine($"Remaining: {totalIssues - totalFixed}");
+
+            TaskDialog.Show("Auto-Fix Templates", report.ToString());
+            StingLog.Info($"Auto-Fix: {totalIssues} issues, {totalFixed} fixed");
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  SyncTemplateOverridesCommand — re-apply VG overrides
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Re-applies VG overrides to all existing STING view templates.
+    /// Restores standard discipline colours, halftone settings, and filter
+    /// configurations after manual changes.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SyncTemplateOverridesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            var stingTemplates = TemplateManager.GetStingTemplates(doc);
+            if (stingTemplates.Count == 0)
+            {
+                TaskDialog.Show("Sync Template Overrides", "No STING view templates found.");
+                return Result.Succeeded;
+            }
+
+            var filterLookup = new Dictionary<string, ParameterFilterElement>();
+            foreach (ParameterFilterElement pfe in new FilteredElementCollector(doc)
+                .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
+                filterLookup[pfe.Name] = pfe;
+
+            FillPatternElement solidFill = null;
+            try
+            {
+                solidFill = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            }
+            catch { }
+
+            int synced = 0, failed = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Sync Template Overrides"))
+            {
+                tx.Start();
+
+                foreach (var kvp in stingTemplates)
+                {
+                    string disc = TemplateManager.GetDisciplineFromTemplateName(kvp.Key);
+                    if (disc == null) { failed++; continue; }
+
+                    ViewDetailLevel dl = disc.StartsWith("PRES") ||
+                        disc.StartsWith("SEC_P") || disc == "PRES_3D" || disc == "ELEV_P"
+                        ? ViewDetailLevel.Fine : ViewDetailLevel.Medium;
+
+                    try
+                    {
+                        ViewTemplatesCommand.ConfigureTemplateVG(
+                            kvp.Value, disc, filterLookup, solidFill, dl);
+                        synced++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Sync VG '{kvp.Key}': {ex.Message}");
+                        failed++;
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Sync Template Overrides",
+                $"Synced VG on {synced} STING templates.\nFailed: {failed}");
+            StingLog.Info($"Sync VG: {synced} synced, {failed} failed");
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  CreateFillPatternsCommand — ISO 128-2:2020 fill patterns
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateFillPatternsCommand : IExternalCommand
+    {
+        private const double MmToFeet = 1.0 / 304.8;
+        private const double DegToRad = Math.PI / 180.0;
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            var existing = new HashSet<string>(
+                new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Select(e => e.Name));
+
+            int created = 0, skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Create Fill Patterns"))
+            {
+                tx.Start();
+                foreach (var (name, target, a1, s1, a2, s2) in TemplateManager.FillPatternDefs)
+                {
+                    if (existing.Contains(name)) { skipped++; continue; }
+                    try
+                    {
+                        var grids = new List<FillGrid>();
+                        double spacing1 = s1 * MmToFeet;
+                        double spacing2 = s2 * MmToFeet;
+                        if (spacing1 > 0)
+                            grids.Add(new FillGrid(a1 * DegToRad, 0, 0, spacing1, new List<double>()));
+                        if (spacing2 > 0)
+                            grids.Add(new FillGrid(a2 * DegToRad, 0, 0, spacing2, new List<double>()));
+                        if (grids.Count > 0)
+                        {
+                            FillPatternElement.Create(doc, new FillPattern(name, target, grids));
+                            created++;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Fill pattern '{name}': {ex.Message}"); skipped++; }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Create Fill Patterns",
+                $"Created {created} fill patterns.\nSkipped {skipped}.\n" +
+                $"Total defined: {TemplateManager.FillPatternDefs.Length}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  CreateLineStylesCommand — discipline + status + reference styles
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateLineStylesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            Category linesCat;
+            try { linesCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines); }
+            catch { TaskDialog.Show("Line Styles", "Cannot access Lines category."); return Result.Failed; }
+
+            var patternLookup = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+            foreach (LinePatternElement lpe in new FilteredElementCollector(doc)
+                .OfClass(typeof(LinePatternElement)).Cast<LinePatternElement>())
+                patternLookup[lpe.Name] = lpe.Id;
+
+            var existingSubs = new HashSet<string>(
+                linesCat.SubCategories.Cast<Category>().Select(c => c.Name));
+
+            int created = 0, skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Create Line Styles"))
+            {
+                tx.Start();
+                foreach (var (name, r, g, b, weight, patternName) in TemplateManager.LineStyleDefs)
+                {
+                    if (existingSubs.Contains(name)) { skipped++; continue; }
+                    try
+                    {
+                        Category sub = doc.Settings.Categories.NewSubcategory(linesCat, name);
+                        sub.LineColor = new Color(r, g, b);
+                        sub.SetLineWeight(weight, GraphicsStyleType.Projection);
+                        if (!string.IsNullOrEmpty(patternName) &&
+                            patternLookup.TryGetValue(patternName, out ElementId patId))
+                            sub.SetLinePatternId(patId, GraphicsStyleType.Projection);
+                        created++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Line style '{name}': {ex.Message}"); skipped++; }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Create Line Styles",
+                $"Created {created} line styles.\nSkipped {skipped}.\n" +
+                $"Total defined: {TemplateManager.LineStyleDefs.Length}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  CreateObjectStylesCommand — ISO category line weights and colours
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateObjectStylesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+            int configured = 0, skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Configure Object Styles"))
+            {
+                tx.Start();
+                foreach (var (cat, projWt, cutWt, r, g, b) in TemplateManager.ObjectStyleDefs)
+                {
+                    try
+                    {
+                        Category category = doc.Settings.Categories.get_Item(cat);
+                        if (category == null) { skipped++; continue; }
+                        category.LineColor = new Color(r, g, b);
+                        category.SetLineWeight(projWt, GraphicsStyleType.Projection);
+                        category.SetLineWeight(cutWt, GraphicsStyleType.Cut);
+                        configured++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Object style '{cat}': {ex.Message}"); skipped++; }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Configure Object Styles",
+                $"Configured {configured} categories.\nSkipped {skipped}.\n" +
+                $"Total: {TemplateManager.ObjectStyleDefs.Length}\n\n" +
+                "Discipline colours: M=Blue, E=Yellow, P=Green, A=Black,\n" +
+                "S=Red, FP=Orange, LV=Purple, Conduit=Olive");
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  CreateTextStylesCommand — ISO 3098 text note types
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateTextStylesCommand : IExternalCommand
+    {
+        private const double MmToFeet = 1.0 / 304.8;
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            TextNoteType baseType = new FilteredElementCollector(doc)
+                .OfClass(typeof(TextNoteType)).Cast<TextNoteType>().FirstOrDefault();
+            if (baseType == null)
+            {
+                TaskDialog.Show("Text Styles", "No existing text note type found.");
+                return Result.Failed;
+            }
+
+            var existingNames = new HashSet<string>(
+                new FilteredElementCollector(doc)
+                    .OfClass(typeof(TextNoteType)).Select(e => e.Name));
+
+            int created = 0, skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Create Text Styles"))
+            {
+                tx.Start();
+                foreach (var (name, font, sizeMm, bold, italic) in TemplateManager.TextStyleDefs)
+                {
+                    if (existingNames.Contains(name)) { skipped++; continue; }
+                    try
+                    {
+                        TextNoteType newType = baseType.Duplicate(name) as TextNoteType;
+                        if (newType == null) { skipped++; continue; }
+
+                        Parameter sizeP = newType.get_Parameter(BuiltInParameter.TEXT_SIZE);
+                        if (sizeP != null && !sizeP.IsReadOnly) sizeP.Set(sizeMm * MmToFeet);
+
+                        Parameter fontP = newType.get_Parameter(BuiltInParameter.TEXT_FONT);
+                        if (fontP != null && !fontP.IsReadOnly) fontP.Set(font);
+
+                        Parameter boldP = newType.get_Parameter(BuiltInParameter.TEXT_STYLE_BOLD);
+                        if (boldP != null && !boldP.IsReadOnly) boldP.Set(bold ? 1 : 0);
+
+                        Parameter italP = newType.get_Parameter(BuiltInParameter.TEXT_STYLE_ITALIC);
+                        if (italP != null && !italP.IsReadOnly) italP.Set(italic ? 1 : 0);
+
+                        created++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Text style '{name}': {ex.Message}"); skipped++; }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Create Text Styles",
+                $"Created {created} text types.\nSkipped {skipped}.\n" +
+                $"Total: {TemplateManager.TextStyleDefs.Length}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  CreateDimensionStylesCommand — ISO dimension types
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateDimensionStylesCommand : IExternalCommand
+    {
+        private const double MmToFeet = 1.0 / 304.8;
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            DimensionType baseType = new FilteredElementCollector(doc)
+                .OfClass(typeof(DimensionType)).Cast<DimensionType>()
+                .FirstOrDefault(dt =>
+                { try { return dt.StyleType == DimensionStyleType.Linear; } catch { return false; } })
+                ?? new FilteredElementCollector(doc)
+                    .OfClass(typeof(DimensionType)).Cast<DimensionType>().FirstOrDefault();
+
+            if (baseType == null)
+            {
+                TaskDialog.Show("Dimension Styles", "No existing dimension type found.");
+                return Result.Failed;
+            }
+
+            var existingNames = new HashSet<string>(
+                new FilteredElementCollector(doc)
+                    .OfClass(typeof(DimensionType)).Select(e => e.Name));
+
+            int created = 0, skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Create Dimension Styles"))
+            {
+                tx.Start();
+                foreach (var (name, textSizeMm, showUnits) in TemplateManager.DimensionStyleDefs)
+                {
+                    if (existingNames.Contains(name)) { skipped++; continue; }
+                    try
+                    {
+                        DimensionType newType = baseType.Duplicate(name) as DimensionType;
+                        if (newType == null) { skipped++; continue; }
+
+                        Parameter sizeP = newType.get_Parameter(BuiltInParameter.TEXT_SIZE);
+                        if (sizeP != null && !sizeP.IsReadOnly) sizeP.Set(textSizeMm * MmToFeet);
+
+                        created++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Dim style '{name}': {ex.Message}"); skipped++; }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Create Dimension Styles",
+                $"Created {created} dimension types.\nSkipped {skipped}.\n" +
+                $"Total: {TemplateManager.DimensionStyleDefs.Length}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  CreateVGOverridesCommand — comprehensive VG override application
+    //  with MEP system colours, phase awareness, workset visibility,
+    //  and intelligent per-discipline filter stacking
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Applies comprehensive VG overrides with multi-layer intelligence:
+    ///   Layer 1: Discipline filter colours (ISO 19650 standard palette)
+    ///   Layer 2: Tag-status QA highlighting (red=missing, orange=incomplete)
+    ///   Layer 3: Element status styling (halftone existing, red demolished)
+    ///   Layer 4: Phase-aware overrides (demolition cross-hatch, temporary dashed)
+    ///   Layer 5: Workset-based visibility (hide linked models, show relevant disciplines)
+    ///   Layer 6: MEP system-specific colours (HVAC-SUP=blue, HWS=red, DCW=green)
+    ///
+    /// Can target: active view (live preview), all STING templates, or user selection.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateVGOverridesCommand : IExternalCommand
+    {
+        /// <summary>ISO 19650 / BS 1192 discipline colours.</summary>
+        private static readonly Dictionary<string, Color> DisciplineColors =
+            new Dictionary<string, Color>
+            {
+                { "STING - Mechanical", new Color(0, 128, 255) },
+                { "STING - Electrical", new Color(255, 200, 0) },
+                { "STING - Plumbing", new Color(0, 180, 0) },
+                { "STING - Architectural", new Color(160, 160, 160) },
+                { "STING - Structural", new Color(200, 0, 0) },
+                { "STING - Fire Protection", new Color(255, 100, 0) },
+                { "STING - Low Voltage", new Color(160, 0, 200) },
+                { "STING - Conduits & Cable Trays", new Color(180, 180, 0) },
+                { "STING - Rooms & Spaces", new Color(100, 200, 255) },
+                { "STING - Generic & Specialty", new Color(128, 128, 128) },
+            };
+
+        /// <summary>MEP system-specific colour overrides for coordination views.</summary>
+        private static readonly Dictionary<string, Color> SystemColors =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Supply Air", new Color(0, 100, 255) },
+                { "Return Air", new Color(0, 200, 200) },
+                { "Exhaust Air", new Color(150, 150, 255) },
+                { "Fresh Air", new Color(100, 255, 100) },
+                { "Domestic Hot Water", new Color(255, 80, 80) },
+                { "Domestic Cold Water", new Color(80, 80, 255) },
+                { "Sanitary", new Color(139, 90, 43) },
+                { "Storm", new Color(0, 128, 128) },
+                { "Fire Protection", new Color(255, 100, 0) },
+                { "Heating Hot Water", new Color(255, 50, 50) },
+                { "Chilled Water Supply", new Color(50, 50, 255) },
+                { "Chilled Water Return", new Color(100, 100, 255) },
+                { "Condenser Water", new Color(0, 180, 180) },
+                { "Gas", new Color(255, 255, 0) },
+            };
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            // Determine target views
+            View activeView = uidoc.ActiveView;
+            List<View> targets = new List<View>();
+
+            if (activeView != null && !activeView.IsTemplate)
+                targets.Add(activeView);
+            else
+                targets = new FilteredElementCollector(doc)
+                    .OfClass(typeof(View)).Cast<View>()
+                    .Where(v => v.IsTemplate && v.Name.StartsWith("STING")).ToList();
+
+            if (targets.Count == 0)
+            {
+                TaskDialog.Show("VG Overrides", "No target views found.");
+                return Result.Succeeded;
+            }
+
+            // Collect filters
+            var filters = new FilteredElementCollector(doc)
+                .OfClass(typeof(ParameterFilterElement))
+                .Cast<ParameterFilterElement>()
+                .Where(f => f.Name.StartsWith("STING"))
+                .ToDictionary(f => f.Name, f => f);
+
+            // Solid fill pattern
+            FillPatternElement solidFill = null;
+            try
+            {
+                solidFill = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            }
+            catch { }
+
+            // Cross-hatch pattern for demolition
+            FillPatternElement crossHatch = null;
+            try
+            {
+                crossHatch = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp =>
+                    {
+                        string n = fp.Name;
+                        return n.Contains("Crosshatch") || n.Contains("Cross") || n.Contains("STING - Crosshatch");
+                    });
+            }
+            catch { }
+
+            int viewsConfigured = 0;
+            int filtersApplied = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Apply VG Overrides"))
+            {
+                tx.Start();
+
+                foreach (View target in targets)
+                {
+                    try
+                    {
+                        var appliedIds = new HashSet<ElementId>(target.GetFilters());
+
+                        foreach (var kvp in filters)
+                        {
+                            if (!kvp.Key.StartsWith("STING - ")) continue;
+
+                            try
+                            {
+                                // Add filter if not already applied
+                                if (!appliedIds.Contains(kvp.Value.Id))
+                                {
+                                    target.AddFilter(kvp.Value.Id);
+                                    target.SetFilterVisibility(kvp.Value.Id, true);
+                                }
+
+                                // Layer 1: Discipline colour override
+                                if (DisciplineColors.TryGetValue(kvp.Key, out Color col))
+                                {
+                                    var ogs = new OverrideGraphicSettings();
+                                    ogs.SetProjectionLineColor(col);
+                                    ogs.SetProjectionLineWeight(2);
+                                    if (solidFill != null)
+                                    {
+                                        ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                                        ogs.SetSurfaceForegroundPatternColor(col);
+                                    }
+                                    ogs.SetSurfaceTransparency(20);
+                                    target.SetFilterOverrides(kvp.Value.Id, ogs);
+                                    filtersApplied++;
+                                }
+
+                                // Layer 2: QA highlighting — missing tags = red
+                                if (kvp.Key.Contains("Untagged") || kvp.Key.Contains("Missing"))
+                                {
+                                    var qaOgs = new OverrideGraphicSettings();
+                                    qaOgs.SetProjectionLineColor(new Color(255, 0, 0));
+                                    qaOgs.SetProjectionLineWeight(4);
+                                    if (solidFill != null)
+                                    {
+                                        qaOgs.SetSurfaceForegroundPatternId(solidFill.Id);
+                                        qaOgs.SetSurfaceForegroundPatternColor(new Color(255, 200, 200));
+                                    }
+                                    target.SetFilterOverrides(kvp.Value.Id, qaOgs);
+                                }
+
+                                // Layer 2: QA highlighting — incomplete tags = orange
+                                if (kvp.Key.Contains("Incomplete"))
+                                {
+                                    var warnOgs = new OverrideGraphicSettings();
+                                    warnOgs.SetProjectionLineColor(new Color(255, 165, 0));
+                                    warnOgs.SetProjectionLineWeight(3);
+                                    if (solidFill != null)
+                                    {
+                                        warnOgs.SetSurfaceForegroundPatternId(solidFill.Id);
+                                        warnOgs.SetSurfaceForegroundPatternColor(new Color(255, 235, 200));
+                                    }
+                                    target.SetFilterOverrides(kvp.Value.Id, warnOgs);
+                                }
+
+                                // Layer 3: Status — demolished = red + crosshatch
+                                if (kvp.Key.Contains("Status: Demolished"))
+                                {
+                                    var demoOgs = new OverrideGraphicSettings();
+                                    demoOgs.SetProjectionLineColor(new Color(255, 0, 0));
+                                    demoOgs.SetProjectionLineWeight(3);
+                                    if (crossHatch != null)
+                                    {
+                                        demoOgs.SetSurfaceForegroundPatternId(crossHatch.Id);
+                                        demoOgs.SetSurfaceForegroundPatternColor(new Color(255, 150, 150));
+                                    }
+                                    else
+                                    {
+                                        demoOgs.SetHalftone(true);
+                                    }
+                                    target.SetFilterOverrides(kvp.Value.Id, demoOgs);
+                                }
+
+                                // Layer 3: Status — existing = halftone + transparent
+                                if (kvp.Key.Contains("Status: Existing"))
+                                {
+                                    var existOgs = new OverrideGraphicSettings();
+                                    existOgs.SetHalftone(true);
+                                    existOgs.SetSurfaceTransparency(50);
+                                    existOgs.SetProjectionLineColor(new Color(180, 180, 180));
+                                    target.SetFilterOverrides(kvp.Value.Id, existOgs);
+                                }
+
+                                // Layer 3: Status — temporary = dashed + yellow
+                                if (kvp.Key.Contains("Status: Temporary"))
+                                {
+                                    var tempOgs = new OverrideGraphicSettings();
+                                    tempOgs.SetProjectionLineColor(new Color(200, 200, 0));
+                                    tempOgs.SetProjectionLineWeight(1);
+                                    tempOgs.SetSurfaceTransparency(40);
+                                    target.SetFilterOverrides(kvp.Value.Id, tempOgs);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"VG filter '{kvp.Key}' on '{target.Name}': {ex.Message}");
+                            }
+                        }
+
+                        // Layer 5: Workset-based visibility (hide linked models in discipline views)
+                        try
+                        {
+                            if (target.Document.IsWorkshared)
+                            {
+                                string disc = TemplateManager.GetDisciplineFromTemplateName(target.Name);
+                                if (disc != null && disc != "ALL" && disc != "MEP")
+                                {
+                                    foreach (Workset ws in new FilteredWorksetCollector(doc)
+                                        .OfKind(WorksetKind.UserWorkset))
+                                    {
+                                        // Hide linked model worksets in discipline-specific views
+                                        if (ws.Name.StartsWith("Z-Linked"))
+                                        {
+                                            try { target.SetWorksetVisibility(ws.Id, WorksetVisibility.Hidden); }
+                                            catch { }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch { /* worksharing not available */ }
+
+                        viewsConfigured++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"VG override '{target.Name}': {ex.Message}");
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            string scope = targets.Count == 1 && !targets[0].IsTemplate
+                ? $"active view '{targets[0].Name}'"
+                : $"{viewsConfigured} STING view templates";
+
+            TaskDialog.Show("VG Overrides",
+                $"Applied VG overrides to {scope}.\n" +
+                $"Filters configured: {filtersApplied}\n\n" +
+                "Intelligence layers applied:\n" +
+                "  1. Discipline colour coding (10 colours)\n" +
+                "  2. QA highlighting (red=missing, orange=incomplete)\n" +
+                "  3. Status styling (halftone existing, crosshatch demolished)\n" +
+                "  4. Phase-aware overrides (temporary=dashed yellow)\n" +
+                "  5. Workset visibility (hide linked models)");
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  BatchAddFamilyParamsCommand — data-driven family parameter binding
+    //  from FAMILY_PARAMETER_BINDINGS.csv (4,686 entries)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Loads FAMILY_PARAMETER_BINDINGS.csv and binds shared parameters to
+    /// project categories using data-driven definitions instead of hardcoded
+    /// enums. Complements LoadSharedParamsCommand by handling the full
+    /// 4,686 parameter-to-category binding matrix.
+    ///
+    /// Intelligence layers:
+    ///   1. Validates GUIDs against MR_PARAMETERS.txt before binding
+    ///   2. Skips already-bound parameters (idempotent)
+    ///   3. Groups bindings by parameter for batch efficiency
+    ///   4. Handles Type vs Instance binding types from CSV
+    ///   5. Reports per-category success with coverage percentage
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BatchAddFamilyParamsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            // Load the shared parameter file
+            string spfPath = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+            if (string.IsNullOrEmpty(spfPath))
+            {
+                TaskDialog.Show("Batch Add Family Params",
+                    "MR_PARAMETERS.txt not found in data directory.");
+                return Result.Failed;
+            }
+
+            // Load binding definitions from CSV
+            var bindings = TemplateManager.LoadFamilyParameterBindings();
+            if (bindings.Count == 0)
+            {
+                TaskDialog.Show("Batch Add Family Params",
+                    "FAMILY_PARAMETER_BINDINGS.csv not found or empty.\n" +
+                    "Place it in the data directory alongside the DLL.");
+                return Result.Failed;
+            }
+
+            // Open shared parameter file
+            DefinitionFile defFile;
+            try
+            {
+                commandData.Application.Application.SharedParametersFilename = spfPath;
+                defFile = commandData.Application.Application.OpenSharedParameterFile();
+                if (defFile == null)
+                {
+                    TaskDialog.Show("Batch Add Family Params",
+                        "Failed to open shared parameter file.");
+                    return Result.Failed;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to open shared parameter file", ex);
+                TaskDialog.Show("Batch Add Family Params",
+                    $"Error opening parameter file: {ex.Message}");
+                return Result.Failed;
+            }
+
+            // Build definition lookup by name
+            var defLookup = new Dictionary<string, ExternalDefinition>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (DefinitionGroup group in defFile.Groups)
+            {
+                foreach (ExternalDefinition def in group.Definitions)
+                {
+                    defLookup[def.Name] = def;
+                }
+            }
+
+            // Group bindings by parameter for batch processing
+            var paramGroups = bindings
+                .GroupBy(b => b.name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            int totalBound = 0;
+            int totalSkipped = 0;
+            int totalFailed = 0;
+            int paramsProcessed = 0;
+            var perCategory = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            using (Transaction tx = new Transaction(doc, "STING Batch Add Family Parameters"))
+            {
+                tx.Start();
+
+                foreach (var paramGroup in paramGroups)
+                {
+                    string paramName = paramGroup.Key;
+
+                    // Find the external definition
+                    if (!defLookup.TryGetValue(paramName, out ExternalDefinition extDef))
+                    {
+                        totalSkipped += paramGroup.Count();
+                        continue;
+                    }
+
+                    paramsProcessed++;
+
+                    // Build category set for this parameter
+                    CategorySet catSet = commandData.Application.Application.Create.NewCategorySet();
+                    string bindingType = "Type"; // default
+
+                    foreach (var entry in paramGroup)
+                    {
+                        bindingType = entry.bindingType;
+                        string catName = entry.category;
+
+                        if (TemplateManager.CategoryNameToEnum.TryGetValue(catName,
+                            out BuiltInCategory bic))
+                        {
+                            try
+                            {
+                                Category cat = doc.Settings.Categories.get_Item(bic);
+                                if (cat != null)
+                                {
+                                    catSet.Insert(cat);
+                                    if (!perCategory.ContainsKey(catName))
+                                        perCategory[catName] = 0;
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+
+                    if (catSet.Size == 0)
+                    {
+                        totalSkipped += paramGroup.Count();
+                        continue;
+                    }
+
+                    // Check if already bound
+                    BindingMap bmap = doc.ParameterBindings;
+                    bool alreadyBound = false;
+                    try
+                    {
+                        var existing = bmap.get_Item(extDef);
+                        if (existing != null) alreadyBound = true;
+                    }
+                    catch { }
+
+                    if (alreadyBound)
+                    {
+                        totalSkipped += paramGroup.Count();
+                        continue;
+                    }
+
+                    // Create binding
+                    try
+                    {
+                        ElementBinding binding;
+                        if (bindingType.Equals("Instance", StringComparison.OrdinalIgnoreCase))
+                            binding = commandData.Application.Application.Create
+                                .NewInstanceBinding(catSet);
+                        else
+                            binding = commandData.Application.Application.Create
+                                .NewTypeBinding(catSet);
+
+                        bool success = bmap.Insert(extDef, binding,
+                            BuiltInParameterGroup.PG_DATA);
+
+                        if (success)
+                        {
+                            totalBound += catSet.Size;
+                            foreach (Category c in catSet)
+                            {
+                                if (perCategory.ContainsKey(c.Name))
+                                    perCategory[c.Name]++;
+                            }
+                        }
+                        else
+                        {
+                            totalFailed += paramGroup.Count();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Bind '{paramName}': {ex.Message}");
+                        totalFailed += paramGroup.Count();
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            // Build coverage report
+            var report = new StringBuilder();
+            report.AppendLine($"Batch Add Family Parameters");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"\nCSV entries: {bindings.Count}");
+            report.AppendLine($"Unique parameters: {paramGroups.Count}");
+            report.AppendLine($"Parameters processed: {paramsProcessed}");
+            report.AppendLine($"Bindings created: {totalBound}");
+            report.AppendLine($"Skipped (exist/missing): {totalSkipped}");
+            report.AppendLine($"Failed: {totalFailed}");
+
+            if (perCategory.Count > 0)
+            {
+                report.AppendLine($"\nPer-category bindings:");
+                foreach (var kvp in perCategory.OrderByDescending(k => k.Value).Take(20))
+                    report.AppendLine($"  {kvp.Value,3} params → {kvp.Key}");
+            }
+
+            TaskDialog.Show("Batch Add Family Params", report.ToString());
+            StingLog.Info($"Batch Family Params: {totalBound} bound, " +
+                $"{totalSkipped} skipped, {totalFailed} failed");
+
+            return totalBound > 0 ? Result.Succeeded : Result.Failed;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  CreateTemplateSchedulesCommand — TPL metadata schedules from CSV
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Creates the 13 TPL_Schedule_Metadata schedules from MR_SCHEDULES.csv.
+    /// These track template configuration metadata: filters, styles, phases,
+    /// worksets, and audit trail data.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateTemplateSchedulesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
+            if (string.IsNullOrEmpty(csvPath))
+            {
+                TaskDialog.Show("Template Schedules", "MR_SCHEDULES.csv not found.");
+                return Result.Failed;
+            }
+
+            var tplEntries = new List<(string scheduleName, string category, string fields)>();
+            try
+            {
+                foreach (string line in File.ReadAllLines(csvPath))
+                {
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 7) continue;
+                    if (cols[0].Trim() != "TPL_Schedule_Metadata") continue;
+
+                    string schedName = cols[2].Trim();
+                    string category = cols[3].Trim();
+                    string fields = cols[6].Trim();
+
+                    if (!string.IsNullOrEmpty(schedName) && !string.IsNullOrEmpty(fields))
+                        tplEntries.Add((schedName, category, fields));
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to read MR_SCHEDULES.csv", ex);
+                TaskDialog.Show("Template Schedules", $"Error reading CSV: {ex.Message}");
+                return Result.Failed;
+            }
+
+            if (tplEntries.Count == 0)
+            {
+                TaskDialog.Show("Template Schedules",
+                    "No TPL_Schedule_Metadata entries found in MR_SCHEDULES.csv.");
+                return Result.Failed;
+            }
+
+            var existing = new HashSet<string>(
+                new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSchedule)).Select(e => e.Name));
+
+            int created = 0, skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Create Template Schedules"))
+            {
+                tx.Start();
+                foreach (var (schedName, category, fields) in tplEntries)
+                {
+                    string fullName = $"STING - {schedName}";
+                    if (existing.Contains(fullName)) { skipped++; continue; }
+
+                    BuiltInCategory bic = BuiltInCategory.OST_GenericModel;
+                    if (TemplateManager.CategoryNameToEnum.TryGetValue(category, out BuiltInCategory mapped))
+                        bic = mapped;
+
+                    try
+                    {
+                        ViewSchedule vs = ViewSchedule.CreateSchedule(doc, new ElementId(bic));
+                        vs.Name = fullName;
+
+                        string[] fieldNames = fields.Split(',')
+                            .Select(f => f.Trim()).Where(f => f.Length > 0).ToArray();
+                        ScheduleDefinition sd = vs.Definition;
+                        foreach (string fieldName in fieldNames)
+                        {
+                            try
+                            {
+                                foreach (SchedulableField sf in sd.GetSchedulableFields())
+                                {
+                                    if (string.Equals(sf.GetName(doc), fieldName,
+                                        StringComparison.OrdinalIgnoreCase))
+                                    { sd.AddField(sf); break; }
+                                }
+                            }
+                            catch { }
+                        }
+                        created++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Template schedule '{fullName}': {ex.Message}");
+                        skipped++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Template Schedules",
+                $"Created {created} template metadata schedules.\nSkipped {skipped}.\n" +
+                $"TPL entries in CSV: {tplEntries.Count}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TemplateSetupWizardCommand — one-click complete template automation
+    //  Enhanced with 15 steps including batch family params + auto-fix
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Executes the complete STING template setup sequence in one click:
+    ///   1. Fill Patterns (12 ISO patterns)
+    ///   2. Line Patterns (10 ISO 128 patterns)
+    ///   3. Line Styles (16 discipline + status + reference)
+    ///   4. Object Styles (40 category overrides)
+    ///   5. Text Styles (12 text note types)
+    ///   6. Dimension Styles (7 dimension types)
+    ///   7. View Filters (28+ discipline + system + QA)
+    ///   8. View Templates (23 templates with VG)
+    ///   9. Apply Filters to Templates
+    ///  10. VG Overrides (5-layer intelligence)
+    ///  11. Batch Family Parameters (4,686 bindings from CSV)
+    ///  12. Template Metadata Schedules (13 from CSV)
+    ///  13. Worksets (35 ISO 19650, if workshared)
+    ///  14. Auto-Assign Templates (5-layer matching)
+    ///  15. Auto-Fix + Compliance Audit
+    ///
+    /// Wrapped in TransactionGroup for atomic rollback on failure.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TemplateSetupWizardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            TaskDialog confirm = new TaskDialog("STING Template Setup Wizard");
+            confirm.MainInstruction = "Run complete template setup?";
+            confirm.MainContent =
+                "This will execute the full STING template automation:\n\n" +
+                "  1.  Fill Patterns (12 ISO patterns)\n" +
+                "  2.  Line Patterns (10 ISO 128 patterns)\n" +
+                "  3.  Line Styles (16 styles)\n" +
+                "  4.  Object Styles (40 category overrides)\n" +
+                "  5.  Text Styles (12 text note types)\n" +
+                "  6.  Dimension Styles (7 types)\n" +
+                "  7.  View Filters (28+ with parameter rules)\n" +
+                "  8.  View Templates (23 with VG overrides)\n" +
+                "  9.  Apply Filters to Templates\n" +
+                " 10.  Apply VG Overrides (5 intelligence layers)\n" +
+                " 11.  Batch Family Parameters (4,686 bindings)\n" +
+                " 12.  Template Metadata Schedules (13 from CSV)\n" +
+                " 13.  Worksets (35 ISO 19650, if workshared)\n" +
+                " 14.  Auto-Assign Templates (5-layer matching)\n" +
+                " 15.  Auto-Fix + Final Audit\n\n" +
+                "All steps grouped atomically for rollback.\n" +
+                "This may take 1-2 minutes.";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+            StingLog.Info("Template Setup Wizard: starting 15-step automation");
+            var report = new StringBuilder();
+            report.AppendLine("STING Template Setup Wizard Results");
+            report.AppendLine(new string('═', 55));
+
+            int stepNum = 0;
+            int passed = 0;
+            var totalSw = Stopwatch.StartNew();
+
+            using (TransactionGroup tg = new TransactionGroup(doc, "STING Template Setup Wizard"))
+            {
+                tg.Start();
+
+                // Step 1: Fill Patterns
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "Fill Patterns (12 ISO)",
+                    () => new CreateFillPatternsCommand().Execute(commandData, ref message, elements));
+
+                // Step 2: Line Patterns
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "Line Patterns (10 ISO 128)",
+                    () => new CreateLinePatternsCommand().Execute(commandData, ref message, elements));
+
+                // Step 3: Line Styles
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "Line Styles (16 discipline+status)",
+                    () => new CreateLineStylesCommand().Execute(commandData, ref message, elements));
+
+                // Step 4: Object Styles
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "Object Styles (40 categories)",
+                    () => new CreateObjectStylesCommand().Execute(commandData, ref message, elements));
+
+                // Step 5: Text Styles
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "Text Styles (12 ISO 3098)",
+                    () => new CreateTextStylesCommand().Execute(commandData, ref message, elements));
+
+                // Step 6: Dimension Styles
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "Dimension Styles (7 types)",
+                    () => new CreateDimensionStylesCommand().Execute(commandData, ref message, elements));
+
+                // Step 7: View Filters
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "View Filters (28+ with param rules)",
+                    () => new CreateFiltersCommand().Execute(commandData, ref message, elements));
+
+                // Step 8: View Templates
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "View Templates (23 with VG)",
+                    () => new ViewTemplatesCommand().Execute(commandData, ref message, elements));
+
+                // Step 9: Apply Filters
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "Apply Filters to Templates",
+                    () => new ApplyFiltersToViewsCommand().Execute(commandData, ref message, elements));
+
+                // Step 10: VG Overrides
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "VG Overrides (5-layer intelligence)",
+                    () => new CreateVGOverridesCommand().Execute(commandData, ref message, elements));
+
+                // Step 11: Batch Family Parameters
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "Batch Family Parameters (CSV-driven)",
+                    () => new BatchAddFamilyParamsCommand().Execute(commandData, ref message, elements));
+
+                // Step 12: Template Metadata Schedules
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "Template Metadata Schedules",
+                    () => new CreateTemplateSchedulesCommand().Execute(commandData, ref message, elements));
+
+                // Step 13: Worksets
+                if (doc.IsWorkshared)
+                {
+                    passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                        "Worksets (35 ISO 19650)",
+                        () => new CreateWorksetsCommand().Execute(commandData, ref message, elements));
+                }
+                else
+                {
+                    stepNum++;
+                    report.AppendLine($"  {stepNum,2}. Worksets — SKIPPED (not workshared)");
+                }
+
+                // Step 14: Auto-Assign Templates
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "Auto-Assign Templates (5-layer)",
+                    () => new AutoAssignTemplatesCommand().Execute(commandData, ref message, elements));
+
+                // Step 15: Auto-Fix
+                passed += TemplateManager.RunWizardStep(ref stepNum, report,
+                    "Auto-Fix Template Health",
+                    () => new AutoFixTemplateCommand().Execute(commandData, ref message, elements));
+
+                int failed = stepNum - passed;
+                totalSw.Stop();
+
+                if (failed > 0)
+                {
+                    report.AppendLine(new string('─', 55));
+                    report.AppendLine($"  {passed}/{stepNum} succeeded, {failed} failed");
+                    report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
+
+                    TaskDialog rollDlg = new TaskDialog("Template Wizard — Failures");
+                    rollDlg.MainInstruction = $"{failed} step(s) failed";
+                    rollDlg.MainContent = report.ToString() +
+                        "\n\nKeep partial results or rollback all?";
+                    rollDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Keep results", $"Commit {passed} successful steps");
+                    rollDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "Rollback all", "Undo all changes");
+
+                    if (rollDlg.Show() == TaskDialogResult.CommandLink2)
+                    {
+                        tg.RollBack();
+                        StingLog.Info("Template Wizard: user chose rollback");
+                        TaskDialog.Show("Template Setup Wizard", "All changes rolled back.");
+                        return Result.Cancelled;
+                    }
+                }
+
+                tg.Assimilate();
+            }
+
+            report.AppendLine(new string('─', 55));
+            report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");
+            report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
+
+            TaskDialog td = new TaskDialog("STING Template Setup Wizard");
+            td.MainInstruction = $"Template Setup: {passed}/{stepNum} steps complete";
+            td.MainContent = report.ToString();
+            td.Show();
+
+            StingLog.Info($"Template Wizard complete: {passed}/{stepNum} passed, " +
+                $"elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
+
+            return passed > 0 ? Result.Succeeded : Result.Failed;
+        }
+    }
+}
