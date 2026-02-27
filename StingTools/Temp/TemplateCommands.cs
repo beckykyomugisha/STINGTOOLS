@@ -232,11 +232,11 @@ namespace StingTools.Temp
                                     break;
                                 case "Equals":
                                     rule = ParameterFilterRuleFactory
-                                        .CreateEqualsRule(paramId, value, false);
+                                        .CreateEqualsRule(paramId, value);
                                     break;
                                 case "Contains":
                                     rule = ParameterFilterRuleFactory
-                                        .CreateContainsRule(paramId, value, false);
+                                        .CreateContainsRule(paramId, value);
                                     break;
                             }
 
