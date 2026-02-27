@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -264,17 +266,109 @@ namespace StingTools.Temp
                     skipped += paramSkipped;
                 }
 
+                // ── Phase 3: CSV-driven filters from MR_SCHEDULES.csv VIEW_FILTER rows ──
+                int csvCreated = 0, csvSkipped = 0;
+                var csvFilters = TemplateManager.LoadViewFiltersFromCsv();
+                foreach (var (csvName, csvDisc, csvCategories, csvFields) in csvFilters)
+                {
+                    string fullName = $"STING - {csvName}";
+                    if (existingNames.Contains(fullName)) { csvSkipped++; continue; }
+
+                    try
+                    {
+                        // Parse categories from Multi_Categories (semicolon-separated)
+                        var csvCatIds = new List<ElementId>();
+                        if (csvCategories != "N/A" && !string.IsNullOrEmpty(csvCategories))
+                        {
+                            foreach (string catPart in csvCategories.Split(';'))
+                            {
+                                string catName = catPart.Trim();
+                                if (TemplateManager.CategoryNameToEnum.TryGetValue(catName,
+                                    out BuiltInCategory bic))
+                                {
+                                    try
+                                    {
+                                        Category cat = doc.Settings.Categories.get_Item(bic);
+                                        if (cat != null) csvCatIds.Add(new ElementId(bic));
+                                    }
+                                    catch { }
+                                }
+                            }
+                        }
+                        // Fall back to all taggable categories if none parsed
+                        if (csvCatIds.Count == 0)
+                            csvCatIds = allCatIds;
+
+                        if (csvCatIds.Count == 0) { csvSkipped++; continue; }
+
+                        // Parse rule from Fields: "Rule=Equals, Param=ASS_STATUS_TXT, Value=NEW"
+                        string ruleType = null, paramName = null, ruleValue = "";
+                        foreach (string part in csvFields.Split(','))
+                        {
+                            string p = part.Trim();
+                            if (p.StartsWith("Rule=")) ruleType = p.Substring(5).Trim();
+                            else if (p.StartsWith("Param=")) paramName = p.Substring(6).Trim();
+                            else if (p.StartsWith("Value=")) ruleValue = p.Substring(6).Trim();
+                        }
+
+                        if (!string.IsNullOrEmpty(ruleType) && !string.IsNullOrEmpty(paramName) &&
+                            spLookup.TryGetValue(paramName, out ElementId csvParamId))
+                        {
+                            FilterRule csvRule = null;
+                            switch (ruleType)
+                            {
+                                case "HasValue":
+                                    csvRule = ParameterFilterRuleFactory.CreateHasValueParameterRule(csvParamId);
+                                    break;
+                                case "HasNoValue":
+                                    csvRule = ParameterFilterRuleFactory.CreateHasNoValueParameterRule(csvParamId);
+                                    break;
+                                case "Equals":
+                                    csvRule = ParameterFilterRuleFactory.CreateEqualsRule(csvParamId, ruleValue);
+                                    break;
+                                case "Contains":
+                                    csvRule = ParameterFilterRuleFactory.CreateContainsRule(csvParamId, ruleValue);
+                                    break;
+                            }
+                            if (csvRule != null)
+                            {
+                                var epf = new ElementParameterFilter(csvRule);
+                                ParameterFilterElement.Create(doc, fullName, csvCatIds, epf);
+                                csvCreated++;
+                                created++;
+                            }
+                        }
+                        else
+                        {
+                            // No parameter rule — create category-only filter
+                            ParameterFilterElement.Create(doc, fullName, csvCatIds);
+                            csvCreated++;
+                            created++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"CSV filter '{csvName}': {ex.Message}");
+                        csvSkipped++;
+                        skipped++;
+                    }
+                }
+
                 tx.Commit();
 
                 string paramNote = spLookup.Count > 0
                     ? $"\nParameter-based: {paramCreated} created, {paramSkipped} skipped."
                     : "\nParameter-based filters skipped (load shared parameters first).";
 
+                string csvNote = csvFilters.Count > 0
+                    ? $"\nCSV-driven: {csvCreated} created, {csvSkipped} skipped (from {csvFilters.Count} VIEW_FILTER rows)."
+                    : "";
+
                 TaskDialog.Show("Create Filters",
                     $"Created {created} view filters.\nSkipped {skipped} (exist or failed).\n" +
                     $"Discipline: {DisciplineFilters.Length} defined.\n" +
                     $"Parameter-based: {ParameterFilterDefs.Length} defined." +
-                    paramNote);
+                    paramNote + csvNote);
             }
 
             return Result.Succeeded;
@@ -606,6 +700,87 @@ namespace StingTools.Temp
                     }
                 }
 
+                // ── Phase 2: CSV-driven templates from MR_SCHEDULES.csv VIEW_TEMPLATE rows ──
+                int csvCreated = 0, csvSkipped = 0;
+                var csvTemplates = TemplateManager.LoadViewTemplatesFromCsv();
+
+                // Refresh existing templates set after Phase 1
+                var existingAfterP1 = new HashSet<string>(
+                    new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
+                        .Where(v => v.IsTemplate).Select(v => v.Name));
+
+                foreach (var (csvName, csvDisc, csvVgScheme, csvDetail, csvScale) in csvTemplates)
+                {
+                    string fullName = $"STING - {csvName}";
+                    if (existingAfterP1.Contains(fullName)) { csvSkipped++; continue; }
+
+                    // Determine base view type from template name prefix
+                    ViewType csvViewType = ViewType.FloorPlan;
+                    if (csvName.Contains("Section") || csvName.Contains("SEC_"))
+                        csvViewType = ViewType.Section;
+                    else if (csvName.Contains("3D") || csvName.Contains("Isometric"))
+                        csvViewType = ViewType.ThreeD;
+                    else if (csvName.Contains("Elev") || csvName.Contains("ELEV_"))
+                        csvViewType = ViewType.Elevation;
+                    else if (csvName.Contains("RCP") || csvName.Contains("Ceiling"))
+                        csvViewType = ViewType.CeilingPlan;
+
+                    if (!baseViews.TryGetValue(csvViewType, out View csvBase))
+                    {
+                        if (!baseViews.TryGetValue(ViewType.FloorPlan, out csvBase))
+                        { csvSkipped++; continue; }
+                    }
+
+                    // Parse detail level
+                    ViewDetailLevel csvDl = ViewDetailLevel.Medium;
+                    if (csvDetail.Equals("Fine", StringComparison.OrdinalIgnoreCase))
+                        csvDl = ViewDetailLevel.Fine;
+                    else if (csvDetail.Equals("Coarse", StringComparison.OrdinalIgnoreCase))
+                        csvDl = ViewDetailLevel.Coarse;
+
+                    // Map discipline string to code
+                    string discCode = "A";
+                    if (csvDisc.Contains("Mech")) discCode = "M";
+                    else if (csvDisc.Contains("Elec")) discCode = "E";
+                    else if (csvDisc.Contains("Plumb")) discCode = "P";
+                    else if (csvDisc.Contains("Struct")) discCode = "S";
+                    else if (csvDisc.Contains("Fire")) discCode = "FP";
+                    else if (csvDisc.Contains("Coord")) discCode = "MEP";
+                    else if (csvDisc.Contains("Pres")) discCode = "PRES_C";
+                    else if (csvDisc.Contains("Work")) discCode = "ALL";
+
+                    try
+                    {
+                        View csvTemplate = csvBase.CreateViewTemplate();
+                        if (csvTemplate != null)
+                        {
+                            csvTemplate.Name = fullName;
+                            ConfigureTemplateVG(csvTemplate, discCode, filterLookup,
+                                solidFill, csvDl);
+
+                            // Set scale if available
+                            if (int.TryParse(csvScale, out int scaleVal) && scaleVal > 0)
+                            {
+                                try
+                                {
+                                    Parameter scaleP = csvTemplate.get_Parameter(
+                                        BuiltInParameter.VIEW_SCALE_PULLDOWN_METRIC);
+                                    if (scaleP != null && !scaleP.IsReadOnly)
+                                        scaleP.Set(scaleVal);
+                                }
+                                catch { }
+                            }
+
+                            csvCreated++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"CSV template '{fullName}': {ex.Message}");
+                        csvSkipped++;
+                    }
+                }
+
                 tx.Commit();
             }
 
@@ -613,20 +788,20 @@ namespace StingTools.Temp
             foreach (var kvp in baseViews)
                 baseReport.Append($"{kvp.Key}, ");
 
-            string result = $"Created {created} view templates.\n" +
+            string csvNote = csvTemplates.Count > 0
+                ? $"\n\nCSV-driven: {csvCreated} created, {csvSkipped} skipped " +
+                  $"(from {csvTemplates.Count} VIEW_TEMPLATE rows)"
+                : "";
+
+            string result = $"Created {created + csvCreated} view templates.\n" +
                 $"Configured VG on {configured} existing templates.\n" +
-                $"Skipped {skipped} (already exist).\n" +
+                $"Skipped {skipped + csvSkipped} (already exist).\n" +
                 (noBase > 0 ? $"No base view: {noBase}\n" : "") +
-                $"\nTemplates include:\n" +
-                $"  • 7 discipline working plans (M/E/P/A/S/FP/LV)\n" +
-                $"  • 2 coordination plans (MEP/Combined)\n" +
-                $"  • 3 special plans (Demolition/As-Built/Area)\n" +
-                $"  • 2 RCP templates (Lighting/Ceiling)\n" +
-                $"  • 2 presentation templates (Classic/Enhanced)\n" +
-                $"  • 3 section templates (Working/Presentation/Detail)\n" +
-                $"  • 2 3D templates (Coordination/Presentation)\n" +
-                $"  • 2 elevation templates (Working/Presentation)\n" +
-                $"\nBase views found: {baseReport.ToString().TrimEnd(',', ' ')}";
+                $"\nHardcoded: {TemplateDefs.Length} templates ({created} new).\n" +
+                $"  • 7 discipline plans, 2 coordination, 3 special, 2 RCP\n" +
+                $"  • 2 presentation, 3 section, 2 3D, 2 elevation" +
+                csvNote +
+                $"\n\nBase views: {baseReport.ToString().TrimEnd(',', ' ')}";
 
             TaskDialog.Show("View Templates", result);
 

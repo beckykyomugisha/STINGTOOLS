@@ -2098,6 +2098,18 @@ namespace StingTools.Temp
 
             int viewsConfigured = 0;
             int filtersApplied = 0;
+            int schemesApplied = 0;
+
+            // Load VG schemes from CSV for Layer 6
+            var csvSchemesList = TemplateManager.LoadVGSchemesFromCsv();
+            var csvSchemes = new Dictionary<string, List<(string cat, string fields)>>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var (sName, sCat, sFields) in csvSchemesList)
+            {
+                if (!csvSchemes.ContainsKey(sName))
+                    csvSchemes[sName] = new List<(string, string)>();
+                csvSchemes[sName].Add((sCat, sFields));
+            }
 
             using (Transaction tx = new Transaction(doc, "STING Apply VG Overrides"))
             {
@@ -2233,6 +2245,94 @@ namespace StingTools.Temp
                         }
                         catch { /* worksharing not available */ }
 
+                        // Layer 6: CSV-driven VG schemes (106 VG_SCHEME rows)
+                        // Match template name to a VG scheme and apply category-level overrides
+                        try
+                        {
+                            string disc = TemplateManager.GetDisciplineFromTemplateName(target.Name);
+                            string schemeName = null;
+
+                            // Map discipline to default VG scheme
+                            if (disc == "M") schemeName = "HVAC Systems";
+                            else if (disc == "E") schemeName = "Electrical Systems";
+                            else if (disc == "P") schemeName = "Plumbing Systems";
+                            else if (disc == "FP") schemeName = "Fire Protection";
+                            else if (disc == "S") schemeName = "Structural GA";
+                            else if (disc == "A") schemeName = "Standard Architectural";
+                            else if (disc == "PRES_C" || disc == "PRES_E") schemeName = "Monochrome";
+                            else if (disc == "DEMO") schemeName = "Demolition";
+
+                            if (schemeName != null && csvSchemes.ContainsKey(schemeName))
+                            {
+                                foreach (var (cat, schFields) in csvSchemes[schemeName])
+                                {
+                                    if (!TemplateManager.CategoryNameToEnum.TryGetValue(cat,
+                                        out BuiltInCategory schemeBic)) continue;
+                                    try
+                                    {
+                                        // Parse VG scheme fields
+                                        byte sr = 0, sg = 0, sb = 0;
+                                        int transp = 0;
+                                        bool halftone = false;
+
+                                        foreach (string p in schFields.Split(','))
+                                        {
+                                            string pt = p.Trim();
+                                            if (pt.StartsWith("SurfRGB(") && pt.EndsWith(")"))
+                                            {
+                                                string rgb = pt.Substring(8, pt.Length - 9);
+                                                string[] parts = rgb.Split(new[] { ' ', ',' },
+                                                    StringSplitOptions.RemoveEmptyEntries);
+                                                if (parts.Length >= 3 &&
+                                                    byte.TryParse(parts[0], out byte pr) &&
+                                                    byte.TryParse(parts[1], out byte pg) &&
+                                                    byte.TryParse(parts[2], out byte pb))
+                                                { sr = pr; sg = pg; sb = pb; }
+                                            }
+                                            else if (pt.StartsWith("Transp="))
+                                            {
+                                                string tv = pt.Substring(7).Replace("%", "").Trim();
+                                                int.TryParse(tv, out transp);
+                                            }
+                                            else if (pt.StartsWith("Halftone="))
+                                            {
+                                                halftone = pt.Substring(9).Trim()
+                                                    .Equals("Yes", StringComparison.OrdinalIgnoreCase);
+                                            }
+                                        }
+
+                                        // Apply per-category overrides
+                                        var catOgs = new OverrideGraphicSettings();
+                                        if (sr > 0 || sg > 0 || sb > 0)
+                                        {
+                                            catOgs.SetProjectionLineColor(new Color(sr, sg, sb));
+                                            if (solidFill != null)
+                                            {
+                                                catOgs.SetSurfaceForegroundPatternId(solidFill.Id);
+                                                catOgs.SetSurfaceForegroundPatternColor(
+                                                    new Color(sr, sg, sb));
+                                            }
+                                        }
+                                        if (transp > 0) catOgs.SetSurfaceTransparency(transp);
+                                        if (halftone) catOgs.SetHalftone(true);
+
+                                        Category revCat = doc.Settings.Categories.get_Item(schemeBic);
+                                        if (revCat != null)
+                                        {
+                                            target.SetCategoryOverrides(
+                                                new ElementId(schemeBic), catOgs);
+                                            schemesApplied++;
+                                        }
+                                    }
+                                    catch { }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"VG scheme on '{target.Name}': {ex.Message}");
+                        }
+
                         viewsConfigured++;
                     }
                     catch (Exception ex)
@@ -2250,13 +2350,15 @@ namespace StingTools.Temp
 
             TaskDialog.Show("VG Overrides",
                 $"Applied VG overrides to {scope}.\n" +
-                $"Filters configured: {filtersApplied}\n\n" +
-                "Intelligence layers applied:\n" +
+                $"Filters configured: {filtersApplied}\n" +
+                (schemesApplied > 0 ? $"VG scheme overrides: {schemesApplied}\n" : "") +
+                $"\nIntelligence layers applied:\n" +
                 "  1. Discipline colour coding (10 colours)\n" +
                 "  2. QA highlighting (red=missing, orange=incomplete)\n" +
                 "  3. Status styling (halftone existing, crosshatch demolished)\n" +
                 "  4. Phase-aware overrides (temporary=dashed yellow)\n" +
-                "  5. Workset visibility (hide linked models)");
+                "  5. Workset visibility (hide linked models)\n" +
+                (schemesApplied > 0 ? "  6. CSV-driven VG schemes (per-category overrides)\n" : ""));
 
             return Result.Succeeded;
         }
