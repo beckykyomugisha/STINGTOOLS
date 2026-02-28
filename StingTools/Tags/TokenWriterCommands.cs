@@ -68,6 +68,18 @@ namespace StingTools.Tags
 
             if (value == null) return Result.Cancelled;
 
+            // Validate the chosen value against ISO 19650 code lists
+            string validationError = ISO19650Validator.ValidateToken(paramName, value);
+            if (validationError != null)
+            {
+                var warnDlg = new TaskDialog("Token Validation Warning");
+                warnDlg.MainInstruction = "ISO 19650 validation warning";
+                warnDlg.MainContent = $"{validationError}\n\nContinue anyway?";
+                warnDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                if (warnDlg.Show() != TaskDialogResult.Yes)
+                    return Result.Cancelled;
+            }
+
             int written = 0;
             using (Transaction tx = new Transaction(doc, $"Set {label}"))
             {

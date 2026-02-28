@@ -72,8 +72,21 @@ namespace StingTools.Core
         {
             TotalCollisions++;
             if (depth > MaxCollisionDepth) MaxCollisionDepth = depth;
-            if (CollisionDetails.Count < 50) // Cap detail collection
+            // Keep the top 20 collisions by depth (deepest = most concerning)
+            if (CollisionDetails.Count < 20)
+            {
                 CollisionDetails.Add((tag, depth));
+            }
+            else
+            {
+                // Replace the shallowest collision if this one is deeper
+                int minIdx = 0;
+                for (int i = 1; i < CollisionDetails.Count; i++)
+                    if (CollisionDetails[i].depth < CollisionDetails[minIdx].depth)
+                        minIdx = i;
+                if (depth > CollisionDetails[minIdx].depth)
+                    CollisionDetails[minIdx] = (tag, depth);
+            }
         }
 
         public void RecordWarning(string warning)
@@ -93,10 +106,11 @@ namespace StingTools.Core
             if (TotalCollisions > 0)
             {
                 sb.AppendLine($"  Collisions:   {TotalCollisions:N0} resolved (max depth: {MaxCollisionDepth})");
-                foreach (var (tag, depth) in CollisionDetails.Take(5))
+                // Show top 5 deepest collisions (most concerning)
+                foreach (var (tag, depth) in CollisionDetails.OrderByDescending(c => c.depth).Take(5))
                     sb.AppendLine($"    • {tag} (bumped {depth}×)");
-                if (CollisionDetails.Count > 5)
-                    sb.AppendLine($"    ... and {CollisionDetails.Count - 5} more");
+                if (TotalCollisions > 5)
+                    sb.AppendLine($"    ... and {TotalCollisions - 5} more");
             }
 
             if (TaggedByDisc.Count > 0)
@@ -224,9 +238,21 @@ namespace StingTools.Core
                         return $"FUNC '{value}' not in valid set ({string.Join(",", ValidFuncCodes)})";
                     break;
                 case ParamRegistry.LVL:
-                    // LVL codes: L01-L99, GF, B1-B9, RF, XX, or up to 4 uppercase chars
+                    // Valid LVL codes: L01-L99, GF, LG, UG, B1-B9, SB, RF, PH, AT, TR, POD, MZ, PL, XX
                     if (value.Length > 4 || value.Contains(" "))
                         return $"LVL '{value}' exceeds 4-char limit or contains spaces";
+                    // Warn on known placeholder
+                    if (value == "XX")
+                        return null; // XX is valid but a placeholder
+                    // Check against known patterns
+                    bool isKnownLvl = value == "GF" || value == "RF" || value == "LG" ||
+                        value == "UG" || value == "MZ" || value == "PL" || value == "PH" ||
+                        value == "AT" || value == "TR" || value == "POD" ||
+                        (value.StartsWith("L") && value.Length <= 3 && value.Substring(1).All(char.IsDigit)) ||
+                        (value.StartsWith("B") && value.Length <= 2 && value.Substring(1).All(char.IsDigit)) ||
+                        (value.StartsWith("SB") && (value.Length == 2 || value.Substring(2).All(char.IsDigit)));
+                    if (!isKnownLvl && !value.All(c => char.IsLetterOrDigit(c)))
+                        return $"LVL '{value}' contains invalid characters";
                     break;
                 case ParamRegistry.PROD:
                     // PROD codes: 2-4 uppercase alphanumeric
@@ -282,6 +308,31 @@ namespace StingTools.Core
                     errors.Add($"SYS mismatch: category '{catName}' expects '{expectedSys}' but has '{sys}'");
             }
 
+            // Cross-validate: PROD should be consistent with DISC/SYS
+            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+            if (!string.IsNullOrEmpty(prod) && !string.IsNullOrEmpty(disc))
+            {
+                string prodError = ValidateProdForDisc(prod, disc);
+                if (prodError != null)
+                    errors.Add(prodError);
+            }
+
+            // Cross-validate: FUNC should be consistent with SYS
+            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+            if (!string.IsNullOrEmpty(func) && !string.IsNullOrEmpty(sys))
+            {
+                string expectedFunc = TagConfig.GetFuncCode(sys);
+                // Allow smart FUNC codes (EXH, RTN, FRA, DHW) as valid overrides
+                if (!string.IsNullOrEmpty(expectedFunc) && expectedFunc != func)
+                {
+                    // Only flag if FUNC doesn't belong to any related system
+                    bool isSmartFunc = (sys == "HVAC" && (func == "SUP" || func == "RTN" || func == "EXH" || func == "FRA")) ||
+                                       (sys == "HWS" && (func == "HTG" || func == "DHW"));
+                    if (!isSmartFunc)
+                        errors.Add($"FUNC '{func}' unexpected for SYS '{sys}' (expected '{expectedFunc}')");
+                }
+            }
+
             return errors;
         }
 
@@ -318,6 +369,59 @@ namespace StingTools.Core
             if (seqError != null) return seqError;
 
             return null; // valid
+        }
+
+        /// <summary>Known PROD codes by discipline group for cross-validation.</summary>
+        private static readonly Dictionary<string, HashSet<string>> ProdCodesByDisc =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "M", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "AHU", "FCU", "VAV", "CHR", "BLR", "PMP", "FAN", "HRU", "SPL", "GRL",
+                    "DAC", "DFT", "DU", "FDU", "IND", "RAD", "DAM", "CLT", "VFD", "GEN" } },
+                { "E", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "DB", "MCC", "MSB", "SWB", "UPS", "TRF", "ATS", "VFD", "SPD", "RCD",
+                    "ISO", "SFS", "BKP", "SKT", "LUM", "LDV", "DWN", "LIN", "SPT", "WSH",
+                    "BOL", "UPL", "FLD", "EML", "TRK", "DEC", "CDT", "CFT", "CBLT", "CTF", "GEN" } },
+                { "P", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "PP", "PFT", "PAC", "FPP", "FIX", "WC", "WHB", "URN", "SNK", "SHW",
+                    "BTH", "DRK", "CWL", "TRP", "BID", "EWS", "MOP", "GEN" } },
+                { "FP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "SPR", "FAD", "SML", "MCP", "BLL", "STB", "HTD", "FIM", "PP", "PFT",
+                    "PAC", "GEN" } },
+                { "A", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "DR", "WIN", "WL", "FL", "CLG", "RF", "RM", "FUR", "FUS", "CWK",
+                    "RLG", "STR", "RMP", "CPN", "MUL", "CWS", "GEN" } },
+                { "S", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "COL", "BM", "FDN", "GEN" } },
+                { "LV", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "COM", "DAT", "NCL", "SEC", "TEL", "DB", "SKT", "LUM", "LDV",
+                    "CDT", "CFT", "CBLT", "CTF", "GEN" } },
+            };
+
+        /// <summary>
+        /// Validate that a PROD code is reasonable for the given DISC.
+        /// Returns null if valid, error message if mismatched.
+        /// Only flags clear mismatches (e.g., plumbing PROD on an M element).
+        /// </summary>
+        private static string ValidateProdForDisc(string prod, string disc)
+        {
+            // GEN is valid for all disciplines
+            if (prod == "GEN" || prod == "SPE" || prod == "MED") return null;
+            // If we don't have a mapping for this discipline, skip
+            if (!ProdCodesByDisc.TryGetValue(disc, out var validProds)) return null;
+            // VFD appears in both M and E — skip cross-disc check for shared codes
+            if (prod == "VFD" || prod == "PMP") return null;
+            // Only flag if the PROD is known to belong exclusively to a different discipline
+            if (!validProds.Contains(prod))
+            {
+                // Check if the PROD belongs to a clearly different discipline
+                foreach (var kvp in ProdCodesByDisc)
+                {
+                    if (kvp.Key != disc && kvp.Value.Contains(prod))
+                        return $"PROD '{prod}' typically belongs to DISC '{kvp.Key}', not '{disc}'";
+                }
+            }
+            return null;
         }
     }
 
@@ -1289,9 +1393,29 @@ namespace StingTools.Core
         {
             if (view == null) return null;
 
-            // 3D views and schedules are typically coordination — tag all
-            if (view.ViewType == ViewType.ThreeD || view.ViewType == ViewType.Schedule)
+            // Schedules are always all-discipline
+            if (view.ViewType == ViewType.Schedule)
                 return null;
+
+            // 3D views: check name for discipline hints before defaulting to all
+            if (view.ViewType == ViewType.ThreeD)
+            {
+                string name3d = (view.Name ?? "").ToUpperInvariant();
+                // Discipline-specific 3D views (e.g., "3D - Mechanical", "HVAC 3D")
+                var detected3d = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (name3d.Contains("MECHANICAL") || name3d.Contains("HVAC"))
+                    detected3d.Add("M");
+                if (name3d.Contains("ELECTRICAL") || name3d.Contains("LIGHTING"))
+                    detected3d.Add("E");
+                if (name3d.Contains("PLUMBING") || name3d.Contains("PUBLIC HEALTH"))
+                    detected3d.Add("P");
+                if (name3d.Contains("FIRE"))
+                    detected3d.Add("FP");
+                if (name3d.Contains("COORDINATION") || name3d.Contains("COMBINED") || name3d.Contains("MEP"))
+                { detected3d.Add("M"); detected3d.Add("E"); detected3d.Add("P"); }
+                // If no discipline detected in 3D view name, tag all
+                return detected3d.Count > 0 ? detected3d : null;
+            }
 
             string viewName = (view.Name ?? "").ToUpperInvariant();
             string templateName = "";

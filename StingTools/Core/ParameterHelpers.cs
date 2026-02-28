@@ -103,10 +103,20 @@ namespace StingTools.Core
                     return "L02";
                 if (lower.Contains("third") || lower.Contains("3rd"))
                     return "L03";
+                if (lower.Contains("fourth") || lower.Contains("4th"))
+                    return "L04";
+                if (lower.Contains("fifth") || lower.Contains("5th"))
+                    return "L05";
 
-                return name.ToUpperInvariant()
-                    .Replace(" ", "")
-                    .Substring(0, Math.Min(4, name.Replace(" ", "").Length));
+                // Try to extract a floor number from patterns like "L01", "L1", "Floor 3"
+                string digits = ExtractDigits(name);
+                if (digits.Length > 0 && digits.Length <= 2)
+                    return "L" + digits.PadLeft(2, '0');
+
+                // Unrecognized pattern — return XX rather than truncating the name
+                // which could produce nonsensical level codes
+                StingLog.Info($"GetLevelCode: unrecognized level name '{name}', defaulting to XX");
+                return "XX";
             }
             catch (Exception ex)
             {
@@ -307,14 +317,23 @@ namespace StingTools.Core
                     if (!string.IsNullOrEmpty(loc)) return loc;
                 }
 
-                // Check if element is outside (no room) → could be EXT
+                // Check if element is likely exterior
                 if (room == null && el.Location != null)
                 {
-                    // Elements with a valid level but no room might be exterior
-                    // Only flag as EXT if we have rooms defined but element isn't in one
+                    // Heuristic: if the project has rooms defined and this element
+                    // has a valid location but isn't in any room, check the element's
+                    // category and family name for exterior indicators
                     if (roomIndex.Count > 0)
                     {
-                        // Don't auto-flag as EXT — too aggressive. Use project default.
+                        string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
+                        string catName = ParameterHelpers.GetCategoryName(el).ToUpperInvariant();
+                        // Only flag specific elements that are commonly exterior
+                        if (familyName.Contains("EXTERNAL") || familyName.Contains("EXTERIOR") ||
+                            familyName.Contains("OUTDOOR") || familyName.Contains("WEATHERPROOF") ||
+                            familyName.Contains("BOLLARD") || familyName.Contains("FLOODLIGHT") ||
+                            (catName.Contains("LIGHTING") && familyName.Contains("POLE")) ||
+                            (catName.Contains("LIGHTING") && familyName.Contains("POST")))
+                            return "EXT";
                     }
                 }
             }

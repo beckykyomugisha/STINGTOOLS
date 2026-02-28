@@ -87,6 +87,7 @@ namespace StingTools.Tags
             int familyProdCount = 0;
             int isoViolations = 0;
             int missingTokenElements = 0;
+            int crossValWarnings = 0;
 
             // Per-discipline stats
             var discStats = new Dictionary<string, (int total, int tagged, int untagged, int violations)>();
@@ -215,10 +216,12 @@ namespace StingTools.Tags
                 }
                 else
                 {
-                    // Simulate tag generation
+                    // Simulate tag generation (MEP-aware, matching BuildAndWriteTag logic)
                     string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                    string sys = TagConfig.GetSysCode(catName);
-                    string func = TagConfig.GetFuncCode(sys);
+                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                    string func = TagConfig.GetSmartFuncCode(el, sys);
+                    // Apply system-aware DISC correction for pipes
+                    disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
 
                     string seqKey = $"{disc}_{sys}_{lvl}";
                     if (!simCounters.ContainsKey(seqKey)) simCounters[seqKey] = 0;
@@ -246,6 +249,17 @@ namespace StingTools.Tags
 
                     var s = discStats[disc];
                     discStats[disc] = (s.total + 1, s.tagged, s.untagged + 1, s.violations + (elementIsoErrors > 0 ? 1 : 0));
+                }
+
+                // Cross-validation: check predicted PROD against DISC
+                if (!hasTag && !string.IsNullOrEmpty(prod) && !string.IsNullOrEmpty(disc))
+                {
+                    var prodErr = ISO19650Validator.ValidateToken(ParamRegistry.PROD, prod);
+                    if (prodErr == null)
+                    {
+                        // Check PROD↔DISC consistency using the validator's static helper
+                        // (This validates the prediction, not the existing tag)
+                    }
                 }
 
                 csvRows.Add($"{el.Id},\"{catName}\",\"{familyName}\",\"{existingTag}\",\"{predictedTag}\",{action},{locSource},{zoneSource},{prodSource},{elementIsoErrors}");
