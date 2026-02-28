@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>STING Tools</Name>
+    <Assembly>StingTools.dll</Assembly>
+    <AddInId>A1B2C3D4-5678-9ABC-DEF0-123456789ABC</AddInId>
+    <FullClassName>StingTools.Core.StingToolsApp</FullClassName>
+    <VendorId>StingBIM</VendorId>
+    <VendorDescription>StingBIM - ISO 19650 BIM Automation</VendorDescription>
+    <VendorEmail>support@stingbim.com</VendorEmail>
+  </AddIn>
+</RevitAddIns>
