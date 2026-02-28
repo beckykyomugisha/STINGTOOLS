@@ -324,6 +324,9 @@ namespace StingTools.UI
                     case "LoadSharedParams": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
                     case "ConfigEditor": RunCommand<Tags.ConfigEditorCommand>(app); break;
                     case "TagConfig": RunCommand<Tags.TagConfigCommand>(app); break;
+                    case "SyncParamSchema": RunCommand<Tags.SyncParameterSchemaCommand>(app); break;
+                    case "AddParamRemap": RunCommand<Tags.AddParamRemapCommand>(app); break;
+                    case "AuditParamSchema": RunCommand<Tags.AuditParameterSchemaCommand>(app); break;
 
                     // ── Tag Families ──
                     case "CreateTagFamilies": RunCommand<Tags.CreateTagFamiliesCommand>(app); break;
