@@ -346,10 +346,10 @@ namespace StingTools.UI
                     case "SetFunc": WriteTokenToSelected(app, ParamRegistry.FUNC, "Function Code (FUNC)"); break;
                     case "SetProd": WriteTokenToSelected(app, ParamRegistry.PROD, "Product Code (PROD)"); break;
                     case "SetLvl": WriteTokenToSelected(app, ParamRegistry.LVL, "Level Code (LVL)"); break;
-                    case "SetOrig": WriteTokenToSelected(app, "ASS_ORIGIN_TXT", "Origin Code (ORIG)"); break;
-                    case "SetProj": WriteTokenToSelected(app, "ASS_PROJECT_TXT", "Project Code (PROJ)"); break;
-                    case "SetRev": WriteTokenToSelected(app, "ASS_REV_TXT", "Revision Code (REV)"); break;
-                    case "SetVol": WriteTokenToSelected(app, "ASS_VOL_TXT", "Volume Code (VOL)"); break;
+                    case "SetOrig": WriteTokenToSelected(app, ParamRegistry.ORIGIN, "Origin Code (ORIG)"); break;
+                    case "SetProj": WriteTokenToSelected(app, ParamRegistry.PROJECT, "Project Code (PROJ)"); break;
+                    case "SetRev": WriteTokenToSelected(app, ParamRegistry.REV, "Revision Code (REV)"); break;
+                    case "SetVol": WriteTokenToSelected(app, ParamRegistry.VOLUME, "Volume Code (VOL)"); break;
 
                     // ── Scope / toggles (inline) ──
                     case "ScopeView": break;
@@ -1104,10 +1104,10 @@ namespace StingTools.UI
                 ParamRegistry.FUNC => new[] { "SUP", "HTG", "PWR" },
                 ParamRegistry.PROD => new[] { "AHU", "DB", "DR" },
                 ParamRegistry.LVL => new[] { "GF", "L01", "B1" },
-                "ASS_ORIGIN_TXT" => new[] { "NEW", "EXISTING", "DEMOLISHED" },
-                "ASS_PROJECT_TXT" => new[] { "PRJ001", "PRJ002", "PRJ003" },
-                "ASS_REV_TXT" => new[] { "P01", "P02", "C01" },
-                "ASS_VOL_TXT" => new[] { "V01", "V02", "V03" },
+                ParamRegistry.ORIGIN => new[] { "NEW", "EXISTING", "DEMOLISHED" },
+                ParamRegistry.PROJECT => new[] { "PRJ001", "PRJ002", "PRJ003" },
+                ParamRegistry.REV => new[] { "P01", "P02", "C01" },
+                ParamRegistry.VOLUME => new[] { "V01", "V02", "V03" },
                 _ => new[] { "VALUE1", "VALUE2", "VALUE3" }
             };
         }

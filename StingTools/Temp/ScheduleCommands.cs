@@ -740,81 +740,7 @@ namespace StingTools.Temp
             int tagged = 0, combined = 0, gridRefSet = 0;
             int totalElements = 0;
 
-            // Token arrays for combine step (reuse TagAndCombine layout)
-            string[] allTokenParams = new[]
-            {
-                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
-                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
-                ParamRegistry.PROD, ParamRegistry.SEQ,
-            };
-            string[] shortIdTokens = new[]
-            {
-                ParamRegistry.DISC, ParamRegistry.PROD, ParamRegistry.SEQ,
-            };
-            string[] sysRefTokens = new[]
-            {
-                ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD,
-            };
-            string[] locationTokens = new[]
-            {
-                ParamRegistry.LOC, ParamRegistry.ZONE, ParamRegistry.LVL,
-            };
-            string[] systemTokens = new[]
-            {
-                ParamRegistry.SYS, ParamRegistry.FUNC,
-            };
-            string[] line1Tokens = new[]
-            {
-                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE, ParamRegistry.LVL,
-            };
-            string[] line2Tokens = new[]
-            {
-                ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD, ParamRegistry.SEQ,
-            };
-
-            var universalContainers = new (string param, string[] tokens)[]
-            {
-                (ParamRegistry.TAG1, allTokenParams),
-                (ParamRegistry.TAG2, shortIdTokens),
-                (ParamRegistry.TAG3, locationTokens),
-                (ParamRegistry.TAG4, systemTokens),
-                (ParamRegistry.TAG5, line1Tokens),
-                (ParamRegistry.TAG6, line2Tokens),
-            };
-
-            var disciplineContainers = new (string param, string[] tokens, HashSet<string> cats)[]
-            {
-                ("HVC_EQP_TAG_01_TXT", allTokenParams, new HashSet<string> { "Mechanical Equipment" }),
-                ("HVC_EQP_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Mechanical Equipment" }),
-                ("HVC_EQP_TAG_03_TXT", sysRefTokens, new HashSet<string> { "Mechanical Equipment" }),
-                ("HVC_DCT_TAG_01_TXT", allTokenParams, new HashSet<string> { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" }),
-                ("HVC_DCT_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" }),
-                ("HVC_DCT_TAG_03_TXT", systemTokens, new HashSet<string> { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" }),
-                ("HVC_FLX_TAG_01_TXT", allTokenParams, new HashSet<string> { "Flex Ducts" }),
-                ("ELC_EQP_TAG_01_TXT", allTokenParams, new HashSet<string> { "Electrical Equipment" }),
-                ("ELC_EQP_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Electrical Equipment" }),
-                ("ELE_FIX_TAG_1_TXT", allTokenParams, new HashSet<string> { "Electrical Fixtures" }),
-                ("ELE_FIX_TAG_2_TXT", shortIdTokens, new HashSet<string> { "Electrical Fixtures" }),
-                ("LTG_FIX_TAG_01_TXT", allTokenParams, new HashSet<string> { "Lighting Fixtures", "Lighting Devices" }),
-                ("LTG_FIX_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Lighting Fixtures", "Lighting Devices" }),
-                ("PLM_EQP_TAG_01_TXT", allTokenParams, new HashSet<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" }),
-                ("PLM_EQP_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" }),
-                ("FLS_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Sprinklers", "Fire Alarm Devices" }),
-                ("FLS_DEV_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Sprinklers", "Fire Alarm Devices" }),
-                ("ELC_CDT_TAG_01_TXT", allTokenParams, new HashSet<string> { "Conduits", "Conduit Fittings" }),
-                ("ELC_CDT_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Conduits", "Conduit Fittings" }),
-                ("ELC_CTR_TAG_01_TXT", allTokenParams, new HashSet<string> { "Cable Trays", "Cable Tray Fittings" }),
-                ("COM_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Communication Devices", "Telephone Devices" }),
-                ("SEC_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Security Devices" }),
-                ("NCL_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Nurse Call Devices" }),
-                ("ICT_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Data Devices" }),
-                ("MAT_TAG_1_TXT", allTokenParams, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs", "Doors", "Windows" }),
-                ("MAT_TAG_2_TXT", shortIdTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs", "Doors", "Windows" }),
-                ("MAT_TAG_3_TXT", locationTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                ("MAT_TAG_4_TXT", systemTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                ("MAT_TAG_5_TXT", line1Tokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                ("MAT_TAG_6_TXT", line2Tokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-            };
+            // Container definitions loaded from ParamRegistry.ContainerGroups
 
             using (Transaction tx = new Transaction(doc, "STING Full Auto-Populate"))
             {
@@ -910,40 +836,20 @@ namespace StingTools.Temp
                     if (TagConfig.BuildAndWriteTag(doc, el, seqCounters, existingTags: tagIndex))
                         tagged++;
 
-                    // ── STEP 5: Combine into all 37 containers ─────────────────
-                    var tokenValues = new Dictionary<string, string>();
-                    foreach (string param in allTokenParams)
-                        tokenValues[param] = ParameterHelpers.GetString(el, param);
-
-                    if (tokenValues.Values.Any(v => !string.IsNullOrEmpty(v)))
+                    // ── STEP 5: Combine into all containers via ParamRegistry ───
+                    string[] tokenValues = ParamRegistry.ReadTokenValues(el);
+                    if (tokenValues.Any(v => !string.IsNullOrEmpty(v)))
                     {
-                        foreach (var (param, tokens) in universalContainers)
-                        {
-                            var parts = tokens.Select(t =>
-                                tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
-                            string assembled = string.Join(ParamRegistry.Separator, parts);
-                            if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
-                                combined++;
-                        }
-
-                        foreach (var (param, tokens, cats) in disciplineContainers)
-                        {
-                            if (!cats.Contains(catName)) continue;
-                            var parts = tokens.Select(t =>
-                                tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
-                            string assembled = string.Join(ParamRegistry.Separator, parts);
-                            if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
-                                combined++;
-                        }
+                        combined += ParamRegistry.WriteContainers(el, tokenValues, catName);
                     }
 
                     // ── STEP 6: Grid Reference ─────────────────────────────────
                     if (gridLines.Count > 0 &&
-                        string.IsNullOrEmpty(ParameterHelpers.GetString(el, "PRJ_GRID_REF_TXT")))
+                        string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.GRID_REF)))
                     {
                         string gridRef = GetNearestGridRef(el, gridLines);
                         if (!string.IsNullOrEmpty(gridRef) &&
-                            ParameterHelpers.SetIfEmpty(el, "PRJ_GRID_REF_TXT", gridRef))
+                            ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef))
                             gridRefSet++;
                     }
 

@@ -1433,49 +1433,49 @@ namespace StingTools.Organise
                 string typeName = ParameterHelpers.GetFamilySymbolName(el);
                 string status = Gs(el, ParamRegistry.STATUS);
                 string mark = Gp(el, BuiltInParameter.ALL_MODEL_MARK);
-                string desc = Gs(el, "ASS_DESCRIPTION_TXT");
+                string desc = Gs(el, ParamRegistry.DESC);
                 if (string.IsNullOrEmpty(desc)) desc = Gp(el, BuiltInParameter.ALL_MODEL_DESCRIPTION);
-                string mfr = Gs(el, "ASS_MANUFACTURER_TXT");
+                string mfr = Gs(el, ParamRegistry.MFR);
                 if (string.IsNullOrEmpty(mfr)) mfr = Gp(el, BuiltInParameter.ALL_MODEL_MANUFACTURER);
-                string model = Gs(el, "ASS_MODEL_NR_TXT");
+                string model = Gs(el, ParamRegistry.MODEL);
                 if (string.IsNullOrEmpty(model)) model = Gp(el, BuiltInParameter.ALL_MODEL_MODEL);
 
                 // Spatial
                 string level = ParameterHelpers.GetLevelCode(doc, el);
-                string roomName = Gs(el, "ASS_ROOM_NAME_TXT");
-                if (string.IsNullOrEmpty(roomName)) roomName = Gs(el, "BLE_ROOM_NAME_TXT");
-                string roomNum = Gs(el, "ASS_ROOM_NUM_TXT");
-                if (string.IsNullOrEmpty(roomNum)) roomNum = Gs(el, "BLE_ROOM_NUMBER_TXT");
-                string dept = Gs(el, "ASS_DEPARTMENT_ASSIGNMENT_TXT");
-                string gridRef = Gs(el, "PRJ_GRID_REF_TXT");
+                string roomName = Gs(el, ParamRegistry.ROOM_NAME);
+                if (string.IsNullOrEmpty(roomName)) roomName = Gs(el, ParamRegistry.BLE_ROOM_NAME);
+                string roomNum = Gs(el, ParamRegistry.ROOM_NUM);
+                if (string.IsNullOrEmpty(roomNum)) roomNum = Gs(el, ParamRegistry.BLE_ROOM_NUM);
+                string dept = Gs(el, ParamRegistry.DEPT);
+                string gridRef = Gs(el, ParamRegistry.GRID_REF);
 
                 // Dimensional — try STING params, fallback to built-in
-                string width = GetDim(el, "BLE_DOOR_WIDTH_MM", "BLE_WINDOW_WIDTH_MM",
-                    "BLE_WALL_THICKNESS_MM", "BLE_RAMP_WIDTH_MM", "BLE_STAIR_WIDTH_MM");
-                string height = GetDim(el, "BLE_DOOR_HEIGHT_MM", "BLE_WINDOW_HEIGHT_MM",
-                    "BLE_WALL_HEIGHT_MM", "BLE_CEILING_HEIGHT_MM");
-                string length = GetDim(el, "BLE_WALL_LENGTH_MM", "PLM_PPE_LENGTH_M");
-                string area = Gs(el, "BLE_ELE_AREA_SQ_M");
-                if (string.IsNullOrEmpty(area)) area = Gs(el, "ASS_ROOM_AREA_SQ_M");
-                string thickness = GetDim(el, "BLE_FLR_THICKNESS_MM", "BLE_WALL_THICKNESS_MM");
+                string width = GetDim(el, ParamRegistry.DOOR_WIDTH, ParamRegistry.WINDOW_WIDTH,
+                    ParamRegistry.WALL_THICKNESS, ParamRegistry.RAMP_WIDTH, ParamRegistry.STAIR_WIDTH);
+                string height = GetDim(el, ParamRegistry.DOOR_HEIGHT, ParamRegistry.WINDOW_HEIGHT,
+                    ParamRegistry.WALL_HEIGHT, ParamRegistry.CEILING_HEIGHT);
+                string length = GetDim(el, ParamRegistry.WALL_LENGTH, ParamRegistry.PLM_PIPE_LENGTH);
+                string area = Gs(el, ParamRegistry.ELE_AREA);
+                if (string.IsNullOrEmpty(area)) area = Gs(el, ParamRegistry.ROOM_AREA);
+                string thickness = GetDim(el, ParamRegistry.FLR_THICKNESS, ParamRegistry.WALL_THICKNESS);
 
                 // MEP
                 string sysType = Gp(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM);
                 if (string.IsNullOrEmpty(sysType)) sysType = sys;
-                string size = Gs(el, "ASS_SIZE_TXT");
-                string flow = Gs(el, "HVC_DCT_FLW_CFM");
-                if (string.IsNullOrEmpty(flow)) flow = Gs(el, "PLM_PPE_FLW_LPS");
-                if (string.IsNullOrEmpty(flow)) flow = Gs(el, "HVC_AIRFLOW_LPS");
-                string voltage = Gs(el, "ELC_CKT_VLT_V");
-                if (string.IsNullOrEmpty(voltage)) voltage = Gs(el, "ELC_VLT_PRIMARY_RATING_V");
-                string power = Gs(el, "ELC_CKT_PWR_KW");
+                string size = Gs(el, ParamRegistry.SIZE);
+                string flow = Gs(el, ParamRegistry.HVC_DUCT_FLOW);
+                if (string.IsNullOrEmpty(flow)) flow = Gs(el, ParamRegistry.PLM_PIPE_FLOW);
+                if (string.IsNullOrEmpty(flow)) flow = Gs(el, ParamRegistry.HVC_AIRFLOW);
+                string voltage = Gs(el, ParamRegistry.ELC_VOLTAGE);
+                if (string.IsNullOrEmpty(voltage)) voltage = Gs(el, ParamRegistry.ELC_PNL_VOLTAGE);
+                string power = Gs(el, ParamRegistry.ELC_POWER);
 
                 // Cost & FM
-                string unitPrice = Gs(el, "ASS_CST_UNIT_PRICE_UGX_NR");
-                string typeMark = Gs(el, "ASS_TYPE_MARK_TXT");
-                string keynote = Gs(el, "ASS_KEYNOTE_TXT");
-                string uniformat = Gs(el, "ASS_UNIFORMAT_TXT");
-                string omniclass = Gs(el, "ASS_OMNICLASS_TXT");
+                string unitPrice = Gs(el, ParamRegistry.COST);
+                string typeMark = Gs(el, ParamRegistry.TYPE_MARK);
+                string keynote = Gs(el, ParamRegistry.KEYNOTE);
+                string uniformat = Gs(el, ParamRegistry.UNIFORMAT);
+                string omniclass = Gs(el, ParamRegistry.OMNICLASS);
 
                 // Track discipline counts
                 if (!string.IsNullOrEmpty(disc))

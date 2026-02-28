@@ -251,6 +251,96 @@
     }
   ],
 
+  "extended_params": {
+    "identity": [
+      { "key": "ID",              "param_name": "ASS_ID_TXT",                    "description": "Element mark / ID" },
+      { "key": "DESC",            "param_name": "ASS_DESCRIPTION_TXT",           "description": "Element description" },
+      { "key": "MFR",             "param_name": "ASS_MANUFACTURER_TXT",          "description": "Manufacturer" },
+      { "key": "MODEL",           "param_name": "ASS_MODEL_NR_TXT",             "description": "Model number" },
+      { "key": "TYPE_NAME",       "param_name": "ASS_TYPE_NAME_TXT",            "description": "Type/symbol name" },
+      { "key": "FAMILY_NAME",     "param_name": "ASS_FAMILY_NAME_TXT",          "description": "Family name" },
+      { "key": "CAT",             "param_name": "ASS_CAT_TXT",                  "description": "Category name" },
+      { "key": "TYPE_MARK",       "param_name": "ASS_TYPE_MARK_TXT",            "description": "Type mark" },
+      { "key": "TYPE_COMMENTS",   "param_name": "ASS_TYPE_COMMENTS_TXT",        "description": "Type comments" },
+      { "key": "KEYNOTE",         "param_name": "ASS_KEYNOTE_TXT",              "description": "Keynote" },
+      { "key": "UNIFORMAT",       "param_name": "ASS_UNIFORMAT_TXT",            "description": "Uniformat code" },
+      { "key": "UNIFORMAT_DESC",  "param_name": "ASS_UNIFORMAT_DESC_TXT",       "description": "Uniformat description" },
+      { "key": "OMNICLASS",       "param_name": "ASS_OMNICLASS_TXT",            "description": "OmniClass code" },
+      { "key": "SIZE",            "param_name": "ASS_SIZE_TXT",                 "description": "Calculated size" },
+      { "key": "COST",            "param_name": "ASS_CST_UNIT_PRICE_UGX_NR",    "description": "Unit cost" },
+      { "key": "PRJ_COMMENTS",    "param_name": "PRJ_COMMENTS_TXT",             "description": "Project/instance comments" }
+    ],
+    "spatial": [
+      { "key": "ROOM_NAME",       "param_name": "ASS_ROOM_NAME_TXT",            "description": "Room name" },
+      { "key": "ROOM_NUM",        "param_name": "ASS_ROOM_NUM_TXT",             "description": "Room number" },
+      { "key": "ROOM_AREA",       "param_name": "ASS_ROOM_AREA_SQ_M",           "description": "Room area (m²)" },
+      { "key": "ROOM_VOLUME",     "param_name": "ASS_ROOM_VOLUME_CU_M",         "description": "Room volume (m³)" },
+      { "key": "DEPT",            "param_name": "ASS_DEPARTMENT_ASSIGNMENT_TXT", "description": "Department assignment" },
+      { "key": "GRID_REF",        "param_name": "PRJ_GRID_REF_TXT",             "description": "Grid reference" },
+      { "key": "BLE_ROOM_NAME",   "param_name": "BLE_ROOM_NAME_TXT",            "description": "BLE room name (fallback)" },
+      { "key": "BLE_ROOM_NUM",    "param_name": "BLE_ROOM_NUMBER_TXT",          "description": "BLE room number (fallback)" }
+    ],
+    "extended_tokens": [
+      { "key": "ORIGIN",          "param_name": "ASS_ORIGIN_TXT",               "description": "Origin code (NEW, EXISTING, DEMOLISHED)" },
+      { "key": "PROJECT",         "param_name": "ASS_PROJECT_TXT",              "description": "Project code" },
+      { "key": "REV",             "param_name": "ASS_REV_TXT",                  "description": "Revision code" },
+      { "key": "VOLUME",          "param_name": "ASS_VOL_TXT",                  "description": "Volume code" }
+    ],
+    "ble_dimensional": [
+      { "key": "WALL_HEIGHT",     "param_name": "BLE_WALL_HEIGHT_MM",            "description": "Wall height (mm)" },
+      { "key": "WALL_LENGTH",     "param_name": "BLE_WALL_LENGTH_MM",            "description": "Wall length (mm)" },
+      { "key": "WALL_THICKNESS",  "param_name": "BLE_WALL_THICKNESS_MM",         "description": "Wall thickness (mm)" },
+      { "key": "DOOR_WIDTH",      "param_name": "BLE_DOOR_WIDTH_MM",             "description": "Door width (mm)" },
+      { "key": "DOOR_HEIGHT",     "param_name": "BLE_DOOR_HEIGHT_MM",            "description": "Door height (mm)" },
+      { "key": "WINDOW_WIDTH",    "param_name": "BLE_WINDOW_WIDTH_MM",           "description": "Window width (mm)" },
+      { "key": "WINDOW_HEIGHT",   "param_name": "BLE_WINDOW_HEIGHT_MM",          "description": "Window height (mm)" },
+      { "key": "WINDOW_SILL",     "param_name": "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM", "description": "Window sill height (mm)" },
+      { "key": "FLR_THICKNESS",   "param_name": "BLE_FLR_THICKNESS_MM",          "description": "Floor thickness (mm)" },
+      { "key": "ELE_AREA",        "param_name": "BLE_ELE_AREA_SQ_M",             "description": "Element area (m²)" },
+      { "key": "CEILING_HEIGHT",  "param_name": "BLE_CEILING_HEIGHT_MM",          "description": "Ceiling height (mm)" },
+      { "key": "ROOF_SLOPE",      "param_name": "BLE_ROOF_SLOPE_DEG",             "description": "Roof slope (degrees)" },
+      { "key": "STAIR_TREAD",     "param_name": "BLE_STAIR_GOING_MM",             "description": "Stair tread depth (mm)" },
+      { "key": "STAIR_RISE",      "param_name": "BLE_STAIR_RISE_MM",              "description": "Stair riser height (mm)" },
+      { "key": "STAIR_WIDTH",     "param_name": "BLE_STAIR_WIDTH_MM",             "description": "Stair width (mm)" },
+      { "key": "RAMP_SLOPE",      "param_name": "BLE_RAMP_SLOPE_PCT",             "description": "Ramp slope (%)" },
+      { "key": "RAMP_WIDTH",      "param_name": "BLE_RAMP_WIDTH_MM",              "description": "Ramp width (mm)" },
+      { "key": "STRUCT_TYPE",     "param_name": "BLE_STRUCT_ELE_TYPE_TXT",         "description": "Structural element type" },
+      { "key": "FIRE_RATING",     "param_name": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN", "description": "Fire resistance rating (min)" }
+    ],
+    "electrical": [
+      { "key": "ELC_POWER",       "param_name": "ELC_CKT_PWR_KW",               "description": "Circuit power (kW)" },
+      { "key": "ELC_VOLTAGE",     "param_name": "ELC_CKT_VLT_V",                "description": "Circuit voltage (V)" },
+      { "key": "ELC_CIRCUIT_NR",  "param_name": "ELC_CKT_NR",                   "description": "Circuit number" },
+      { "key": "ELC_PNL_NAME",    "param_name": "ELC_PNL_DESIGNATION_NAME_TXT",  "description": "Panel designation name" },
+      { "key": "ELC_PNL_VOLTAGE", "param_name": "ELC_VLT_PRIMARY_RATING_V",     "description": "Panel voltage rating (V)" },
+      { "key": "ELC_PHASES",      "param_name": "ELC_CKT_PHASE_COUNT_NR",       "description": "Phase count" },
+      { "key": "ELC_PNL_LOAD",    "param_name": "ELC_PNL_CONNECTED_LOAD_KW",    "description": "Panel connected load (kW)" },
+      { "key": "ELC_PNL_FED_FROM","param_name": "ELC_PNL_FED_FROM_PNL_TXT",     "description": "Panel fed from" },
+      { "key": "ELC_MAIN_BRK",    "param_name": "ELC_PNL_MAIN_BRK_A",           "description": "Main breaker (A)" },
+      { "key": "ELC_WAYS",        "param_name": "ELC_PNL_NUM_OF_WAYS_NR",       "description": "Number of ways" },
+      { "key": "ELC_IP_RATING",   "param_name": "ELC_IP_RATING_TXT",            "description": "IP rating" }
+    ],
+    "lighting": [
+      { "key": "LTG_WATTAGE",     "param_name": "LTG_FIX_LMP_WATTAGE_W",       "description": "Lamp wattage (W)" },
+      { "key": "LTG_LUMENS",      "param_name": "CST_FIX_LUMEN_OUTPUT_LM",      "description": "Lumen output (lm)" },
+      { "key": "LTG_EFFICACY",    "param_name": "LTG_FIX_EFFICACY_LM_W",        "description": "Luminous efficacy (lm/W)" },
+      { "key": "LTG_LAMP_TYPE",   "param_name": "LTG_FIX_LAMP_TYPE_TXT",        "description": "Lamp type" }
+    ],
+    "hvac": [
+      { "key": "HVC_DUCT_FLOW",   "param_name": "HVC_DCT_FLW_CFM",             "description": "Duct flow (CFM)" },
+      { "key": "HVC_VELOCITY",    "param_name": "HVC_VEL_MPS",                  "description": "Velocity (m/s)" },
+      { "key": "HVC_PRESSURE",    "param_name": "HVC_PRESSURE_DROP_PA",          "description": "Pressure drop (Pa)" },
+      { "key": "HVC_AIRFLOW",     "param_name": "HVC_AIRFLOW_LPS",              "description": "Airflow (L/s)" }
+    ],
+    "plumbing": [
+      { "key": "PLM_PIPE_FLOW",   "param_name": "PLM_PPE_FLW_LPS",             "description": "Pipe flow (L/s)" },
+      { "key": "PLM_PIPE_SIZE",   "param_name": "PLM_PPE_SZ_MM",               "description": "Pipe size (mm)" },
+      { "key": "PLM_VELOCITY",    "param_name": "PLM_VEL_MPS",                  "description": "Pipe velocity (m/s)" },
+      { "key": "PLM_FLOW_RATE",   "param_name": "PLM_FLOW_RATE_LPS",            "description": "Flow rate (L/s)" },
+      { "key": "PLM_PIPE_LENGTH", "param_name": "PLM_PPE_LENGTH_M",             "description": "Pipe length (m)" }
+    ]
+  },
+
   "category_enum_map": {
     "Air Terminals": "OST_DuctTerminal",
     "Cable Tray Fittings": "OST_CableTrayFitting",

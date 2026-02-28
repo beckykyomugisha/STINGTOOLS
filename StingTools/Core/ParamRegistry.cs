@@ -63,6 +63,104 @@ namespace StingTools.Core
         public static string DETAIL_NUM { get; private set; } = "ASS_INST_DETAIL_NUM_TXT";
         public static string MNT_TYPE { get; private set; } = "MNT_TYPE_TXT";
 
+        // ── Extended parameter names (identity, spatial, dimensional, MEP) ──
+        // Loaded from extended_params section. Keys map to param_name values.
+        private static Dictionary<string, string> _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        /// <summary>Get an extended parameter name by its key (e.g. "DESC", "WALL_HEIGHT").</summary>
+        public static string Ext(string key)
+        {
+            EnsureLoaded();
+            return _extendedParams.TryGetValue(key, out string name) ? name : "";
+        }
+
+        // ── Identity parameters ──────────────────────────────────────────
+        public static string ID             => Ext("ID");
+        public static string DESC           => Ext("DESC");
+        public static string MFR            => Ext("MFR");
+        public static string MODEL          => Ext("MODEL");
+        public static string TYPE_NAME      => Ext("TYPE_NAME");
+        public static string FAMILY_NAME    => Ext("FAMILY_NAME");
+        public static string CAT            => Ext("CAT");
+        public static string TYPE_MARK      => Ext("TYPE_MARK");
+        public static string TYPE_COMMENTS  => Ext("TYPE_COMMENTS");
+        public static string KEYNOTE        => Ext("KEYNOTE");
+        public static string UNIFORMAT      => Ext("UNIFORMAT");
+        public static string UNIFORMAT_DESC => Ext("UNIFORMAT_DESC");
+        public static string OMNICLASS      => Ext("OMNICLASS");
+        public static string SIZE           => Ext("SIZE");
+        public static string COST           => Ext("COST");
+        public static string PRJ_COMMENTS   => Ext("PRJ_COMMENTS");
+
+        // ── Spatial parameters ───────────────────────────────────────────
+        public static string ROOM_NAME      => Ext("ROOM_NAME");
+        public static string ROOM_NUM       => Ext("ROOM_NUM");
+        public static string ROOM_AREA      => Ext("ROOM_AREA");
+        public static string ROOM_VOLUME    => Ext("ROOM_VOLUME");
+        public static string DEPT           => Ext("DEPT");
+        public static string GRID_REF       => Ext("GRID_REF");
+        public static string BLE_ROOM_NAME  => Ext("BLE_ROOM_NAME");
+        public static string BLE_ROOM_NUM   => Ext("BLE_ROOM_NUM");
+
+        // ── Extended token parameters ────────────────────────────────────
+        public static string ORIGIN         => Ext("ORIGIN");
+        public static string PROJECT        => Ext("PROJECT");
+        public static string REV            => Ext("REV");
+        public static string VOLUME         => Ext("VOLUME");
+
+        // ── BLE dimensional parameters ───────────────────────────────────
+        public static string WALL_HEIGHT    => Ext("WALL_HEIGHT");
+        public static string WALL_LENGTH    => Ext("WALL_LENGTH");
+        public static string WALL_THICKNESS => Ext("WALL_THICKNESS");
+        public static string DOOR_WIDTH     => Ext("DOOR_WIDTH");
+        public static string DOOR_HEIGHT    => Ext("DOOR_HEIGHT");
+        public static string WINDOW_WIDTH   => Ext("WINDOW_WIDTH");
+        public static string WINDOW_HEIGHT  => Ext("WINDOW_HEIGHT");
+        public static string WINDOW_SILL    => Ext("WINDOW_SILL");
+        public static string FLR_THICKNESS  => Ext("FLR_THICKNESS");
+        public static string ELE_AREA       => Ext("ELE_AREA");
+        public static string CEILING_HEIGHT => Ext("CEILING_HEIGHT");
+        public static string ROOF_SLOPE     => Ext("ROOF_SLOPE");
+        public static string STAIR_TREAD    => Ext("STAIR_TREAD");
+        public static string STAIR_RISE     => Ext("STAIR_RISE");
+        public static string STAIR_WIDTH    => Ext("STAIR_WIDTH");
+        public static string RAMP_SLOPE     => Ext("RAMP_SLOPE");
+        public static string RAMP_WIDTH     => Ext("RAMP_WIDTH");
+        public static string STRUCT_TYPE    => Ext("STRUCT_TYPE");
+        public static string FIRE_RATING    => Ext("FIRE_RATING");
+
+        // ── Electrical parameters ────────────────────────────────────────
+        public static string ELC_POWER      => Ext("ELC_POWER");
+        public static string ELC_VOLTAGE    => Ext("ELC_VOLTAGE");
+        public static string ELC_CIRCUIT_NR => Ext("ELC_CIRCUIT_NR");
+        public static string ELC_PNL_NAME   => Ext("ELC_PNL_NAME");
+        public static string ELC_PNL_VOLTAGE => Ext("ELC_PNL_VOLTAGE");
+        public static string ELC_PHASES     => Ext("ELC_PHASES");
+        public static string ELC_PNL_LOAD   => Ext("ELC_PNL_LOAD");
+        public static string ELC_PNL_FED_FROM => Ext("ELC_PNL_FED_FROM");
+        public static string ELC_MAIN_BRK   => Ext("ELC_MAIN_BRK");
+        public static string ELC_WAYS       => Ext("ELC_WAYS");
+        public static string ELC_IP_RATING  => Ext("ELC_IP_RATING");
+
+        // ── Lighting parameters ──────────────────────────────────────────
+        public static string LTG_WATTAGE    => Ext("LTG_WATTAGE");
+        public static string LTG_LUMENS     => Ext("LTG_LUMENS");
+        public static string LTG_EFFICACY   => Ext("LTG_EFFICACY");
+        public static string LTG_LAMP_TYPE  => Ext("LTG_LAMP_TYPE");
+
+        // ── HVAC parameters ─────────────────────────────────────────────
+        public static string HVC_DUCT_FLOW  => Ext("HVC_DUCT_FLOW");
+        public static string HVC_VELOCITY   => Ext("HVC_VELOCITY");
+        public static string HVC_PRESSURE   => Ext("HVC_PRESSURE");
+        public static string HVC_AIRFLOW    => Ext("HVC_AIRFLOW");
+
+        // ── Plumbing parameters ──────────────────────────────────────────
+        public static string PLM_PIPE_FLOW  => Ext("PLM_PIPE_FLOW");
+        public static string PLM_PIPE_SIZE  => Ext("PLM_PIPE_SIZE");
+        public static string PLM_VELOCITY   => Ext("PLM_VELOCITY");
+        public static string PLM_FLOW_RATE  => Ext("PLM_FLOW_RATE");
+        public static string PLM_PIPE_LENGTH => Ext("PLM_PIPE_LENGTH");
+
         // ── Universal tag container names (convenience) ─────────────────
         /// <summary>Full 8-segment tag: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ</summary>
         public static string TAG1 { get; private set; } = "ASS_TAG_1_TXT";
@@ -419,6 +517,9 @@ namespace StingTools.Core
                 // Universal categories
                 UniversalCategories = root["universal_categories"]?.ToObject<string[]>() ?? Array.Empty<string>();
 
+                // Load extended params
+                LoadExtendedParams(root);
+
                 // Build GUID lookups
                 BuildGuidMaps(root);
 
@@ -434,6 +535,26 @@ namespace StingTools.Core
             {
                 StingLog.Error("Failed to load PARAMETER_REGISTRY.json", ex);
                 LoadDefaults();
+            }
+        }
+
+        private static void LoadExtendedParams(JObject root)
+        {
+            _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
+            var ext = root["extended_params"] as JObject;
+            if (ext == null) return;
+
+            foreach (var group in ext)
+            {
+                var arr = group.Value as JArray;
+                if (arr == null) continue;
+                foreach (JObject item in arr)
+                {
+                    string key = item["key"]?.ToString();
+                    string paramName = item["param_name"]?.ToString();
+                    if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(paramName))
+                        _extendedParams[key] = paramName;
+                }
             }
         }
 
@@ -575,6 +696,57 @@ namespace StingTools.Core
                 { "sys_ref", new[] {4,5,6} },
                 { "line1", new[] {0,1,2,3} },
                 { "line2", new[] {4,5,6,7} },
+            };
+
+            // Extended params defaults
+            _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                // Identity
+                { "ID", "ASS_ID_TXT" }, { "DESC", "ASS_DESCRIPTION_TXT" },
+                { "MFR", "ASS_MANUFACTURER_TXT" }, { "MODEL", "ASS_MODEL_NR_TXT" },
+                { "TYPE_NAME", "ASS_TYPE_NAME_TXT" }, { "FAMILY_NAME", "ASS_FAMILY_NAME_TXT" },
+                { "CAT", "ASS_CAT_TXT" }, { "TYPE_MARK", "ASS_TYPE_MARK_TXT" },
+                { "TYPE_COMMENTS", "ASS_TYPE_COMMENTS_TXT" }, { "KEYNOTE", "ASS_KEYNOTE_TXT" },
+                { "UNIFORMAT", "ASS_UNIFORMAT_TXT" }, { "UNIFORMAT_DESC", "ASS_UNIFORMAT_DESC_TXT" },
+                { "OMNICLASS", "ASS_OMNICLASS_TXT" }, { "SIZE", "ASS_SIZE_TXT" },
+                { "COST", "ASS_CST_UNIT_PRICE_UGX_NR" }, { "PRJ_COMMENTS", "PRJ_COMMENTS_TXT" },
+                // Spatial
+                { "ROOM_NAME", "ASS_ROOM_NAME_TXT" }, { "ROOM_NUM", "ASS_ROOM_NUM_TXT" },
+                { "ROOM_AREA", "ASS_ROOM_AREA_SQ_M" }, { "ROOM_VOLUME", "ASS_ROOM_VOLUME_CU_M" },
+                { "DEPT", "ASS_DEPARTMENT_ASSIGNMENT_TXT" }, { "GRID_REF", "PRJ_GRID_REF_TXT" },
+                { "BLE_ROOM_NAME", "BLE_ROOM_NAME_TXT" }, { "BLE_ROOM_NUM", "BLE_ROOM_NUMBER_TXT" },
+                // Extended tokens
+                { "ORIGIN", "ASS_ORIGIN_TXT" }, { "PROJECT", "ASS_PROJECT_TXT" },
+                { "REV", "ASS_REV_TXT" }, { "VOLUME", "ASS_VOL_TXT" },
+                // BLE dimensional
+                { "WALL_HEIGHT", "BLE_WALL_HEIGHT_MM" }, { "WALL_LENGTH", "BLE_WALL_LENGTH_MM" },
+                { "WALL_THICKNESS", "BLE_WALL_THICKNESS_MM" }, { "DOOR_WIDTH", "BLE_DOOR_WIDTH_MM" },
+                { "DOOR_HEIGHT", "BLE_DOOR_HEIGHT_MM" }, { "WINDOW_WIDTH", "BLE_WINDOW_WIDTH_MM" },
+                { "WINDOW_HEIGHT", "BLE_WINDOW_HEIGHT_MM" },
+                { "WINDOW_SILL", "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM" },
+                { "FLR_THICKNESS", "BLE_FLR_THICKNESS_MM" }, { "ELE_AREA", "BLE_ELE_AREA_SQ_M" },
+                { "CEILING_HEIGHT", "BLE_CEILING_HEIGHT_MM" }, { "ROOF_SLOPE", "BLE_ROOF_SLOPE_DEG" },
+                { "STAIR_TREAD", "BLE_STAIR_GOING_MM" }, { "STAIR_RISE", "BLE_STAIR_RISE_MM" },
+                { "STAIR_WIDTH", "BLE_STAIR_WIDTH_MM" }, { "RAMP_SLOPE", "BLE_RAMP_SLOPE_PCT" },
+                { "RAMP_WIDTH", "BLE_RAMP_WIDTH_MM" }, { "STRUCT_TYPE", "BLE_STRUCT_ELE_TYPE_TXT" },
+                { "FIRE_RATING", "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN" },
+                // Electrical
+                { "ELC_POWER", "ELC_CKT_PWR_KW" }, { "ELC_VOLTAGE", "ELC_CKT_VLT_V" },
+                { "ELC_CIRCUIT_NR", "ELC_CKT_NR" }, { "ELC_PNL_NAME", "ELC_PNL_DESIGNATION_NAME_TXT" },
+                { "ELC_PNL_VOLTAGE", "ELC_VLT_PRIMARY_RATING_V" }, { "ELC_PHASES", "ELC_CKT_PHASE_COUNT_NR" },
+                { "ELC_PNL_LOAD", "ELC_PNL_CONNECTED_LOAD_KW" }, { "ELC_PNL_FED_FROM", "ELC_PNL_FED_FROM_PNL_TXT" },
+                { "ELC_MAIN_BRK", "ELC_PNL_MAIN_BRK_A" }, { "ELC_WAYS", "ELC_PNL_NUM_OF_WAYS_NR" },
+                { "ELC_IP_RATING", "ELC_IP_RATING_TXT" },
+                // Lighting
+                { "LTG_WATTAGE", "LTG_FIX_LMP_WATTAGE_W" }, { "LTG_LUMENS", "CST_FIX_LUMEN_OUTPUT_LM" },
+                { "LTG_EFFICACY", "LTG_FIX_EFFICACY_LM_W" }, { "LTG_LAMP_TYPE", "LTG_FIX_LAMP_TYPE_TXT" },
+                // HVAC
+                { "HVC_DUCT_FLOW", "HVC_DCT_FLW_CFM" }, { "HVC_VELOCITY", "HVC_VEL_MPS" },
+                { "HVC_PRESSURE", "HVC_PRESSURE_DROP_PA" }, { "HVC_AIRFLOW", "HVC_AIRFLOW_LPS" },
+                // Plumbing
+                { "PLM_PIPE_FLOW", "PLM_PPE_FLW_LPS" }, { "PLM_PIPE_SIZE", "PLM_PPE_SZ_MM" },
+                { "PLM_VELOCITY", "PLM_VEL_MPS" }, { "PLM_FLOW_RATE", "PLM_FLOW_RATE_LPS" },
+                { "PLM_PIPE_LENGTH", "PLM_PPE_LENGTH_M" },
             };
 
             ContainerGroups = Array.Empty<ContainerGroupDef>();
