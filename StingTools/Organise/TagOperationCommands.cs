@@ -1055,7 +1055,7 @@ namespace StingTools.Organise
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
                 "Black (0,0,0)", "Print-ready / standard");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Green (0,160,0)", "Approved / verified");
+                "More Colors...", "Extended palette (8 more options)");
             dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             switch (dlg.Show())
@@ -1063,7 +1063,7 @@ namespace StingTools.Organise
                 case TaskDialogResult.CommandLink1: return new Color(220, 20, 20);
                 case TaskDialogResult.CommandLink2: return new Color(0, 100, 220);
                 case TaskDialogResult.CommandLink3: return new Color(0, 0, 0);
-                case TaskDialogResult.CommandLink4: return new Color(0, 160, 0);
+                case TaskDialogResult.CommandLink4: return PickColorExtended(title, instruction);
                 default: return null;
             }
         }
@@ -1080,7 +1080,7 @@ namespace StingTools.Organise
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
                 "Cyan (0,180,200)", "Reference / info");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Purple (140,0,200)", "Special / highlight");
+                "More Colors...", "Extra palette (green, white, yellow, purple)");
             dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             switch (dlg.Show())
@@ -1088,6 +1088,31 @@ namespace StingTools.Organise
                 case TaskDialogResult.CommandLink1: return new Color(128, 128, 128);
                 case TaskDialogResult.CommandLink2: return new Color(255, 140, 0);
                 case TaskDialogResult.CommandLink3: return new Color(0, 180, 200);
+                case TaskDialogResult.CommandLink4: return PickColorTertiary(title, instruction);
+                default: return null;
+            }
+        }
+
+        /// <summary>Tertiary color options (green, white, yellow, purple).</summary>
+        public static Color PickColorTertiary(string title, string instruction)
+        {
+            TaskDialog dlg = new TaskDialog(title);
+            dlg.MainInstruction = instruction;
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Green (0,160,0)", "Approved / verified");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "White (255,255,255)", "Clean / background");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Yellow (255,200,0)", "Caution / highlight");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Purple (140,0,200)", "Special / highlight");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return new Color(0, 160, 0);
+                case TaskDialogResult.CommandLink2: return new Color(255, 255, 255);
+                case TaskDialogResult.CommandLink3: return new Color(255, 200, 0);
                 case TaskDialogResult.CommandLink4: return new Color(140, 0, 200);
                 default: return null;
             }
@@ -1908,6 +1933,359 @@ namespace StingTools.Organise
                     report.AppendLine($"  {kvp.Key}: {kvp.Value}");
             }
             TaskDialog.Show("Quick Tag Style", report.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Set bounding box line weight (thickness) on annotation tags.
+    /// Controls the outline weight of the tag border independently from text color.
+    /// Uses SetProjectionLineWeight for the outline.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetTagLineWeightCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (tags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Tag Line Weight", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            TaskDialog dlg = new TaskDialog("Tag Bounding Box Line Weight");
+            dlg.MainInstruction = $"Set border line weight for {tags.Count} tags";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Thin (1)", "Hairline border — minimal visual weight");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Standard (3)", "Normal border weight — default appearance");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Bold (6)", "Thick border — strong emphasis / QA checking");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Extra Bold (10)", "Maximum emphasis — very heavy border for callouts");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int weight;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: weight = 1; break;
+                case TaskDialogResult.CommandLink2: weight = 3; break;
+                case TaskDialogResult.CommandLink3: weight = 6; break;
+                case TaskDialogResult.CommandLink4: weight = 10; break;
+                default: return Result.Cancelled;
+            }
+
+            int modified = 0;
+            using (Transaction tx = new Transaction(doc, "STING Tag Line Weight"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        // Preserve existing color but change line weight
+                        var existing = view.GetElementOverrides(tag.Id);
+                        var ogs = new OverrideGraphicSettings();
+                        var existingColor = existing.ProjectionLineColor;
+                        if (existingColor.IsValid)
+                            ogs.SetProjectionLineColor(existingColor);
+                        ogs.SetProjectionLineWeight(weight);
+
+                        // Preserve existing surface overrides
+                        var surfId = existing.SurfaceForegroundPatternId;
+                        if (surfId != null && surfId != ElementId.InvalidElementId)
+                        {
+                            ogs.SetSurfaceForegroundPatternId(surfId);
+                            ogs.SetSurfaceForegroundPatternColor(existing.SurfaceForegroundPatternColor);
+                        }
+                        ogs.SetSurfaceTransparency(existing.SurfaceTransparency);
+
+                        view.SetElementOverrides(tag.Id, ogs);
+                        modified++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Tag Line Weight",
+                $"Set border weight to {weight} on {modified} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Color annotation tags by the value of any parameter on the host element.
+    /// User picks from available parameters and palettes. Uses the same palette
+    /// system as ColorByParameterCommand but targets annotation tags specifically.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ColorTagsByParameterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (allTags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (allTags.Count == 0)
+            {
+                TaskDialog.Show("Color Tags By Parameter", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Collect host elements to discover parameters
+            var hostElements = new List<Element>();
+            foreach (var tag in allTags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    foreach (var hid in hostIds)
+                    {
+                        Element host = doc.GetElement(hid);
+                        if (host != null) { hostElements.Add(host); break; }
+                    }
+                }
+                catch { }
+            }
+
+            if (hostElements.Count == 0)
+            {
+                TaskDialog.Show("Color Tags By Parameter", "No valid host elements found.");
+                return Result.Succeeded;
+            }
+
+            // Get available parameters from host elements
+            var paramNames = Select.ColorHelper.GetAvailableParameters(doc, hostElements);
+
+            // Step 1: Pick parameter (paged — show most useful first)
+            var priority = new[]
+            {
+                ParamRegistry.DISC, ParamRegistry.SYS, ParamRegistry.LOC,
+                ParamRegistry.ZONE, ParamRegistry.LVL, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.TAG1, ParamRegistry.STATUS,
+                "Mark", "Comments", "Type Name", "Family"
+            };
+            var top = priority.Where(p => paramNames.Contains(p)).Take(4).ToList();
+            if (top.Count == 0) top = paramNames.Take(4).ToList();
+
+            TaskDialog paramDlg = new TaskDialog("Color Tags — Pick Parameter");
+            paramDlg.MainInstruction = $"Color {allTags.Count} tags by which parameter?";
+            paramDlg.FooterText = $"{paramNames.Count} parameters available on host elements.";
+            for (int i = 0; i < top.Count; i++)
+                paramDlg.AddCommandLink((TaskDialogCommandLinkId)(i + 201), top[i]);
+            paramDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int paramIdx = -1;
+            switch (paramDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: paramIdx = 0; break;
+                case TaskDialogResult.CommandLink2: paramIdx = 1; break;
+                case TaskDialogResult.CommandLink3: paramIdx = 2; break;
+                case TaskDialogResult.CommandLink4: paramIdx = 3; break;
+                default: return Result.Cancelled;
+            }
+            string selectedParam = top[paramIdx];
+
+            // Step 2: Pick palette
+            TaskDialog palDlg = new TaskDialog("Color Tags — Pick Palette");
+            palDlg.MainInstruction = $"Select palette for '{selectedParam}'";
+            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "STING Discipline", "M=Blue, E=Gold, P=Green (8 colors)");
+            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "High Contrast", "Saturated primaries (8 colors)");
+            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Accessible", "Colorblind-safe viridis (10 colors)");
+            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Pastel", "Soft muted tones (8 colors)");
+            palDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string paletteName;
+            Color[] palette;
+            switch (palDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: paletteName = "STING Discipline"; break;
+                case TaskDialogResult.CommandLink2: paletteName = "High Contrast"; break;
+                case TaskDialogResult.CommandLink3: paletteName = "Accessible"; break;
+                case TaskDialogResult.CommandLink4: paletteName = "Pastel"; break;
+                default: return Result.Cancelled;
+            }
+            palette = Select.ColorHelper.Palettes[paletteName];
+
+            // Group tags by host element's parameter value
+            var groups = new Dictionary<string, List<IndependentTag>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var tag in allTags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    Element host = hostIds.Count > 0 ? doc.GetElement(hostIds.First()) : null;
+                    string val = host != null
+                        ? Select.ColorHelper.GetParameterValue(host, selectedParam) ?? "<No Value>"
+                        : "<No Value>";
+
+                    if (!groups.ContainsKey(val)) groups[val] = new List<IndependentTag>();
+                    groups[val].Add(tag);
+                }
+                catch { }
+            }
+
+            // Assign colors
+            var sortedValues = groups.Keys.OrderBy(v => v).ToList();
+            var colorMap = Select.ColorHelper.AssignColors(sortedValues, palette);
+
+            int colored = 0;
+            using (Transaction tx = new Transaction(doc, $"STING Color Tags By {selectedParam}"))
+            {
+                tx.Start();
+                foreach (var kvp in groups)
+                {
+                    Color c = colorMap[kvp.Key];
+                    var ogs = AnnotationColorHelper.BuildAnnotationOverride(c);
+                    foreach (var tag in kvp.Value)
+                    {
+                        try { view.SetElementOverrides(tag.Id, ogs); colored++; }
+                        catch { }
+                    }
+                }
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Colored {colored} tags by '{selectedParam}'");
+            report.AppendLine($"Palette: {paletteName} | Values: {groups.Count}");
+            report.AppendLine();
+            foreach (string val in sortedValues.Take(15))
+            {
+                Color c = colorMap[val];
+                report.AppendLine($"  [{c.Red:D3},{c.Green:D3},{c.Blue:D3}]  {val} ({groups[val].Count})");
+            }
+            if (sortedValues.Count > 15)
+                report.AppendLine($"  ... and {sortedValues.Count - 15} more");
+
+            TaskDialog.Show("Color Tags By Parameter", report.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Batch swap tag types (families) in the active view. Allows changing from one
+    /// tag family to another (e.g., from default tags to STING tags with different
+    /// text styles/sizes). Uses ChangeTypeId on IndependentTag.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SwapTagTypeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Swap Tag Type", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Find all loaded tag families (FamilySymbol for annotation tags)
+            var tagTypes = new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .Where(fs =>
+                {
+                    try { return fs.Family.FamilyCategory?.CategoryType == CategoryType.Annotation; }
+                    catch { return false; }
+                })
+                .OrderBy(fs => fs.Family.Name)
+                .ThenBy(fs => fs.Name)
+                .ToList();
+
+            if (tagTypes.Count < 2)
+            {
+                TaskDialog.Show("Swap Tag Type",
+                    "Need at least 2 annotation tag families loaded.\n" +
+                    "Load additional tag families first.");
+                return Result.Succeeded;
+            }
+
+            // Show current tag type distribution
+            var currentTypes = new Dictionary<string, int>();
+            foreach (var tag in tags)
+            {
+                try
+                {
+                    ElementId typeId = tag.GetTypeId();
+                    Element type = doc.GetElement(typeId);
+                    string typeName = type?.Name ?? "Unknown";
+                    if (!currentTypes.ContainsKey(typeName)) currentTypes[typeName] = 0;
+                    currentTypes[typeName]++;
+                }
+                catch { }
+            }
+
+            // Pick target tag type (top 4 by prevalence)
+            var topTypes = tagTypes.Take(4).ToList();
+            TaskDialog dlg = new TaskDialog("Swap Tag Type");
+            dlg.MainInstruction = $"Change tag type for {tags.Count} tags";
+            dlg.MainContent = "Current types:\n" +
+                string.Join("\n", currentTypes.Select(kvp => $"  {kvp.Key}: {kvp.Value}"));
+            for (int i = 0; i < topTypes.Count; i++)
+            {
+                dlg.AddCommandLink((TaskDialogCommandLinkId)(i + 201),
+                    $"{topTypes[i].Family.Name}: {topTypes[i].Name}");
+            }
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int picked = -1;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: picked = 0; break;
+                case TaskDialogResult.CommandLink2: picked = 1; break;
+                case TaskDialogResult.CommandLink3: picked = 2; break;
+                case TaskDialogResult.CommandLink4: picked = 3; break;
+                default: return Result.Cancelled;
+            }
+
+            ElementId newTypeId = topTypes[picked].Id;
+            int swapped = 0;
+            int failed = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Swap Tag Type"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        if (tag.GetTypeId() != newTypeId && tag.IsValidType(newTypeId))
+                        {
+                            tag.ChangeTypeId(newTypeId);
+                            swapped++;
+                        }
+                    }
+                    catch
+                    {
+                        failed++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Swap Tag Type",
+                $"Swapped {swapped} tags to '{topTypes[picked].Name}'.\n" +
+                (failed > 0 ? $"Failed: {failed} (incompatible category)." : ""));
             return Result.Succeeded;
         }
     }

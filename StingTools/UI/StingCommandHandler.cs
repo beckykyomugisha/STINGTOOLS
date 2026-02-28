@@ -198,6 +198,9 @@ namespace StingTools.UI
                     case "TagAppearance": RunCommand<Organise.TagAppearanceCommand>(app); break;
                     case "SetTagBox": RunCommand<Organise.SetTagBoxAppearanceCommand>(app); break;
                     case "QuickTagStyle": RunCommand<Organise.QuickTagStyleCommand>(app); break;
+                    case "SetTagLineWeight": RunCommand<Organise.SetTagLineWeightCommand>(app); break;
+                    case "ColorTagsByParam": RunCommand<Organise.ColorTagsByParameterCommand>(app); break;
+                    case "SwapTagType": RunCommand<Organise.SwapTagTypeCommand>(app); break;
 
                     // ── Analysis ──
                     case "TagStats": RunCommand<Organise.TagStatsCommand>(app); break;
@@ -513,55 +516,43 @@ namespace StingTools.UI
                     case "SheetSuffix": SheetAddSuffix(app); break;
                     case "SheetFindReplace": RunCommand<Docs.BatchRenameViewsCommand>(app); break;
 
-                    case "SchedSyncPos":
-                    case "SchedSyncRot":
-                    case "SchedShowHidden":
-                    case "SchedMatchWidest":
-                    case "SchedSetWidth":
-                    case "SchedEqualise":
-                        StingLog.Info($"Schedule: {_commandTag}");
-                        break;
+                    case "SchedSyncPos": ScheduleSyncPosition(app); break;
+                    case "SchedSyncRot": ScheduleToggleRotation(app); break;
+                    case "SchedShowHidden": ScheduleShowHidden(app); break;
+                    case "SchedMatchWidest": ScheduleMatchWidest(app); break;
+                    case "SchedSetWidth": ScheduleSetColumnWidth(app); break;
+                    case "SchedEqualise": ScheduleEqualiseColumns(app); break;
 
                     case "TextLower":
                     case "TextUpper": RunCommand<Docs.TextCaseCommand>(app); break;
-                    case "TextAlignLeft":
-                    case "TextAlignCenter":
-                    case "TextAlignRight":
-                    case "TextAlignAxis":
-                    case "TextLeaderH":
-                    case "TextLeaderV":
-                    case "TextLeader90":
-                        StingLog.Info($"TextNote: {_commandTag}");
-                        break;
+                    case "TextAlignLeft": TextAlign(app, "Left"); break;
+                    case "TextAlignCenter": TextAlign(app, "Center"); break;
+                    case "TextAlignRight": TextAlign(app, "Right"); break;
+                    case "TextAlignAxis": TextAlignAxis(app); break;
+                    case "TextLeaderH": TextLeaderToggle(app, "H"); break;
+                    case "TextLeaderV": TextLeaderToggle(app, "V"); break;
+                    case "TextLeader90": TextLeaderToggle(app, "90"); break;
 
-                    case "DimResetOverrides":
-                    case "DimResetText":
-                    case "DimFindZero":
-                    case "DimFindReplace":
-                        StingLog.Info($"Dimension: {_commandTag}");
-                        break;
+                    case "DimResetOverrides": DimResetOverrides(app); break;
+                    case "DimResetText": DimResetText(app); break;
+                    case "DimFindZero": DimFindZero(app); break;
+                    case "DimFindReplace": StingLog.Info($"Dimension: {_commandTag}"); break;
 
-                    case "LegendSyncPos":
-                    case "LegendTitleLine":
-                    case "LegendUniform":
-                        StingLog.Info($"Legend: {_commandTag}");
-                        break;
+                    case "LegendSyncPos": LegendSyncPosition(app); break;
+                    case "LegendTitleLine": LegendTitleLine(app); break;
+                    case "LegendUniform": LegendUniformSize(app); break;
 
-                    case "TitleBlockReset":
-                    case "TitleBlockRescue":
-                        StingLog.Info($"TitleBlock: {_commandTag}");
-                        break;
+                    case "TitleBlockReset": TitleBlockReset(app); break;
+                    case "TitleBlockRescue": TitleBlockRescue(app); break;
 
-                    case "RevShowClouds":
-                    case "RevShowTags":
-                    case "RevDelCloudsView":
-                    case "RevDelCloudsSel":
-                        StingLog.Info($"Revision: {_commandTag}");
-                        break;
+                    case "RevShowClouds": RevisionToggle(app, "clouds"); break;
+                    case "RevShowTags": RevisionToggle(app, "tags"); break;
+                    case "RevDelCloudsView": RevisionDeleteClouds(app, false); break;
+                    case "RevDelCloudsSel": RevisionDeleteClouds(app, true); break;
 
-                    case "MeasureLines":
-                    case "MeasureAreas":
-                    case "MeasurePerimeters": StingLog.Info($"Measure: {_commandTag}"); break;
+                    case "MeasureLines": MeasureSelected(app, "Lines"); break;
+                    case "MeasureAreas": MeasureSelected(app, "Areas"); break;
+                    case "MeasurePerimeters": MeasureSelected(app, "Perimeters"); break;
                     case "MeasureRoomAreas": RunCommand<Docs.SumAreasCommand>(app); break;
 
                     case "SwapElements":
@@ -595,10 +586,10 @@ namespace StingTools.UI
                     case "BotUndoAI": StingLog.Info("BotUndoAI"); break;
                     case "BotOptions": StingLog.Info("BotOptions"); break;
 
-                    case "ColorSchemeDel": StingLog.Info("ColorSchemeDel"); break;
-                    case "GradientApply": StingLog.Info("GradientApply"); break;
-                    case "PatternApplyView": StingLog.Info("PatternApplyView"); break;
-                    case "ApplyLineWeight": StingLog.Info("ApplyLineWeight"); break;
+                    case "ColorSchemeDel": RunCommand<Select.ClearColorOverridesCommand>(app); break;
+                    case "GradientApply": RunCommand<Select.ColorByParameterCommand>(app); break;
+                    case "PatternApplyView": ApplyLinePattern(app); break;
+                    case "ApplyLineWeight": ApplyLineWeightOverride(app); break;
 
                     // ── Unmapped / placeholder ──
                     default:
@@ -1317,6 +1308,721 @@ namespace StingTools.UI
                 tx.Start();
                 var ogs = new OverrideGraphicSettings();
                 ogs.SetSurfaceTransparency(transparency);
+                foreach (ElementId id in ids)
+                    uidoc.ActiveView.SetElementOverrides(id, ogs);
+                tx.Commit();
+            }
+        }
+
+        // ── Schedule operations ──────────────────────────────────
+
+        private static void ScheduleSyncPosition(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            if (!(uidoc.Document.ActiveView is ViewSheet sheet))
+            { TaskDialog.Show("Schedule Sync", "Active view must be a sheet."); return; }
+
+            // Find schedule graphics on this sheet and align them
+            var schedGraphics = new FilteredElementCollector(uidoc.Document, sheet.Id)
+                .OfClass(typeof(ScheduleSheetInstance))
+                .Cast<ScheduleSheetInstance>()
+                .ToList();
+
+            if (schedGraphics.Count < 2)
+            { TaskDialog.Show("Schedule Sync", "Need at least 2 schedules on sheet."); return; }
+
+            XYZ refPos = schedGraphics[0].Point;
+            int moved = 0;
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Schedule Sync Position"))
+            {
+                tx.Start();
+                foreach (var sg in schedGraphics.Skip(1))
+                {
+                    try
+                    {
+                        sg.Point = new XYZ(refPos.X, sg.Point.Y, sg.Point.Z);
+                        moved++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Schedule Sync", $"Aligned {moved} schedules to same X position.");
+        }
+
+        private static void ScheduleToggleRotation(UIApplication app)
+        {
+            // Schedule rotation on sheets is not directly API-accessible for ScheduleSheetInstance
+            // Log for now
+            StingLog.Info("ScheduleToggleRotation: not supported in Revit API for schedule graphics");
+            TaskDialog.Show("Schedule Rotation", "Schedule rotation is controlled via the schedule properties dialog in Revit.");
+        }
+
+        private static void ScheduleShowHidden(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            var view = doc.ActiveView;
+
+            if (!(view is ViewSchedule sched))
+            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
+
+            var def = sched.Definition;
+            int fieldCount = def.GetFieldCount();
+            int hiddenCount = 0;
+            var sb = new StringBuilder();
+            sb.AppendLine($"Schedule: {sched.Name}");
+            sb.AppendLine($"Total fields: {fieldCount}");
+            sb.AppendLine();
+            for (int i = 0; i < fieldCount; i++)
+            {
+                var field = def.GetField(i);
+                string vis = field.IsHidden ? "[HIDDEN]" : "[Visible]";
+                if (field.IsHidden) hiddenCount++;
+                sb.AppendLine($"  {vis} {field.GetName()}");
+            }
+            sb.AppendLine($"\nHidden fields: {hiddenCount}");
+            TaskDialog.Show("Schedule Fields", sb.ToString());
+        }
+
+        private static void ScheduleMatchWidest(UIApplication app)
+        {
+            // Schedule column widths are controlled through SetColumnWidth API
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            if (!(doc.ActiveView is ViewSchedule sched))
+            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
+
+            TaskDialog.Show("Schedule Widths", "Use Revit's schedule column resize in the schedule view header.\n" +
+                "Column widths are controlled via the ScheduleField.GridColumnWidth property.");
+            StingLog.Info("ScheduleMatchWidest: informational — column widths via ScheduleField");
+        }
+
+        private static void ScheduleSetColumnWidth(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            if (!(doc.ActiveView is ViewSchedule sched))
+            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
+
+            var def = sched.Definition;
+            int fieldCount = def.GetFieldCount();
+
+            // Set all columns to same width (1 inch = 0.0833 ft)
+            TaskDialog dlg = new TaskDialog("Set Column Width");
+            dlg.MainInstruction = $"Set column width for {fieldCount} fields";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Narrow (15mm)", "Compact schedules");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Standard (25mm)", "Default readable width");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Wide (40mm)", "Comfortable reading");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            double width;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: width = 15.0 / 304.8; break; // mm to feet
+                case TaskDialogResult.CommandLink2: width = 25.0 / 304.8; break;
+                case TaskDialogResult.CommandLink3: width = 40.0 / 304.8; break;
+                default: return;
+            }
+
+            int updated = 0;
+            using (Transaction tx = new Transaction(doc, "STING Set Column Width"))
+            {
+                tx.Start();
+                for (int i = 0; i < fieldCount; i++)
+                {
+                    try
+                    {
+                        var field = def.GetField(i);
+                        field.GridColumnWidth = width;
+                        updated++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Column Width", $"Updated {updated} column widths.");
+        }
+
+        private static void ScheduleEqualiseColumns(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            if (!(doc.ActiveView is ViewSchedule sched))
+            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
+
+            var def = sched.Definition;
+            int fieldCount = def.GetFieldCount();
+            if (fieldCount == 0) return;
+
+            // Find max width
+            double maxWidth = 0;
+            for (int i = 0; i < fieldCount; i++)
+            {
+                try
+                {
+                    double w = def.GetField(i).GridColumnWidth;
+                    if (w > maxWidth) maxWidth = w;
+                }
+                catch { }
+            }
+
+            int updated = 0;
+            using (Transaction tx = new Transaction(doc, "STING Equalise Columns"))
+            {
+                tx.Start();
+                for (int i = 0; i < fieldCount; i++)
+                {
+                    try
+                    {
+                        def.GetField(i).GridColumnWidth = maxWidth;
+                        updated++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Equalise Columns",
+                $"Set {updated} columns to width {maxWidth * 304.8:F1}mm.");
+        }
+
+        // ── Text note operations ────────────────────────────────────
+
+        private static void TextAlign(UIApplication app, string alignment)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            if (ids.Count == 0) { TaskDialog.Show("Text Align", "Select text notes first."); return; }
+
+            int aligned = 0;
+            using (Transaction tx = new Transaction(uidoc.Document, $"STING Text Align {alignment}"))
+            {
+                tx.Start();
+                foreach (ElementId id in ids)
+                {
+                    if (uidoc.Document.GetElement(id) is TextNote tn)
+                    {
+                        try
+                        {
+                            var p = tn.get_Parameter(BuiltInParameter.TEXT_ALIGN_HORZ);
+                            if (p != null && !p.IsReadOnly)
+                            {
+                                int val = alignment == "Left" ? 0 : alignment == "Center" ? 1 : 2;
+                                p.Set(val);
+                                aligned++;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                tx.Commit();
+            }
+            StingLog.Info($"TextAlign {alignment}: {aligned}");
+        }
+
+        private static void TextAlignAxis(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            var textNotes = ids.Select(id => uidoc.Document.GetElement(id))
+                .OfType<TextNote>().ToList();
+
+            if (textNotes.Count < 2) { TaskDialog.Show("Text Align", "Select 2+ text notes."); return; }
+
+            // Align all text notes to the X of the first one
+            XYZ refPos = textNotes[0].Coord;
+            int moved = 0;
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Text Align Axis"))
+            {
+                tx.Start();
+                foreach (var tn in textNotes.Skip(1))
+                {
+                    try
+                    {
+                        tn.Coord = new XYZ(refPos.X, tn.Coord.Y, tn.Coord.Z);
+                        moved++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+            StingLog.Info($"TextAlignAxis: {moved} text notes aligned");
+        }
+
+        private static void TextLeaderToggle(UIApplication app, string mode)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            int toggled = 0;
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Text Leader"))
+            {
+                tx.Start();
+                foreach (ElementId id in ids)
+                {
+                    if (uidoc.Document.GetElement(id) is TextNote tn)
+                    {
+                        try
+                        {
+                            var leaders = tn.GetLeaders();
+                            if (leaders.Count > 0)
+                                tn.RemoveLeaders();
+                            else
+                                tn.AddLeader(TextNoteLeaderType.TNLT_STRAIGHT_L);
+                            toggled++;
+                        }
+                        catch { }
+                    }
+                }
+                tx.Commit();
+            }
+            StingLog.Info($"TextLeader {mode}: toggled {toggled}");
+        }
+
+        // ── Dimension operations ────────────────────────────────────
+
+        private static void DimResetOverrides(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            int reset = 0;
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Dim Reset Overrides"))
+            {
+                tx.Start();
+                foreach (ElementId id in ids)
+                {
+                    if (uidoc.Document.GetElement(id) is Dimension dim)
+                    {
+                        try
+                        {
+                            foreach (DimensionSegment seg in dim.Segments)
+                            {
+                                seg.ValueOverride = "";
+                                seg.Above = "";
+                                seg.Below = "";
+                                seg.Prefix = "";
+                                seg.Suffix = "";
+                            }
+                            reset++;
+                        }
+                        catch { }
+                    }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Dim Reset", $"Reset overrides on {reset} dimensions.");
+        }
+
+        private static void DimResetText(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            int reset = 0;
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Dim Reset Text"))
+            {
+                tx.Start();
+                foreach (ElementId id in ids)
+                {
+                    if (uidoc.Document.GetElement(id) is Dimension dim)
+                    {
+                        try
+                        {
+                            foreach (DimensionSegment seg in dim.Segments)
+                                seg.ValueOverride = "";
+                            reset++;
+                        }
+                        catch { }
+                    }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Dim Reset Text", $"Reset text overrides on {reset} dimensions.");
+        }
+
+        private static void DimFindZero(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            var dims = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(Dimension))
+                .Cast<Dimension>()
+                .ToList();
+
+            var zeroDims = new List<ElementId>();
+            foreach (var dim in dims)
+            {
+                try
+                {
+                    if (dim.Value.HasValue && Math.Abs(dim.Value.Value) < 0.001)
+                        zeroDims.Add(dim.Id);
+                    else
+                    {
+                        foreach (DimensionSegment seg in dim.Segments)
+                            if (seg.Value.HasValue && Math.Abs(seg.Value.Value) < 0.001)
+                            { zeroDims.Add(dim.Id); break; }
+                    }
+                }
+                catch { }
+            }
+
+            if (zeroDims.Count > 0)
+                uidoc.Selection.SetElementIds(zeroDims);
+            TaskDialog.Show("Find Zero Dims",
+                $"Found {zeroDims.Count} dimensions with zero-length segments.");
+        }
+
+        // ── Legend operations ────────────────────────────────────────
+
+        private static void LegendSyncPosition(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            if (!(doc.ActiveView is ViewSheet sheet))
+            { TaskDialog.Show("Legend Sync", "Active view must be a sheet."); return; }
+
+            // Find all legend viewports on this sheet
+            var vpIds = sheet.GetAllViewports().ToList();
+            var legendVps = new List<Viewport>();
+            foreach (var vpId in vpIds)
+            {
+                var vp = doc.GetElement(vpId) as Viewport;
+                if (vp == null) continue;
+                var vpView = doc.GetElement(vp.ViewId) as View;
+                if (vpView?.ViewType == ViewType.Legend)
+                    legendVps.Add(vp);
+            }
+
+            if (legendVps.Count < 2)
+            { TaskDialog.Show("Legend Sync", "Need 2+ legend viewports on sheet."); return; }
+
+            XYZ refCenter = legendVps[0].GetBoxCenter();
+            int aligned = 0;
+            using (Transaction tx = new Transaction(doc, "STING Legend Sync"))
+            {
+                tx.Start();
+                foreach (var vp in legendVps.Skip(1))
+                {
+                    vp.SetBoxCenter(new XYZ(refCenter.X, vp.GetBoxCenter().Y, 0));
+                    aligned++;
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Legend Sync", $"Aligned {aligned} legends to same X position.");
+        }
+
+        private static void LegendTitleLine(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            TaskDialog.Show("Legend Title Line",
+                "Legend title lines are managed within the legend view itself.\n" +
+                "Open the legend view and add/edit text notes for titles.");
+        }
+
+        private static void LegendUniformSize(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            if (!(doc.ActiveView is ViewSheet sheet))
+            { TaskDialog.Show("Legend Uniform", "Active view must be a sheet."); return; }
+
+            var vpIds = sheet.GetAllViewports().ToList();
+            var legendVps = new List<Viewport>();
+            foreach (var vpId in vpIds)
+            {
+                var vp = doc.GetElement(vpId) as Viewport;
+                if (vp == null) continue;
+                var vpView = doc.GetElement(vp.ViewId) as View;
+                if (vpView?.ViewType == ViewType.Legend)
+                    legendVps.Add(vp);
+            }
+
+            if (legendVps.Count < 2)
+            { TaskDialog.Show("Legend Uniform", "Need 2+ legend viewports."); return; }
+
+            TaskDialog.Show("Legend Uniform",
+                $"Found {legendVps.Count} legends on sheet.\n" +
+                "Legend size is controlled by the view scale. To make legends uniform,\n" +
+                "set the same scale on all legend views.");
+        }
+
+        // ── TitleBlock operations ───────────────────────────────────
+
+        private static void TitleBlockReset(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            if (!(doc.ActiveView is ViewSheet sheet))
+            { TaskDialog.Show("Title Block", "Active view must be a sheet."); return; }
+
+            var tbs = new FilteredElementCollector(doc, sheet.Id)
+                .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            if (tbs.Count == 0)
+            { TaskDialog.Show("Title Block", "No title block found on sheet."); return; }
+
+            int reset = 0;
+            using (Transaction tx = new Transaction(doc, "STING Title Block Reset"))
+            {
+                tx.Start();
+                foreach (Element tb in tbs)
+                {
+                    try
+                    {
+                        // Reset position to origin
+                        if (tb.Location is LocationPoint lp)
+                        {
+                            lp.Point = XYZ.Zero;
+                            reset++;
+                        }
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Title Block", $"Reset {reset} title blocks to origin.");
+        }
+
+        private static void TitleBlockRescue(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+
+            // Find sheets missing title blocks
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .ToList();
+
+            int missing = 0;
+            foreach (var s in sheets)
+            {
+                var tbs = new FilteredElementCollector(doc, s.Id)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                if (tbs.Count == 0) missing++;
+            }
+
+            TaskDialog.Show("Title Block Rescue",
+                $"Scanned {sheets.Count} sheets.\n" +
+                $"Missing title blocks: {missing}\n\n" +
+                "To fix, open the sheet and place a title block from Insert tab.");
+        }
+
+        // ── Revision operations ─────────────────────────────────────
+
+        private static void RevisionToggle(UIApplication app, string what)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            var view = doc.ActiveView;
+
+            var clouds = new FilteredElementCollector(doc, view.Id)
+                .OfCategory(BuiltInCategory.OST_RevisionClouds)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            var tags = new FilteredElementCollector(doc, view.Id)
+                .OfCategory(BuiltInCategory.OST_RevisionCloudTags)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            TaskDialog.Show("Revisions",
+                $"Active view: {view.Name}\n" +
+                $"Revision clouds: {clouds.Count}\n" +
+                $"Revision tags: {tags.Count}\n\n" +
+                "Use Revit View > Visibility Graphics > Annotation Categories " +
+                "to control revision cloud/tag visibility.");
+        }
+
+        private static void RevisionDeleteClouds(UIApplication app, bool selectionOnly)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            ICollection<ElementId> cloudIds;
+            if (selectionOnly)
+            {
+                cloudIds = uidoc.Selection.GetElementIds()
+                    .Where(id =>
+                    {
+                        var e = doc.GetElement(id);
+                        return e?.Category?.Id.Value == (int)BuiltInCategory.OST_RevisionClouds;
+                    })
+                    .ToList();
+            }
+            else
+            {
+                cloudIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                    .OfCategory(BuiltInCategory.OST_RevisionClouds)
+                    .WhereElementIsNotElementType()
+                    .ToElementIds();
+            }
+
+            if (cloudIds.Count == 0)
+            { TaskDialog.Show("Delete Clouds", "No revision clouds found."); return; }
+
+            TaskDialog confirm = new TaskDialog("Delete Revision Clouds");
+            confirm.MainInstruction = $"Delete {cloudIds.Count} revision clouds?";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() != TaskDialogResult.Ok) return;
+
+            using (Transaction tx = new Transaction(doc, "STING Delete Revision Clouds"))
+            {
+                tx.Start();
+                doc.Delete(cloudIds);
+                tx.Commit();
+            }
+            TaskDialog.Show("Delete Clouds", $"Deleted {cloudIds.Count} revision clouds.");
+        }
+
+        // ── Measurement operations ──────────────────────────────────
+
+        private static void MeasureSelected(UIApplication app, string mode)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var ids = uidoc.Selection.GetElementIds();
+            if (ids.Count == 0) { TaskDialog.Show("Measure", "Select elements first."); return; }
+
+            double totalLength = 0;
+            double totalArea = 0;
+            double totalPerimeter = 0;
+            int counted = 0;
+
+            foreach (ElementId id in ids)
+            {
+                Element e = doc.GetElement(id);
+                if (e == null) continue;
+
+                try
+                {
+                    if (e.Location is LocationCurve lc)
+                    {
+                        totalLength += lc.Curve.Length;
+                        counted++;
+                    }
+
+                    // Try area parameter
+                    Parameter areaP = e.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                    if (areaP != null && areaP.HasValue)
+                        totalArea += areaP.AsDouble();
+
+                    Parameter perimP = e.get_Parameter(BuiltInParameter.HOST_PERIMETER_COMPUTED);
+                    if (perimP != null && perimP.HasValue)
+                        totalPerimeter += perimP.AsDouble();
+                }
+                catch { }
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Measurement — {ids.Count} elements");
+            report.AppendLine(new string('─', 35));
+            if (totalLength > 0) report.AppendLine($"  Total length:    {totalLength * 0.3048:F2} m ({totalLength:F2} ft)");
+            if (totalArea > 0) report.AppendLine($"  Total area:      {totalArea * 0.0929:F2} m² ({totalArea:F2} ft²)");
+            if (totalPerimeter > 0) report.AppendLine($"  Total perimeter: {totalPerimeter * 0.3048:F2} m ({totalPerimeter:F2} ft)");
+            if (totalLength == 0 && totalArea == 0 && totalPerimeter == 0)
+                report.AppendLine("  No measurable geometry found in selection.");
+
+            TaskDialog.Show("Measure", report.ToString());
+        }
+
+        // ── Line pattern / line weight operations ───────────────────
+
+        private static void ApplyLinePattern(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            if (ids.Count == 0) { TaskDialog.Show("Line Pattern", "Select elements first."); return; }
+
+            TaskDialog dlg = new TaskDialog("Apply Line Pattern");
+            dlg.MainInstruction = $"Set projection line pattern for {ids.Count} elements";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Solid", "Continuous line");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Dash", "Dashed line pattern");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Hidden", "Short dashes (hidden lines)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Reset (Default)", "Remove line pattern override");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string patternName;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: patternName = "Solid"; break;
+                case TaskDialogResult.CommandLink2: patternName = "Dash"; break;
+                case TaskDialogResult.CommandLink3: patternName = "Hidden"; break;
+                case TaskDialogResult.CommandLink4: patternName = null; break;
+                default: return;
+            }
+
+            // Find line pattern
+            ElementId patternId = ElementId.InvalidElementId;
+            if (patternName != null)
+            {
+                var pattern = new FilteredElementCollector(uidoc.Document)
+                    .OfClass(typeof(LinePatternElement))
+                    .Cast<LinePatternElement>()
+                    .FirstOrDefault(lp =>
+                        lp.Name.IndexOf(patternName, StringComparison.OrdinalIgnoreCase) >= 0);
+                if (pattern != null) patternId = pattern.Id;
+            }
+
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Apply Line Pattern"))
+            {
+                tx.Start();
+                var ogs = new OverrideGraphicSettings();
+                if (patternId != ElementId.InvalidElementId)
+                    ogs.SetProjectionLinePatternId(patternId);
+                foreach (ElementId id in ids)
+                    uidoc.ActiveView.SetElementOverrides(id, ogs);
+                tx.Commit();
+            }
+        }
+
+        private static void ApplyLineWeightOverride(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            if (ids.Count == 0) { TaskDialog.Show("Line Weight", "Select elements first."); return; }
+
+            TaskDialog dlg = new TaskDialog("Apply Line Weight");
+            dlg.MainInstruction = $"Set line weight for {ids.Count} elements";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Thin (1)", "Hairline");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Standard (3)", "Normal");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Bold (6)", "Emphasis");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Extra Bold (10)", "Maximum weight");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int weight;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: weight = 1; break;
+                case TaskDialogResult.CommandLink2: weight = 3; break;
+                case TaskDialogResult.CommandLink3: weight = 6; break;
+                case TaskDialogResult.CommandLink4: weight = 10; break;
+                default: return;
+            }
+
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Apply Line Weight"))
+            {
+                tx.Start();
+                var ogs = new OverrideGraphicSettings();
+                ogs.SetProjectionLineWeight(weight);
                 foreach (ElementId id in ids)
                     uidoc.ActiveView.SetElementOverrides(id, ogs);
                 tx.Commit();
