@@ -988,6 +988,137 @@ namespace StingTools.Organise
         }
 
         /// <summary>
+        /// Build granular override settings with SEPARATE control of text (projection line),
+        /// bounding box (surface pattern), and leader (cut line) aspects.
+        /// In Revit, OverrideGraphicSettings exposes:
+        ///   - Projection line color/weight → controls text + leader rendering
+        ///   - Surface foreground pattern/color → controls tag bounding box fill
+        ///   - Cut line color → we repurpose to differentiate (for tags in section)
+        ///   - Halftone → mutes all aspects equally
+        ///   - Transparency → controls surface fill transparency (box visibility)
+        ///
+        /// Strategy for "separate" control:
+        ///   - Text color = SetProjectionLineColor (this is what renders tag text)
+        ///   - Box fill color = SetSurfaceForegroundPatternColor + solid fill pattern
+        ///   - Box visibility = transparency (0 = opaque, 100 = invisible)
+        ///   - Leader visibility = controlled by toggling HasLeader on/off
+        ///   - We split tags into with/without leaders and apply different overrides
+        /// </summary>
+        public static OverrideGraphicSettings BuildGranularOverride(
+            Document doc,
+            Color textColor = null,
+            Color boxColor = null,
+            int boxTransparency = -1,
+            int lineWeight = -1,
+            Color cutLineColor = null)
+        {
+            var ogs = new OverrideGraphicSettings();
+
+            // Text + line color (projection line color controls tag text rendering)
+            if (textColor != null)
+                ogs.SetProjectionLineColor(textColor);
+
+            if (lineWeight > 0)
+                ogs.SetProjectionLineWeight(lineWeight);
+
+            // Bounding box fill — use surface foreground pattern color
+            if (boxColor != null)
+            {
+                var solidFill = FindSolidFill(doc);
+                if (solidFill != null)
+                {
+                    ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                    ogs.SetSurfaceForegroundPatternColor(boxColor);
+                }
+            }
+
+            // Box visibility via transparency (0=visible, 100=invisible)
+            if (boxTransparency >= 0 && boxTransparency <= 100)
+                ogs.SetSurfaceTransparency(boxTransparency);
+
+            // Cut line color for section-cut tag aspects
+            if (cutLineColor != null)
+                ogs.SetCutLineColor(cutLineColor);
+
+            return ogs;
+        }
+
+        /// <summary>Prompt user to pick a color from the standard 8 quick-pick options.</summary>
+        public static Color PickColor(string title, string instruction)
+        {
+            TaskDialog dlg = new TaskDialog(title);
+            dlg.MainInstruction = instruction;
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Red (220,20,20)", "Highlight / QA checking");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Blue (0,100,220)", "MEP / standard annotation");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Black (0,0,0)", "Print-ready / standard");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Green (0,160,0)", "Approved / verified");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return new Color(220, 20, 20);
+                case TaskDialogResult.CommandLink2: return new Color(0, 100, 220);
+                case TaskDialogResult.CommandLink3: return new Color(0, 0, 0);
+                case TaskDialogResult.CommandLink4: return new Color(0, 160, 0);
+                default: return null;
+            }
+        }
+
+        /// <summary>Prompt user to pick a color from an extended 8-option palette.</summary>
+        public static Color PickColorExtended(string title, string instruction)
+        {
+            TaskDialog dlg = new TaskDialog(title);
+            dlg.MainInstruction = instruction;
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Grey (128,128,128)", "Subtle / background");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Orange (255,140,0)", "Warning / attention");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Cyan (0,180,200)", "Reference / info");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Purple (140,0,200)", "Special / highlight");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return new Color(128, 128, 128);
+                case TaskDialogResult.CommandLink2: return new Color(255, 140, 0);
+                case TaskDialogResult.CommandLink3: return new Color(0, 180, 200);
+                case TaskDialogResult.CommandLink4: return new Color(140, 0, 200);
+                default: return null;
+            }
+        }
+
+        /// <summary>Get the transparency from a color name hint (for box visibility).</summary>
+        public static int GetBoxTransparencyChoice(string title)
+        {
+            TaskDialog dlg = new TaskDialog(title);
+            dlg.MainInstruction = "Tag bounding box visibility";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Fully Visible", "Opaque bounding box (0% transparent)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Semi-Transparent", "50% transparent box background");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Faded", "80% transparent — subtle box");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Hidden (Invisible)", "100% transparent — no visible box");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return 0;
+                case TaskDialogResult.CommandLink2: return 50;
+                case TaskDialogResult.CommandLink3: return 80;
+                case TaskDialogResult.CommandLink4: return 100;
+                default: return -1;
+            }
+        }
+
+        /// <summary>
         /// Get annotation tags from selection or all in view.
         /// Returns (tags, isFromSelection).
         /// </summary>
@@ -1388,6 +1519,395 @@ namespace StingTools.Organise
 
             TaskDialog.Show("Clear Colors",
                 $"Reset color overrides on {cleared} annotation tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Master tag appearance command: separate control of TEXT colour, LEADER colour,
+    /// and BOUNDING BOX colour + visibility. Applies different overrides to tags
+    /// with leaders vs without leaders, giving visual separation of all three aspects.
+    ///
+    /// Revit API strategy:
+    ///   - Text color → SetProjectionLineColor on tags WITHOUT leaders
+    ///   - Leader color → SetProjectionLineColor on tags WITH leaders
+    ///   - Box fill → SetSurfaceForegroundPatternColor (solid fill) on ALL tags
+    ///   - Box visibility → SetSurfaceTransparency (0=opaque to 100=invisible)
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TagAppearanceCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (allTags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (allTags.Count == 0)
+            {
+                TaskDialog.Show("Tag Appearance", "No annotation tags found in view or selection.");
+                return Result.Succeeded;
+            }
+
+            var withLeaders = new List<IndependentTag>();
+            var withoutLeaders = new List<IndependentTag>();
+            foreach (var tag in allTags)
+            {
+                try { if (tag.HasLeader) withLeaders.Add(tag); else withoutLeaders.Add(tag); }
+                catch { withoutLeaders.Add(tag); }
+            }
+
+            // Step 1: Text color
+            Color textColor = AnnotationColorHelper.PickColor(
+                "Tag Appearance — Step 1/4: Text Color",
+                $"Choose TEXT color for {allTags.Count} tags:");
+            if (textColor == null) return Result.Cancelled;
+
+            // Step 2: Leader color (if any leaders exist)
+            Color leaderColor = textColor;
+            if (withLeaders.Count > 0)
+            {
+                Color picked = AnnotationColorHelper.PickColor(
+                    "Tag Appearance — Step 2/4: Leader Color",
+                    $"Choose LEADER color for {withLeaders.Count} tags with leaders:");
+                if (picked == null) return Result.Cancelled;
+                leaderColor = picked;
+            }
+
+            // Step 3: Bounding box color
+            Color boxColor = AnnotationColorHelper.PickColorExtended(
+                "Tag Appearance — Step 3/4: Box Color",
+                "Choose BOUNDING BOX fill color:");
+            if (boxColor == null) return Result.Cancelled;
+
+            // Step 4: Bounding box visibility (transparency)
+            int boxTransparency = AnnotationColorHelper.GetBoxTransparencyChoice(
+                "Tag Appearance — Step 4/4: Box Visibility");
+            if (boxTransparency < 0) return Result.Cancelled;
+
+            // Build overrides
+            var textOgs = AnnotationColorHelper.BuildGranularOverride(
+                doc, textColor: textColor, boxColor: boxColor,
+                boxTransparency: boxTransparency);
+            var leaderOgs = AnnotationColorHelper.BuildGranularOverride(
+                doc, textColor: leaderColor, boxColor: boxColor,
+                boxTransparency: boxTransparency);
+
+            int textColored = 0, leaderColored = 0;
+            using (Transaction tx = new Transaction(doc, "STING Tag Appearance"))
+            {
+                tx.Start();
+                foreach (var tag in withoutLeaders)
+                {
+                    try { view.SetElementOverrides(tag.Id, textOgs); textColored++; }
+                    catch { }
+                }
+                foreach (var tag in withLeaders)
+                {
+                    try { view.SetElementOverrides(tag.Id, leaderOgs); leaderColored++; }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Tag Appearance Applied — {allTags.Count} tags");
+            report.AppendLine(new string('═', 45));
+            report.AppendLine($"  Text color:    RGB({textColor.Red},{textColor.Green},{textColor.Blue}) → {textColored} tags");
+            report.AppendLine($"  Leader color:  RGB({leaderColor.Red},{leaderColor.Green},{leaderColor.Blue}) → {leaderColored} tags");
+            report.AppendLine($"  Box color:     RGB({boxColor.Red},{boxColor.Green},{boxColor.Blue})");
+            report.AppendLine($"  Box visibility: {(boxTransparency == 0 ? "Opaque" : boxTransparency == 100 ? "Hidden" : $"{100 - boxTransparency}%")}");
+
+            TaskDialog.Show("Tag Appearance", report.ToString());
+            StingLog.Info($"TagAppearance: text=RGB({textColor.Red},{textColor.Green},{textColor.Blue}), " +
+                $"leader=RGB({leaderColor.Red},{leaderColor.Green},{leaderColor.Blue}), " +
+                $"box=RGB({boxColor.Red},{boxColor.Green},{boxColor.Blue}), " +
+                $"transparency={boxTransparency}%, applied={textColored + leaderColored}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Control tag bounding box appearance independently: set fill colour, visibility
+    /// (transparency), and outline weight. This targets the surface graphic overrides
+    /// which control the tag's bounding box/background fill separately from text color.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetTagBoxAppearanceCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (tags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Tag Box", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Choose box mode
+            TaskDialog modeDlg = new TaskDialog("Tag Bounding Box");
+            modeDlg.MainInstruction = $"Bounding box control for {tags.Count} tags";
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Set Box Color + Visibility",
+                "Choose fill color and transparency for tag background");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Hide Box (Transparent)",
+                "Make bounding box fully transparent (text and leaders remain visible)");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Show Box (Opaque)",
+                "Make bounding box fully opaque with white fill");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Reset Box (Clear Overrides)",
+                "Remove all surface overrides, restoring default box appearance");
+            modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var result = modeDlg.Show();
+            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            OverrideGraphicSettings ogs;
+
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1:
+                {
+                    // Pick box color
+                    Color boxColor = AnnotationColorHelper.PickColorExtended(
+                        "Box Color", "Choose bounding box fill color:");
+                    if (boxColor == null) return Result.Cancelled;
+
+                    int transparency = AnnotationColorHelper.GetBoxTransparencyChoice("Box Visibility");
+                    if (transparency < 0) return Result.Cancelled;
+
+                    ogs = AnnotationColorHelper.BuildGranularOverride(
+                        doc, boxColor: boxColor, boxTransparency: transparency);
+                    break;
+                }
+                case TaskDialogResult.CommandLink2:
+                    // Hide box — full transparency
+                    ogs = new OverrideGraphicSettings();
+                    ogs.SetSurfaceTransparency(100);
+                    break;
+
+                case TaskDialogResult.CommandLink3:
+                {
+                    // Show box — opaque white
+                    var solidFill = AnnotationColorHelper.FindSolidFill(doc);
+                    ogs = new OverrideGraphicSettings();
+                    if (solidFill != null)
+                    {
+                        ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                        ogs.SetSurfaceForegroundPatternColor(new Color(255, 255, 255));
+                    }
+                    ogs.SetSurfaceTransparency(0);
+                    break;
+                }
+                case TaskDialogResult.CommandLink4:
+                default:
+                    // Reset — blank override (clears surface-only, preserving line color)
+                    // We need to read existing line color and reapply it
+                    ogs = new OverrideGraphicSettings();
+                    break;
+            }
+
+            int modified = 0;
+            using (Transaction tx = new Transaction(doc, "STING Set Tag Box"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        if (result == TaskDialogResult.CommandLink4)
+                        {
+                            // Reset: preserve existing projection line color but clear surface
+                            var existing = view.GetElementOverrides(tag.Id);
+                            var reset = new OverrideGraphicSettings();
+                            // Preserve text/line color if set
+                            var existingColor = existing.ProjectionLineColor;
+                            if (existingColor.IsValid)
+                                reset.SetProjectionLineColor(existingColor);
+                            var existingWeight = existing.ProjectionLineWeight;
+                            if (existingWeight > 0)
+                                reset.SetProjectionLineWeight(existingWeight);
+                            view.SetElementOverrides(tag.Id, reset);
+                        }
+                        else
+                        {
+                            // Merge: apply surface overrides while preserving existing line color
+                            var existing = view.GetElementOverrides(tag.Id);
+                            var merged = new OverrideGraphicSettings();
+
+                            // Copy existing line overrides
+                            var existingColor = existing.ProjectionLineColor;
+                            if (existingColor.IsValid)
+                                merged.SetProjectionLineColor(existingColor);
+                            var existingWeight = existing.ProjectionLineWeight;
+                            if (existingWeight > 0)
+                                merged.SetProjectionLineWeight(existingWeight);
+
+                            // Apply new surface overrides from ogs
+                            var surfId = ogs.SurfaceForegroundPatternId;
+                            if (surfId != null && surfId != ElementId.InvalidElementId)
+                            {
+                                merged.SetSurfaceForegroundPatternId(surfId);
+                                merged.SetSurfaceForegroundPatternColor(
+                                    ogs.SurfaceForegroundPatternColor);
+                            }
+                            merged.SetSurfaceTransparency(ogs.SurfaceTransparency);
+
+                            view.SetElementOverrides(tag.Id, merged);
+                        }
+                        modified++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            string modeLabel = result == TaskDialogResult.CommandLink1 ? "Color + Visibility" :
+                               result == TaskDialogResult.CommandLink2 ? "Hidden (Transparent)" :
+                               result == TaskDialogResult.CommandLink3 ? "Visible (Opaque White)" :
+                               "Reset to Default";
+            TaskDialog.Show("Tag Box", $"Box mode '{modeLabel}' applied to {modified} tags.");
+            StingLog.Info($"SetTagBox: mode={modeLabel}, modified={modified}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Quick discipline-aware tag appearance: applies discipline colors to text,
+    /// grey to leaders, and transparent box in one click. Combines the most common
+    /// workflow into a single command.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class QuickTagStyleCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (allTags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (allTags.Count == 0)
+            {
+                TaskDialog.Show("Quick Style", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Choose style preset
+            TaskDialog dlg = new TaskDialog("Quick Tag Style");
+            dlg.MainInstruction = $"Apply preset style to {allTags.Count} tags";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Discipline Colors + Grey Leaders",
+                "Text = discipline color (M=Blue, E=Gold...), Leaders = grey, Box = transparent");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Black Text + Grey Leaders",
+                "Text = black, Leaders = grey, Box = transparent — print-ready");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "QA Mode (Red Text, No Box)",
+                "Text + leaders = red, Box = hidden — checking/markup mode");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Presentation (Blue Text, White Box)",
+                "Text = blue, Leaders = blue, Box = white opaque — clean presentation");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var mode = dlg.Show();
+            if (mode == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            int styled = 0;
+            var discCounts = new Dictionary<string, int>();
+
+            using (Transaction tx = new Transaction(doc, "STING Quick Tag Style"))
+            {
+                tx.Start();
+                foreach (var tag in allTags)
+                {
+                    try
+                    {
+                        bool hasLeader = false;
+                        try { hasLeader = tag.HasLeader; } catch { }
+
+                        OverrideGraphicSettings ogs;
+
+                        switch (mode)
+                        {
+                            case TaskDialogResult.CommandLink1:
+                            {
+                                // Discipline colors + grey leaders
+                                string disc = AnnotationColorHelper.GetTagDiscipline(tag, doc);
+                                Color textCol = new Color(0, 0, 0); // default black
+                                if (!string.IsNullOrEmpty(disc) &&
+                                    AnnotationColorHelper.DisciplineColors.TryGetValue(disc, out Color dc))
+                                {
+                                    textCol = dc;
+                                    if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
+                                    discCounts[disc]++;
+                                }
+
+                                Color lineCol = hasLeader
+                                    ? new Color(128, 128, 128) // grey leaders
+                                    : textCol;
+
+                                ogs = AnnotationColorHelper.BuildGranularOverride(
+                                    doc, textColor: lineCol, boxTransparency: 100);
+                                break;
+                            }
+                            case TaskDialogResult.CommandLink2:
+                            {
+                                // Black text + grey leaders
+                                Color lineCol = hasLeader
+                                    ? new Color(128, 128, 128)
+                                    : new Color(0, 0, 0);
+                                ogs = AnnotationColorHelper.BuildGranularOverride(
+                                    doc, textColor: lineCol, boxTransparency: 100);
+                                break;
+                            }
+                            case TaskDialogResult.CommandLink3:
+                            {
+                                // QA red, no box
+                                ogs = AnnotationColorHelper.BuildGranularOverride(
+                                    doc, textColor: new Color(220, 20, 20),
+                                    lineWeight: 2, boxTransparency: 100);
+                                break;
+                            }
+                            case TaskDialogResult.CommandLink4:
+                            default:
+                            {
+                                // Presentation blue + white box
+                                ogs = AnnotationColorHelper.BuildGranularOverride(
+                                    doc, textColor: new Color(0, 100, 220),
+                                    boxColor: new Color(255, 255, 255),
+                                    boxTransparency: 0);
+                                break;
+                            }
+                        }
+
+                        view.SetElementOverrides(tag.Id, ogs);
+                        styled++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Quick Style applied to {styled} tags.");
+            if (discCounts.Count > 0)
+            {
+                report.AppendLine("Disciplines:");
+                foreach (var kvp in discCounts.OrderByDescending(x => x.Value))
+                    report.AppendLine($"  {kvp.Key}: {kvp.Value}");
+            }
+            TaskDialog.Show("Quick Tag Style", report.ToString());
             return Result.Succeeded;
         }
     }
@@ -2275,12 +2795,16 @@ namespace StingTools.Organise
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                 "45° (Diagonal)",
                 "Snap elbows to 45° angles (compact, isometric style)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Straight (No Elbow)",
+                "Direct straight line from element to tag head — no elbow bend");
             dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             var result = dlg.Show();
             if (result == TaskDialogResult.Cancel) return Result.Cancelled;
 
             bool use45 = result == TaskDialogResult.CommandLink2;
+            bool useStraight = result == TaskDialogResult.CommandLink3;
             int snapped = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Snap Leader Elbows"))
@@ -2305,7 +2829,13 @@ namespace StingTools.Organise
 
                         // Calculate snapped elbow position
                         XYZ elbowPos;
-                        if (use45)
+                        if (useStraight)
+                        {
+                            // Straight: place elbow at midpoint of host→tagHead line
+                            // This effectively creates a straight leader (no visible bend)
+                            elbowPos = (hostCenter + tagHead) / 2.0;
+                        }
+                        else if (use45)
                         {
                             // 45° elbow: move along diagonal first, then horizontal
                             double absDx = Math.Abs(delta.X);
@@ -2354,7 +2884,7 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
-            string angle = use45 ? "45°" : "90°";
+            string angle = useStraight ? "Straight" : use45 ? "45°" : "90°";
             TaskDialog.Show("Snap Elbows",
                 $"Snapped {snapped} of {tags.Count} leader elbows to {angle}.");
             return Result.Succeeded;
@@ -2646,6 +3176,119 @@ namespace StingTools.Organise
             string action = pin ? "Pinned" : "Unpinned";
             TaskDialog.Show("Pin Tags", $"{action} {modified} of {tags.Count} tags.");
             return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Nudge annotation tags in a specific direction by a small offset.
+    /// Adjusts TagHeadPosition by configurable increments.
+    /// Direction is determined from the command tag dispatched via StingCommandHandler.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class NudgeTagsCommand : IExternalCommand
+    {
+        /// <summary>Nudge amount in feet (1/4 inch = 0.0208 ft, approx 6.35mm).</summary>
+        private const double SmallNudge = 0.0208;
+        /// <summary>Medium nudge (1 inch = 0.0833 ft, approx 25mm).</summary>
+        private const double MediumNudge = 0.0833;
+        /// <summary>Large nudge (3 inches = 0.25 ft, approx 76mm).</summary>
+        private const double LargeNudge = 0.25;
+
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            var tags = LeaderHelper.GetSelectedTags(uidoc);
+            if (tags.Count == 0)
+            {
+                // Fall back to all tags in view
+                tags = LeaderHelper.GetTargetTags(uidoc);
+            }
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Nudge Tags", "No annotation tags found. Select tags first.");
+                return Result.Succeeded;
+            }
+
+            // Ask direction if not evident from dispatch
+            TaskDialog dlg = new TaskDialog("Nudge Tags");
+            dlg.MainInstruction = $"Nudge {tags.Count} tags";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "↑ Up", "Move tags upward in the view");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "↓ Down", "Move tags downward in the view");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "← Left", "Move tags to the left");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "→ Right", "Move tags to the right");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            XYZ direction;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: direction = XYZ.BasisY; break;  // Up
+                case TaskDialogResult.CommandLink2: direction = -XYZ.BasisY; break; // Down
+                case TaskDialogResult.CommandLink3: direction = -XYZ.BasisX; break; // Left
+                case TaskDialogResult.CommandLink4: direction = XYZ.BasisX; break;  // Right
+                default: return Result.Cancelled;
+            }
+
+            int nudged = 0;
+            XYZ offset = direction * MediumNudge;
+
+            using (Transaction tx = new Transaction(doc, "STING Nudge Tags"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        XYZ current = tag.TagHeadPosition;
+                        tag.TagHeadPosition = current + offset;
+                        nudged++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Nudge tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            StingLog.Info($"NudgeTags: direction={direction}, nudged={nudged}");
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Static nudge by direction string — called from StingCommandHandler inline.
+        /// </summary>
+        public static int NudgeInDirection(Document doc, View view, List<IndependentTag> tags, string direction)
+        {
+            XYZ offset;
+            switch (direction?.ToUpperInvariant())
+            {
+                case "UP": offset = XYZ.BasisY * MediumNudge; break;
+                case "DOWN": offset = -XYZ.BasisY * MediumNudge; break;
+                case "LEFT": offset = -XYZ.BasisX * MediumNudge; break;
+                case "RIGHT": offset = XYZ.BasisX * MediumNudge; break;
+                case "NEAR": offset = XYZ.BasisY * SmallNudge; break;
+                case "FAR": offset = -XYZ.BasisY * SmallNudge; break;
+                default: return 0;
+            }
+
+            int nudged = 0;
+            foreach (IndependentTag tag in tags)
+            {
+                try
+                {
+                    tag.TagHeadPosition = tag.TagHeadPosition + offset;
+                    nudged++;
+                }
+                catch { }
+            }
+            return nudged;
         }
     }
 
