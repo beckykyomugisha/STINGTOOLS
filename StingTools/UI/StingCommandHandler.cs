@@ -144,6 +144,11 @@ namespace StingTools.UI
                     case "ArrangeTags": RunCommand<Tags.ArrangeTagsCommand>(app); break;
                     case "BatchPlaceTags": RunCommand<Tags.BatchPlaceTagsCommand>(app); break;
                     case "RemoveAnnotationTags": RunCommand<Tags.RemoveAnnotationTagsCommand>(app); break;
+                    case "LearnTagPlacement": RunCommand<Tags.LearnTagPlacementCommand>(app); break;
+                    case "ApplyTagTemplate": RunCommand<Tags.ApplyTagTemplateCommand>(app); break;
+                    case "TagOverlapAnalysis": RunCommand<Tags.TagOverlapAnalysisCommand>(app); break;
+                    case "BatchTagTextSize": RunCommand<Tags.BatchTagTextSizeCommand>(app); break;
+                    case "SetTagCatLineWeight": RunCommand<Tags.SetTagCategoryLineWeightCommand>(app); break;
 
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
@@ -407,10 +412,12 @@ namespace StingTools.UI
                     case "OrgQuick":
                     case "OrgDeep":
                     case "OrgAnneal":
-                    case "OrgReset":
-                    case "OrgBrainSp":
+                        RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "OrgReset": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
+                    case "OrgBrainSp": RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
                     case "OrgUndo":
-                        StingLog.Info($"AI Organise Engine: {_commandTag}");
+                        StingLog.Info($"OrgUndo: Use Ctrl+Z to undo last operation");
+                        TaskDialog.Show("Undo", "Use Ctrl+Z to undo the last tag operation.");
                         break;
 
                     case "TagFamilyRefresh": StingLog.Info("TagFamilyRefresh"); break;
@@ -419,8 +426,8 @@ namespace StingTools.UI
                     case "Orphans": FindOrphanedTags(app); break;
                     case "CloneTags": CloneTagLayout(app); break;
                     case "AuditTags": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
-                    case "MultiView": StingLog.Info("MultiView — tag across views"); break;
-                    case "ClashingDetect": StingLog.Info("ClashingDetect"); break;
+                    case "MultiView": RunCommand<Tags.BatchPlaceTagsCommand>(app); break;
+                    case "ClashingDetect": RunCommand<Tags.TagOverlapAnalysisCommand>(app); break;
 
                     case "AllH":
                     case "AllV":
@@ -432,9 +439,7 @@ namespace StingTools.UI
                     case "NudgeRight": NudgeTags(app, "RIGHT"); break;
                     case "NudgeNear": NudgeTags(app, "NEAR"); break;
                     case "NudgeFar": NudgeTags(app, "FAR"); break;
-                    case "BrainSmOr":
-                        StingLog.Info($"BrainSmOr: AI orientation");
-                        break;
+                    case "BrainSmOr": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
 
                     case "BrainSmAl": RunCommand<Organise.AlignTagsCommand>(app); break;
 
@@ -446,22 +451,19 @@ namespace StingTools.UI
                     case "TagSnap90": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
                     case "LeaderSpacing": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
 
-                    case "BrainSmartLdr":
-                    case "BrainUncross":
-                    case "BrainTidy":
-                        StingLog.Info($"AI Leader: {_commandTag}");
-                        break;
+                    case "BrainSmartLdr": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "BrainUncross": RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "BrainTidy": RunCommand<Tags.ArrangeTagsCommand>(app); break;
 
                     case "AnalyseScore": RunCommand<Organise.TagStatsCommand>(app); break;
-                    case "AnalyseClashes": StingLog.Info("AnalyseClashes"); break;
-                    case "AnalyseCrossings": StingLog.Info("AnalyseCrossings"); break;
-                    case "AnalyseDensity": StingLog.Info("AnalyseDensity"); break;
-                    case "AnalyseClusters": StingLog.Info("AnalyseClusters"); break;
+                    case "AnalyseClashes":
+                    case "AnalyseCrossings":
+                    case "AnalyseDensity":
+                    case "AnalyseClusters":
+                        RunCommand<Tags.TagOverlapAnalysisCommand>(app); break;
 
-                    case "PatternLearn":
-                    case "PatternApplyLearned":
-                        StingLog.Info($"Pattern Learning: {_commandTag}");
-                        break;
+                    case "PatternLearn": RunCommand<Tags.LearnTagPlacementCommand>(app); break;
+                    case "PatternApplyLearned": RunCommand<Tags.ApplyTagTemplateCommand>(app); break;
 
                     case "BatchViewCats": StingLog.Info("BatchViewCats"); break;
                     case "BatchViewRunAll": StingLog.Info("BatchViewRunAll"); break;
@@ -581,10 +583,12 @@ namespace StingTools.UI
                     case "AnomalyScan": RunCommand<Tags.ValidateTagsCommand>(app); break;
                     case "AnomalyExport": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
 
-                    case "BotSmartPlace": StingLog.Info("BotSmartPlace — AI tag placement"); break;
-                    case "BotDensityMap": StingLog.Info("BotDensityMap"); break;
-                    case "BotUndoAI": StingLog.Info("BotUndoAI"); break;
-                    case "BotOptions": StingLog.Info("BotOptions"); break;
+                    case "BotSmartPlace": RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
+                    case "BotDensityMap": RunCommand<Tags.TagOverlapAnalysisCommand>(app); break;
+                    case "BotUndoAI":
+                        TaskDialog.Show("Undo AI", "Use Ctrl+Z to undo the last operation.");
+                        break;
+                    case "BotOptions": RunCommand<Tags.TagConfigCommand>(app); break;
 
                     case "ColorSchemeDel": RunCommand<Select.ClearColorOverridesCommand>(app); break;
                     case "GradientApply": RunCommand<Select.ColorByParameterCommand>(app); break;
