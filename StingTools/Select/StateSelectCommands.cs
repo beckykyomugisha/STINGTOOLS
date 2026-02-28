@@ -328,11 +328,11 @@ namespace StingTools.Select
                     // LVL
                     string lvl = ParameterHelpers.GetLevelCode(doc, elem);
                     if (lvl != "XX") if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl)) populated++;
-                    // SYS
-                    string sys = TagConfig.GetSysCode(catName);
+                    // SYS (MEP system-aware)
+                    string sys = TagConfig.GetMepSystemAwareSysCode(elem, catName);
                     if (!string.IsNullOrEmpty(sys)) if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys)) populated++;
-                    // FUNC
-                    string func = TagConfig.GetFuncCode(sys);
+                    // FUNC (smart subsystem-aware)
+                    string func = TagConfig.GetSmartFuncCode(elem, sys);
                     if (!string.IsNullOrEmpty(func)) if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func)) populated++;
                     // PROD (family-aware)
                     string prod = TagConfig.GetFamilyAwareProdCode(elem, catName);

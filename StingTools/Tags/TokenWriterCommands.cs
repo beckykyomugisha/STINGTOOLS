@@ -313,7 +313,11 @@ namespace StingTools.Tags
         }
     }
 
-    /// <summary>ISO 19650 completeness dashboard — reports per-discipline compliance.</summary>
+    /// <summary>
+    /// ISO 19650 completeness dashboard — reports per-discipline compliance.
+    /// Shows both standard compliance (tag has 8 non-empty segments) and strict
+    /// compliance (no XX/ZZ placeholder segments = fully resolved tags).
+    /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class CompletenessDashboardCommand : IExternalCommand
     {
@@ -322,7 +326,7 @@ namespace StingTools.Tags
             Document doc = cmd.Application.ActiveUIDocument.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var stats = new Dictionary<string, (int total, int valid, int incomplete, int missing)>();
+            var stats = new Dictionary<string, (int total, int valid, int resolved, int incomplete, int missing)>();
 
             foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
@@ -330,42 +334,50 @@ namespace StingTools.Tags
                 if (!known.Contains(cat)) continue;
 
                 string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "XX";
-                if (!stats.ContainsKey(disc)) stats[disc] = (0, 0, 0, 0);
+                if (!stats.ContainsKey(disc)) stats[disc] = (0, 0, 0, 0, 0);
 
                 var s = stats[disc];
                 string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag))
-                    stats[disc] = (s.total + 1, s.valid, s.incomplete, s.missing + 1);
+                    stats[disc] = (s.total + 1, s.valid, s.resolved, s.incomplete, s.missing + 1);
+                else if (TagConfig.TagIsFullyResolved(tag))
+                    stats[disc] = (s.total + 1, s.valid + 1, s.resolved + 1, s.incomplete, s.missing);
                 else if (TagConfig.TagIsComplete(tag))
-                    stats[disc] = (s.total + 1, s.valid + 1, s.incomplete, s.missing);
+                    stats[disc] = (s.total + 1, s.valid + 1, s.resolved, s.incomplete, s.missing);
                 else
-                    stats[disc] = (s.total + 1, s.valid, s.incomplete + 1, s.missing);
+                    stats[disc] = (s.total + 1, s.valid, s.resolved, s.incomplete + 1, s.missing);
             }
 
             var report = new StringBuilder();
             report.AppendLine("═══ ISO 19650 Completeness Dashboard ═══");
             report.AppendLine();
-            report.AppendLine($"{"DISC",-6} {"Total",7} {"Valid",7} {"Incp",7} {"Miss",7} {"Comp%",7}");
-            report.AppendLine(new string('─', 42));
+            report.AppendLine($"{"DISC",-6} {"Total",7} {"Valid",7} {"Resol",7} {"Incp",7} {"Miss",7} {"Comp%",7} {"Strict%",7}");
+            report.AppendLine(new string('─', 56));
 
-            int grandTotal = 0, grandValid = 0, grandInc = 0, grandMiss = 0;
+            int grandTotal = 0, grandValid = 0, grandResolved = 0, grandInc = 0, grandMiss = 0;
             foreach (var kvp in stats.OrderBy(x => x.Key))
             {
                 var s = kvp.Value;
                 double pct = s.total > 0 ? s.valid * 100.0 / s.total : 0;
-                report.AppendLine($"{kvp.Key,-6} {s.total,7} {s.valid,7} {s.incomplete,7} {s.missing,7} {pct,6:F1}%");
+                double strictPct = s.total > 0 ? s.resolved * 100.0 / s.total : 0;
+                report.AppendLine($"{kvp.Key,-6} {s.total,7} {s.valid,7} {s.resolved,7} {s.incomplete,7} {s.missing,7} {pct,6:F1}% {strictPct,6:F1}%");
                 grandTotal += s.total;
                 grandValid += s.valid;
+                grandResolved += s.resolved;
                 grandInc += s.incomplete;
                 grandMiss += s.missing;
             }
 
-            report.AppendLine(new string('─', 42));
+            report.AppendLine(new string('─', 56));
             double grandPct = grandTotal > 0 ? grandValid * 100.0 / grandTotal : 0;
-            report.AppendLine($"{"TOTAL",-6} {grandTotal,7} {grandValid,7} {grandInc,7} {grandMiss,7} {grandPct,6:F1}%");
+            double grandStrictPct = grandTotal > 0 ? grandResolved * 100.0 / grandTotal : 0;
+            report.AppendLine($"{"TOTAL",-6} {grandTotal,7} {grandValid,7} {grandResolved,7} {grandInc,7} {grandMiss,7} {grandPct,6:F1}% {grandStrictPct,6:F1}%");
+            report.AppendLine();
+            report.AppendLine("Valid = tag has 8 non-empty segments");
+            report.AppendLine("Resolved = no placeholders (XX/ZZ/0000)");
 
             TaskDialog td = new TaskDialog("ISO Completeness Dashboard");
-            td.MainInstruction = $"Overall compliance: {grandPct:F1}% ({grandValid}/{grandTotal})";
+            td.MainInstruction = $"Compliance: {grandPct:F1}% | Strict: {grandStrictPct:F1}% ({grandResolved}/{grandTotal})";
             td.MainContent = report.ToString();
             td.Show();
 

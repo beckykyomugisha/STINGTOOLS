@@ -65,17 +65,31 @@ namespace StingTools.Core
                     return "L" + name.Substring(6).Trim().PadLeft(2, '0');
                 if (lower == "ground" || lower == "ground floor" || lower == "ground level")
                     return "GF";
-                if (lower.StartsWith("basement") || lower.StartsWith("b"))
+                if (lower.StartsWith("basement") || lower == "b1" || lower == "b2" ||
+                    lower == "b3" || lower == "b4" || lower == "b5" ||
+                    (lower.Length >= 2 && lower[0] == 'b' && char.IsDigit(lower[1])))
                 {
                     string digits = ExtractDigits(name);
                     return "B" + (digits.Length > 0 ? digits : "1");
                 }
-                if (lower.StartsWith("roof"))
+                if (lower.StartsWith("roof") || lower == "rf")
                     return "RF";
+                if (lower.StartsWith("mezzanine") || lower == "mezz")
+                    return "MZ";
+                if (lower.StartsWith("plant") && lower.Contains("room"))
+                    return "PL";
+
+                // Extract digits for "1st floor", "2nd floor", "L01" etc.
+                if (lower.Contains("first") || lower.Contains("1st"))
+                    return "L01";
+                if (lower.Contains("second") || lower.Contains("2nd"))
+                    return "L02";
+                if (lower.Contains("third") || lower.Contains("3rd"))
+                    return "L03";
 
                 return name.ToUpperInvariant()
                     .Replace(" ", "")
-                    .Substring(0, Math.Min(4, name.Length));
+                    .Substring(0, Math.Min(4, name.Replace(" ", "").Length));
             }
             catch (Exception ex)
             {
@@ -351,7 +365,9 @@ namespace StingTools.Core
                 return "BLD2";
             if (upper.Contains("BLD3") || upper.Contains("BUILDING 3") || upper.Contains("BLOCK C"))
                 return "BLD3";
-            if (upper.Contains("EXT") || upper.Contains("EXTERNAL") || upper.Contains("EXTERIOR"))
+            // Require word-boundary match for EXT to avoid matching "NEXT", "TEXTILE", "EXTENSION"
+            if (upper == "EXT" || upper.Contains("EXTERNAL") || upper.Contains("EXTERIOR") ||
+                upper.StartsWith("EXT ") || upper.Contains(" EXT ") || upper.EndsWith(" EXT"))
                 return "EXT";
 
             return null;
@@ -367,16 +383,36 @@ namespace StingTools.Core
             string upper = text.ToUpperInvariant();
 
             // Direct zone codes
-            if (upper.Contains("Z01") || upper.Contains("ZONE 1") || upper.Contains("ZONE A") || upper.Contains("WING A") || upper.Contains("NORTH"))
+            if (upper.Contains("Z01") || upper.Contains("ZONE 1") || upper.Contains("ZONE A") || upper.Contains("WING A"))
                 return "Z01";
-            if (upper.Contains("Z02") || upper.Contains("ZONE 2") || upper.Contains("ZONE B") || upper.Contains("WING B") || upper.Contains("SOUTH"))
+            if (upper.Contains("Z02") || upper.Contains("ZONE 2") || upper.Contains("ZONE B") || upper.Contains("WING B"))
                 return "Z02";
-            if (upper.Contains("Z03") || upper.Contains("ZONE 3") || upper.Contains("ZONE C") || upper.Contains("WING C") || upper.Contains("EAST"))
+            if (upper.Contains("Z03") || upper.Contains("ZONE 3") || upper.Contains("ZONE C") || upper.Contains("WING C"))
                 return "Z03";
-            if (upper.Contains("Z04") || upper.Contains("ZONE 4") || upper.Contains("ZONE D") || upper.Contains("WING D") || upper.Contains("WEST"))
+            if (upper.Contains("Z04") || upper.Contains("ZONE 4") || upper.Contains("ZONE D") || upper.Contains("WING D"))
                 return "Z04";
 
+            // Directional terms — require word-boundary match to avoid "NORTHAMPTON" etc.
+            if (MatchesWord(upper, "NORTH")) return "Z01";
+            if (MatchesWord(upper, "SOUTH")) return "Z02";
+            if (MatchesWord(upper, "EAST")) return "Z03";
+            if (MatchesWord(upper, "WEST")) return "Z04";
+
             return null;
+        }
+
+        /// <summary>Check if a word appears as a standalone token (not part of a longer word).</summary>
+        private static bool MatchesWord(string text, string word)
+        {
+            int idx = text.IndexOf(word);
+            while (idx >= 0)
+            {
+                bool startOk = idx == 0 || !char.IsLetter(text[idx - 1]);
+                bool endOk = (idx + word.Length) >= text.Length || !char.IsLetter(text[idx + word.Length]);
+                if (startOk && endOk) return true;
+                idx = text.IndexOf(word, idx + 1);
+            }
+            return false;
         }
     }
 

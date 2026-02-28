@@ -111,26 +111,34 @@ namespace StingTools.Tags
                 int processed = 0;
                 foreach (Element el in sorted)
                 {
-                    string catName = ParameterHelpers.GetCategoryName(el);
-
-                    // Pre-populate LOC/ZONE from spatial data before tagging
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
+                    try
                     {
-                        string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) populated++;
-                    }
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
-                    {
-                        string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) populated++;
-                    }
+                        string catName = ParameterHelpers.GetCategoryName(el);
 
-                    bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                    TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                        skipComplete: skipComplete,
-                        existingTags: tagIndex,
-                        collisionMode: collisionMode,
-                        stats: stats);
+                        // Pre-populate LOC/ZONE from spatial data before tagging
+                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
+                        {
+                            string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) populated++;
+                        }
+                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
+                        {
+                            string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) populated++;
+                        }
+
+                        bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
+                        TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
+                            skipComplete: skipComplete,
+                            existingTags: tagIndex,
+                            collisionMode: collisionMode,
+                            stats: stats);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error($"BatchTag: failed on element {el?.Id}: {ex.Message}", ex);
+                        stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
+                    }
 
                     processed++;
                     if (processed % 500 == 0)
@@ -165,9 +173,11 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Smart sort: Level (elevation ascending) -> Discipline -> Category.
-        /// Ensures contiguous sequence numbers within each group — all Mechanical on L01
-        /// get SEQ 0001-0050 before moving to L02.
+        /// Smart sort: Level (elevation ascending) -> Discipline -> SYS -> Category.
+        /// Ensures contiguous sequence numbers within each group — all HVAC on L01
+        /// get SEQ 0001-0050 before moving to DCW on L01, then L02.
+        /// The SYS sort key groups elements by system type within each discipline,
+        /// matching the SEQ key format (DISC_SYS_LVL) for optimal numbering.
         /// </summary>
         internal static List<Element> SmartSortElements(Document doc, List<Element> elements)
         {
@@ -191,6 +201,13 @@ namespace StingTools.Tags
                 {
                     string cat = ParameterHelpers.GetCategoryName(e);
                     return TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "ZZ";
+                })
+                .ThenBy(e =>
+                {
+                    // SYS sort key: groups elements by system within discipline
+                    string cat = ParameterHelpers.GetCategoryName(e);
+                    string sys = TagConfig.GetSysCode(cat);
+                    return !string.IsNullOrEmpty(sys) ? sys : "ZZZ";
                 })
                 .ThenBy(e => ParameterHelpers.GetCategoryName(e))
                 .ToList();

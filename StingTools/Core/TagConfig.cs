@@ -314,6 +314,7 @@ namespace StingTools.Core
     {
         public const int NumPad = 4;
         public const string Separator = "-";
+        public const int MaxCollisionDepth = 10000;
 
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
         public static Dictionary<string, string> DiscMap { get; private set; }
@@ -335,9 +336,30 @@ namespace StingTools.Core
 
         public static string ConfigSource { get; private set; }
 
+        /// <summary>Reverse lookup: category name → SYS code. Built lazily from SysMap.</summary>
+        private static Dictionary<string, string> _reverseSysMap;
+
         static TagConfig()
         {
             LoadDefaults();
+        }
+
+        /// <summary>Build or return the cached reverse SysMap (category → SYS code).</summary>
+        private static Dictionary<string, string> GetReverseSysMap()
+        {
+            if (_reverseSysMap == null)
+            {
+                _reverseSysMap = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var kvp in SysMap)
+                {
+                    foreach (string cat in kvp.Value)
+                    {
+                        if (!_reverseSysMap.ContainsKey(cat))
+                            _reverseSysMap[cat] = kvp.Key;
+                    }
+                }
+            }
+            return _reverseSysMap;
         }
 
         /// <summary>Load from a JSON config file, falling back to defaults.</summary>
@@ -365,6 +387,7 @@ namespace StingTools.Core
                 FuncMap = TryDeserialize<Dictionary<string, string>>(data, "FUNC_MAP") ?? DefaultFuncMap();
                 LocCodes = TryDeserialize<List<string>>(data, "LOC_CODES") ?? DefaultLocCodes();
                 ZoneCodes = TryDeserialize<List<string>>(data, "ZONE_CODES") ?? DefaultZoneCodes();
+                _reverseSysMap = null; // Invalidate cache
                 ConfigSource = "project_config.json";
             }
             catch (Exception ex)
@@ -382,18 +405,15 @@ namespace StingTools.Core
             FuncMap = DefaultFuncMap();
             LocCodes = DefaultLocCodes();
             ZoneCodes = DefaultZoneCodes();
+            _reverseSysMap = null; // Invalidate cache
             ConfigSource = "built-in defaults";
         }
 
-        /// <summary>Get the SYS code for a category name.</summary>
+        /// <summary>Get the SYS code for a category name. O(1) via cached reverse lookup.</summary>
         public static string GetSysCode(string categoryName)
         {
-            foreach (var kvp in SysMap)
-            {
-                if (kvp.Value.Contains(categoryName))
-                    return kvp.Key;
-            }
-            return string.Empty;
+            var reverse = GetReverseSysMap();
+            return reverse.TryGetValue(categoryName, out string sys) ? sys : string.Empty;
         }
 
         /// <summary>Get the FUNC code for a SYS code (basic lookup).</summary>
@@ -604,6 +624,26 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Strict tag completeness check. In addition to the standard check,
+        /// rejects tags where any segment is a placeholder ("XX", "ZZ", "0000").
+        /// Useful for compliance dashboards that require fully-resolved tags.
+        /// </summary>
+        public static bool TagIsFullyResolved(string tagValue, int expectedTokens = 8)
+        {
+            if (!TagIsComplete(tagValue, expectedTokens))
+                return false;
+            string[] parts = tagValue.Split(new[] { Separator[0] });
+            // Reject placeholder segments
+            var placeholders = new HashSet<string> { "XX", "ZZ", "0000" };
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (placeholders.Contains(parts[i]))
+                    return false;
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Shared tag-building logic. Derives all 8 tokens for an element and writes
         /// both the individual token parameters and the assembled tag.
         /// Used by AutoTag, BatchTag, TagSelected to eliminate code duplication.
@@ -683,14 +723,39 @@ namespace StingTools.Core
             // Intelligence Layer: MEP system-aware SYS/FUNC derivation
             // 6-layer system detection: connector → sys param → circuit → family → room → category
             string sys = GetMepSystemAwareSysCode(el, catName);
+
+            // Intelligence Layer: System-aware DISC correction for pipes
+            // Pipes are mapped to "M" by default, but if the connected system is plumbing
+            // (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
+            disc = GetSystemAwareDisc(disc, sys, catName);
+
             // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
             string func = GetSmartFuncCode(el, sys);
             string prod = GetFamilyAwareProdCode(el, catName);
+
+            // Log when defaults are applied for LOC/ZONE
+            if (stats != null)
+            {
+                if (loc == "BLD1" && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
+                    stats.RecordWarning($"Element {el.Id}: LOC defaulted to BLD1");
+                if (zone == "Z01" && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
+                    stats.RecordWarning($"Element {el.Id}: ZONE defaulted to Z01");
+            }
 
             string seqKey = $"{disc}_{sys}_{lvl}";
             if (!sequenceCounters.ContainsKey(seqKey))
                 sequenceCounters[seqKey] = 0;
             sequenceCounters[seqKey]++;
+
+            // SEQ overflow detection: warn when sequence exceeds format capacity
+            int maxSeq = (int)Math.Pow(10, NumPad) - 1; // 9999 for NumPad=4
+            if (sequenceCounters[seqKey] > maxSeq)
+            {
+                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq})";
+                StingLog.Warn(overflowMsg);
+                stats?.RecordWarning(overflowMsg);
+            }
+
             string seq = sequenceCounters[seqKey].ToString().PadLeft(NumPad, '0');
 
             string tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
@@ -698,7 +763,7 @@ namespace StingTools.Core
             // Collision detection: if this exact tag already exists, increment SEQ
             if (existingTags != null)
             {
-                int safetyLimit = 10000;
+                int safetyLimit = MaxCollisionDepth;
                 int collisionCount = 0;
                 while (existingTags.Contains(tag) && safetyLimit-- > 0)
                 {
@@ -738,6 +803,21 @@ namespace StingTools.Core
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.SEQ, seq);
             }
             ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
+
+            // Auto-write containers: populate discipline-specific and universal containers
+            // from the token values just written. This eliminates the need for a separate
+            // "Combine" step after tagging — tags are immediately available in all containers.
+            try
+            {
+                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                    ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Container write failed for {el.Id}: {ex.Message}");
+            }
+
             stats?.RecordTagged(catName, disc, sys, lvl);
             return true;
         }
@@ -983,6 +1063,41 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// System-aware DISC correction. Pipes/pipe fittings are categorised as "M"
+        /// (Mechanical) by default, but if the connected MEP system is plumbing
+        /// (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
+        /// Similarly, fire protection pipes should be "FP".
+        /// </summary>
+        public static string GetSystemAwareDisc(string disc, string sys, string categoryName)
+        {
+            // Only apply system-aware override for ambiguous categories (pipes, pipe fittings, etc.)
+            var pipeCategories = new HashSet<string>
+            {
+                "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes"
+            };
+            if (!pipeCategories.Contains(categoryName))
+                return disc;
+
+            // Override DISC based on the detected system
+            switch (sys)
+            {
+                case "DCW":
+                case "DHW":
+                case "SAN":
+                case "RWD":
+                case "GAS":
+                case "HWS":
+                    return "P";
+                case "FP":
+                    return "FP";
+                case "HVAC":
+                    return "M";
+                default:
+                    return disc; // Keep original mapping
+            }
+        }
+
+        /// <summary>
         /// Map a system name string to a SYS code. Used by Layer 1 (connector) and Layer 2 (parameter).
         /// Centralised mapping for all MEP system naming conventions.
         /// </summary>
@@ -990,19 +1105,30 @@ namespace StingTools.Core
         {
             if (string.IsNullOrEmpty(sysName)) return null;
 
-            // HVAC systems
+            // HVAC systems — full names and Revit abbreviated system types
             if (sysName.Contains("SUPPLY AIR") || sysName.Contains("SUPPLY DUCT")) return "HVAC";
             if (sysName.Contains("RETURN AIR") || sysName.Contains("RETURN DUCT")) return "HVAC";
             if (sysName.Contains("EXHAUST") || sysName.Contains("EXTRACT")) return "HVAC";
             if (sysName.Contains("FRESH AIR") || sysName.Contains("OUTSIDE AIR")) return "HVAC";
-            if (sysName.Contains("CHILLED") || sysName.Contains("COOLING") || sysName.Contains("CHW")) return "HVAC";
+            if (sysName.Contains("CHILLED") || sysName.Contains("COOLING")) return "HVAC";
             if (sysName.Contains("VENT") || sysName.Contains("VENTILATION")) return "HVAC";
+            // Abbreviated HVAC system names (Revit defaults and common shorthand)
+            if (sysName == "SA" || sysName.StartsWith("SA ") || sysName.Contains(" SA ")) return "HVAC";
+            if (sysName == "RA" || sysName.StartsWith("RA ") || sysName.Contains(" RA ")) return "HVAC";
+            if (sysName == "EA" || sysName.StartsWith("EA ") || sysName.Contains(" EA ")) return "HVAC";
+            if (sysName == "OA" || sysName.StartsWith("OA ") || sysName.Contains(" OA ")) return "HVAC";
+            if (sysName == "CHW" || sysName.StartsWith("CHW ") || sysName.Contains(" CHW ")) return "HVAC";
+            if (sysName == "CW" || sysName.StartsWith("CW ") || sysName.Contains(" CW ")) return "HVAC";
+            if (sysName == "FCU" || sysName.StartsWith("FCU ")) return "HVAC";
 
             // Heating / hot water systems
             if (sysName.Contains("HOT WATER") || sysName.Contains("DHW") || sysName.Contains("HWS")) return "HWS";
             if (sysName.Contains("HEATING") || sysName.Contains("LTHW") || sysName.Contains("MTHW")) return "HWS";
             if (sysName.Contains("RADIATOR") || sysName.Contains("UNDERFLOOR")) return "HWS";
             if (sysName.Contains("STEAM") || sysName.Contains("CONDENSATE")) return "HWS";
+            // Abbreviated heating
+            if (sysName == "LTHW" || sysName == "MTHW" || sysName == "HTHW") return "HWS";
+            if (sysName == "HW" || sysName.StartsWith("HW ")) return "HWS";
 
             // Domestic cold water
             if (sysName.Contains("COLD WATER") || sysName.Contains("CWS") || sysName.Contains("DCW")) return "DCW";
@@ -1016,10 +1142,13 @@ namespace StingTools.Core
             // Sanitary / drainage
             if (sysName.Contains("SANITARY") || sysName.Contains("WASTE") || sysName.Contains("SOIL")) return "SAN";
             if (sysName.Contains("DRAIN") || sysName.Contains("SEWAGE") || sysName.Contains("FOUL")) return "SAN";
+            // Abbreviated sanitary
+            if (sysName == "SVP" || sysName == "WP" || sysName.StartsWith("SVP ") || sysName.StartsWith("WP ")) return "SAN";
 
             // Rainwater
             if (sysName.Contains("RAINWATER") || sysName.Contains("STORM") || sysName.Contains("SURFACE WATER")) return "RWD";
             if (sysName.Contains("ROOF DRAIN")) return "RWD";
+            if (sysName == "RWP" || sysName.StartsWith("RWP ")) return "RWD";
 
             // Gas
             if (sysName.Contains("GAS") || sysName.Contains("NATURAL GAS") || sysName.Contains("LPG")) return "GAS";
@@ -1260,6 +1389,9 @@ namespace StingTools.Core
                 // Structure
                 { "Structural Columns", "S" }, { "Structural Framing", "S" },
                 { "Structural Foundations", "S" }, { "Columns", "S" },
+                // Curtain wall elements
+                { "Curtain Panels", "A" }, { "Curtain Wall Mullions", "A" },
+                { "Curtain Systems", "A" },
                 // Generic
                 { "Generic Models", "G" }, { "Specialty Equipment", "G" },
                 { "Medical Equipment", "G" },
@@ -1283,7 +1415,7 @@ namespace StingTools.Core
                 { "NCL", new List<string> { "Nurse Call Devices" } },
                 { "SEC", new List<string> { "Security Devices" } },
                 // Architecture
-                { "ARC", new List<string> { "Doors", "Windows", "Walls", "Floors", "Ceilings", "Roofs", "Rooms", "Furniture", "Furniture Systems", "Casework", "Railings", "Stairs", "Ramps" } },
+                { "ARC", new List<string> { "Doors", "Windows", "Walls", "Floors", "Ceilings", "Roofs", "Rooms", "Furniture", "Furniture Systems", "Casework", "Railings", "Stairs", "Ramps", "Curtain Panels", "Curtain Wall Mullions", "Curtain Systems" } },
                 // Structure
                 { "STR", new List<string> { "Structural Columns", "Structural Framing", "Structural Foundations", "Columns" } },
                 // Generic
@@ -1316,6 +1448,8 @@ namespace StingTools.Core
                 { "Railings", "RLG" }, { "Stairs", "STR" }, { "Ramps", "RMP" },
                 { "Structural Columns", "COL" }, { "Structural Framing", "BM" },
                 { "Structural Foundations", "FDN" }, { "Columns", "COL" },
+                { "Curtain Panels", "CPN" }, { "Curtain Wall Mullions", "MUL" },
+                { "Curtain Systems", "CWS" },
                 { "Generic Models", "GEN" }, { "Specialty Equipment", "SPE" },
                 { "Medical Equipment", "MED" },
             };
@@ -1325,7 +1459,7 @@ namespace StingTools.Core
         {
             return new Dictionary<string, string>
             {
-                { "HVAC", "SUP" }, { "HWS", "HTG" }, { "DHW", "DCW" },
+                { "HVAC", "SUP" }, { "HWS", "HTG" }, { "DHW", "DHW" },
                 { "DCW", "DCW" }, { "SAN", "SAN" }, { "RWD", "RWD" }, { "GAS", "GAS" },
                 { "FP", "FP" }, { "LV", "PWR" }, { "FLS", "FLS" },
                 { "COM", "COM" }, { "ICT", "ICT" }, { "NCL", "NCL" },

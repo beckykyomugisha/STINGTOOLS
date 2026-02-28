@@ -77,16 +77,6 @@ namespace StingTools.Tags
                 {
                     tag1Valid++;
                     tag1Status = "VALID";
-
-                    // ISO 19650 format validation on complete tags
-                    string formatError = ISO19650Validator.ValidateTagFormat(tag1);
-                    if (formatError != null)
-                    {
-                        tag1Status = "ISO_INVALID";
-                        isoViolations++;
-                        IncrementDict(isoIssueTypes, formatError);
-                        IncrementDict(issuesByCategory, catName);
-                    }
                 }
                 else
                 {
@@ -106,28 +96,18 @@ namespace StingTools.Tags
                         tokensMissing++;
                         IncrementDict(tokenIssues, token);
                     }
-                    else
-                    {
-                        // ISO 19650 code validation for non-empty tokens
-                        string tokenError = ISO19650Validator.ValidateToken(token, val);
-                        if (tokenError != null)
-                        {
-                            isoViolations++;
-                            IncrementDict(isoIssueTypes, tokenError);
-                        }
-                    }
                 }
 
-                // Cross-validate DISC against element category
-                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-                if (!string.IsNullOrEmpty(disc))
+                // Single-pass ISO validation via ValidateElement (avoids double-counting)
+                var elementErrors = ISO19650Validator.ValidateElement(el);
+                int elementIsoErrors = elementErrors.Count;
+                if (elementIsoErrors > 0)
                 {
-                    string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string dd) ? dd : null;
-                    if (expectedDisc != null && expectedDisc != disc)
-                    {
-                        isoViolations++;
-                        IncrementDict(isoIssueTypes, $"DISC mismatch: {catName} expects {expectedDisc}");
-                    }
+                    isoViolations += elementIsoErrors;
+                    if (tag1Status == "VALID") tag1Status = "ISO_INVALID";
+                    IncrementDict(issuesByCategory, catName);
+                    foreach (string err in elementErrors)
+                        IncrementDict(isoIssueTypes, err);
                 }
 
                 // Check TAG_2-6 containers
@@ -142,7 +122,6 @@ namespace StingTools.Tags
                 containersEmpty += emptyContainers;
 
                 // Fully valid = TAG_1 complete + all tokens filled + containers populated + ISO valid
-                int elementIsoErrors = ISO19650Validator.ValidateElement(el).Count;
                 if (tag1Status == "VALID" && emptyTokenCount == 0 && emptyContainers == 0 && elementIsoErrors == 0)
                     fullyValid++;
 
