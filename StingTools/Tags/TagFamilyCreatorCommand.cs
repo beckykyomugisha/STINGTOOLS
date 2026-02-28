@@ -308,6 +308,38 @@ namespace StingTools.Tags
         }
 
         /// <summary>
+        /// Search for a pre-configured seed family (.rfa) with labels already bound.
+        /// Seed families are the gold standard — they have Label → ASS_TAG_1_TXT
+        /// already configured, so they work immediately without manual Family Editor steps.
+        ///
+        /// Search order:
+        ///   1. Data/TagFamilies/Seeds/  (distributed seed files)
+        ///   2. Data/TagFamilies/        (user-configured files from previous Configure Labels run)
+        /// Seed files are identified by having a "_seed" suffix or being in the Seeds/ subdirectory.
+        /// </summary>
+        public static string FindSeedFamily(BuiltInCategory bic)
+        {
+            string baseName = GetFamilyFileName(bic);
+            string nameNoExt = GetFamilyName(bic);
+            string dataPath = StingToolsApp.DataPath;
+            if (string.IsNullOrEmpty(dataPath)) return null;
+
+            // Check Seeds/ subdirectory first (distributed with the plugin)
+            string seedDir = Path.Combine(dataPath, "TagFamilies", "Seeds");
+            if (Directory.Exists(seedDir))
+            {
+                string seedPath = Path.Combine(seedDir, baseName);
+                if (File.Exists(seedPath)) return seedPath;
+
+                // Also check for _seed suffix variant
+                string seedSuffix = Path.Combine(seedDir, nameNoExt + "_seed.rfa");
+                if (File.Exists(seedSuffix)) return seedSuffix;
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Get the output directory for tag families.
         /// Creates a TagFamilies/ subdirectory alongside the plugin data.
         /// </summary>
@@ -467,10 +499,30 @@ namespace StingTools.Tags
 
                 try
                 {
+                    // Strategy 3: Check for pre-configured seed files (with labels already bound)
+                    // These are .rfa files manually configured via the Family Editor and
+                    // placed in Data/TagFamilies/ for distribution. They take priority
+                    // because they have labels already pointing to ASS_TAG_1_TXT.
+                    string seedPath = TagFamilyConfig.FindSeedFamily(bic);
+                    if (!string.IsNullOrEmpty(seedPath))
+                    {
+                        if (LoadFamilyIntoProject(doc, seedPath, famName))
+                        {
+                            report.AppendLine($"  [SEED] {catDisplay} — loaded pre-configured seed family");
+                            loaded++;
+                        }
+                        else
+                        {
+                            report.AppendLine($"  [FAIL] {catDisplay} — seed load failed");
+                            failed++;
+                            failures.Add($"{catDisplay}: seed family load failed");
+                        }
+                        continue;
+                    }
+
                     // Check if .rfa already exists on disk (from previous run)
                     if (File.Exists(outputPath))
                     {
-                        // Just load the existing file
                         if (LoadFamilyIntoProject(doc, outputPath, famName))
                         {
                             report.AppendLine($"  [LOAD] {catDisplay} — loaded from existing .rfa");
@@ -485,7 +537,7 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    // Create family from template
+                    // Create family from template (Strategy 1 + 2 fallback)
                     Document famDoc = app.NewFamilyDocument(templatePath);
                     if (famDoc == null)
                     {
@@ -540,13 +592,16 @@ namespace StingTools.Tags
             report.AppendLine($"Missing:  {templateMissing} (no template)");
             report.AppendLine($"Failed:   {failed}");
 
-            if (created > 0 || loaded > 0)
+            if (created > 0)
             {
                 report.AppendLine();
                 report.AppendLine("NEXT STEP:");
                 report.AppendLine("Run 'Configure Labels' to open each family in the");
                 report.AppendLine("Family Editor and set the Label to ASS_TAG_1_TXT.");
                 report.AppendLine("The wizard will guide you step by step.");
+                report.AppendLine();
+                report.AppendLine("TIP: After configuring, copy finished .rfa files to");
+                report.AppendLine("Data/TagFamilies/Seeds/ to skip this step next time.");
             }
 
             TaskDialog td = new TaskDialog("Create Tag Families");
