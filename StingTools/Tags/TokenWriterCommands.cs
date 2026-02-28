@@ -68,6 +68,18 @@ namespace StingTools.Tags
 
             if (value == null) return Result.Cancelled;
 
+            // Validate the chosen value against ISO 19650 code lists
+            string validationError = ISO19650Validator.ValidateToken(paramName, value);
+            if (validationError != null)
+            {
+                var warnDlg = new TaskDialog("Token Validation Warning");
+                warnDlg.MainInstruction = "ISO 19650 validation warning";
+                warnDlg.MainContent = $"{validationError}\n\nContinue anyway?";
+                warnDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                if (warnDlg.Show() != TaskDialogResult.Yes)
+                    return Result.Cancelled;
+            }
+
             int written = 0;
             using (Transaction tx = new Transaction(doc, $"Set {label}"))
             {
@@ -93,8 +105,8 @@ namespace StingTools.Tags
     public class SetDiscCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
-            => TokenWriter.WriteToken(cmd, "ASS_DISCIPLINE_COD_TXT", "Discipline (DISC)",
-                new[] { "M", "E", "P", "A" });
+            => TokenWriter.WriteToken(cmd, ParamRegistry.DISC, "Discipline (DISC)",
+                new[] { "M", "E", "P", "A", "S", "FP", "LV", "G" });
     }
 
     [Transaction(TransactionMode.Manual)]
@@ -102,7 +114,7 @@ namespace StingTools.Tags
     public class SetLocCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
-            => TokenWriter.WriteToken(cmd, "ASS_LOC_TXT", "Location (LOC)",
+            => TokenWriter.WriteToken(cmd, ParamRegistry.LOC, "Location (LOC)",
                 TagConfig.LocCodes.ToArray());
     }
 
@@ -111,7 +123,7 @@ namespace StingTools.Tags
     public class SetZoneCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
-            => TokenWriter.WriteToken(cmd, "ASS_ZONE_TXT", "Zone (ZONE)",
+            => TokenWriter.WriteToken(cmd, ParamRegistry.ZONE, "Zone (ZONE)",
                 TagConfig.ZoneCodes.ToArray());
     }
 
@@ -120,7 +132,7 @@ namespace StingTools.Tags
     public class SetStatusCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
-            => TokenWriter.WriteToken(cmd, "ASS_STATUS_TXT", "Status",
+            => TokenWriter.WriteToken(cmd, ParamRegistry.STATUS, "Status",
                 new[] { "EXISTING", "NEW", "DEMOLISHED", "TEMPORARY" });
     }
 
@@ -163,33 +175,33 @@ namespace StingTools.Tags
                     if (!known.Contains(cat)) continue;
 
                     // Skip if already has a sequence number
-                    string existing = ParameterHelpers.GetString(elem, "ASS_SEQ_NUM_TXT");
+                    string existing = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
                     if (!string.IsNullOrEmpty(existing)) continue;
 
-                    string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                    string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                    string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
+                    string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                    string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                    string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
                     if (string.IsNullOrEmpty(disc))
                     {
                         disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "XX";
-                        ParameterHelpers.SetIfEmpty(elem, "ASS_DISCIPLINE_COD_TXT", disc);
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.DISC, disc);
                     }
                     if (string.IsNullOrEmpty(sys))
                     {
-                        sys = TagConfig.GetSysCode(cat);
-                        ParameterHelpers.SetIfEmpty(elem, "ASS_SYSTEM_TYPE_TXT", sys);
+                        sys = TagConfig.GetMepSystemAwareSysCode(elem, cat);
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys);
                     }
                     if (string.IsNullOrEmpty(lvl))
                     {
                         lvl = ParameterHelpers.GetLevelCode(doc, elem);
-                        ParameterHelpers.SetIfEmpty(elem, "ASS_LVL_COD_TXT", lvl);
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
                     }
 
                     string key = $"{disc}_{sys}_{lvl}";
                     if (!maxSeq.ContainsKey(key)) maxSeq[key] = 0;
                     maxSeq[key]++;
-                    string seq = maxSeq[key].ToString().PadLeft(TagConfig.NumPad, '0');
-                    ParameterHelpers.SetString(elem, "ASS_SEQ_NUM_TXT", seq, overwrite: true);
+                    string seq = maxSeq[key].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                    ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seq, overwrite: true);
                     assigned++;
                 }
                 tx.Commit();
@@ -201,85 +213,16 @@ namespace StingTools.Tags
     }
 
     /// <summary>
-    /// Build/rebuild assembled tags (ASS_TAG_1_TXT) from existing individual token
-    /// parameters without changing any token values. Respects existing LOC/ZONE values.
+    /// Build/rebuild assembled tags from existing individual token parameters
+    /// without changing any token values. Respects existing LOC/ZONE values.
     ///
-    /// Enhanced: writes ALL 37 tag containers (not just ASS_TAG_1_TXT) with
-    /// collision detection — auto-increments SEQ if a duplicate tag is detected.
+    /// Writes ALL tag containers (from ParamRegistry) with collision detection —
+    /// auto-increments SEQ if a duplicate tag is detected.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class BuildTagsCommand : IExternalCommand
     {
-        /// <summary>All 8 source token parameters in tag order.</summary>
-        private static readonly string[] AllTokenParams = new[]
-        {
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-        };
-
-        /// <summary>
-        /// Container definitions for all 37 tag parameters across 16 groups.
-        /// Each tuple: (paramName, sourceTokenIndices, separator).
-        /// Indices refer to AllTokenParams: 0=DISC,1=LOC,2=ZONE,3=LVL,4=SYS,5=FUNC,6=PROD,7=SEQ.
-        /// </summary>
-        private static readonly (string param, int[] tokens, string sep, string[] categories)[] Containers = new[]
-        {
-            // Universal (all categories)
-            ("ASS_TAG_1_TXT", new[] {0,1,2,3,4,5,6,7}, "-", (string[])null),
-            ("ASS_TAG_2_TXT", new[] {0,6,7},            "-", (string[])null),
-            ("ASS_TAG_3_TXT", new[] {1,2,3},            "-", (string[])null),
-            ("ASS_TAG_4_TXT", new[] {4,5},              "-", (string[])null),
-            ("ASS_TAG_5_TXT", new[] {0,1,2,3},          "-", (string[])null),
-            ("ASS_TAG_6_TXT", new[] {4,5,6,7},          "-", (string[])null),
-            // HVAC Equipment
-            ("HVC_EQP_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Mechanical Equipment"}),
-            ("HVC_EQP_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Mechanical Equipment"}),
-            ("HVC_EQP_TAG_03_TXT", new[] {4,5,6},            "-", new[] {"Mechanical Equipment"}),
-            // HVAC Ductwork
-            ("HVC_DCT_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Ducts","Duct Fittings","Flex Ducts","Air Terminals","Duct Accessories"}),
-            ("HVC_DCT_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Ducts","Duct Fittings","Flex Ducts","Air Terminals","Duct Accessories"}),
-            ("HVC_DCT_TAG_03_TXT", new[] {4,5},              "-", new[] {"Ducts","Duct Fittings","Flex Ducts","Air Terminals","Duct Accessories"}),
-            // Flex Ducts
-            ("HVC_FLX_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Flex Ducts"}),
-            // Electrical Equipment
-            ("ELC_EQP_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Electrical Equipment"}),
-            ("ELC_EQP_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Electrical Equipment"}),
-            // Electrical Fixtures
-            ("ELE_FIX_TAG_1_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Electrical Fixtures"}),
-            ("ELE_FIX_TAG_2_TXT", new[] {0,6,7},            "-", new[] {"Electrical Fixtures"}),
-            // Lighting
-            ("LTG_FIX_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Lighting Fixtures","Lighting Devices"}),
-            ("LTG_FIX_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Lighting Fixtures","Lighting Devices"}),
-            // Pipework / Plumbing
-            ("PLM_EQP_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Pipes","Pipe Fittings","Pipe Accessories","Flex Pipes","Plumbing Fixtures"}),
-            ("PLM_EQP_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Pipes","Pipe Fittings","Pipe Accessories","Flex Pipes","Plumbing Fixtures"}),
-            // Fire & Life Safety
-            ("FLS_DEV_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Sprinklers","Fire Alarm Devices"}),
-            ("FLS_DEV_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Sprinklers","Fire Alarm Devices"}),
-            // Conduits
-            ("ELC_CDT_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Conduits","Conduit Fittings"}),
-            ("ELC_CDT_TAG_02_TXT", new[] {0,6,7},            "-", new[] {"Conduits","Conduit Fittings"}),
-            // Cable Trays
-            ("ELC_CTR_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Cable Trays","Cable Tray Fittings"}),
-            // Communications
-            ("COM_DEV_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Communication Devices","Telephone Devices"}),
-            // Security
-            ("SEC_DEV_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Security Devices"}),
-            // Nurse Call
-            ("NCL_DEV_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Nurse Call Devices"}),
-            // ICT
-            ("ICT_DEV_TAG_01_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Data Devices"}),
-            // Material Tags
-            ("MAT_TAG_1_TXT", new[] {0,1,2,3,4,5,6,7}, "-", new[] {"Walls","Floors","Ceilings","Roofs","Doors","Windows"}),
-            ("MAT_TAG_2_TXT", new[] {0,6,7},            "-", new[] {"Walls","Floors","Ceilings","Roofs","Doors","Windows"}),
-            ("MAT_TAG_3_TXT", new[] {1,2,3},            "-", new[] {"Walls","Floors","Ceilings","Roofs","Doors","Windows"}),
-            ("MAT_TAG_4_TXT", new[] {4,5},              "-", new[] {"Walls","Floors","Ceilings","Roofs","Doors","Windows"}),
-            ("MAT_TAG_5_TXT", new[] {0,1,2,3},          "-", new[] {"Walls","Floors","Ceilings","Roofs","Doors","Windows"}),
-            ("MAT_TAG_6_TXT", new[] {4,5,6,7},          "-", new[] {"Walls","Floors","Ceilings","Roofs","Doors","Windows"}),
-        };
-
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
             UIDocument uidoc = cmd.Application.ActiveUIDocument;
@@ -307,7 +250,7 @@ namespace StingTools.Tags
 
             int built = 0;
             int collisions = 0;
-            int containers = 0;
+            int containerWrites = 0;
             int skipped = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Build Tags + All Containers"))
@@ -320,18 +263,44 @@ namespace StingTools.Tags
 
                     string catName = ParameterHelpers.GetCategoryName(elem);
 
-                    // Read all 8 tokens
-                    string[] tokenValues = new string[AllTokenParams.Length];
-                    for (int i = 0; i < AllTokenParams.Length; i++)
-                        tokenValues[i] = ParameterHelpers.GetString(elem, AllTokenParams[i]);
+                    // Read all 8 tokens, auto-deriving any empty ones
+                    string[] tokenValues = ParamRegistry.ReadTokenValues(elem);
 
                     string disc = tokenValues[0]; // DISC
-                    if (string.IsNullOrEmpty(disc)) { skipped++; continue; }
+                    if (string.IsNullOrEmpty(disc))
+                    {
+                        disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "";
+                        if (string.IsNullOrEmpty(disc)) { skipped++; continue; }
+                        tokenValues[0] = disc;
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.DISC, disc);
+                    }
+
+                    // Auto-derive SYS if missing (MEP-aware 6-layer detection)
+                    if (string.IsNullOrEmpty(tokenValues[4]))
+                    {
+                        string sys = TagConfig.GetMepSystemAwareSysCode(elem, catName);
+                        if (!string.IsNullOrEmpty(sys))
+                        {
+                            tokenValues[4] = sys;
+                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys);
+                        }
+                    }
+
+                    // Auto-derive FUNC if missing (smart subsystem differentiation)
+                    if (string.IsNullOrEmpty(tokenValues[5]))
+                    {
+                        string func = TagConfig.GetSmartFuncCode(elem, tokenValues[4]);
+                        if (!string.IsNullOrEmpty(func))
+                        {
+                            tokenValues[5] = func;
+                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func);
+                        }
+                    }
 
                     string seq = tokenValues[7]; // SEQ
 
                     // Build the full 8-segment tag
-                    string tag = string.Join(TagConfig.Separator, tokenValues);
+                    string tag = string.Join(ParamRegistry.Separator, tokenValues);
 
                     // Collision detection: if tag exists, auto-increment SEQ
                     if (existingTags.Contains(tag))
@@ -345,50 +314,27 @@ namespace StingTools.Tags
                         while (existingTags.Contains(tag) && safety-- > 0)
                         {
                             seqCounters[seqKey]++;
-                            seq = seqCounters[seqKey].ToString().PadLeft(TagConfig.NumPad, '0');
+                            seq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
                             tokenValues[7] = seq;
-                            tag = string.Join(TagConfig.Separator, tokenValues);
+                            tag = string.Join(ParamRegistry.Separator, tokenValues);
                         }
 
                         // Write the new SEQ back to the element
-                        ParameterHelpers.SetString(elem, "ASS_SEQ_NUM_TXT", seq, overwrite: true);
+                        ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seq, overwrite: true);
                         collisions++;
                     }
 
                     // Register tag in the index
                     existingTags.Add(tag);
 
-                    // Write ASS_TAG_1_TXT (the master assembled tag)
-                    ParameterHelpers.SetString(elem, "ASS_TAG_1_TXT", tag, overwrite: true);
+                    // Write TAG1 (the master assembled tag)
+                    ParameterHelpers.SetString(elem, ParamRegistry.TAG1, tag, overwrite: true);
                     built++;
 
-                    // Write ALL 37 containers (category-filtered)
-                    foreach (var (param, tokenIdxs, sep, categories) in Containers)
-                    {
-                        // Skip ASS_TAG_1_TXT (already written above)
-                        if (param == "ASS_TAG_1_TXT") continue;
-
-                        // Category filter: skip if container doesn't apply to this element
-                        if (categories != null && !Array.Exists(categories, c => c == catName))
-                            continue;
-
-                        // Assemble container value from specified token indices
-                        var parts = new List<string>();
-                        bool anyValue = false;
-                        foreach (int idx in tokenIdxs)
-                        {
-                            string val = tokenValues[idx];
-                            parts.Add(val);
-                            if (!string.IsNullOrEmpty(val)) anyValue = true;
-                        }
-
-                        if (anyValue)
-                        {
-                            string assembled = string.Join(sep, parts);
-                            if (ParameterHelpers.SetString(elem, param, assembled, overwrite: true))
-                                containers++;
-                        }
-                    }
+                    // Write ALL containers (category-filtered) via ParamRegistry
+                    containerWrites += ParamRegistry.WriteContainers(
+                        elem, tokenValues, catName, overwrite: true,
+                        skipParam: ParamRegistry.TAG1);
                 }
                 tx.Commit();
             }
@@ -397,17 +343,21 @@ namespace StingTools.Tags
             report.AppendLine($"Built tags for {built} elements.");
             if (collisions > 0)
                 report.AppendLine($"Resolved {collisions} collisions (auto-incremented SEQ).");
-            report.AppendLine($"Wrote {containers} container parameters (37 containers × {built} elements).");
+            report.AppendLine($"Wrote {containerWrites} container parameters across {built} elements.");
             if (skipped > 0)
                 report.AppendLine($"Skipped {skipped} elements (no DISC token).");
 
             TaskDialog.Show("Build Tags", report.ToString());
-            StingLog.Info($"BuildTags: built={built}, collisions={collisions}, containers={containers}");
+            StingLog.Info($"BuildTags: built={built}, collisions={collisions}, containers={containerWrites}");
             return Result.Succeeded;
         }
     }
 
-    /// <summary>ISO 19650 completeness dashboard — reports per-discipline compliance.</summary>
+    /// <summary>
+    /// ISO 19650 completeness dashboard — reports per-discipline compliance.
+    /// Shows both standard compliance (tag has 8 non-empty segments) and strict
+    /// compliance (no XX/ZZ placeholder segments = fully resolved tags).
+    /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class CompletenessDashboardCommand : IExternalCommand
     {
@@ -416,7 +366,7 @@ namespace StingTools.Tags
             Document doc = cmd.Application.ActiveUIDocument.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var stats = new Dictionary<string, (int total, int valid, int incomplete, int missing)>();
+            var stats = new Dictionary<string, (int total, int valid, int resolved, int incomplete, int missing)>();
 
             foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
@@ -424,42 +374,50 @@ namespace StingTools.Tags
                 if (!known.Contains(cat)) continue;
 
                 string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "XX";
-                if (!stats.ContainsKey(disc)) stats[disc] = (0, 0, 0, 0);
+                if (!stats.ContainsKey(disc)) stats[disc] = (0, 0, 0, 0, 0);
 
                 var s = stats[disc];
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag))
-                    stats[disc] = (s.total + 1, s.valid, s.incomplete, s.missing + 1);
+                    stats[disc] = (s.total + 1, s.valid, s.resolved, s.incomplete, s.missing + 1);
+                else if (TagConfig.TagIsFullyResolved(tag))
+                    stats[disc] = (s.total + 1, s.valid + 1, s.resolved + 1, s.incomplete, s.missing);
                 else if (TagConfig.TagIsComplete(tag))
-                    stats[disc] = (s.total + 1, s.valid + 1, s.incomplete, s.missing);
+                    stats[disc] = (s.total + 1, s.valid + 1, s.resolved, s.incomplete, s.missing);
                 else
-                    stats[disc] = (s.total + 1, s.valid, s.incomplete + 1, s.missing);
+                    stats[disc] = (s.total + 1, s.valid, s.resolved, s.incomplete + 1, s.missing);
             }
 
             var report = new StringBuilder();
             report.AppendLine("═══ ISO 19650 Completeness Dashboard ═══");
             report.AppendLine();
-            report.AppendLine($"{"DISC",-6} {"Total",7} {"Valid",7} {"Incp",7} {"Miss",7} {"Comp%",7}");
-            report.AppendLine(new string('─', 42));
+            report.AppendLine($"{"DISC",-6} {"Total",7} {"Valid",7} {"Resol",7} {"Incp",7} {"Miss",7} {"Comp%",7} {"Strict%",7}");
+            report.AppendLine(new string('─', 56));
 
-            int grandTotal = 0, grandValid = 0, grandInc = 0, grandMiss = 0;
+            int grandTotal = 0, grandValid = 0, grandResolved = 0, grandInc = 0, grandMiss = 0;
             foreach (var kvp in stats.OrderBy(x => x.Key))
             {
                 var s = kvp.Value;
                 double pct = s.total > 0 ? s.valid * 100.0 / s.total : 0;
-                report.AppendLine($"{kvp.Key,-6} {s.total,7} {s.valid,7} {s.incomplete,7} {s.missing,7} {pct,6:F1}%");
+                double strictPct = s.total > 0 ? s.resolved * 100.0 / s.total : 0;
+                report.AppendLine($"{kvp.Key,-6} {s.total,7} {s.valid,7} {s.resolved,7} {s.incomplete,7} {s.missing,7} {pct,6:F1}% {strictPct,6:F1}%");
                 grandTotal += s.total;
                 grandValid += s.valid;
+                grandResolved += s.resolved;
                 grandInc += s.incomplete;
                 grandMiss += s.missing;
             }
 
-            report.AppendLine(new string('─', 42));
+            report.AppendLine(new string('─', 56));
             double grandPct = grandTotal > 0 ? grandValid * 100.0 / grandTotal : 0;
-            report.AppendLine($"{"TOTAL",-6} {grandTotal,7} {grandValid,7} {grandInc,7} {grandMiss,7} {grandPct,6:F1}%");
+            double grandStrictPct = grandTotal > 0 ? grandResolved * 100.0 / grandTotal : 0;
+            report.AppendLine($"{"TOTAL",-6} {grandTotal,7} {grandValid,7} {grandResolved,7} {grandInc,7} {grandMiss,7} {grandPct,6:F1}% {grandStrictPct,6:F1}%");
+            report.AppendLine();
+            report.AppendLine("Valid = tag has 8 non-empty segments");
+            report.AppendLine("Resolved = no placeholders (XX/ZZ/0000)");
 
             TaskDialog td = new TaskDialog("ISO Completeness Dashboard");
-            td.MainInstruction = $"Overall compliance: {grandPct:F1}% ({grandValid}/{grandTotal})";
+            td.MainInstruction = $"Compliance: {grandPct:F1}% | Strict: {grandStrictPct:F1}% ({grandResolved}/{grandTotal})";
             td.MainContent = report.ToString();
             td.Show();
 

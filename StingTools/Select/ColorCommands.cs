@@ -341,9 +341,9 @@ namespace StingTools.Select
             // Show common tag params first, then all others
             var priorityParams = new[]
             {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_TAG_1_TXT", "Mark",
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.TAG1, "Mark",
                 "Comments", "Type Name", "Family", "Level"
             };
 
@@ -734,22 +734,22 @@ namespace StingTools.Select
             TaskDialog paramDlg = new TaskDialog("Create Filters — Parameter");
             paramDlg.MainInstruction = "Which parameter were elements colored by?";
             paramDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "ASS_DISCIPLINE_COD_TXT", "Discipline code (most common)");
+                ParamRegistry.DISC, "Discipline code (most common)");
             paramDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "ASS_SYSTEM_TYPE_TXT", "System type");
+                ParamRegistry.SYS, "System type");
             paramDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "ASS_LOC_TXT", "Location code");
+                ParamRegistry.LOC, "Location code");
             paramDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "ASS_ZONE_TXT", "Zone code");
+                ParamRegistry.ZONE, "Zone code");
             paramDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             string paramName;
             switch (paramDlg.Show())
             {
-                case TaskDialogResult.CommandLink1: paramName = "ASS_DISCIPLINE_COD_TXT"; break;
-                case TaskDialogResult.CommandLink2: paramName = "ASS_SYSTEM_TYPE_TXT"; break;
-                case TaskDialogResult.CommandLink3: paramName = "ASS_LOC_TXT"; break;
-                case TaskDialogResult.CommandLink4: paramName = "ASS_ZONE_TXT"; break;
+                case TaskDialogResult.CommandLink1: paramName = ParamRegistry.DISC; break;
+                case TaskDialogResult.CommandLink2: paramName = ParamRegistry.SYS; break;
+                case TaskDialogResult.CommandLink3: paramName = ParamRegistry.LOC; break;
+                case TaskDialogResult.CommandLink4: paramName = ParamRegistry.ZONE; break;
                 default: return Result.Cancelled;
             }
 

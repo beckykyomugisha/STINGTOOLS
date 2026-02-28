@@ -331,7 +331,7 @@ namespace StingTools.Temp
                                     {
                                         var ogs = tmpl.GetFilterOverrides(fid);
                                         if (ogs.ProjectionLineColor.IsValid ||
-                                            ogs.IsHalftone ||
+                                            ogs.Halftone ||
                                             ogs.Transparency > 0)
                                             overridden++;
                                     }
@@ -432,7 +432,7 @@ namespace StingTools.Temp
                     desc.Append($" LineCol=({ogs.ProjectionLineColor.Red},{ogs.ProjectionLineColor.Green},{ogs.ProjectionLineColor.Blue})");
                 if (ogs.ProjectionLineWeight > 0)
                     desc.Append($" LineWt={ogs.ProjectionLineWeight}");
-                if (ogs.IsHalftone)
+                if (ogs.Halftone)
                     desc.Append(" Halftone");
                 if (ogs.Transparency > 0)
                     desc.Append($" Trans={ogs.Transparency}%");
@@ -540,7 +540,7 @@ namespace StingTools.Temp
                 try
                 {
                     var ogs = template.GetFilterOverrides(fid);
-                    if (ogs.ProjectionLineColor.IsValid || ogs.IsHalftone ||
+                    if (ogs.ProjectionLineColor.IsValid || ogs.Halftone ||
                         ogs.Transparency > 0)
                     { anyOverride = true; break; }
                 }
@@ -1723,12 +1723,26 @@ namespace StingTools.Temp
                         double spacing1 = s1 * MmToFeet;
                         double spacing2 = s2 * MmToFeet;
                         if (spacing1 > 0)
-                            grids.Add(new FillGrid(a1 * DegToRad, 0, 0, spacing1, new List<double>()));
+                        {
+                            var g1 = new FillGrid();
+                            g1.Angle = a1 * DegToRad;
+                            g1.Offset = spacing1;
+                            grids.Add(g1);
+                        }
                         if (spacing2 > 0)
-                            grids.Add(new FillGrid(a2 * DegToRad, 0, 0, spacing2, new List<double>()));
+                        {
+                            var g2 = new FillGrid();
+                            g2.Angle = a2 * DegToRad;
+                            g2.Offset = spacing2;
+                            grids.Add(g2);
+                        }
                         if (grids.Count > 0)
                         {
-                            FillPatternElement.Create(doc, new FillPattern(name, target, grids));
+                            var pattern = new FillPattern();
+                            pattern.Target = target;
+                            pattern.SetFillGrids(grids);
+                            pattern.Name = name;
+                            FillPatternElement.Create(doc, pattern);
                             created++;
                         }
                     }
@@ -3344,7 +3358,7 @@ namespace StingTools.Temp
                                     // Check if element has any non-default overrides
                                     bool hasOverride =
                                         currentOgs.ProjectionLineColor.IsValid ||
-                                        currentOgs.IsHalftone ||
+                                        currentOgs.Halftone ||
                                         currentOgs.Transparency > 0 ||
                                         currentOgs.ProjectionLineWeight > 0;
 

@@ -104,124 +104,14 @@ namespace StingTools.Tags
             int totalProcessed = 0;
             int locDetected = 0;
             int zoneDetected = 0;
+            int errors = 0;
 
-            // Token parameter names for combine step
-            string[] allTokenParams = new[]
-            {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-            };
-            string[] shortIdTokens = new[]
-            {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-            };
-            string[] sysRefTokens = new[]
-            {
-                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT",
-            };
-            string[] locationTokens = new[]
-            {
-                "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
-            };
-            string[] systemTokens = new[]
-            {
-                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            };
-            string[] line1Tokens = new[]
-            {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
-            };
-            string[] line2Tokens = new[]
-            {
-                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-            };
-
-            // Universal containers (apply to all tagged elements)
-            var universalContainers = new (string param, string[] tokens)[]
-            {
-                ("ASS_TAG_1_TXT", allTokenParams),
-                ("ASS_TAG_2_TXT", shortIdTokens),
-                ("ASS_TAG_3_TXT", locationTokens),
-                ("ASS_TAG_4_TXT", systemTokens),
-                ("ASS_TAG_5_TXT", line1Tokens),
-                ("ASS_TAG_6_TXT", line2Tokens),
-            };
-
-            // Discipline-specific containers (category-filtered)
-            var disciplineContainers = new (string param, string[] tokens, HashSet<string> categories)[]
-            {
-                // HVAC Equipment
-                ("HVC_EQP_TAG_01_TXT", allTokenParams, new HashSet<string> { "Mechanical Equipment" }),
-                ("HVC_EQP_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Mechanical Equipment" }),
-                ("HVC_EQP_TAG_03_TXT", sysRefTokens, new HashSet<string> { "Mechanical Equipment" }),
-                // HVAC Ductwork
-                ("HVC_DCT_TAG_01_TXT", allTokenParams, new HashSet<string> { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" }),
-                ("HVC_DCT_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" }),
-                ("HVC_DCT_TAG_03_TXT", systemTokens, new HashSet<string> { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" }),
-                // Flex Ducts
-                ("HVC_FLX_TAG_01_TXT", allTokenParams, new HashSet<string> { "Flex Ducts" }),
-                // Electrical Equipment
-                ("ELC_EQP_TAG_01_TXT", allTokenParams, new HashSet<string> { "Electrical Equipment" }),
-                ("ELC_EQP_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Electrical Equipment" }),
-                // Electrical Fixtures
-                ("ELE_FIX_TAG_1_TXT", allTokenParams, new HashSet<string> { "Electrical Fixtures" }),
-                ("ELE_FIX_TAG_2_TXT", shortIdTokens, new HashSet<string> { "Electrical Fixtures" }),
-                // Lighting
-                ("LTG_FIX_TAG_01_TXT", allTokenParams, new HashSet<string> { "Lighting Fixtures", "Lighting Devices" }),
-                ("LTG_FIX_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Lighting Fixtures", "Lighting Devices" }),
-                // Pipework / Plumbing
-                ("PLM_EQP_TAG_01_TXT", allTokenParams, new HashSet<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" }),
-                ("PLM_EQP_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" }),
-                // Fire & Life Safety
-                ("FLS_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Sprinklers", "Fire Alarm Devices" }),
-                ("FLS_DEV_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Sprinklers", "Fire Alarm Devices" }),
-                // Conduits
-                ("ELC_CDT_TAG_01_TXT", allTokenParams, new HashSet<string> { "Conduits", "Conduit Fittings" }),
-                ("ELC_CDT_TAG_02_TXT", shortIdTokens, new HashSet<string> { "Conduits", "Conduit Fittings" }),
-                // Cable Trays
-                ("ELC_CTR_TAG_01_TXT", allTokenParams, new HashSet<string> { "Cable Trays", "Cable Tray Fittings" }),
-                // Communications / Low-voltage
-                ("COM_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Communication Devices", "Telephone Devices" }),
-                ("SEC_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Security Devices" }),
-                ("NCL_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Nurse Call Devices" }),
-                ("ICT_DEV_TAG_01_TXT", allTokenParams, new HashSet<string> { "Data Devices" }),
-                // Material Tags
-                ("MAT_TAG_1_TXT", allTokenParams, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs", "Doors", "Windows" }),
-                ("MAT_TAG_2_TXT", shortIdTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs", "Doors", "Windows" }),
-                ("MAT_TAG_3_TXT", locationTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                ("MAT_TAG_4_TXT", systemTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                ("MAT_TAG_5_TXT", line1Tokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                ("MAT_TAG_6_TXT", line2Tokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                // Finish Tags
-                ("FIN_WALL_TAG_TXT", allTokenParams, new HashSet<string> { "Walls" }),
-                ("FIN_FLR_TAG_TXT", allTokenParams, new HashSet<string> { "Floors" }),
-                ("FIN_CEIL_TAG_TXT", allTokenParams, new HashSet<string> { "Ceilings" }),
-                // Environmental Tags
-                ("ENV_FAC_TAG_TXT", allTokenParams, new HashSet<string> { "Walls", "Curtain Panels" }),
-                ("ENV_WIN_TAG_TXT", allTokenParams, new HashSet<string> { "Windows" }),
-                ("ENV_ROOF_TAG_TXT", allTokenParams, new HashSet<string> { "Roofs" }),
-                // Structural Tags
-                ("STR_CONC_TAG_TXT", allTokenParams, new HashSet<string> { "Structural Columns", "Structural Framing", "Structural Foundations", "Floors" }),
-                ("STR_STEEL_TAG_TXT", allTokenParams, new HashSet<string> { "Structural Columns", "Structural Framing" }),
-                // Composite Material Tags
-                ("COMP_MAT_TAG_1_TXT", allTokenParams, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                ("COMP_MAT_TAG_2_TXT", shortIdTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                // Material Performance Tags
-                ("MAT_PERF_TAG_1_TXT", allTokenParams, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                ("MAT_PERF_TAG_2_TXT", shortIdTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                ("MAT_PERF_TAG_3_TXT", locationTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                // Sustainability Material Tags
-                ("SUST_MAT_TAG_1_TXT", allTokenParams, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                ("SUST_MAT_TAG_2_TXT", shortIdTokens, new HashSet<string> { "Walls", "Floors", "Ceilings", "Roofs" }),
-                // Equipment Tag
-                ("ASS_EQUIPMENT_TAG_TXT", allTokenParams, new HashSet<string> { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Specialty Equipment" }),
-            };
+            // Container definitions now loaded from PARAMETER_REGISTRY.json via ParamRegistry
+            // This eliminates DRY violations — all container definitions in a single source of truth.
 
             using (Transaction tx = new Transaction(doc, "STING Tag & Combine All"))
             {
                 tx.Start();
-
                 foreach (ElementId id in targetIds)
                 {
                     Element el = doc.GetElement(id);
@@ -231,84 +121,72 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
                         continue;
 
-                    totalProcessed++;
-
-                    // Step 1: Auto-detect LOC from spatial data
-                    string existingLoc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
-                    if (string.IsNullOrEmpty(existingLoc))
+                    try
                     {
-                        string detectedLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (!string.IsNullOrEmpty(detectedLoc))
+                        totalProcessed++;
+
+                        // Step 1: Auto-detect LOC from spatial data
+                        string existingLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                        if (string.IsNullOrEmpty(existingLoc))
                         {
-                            ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", detectedLoc);
-                            locDetected++;
-                            populated++;
+                            string detectedLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                            if (!string.IsNullOrEmpty(detectedLoc))
+                            {
+                                ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, detectedLoc);
+                                locDetected++;
+                                populated++;
+                            }
+                        }
+
+                        // Step 2: Auto-detect ZONE from room data
+                        string existingZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                        if (string.IsNullOrEmpty(existingZone))
+                        {
+                            string detectedZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                            if (!string.IsNullOrEmpty(detectedZone))
+                            {
+                                ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, detectedZone);
+                                zoneDetected++;
+                                populated++;
+                            }
+                        }
+
+                        // Step 3: Auto-populate tokens from category + family lookup
+                        string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) populated++;
+
+                        // Family-aware PROD code: check family name before falling back to category
+                        string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+                        if (!string.IsNullOrEmpty(prod))
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) populated++;
+
+                        // MEP system-aware SYS derivation (uses connected system name when available)
+                        string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                        if (!string.IsNullOrEmpty(sys))
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) populated++;
+                        string func = TagConfig.GetSmartFuncCode(el, sys);
+                        if (!string.IsNullOrEmpty(func))
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) populated++;
+                        string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                        if (lvl != "XX")
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) populated++;
+
+                        // Step 4: Tag if not already complete (with collision detection)
+                        if (TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                            existingTags: tagIndex))
+                            tagged++;
+
+                        // Step 5: Combine into ALL containers via ParamRegistry (single source of truth)
+                        string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                        if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                        {
+                            combined += ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
                         }
                     }
-
-                    // Step 2: Auto-detect ZONE from room data
-                    string existingZone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
-                    if (string.IsNullOrEmpty(existingZone))
+                    catch (Exception ex)
                     {
-                        string detectedZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (!string.IsNullOrEmpty(detectedZone))
-                        {
-                            ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", detectedZone);
-                            zoneDetected++;
-                            populated++;
-                        }
-                    }
-
-                    // Step 3: Auto-populate tokens from category + family lookup
-                    string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-                    if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc)) populated++;
-
-                    // Family-aware PROD code: check family name before falling back to category
-                    string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                    if (!string.IsNullOrEmpty(prod))
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod)) populated++;
-
-                    // MEP system-aware SYS derivation (uses connected system name when available)
-                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                    if (!string.IsNullOrEmpty(sys))
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys)) populated++;
-                    string func = TagConfig.GetFuncCode(sys);
-                    if (!string.IsNullOrEmpty(func))
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func)) populated++;
-                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                    if (lvl != "XX")
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl)) populated++;
-
-                    // Step 4: Tag if not already complete (with collision detection)
-                    if (TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                        existingTags: tagIndex))
-                        tagged++;
-
-                    // Step 5: Combine into ALL containers (universal + discipline + material)
-                    var tokenValues = new Dictionary<string, string>();
-                    foreach (string param in allTokenParams)
-                        tokenValues[param] = ParameterHelpers.GetString(el, param);
-
-                    if (tokenValues.Values.Any(v => !string.IsNullOrEmpty(v)))
-                    {
-                        // Universal containers
-                        foreach (var (param, tokens) in universalContainers)
-                        {
-                            var parts = tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
-                            string assembled = string.Join(TagConfig.Separator, parts);
-                            if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
-                                combined++;
-                        }
-
-                        // Discipline-specific containers (category-filtered)
-                        foreach (var (param, tokens, categories) in disciplineContainers)
-                        {
-                            if (!categories.Contains(catName)) continue;
-                            var parts = tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
-                            string assembled = string.Join(TagConfig.Separator, parts);
-                            if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
-                                combined++;
-                        }
+                        StingLog.Error($"TagAndCombine: failed on element {id}: {ex.Message}", ex);
+                        errors++;
                     }
                 }
 
@@ -329,6 +207,8 @@ namespace StingTools.Tags
                 report.AppendLine($"  LOC auto-detect:  {locDetected} (from rooms/project)");
             if (zoneDetected > 0)
                 report.AppendLine($"  ZONE auto-detect: {zoneDetected} (from rooms)");
+            if (errors > 0)
+                report.AppendLine($"  Errors:           {errors} (see log for details)");
             report.AppendLine($"  Duration:         {sw.Elapsed.TotalSeconds:F1}s");
 
             TaskDialog td = new TaskDialog("Tag & Combine All");
