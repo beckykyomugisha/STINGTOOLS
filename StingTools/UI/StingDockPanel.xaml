@@ -1004,6 +1004,17 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- PARAGRAPH & WARNING CONTROLS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ PARAGRAPH &amp; WARNINGS"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#7B1FA2">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Set Paragraph Depth" Tag="SetParagraphDepth" Click="Cmd_Click" ToolTip="Set compact/standard/comprehensive depth on element types"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Toggle Warnings" Tag="ToggleWarningVisibility" Click="Cmd_Click" ToolTip="Show/hide threshold warning text in tags"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- ISO COMPLETENESS DASHBOARD -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="[Chart] ISO COMPLETENESS DASHBOARD"/>
                         <Border Style="{StaticResource GroupBorder}">

@@ -161,6 +161,49 @@ namespace StingTools.Core
         public static string PLM_FLOW_RATE  => Ext("PLM_FLOW_RATE");
         public static string PLM_PIPE_LENGTH => Ext("PLM_PIPE_LENGTH");
 
+        // ── Paragraph visibility controls (v4.2) ────────────────────────
+        /// <summary>Compact paragraph depth (State 1 only).</summary>
+        public static string PARA_STATE_1 { get; private set; } = "TAG_PARA_STATE_1_BOOL";
+        /// <summary>Standard paragraph depth (States 1+2).</summary>
+        public static string PARA_STATE_2 { get; private set; } = "TAG_PARA_STATE_2_BOOL";
+        /// <summary>Comprehensive paragraph depth (States 1+2+3).</summary>
+        public static string PARA_STATE_3 { get; private set; } = "TAG_PARA_STATE_3_BOOL";
+        /// <summary>Enable/disable warning text in tags.</summary>
+        public static string WARN_VISIBLE { get; private set; } = "TAG_WARN_VISIBLE_BOOL";
+        /// <summary>Warning severity filter: CRITICAL, HIGH, MEDIUM, ALL.</summary>
+        public static string WARN_SEVERITY_FILTER { get; private set; } = "TAG_WARN_SEVERITY_FILTER_TXT";
+
+        // ── Paragraph container parameter names (v4.2/v4.3) ─────────────
+        public static string PARA_WALL      => Ext("PARA_WALL");
+        public static string PARA_FLOOR     => Ext("PARA_FLOOR");
+        public static string PARA_DOOR      => Ext("PARA_DOOR");
+        public static string PARA_WIN       => Ext("PARA_WIN");
+        public static string PARA_ROOM      => Ext("PARA_ROOM");
+        public static string PARA_CEIL      => Ext("PARA_CEIL");
+        public static string PARA_ROOF      => Ext("PARA_ROOF");
+        public static string PARA_STAIR     => Ext("PARA_STAIR");
+        public static string PARA_RAMP      => Ext("PARA_RAMP");
+        public static string PARA_FACADE    => Ext("PARA_FACADE");
+        public static string PARA_CASEWORK  => Ext("PARA_CASEWORK");
+        public static string PARA_FURNITURE => Ext("PARA_FURNITURE");
+        public static string PARA_STR_COL   => Ext("PARA_STR_COL");
+        public static string PARA_STR_BEAM  => Ext("PARA_STR_BEAM");
+        public static string PARA_STR_FDN   => Ext("PARA_STR_FDN");
+        public static string PARA_HVC_SPEC  => Ext("PARA_HVC_SPEC");
+        public static string PARA_HVC_DUCT  => Ext("PARA_HVC_DUCT");
+        public static string PARA_HVC_AT    => Ext("PARA_HVC_AT");
+        public static string PARA_ELC_PANEL => Ext("PARA_ELC_PANEL");
+        public static string PARA_ELC_CIRCUIT => Ext("PARA_ELC_CIRCUIT");
+        public static string PARA_LTG_SPEC  => Ext("PARA_LTG_SPEC");
+        public static string PARA_PLM_FIXTURE => Ext("PARA_PLM_FIXTURE");
+        public static string PARA_PLM_PIPE  => Ext("PARA_PLM_PIPE");
+        public static string PARA_FLS_FA    => Ext("PARA_FLS_FA");
+        public static string PARA_FLS_SPR   => Ext("PARA_FLS_SPR");
+        public static string PARA_COM_BMS   => Ext("PARA_COM_BMS");
+
+        // ── Warning threshold parameter ─────────────────────────────────
+        public static string ELC_PNL_RATED  => Ext("ELC_PNL_RATED");
+
         // ── Universal tag container names (convenience) ─────────────────
         /// <summary>Full 8-segment tag: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ</summary>
         public static string TAG1 { get; private set; } = "ASS_TAG_1_TXT";
@@ -429,9 +472,14 @@ namespace StingTools.Core
                     foreach (JObject s in supArr)
                     {
                         string name = s["param_name"]?.ToString() ?? "";
-                        if (name.Contains("STATUS")) STATUS = name;
+                        if (name.Contains("STATUS") && !name.Contains("PARA") && !name.Contains("WARN")) STATUS = name;
                         else if (name.Contains("DETAIL")) DETAIL_NUM = name;
                         else if (name.Contains("MNT")) MNT_TYPE = name;
+                        else if (name == "TAG_PARA_STATE_1_BOOL") PARA_STATE_1 = name;
+                        else if (name == "TAG_PARA_STATE_2_BOOL") PARA_STATE_2 = name;
+                        else if (name == "TAG_PARA_STATE_3_BOOL") PARA_STATE_3 = name;
+                        else if (name == "TAG_WARN_VISIBLE_BOOL") WARN_VISIBLE = name;
+                        else if (name == "TAG_WARN_SEVERITY_FILTER_TXT") WARN_SEVERITY_FILTER = name;
                     }
                 }
 

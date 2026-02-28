@@ -220,6 +220,10 @@ namespace StingTools.UI
                     case "CompletenessDashboard": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
                     case "PreTagAudit": RunCommand<Tags.PreTagAuditCommand>(app); break;
 
+                    // ── Paragraph & Warning controls (v4.2) ──
+                    case "SetParagraphDepth": RunCommand<Tags.SetParagraphDepthCommand>(app); break;
+                    case "ToggleWarningVisibility": RunCommand<Tags.ToggleWarningVisibilityCommand>(app); break;
+
                     // ── Color By Parameter commands ──
                     case "ColorByParameter": RunCommand<Select.ColorByParameterCommand>(app); break;
                     case "ClearColorOverrides": RunCommand<Select.ClearColorOverridesCommand>(app); break;

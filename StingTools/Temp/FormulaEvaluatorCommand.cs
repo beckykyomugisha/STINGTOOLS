@@ -14,10 +14,13 @@ namespace StingTools.Temp
 {
     /// <summary>
     /// Formula evaluation engine for FORMULAS_WITH_DEPENDENCIES.csv.
-    /// Reads 199 formula definitions across 10 disciplines, evaluates them in
+    /// Reads 280 formula definitions (v3.0) across 10 disciplines, evaluates them in
     /// dependency order (level 0 → 6), and writes computed values to element parameters.
-    /// Supports: arithmetic (+,-,*,/,^), parentheses, if() conditionals, log(),
-    /// string concatenation, and Revit built-in geometry inputs (Width, Height, Length, etc.).
+    /// Formula types: paragraph assembly (36), warning thresholds (30), derived calculations (17),
+    /// plus 197 original formulas. Supports: arithmetic (+,-,*,/,^), parentheses, if() conditionals,
+    /// log(), string concatenation, and Revit built-in geometry inputs (Width, Height, Length, etc.).
+    /// Paragraph formulas are gated by TAG_PARA_STATE_1/2/3_BOOL for 3-state depth control.
+    /// Warning formulas auto-append threshold violations gated by TAG_WARN_VISIBLE_BOOL.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
