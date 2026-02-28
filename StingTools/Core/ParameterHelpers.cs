@@ -61,21 +61,62 @@ namespace StingTools.Core
                 string name = lvl.Name.Trim();
                 string lower = name.ToLowerInvariant();
 
-                if (lower.StartsWith("level "))
+                if (lower.StartsWith("level ") && name.Length > 6)
                     return "L" + name.Substring(6).Trim().PadLeft(2, '0');
                 if (lower == "ground" || lower == "ground floor" || lower == "ground level")
                     return "GF";
-                if (lower.StartsWith("basement") || lower.StartsWith("b"))
+                if (lower.StartsWith("lower ground") || lower == "lg")
+                    return "LG";
+                if (lower.StartsWith("upper ground") || lower == "ug")
+                    return "UG";
+                if (lower.StartsWith("sub-basement") || lower.StartsWith("sub basement") || lower == "sb")
+                {
+                    string digits = ExtractDigits(name);
+                    return "SB" + (digits.Length > 0 ? digits : "");
+                }
+                if (lower.StartsWith("basement") || lower == "b1" || lower == "b2" ||
+                    lower == "b3" || lower == "b4" || lower == "b5" ||
+                    (lower.Length >= 2 && lower[0] == 'b' && char.IsDigit(lower[1])))
                 {
                     string digits = ExtractDigits(name);
                     return "B" + (digits.Length > 0 ? digits : "1");
                 }
-                if (lower.StartsWith("roof"))
+                if (lower.StartsWith("roof") || lower == "rf")
                     return "RF";
+                if (lower.StartsWith("penthouse") || lower == "ph" || lower == "pent")
+                    return "PH";
+                if (lower.StartsWith("attic") || lower == "at" || lower == "att")
+                    return "AT";
+                if (lower.StartsWith("terrace") || lower == "tr")
+                    return "TR";
+                if (lower.StartsWith("podium") || lower == "pod")
+                    return "POD";
+                if (lower.StartsWith("mezzanine") || lower == "mezz")
+                    return "MZ";
+                if (lower.StartsWith("plant") && lower.Contains("room"))
+                    return "PL";
 
-                return name.ToUpperInvariant()
-                    .Replace(" ", "")
-                    .Substring(0, Math.Min(4, name.Length));
+                // Extract digits for "1st floor", "2nd floor", "L01" etc.
+                if (lower.Contains("first") || lower.Contains("1st"))
+                    return "L01";
+                if (lower.Contains("second") || lower.Contains("2nd"))
+                    return "L02";
+                if (lower.Contains("third") || lower.Contains("3rd"))
+                    return "L03";
+                if (lower.Contains("fourth") || lower.Contains("4th"))
+                    return "L04";
+                if (lower.Contains("fifth") || lower.Contains("5th"))
+                    return "L05";
+
+                // Try to extract a floor number from patterns like "L01", "L1", "Floor 3"
+                string digits = ExtractDigits(name);
+                if (digits.Length > 0 && digits.Length <= 2)
+                    return "L" + digits.PadLeft(2, '0');
+
+                // Unrecognized pattern — return XX rather than truncating the name
+                // which could produce nonsensical level codes
+                StingLog.Info($"GetLevelCode: unrecognized level name '{name}', defaulting to XX");
+                return "XX";
             }
             catch (Exception ex)
             {
@@ -276,14 +317,23 @@ namespace StingTools.Core
                     if (!string.IsNullOrEmpty(loc)) return loc;
                 }
 
-                // Check if element is outside (no room) → could be EXT
+                // Check if element is likely exterior
                 if (room == null && el.Location != null)
                 {
-                    // Elements with a valid level but no room might be exterior
-                    // Only flag as EXT if we have rooms defined but element isn't in one
+                    // Heuristic: if the project has rooms defined and this element
+                    // has a valid location but isn't in any room, check the element's
+                    // category and family name for exterior indicators
                     if (roomIndex.Count > 0)
                     {
-                        // Don't auto-flag as EXT — too aggressive. Use project default.
+                        string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
+                        string catName = ParameterHelpers.GetCategoryName(el).ToUpperInvariant();
+                        // Only flag specific elements that are commonly exterior
+                        if (familyName.Contains("EXTERNAL") || familyName.Contains("EXTERIOR") ||
+                            familyName.Contains("OUTDOOR") || familyName.Contains("WEATHERPROOF") ||
+                            familyName.Contains("BOLLARD") || familyName.Contains("FLOODLIGHT") ||
+                            (catName.Contains("LIGHTING") && familyName.Contains("POLE")) ||
+                            (catName.Contains("LIGHTING") && familyName.Contains("POST")))
+                            return "EXT";
                     }
                 }
             }
@@ -351,7 +401,9 @@ namespace StingTools.Core
                 return "BLD2";
             if (upper.Contains("BLD3") || upper.Contains("BUILDING 3") || upper.Contains("BLOCK C"))
                 return "BLD3";
-            if (upper.Contains("EXT") || upper.Contains("EXTERNAL") || upper.Contains("EXTERIOR"))
+            // Require word-boundary match for EXT to avoid matching "NEXT", "TEXTILE", "EXTENSION"
+            if (upper == "EXT" || upper.Contains("EXTERNAL") || upper.Contains("EXTERIOR") ||
+                upper.StartsWith("EXT ") || upper.Contains(" EXT ") || upper.EndsWith(" EXT"))
                 return "EXT";
 
             return null;
@@ -367,16 +419,36 @@ namespace StingTools.Core
             string upper = text.ToUpperInvariant();
 
             // Direct zone codes
-            if (upper.Contains("Z01") || upper.Contains("ZONE 1") || upper.Contains("ZONE A") || upper.Contains("WING A") || upper.Contains("NORTH"))
+            if (upper.Contains("Z01") || upper.Contains("ZONE 1") || upper.Contains("ZONE A") || upper.Contains("WING A"))
                 return "Z01";
-            if (upper.Contains("Z02") || upper.Contains("ZONE 2") || upper.Contains("ZONE B") || upper.Contains("WING B") || upper.Contains("SOUTH"))
+            if (upper.Contains("Z02") || upper.Contains("ZONE 2") || upper.Contains("ZONE B") || upper.Contains("WING B"))
                 return "Z02";
-            if (upper.Contains("Z03") || upper.Contains("ZONE 3") || upper.Contains("ZONE C") || upper.Contains("WING C") || upper.Contains("EAST"))
+            if (upper.Contains("Z03") || upper.Contains("ZONE 3") || upper.Contains("ZONE C") || upper.Contains("WING C"))
                 return "Z03";
-            if (upper.Contains("Z04") || upper.Contains("ZONE 4") || upper.Contains("ZONE D") || upper.Contains("WING D") || upper.Contains("WEST"))
+            if (upper.Contains("Z04") || upper.Contains("ZONE 4") || upper.Contains("ZONE D") || upper.Contains("WING D"))
                 return "Z04";
 
+            // Directional terms — require word-boundary match to avoid "NORTHAMPTON" etc.
+            if (MatchesWord(upper, "NORTH")) return "Z01";
+            if (MatchesWord(upper, "SOUTH")) return "Z02";
+            if (MatchesWord(upper, "EAST")) return "Z03";
+            if (MatchesWord(upper, "WEST")) return "Z04";
+
             return null;
+        }
+
+        /// <summary>Check if a word appears as a standalone token (not part of a longer word).</summary>
+        private static bool MatchesWord(string text, string word)
+        {
+            int idx = text.IndexOf(word);
+            while (idx >= 0)
+            {
+                bool startOk = idx == 0 || !char.IsLetter(text[idx - 1]);
+                bool endOk = (idx + word.Length) >= text.Length || !char.IsLetter(text[idx + word.Length]);
+                if (startOk && endOk) return true;
+                idx = text.IndexOf(word, idx + 1);
+            }
+            return false;
         }
     }
 
@@ -815,10 +887,8 @@ namespace StingTools.Core
                 written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_DUCT_FLOW);
                 written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, ParamRegistry.HVC_VELOCITY);
                 written += MapBuiltIn(el, BuiltInParameter.RBS_LOSS_COEFFICIENT, ParamRegistry.HVC_PRESSURE);
-                written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_AIRFLOW);
-                // System type name for schedule grouping
-                written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    ParamRegistry.SYS);
+                // HVC_AIRFLOW from velocity (distinct from HVC_DUCT_FLOW which is volume flow rate)
+                written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, ParamRegistry.HVC_AIRFLOW);
             }
 
             // ── Mechanical Equipment ───────────────────────────────────────────

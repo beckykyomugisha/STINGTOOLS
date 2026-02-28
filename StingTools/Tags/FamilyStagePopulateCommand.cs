@@ -131,6 +131,8 @@ namespace StingTools.Tags
 
                     processed++;
 
+                    try
+                    {
                     // DISC — deterministic from category
                     string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
                     if (overwrite)
@@ -183,8 +185,8 @@ namespace StingTools.Tags
                             lvlSet++;
                     }
 
-                    // SYS — from category mapping
-                    string sys = TagConfig.GetSysCode(catName);
+                    // SYS — MEP system-aware (6-layer detection)
+                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
                     if (!string.IsNullOrEmpty(sys))
                     {
                         if (overwrite)
@@ -199,8 +201,13 @@ namespace StingTools.Tags
                         }
                     }
 
-                    // FUNC — from system mapping
-                    string func = TagConfig.GetFuncCode(sys);
+                    // DISC correction — system-aware override for pipes
+                    disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
+                    if (overwrite)
+                        ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);
+
+                    // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
+                    string func = TagConfig.GetSmartFuncCode(el, sys);
                     if (!string.IsNullOrEmpty(func))
                     {
                         if (overwrite)
@@ -229,6 +236,11 @@ namespace StingTools.Tags
                     {
                         if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod))
                             prodSet++;
+                    }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error($"FamilyStagePopulate: element {el?.Id}: {ex.Message}", ex);
                     }
                 }
 

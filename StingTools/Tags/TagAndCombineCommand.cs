@@ -104,11 +104,14 @@ namespace StingTools.Tags
             int totalProcessed = 0;
             int locDetected = 0;
             int zoneDetected = 0;
+            int errors = 0;
+
+            // Container definitions now loaded from PARAMETER_REGISTRY.json via ParamRegistry
+            // This eliminates DRY violations — all container definitions in a single source of truth.
 
             using (Transaction tx = new Transaction(doc, "STING Tag & Combine All"))
             {
                 tx.Start();
-
                 foreach (ElementId id in targetIds)
                 {
                     Element el = doc.GetElement(id);
@@ -118,64 +121,72 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
                         continue;
 
-                    totalProcessed++;
-
-                    // Step 1: Auto-detect LOC from spatial data
-                    string existingLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-                    if (string.IsNullOrEmpty(existingLoc))
+                    try
                     {
-                        string detectedLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (!string.IsNullOrEmpty(detectedLoc))
+                        totalProcessed++;
+
+                        // Step 1: Auto-detect LOC from spatial data
+                        string existingLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                        if (string.IsNullOrEmpty(existingLoc))
                         {
-                            ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, detectedLoc);
-                            locDetected++;
-                            populated++;
+                            string detectedLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                            if (!string.IsNullOrEmpty(detectedLoc))
+                            {
+                                ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, detectedLoc);
+                                locDetected++;
+                                populated++;
+                            }
+                        }
+
+                        // Step 2: Auto-detect ZONE from room data
+                        string existingZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                        if (string.IsNullOrEmpty(existingZone))
+                        {
+                            string detectedZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                            if (!string.IsNullOrEmpty(detectedZone))
+                            {
+                                ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, detectedZone);
+                                zoneDetected++;
+                                populated++;
+                            }
+                        }
+
+                        // Step 3: Auto-populate tokens from category + family lookup
+                        string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) populated++;
+
+                        // Family-aware PROD code: check family name before falling back to category
+                        string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+                        if (!string.IsNullOrEmpty(prod))
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) populated++;
+
+                        // MEP system-aware SYS derivation (uses connected system name when available)
+                        string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                        if (!string.IsNullOrEmpty(sys))
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) populated++;
+                        string func = TagConfig.GetSmartFuncCode(el, sys);
+                        if (!string.IsNullOrEmpty(func))
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) populated++;
+                        string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                        if (lvl != "XX")
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) populated++;
+
+                        // Step 4: Tag if not already complete (with collision detection)
+                        if (TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                            existingTags: tagIndex))
+                            tagged++;
+
+                        // Step 5: Combine into ALL containers via ParamRegistry (single source of truth)
+                        string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                        if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                        {
+                            combined += ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
                         }
                     }
-
-                    // Step 2: Auto-detect ZONE from room data
-                    string existingZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                    if (string.IsNullOrEmpty(existingZone))
+                    catch (Exception ex)
                     {
-                        string detectedZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (!string.IsNullOrEmpty(detectedZone))
-                        {
-                            ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, detectedZone);
-                            zoneDetected++;
-                            populated++;
-                        }
-                    }
-
-                    // Step 3: Auto-populate tokens from category + family lookup
-                    string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) populated++;
-
-                    // Family-aware PROD code: check family name before falling back to category
-                    string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                    if (!string.IsNullOrEmpty(prod))
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) populated++;
-
-                    // MEP system-aware SYS derivation (uses connected system name when available)
-                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                    if (!string.IsNullOrEmpty(sys))
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) populated++;
-                    string func = TagConfig.GetFuncCode(sys);
-                    if (!string.IsNullOrEmpty(func))
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) populated++;
-                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                    if (lvl != "XX")
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) populated++;
-
-                    // Step 4: Tag if not already complete (with collision detection)
-                    if (TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                        existingTags: tagIndex))
-                        tagged++;
-
-                    // Step 5: Combine into ALL containers (universal + discipline)
-                    string[] tokenValues = ParamRegistry.ReadTokenValues(el);
-                    if (tokenValues.Any(v => !string.IsNullOrEmpty(v)))
-                    {
-                        combined += ParamRegistry.WriteContainers(el, tokenValues, catName);
+                        StingLog.Error($"TagAndCombine: failed on element {id}: {ex.Message}", ex);
+                        errors++;
                     }
                 }
 
@@ -196,6 +207,8 @@ namespace StingTools.Tags
                 report.AppendLine($"  LOC auto-detect:  {locDetected} (from rooms/project)");
             if (zoneDetected > 0)
                 report.AppendLine($"  ZONE auto-detect: {zoneDetected} (from rooms)");
+            if (errors > 0)
+                report.AppendLine($"  Errors:           {errors} (see log for details)");
             report.AppendLine($"  Duration:         {sw.Elapsed.TotalSeconds:F1}s");
 
             TaskDialog td = new TaskDialog("Tag & Combine All");
