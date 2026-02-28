@@ -261,6 +261,20 @@ namespace StingTools.Organise
                         tagIndex.Add(newTag);
                         ParameterHelpers.SetString(elem, ParamRegistry.SEQ, newSeq, overwrite: true);
                         ParameterHelpers.SetString(elem, ParamRegistry.TAG1, newTag, overwrite: true);
+
+                        // Update containers with the new tag
+                        try
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(elem);
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
+                            if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                                ParamRegistry.WriteContainers(elem, tokenVals, catName, overwrite: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"FixDuplicates: container write failed for {elem.Id}: {ex.Message}");
+                        }
+
                         fixed_++;
                     }
                 }
@@ -386,6 +400,19 @@ namespace StingTools.Organise
                         string tag = string.Join(ParamRegistry.Separator,
                             disc, loc, zone, lvl, sys, func, prod, seqStr);
                         ParameterHelpers.SetString(elem, ParamRegistry.TAG1, tag, overwrite: true);
+
+                        // Update containers with the new tag
+                        try
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(elem);
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
+                            if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                                ParamRegistry.WriteContainers(elem, tokenVals, catName, overwrite: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Renumber: container write failed for {elem.Id}: {ex.Message}");
+                        }
 
                         seq++;
                         renumbered++;
@@ -529,7 +556,7 @@ namespace StingTools.Organise
             View view = doc.ActiveView;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            // Red = missing, Orange = incomplete
+            // Red = missing, Orange = incomplete, Yellow = ISO violation, Purple = placeholder
             var red = new OverrideGraphicSettings();
             red.SetProjectionLineColor(new Color(255, 0, 0));
             red.SetProjectionLineWeight(5);
@@ -538,7 +565,15 @@ namespace StingTools.Organise
             orange.SetProjectionLineColor(new Color(255, 165, 0));
             orange.SetProjectionLineWeight(4);
 
-            int missing = 0, incomplete = 0;
+            var yellow = new OverrideGraphicSettings();
+            yellow.SetProjectionLineColor(new Color(255, 255, 0));
+            yellow.SetProjectionLineWeight(3);
+
+            var purple = new OverrideGraphicSettings();
+            purple.SetProjectionLineColor(new Color(160, 32, 240));
+            purple.SetProjectionLineWeight(3);
+
+            int missing = 0, incomplete = 0, isoInvalid = 0, unresolved = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Highlight Invalid"))
             {
@@ -560,12 +595,30 @@ namespace StingTools.Organise
                         view.SetElementOverrides(elem.Id, orange);
                         incomplete++;
                     }
+                    else if (!TagConfig.TagIsFullyResolved(tag))
+                    {
+                        view.SetElementOverrides(elem.Id, purple);
+                        unresolved++;
+                    }
+                    else
+                    {
+                        // Check for ISO cross-validation errors (PROD/FUNC/DISC mismatches)
+                        var isoErrors = ISO19650Validator.ValidateElement(elem);
+                        if (isoErrors.Count > 0)
+                        {
+                            view.SetElementOverrides(elem.Id, yellow);
+                            isoInvalid++;
+                        }
+                    }
                 }
                 tx.Commit();
             }
 
             TaskDialog.Show("Highlight Invalid",
-                $"Red (missing): {missing}\nOrange (incomplete): {incomplete}\n\n" +
+                $"Red (missing tag):     {missing}\n" +
+                $"Orange (incomplete):   {incomplete}\n" +
+                $"Purple (placeholders): {unresolved}\n" +
+                $"Yellow (ISO issues):   {isoInvalid}\n\n" +
                 "Use 'Clear Overrides' to reset.");
             return Result.Succeeded;
         }
@@ -640,12 +693,32 @@ namespace StingTools.Organise
 
             string sourceTag = values.TryGetValue(ParamRegistry.TAG1, out string t) ? t : "(empty)";
 
+            // Check for discipline mismatches between source and targets
+            string sourceCat = ParameterHelpers.GetCategoryName(source);
+            string sourceDisc = values.TryGetValue(ParamRegistry.DISC, out string sd) ? sd : "";
+            int discMismatches = 0;
+            for (int i = 1; i < selected.Count; i++)
+            {
+                Element target = doc.GetElement(selected[i]);
+                if (target == null) continue;
+                string targetCat = ParameterHelpers.GetCategoryName(target);
+                string expectedDisc = TagConfig.DiscMap.TryGetValue(targetCat, out string td2) ? td2 : "XX";
+                if (!string.IsNullOrEmpty(sourceDisc) && sourceDisc != expectedDisc)
+                    discMismatches++;
+            }
+
+            string warnText = "";
+            if (discMismatches > 0)
+                warnText = $"\n\nWARNING: {discMismatches} targets have different expected disciplines. " +
+                    "Copied DISC may cause cross-validation errors.";
+
             TaskDialog confirm = new TaskDialog("Copy Tags");
             confirm.MainInstruction = $"Copy tags from Element {source.Id}?";
             confirm.MainContent =
                 $"Source tag: {sourceTag}\n" +
+                $"Source category: {sourceCat}\n" +
                 $"Target: {selected.Count - 1} elements\n\n" +
-                "Copies all tag values except SEQ (sequence stays unique).";
+                "Copies all tag values except SEQ (sequence stays unique)." + warnText;
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
@@ -662,6 +735,20 @@ namespace StingTools.Organise
                     {
                         ParameterHelpers.SetString(target, kvp.Key, kvp.Value, overwrite: true);
                     }
+
+                    // Update containers with copied values
+                    try
+                    {
+                        string catName = ParameterHelpers.GetCategoryName(target);
+                        string[] tokenVals = ParamRegistry.ReadTokenValues(target);
+                        if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                            ParamRegistry.WriteContainers(target, tokenVals, catName, overwrite: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"CopyTags: container write failed for {target.Id}: {ex.Message}");
+                    }
+
                     copied++;
                 }
                 tx.Commit();
@@ -726,6 +813,25 @@ namespace StingTools.Organise
                     ParameterHelpers.SetString(a, param, valB, overwrite: true);
                     ParameterHelpers.SetString(b, param, valA, overwrite: true);
                 }
+
+                // Update containers for both elements
+                try
+                {
+                    string catA = ParameterHelpers.GetCategoryName(a);
+                    string[] tokensA = ParamRegistry.ReadTokenValues(a);
+                    if (tokensA.Any(v => !string.IsNullOrEmpty(v)))
+                        ParamRegistry.WriteContainers(a, tokensA, catA, overwrite: true);
+
+                    string catB = ParameterHelpers.GetCategoryName(b);
+                    string[] tokensB = ParamRegistry.ReadTokenValues(b);
+                    if (tokensB.Any(v => !string.IsNullOrEmpty(v)))
+                        ParamRegistry.WriteContainers(b, tokensB, catB, overwrite: true);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"SwapTags: container write failed: {ex.Message}");
+                }
+
                 tx.Commit();
             }
 
