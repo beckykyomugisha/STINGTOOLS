@@ -147,10 +147,18 @@ namespace StingTools.Tags
 
         // ── Tag type finder ────────────────────────────────────────────
 
-        /// <summary>Find a tag family type for the given element category.</summary>
+        /// <summary>
+        /// Find a tag family type for the given element category.
+        /// Priority order:
+        ///   1. STING tag family matching the category (e.g., "STING - Ducts Tag")
+        ///   2. Any tag type whose family name contains the category name
+        ///   3. Multi-category or generic tag fallback
+        /// </summary>
         public static FamilySymbol FindTagType(Document doc, Category elementCategory)
         {
             if (elementCategory == null) return null;
+
+            string catName = elementCategory.Name ?? "";
 
             // Look for loaded tag types that can tag this category
             var tagTypes = new FilteredElementCollector(doc)
@@ -160,27 +168,69 @@ namespace StingTools.Tags
                     fs.Category.CategoryType == CategoryType.Annotation)
                 .ToList();
 
-            // Try to find a tag that matches the element's category
+            // Pass 1: STING tag family for this exact category
+            string stingName = GetStingFamilyName(elementCategory);
             foreach (var tagType in tagTypes)
             {
                 try
                 {
-                    // Check if the tag family is designed for this category
+                    Family fam = tagType.Family;
+                    if (fam != null && fam.Name.Equals(stingName, StringComparison.OrdinalIgnoreCase))
+                        return tagType;
+                }
+                catch { /* skip */ }
+            }
+
+            // Pass 2: Any tag family whose name contains the category name
+            foreach (var tagType in tagTypes)
+            {
+                try
+                {
                     Family fam = tagType.Family;
                     if (fam == null) continue;
+                    string famUpper = fam.Name.ToUpperInvariant();
+                    string catUpper = catName.ToUpperInvariant();
 
-                    // Generic tags work for most categories
-                    string famName = fam.Name.ToUpperInvariant();
-                    if (famName.Contains("MULTI") || famName.Contains("GENERIC") ||
-                        famName.Contains("TAG"))
-                    {
+                    // Match category keywords in family name (e.g., "DUCT" in "Duct Tag")
+                    if (!string.IsNullOrEmpty(catUpper) && famUpper.Contains(catUpper))
                         return tagType;
-                    }
+                }
+                catch { /* skip */ }
+            }
+
+            // Pass 3: Generic / multi-category fallback
+            foreach (var tagType in tagTypes)
+            {
+                try
+                {
+                    Family fam = tagType.Family;
+                    if (fam == null) continue;
+                    string famUpper = fam.Name.ToUpperInvariant();
+                    if (famUpper.Contains("MULTI") || famUpper.Contains("GENERIC"))
+                        return tagType;
                 }
                 catch (Exception ex) { StingLog.Warn($"FindTagType: {ex.Message}"); }
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Get the expected STING family name for a Revit Category.
+        /// Used by FindTagType to prioritize STING tag families.
+        /// </summary>
+        private static string GetStingFamilyName(Category cat)
+        {
+            if (cat == null) return "";
+            try
+            {
+                var bic = (BuiltInCategory)cat.Id.Value;
+                return TagFamilyConfig.GetFamilyName(bic);
+            }
+            catch
+            {
+                return $"{TagFamilyConfig.FamilyPrefix} - {cat.Name} Tag";
+            }
         }
 
         // ── Batch placement ────────────────────────────────────────────

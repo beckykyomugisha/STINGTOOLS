@@ -325,6 +325,11 @@ namespace StingTools.UI
                     case "ConfigEditor": RunCommand<Tags.ConfigEditorCommand>(app); break;
                     case "TagConfig": RunCommand<Tags.TagConfigCommand>(app); break;
 
+                    // ── Tag Families ──
+                    case "CreateTagFamilies": RunCommand<Tags.CreateTagFamiliesCommand>(app); break;
+                    case "LoadTagFamilies": RunCommand<Tags.LoadTagFamiliesCommand>(app); break;
+                    case "AuditTagFamilies": RunCommand<Tags.AuditTagFamiliesCommand>(app); break;
+
                     // ── Populate tokens ──
                     case "FamilyStagePopulate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
                     case "AssignNumbers": RunCommand<Tags.AssignNumbersCommand>(app); break;

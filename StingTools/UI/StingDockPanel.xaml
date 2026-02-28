@@ -940,10 +940,17 @@
                         <!-- SETUP -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ SETUP"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Load Shared Params" Tag="LoadSharedParams" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Project Config" Tag="ConfigEditor" Click="Cmd_Click"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Shared Params" Tag="LoadSharedParams" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Project Config" Tag="ConfigEditor" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource BlueBtn}" Content="Create Tag Families" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Create STING tag families for all 50 categories"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Tag Families" Tag="LoadTagFamilies" Click="Cmd_Click" ToolTip="Load pre-created tag families into project"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Audit Tags" Tag="AuditTagFamilies" Click="Cmd_Click" ToolTip="Check tag family coverage by category"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                         <!-- POPULATE TOKENS -->
