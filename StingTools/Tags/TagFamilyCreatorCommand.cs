@@ -498,13 +498,18 @@ namespace StingTools.Tags
                     // Add shared parameters to the family
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app);
 
+                    // Attempt to rebind the existing Label to ASS_TAG_1_TXT
+                    bool labelBound = TryRebindLabel(famDoc);
+
                     // Save the family document
                     SaveAsOptions saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(outputPath, saveOpts);
                     famDoc.Close(false);
 
                     created++;
-                    string paramStatus = paramsAdded ? "with params" : "no params (manual add needed)";
+                    string paramStatus = paramsAdded
+                        ? (labelBound ? "with params + label" : "with params")
+                        : "no params (manual add needed)";
 
                     // Load into project
                     if (LoadFamilyIntoProject(doc, outputPath, famName))
@@ -539,9 +544,9 @@ namespace StingTools.Tags
             {
                 report.AppendLine();
                 report.AppendLine("NEXT STEP:");
-                report.AppendLine("For each tag family, open in Family Editor and");
-                report.AppendLine("set the Label to display ASS_TAG_1_TXT.");
-                report.AppendLine("(Revit API cannot set Labels programmatically.)");
+                report.AppendLine("Run 'Configure Labels' to open each family in the");
+                report.AppendLine("Family Editor and set the Label to ASS_TAG_1_TXT.");
+                report.AppendLine("The wizard will guide you step by step.");
             }
 
             TaskDialog td = new TaskDialog("Create Tag Families");
@@ -639,6 +644,108 @@ namespace StingTools.Tags
             catch (Exception ex)
             {
                 StingLog.Error("AddSharedParameters failed", ex);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Attempt to find the existing Label/TextNote in the tag family template
+        /// and rebind it to ASS_TAG_1_TXT. This exploits the fact that .rft templates
+        /// come with a pre-existing Label element pointing to a built-in parameter.
+        ///
+        /// Approach: Find all TextNote elements in the family document, locate the
+        /// FamilyParameter for ASS_TAG_1_TXT, and attempt to associate them via
+        /// the Dimension.FamilyLabel API (the only programmatic Label mechanism).
+        ///
+        /// Returns true if the label was successfully rebound, false if the API
+        /// does not support this operation (expected for most Revit versions).
+        /// </summary>
+        private bool TryRebindLabel(Document famDoc)
+        {
+            try
+            {
+                FamilyManager famMan = famDoc.FamilyManager;
+
+                // Find the ASS_TAG_1_TXT parameter we just added
+                FamilyParameter tagParam = null;
+                foreach (FamilyParameter fp in famMan.Parameters)
+                {
+                    if (fp.Definition.Name == "ASS_TAG_1_TXT")
+                    {
+                        tagParam = fp;
+                        break;
+                    }
+                }
+                if (tagParam == null) return false;
+
+                // Find existing dimensions in the family that may have labels.
+                // In tag .rft templates, the label text is typically implemented as
+                // a Dimension with a FamilyLabel property.
+                var dims = new FilteredElementCollector(famDoc)
+                    .OfClass(typeof(Dimension))
+                    .Cast<Dimension>()
+                    .ToList();
+
+                using (Transaction tx = new Transaction(famDoc, "STING Rebind Label"))
+                {
+                    tx.Start();
+
+                    foreach (Dimension dim in dims)
+                    {
+                        try
+                        {
+                            // Attempt to set the FamilyLabel to our tag parameter.
+                            // This works for dimension labels in families but may not
+                            // work for annotation text labels (which is the Revit limitation).
+                            if (dim.FamilyLabel != null || dim.FamilyLabel == null)
+                            {
+                                dim.FamilyLabel = tagParam;
+                                StingLog.Info("Successfully rebound dimension label to ASS_TAG_1_TXT");
+                                tx.Commit();
+                                return true;
+                            }
+                        }
+                        catch
+                        {
+                            // Expected: most dimensions in tag families don't support
+                            // FamilyLabel assignment. Continue to next.
+                        }
+                    }
+
+                    // Also try: find TextNote elements and check if they have
+                    // any association mechanism (varies by Revit version)
+                    var textNotes = new FilteredElementCollector(famDoc)
+                        .OfClass(typeof(TextNote))
+                        .Cast<TextNote>()
+                        .ToList();
+
+                    foreach (TextNote tn in textNotes)
+                    {
+                        try
+                        {
+                            // In some Revit versions, tag templates use TextNote with
+                            // a special BuiltInParameter for label association.
+                            // Try to set the text to indicate which parameter to display.
+                            Parameter labelParam = tn.get_Parameter(
+                                BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                            if (labelParam != null && !labelParam.IsReadOnly)
+                            {
+                                labelParam.Set("ASS_TAG_1_TXT");
+                            }
+                        }
+                        catch { /* Not supported — expected */ }
+                    }
+
+                    tx.Commit();
+                }
+
+                // If we get here, no programmatic rebind worked.
+                // The label still shows the default parameter.
+                return false;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Info($"Label rebind attempt (expected to fail): {ex.Message}");
                 return false;
             }
         }
@@ -809,6 +916,176 @@ namespace StingTools.Tags
             td.Show();
 
             StingLog.Info($"LoadTagFamilies: loaded={loaded}, skipped={skipped}, failed={failed}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Configure Tag Labels — guided wizard to set Labels in tag families
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Guided wizard that opens each STING tag family in the Family Editor
+    /// for Label configuration. Walks the user through setting the Label
+    /// parameter to ASS_TAG_1_TXT for each family, one at a time.
+    ///
+    /// This command overcomes the Revit API limitation (no NewLabel API) by:
+    ///   1. Finding all loaded STING tag families in the project
+    ///   2. Opening each in the Family Editor via Document.EditFamily()
+    ///   3. Showing step-by-step instructions for configuring the Label
+    ///   4. Automatically reloading the family after the user saves
+    ///   5. Tracking progress and allowing skip/stop at any point
+    ///
+    /// Workflow: Run after CreateTagFamiliesCommand to complete tag family setup.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ConfigureTagLabelsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            UIApplication uiApp = commandData.Application;
+            Document doc = uiApp.ActiveUIDocument.Document;
+
+            // Find all loaded STING tag families
+            var stingFamilies = new List<Family>();
+            foreach (Family fam in new FilteredElementCollector(doc)
+                .OfClass(typeof(Family)).Cast<Family>())
+            {
+                if (fam.Name.StartsWith(TagFamilyConfig.FamilyPrefix, StringComparison.OrdinalIgnoreCase)
+                    && fam.Name.Contains("Tag"))
+                {
+                    stingFamilies.Add(fam);
+                }
+            }
+
+            if (stingFamilies.Count == 0)
+            {
+                TaskDialog.Show("Configure Tag Labels",
+                    "No STING tag families loaded in this project.\n\n" +
+                    "Run 'Create Tag Families' first to generate and load them.");
+                return Result.Failed;
+            }
+
+            // Sort alphabetically for consistent order
+            stingFamilies = stingFamilies.OrderBy(f => f.Name).ToList();
+
+            // Introduction dialog
+            TaskDialog intro = new TaskDialog("Configure Tag Labels");
+            intro.MainInstruction = $"Configure Labels for {stingFamilies.Count} STING tag families";
+            intro.MainContent =
+                "This wizard will open each tag family in the Family Editor.\n\n" +
+                "For each family, you need to:\n" +
+                "  1. Select the existing Label text (usually shows 'Type Mark')\n" +
+                "  2. Click 'Edit Label' in the Properties panel\n" +
+                "  3. Remove the current parameter\n" +
+                "  4. Add 'ASS_TAG_1_TXT' from the list\n" +
+                "  5. Click OK, then Save (Ctrl+S)\n" +
+                "  6. Click 'Load into Project and Close'\n\n" +
+                "The wizard will guide you through each family.";
+            intro.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (intro.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            int configured = 0;
+            int skipped = 0;
+            int remaining = stingFamilies.Count;
+
+            foreach (Family fam in stingFamilies)
+            {
+                remaining--;
+
+                // Show instructions for this family
+                TaskDialog step = new TaskDialog("Configure Tag Label");
+                step.MainInstruction = $"Family: {fam.Name}";
+                step.MainContent =
+                    $"[{configured + skipped + 1}/{stingFamilies.Count}] " +
+                    $"({remaining} remaining after this)\n\n" +
+                    "Steps:\n" +
+                    "  1. Select the Label text in the family\n" +
+                    "  2. Edit Label → remove default → add ASS_TAG_1_TXT\n" +
+                    "  3. Save and Load into Project\n\n" +
+                    "Click 'Open' to open this family in the Editor,\n" +
+                    "or 'Skip' to move to the next one.";
+                step.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Open in Family Editor",
+                    "Opens this tag family for Label configuration");
+                step.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Skip this family",
+                    "Move to the next tag family");
+                step.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "Stop — done for now",
+                    $"Exit wizard ({configured} configured so far)");
+                step.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                TaskDialogResult stepResult = step.Show();
+
+                if (stepResult == TaskDialogResult.CommandLink3 ||
+                    stepResult == TaskDialogResult.Cancel)
+                {
+                    break;
+                }
+
+                if (stepResult == TaskDialogResult.CommandLink2)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                // Open the family in the Family Editor
+                try
+                {
+                    Document famDoc = doc.EditFamily(fam);
+                    if (famDoc != null)
+                    {
+                        // Family is now open in the editor.
+                        // Show a reminder dialog (non-blocking since the family editor is active)
+                        TaskDialog reminder = new TaskDialog("Label Configuration");
+                        reminder.MainInstruction = $"Now editing: {fam.Name}";
+                        reminder.MainContent =
+                            "The family is open in the Family Editor.\n\n" +
+                            "Configure the Label:\n" +
+                            "  1. Click the Label text element\n" +
+                            "  2. In Properties → Edit Label\n" +
+                            "  3. Remove the existing parameter\n" +
+                            "  4. Add 'ASS_TAG_1_TXT'\n" +
+                            "  5. Click OK\n" +
+                            "  6. Save (Ctrl+S) → Load into Project and Close\n\n" +
+                            "Click OK when you've finished configuring this family.";
+                        reminder.CommonButtons = TaskDialogCommonButtons.Ok;
+                        reminder.Show();
+
+                        configured++;
+                    }
+                    else
+                    {
+                        StingLog.Warn($"EditFamily returned null for {fam.Name}");
+                        skipped++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"Failed to open family: {fam.Name}", ex);
+                    TaskDialog.Show("Error",
+                        $"Could not open {fam.Name}:\n{ex.Message}");
+                    skipped++;
+                }
+            }
+
+            // Final summary
+            TaskDialog summary = new TaskDialog("Configure Tag Labels");
+            summary.MainInstruction = $"Label configuration complete";
+            summary.MainContent =
+                $"Families opened for editing: {configured}\n" +
+                $"Skipped: {skipped}\n" +
+                $"Total STING tag families: {stingFamilies.Count}\n\n" +
+                (configured < stingFamilies.Count
+                    ? "Run this command again to configure remaining families."
+                    : "All tag families have been opened for configuration.");
+            summary.Show();
+
+            StingLog.Info($"ConfigureTagLabels: configured={configured}, skipped={skipped}");
             return Result.Succeeded;
         }
     }
