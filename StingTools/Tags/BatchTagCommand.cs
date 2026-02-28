@@ -204,9 +204,10 @@ namespace StingTools.Tags
                 })
                 .ThenBy(e =>
                 {
-                    // SYS sort key: groups elements by system within discipline
+                    // SYS sort key: groups elements by ACTUAL system within discipline
+                    // Uses MEP-aware detection so pipes group by DCW/HWS/SAN/GAS
                     string cat = ParameterHelpers.GetCategoryName(e);
-                    string sys = TagConfig.GetSysCode(cat);
+                    string sys = TagConfig.GetMepSystemAwareSysCode(e, cat);
                     return !string.IsNullOrEmpty(sys) ? sys : "ZZZ";
                 })
                 .ThenBy(e => ParameterHelpers.GetCategoryName(e))

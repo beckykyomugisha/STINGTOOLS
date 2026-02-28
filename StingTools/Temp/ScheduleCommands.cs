@@ -746,6 +746,7 @@ namespace StingTools.Temp
             {
                 tx.Start();
 
+                int errors = 0;
                 foreach (Element el in allElements)
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
@@ -754,6 +755,8 @@ namespace StingTools.Temp
 
                     totalElements++;
 
+                    try
+                    {
                     // ── STEP 1: Tag token population ───────────────────────────
                     if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC,
                         TagConfig.DiscMap[catName])) tokensFilled++;
@@ -856,6 +859,12 @@ namespace StingTools.Temp
                     // Progress logging
                     if (totalElements % 500 == 0)
                         StingLog.Info($"FullAutoPopulate: {totalElements} elements processed...");
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error($"FullAutoPopulate: element {el?.Id}: {ex.Message}", ex);
+                        errors++;
+                    }
                 }
 
                 tx.Commit();
@@ -874,6 +883,8 @@ namespace StingTools.Temp
             report.AppendLine($"  Containers combined:   {combined}");
             if (gridRefSet > 0)
                 report.AppendLine($"  Grid refs assigned:    {gridRefSet}");
+            if (errors > 0)
+                report.AppendLine($"  Errors (skipped):      {errors}");
             report.AppendLine($"  Duration:              {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
             report.AppendLine("Pipeline: Tokens → Dimensions → MEP → Formulas → Tags → Combine → Grid");
@@ -995,6 +1006,7 @@ namespace StingTools.Temp
             {
                 tx.Start();
 
+                int apErrors = 0;
                 foreach (Element el in collector)
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
@@ -1003,6 +1015,8 @@ namespace StingTools.Temp
 
                     total++;
 
+                    try
+                    {
                     // ── Layer 1: Tag token population (DISC/PROD/SYS/FUNC/LVL/LOC/ZONE) ──
 
                     // Auto-populate DISC code from category
@@ -1075,6 +1089,12 @@ namespace StingTools.Temp
                     int mapped = NativeParamMapper.MapAll(doc, el);
                     nativeMapped += mapped;
                     updated += mapped;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error($"AutoPopulate: element {el?.Id}: {ex.Message}", ex);
+                        apErrors++;
+                    }
                 }
 
                 tx.Commit();

@@ -334,12 +334,28 @@ namespace StingTools.Organise
                         if (ParameterHelpers.SetString(elem, param, "", overwrite: true))
                             any = true;
                     }
-                    if (any) cleared++;
+
+                    // Also clear all discipline-specific containers
+                    if (any)
+                    {
+                        try
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(elem);
+                            var emptyTokens = new string[8]; // All empty strings
+                            for (int i = 0; i < emptyTokens.Length; i++) emptyTokens[i] = "";
+                            ParamRegistry.WriteContainers(elem, emptyTokens, catName, overwrite: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"DeleteTags: container clear failed for {elem.Id}: {ex.Message}");
+                        }
+                        cleared++;
+                    }
                 }
                 tx.Commit();
             }
 
-            TaskDialog.Show("Delete Tags", $"Cleared tags from {cleared} elements.");
+            TaskDialog.Show("Delete Tags", $"Cleared tags and containers from {cleared} elements.");
             return Result.Succeeded;
         }
     }
