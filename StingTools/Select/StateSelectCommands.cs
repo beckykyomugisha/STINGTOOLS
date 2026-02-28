@@ -28,7 +28,7 @@ namespace StingTools.Select
                 {
                     string cat = ParameterHelpers.GetCategoryName(e);
                     if (!known.Contains(cat)) return false;
-                    string tag = ParameterHelpers.GetString(e, "ASS_TAG_1_TXT");
+                    string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
                     return string.IsNullOrEmpty(tag);
                 })
                 .Select(e => e.Id).ToList();
@@ -54,7 +54,7 @@ namespace StingTools.Select
                 {
                     string cat = ParameterHelpers.GetCategoryName(e);
                     if (!known.Contains(cat)) return false;
-                    string tag = ParameterHelpers.GetString(e, "ASS_TAG_1_TXT");
+                    string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
                     return TagConfig.TagIsComplete(tag);
                 })
                 .Select(e => e.Id).ToList();
@@ -276,10 +276,10 @@ namespace StingTools.Select
             string paramName; string paramValue;
             switch (td2.Show())
             {
-                case TaskDialogResult.CommandLink1: paramName = "ASS_LOC_TXT"; paramValue = "BLD1"; break;
-                case TaskDialogResult.CommandLink2: paramName = "ASS_ZONE_TXT"; paramValue = "Z01"; break;
-                case TaskDialogResult.CommandLink3: paramName = "ASS_STATUS_TXT"; paramValue = "NEW"; break;
-                case TaskDialogResult.CommandLink4: paramName = "ASS_STATUS_TXT"; paramValue = "EXISTING"; break;
+                case TaskDialogResult.CommandLink1: paramName = ParamRegistry.LOC; paramValue = "BLD1"; break;
+                case TaskDialogResult.CommandLink2: paramName = ParamRegistry.ZONE; paramValue = "Z01"; break;
+                case TaskDialogResult.CommandLink3: paramName = ParamRegistry.STATUS; paramValue = "NEW"; break;
+                case TaskDialogResult.CommandLink4: paramName = ParamRegistry.STATUS; paramValue = "EXISTING"; break;
                 default: return Result.Cancelled;
             }
 
@@ -318,25 +318,25 @@ namespace StingTools.Select
 
                     // DISC
                     string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-                    if (ParameterHelpers.SetIfEmpty(elem, "ASS_DISCIPLINE_COD_TXT", disc)) populated++;
+                    if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.DISC, disc)) populated++;
                     // LOC
                     string loc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
-                    if (ParameterHelpers.SetIfEmpty(elem, "ASS_LOC_TXT", loc)) populated++;
+                    if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LOC, loc)) populated++;
                     // ZONE
                     string zone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
-                    if (ParameterHelpers.SetIfEmpty(elem, "ASS_ZONE_TXT", zone)) populated++;
+                    if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.ZONE, zone)) populated++;
                     // LVL
                     string lvl = ParameterHelpers.GetLevelCode(doc, elem);
-                    if (lvl != "XX") if (ParameterHelpers.SetIfEmpty(elem, "ASS_LVL_COD_TXT", lvl)) populated++;
+                    if (lvl != "XX") if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl)) populated++;
                     // SYS
                     string sys = TagConfig.GetSysCode(catName);
-                    if (!string.IsNullOrEmpty(sys)) if (ParameterHelpers.SetIfEmpty(elem, "ASS_SYSTEM_TYPE_TXT", sys)) populated++;
+                    if (!string.IsNullOrEmpty(sys)) if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys)) populated++;
                     // FUNC
                     string func = TagConfig.GetFuncCode(sys);
-                    if (!string.IsNullOrEmpty(func)) if (ParameterHelpers.SetIfEmpty(elem, "ASS_FUNC_TXT", func)) populated++;
+                    if (!string.IsNullOrEmpty(func)) if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func)) populated++;
                     // PROD (family-aware)
                     string prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
-                    if (ParameterHelpers.SetIfEmpty(elem, "ASS_PRODCT_COD_TXT", prod)) populated++;
+                    if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.PROD, prod)) populated++;
                 }
                 tx.Commit();
             }
@@ -352,13 +352,12 @@ namespace StingTools.Select
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
 
-            string[] clearParams = {
-                "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-                "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
-            };
+            string[] clearParams = ParamRegistry.AllTokenParams
+                .Concat(new[] {
+                    ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+                    ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
+                    ParamRegistry.STATUS,
+                }).Distinct().ToArray();
 
             int cleared = 0;
             using (Transaction tx = new Transaction(doc, "STING Clear Tags"))

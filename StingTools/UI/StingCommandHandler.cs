@@ -105,7 +105,7 @@ namespace StingTools.UI
                     case "QuickMark": QuickParamFilter(app, "Mark"); break;
                     case "QuickType": QuickParamFilter(app, "Type Name"); break;
                     case "QuickFamily": QuickParamFilter(app, "Family"); break;
-                    case "QuickSystem": QuickParamFilter(app, "ASS_SYSTEM_TYPE_TXT"); break;
+                    case "QuickSystem": QuickParamFilter(app, ParamRegistry.SYS); break;
 
                     // ── Bulk write from panel (inline) ──
                     case "BulkWrite": BulkParamWriteInline(app, _param1, _param2, false); break;
@@ -342,10 +342,10 @@ namespace StingTools.UI
                     case "SetLoc": RunCommand<Tags.SetLocCommand>(app); break;
                     case "SetZone": RunCommand<Tags.SetZoneCommand>(app); break;
                     case "SetStatus": RunCommand<Tags.SetStatusCommand>(app); break;
-                    case "SetSys": WriteTokenToSelected(app, "ASS_SYSTEM_TYPE_TXT", "System Code (SYS)"); break;
-                    case "SetFunc": WriteTokenToSelected(app, "ASS_FUNC_TXT", "Function Code (FUNC)"); break;
-                    case "SetProd": WriteTokenToSelected(app, "ASS_PRODCT_COD_TXT", "Product Code (PROD)"); break;
-                    case "SetLvl": WriteTokenToSelected(app, "ASS_LVL_COD_TXT", "Level Code (LVL)"); break;
+                    case "SetSys": WriteTokenToSelected(app, ParamRegistry.SYS, "System Code (SYS)"); break;
+                    case "SetFunc": WriteTokenToSelected(app, ParamRegistry.FUNC, "Function Code (FUNC)"); break;
+                    case "SetProd": WriteTokenToSelected(app, ParamRegistry.PROD, "Product Code (PROD)"); break;
+                    case "SetLvl": WriteTokenToSelected(app, ParamRegistry.LVL, "Level Code (LVL)"); break;
                     case "SetOrig": WriteTokenToSelected(app, "ASS_ORIGIN_TXT", "Origin Code (ORIG)"); break;
                     case "SetProj": WriteTokenToSelected(app, "ASS_PROJECT_TXT", "Project Code (PROJ)"); break;
                     case "SetRev": WriteTokenToSelected(app, "ASS_REV_TXT", "Revision Code (REV)"); break;
@@ -1100,10 +1100,10 @@ namespace StingTools.UI
         {
             return paramName switch
             {
-                "ASS_SYSTEM_TYPE_TXT" => new[] { "HVAC", "DCW", "SAN" },
-                "ASS_FUNC_TXT" => new[] { "SUP", "HTG", "PWR" },
-                "ASS_PRODCT_COD_TXT" => new[] { "AHU", "DB", "DR" },
-                "ASS_LVL_COD_TXT" => new[] { "GF", "L01", "B1" },
+                ParamRegistry.SYS => new[] { "HVAC", "DCW", "SAN" },
+                ParamRegistry.FUNC => new[] { "SUP", "HTG", "PWR" },
+                ParamRegistry.PROD => new[] { "AHU", "DB", "DR" },
+                ParamRegistry.LVL => new[] { "GF", "L01", "B1" },
                 "ASS_ORIGIN_TXT" => new[] { "NEW", "EXISTING", "DEMOLISHED" },
                 "ASS_PROJECT_TXT" => new[] { "PRJ001", "PRJ002", "PRJ003" },
                 "ASS_REV_TXT" => new[] { "P01", "P02", "C01" },

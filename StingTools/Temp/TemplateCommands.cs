@@ -107,27 +107,27 @@ namespace StingTools.Temp
         private static readonly (string name, string paramName, string ruleType, string value)[] ParameterFilterDefs = new[]
         {
             // Tag status filters
-            ("STING - Tagged Elements", "ASS_TAG_1_TXT", "HasValue", ""),
-            ("STING - Untagged Elements", "ASS_TAG_1_TXT", "HasNoValue", ""),
-            ("STING - Incomplete Tags", "ASS_TAG_1_TXT", "Contains", "-XX-"),
+            ("STING - Tagged Elements", ParamRegistry.TAG1, "HasValue", ""),
+            ("STING - Untagged Elements", ParamRegistry.TAG1, "HasNoValue", ""),
+            ("STING - Incomplete Tags", ParamRegistry.TAG1, "Contains", "-XX-"),
             // Discipline code filters (parameter-based for precision)
-            ("STING - Disc: Mechanical", "ASS_DISCIPLINE_COD_TXT", "Equals", "M"),
-            ("STING - Disc: Electrical", "ASS_DISCIPLINE_COD_TXT", "Equals", "E"),
-            ("STING - Disc: Plumbing", "ASS_DISCIPLINE_COD_TXT", "Equals", "P"),
-            ("STING - Disc: Architectural", "ASS_DISCIPLINE_COD_TXT", "Equals", "A"),
-            ("STING - Disc: Structural", "ASS_DISCIPLINE_COD_TXT", "Equals", "S"),
-            ("STING - Disc: Fire Protection", "ASS_DISCIPLINE_COD_TXT", "Equals", "FP"),
-            ("STING - Disc: Low Voltage", "ASS_DISCIPLINE_COD_TXT", "Equals", "LV"),
+            ("STING - Disc: Mechanical", ParamRegistry.DISC, "Equals", "M"),
+            ("STING - Disc: Electrical", ParamRegistry.DISC, "Equals", "E"),
+            ("STING - Disc: Plumbing", ParamRegistry.DISC, "Equals", "P"),
+            ("STING - Disc: Architectural", ParamRegistry.DISC, "Equals", "A"),
+            ("STING - Disc: Structural", ParamRegistry.DISC, "Equals", "S"),
+            ("STING - Disc: Fire Protection", ParamRegistry.DISC, "Equals", "FP"),
+            ("STING - Disc: Low Voltage", ParamRegistry.DISC, "Equals", "LV"),
             // QA / checking filters
-            ("STING - QA: Missing Discipline", "ASS_DISCIPLINE_COD_TXT", "HasNoValue", ""),
-            ("STING - QA: Missing Sequence", "ASS_SEQ_NUM_TXT", "HasNoValue", ""),
-            ("STING - QA: Missing Location", "ASS_LOC_TXT", "HasNoValue", ""),
-            ("STING - QA: Missing System", "ASS_SYSTEM_TYPE_TXT", "HasNoValue", ""),
+            ("STING - QA: Missing Discipline", ParamRegistry.DISC, "HasNoValue", ""),
+            ("STING - QA: Missing Sequence", ParamRegistry.SEQ, "HasNoValue", ""),
+            ("STING - QA: Missing Location", ParamRegistry.LOC, "HasNoValue", ""),
+            ("STING - QA: Missing System", ParamRegistry.SYS, "HasNoValue", ""),
             // Element status filters
-            ("STING - Status: Existing", "ASS_STATUS_TXT", "Equals", "EXISTING"),
-            ("STING - Status: New", "ASS_STATUS_TXT", "Equals", "NEW"),
-            ("STING - Status: Demolished", "ASS_STATUS_TXT", "Equals", "DEMOLISHED"),
-            ("STING - Status: Temporary", "ASS_STATUS_TXT", "Equals", "TEMPORARY"),
+            ("STING - Status: Existing", ParamRegistry.STATUS, "Equals", "EXISTING"),
+            ("STING - Status: New", ParamRegistry.STATUS, "Equals", "NEW"),
+            ("STING - Status: Demolished", ParamRegistry.STATUS, "Equals", "DEMOLISHED"),
+            ("STING - Status: Temporary", ParamRegistry.STATUS, "Equals", "TEMPORARY"),
         };
 
         public Result Execute(ExternalCommandData commandData,

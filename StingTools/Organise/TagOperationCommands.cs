@@ -33,7 +33,7 @@ namespace StingTools.Organise
             {
                 Element elem = doc.GetElement(id);
                 if (elem == null) continue;
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (TagConfig.TagIsComplete(tag)) alreadyTagged++;
             }
 
@@ -171,7 +171,7 @@ namespace StingTools.Organise
             {
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag)) continue;
                 if (!tagMap.ContainsKey(tag)) tagMap[tag] = new List<Element>();
                 tagMap[tag].Add(elem);
@@ -208,13 +208,13 @@ namespace StingTools.Organise
                     for (int i = 1; i < kvp.Value.Count; i++)
                     {
                         Element elem = kvp.Value[i];
-                        string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                        string loc = ParameterHelpers.GetString(elem, "ASS_LOC_TXT");
-                        string zone = ParameterHelpers.GetString(elem, "ASS_ZONE_TXT");
-                        string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
-                        string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                        string func = ParameterHelpers.GetString(elem, "ASS_FUNC_TXT");
-                        string prod = ParameterHelpers.GetString(elem, "ASS_PRODCT_COD_TXT");
+                        string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                        string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
+                        string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                        string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                        string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                        string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                        string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
 
                         if (string.IsNullOrEmpty(disc)) continue;
 
@@ -228,13 +228,13 @@ namespace StingTools.Organise
                         do
                         {
                             seqCounters[seqKey]++;
-                            newSeq = seqCounters[seqKey].ToString().PadLeft(TagConfig.NumPad, '0');
-                            newTag = string.Join(TagConfig.Separator, disc, loc, zone, lvl, sys, func, prod, newSeq);
+                            newSeq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                            newTag = string.Join(ParamRegistry.Separator, disc, loc, zone, lvl, sys, func, prod, newSeq);
                         } while (tagIndex.Contains(newTag) && safety-- > 0);
 
                         tagIndex.Add(newTag);
-                        ParameterHelpers.SetString(elem, "ASS_SEQ_NUM_TXT", newSeq, overwrite: true);
-                        ParameterHelpers.SetString(elem, "ASS_TAG_1_TXT", newTag, overwrite: true);
+                        ParameterHelpers.SetString(elem, ParamRegistry.SEQ, newSeq, overwrite: true);
+                        ParameterHelpers.SetString(elem, ParamRegistry.TAG1, newTag, overwrite: true);
                         fixed_++;
                     }
                 }
@@ -255,11 +255,11 @@ namespace StingTools.Organise
     {
         private static readonly string[] TagParams = new[]
         {
-            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
+            ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+            ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+            ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS,
         };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -327,9 +327,9 @@ namespace StingTools.Organise
             {
                 Element elem = doc.GetElement(id);
                 if (elem == null) continue;
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
                 if (string.IsNullOrEmpty(disc)) continue;
 
                 string key = $"{disc}_{sys}_{lvl}";
@@ -346,20 +346,20 @@ namespace StingTools.Organise
                     int seq = 1;
                     foreach (Element elem in kvp.Value)
                     {
-                        string seqStr = seq.ToString().PadLeft(TagConfig.NumPad, '0');
-                        ParameterHelpers.SetString(elem, "ASS_SEQ_NUM_TXT", seqStr, overwrite: true);
+                        string seqStr = seq.ToString().PadLeft(ParamRegistry.NumPad, '0');
+                        ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seqStr, overwrite: true);
 
                         // Rebuild assembled tag
-                        string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                        string loc = ParameterHelpers.GetString(elem, "ASS_LOC_TXT");
-                        string zone = ParameterHelpers.GetString(elem, "ASS_ZONE_TXT");
-                        string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
-                        string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                        string func = ParameterHelpers.GetString(elem, "ASS_FUNC_TXT");
-                        string prod = ParameterHelpers.GetString(elem, "ASS_PRODCT_COD_TXT");
-                        string tag = string.Join(TagConfig.Separator,
+                        string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                        string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
+                        string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                        string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                        string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                        string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                        string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                        string tag = string.Join(ParamRegistry.Separator,
                             disc, loc, zone, lvl, sys, func, prod, seqStr);
-                        ParameterHelpers.SetString(elem, "ASS_TAG_1_TXT", tag, overwrite: true);
+                        ParameterHelpers.SetString(elem, ParamRegistry.TAG1, tag, overwrite: true);
 
                         seq++;
                         renumbered++;
@@ -392,16 +392,16 @@ namespace StingTools.Organise
                 if (!known.Contains(cat)) continue;
 
                 total++;
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                string loc = ParameterHelpers.GetString(elem, "ASS_LOC_TXT");
-                string zone = ParameterHelpers.GetString(elem, "ASS_ZONE_TXT");
-                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
-                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                string func = ParameterHelpers.GetString(elem, "ASS_FUNC_TXT");
-                string prod = ParameterHelpers.GetString(elem, "ASS_PRODCT_COD_TXT");
-                string seq = ParameterHelpers.GetString(elem, "ASS_SEQ_NUM_TXT");
-                string status = ParameterHelpers.GetString(elem, "ASS_STATUS_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
+                string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                string seq = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
+                string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
                 bool valid = TagConfig.TagIsComplete(tag);
 
                 sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{valid}");
@@ -450,7 +450,7 @@ namespace StingTools.Organise
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
 
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag)) continue;
 
                 if (!tagMap.ContainsKey(tag)) tagMap[tag] = new List<ElementId>();
@@ -523,7 +523,7 @@ namespace StingTools.Organise
                     string cat = ParameterHelpers.GetCategoryName(elem);
                     if (!known.Contains(cat)) continue;
 
-                    string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                    string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag))
                     {
                         view.SetElementOverrides(elem.Id, red);
@@ -585,11 +585,11 @@ namespace StingTools.Organise
     {
         private static readonly string[] CopyParams = new[]
         {
-            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_STATUS_TXT",
+            ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+            ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+            ParamRegistry.PROD, ParamRegistry.STATUS,
         };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -612,7 +612,7 @@ namespace StingTools.Organise
             foreach (string p in CopyParams)
                 values[p] = ParameterHelpers.GetString(source, p);
 
-            string sourceTag = values.TryGetValue("ASS_TAG_1_TXT", out string t) ? t : "(empty)";
+            string sourceTag = values.TryGetValue(ParamRegistry.TAG1, out string t) ? t : "(empty)";
 
             TaskDialog confirm = new TaskDialog("Copy Tags");
             confirm.MainInstruction = $"Copy tags from Element {source.Id}?";
@@ -656,11 +656,11 @@ namespace StingTools.Organise
     {
         private static readonly string[] SwapParams = new[]
         {
-            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
+            ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+            ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+            ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS,
         };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -678,8 +678,8 @@ namespace StingTools.Organise
             Element a = doc.GetElement(selected[0]);
             Element b = doc.GetElement(selected[1]);
 
-            string tagA = ParameterHelpers.GetString(a, "ASS_TAG_1_TXT");
-            string tagB = ParameterHelpers.GetString(b, "ASS_TAG_1_TXT");
+            string tagA = ParameterHelpers.GetString(a, ParamRegistry.TAG1);
+            string tagB = ParameterHelpers.GetString(b, ParamRegistry.TAG1);
 
             TaskDialog confirm = new TaskDialog("Swap Tags");
             confirm.MainInstruction = "Swap tags between two elements?";
@@ -728,7 +728,7 @@ namespace StingTools.Organise
             foreach (Element elem in new FilteredElementCollector(doc, doc.ActiveView.Id)
                 .WhereElementIsNotElementType())
             {
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 if (string.IsNullOrEmpty(disc)) continue;
 
                 if (!discCounts.ContainsKey(disc))
@@ -875,7 +875,7 @@ namespace StingTools.Organise
                 if (hostIds.Count == 0) return null;
                 Element host = doc.GetElement(hostIds.First());
                 if (host == null) return null;
-                return ParameterHelpers.GetString(host, "ASS_DISCIPLINE_COD_TXT");
+                return ParameterHelpers.GetString(host, ParamRegistry.DISC);
             }
             catch { return null; }
         }
@@ -1273,25 +1273,25 @@ namespace StingTools.Organise
                 if (!known.Contains(cat)) continue;
 
                 total++;
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (TagConfig.TagIsComplete(tag))
                     tagged++;
                 else
                     untagged++;
 
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 if (!string.IsNullOrEmpty(disc))
                 {
                     if (!byDisc.ContainsKey(disc)) byDisc[disc] = 0;
                     byDisc[disc]++;
                 }
-                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
                 if (!string.IsNullOrEmpty(sys))
                 {
                     if (!bySys.ContainsKey(sys)) bySys[sys] = 0;
                     bySys[sys]++;
                 }
-                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
                 if (!string.IsNullOrEmpty(lvl))
                 {
                     if (!byLvl.ContainsKey(lvl)) byLvl[lvl] = 0;
@@ -1395,20 +1395,20 @@ namespace StingTools.Organise
                 total++;
 
                 // Tag tokens
-                string disc = Gs(el, "ASS_DISCIPLINE_COD_TXT");
-                string loc = Gs(el, "ASS_LOC_TXT");
-                string zone = Gs(el, "ASS_ZONE_TXT");
-                string lvl = Gs(el, "ASS_LVL_COD_TXT");
-                string sys = Gs(el, "ASS_SYSTEM_TYPE_TXT");
-                string func = Gs(el, "ASS_FUNC_TXT");
-                string prod = Gs(el, "ASS_PRODCT_COD_TXT");
-                string seq = Gs(el, "ASS_SEQ_NUM_TXT");
+                string disc = Gs(el, ParamRegistry.DISC);
+                string loc = Gs(el, ParamRegistry.LOC);
+                string zone = Gs(el, ParamRegistry.ZONE);
+                string lvl = Gs(el, ParamRegistry.LVL);
+                string sys = Gs(el, ParamRegistry.SYS);
+                string func = Gs(el, ParamRegistry.FUNC);
+                string prod = Gs(el, ParamRegistry.PROD);
+                string seq = Gs(el, ParamRegistry.SEQ);
 
                 // Assembled tags
-                string tag1 = Gs(el, "ASS_TAG_1_TXT");
-                string tag2 = Gs(el, "ASS_TAG_2_TXT");
-                string tag3 = Gs(el, "ASS_TAG_3_TXT");
-                string tag4 = Gs(el, "ASS_TAG_4_TXT");
+                string tag1 = Gs(el, ParamRegistry.TAG1);
+                string tag2 = Gs(el, ParamRegistry.TAG2);
+                string tag3 = Gs(el, ParamRegistry.TAG3);
+                string tag4 = Gs(el, ParamRegistry.TAG4);
 
                 // Validation
                 bool isValid = TagConfig.TagIsComplete(tag1);
@@ -1431,7 +1431,7 @@ namespace StingTools.Organise
                 // Identity
                 string familyName = ParameterHelpers.GetFamilyName(el);
                 string typeName = ParameterHelpers.GetFamilySymbolName(el);
-                string status = Gs(el, "ASS_STATUS_TXT");
+                string status = Gs(el, ParamRegistry.STATUS);
                 string mark = Gp(el, BuiltInParameter.ALL_MODEL_MARK);
                 string desc = Gs(el, "ASS_DESCRIPTION_TXT");
                 if (string.IsNullOrEmpty(desc)) desc = Gp(el, BuiltInParameter.ALL_MODEL_DESCRIPTION);

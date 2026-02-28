@@ -758,7 +758,7 @@ namespace StingTools.Core
         private static int MapDefaults(Element el)
         {
             int written = 0;
-            written += SetIfEmptyInt(el, "ASS_STATUS_TXT", "NEW");
+            written += SetIfEmptyInt(el, ParamRegistry.STATUS, "NEW");
             return written;
         }
 
@@ -819,14 +819,14 @@ namespace StingTools.Core
                 written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, "HVC_AIRFLOW_LPS");
                 // System type name for schedule grouping
                 written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    "ASS_SYSTEM_TYPE_TXT");
+                    ParamRegistry.SYS);
             }
 
             // ── Mechanical Equipment ───────────────────────────────────────────
             if (catName == "Mechanical Equipment")
             {
                 written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    "ASS_SYSTEM_TYPE_TXT");
+                    ParamRegistry.SYS);
             }
 
             // ── Pipe parameters ────────────────────────────────────────────────
@@ -842,14 +842,14 @@ namespace StingTools.Core
                     "PLM_PPE_LENGTH_M", 0.3048); // ft → m
                 // System type
                 written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    "ASS_SYSTEM_TYPE_TXT");
+                    ParamRegistry.SYS);
             }
 
             // ── Fire Alarm Devices ─────────────────────────────────────────────
             if (catName == "Fire Alarm Devices")
             {
                 written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    "ASS_SYSTEM_TYPE_TXT");
+                    ParamRegistry.SYS);
             }
 
             // ── Size parameters (generic MEP) ──────────────────────────────────

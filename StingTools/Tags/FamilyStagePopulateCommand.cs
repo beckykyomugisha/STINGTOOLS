@@ -135,12 +135,12 @@ namespace StingTools.Tags
                     string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
                     if (overwrite)
                     {
-                        if (ParameterHelpers.SetString(el, "ASS_DISCIPLINE_COD_TXT", disc, overwrite: true))
+                        if (ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true))
                             discSet++;
                     }
                     else
                     {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc))
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc))
                             discSet++;
                     }
 
@@ -148,12 +148,12 @@ namespace StingTools.Tags
                     string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
                     if (overwrite)
                     {
-                        if (ParameterHelpers.SetString(el, "ASS_LOC_TXT", loc, overwrite: true))
+                        if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true))
                             locSet++;
                     }
                     else
                     {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc))
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc))
                             locSet++;
                     }
 
@@ -161,12 +161,12 @@ namespace StingTools.Tags
                     string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
                     if (overwrite)
                     {
-                        if (ParameterHelpers.SetString(el, "ASS_ZONE_TXT", zone, overwrite: true))
+                        if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true))
                             zoneSet++;
                     }
                     else
                     {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone))
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone))
                             zoneSet++;
                     }
 
@@ -174,12 +174,12 @@ namespace StingTools.Tags
                     string lvl = ParameterHelpers.GetLevelCode(doc, el);
                     if (overwrite)
                     {
-                        if (ParameterHelpers.SetString(el, "ASS_LVL_COD_TXT", lvl, overwrite: true))
+                        if (ParameterHelpers.SetString(el, ParamRegistry.LVL, lvl, overwrite: true))
                             lvlSet++;
                     }
                     else
                     {
-                        if (lvl != "XX" && ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl))
+                        if (lvl != "XX" && ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl))
                             lvlSet++;
                     }
 
@@ -189,12 +189,12 @@ namespace StingTools.Tags
                     {
                         if (overwrite)
                         {
-                            if (ParameterHelpers.SetString(el, "ASS_SYSTEM_TYPE_TXT", sys, overwrite: true))
+                            if (ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true))
                                 sysSet++;
                         }
                         else
                         {
-                            if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys))
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys))
                                 sysSet++;
                         }
                     }
@@ -205,12 +205,12 @@ namespace StingTools.Tags
                     {
                         if (overwrite)
                         {
-                            if (ParameterHelpers.SetString(el, "ASS_FUNC_TXT", func, overwrite: true))
+                            if (ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true))
                                 funcSet++;
                         }
                         else
                         {
-                            if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func))
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func))
                                 funcSet++;
                         }
                     }
@@ -222,12 +222,12 @@ namespace StingTools.Tags
 
                     if (overwrite)
                     {
-                        if (ParameterHelpers.SetString(el, "ASS_PRODCT_COD_TXT", prod, overwrite: true))
+                        if (ParameterHelpers.SetString(el, ParamRegistry.PROD, prod, overwrite: true))
                             prodSet++;
                     }
                     else
                     {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod))
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod))
                             prodSet++;
                     }
                 }

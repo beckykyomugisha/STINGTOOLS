@@ -93,11 +93,7 @@ namespace StingTools.Tags
 
             // Token coverage
             var emptyTokenCounts = new Dictionary<string, int>();
-            string[] tokenParams = {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT"
-            };
+            string[] tokenParams = ParamRegistry.AllTokenParams;
             foreach (string t in tokenParams) emptyTokenCounts[t] = 0;
 
             // Family PROD intelligence
@@ -123,7 +119,7 @@ namespace StingTools.Tags
                 if (!discStats.ContainsKey(disc))
                     discStats[disc] = (0, 0, 0, 0);
 
-                string existingTag = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
+                string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 bool hasTag = TagConfig.TagIsComplete(existingTag);
 
                 // Check token coverage
@@ -154,8 +150,8 @@ namespace StingTools.Tags
                 // Predict LOC/ZONE auto-detection
                 string locSource = "existing";
                 string zoneSource = "existing";
-                string currentLoc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
-                string currentZone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
+                string currentLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                string currentZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
 
                 if (string.IsNullOrEmpty(currentLoc))
                 {
@@ -227,9 +223,9 @@ namespace StingTools.Tags
                     string seqKey = $"{disc}_{sys}_{lvl}";
                     if (!simCounters.ContainsKey(seqKey)) simCounters[seqKey] = 0;
                     simCounters[seqKey]++;
-                    string seq = simCounters[seqKey].ToString().PadLeft(TagConfig.NumPad, '0');
+                    string seq = simCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
 
-                    predictedTag = string.Join(TagConfig.Separator,
+                    predictedTag = string.Join(ParamRegistry.Separator,
                         disc, currentLoc, currentZone, lvl, sys, func, prod, seq);
 
                     // Check collision
@@ -238,8 +234,8 @@ namespace StingTools.Tags
                     {
                         collisionCount++;
                         simCounters[seqKey]++;
-                        seq = simCounters[seqKey].ToString().PadLeft(TagConfig.NumPad, '0');
-                        predictedTag = string.Join(TagConfig.Separator,
+                        seq = simCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                        predictedTag = string.Join(ParamRegistry.Separator,
                             disc, currentLoc, currentZone, lvl, sys, func, prod, seq);
                     }
                     if (collisionCount > 0) predictedCollisions++;

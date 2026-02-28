@@ -743,43 +743,43 @@ namespace StingTools.Temp
             // Token arrays for combine step (reuse TagAndCombine layout)
             string[] allTokenParams = new[]
             {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.SEQ,
             };
             string[] shortIdTokens = new[]
             {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+                ParamRegistry.DISC, ParamRegistry.PROD, ParamRegistry.SEQ,
             };
             string[] sysRefTokens = new[]
             {
-                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT",
+                ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD,
             };
             string[] locationTokens = new[]
             {
-                "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
+                ParamRegistry.LOC, ParamRegistry.ZONE, ParamRegistry.LVL,
             };
             string[] systemTokens = new[]
             {
-                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                ParamRegistry.SYS, ParamRegistry.FUNC,
             };
             string[] line1Tokens = new[]
             {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE, ParamRegistry.LVL,
             };
             string[] line2Tokens = new[]
             {
-                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+                ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD, ParamRegistry.SEQ,
             };
 
             var universalContainers = new (string param, string[] tokens)[]
             {
-                ("ASS_TAG_1_TXT", allTokenParams),
-                ("ASS_TAG_2_TXT", shortIdTokens),
-                ("ASS_TAG_3_TXT", locationTokens),
-                ("ASS_TAG_4_TXT", systemTokens),
-                ("ASS_TAG_5_TXT", line1Tokens),
-                ("ASS_TAG_6_TXT", line2Tokens),
+                (ParamRegistry.TAG1, allTokenParams),
+                (ParamRegistry.TAG2, shortIdTokens),
+                (ParamRegistry.TAG3, locationTokens),
+                (ParamRegistry.TAG4, systemTokens),
+                (ParamRegistry.TAG5, line1Tokens),
+                (ParamRegistry.TAG6, line2Tokens),
             };
 
             var disciplineContainers = new (string param, string[] tokens, HashSet<string> cats)[]
@@ -829,38 +829,38 @@ namespace StingTools.Temp
                     totalElements++;
 
                     // ── STEP 1: Tag token population ───────────────────────────
-                    if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT",
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC,
                         TagConfig.DiscMap[catName])) tokensFilled++;
 
                     string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
                     if (!string.IsNullOrEmpty(prod))
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod)) tokensFilled++;
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) tokensFilled++;
 
                     string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
                     if (!string.IsNullOrEmpty(sys))
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys)) tokensFilled++;
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) tokensFilled++;
 
                     string func = TagConfig.GetSmartFuncCode(el, sys);
                     if (!string.IsNullOrEmpty(func))
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func)) tokensFilled++;
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) tokensFilled++;
 
                     string lvl = ParameterHelpers.GetLevelCode(doc, el);
                     if (lvl != "XX")
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl)) tokensFilled++;
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) tokensFilled++;
 
                     // LOC from spatial
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
                     {
                         string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (!string.IsNullOrEmpty(loc) && ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc))
+                        if (!string.IsNullOrEmpty(loc) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc))
                             tokensFilled++;
                     }
 
                     // ZONE from room
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
                     {
                         string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (!string.IsNullOrEmpty(zone) && ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone))
+                        if (!string.IsNullOrEmpty(zone) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone))
                             tokensFilled++;
                     }
 
@@ -921,7 +921,7 @@ namespace StingTools.Temp
                         {
                             var parts = tokens.Select(t =>
                                 tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
-                            string assembled = string.Join(TagConfig.Separator, parts);
+                            string assembled = string.Join(ParamRegistry.Separator, parts);
                             if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
                                 combined++;
                         }
@@ -931,7 +931,7 @@ namespace StingTools.Temp
                             if (!cats.Contains(catName)) continue;
                             var parts = tokens.Select(t =>
                                 tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
-                            string assembled = string.Join(TagConfig.Separator, parts);
+                            string assembled = string.Join(ParamRegistry.Separator, parts);
                             if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
                                 combined++;
                         }
@@ -1100,7 +1100,7 @@ namespace StingTools.Temp
                     // ── Layer 1: Tag token population (DISC/PROD/SYS/FUNC/LVL/LOC/ZONE) ──
 
                     // Auto-populate DISC code from category
-                    if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT",
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC,
                         TagConfig.DiscMap[catName]))
                         updated++;
 
@@ -1108,7 +1108,7 @@ namespace StingTools.Temp
                     string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
                     if (!string.IsNullOrEmpty(prod))
                     {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod))
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod))
                             updated++;
                     }
 
@@ -1117,8 +1117,8 @@ namespace StingTools.Temp
                     string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
                     if (!string.IsNullOrEmpty(sys))
                     {
-                        string prevSys = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys))
+                        string prevSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys))
                         {
                             updated++;
                             if (string.IsNullOrEmpty(prevSys)) sysAware++;
@@ -1129,7 +1129,7 @@ namespace StingTools.Temp
                     string func = TagConfig.GetSmartFuncCode(el, sys);
                     if (!string.IsNullOrEmpty(func))
                     {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func))
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func))
                             updated++;
                     }
 
@@ -1137,15 +1137,15 @@ namespace StingTools.Temp
                     string lvl = ParameterHelpers.GetLevelCode(doc, el);
                     if (lvl != "XX")
                     {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl))
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl))
                             updated++;
                     }
 
                     // Auto-populate LOC from spatial data (room / project info)
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
                     {
                         string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (!string.IsNullOrEmpty(loc) && ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc))
+                        if (!string.IsNullOrEmpty(loc) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc))
                         {
                             updated++;
                             locDetected++;
@@ -1153,10 +1153,10 @@ namespace StingTools.Temp
                     }
 
                     // Auto-populate ZONE from room data (department, name, number)
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
                     {
                         string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (!string.IsNullOrEmpty(zone) && ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone))
+                        if (!string.IsNullOrEmpty(zone) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone))
                         {
                             updated++;
                             zoneDetected++;

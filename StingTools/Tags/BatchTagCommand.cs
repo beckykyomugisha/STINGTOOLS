@@ -49,7 +49,7 @@ namespace StingTools.Tags
                 if (!known.Contains(cat)) continue;
                 totalTaggable++;
                 taggableElements.Add(e);
-                if (TagConfig.TagIsComplete(ParameterHelpers.GetString(e, "ASS_TAG_1_TXT")))
+                if (TagConfig.TagIsComplete(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
                     alreadyTagged++;
                 else
                     untagged++;
@@ -114,15 +114,15 @@ namespace StingTools.Tags
                     string catName = ParameterHelpers.GetCategoryName(el);
 
                     // Pre-populate LOC/ZONE from spatial data before tagging
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
                     {
                         string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc)) populated++;
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) populated++;
                     }
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
                     {
                         string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone)) populated++;
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) populated++;
                     }
 
                     bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);

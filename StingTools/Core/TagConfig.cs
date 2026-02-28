@@ -187,37 +187,37 @@ namespace StingTools.Core
 
             switch (tokenName)
             {
-                case "ASS_DISCIPLINE_COD_TXT":
+                case ParamRegistry.DISC:
                     if (!ValidDiscCodes.Contains(value))
                         return $"DISC '{value}' not in valid set ({string.Join(",", ValidDiscCodes)})";
                     break;
-                case "ASS_LOC_TXT":
+                case ParamRegistry.LOC:
                     if (!TagConfig.LocCodes.Contains(value))
                         return $"LOC '{value}' not in valid set ({string.Join(",", TagConfig.LocCodes)})";
                     break;
-                case "ASS_ZONE_TXT":
+                case ParamRegistry.ZONE:
                     if (!TagConfig.ZoneCodes.Contains(value))
                         return $"ZONE '{value}' not in valid set ({string.Join(",", TagConfig.ZoneCodes)})";
                     break;
-                case "ASS_SYSTEM_TYPE_TXT":
+                case ParamRegistry.SYS:
                     if (!ValidSysCodes.Contains(value))
                         return $"SYS '{value}' not in valid set ({string.Join(",", ValidSysCodes)})";
                     break;
-                case "ASS_FUNC_TXT":
+                case ParamRegistry.FUNC:
                     if (!ValidFuncCodes.Contains(value))
                         return $"FUNC '{value}' not in valid set ({string.Join(",", ValidFuncCodes)})";
                     break;
-                case "ASS_LVL_COD_TXT":
+                case ParamRegistry.LVL:
                     // LVL codes: L01-L99, GF, B1-B9, RF, XX, or up to 4 uppercase chars
                     if (value.Length > 4 || value.Contains(" "))
                         return $"LVL '{value}' exceeds 4-char limit or contains spaces";
                     break;
-                case "ASS_PRODCT_COD_TXT":
+                case ParamRegistry.PROD:
                     // PROD codes: 2-4 uppercase alphanumeric
                     if (value.Length < 2 || value.Length > 4)
                         return $"PROD '{value}' should be 2-4 characters";
                     break;
-                case "ASS_SEQ_NUM_TXT":
+                case ParamRegistry.SEQ:
                     if (!int.TryParse(value, out _))
                         return $"SEQ '{value}' is not a valid number";
                     break;
@@ -234,9 +234,9 @@ namespace StingTools.Core
             var errors = new List<string>();
             string[] tokenParams = new[]
             {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.SEQ,
             };
 
             foreach (string param in tokenParams)
@@ -249,7 +249,7 @@ namespace StingTools.Core
 
             // Cross-validate: DISC must match element category
             string catName = ParameterHelpers.GetCategoryName(el);
-            string disc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
+            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
             if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(disc))
             {
                 string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : null;
@@ -258,7 +258,7 @@ namespace StingTools.Core
             }
 
             // Cross-validate: SYS should match category
-            string sys = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
+            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
             if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(sys))
             {
                 string expectedSys = TagConfig.GetSysCode(catName);
@@ -289,16 +289,16 @@ namespace StingTools.Core
             }
 
             // Validate individual segments
-            string discError = ValidateToken("ASS_DISCIPLINE_COD_TXT", parts[0]);
+            string discError = ValidateToken(ParamRegistry.DISC, parts[0]);
             if (discError != null) return discError;
 
-            string locError = ValidateToken("ASS_LOC_TXT", parts[1]);
+            string locError = ValidateToken(ParamRegistry.LOC, parts[1]);
             if (locError != null) return locError;
 
-            string zoneError = ValidateToken("ASS_ZONE_TXT", parts[2]);
+            string zoneError = ValidateToken(ParamRegistry.ZONE, parts[2]);
             if (zoneError != null) return zoneError;
 
-            string seqError = ValidateToken("ASS_SEQ_NUM_TXT", parts[7]);
+            string seqError = ValidateToken(ParamRegistry.SEQ, parts[7]);
             if (seqError != null) return seqError;
 
             return null; // valid
@@ -643,7 +643,7 @@ namespace StingTools.Core
                 return false;
 
             // Handle already-tagged elements based on collision mode
-            string existingTag = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
+            string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
             bool hasCompleteTag = TagIsComplete(existingTag);
 
             if (hasCompleteTag)
@@ -674,9 +674,9 @@ namespace StingTools.Core
             if (stats != null && disc == "XX")
                 stats.RecordWarning($"Element {el.Id}: category '{catName}' has no DISC mapping");
 
-            string loc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
+            string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
             if (string.IsNullOrEmpty(loc)) loc = "BLD1";
-            string zone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
+            string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
             if (string.IsNullOrEmpty(zone)) zone = "Z01";
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
 
@@ -717,27 +717,27 @@ namespace StingTools.Core
 
             if (overwriteTokens)
             {
-                ParameterHelpers.SetString(el, "ASS_DISCIPLINE_COD_TXT", disc, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_LOC_TXT", loc, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_ZONE_TXT", zone, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_LVL_COD_TXT", lvl, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_SYSTEM_TYPE_TXT", sys, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_FUNC_TXT", func, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_PRODCT_COD_TXT", prod, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_SEQ_NUM_TXT", seq, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.LVL, lvl, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.PROD, prod, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.SEQ, seq, overwrite: true);
             }
             else
             {
-                ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc);
-                ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc);
-                ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone);
-                ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl);
-                ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys);
-                ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func);
-                ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod);
-                ParameterHelpers.SetIfEmpty(el, "ASS_SEQ_NUM_TXT", seq);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.SEQ, seq);
             }
-            ParameterHelpers.SetString(el, "ASS_TAG_1_TXT", tag, overwrite: true);
+            ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
             stats?.RecordTagged(catName, disc, sys, lvl);
             return true;
         }
@@ -1176,7 +1176,7 @@ namespace StingTools.Core
             var index = new HashSet<string>(StringComparer.Ordinal);
             foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(tag))
                     index.Add(tag);
             }
@@ -1199,10 +1199,10 @@ namespace StingTools.Core
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
 
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
-                string seqStr = ParameterHelpers.GetString(elem, "ASS_SEQ_NUM_TXT");
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string seqStr = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
                 if (string.IsNullOrEmpty(disc)) continue;
 
                 string key = $"{disc}_{sys}_{lvl}";
@@ -1576,10 +1576,10 @@ namespace StingTools.Core
         public static List<string> CrossValidate(Element el)
         {
             var issues = new List<string>();
-            string disc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
-            string sys = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
-            string func = ParameterHelpers.GetString(el, "ASS_FUNC_TXT");
-            string prod = ParameterHelpers.GetString(el, "ASS_PRODCT_COD_TXT");
+            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
             string catName = ParameterHelpers.GetCategoryName(el);
 
             if (string.IsNullOrEmpty(disc)) return issues;

@@ -163,12 +163,12 @@ namespace StingTools.Tags
         /// </summary>
         public static readonly string[] TagParams = new[]
         {
-            "ASS_TAG_1_TXT",  // Primary 8-segment tag (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ)
-            "ASS_TAG_2_TXT",  // System tag short (SYS-FUNC-PROD-SEQ)
-            "ASS_TAG_3_TXT",  // System tag extended
-            "ASS_TAG_4_TXT",  // Short label (PROD-SEQ)
-            "ASS_TAG_5_TXT",  // Description tag (PROD + family name)
-            "ASS_TAG_6_TXT",  // Status tag (multi-line)
+            ParamRegistry.TAG1,  // Primary 8-segment tag (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ)
+            ParamRegistry.TAG2,  // System tag short (SYS-FUNC-PROD-SEQ)
+            ParamRegistry.TAG3,  // System tag extended
+            ParamRegistry.TAG4,  // Short label (PROD-SEQ)
+            ParamRegistry.TAG5,  // Description tag (PROD + family name)
+            ParamRegistry.TAG6,  // Status tag (multi-line)
         };
 
         /// <summary>Generate the STING family name for a category.</summary>
@@ -725,7 +725,7 @@ namespace StingTools.Tags
                 FamilyParameter tagParam = null;
                 foreach (FamilyParameter fp in famMan.Parameters)
                 {
-                    if (fp.Definition.Name == "ASS_TAG_1_TXT")
+                    if (fp.Definition.Name == ParamRegistry.TAG1)
                     {
                         tagParam = fp;
                         break;
@@ -785,7 +785,7 @@ namespace StingTools.Tags
                                 BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
                             if (labelParam != null && !labelParam.IsReadOnly)
                             {
-                                labelParam.Set("ASS_TAG_1_TXT");
+                                labelParam.Set(ParamRegistry.TAG1);
                             }
                         }
                         catch { /* Not supported — expected */ }

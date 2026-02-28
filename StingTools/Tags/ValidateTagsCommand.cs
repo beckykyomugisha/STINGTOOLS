@@ -24,17 +24,12 @@ namespace StingTools.Tags
     [Regeneration(RegenerationOption.Manual)]
     public class ValidateTagsCommand : IExternalCommand
     {
-        private static readonly string[] TokenParams = new[]
-        {
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-        };
+        private static string[] TokenParams => ParamRegistry.AllTokenParams;
 
-        private static readonly string[] UniversalContainers = new[]
+        private static string[] UniversalContainers => new[]
         {
-            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
+            ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+            ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
         };
 
         public Result Execute(ExternalCommandData commandData,
@@ -68,7 +63,7 @@ namespace StingTools.Tags
                     continue;
 
                 total++;
-                string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
 
                 // Check TAG_1
                 string tag1Status;
@@ -124,7 +119,7 @@ namespace StingTools.Tags
                 }
 
                 // Cross-validate DISC against element category
-                string disc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 if (!string.IsNullOrEmpty(disc))
                 {
                     string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string dd) ? dd : null;

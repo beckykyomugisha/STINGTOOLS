@@ -492,7 +492,7 @@ namespace StingTools.Temp
                 .Take(5);
             foreach (var elem in elems)
             {
-                if (elem.LookupParameter("ASS_TAG_1_TXT") != null)
+                if (elem.LookupParameter(ParamRegistry.TAG1) != null)
                 {
                     hasTagParam = true;
                     break;
