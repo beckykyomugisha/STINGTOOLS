@@ -200,6 +200,22 @@ namespace StingTools.Core
         public static string PARA_FLS_FA    => Ext("PARA_FLS_FA");
         public static string PARA_FLS_SPR   => Ext("PARA_FLS_SPR");
         public static string PARA_COM_BMS   => Ext("PARA_COM_BMS");
+        // ── Paragraph containers added v4.3 (completing 15 missing) ────
+        public static string PARA_HVC_FLEXDUCT => Ext("PARA_HVC_FLEXDUCT");
+        public static string PARA_HVC_DCTACC  => Ext("PARA_HVC_DCTACC");
+        public static string PARA_ELC_CONDUIT => Ext("PARA_ELC_CONDUIT");
+        public static string PARA_ELC_TRAY   => Ext("PARA_ELC_TRAY");
+        public static string PARA_ELC_CABLE  => Ext("PARA_ELC_CABLE");
+        public static string PARA_PLM_EQUIP  => Ext("PARA_PLM_EQUIP");
+        public static string PARA_PLM_PIPEACC => Ext("PARA_PLM_PIPEACC");
+        public static string PARA_PLM_DRAIN  => Ext("PARA_PLM_DRAIN");
+        public static string PARA_ICT_DATA   => Ext("PARA_ICT_DATA");
+        public static string PARA_NCL        => Ext("PARA_NCL");
+        public static string PARA_SEC        => Ext("PARA_SEC");
+        public static string PARA_ASS_EQUIP  => Ext("PARA_ASS_EQUIP");
+        public static string PARA_RGL_CMPL   => Ext("PARA_RGL_CMPL");
+        public static string PARA_PER_ENV    => Ext("PARA_PER_ENV");
+        public static string PARA_CST_CONC   => Ext("PARA_CST_CONC");
 
         // ── Warning threshold parameter ─────────────────────────────────
         public static string ELC_PNL_RATED  => Ext("ELC_PNL_RATED");

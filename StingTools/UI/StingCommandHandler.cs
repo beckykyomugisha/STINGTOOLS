@@ -224,6 +224,11 @@ namespace StingTools.UI
                     case "SetParagraphDepth": RunCommand<Tags.SetParagraphDepthCommand>(app); break;
                     case "ToggleWarningVisibility": RunCommand<Tags.ToggleWarningVisibilityCommand>(app); break;
 
+                    // ── Presentation Mode & Label Spec (v4.3) ──
+                    case "SetPresentationMode": RunCommand<Tags.SetPresentationModeCommand>(app); break;
+                    case "ViewLabelSpec": RunCommand<Tags.ViewLabelSpecCommand>(app); break;
+                    case "ExportLabelGuide": RunCommand<Tags.ExportLabelGuideCommand>(app); break;
+
                     // ── Color By Parameter commands ──
                     case "ColorByParameter": RunCommand<Select.ColorByParameterCommand>(app); break;
                     case "ClearColorOverrides": RunCommand<Select.ClearColorOverridesCommand>(app); break;

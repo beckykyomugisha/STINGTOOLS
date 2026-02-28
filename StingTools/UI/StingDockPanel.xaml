@@ -1004,13 +1004,18 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- PARAGRAPH & WARNING CONTROLS -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ PARAGRAPH &amp; WARNINGS"/>
+                        <!-- PARAGRAPH & PRESENTATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ PARAGRAPH &amp; PRESENTATION"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#7B1FA2">
                             <StackPanel>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Set Paragraph Depth" Tag="SetParagraphDepth" Click="Cmd_Click" ToolTip="Set compact/standard/comprehensive depth on element types"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Presentation Mode" Tag="SetPresentationMode" Click="Cmd_Click" ToolTip="One-click switch: Compact / Technical / Full Spec / Presentation / BOQ"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Paragraph Depth" Tag="SetParagraphDepth" Click="Cmd_Click" ToolTip="Set compact/standard/comprehensive depth on element types"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Toggle Warnings" Tag="ToggleWarningVisibility" Click="Cmd_Click" ToolTip="Show/hide threshold warning text in tags"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="View Label Spec" Tag="ViewLabelSpec" Click="Cmd_Click" ToolTip="Show Edit Label configuration guide for any category"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Label Guide" Tag="ExportLabelGuide" Click="Cmd_Click" ToolTip="Export complete label guide to text file"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

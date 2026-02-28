@@ -1,0 +1,808 @@
+{
+  "version": "1.0",
+  "description": "Master label specification for STING seed tag families. Maps directly to Revit Edit Label dialog columns (Prefix, Suffix, Spaces, Break). The 'scheduled text words' — static natural language text that wraps around parameter values to produce corporate-standard presentation.",
+
+  "presentation_modes": {
+    "Compact": {
+      "state_1": true, "state_2": false, "state_3": false, "warnings": false,
+      "description": "Basic identification — tag code + type name only"
+    },
+    "Technical": {
+      "state_1": true, "state_2": true, "state_3": false, "warnings": true,
+      "description": "Engineering documentation — key properties + threshold warnings"
+    },
+    "Full_Specification": {
+      "state_1": true, "state_2": true, "state_3": true, "warnings": true,
+      "description": "Complete specification — all tiers + paragraph + warnings"
+    },
+    "Presentation": {
+      "state_1": true, "state_2": true, "state_3": false, "warnings": false,
+      "description": "Client presentation — clean tags without warning text"
+    },
+    "BOQ": {
+      "state_1": true, "state_2": true, "state_3": false, "warnings": false,
+      "description": "Bill of Quantities — identity + quantities for cost schedules"
+    }
+  },
+
+  "calculated_value_templates": {
+    "cv_show_tier2": {
+      "name": "Show Tier 2",
+      "formula": "if(TAG_PARA_STATE_2_BOOL, <param>, \"\")",
+      "description": "Gates tier 2 parameters — visible when Standard or above"
+    },
+    "cv_show_tier3": {
+      "name": "Show Tier 3",
+      "formula": "if(TAG_PARA_STATE_3_BOOL, <param>, \"\")",
+      "description": "Gates tier 3 parameters — visible when Comprehensive"
+    },
+    "cv_show_warning": {
+      "name": "Show Warning",
+      "formula": "if(TAG_WARN_VISIBLE_BOOL, <param>, \"\")",
+      "description": "Gates warning text — visible when warnings enabled"
+    }
+  },
+
+  "parameter_text": {
+    "_comment": "Global prefix/suffix definitions. These are the 'scheduled text words' for Edit Label.",
+
+    "ASS_TAG_1_TXT":        { "prefix": "",              "suffix": "",          "label": "Full Tag (8-segment)" },
+    "ASS_TAG_2_TXT":        { "prefix": "",              "suffix": "",          "label": "Short Tag (DISC-PROD-SEQ)" },
+    "ASS_TAG_4_TXT":        { "prefix": "",              "suffix": "",          "label": "System Tag (SYS-FUNC)" },
+    "ASS_TAG_5_TXT":        { "prefix": "",              "suffix": "",          "label": "Line 1 (DISC-LOC-ZONE-LVL)" },
+    "ASS_TAG_6_TXT":        { "prefix": "",              "suffix": "",          "label": "Line 2 (SYS-FUNC-PROD-SEQ)" },
+    "ASS_DESCRIPTION_TXT":  { "prefix": "",              "suffix": "",          "label": "Description" },
+
+    "BLE_WALL_FUNCTION_TXT":              { "prefix": "",          "suffix": "",          "label": "Wall Function" },
+    "BLE_WALL_THICKNESS_MM":              { "prefix": "",          "suffix": " mm",       "label": "Wall Thickness" },
+    "BLE_WALL_PRIMARY_WALL_MAT_TXT":      { "prefix": "Material: ","suffix": "",          "label": "Primary Material" },
+    "BLE_WALL_TYPE_CLASSIFICATION_TXT":   { "prefix": "Type: ",    "suffix": "",          "label": "Wall Type" },
+    "BLE_WALL_CST_METHOD_TXT":            { "prefix": "",          "suffix": "",          "label": "Construction Method" },
+    "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR": { "prefix": "STC: ", "suffix": " dB",  "label": "Sound Transmission" },
+
+    "BLE_FLR_THICKNESS_MM":             { "prefix": "",          "suffix": " mm",       "label": "Floor Thickness" },
+    "BLE_FLR_FINISH_TXT":               { "prefix": "Finish: ",  "suffix": "",          "label": "Floor Finish" },
+    "BLE_FLR_LD_CAP_KPA":        { "prefix": "Load: ",    "suffix": " kPa",      "label": "Load Capacity" },
+
+    "BLE_CEILING_HEIGHT_MM":                 { "prefix": "",          "suffix": " mm",       "label": "Ceiling Height" },
+    "BLE_CEILING_SYSTEM_TXT":                  { "prefix": "",          "suffix": "",          "label": "Ceiling Type" },
+
+    "BLE_ROOF_SLOPE_DEG":                 { "prefix": "Slope: ",   "suffix": "°",         "label": "Roof Slope" },
+    "BLE_ROOF_COVERING_MAT_TXT":              { "prefix": "",          "suffix": "",          "label": "Roof Covering" },
+
+    "BLE_DOOR_WIDTH_MM":                  { "prefix": "",          "suffix": "",          "label": "Door Width" },
+    "BLE_DOOR_HEIGHT_MM":                 { "prefix": " x ",       "suffix": " mm",       "label": "Door Height" },
+    "BLE_DOOR_MAT_TXT":              { "prefix": "Material: ","suffix": "",          "label": "Door Material" },
+    "BLE_DOOR_FIRE_RATING_TXT":           { "prefix": "FRR: ",     "suffix": "",          "label": "Door Fire Rating" },
+    "BLE_DOOR_HARDWARE_SPECIFICATION_TXT":{ "prefix": "Hardware: ","suffix": "",          "label": "Door Hardware" },
+
+    "BLE_WINDOW_WIDTH_MM":                { "prefix": "",          "suffix": "",          "label": "Window Width" },
+    "BLE_WINDOW_HEIGHT_MM":               { "prefix": " x ",       "suffix": " mm",       "label": "Window Height" },
+    "BLE_WINDOW_U_VALUE_W_M_2K_NR":       { "prefix": "U=",        "suffix": " W/m²K",   "label": "Window U-Value" },
+    "BLE_WINDOW_FRAME_MAT_TXT":               { "prefix": "Frame: ",   "suffix": "",          "label": "Window Frame" },
+    "BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT":             { "prefix": "Glazing: ", "suffix": "",          "label": "Window Glazing" },
+
+    "BLE_STAIR_RISE_MM":                  { "prefix": "Rise: ",    "suffix": " mm",       "label": "Stair Rise" },
+    "BLE_STAIR_GOING_MM":                 { "prefix": "Going: ",   "suffix": " mm",       "label": "Stair Going" },
+    "BLE_STAIR_WIDTH_MM":                 { "prefix": "Width: ",   "suffix": " mm",       "label": "Stair Width" },
+
+    "BLE_RAMP_SLOPE_PCT":           { "prefix": "Slope: ",   "suffix": "",          "label": "Ramp Slope" },
+    "BLE_RAMP_WIDTH_MM":                  { "prefix": "Width: ",   "suffix": " mm",       "label": "Ramp Width" },
+
+    "BLE_STRUCT_CONCRETE_GRADE_TXT":      { "prefix": "Grade: ",   "suffix": "",          "label": "Concrete Grade" },
+    "BLE_STRUCT_STEEL_SECTION_TXT":       { "prefix": "",          "suffix": "",          "label": "Steel Section" },
+    "BLE_STRUCT_SPAN_M":                  { "prefix": "Span: ",    "suffix": " m",        "label": "Structural Span" },
+    "BLE_STRUCT_DEPTH_MM":                { "prefix": "Depth: ",   "suffix": " mm",       "label": "Member Depth" },
+    "BLE_STRUCT_CAPACITY_KN":             { "prefix": "Capacity: ","suffix": " kN",       "label": "Load Capacity" },
+
+    "PER_THERM_U_VALUE_W_M2K_NR":         { "prefix": "U=",        "suffix": " W/m²K",   "label": "Thermal U-Value" },
+    "PER_THERM_R_VALUE_M2K_W":             { "prefix": "R=",        "suffix": " m²K/W",   "label": "Thermal R-Value" },
+    "PER_THERM_CONDENSATION_RISK_TXT":     { "prefix": "Condensation: ", "suffix": "",     "label": "Condensation Risk" },
+    "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN": { "prefix": "FRR: ", "suffix": " min",  "label": "Fire Resistance" },
+
+    "ELC_POWER_KW":                       { "prefix": "Power: ",   "suffix": " kW",       "label": "Electrical Power" },
+    "ELC_VOLTAGE_V":                      { "prefix": "",          "suffix": " V",        "label": "Voltage" },
+    "ELC_CURRENT_A":                      { "prefix": "",          "suffix": " A",        "label": "Current" },
+    "ELC_CKT_NR":                         { "prefix": "Ckt: ",     "suffix": "",          "label": "Circuit Number" },
+    "ELC_PNL_NAME_TXT":                   { "prefix": "Panel: ",   "suffix": "",          "label": "Panel Name" },
+    "ELC_PNL_RATED_KW":                   { "prefix": "Rated: ",   "suffix": " kW",       "label": "Panel Rating" },
+    "ELC_CDT_SZ_MM":                      { "prefix": "Conduit: ", "suffix": " mm",       "label": "Conduit Size" },
+    "ELC_VLT_DROP_PCT":                   { "prefix": "VD: ",      "suffix": "%",         "label": "Voltage Drop" },
+
+    "LTG_WATTAGE_W":                      { "prefix": "",          "suffix": " W",        "label": "Lamp Wattage" },
+    "LTG_LUMENS_LM":                      { "prefix": "",          "suffix": " lm",       "label": "Luminous Flux" },
+    "LTG_EFFICACY_LM_W":                  { "prefix": "",          "suffix": " lm/W",     "label": "Luminous Efficacy" },
+    "LTG_LAMP_TYPE_TXT":                  { "prefix": "",          "suffix": "",          "label": "Lamp Type" },
+    "LTG_COLOR_TEMP_K":                   { "prefix": "",          "suffix": " K",        "label": "Colour Temperature" },
+
+    "HVC_DUCT_FLOW_LPS":                  { "prefix": "Flow: ",    "suffix": " L/s",      "label": "Airflow" },
+    "HVC_VEL_MPS":                        { "prefix": "Vel: ",     "suffix": " m/s",      "label": "Velocity" },
+    "HVC_PRESSURE_PA":                    { "prefix": "",          "suffix": " Pa",       "label": "Pressure" },
+    "HVC_DUCT_SIZE_TXT":                  { "prefix": "",          "suffix": "",          "label": "Duct Size" },
+    "HVC_COOLING_KW":                     { "prefix": "Cooling: ", "suffix": " kW",       "label": "Cooling Capacity" },
+    "HVC_HEATING_KW":                     { "prefix": "Heating: ", "suffix": " kW",       "label": "Heating Capacity" },
+
+    "PLM_PPE_SZ_MM":                      { "prefix": "DN",        "suffix": "",          "label": "Pipe Size" },
+    "PLM_PPE_FLW_LPS":                    { "prefix": "Flow: ",    "suffix": " L/s",      "label": "Flow Rate" },
+    "PLM_VELOCITY_MPS":                   { "prefix": "Vel: ",     "suffix": " m/s",      "label": "Pipe Velocity" },
+    "PLM_PSR_KPA":                        { "prefix": "",          "suffix": " kPa",      "label": "Pressure" },
+
+    "FLS_SFTY_DEV_TYPE_TXT":              { "prefix": "",          "suffix": "",          "label": "Device Type" },
+    "FLS_SFTY_DEV_ZONE_TXT":              { "prefix": "Zone: ",    "suffix": "",          "label": "Fire Zone" },
+    "FLS_SPR_COVERAGE_M2":                { "prefix": "Coverage: ","suffix": " m²",       "label": "Sprinkler Coverage" },
+    "FLS_SPR_K_FACTOR":                   { "prefix": "K=",        "suffix": "",          "label": "K-Factor" },
+
+    "COM_PROTOCOL_TXT":                   { "prefix": "",          "suffix": "",          "label": "Protocol" },
+    "COM_IP_ADDRESS_TXT":                 { "prefix": "IP: ",      "suffix": "",          "label": "IP Address" },
+    "ICT_DATA_RATE_TXT":                  { "prefix": "",          "suffix": "",          "label": "Data Rate" },
+    "SEC_DEVICE_TYPE_TXT":                { "prefix": "",          "suffix": "",          "label": "Security Type" },
+    "NCL_ZONE_TXT":                       { "prefix": "Zone: ",    "suffix": "",          "label": "Nurse Call Zone" },
+
+    "ASS_MANUFACTURER_TXT":               { "prefix": "Mfr: ",     "suffix": "",          "label": "Manufacturer" },
+    "ASS_MODEL_NR_TXT":                   { "prefix": "Model: ",   "suffix": "",          "label": "Model Number" },
+    "ASS_CST_UNIT_PRICE_UGX_NR":          { "prefix": "Rate: ",    "suffix": " UGX",      "label": "Unit Price" },
+
+    "SUST_RECYCLED_CONTENT_PCT":          { "prefix": "Recycled: ","suffix": "%",         "label": "Recycled Content" },
+    "SUST_EMBODIED_CARBON_KGCO2E":        { "prefix": "",          "suffix": " kgCO₂e",   "label": "Embodied Carbon" }
+  },
+
+  "category_labels": {
+    "_comment": "Per-category label definitions. tier_1 = always visible (Compact+), tier_2 = Standard+ (gated by TAG_PARA_STATE_2_BOOL), tier_3 = Comprehensive (gated by TAG_PARA_STATE_3_BOOL). Each entry maps directly to one row in Revit Edit Label. 'cv' prefix means use a calculated value for visibility gating.",
+
+    "Walls": {
+      "family_name": "STING - Wall Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_WALL_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",         "spaces": 0, "break": true,  "note": "Full 8-segment tag" },
+        { "param": "BLE_WALL_FUNCTION_TXT",  "spaces": 0, "break": false, "note": "Wall function" },
+        { "param": "BLE_WALL_THICKNESS_MM",  "spaces": 1, "break": true,  "prefix_override": "[", "suffix_override": " mm]", "note": "Thickness in brackets" }
+      ],
+      "tier_2": [
+        { "param": "BLE_WALL_PRIMARY_WALL_MAT_TXT", "spaces": 0, "break": true,  "note": "Primary material" },
+        { "param": "PER_THERM_U_VALUE_W_M2K_NR",    "spaces": 0, "break": false, "note": "Thermal transmittance" },
+        { "param": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN", "spaces": 0, "break": false, "prefix_override": " | FRR: ", "note": "Fire resistance" },
+        { "param": "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR","spaces": 0, "break": true,  "prefix_override": " | STC: ", "suffix_override": " dB", "note": "Acoustic" }
+      ],
+      "tier_3": [
+        { "param": "ARCH_TAG_7_PARA_WALL_TXT", "spaces": 0, "break": true, "note": "Full paragraph — natural language specification" }
+      ],
+      "warnings": ["WARN_BLE_WALL_U"]
+    },
+
+    "Floors": {
+      "family_name": "STING - Floor Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_FLOOR_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",         "spaces": 0, "break": true },
+        { "param": "BLE_FLR_THICKNESS_MM", "spaces": 0, "break": true, "prefix_override": "[", "suffix_override": " mm]" }
+      ],
+      "tier_2": [
+        { "param": "BLE_FLR_FINISH_TXT",        "spaces": 0, "break": false },
+        { "param": "PER_THERM_U_VALUE_W_M2K_NR",  "spaces": 0, "break": false, "prefix_override": " | U=" },
+        { "param": "BLE_FLR_LD_CAP_KPA",  "spaces": 0, "break": true,  "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "ARCH_TAG_7_PARA_FLOOR_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": ["WARN_BLE_FLOOR_U"]
+    },
+
+    "Ceilings": {
+      "family_name": "STING - Ceiling Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_CEIL_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true },
+        { "param": "BLE_CEILING_SYSTEM_TXT",    "spaces": 0, "break": false },
+        { "param": "BLE_CEILING_HEIGHT_MM",   "spaces": 1, "break": true, "prefix_override": "[", "suffix_override": " mm]" }
+      ],
+      "tier_2": [
+        { "param": "PER_THERM_U_VALUE_W_M2K_NR",  "spaces": 0, "break": false },
+        { "param": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN", "spaces": 0, "break": true, "prefix_override": " | FRR: " }
+      ],
+      "tier_3": [
+        { "param": "ARCH_TAG_7_PARA_CEIL_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Roofs": {
+      "family_name": "STING - Roof Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_ROOF_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",         "spaces": 0, "break": true },
+        { "param": "BLE_ROOF_COVERING_MAT_TXT",  "spaces": 0, "break": false },
+        { "param": "BLE_ROOF_SLOPE_DEG",     "spaces": 1, "break": true }
+      ],
+      "tier_2": [
+        { "param": "PER_THERM_U_VALUE_W_M2K_NR",  "spaces": 0, "break": false },
+        { "param": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN", "spaces": 0, "break": true, "prefix_override": " | FRR: " }
+      ],
+      "tier_3": [
+        { "param": "ARCH_TAG_7_PARA_ROOF_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": ["WARN_BLE_ROOF_U"]
+    },
+
+    "Doors": {
+      "family_name": "STING - Door Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_DOOR_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true },
+        { "param": "BLE_DOOR_WIDTH_MM",    "spaces": 0, "break": false, "suffix_override": "" },
+        { "param": "BLE_DOOR_HEIGHT_MM",   "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "BLE_DOOR_MAT_TXT",     "spaces": 0, "break": false },
+        { "param": "BLE_DOOR_FIRE_RATING_TXT",  "spaces": 0, "break": false, "prefix_override": " | FRR: " },
+        { "param": "BLE_DOOR_HARDWARE_SPECIFICATION_TXT", "spaces": 0, "break": true, "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "ARCH_TAG_7_PARA_DOOR_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": ["WARN_DOOR_FRR"]
+    },
+
+    "Windows": {
+      "family_name": "STING - Window Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_WIN_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",         "spaces": 0, "break": true },
+        { "param": "BLE_WINDOW_WIDTH_MM",    "spaces": 0, "break": false, "suffix_override": "" },
+        { "param": "BLE_WINDOW_HEIGHT_MM",   "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "BLE_WINDOW_FRAME_MAT_TXT",              "spaces": 0, "break": false },
+        { "param": "BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT",             "spaces": 0, "break": false, "prefix_override": " | " },
+        { "param": "BLE_WINDOW_U_VALUE_W_M_2K_NR",       "spaces": 0, "break": true,  "prefix_override": " | U=" }
+      ],
+      "tier_3": [
+        { "param": "ARCH_TAG_7_PARA_WIN_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": ["WARN_BLE_WIN_U"]
+    },
+
+    "Stairs": {
+      "family_name": "STING - Stair Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_STAIR_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "BLE_STAIR_RISE_MM",   "spaces": 0, "break": false },
+        { "param": "BLE_STAIR_GOING_MM",  "spaces": 0, "break": false, "prefix_override": " / " },
+        { "param": "BLE_STAIR_WIDTH_MM",  "spaces": 0, "break": true,  "prefix_override": " | Width: " }
+      ],
+      "tier_3": [
+        { "param": "ARCH_TAG_7_PARA_STAIR_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": ["WARN_STAIR_RISE", "WARN_STAIR_GOING"]
+    },
+
+    "Ramps": {
+      "family_name": "STING - Ramp Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_RAMP_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "BLE_RAMP_SLOPE_PCT", "spaces": 0, "break": false },
+        { "param": "BLE_RAMP_WIDTH_MM",         "spaces": 0, "break": true, "prefix_override": " | Width: " }
+      ],
+      "tier_3": [
+        { "param": "ARCH_TAG_7_PARA_RAMP_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": ["WARN_RAMP_SLOPE"]
+    },
+
+    "Structural Columns": {
+      "family_name": "STING - Structural Column Tag",
+      "paragraph_container": "STR_TAG_7_PARA_COL_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "BLE_STRUCT_CONCRETE_GRADE_TXT", "spaces": 0, "break": false },
+        { "param": "BLE_STRUCT_STEEL_SECTION_TXT",  "spaces": 0, "break": false, "prefix_override": " | " },
+        { "param": "BLE_STRUCT_CAPACITY_KN",         "spaces": 0, "break": true,  "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "STR_TAG_7_PARA_COL_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Structural Framing": {
+      "family_name": "STING - Structural Framing Tag",
+      "paragraph_container": "STR_TAG_7_PARA_BEAM_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "BLE_STRUCT_STEEL_SECTION_TXT",  "spaces": 0, "break": false },
+        { "param": "BLE_STRUCT_SPAN_M",              "spaces": 0, "break": false, "prefix_override": " | " },
+        { "param": "BLE_STRUCT_DEPTH_MM",            "spaces": 0, "break": true,  "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "STR_TAG_7_PARA_BEAM_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Structural Foundations": {
+      "family_name": "STING - Structural Foundation Tag",
+      "paragraph_container": "STR_TAG_7_PARA_FDN_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "BLE_STRUCT_CONCRETE_GRADE_TXT", "spaces": 0, "break": false },
+        { "param": "BLE_STRUCT_CAPACITY_KN",         "spaces": 0, "break": true,  "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "STR_TAG_7_PARA_FDN_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Mechanical Equipment": {
+      "family_name": "STING - Mechanical Equipment Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_SPEC_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "HVC_COOLING_KW",  "spaces": 0, "break": false },
+        { "param": "HVC_HEATING_KW",  "spaces": 0, "break": false, "prefix_override": " / " },
+        { "param": "HVC_DUCT_FLOW_LPS","spaces": 0, "break": true,  "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "HVC_TAG_7_PARA_SPEC_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Ducts": {
+      "family_name": "STING - Duct Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_DUCT_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true },
+        { "param": "HVC_DUCT_SIZE_TXT",   "spaces": 0, "break": true, "prefix_override": "[", "suffix_override": "]" }
+      ],
+      "tier_2": [
+        { "param": "HVC_DUCT_FLOW_LPS",   "spaces": 0, "break": false },
+        { "param": "HVC_VEL_MPS",          "spaces": 0, "break": false, "prefix_override": " | " },
+        { "param": "HVC_PRESSURE_PA",      "spaces": 0, "break": true,  "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "HVC_TAG_7_PARA_DUCT_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": ["WARN_HVC_VEL"]
+    },
+
+    "Duct Fittings": {
+      "family_name": "STING - Duct Fitting Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_DCTACC_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "HVC_DUCT_SIZE_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_3": [
+        { "param": "HVC_TAG_7_PARA_DCTACC_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Duct Accessories": {
+      "family_name": "STING - Duct Accessory Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_DCTACC_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "HVC_DUCT_SIZE_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_3": [
+        { "param": "HVC_TAG_7_PARA_DCTACC_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Air Terminals": {
+      "family_name": "STING - Air Terminal Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_AT_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "HVC_DUCT_FLOW_LPS", "spaces": 0, "break": false },
+        { "param": "HVC_VEL_MPS",       "spaces": 0, "break": true, "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "HVC_TAG_7_PARA_AT_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Flex Ducts": {
+      "family_name": "STING - Flex Duct Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_FLEXDUCT_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "HVC_DUCT_FLOW_LPS", "spaces": 0, "break": true }
+      ],
+      "tier_3": [
+        { "param": "HVC_TAG_7_PARA_FLEXDUCT_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Electrical Equipment": {
+      "family_name": "STING - Electrical Equipment Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_PANEL_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",     "spaces": 0, "break": true },
+        { "param": "ELC_PNL_NAME_TXT",  "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "ELC_PNL_RATED_KW",   "spaces": 0, "break": false },
+        { "param": "ELC_VOLTAGE_V",       "spaces": 0, "break": false, "prefix_override": " | " },
+        { "param": "ELC_VLT_DROP_PCT",    "spaces": 0, "break": true,  "prefix_override": " | VD: " }
+      ],
+      "tier_3": [
+        { "param": "ELC_TAG_7_PARA_PANEL_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": ["WARN_ELC_VLT_DROP"]
+    },
+
+    "Electrical Fixtures": {
+      "family_name": "STING - Electrical Fixture Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_CIRCUIT_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "ELC_POWER_KW",  "spaces": 0, "break": false },
+        { "param": "ELC_CKT_NR",    "spaces": 0, "break": true, "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "ELC_TAG_7_PARA_CIRCUIT_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Lighting Fixtures": {
+      "family_name": "STING - Lighting Fixture Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_CIRCUIT_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT",   "spaces": 0, "break": true },
+        { "param": "LTG_LAMP_TYPE_TXT","spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "LTG_WATTAGE_W",     "spaces": 0, "break": false },
+        { "param": "LTG_LUMENS_LM",     "spaces": 0, "break": false, "prefix_override": " | " },
+        { "param": "LTG_COLOR_TEMP_K",  "spaces": 0, "break": true,  "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "ELC_TAG_7_PARA_CIRCUIT_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Lighting Devices": {
+      "family_name": "STING - Lighting Device Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_CIRCUIT_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "ELC_CKT_NR", "spaces": 0, "break": true }
+      ],
+      "tier_3": [
+        { "param": "ELC_TAG_7_PARA_CIRCUIT_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Conduits": {
+      "family_name": "STING - Conduit Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_CONDUIT_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true },
+        { "param": "ELC_CDT_SZ_MM", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "ELC_CKT_NR", "spaces": 0, "break": true }
+      ],
+      "tier_3": [
+        { "param": "ELC_TAG_7_PARA_CONDUIT_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": ["WARN_CDT_FILL"]
+    },
+
+    "Conduit Fittings": {
+      "family_name": "STING - Conduit Fitting Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_CONDUIT_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [],
+      "tier_3": [
+        { "param": "ELC_TAG_7_PARA_CONDUIT_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Cable Trays": {
+      "family_name": "STING - Cable Tray Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_TRAY_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [],
+      "tier_3": [
+        { "param": "ELC_TAG_7_PARA_TRAY_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Cable Tray Fittings": {
+      "family_name": "STING - Cable Tray Fitting Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_TRAY_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [],
+      "tier_3": [
+        { "param": "ELC_TAG_7_PARA_TRAY_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Plumbing Fixtures": {
+      "family_name": "STING - Plumbing Fixture Tag",
+      "paragraph_container": "PLM_TAG_7_PARA_FIXTURE_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "PLM_PPE_SZ_MM",   "spaces": 0, "break": false },
+        { "param": "PLM_PPE_FLW_LPS", "spaces": 0, "break": true, "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "PLM_TAG_7_PARA_FIXTURE_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Pipes": {
+      "family_name": "STING - Pipe Tag",
+      "paragraph_container": "PLM_TAG_7_PARA_PIPE_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true },
+        { "param": "PLM_PPE_SZ_MM", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "PLM_PPE_FLW_LPS",  "spaces": 0, "break": false },
+        { "param": "PLM_VELOCITY_MPS",  "spaces": 0, "break": false, "prefix_override": " | " },
+        { "param": "PLM_PSR_KPA",       "spaces": 0, "break": true,  "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "PLM_TAG_7_PARA_PIPE_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": ["WARN_PLM_VEL", "WARN_PLM_PSR"]
+    },
+
+    "Pipe Fittings": {
+      "family_name": "STING - Pipe Fitting Tag",
+      "paragraph_container": "PLM_TAG_7_PARA_PIPEACC_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "PLM_PPE_SZ_MM", "spaces": 0, "break": true }
+      ],
+      "tier_3": [
+        { "param": "PLM_TAG_7_PARA_PIPEACC_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Pipe Accessories": {
+      "family_name": "STING - Pipe Accessory Tag",
+      "paragraph_container": "PLM_TAG_7_PARA_PIPEACC_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "PLM_PPE_SZ_MM", "spaces": 0, "break": true }
+      ],
+      "tier_3": [
+        { "param": "PLM_TAG_7_PARA_PIPEACC_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Flex Pipes": {
+      "family_name": "STING - Flex Pipe Tag",
+      "paragraph_container": "PLM_TAG_7_PARA_PIPE_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "PLM_PPE_SZ_MM", "spaces": 0, "break": true }
+      ],
+      "tier_3": [
+        { "param": "PLM_TAG_7_PARA_PIPE_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Sprinklers": {
+      "family_name": "STING - Sprinkler Tag",
+      "paragraph_container": "FLS_TAG_7_PARA_SPR_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "FLS_SPR_COVERAGE_M2", "spaces": 0, "break": false },
+        { "param": "FLS_SPR_K_FACTOR",    "spaces": 0, "break": true, "prefix_override": " | K=" }
+      ],
+      "tier_3": [
+        { "param": "FLS_TAG_7_PARA_SPR_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Fire Alarm Devices": {
+      "family_name": "STING - Fire Alarm Device Tag",
+      "paragraph_container": "FLS_TAG_7_PARA_FA_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "FLS_SFTY_DEV_TYPE_TXT", "spaces": 0, "break": false },
+        { "param": "FLS_SFTY_DEV_ZONE_TXT", "spaces": 0, "break": true, "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "FLS_TAG_7_PARA_FA_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Communication Devices": {
+      "family_name": "STING - Communication Device Tag",
+      "paragraph_container": "COM_TAG_7_PARA_BMS_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "COM_PROTOCOL_TXT", "spaces": 0, "break": false },
+        { "param": "COM_IP_ADDRESS_TXT","spaces": 0, "break": true, "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "COM_TAG_7_PARA_BMS_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Data Devices": {
+      "family_name": "STING - Data Device Tag",
+      "paragraph_container": "ICT_TAG_7_PARA_DATA_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "ICT_DATA_RATE_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_3": [
+        { "param": "ICT_TAG_7_PARA_DATA_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Nurse Call Devices": {
+      "family_name": "STING - Nurse Call Device Tag",
+      "paragraph_container": "NCL_TAG_7_PARA_NURSECALL_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "NCL_ZONE_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_3": [
+        { "param": "NCL_TAG_7_PARA_NURSECALL_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Security Devices": {
+      "family_name": "STING - Security Device Tag",
+      "paragraph_container": "SEC_TAG_7_PARA_SECURITY_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "SEC_DEVICE_TYPE_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_3": [
+        { "param": "SEC_TAG_7_PARA_SECURITY_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Rooms": {
+      "family_name": "STING - Room Tag",
+      "paragraph_container": null,
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "ASS_DESCRIPTION_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_3": [],
+      "warnings": []
+    },
+
+    "Furniture": {
+      "family_name": "STING - Furniture Tag",
+      "paragraph_container": null,
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "ASS_MANUFACTURER_TXT", "spaces": 0, "break": false },
+        { "param": "ASS_MODEL_NR_TXT",     "spaces": 0, "break": true, "prefix_override": " | " }
+      ],
+      "tier_3": [],
+      "warnings": []
+    },
+
+    "Casework": {
+      "family_name": "STING - Casework Tag",
+      "paragraph_container": null,
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "ASS_MANUFACTURER_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_3": [],
+      "warnings": []
+    },
+
+    "Generic Models": {
+      "family_name": "STING - Generic Model Tag",
+      "paragraph_container": "ASS_TAG_7_PARA_EQUIPMENT_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "ASS_DESCRIPTION_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_3": [
+        { "param": "ASS_TAG_7_PARA_EQUIPMENT_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    },
+
+    "Specialty Equipment": {
+      "family_name": "STING - Specialty Equipment Tag",
+      "paragraph_container": "ASS_TAG_7_PARA_EQUIPMENT_TXT",
+      "tier_1": [
+        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+      ],
+      "tier_2": [
+        { "param": "ASS_MANUFACTURER_TXT", "spaces": 0, "break": false },
+        { "param": "ASS_MODEL_NR_TXT",     "spaces": 0, "break": true, "prefix_override": " | " }
+      ],
+      "tier_3": [
+        { "param": "ASS_TAG_7_PARA_EQUIPMENT_TXT", "spaces": 0, "break": true }
+      ],
+      "warnings": []
+    }
+  }
+}
