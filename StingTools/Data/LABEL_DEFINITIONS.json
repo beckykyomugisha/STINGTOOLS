@@ -100,50 +100,50 @@
     "PER_THERM_CONDENSATION_RISK_TXT":     { "prefix": "Condensation: ", "suffix": "",     "label": "Condensation Risk" },
     "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN": { "prefix": "FRR: ", "suffix": " min",  "label": "Fire Resistance" },
 
-    "ELC_POWER_KW":                       { "prefix": "Power: ",   "suffix": " kW",       "label": "Electrical Power" },
-    "ELC_VOLTAGE_V":                      { "prefix": "",          "suffix": " V",        "label": "Voltage" },
-    "ELC_CURRENT_A":                      { "prefix": "",          "suffix": " A",        "label": "Current" },
+    "ELC_PWR_KW":                         { "prefix": "Power: ",   "suffix": " kW",       "label": "Electrical Power" },
+    "ELC_VLT_PRIMARY_RATING_V":           { "prefix": "",          "suffix": " V",        "label": "Rated Voltage" },
+    "ELC_CKT_CUR_A":                      { "prefix": "",          "suffix": " A",        "label": "Current" },
     "ELC_CKT_NR":                         { "prefix": "Ckt: ",     "suffix": "",          "label": "Circuit Number" },
-    "ELC_PNL_NAME_TXT":                   { "prefix": "Panel: ",   "suffix": "",          "label": "Panel Name" },
+    "ELC_PNL_DESIGNATION_NAME_TXT":       { "prefix": "Panel: ",   "suffix": "",          "label": "Panel Name" },
     "ELC_PNL_RATED_KW":                   { "prefix": "Rated: ",   "suffix": " kW",       "label": "Panel Rating" },
     "ELC_CDT_SZ_MM":                      { "prefix": "Conduit: ", "suffix": " mm",       "label": "Conduit Size" },
     "ELC_VLT_DROP_PCT":                   { "prefix": "VD: ",      "suffix": "%",         "label": "Voltage Drop" },
 
-    "LTG_WATTAGE_W":                      { "prefix": "",          "suffix": " W",        "label": "Lamp Wattage" },
-    "LTG_LUMENS_LM":                      { "prefix": "",          "suffix": " lm",       "label": "Luminous Flux" },
+    "LTG_FIX_LMP_WATTAGE_W":             { "prefix": "",          "suffix": " W",        "label": "Lamp Wattage" },
+    "CST_FIX_LUMEN_OUTPUT_LM":            { "prefix": "",          "suffix": " lm",       "label": "Luminous Flux" },
     "LTG_EFFICACY_LM_W":                  { "prefix": "",          "suffix": " lm/W",     "label": "Luminous Efficacy" },
-    "LTG_LAMP_TYPE_TXT":                  { "prefix": "",          "suffix": "",          "label": "Lamp Type" },
-    "LTG_COLOR_TEMP_K":                   { "prefix": "",          "suffix": " K",        "label": "Colour Temperature" },
+    "LTG_FIX_TYPE_CLASSIFICATION_TXT":    { "prefix": "",          "suffix": "",          "label": "Fixture Type" },
+    "LTG_CLR_TEMP_K":                     { "prefix": "",          "suffix": " K",        "label": "Colour Temperature" },
 
-    "HVC_DUCT_FLOW_LPS":                  { "prefix": "Flow: ",    "suffix": " L/s",      "label": "Airflow" },
+    "HVC_DCT_FLW_CFM":                    { "prefix": "Flow: ",    "suffix": " CFM",      "label": "Airflow" },
     "HVC_VEL_MPS":                        { "prefix": "Vel: ",     "suffix": " m/s",      "label": "Velocity" },
-    "HVC_PRESSURE_PA":                    { "prefix": "",          "suffix": " Pa",       "label": "Pressure" },
-    "HVC_DUCT_SIZE_TXT":                  { "prefix": "",          "suffix": "",          "label": "Duct Size" },
-    "HVC_COOLING_KW":                     { "prefix": "Cooling: ", "suffix": " kW",       "label": "Cooling Capacity" },
-    "HVC_HEATING_KW":                     { "prefix": "Heating: ", "suffix": " kW",       "label": "Heating Capacity" },
+    "HVC_PIPE_PRESSURE_KPA":              { "prefix": "",          "suffix": " kPa",      "label": "Pressure" },
+    "HVC_DCT_PROPERTY_TXT":               { "prefix": "",          "suffix": "",          "label": "Duct Size" },
+    "HVC_CAP_KW":                         { "prefix": "Cooling: ", "suffix": " kW",       "label": "Cooling Capacity" },
+    "HVC_PWR_KW":                         { "prefix": "Heating: ", "suffix": " kW",       "label": "Heating/Motor Power" },
 
     "PLM_PPE_SZ_MM":                      { "prefix": "DN",        "suffix": "",          "label": "Pipe Size" },
     "PLM_PPE_FLW_LPS":                    { "prefix": "Flow: ",    "suffix": " L/s",      "label": "Flow Rate" },
-    "PLM_VELOCITY_MPS":                   { "prefix": "Vel: ",     "suffix": " m/s",      "label": "Pipe Velocity" },
+    "PLM_VEL_MPS":                        { "prefix": "Vel: ",     "suffix": " m/s",      "label": "Pipe Velocity" },
     "PLM_PSR_KPA":                        { "prefix": "",          "suffix": " kPa",      "label": "Pressure" },
 
     "FLS_SFTY_DEV_TYPE_TXT":              { "prefix": "",          "suffix": "",          "label": "Device Type" },
     "FLS_SFTY_DEV_ZONE_TXT":              { "prefix": "Zone: ",    "suffix": "",          "label": "Fire Zone" },
-    "FLS_SPR_COVERAGE_M2":                { "prefix": "Coverage: ","suffix": " m²",       "label": "Sprinkler Coverage" },
-    "FLS_SPR_K_FACTOR":                   { "prefix": "K=",        "suffix": "",          "label": "K-Factor" },
+    "FLS_SFTY_COVERAGE_AREA_SQ_M":        { "prefix": "Coverage: ","suffix": " m²",       "label": "Sprinkler Coverage" },
+    "FLS_SFTY_K_FACTOR_NR":               { "prefix": "K=",        "suffix": "",          "label": "K-Factor" },
 
-    "COM_PROTOCOL_TXT":                   { "prefix": "",          "suffix": "",          "label": "Protocol" },
-    "COM_IP_ADDRESS_TXT":                 { "prefix": "IP: ",      "suffix": "",          "label": "IP Address" },
-    "ICT_DATA_RATE_TXT":                  { "prefix": "",          "suffix": "",          "label": "Data Rate" },
-    "SEC_DEVICE_TYPE_TXT":                { "prefix": "",          "suffix": "",          "label": "Security Type" },
+    "COM_C_PROTOCOL_TXT":                 { "prefix": "",          "suffix": "",          "label": "Protocol" },
+    "COM_C_NETWORK_ADDRESS_TXT":          { "prefix": "IP: ",      "suffix": "",          "label": "Network Address" },
+    "ICT_OUTLET_TYPE_TXT":                { "prefix": "",          "suffix": "",          "label": "Outlet Type" },
+    "SEC_DEV_ZONE_TXT":                   { "prefix": "Zone: ",    "suffix": "",          "label": "Security Zone" },
     "NCL_ZONE_TXT":                       { "prefix": "Zone: ",    "suffix": "",          "label": "Nurse Call Zone" },
 
     "ASS_MANUFACTURER_TXT":               { "prefix": "Mfr: ",     "suffix": "",          "label": "Manufacturer" },
     "ASS_MODEL_NR_TXT":                   { "prefix": "Model: ",   "suffix": "",          "label": "Model Number" },
     "ASS_CST_UNIT_PRICE_UGX_NR":          { "prefix": "Rate: ",    "suffix": " UGX",      "label": "Unit Price" },
 
-    "SUST_RECYCLED_CONTENT_PCT":          { "prefix": "Recycled: ","suffix": "%",         "label": "Recycled Content" },
-    "SUST_EMBODIED_CARBON_KGCO2E":        { "prefix": "",          "suffix": " kgCO₂e",   "label": "Embodied Carbon" }
+    "PER_SUST_RECYCLED_CONTENT_PCT":      { "prefix": "Recycled: ","suffix": "%",         "label": "Recycled Content" },
+    "PER_SUST_EMBODIED_CARBON_KG":        { "prefix": "",          "suffix": " kgCO₂e",   "label": "Embodied Carbon" }
   },
 
   "category_labels": {
@@ -351,9 +351,9 @@
         { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
       ],
       "tier_2": [
-        { "param": "HVC_COOLING_KW",  "spaces": 0, "break": false },
-        { "param": "HVC_HEATING_KW",  "spaces": 0, "break": false, "prefix_override": " / " },
-        { "param": "HVC_DUCT_FLOW_LPS","spaces": 0, "break": true,  "prefix_override": " | " }
+        { "param": "HVC_CAP_KW",      "spaces": 0, "break": false },
+        { "param": "HVC_PWR_KW",      "spaces": 0, "break": false, "prefix_override": " / " },
+        { "param": "HVC_DCT_FLW_CFM", "spaces": 0, "break": true,  "prefix_override": " | " }
       ],
       "tier_3": [
         { "param": "HVC_TAG_7_PARA_SPEC_TXT", "spaces": 0, "break": true }
@@ -366,12 +366,12 @@
       "paragraph_container": "HVC_TAG_7_PARA_DUCT_TXT",
       "tier_1": [
         { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true },
-        { "param": "HVC_DUCT_SIZE_TXT",   "spaces": 0, "break": true, "prefix_override": "[", "suffix_override": "]" }
+        { "param": "HVC_DCT_PROPERTY_TXT", "spaces": 0, "break": true, "prefix_override": "[", "suffix_override": "]" }
       ],
       "tier_2": [
-        { "param": "HVC_DUCT_FLOW_LPS",   "spaces": 0, "break": false },
+        { "param": "HVC_DCT_FLW_CFM",     "spaces": 0, "break": false },
         { "param": "HVC_VEL_MPS",          "spaces": 0, "break": false, "prefix_override": " | " },
-        { "param": "HVC_PRESSURE_PA",      "spaces": 0, "break": true,  "prefix_override": " | " }
+        { "param": "HVC_PIPE_PRESSURE_KPA","spaces": 0, "break": true,  "prefix_override": " | " }
       ],
       "tier_3": [
         { "param": "HVC_TAG_7_PARA_DUCT_TXT", "spaces": 0, "break": true }
@@ -386,7 +386,7 @@
         { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
       ],
       "tier_2": [
-        { "param": "HVC_DUCT_SIZE_TXT", "spaces": 0, "break": true }
+        { "param": "HVC_DCT_PROPERTY_TXT", "spaces": 0, "break": true }
       ],
       "tier_3": [
         { "param": "HVC_TAG_7_PARA_DCTACC_TXT", "spaces": 0, "break": true }
@@ -401,7 +401,7 @@
         { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
       ],
       "tier_2": [
-        { "param": "HVC_DUCT_SIZE_TXT", "spaces": 0, "break": true }
+        { "param": "HVC_DCT_PROPERTY_TXT", "spaces": 0, "break": true }
       ],
       "tier_3": [
         { "param": "HVC_TAG_7_PARA_DCTACC_TXT", "spaces": 0, "break": true }
@@ -416,7 +416,7 @@
         { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
       ],
       "tier_2": [
-        { "param": "HVC_DUCT_FLOW_LPS", "spaces": 0, "break": false },
+        { "param": "HVC_DCT_FLW_CFM",   "spaces": 0, "break": false },
         { "param": "HVC_VEL_MPS",       "spaces": 0, "break": true, "prefix_override": " | " }
       ],
       "tier_3": [
@@ -432,7 +432,7 @@
         { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
       ],
       "tier_2": [
-        { "param": "HVC_DUCT_FLOW_LPS", "spaces": 0, "break": true }
+        { "param": "HVC_DCT_FLW_CFM",   "spaces": 0, "break": true }
       ],
       "tier_3": [
         { "param": "HVC_TAG_7_PARA_FLEXDUCT_TXT", "spaces": 0, "break": true }
@@ -445,11 +445,11 @@
       "paragraph_container": "ELC_TAG_7_PARA_PANEL_TXT",
       "tier_1": [
         { "param": "ASS_TAG_1_TXT",     "spaces": 0, "break": true },
-        { "param": "ELC_PNL_NAME_TXT",  "spaces": 0, "break": true }
+        { "param": "ELC_PNL_DESIGNATION_NAME_TXT", "spaces": 0, "break": true }
       ],
       "tier_2": [
-        { "param": "ELC_PNL_RATED_KW",   "spaces": 0, "break": false },
-        { "param": "ELC_VOLTAGE_V",       "spaces": 0, "break": false, "prefix_override": " | " },
+        { "param": "ELC_PNL_RATED_KW",            "spaces": 0, "break": false },
+        { "param": "ELC_VLT_PRIMARY_RATING_V",     "spaces": 0, "break": false, "prefix_override": " | " },
         { "param": "ELC_VLT_DROP_PCT",    "spaces": 0, "break": true,  "prefix_override": " | VD: " }
       ],
       "tier_3": [
@@ -465,7 +465,7 @@
         { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
       ],
       "tier_2": [
-        { "param": "ELC_POWER_KW",  "spaces": 0, "break": false },
+        { "param": "ELC_PWR_KW",    "spaces": 0, "break": false },
         { "param": "ELC_CKT_NR",    "spaces": 0, "break": true, "prefix_override": " | " }
       ],
       "tier_3": [
@@ -479,12 +479,12 @@
       "paragraph_container": "ELC_TAG_7_PARA_CIRCUIT_TXT",
       "tier_1": [
         { "param": "ASS_TAG_1_TXT",   "spaces": 0, "break": true },
-        { "param": "LTG_LAMP_TYPE_TXT","spaces": 0, "break": true }
+        { "param": "LTG_FIX_TYPE_CLASSIFICATION_TXT", "spaces": 0, "break": true }
       ],
       "tier_2": [
-        { "param": "LTG_WATTAGE_W",     "spaces": 0, "break": false },
-        { "param": "LTG_LUMENS_LM",     "spaces": 0, "break": false, "prefix_override": " | " },
-        { "param": "LTG_COLOR_TEMP_K",  "spaces": 0, "break": true,  "prefix_override": " | " }
+        { "param": "LTG_FIX_LMP_WATTAGE_W",  "spaces": 0, "break": false },
+        { "param": "CST_FIX_LUMEN_OUTPUT_LM", "spaces": 0, "break": false, "prefix_override": " | " },
+        { "param": "LTG_CLR_TEMP_K",          "spaces": 0, "break": true,  "prefix_override": " | " }
       ],
       "tier_3": [
         { "param": "ELC_TAG_7_PARA_CIRCUIT_TXT", "spaces": 0, "break": true }
@@ -587,7 +587,7 @@
       ],
       "tier_2": [
         { "param": "PLM_PPE_FLW_LPS",  "spaces": 0, "break": false },
-        { "param": "PLM_VELOCITY_MPS",  "spaces": 0, "break": false, "prefix_override": " | " },
+        { "param": "PLM_VEL_MPS",       "spaces": 0, "break": false, "prefix_override": " | " },
         { "param": "PLM_PSR_KPA",       "spaces": 0, "break": true,  "prefix_override": " | " }
       ],
       "tier_3": [
@@ -648,8 +648,8 @@
         { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
       ],
       "tier_2": [
-        { "param": "FLS_SPR_COVERAGE_M2", "spaces": 0, "break": false },
-        { "param": "FLS_SPR_K_FACTOR",    "spaces": 0, "break": true, "prefix_override": " | K=" }
+        { "param": "FLS_SFTY_COVERAGE_AREA_SQ_M", "spaces": 0, "break": false },
+        { "param": "FLS_SFTY_K_FACTOR_NR",        "spaces": 0, "break": true, "prefix_override": " | K=" }
       ],
       "tier_3": [
         { "param": "FLS_TAG_7_PARA_SPR_TXT", "spaces": 0, "break": true }
@@ -680,8 +680,8 @@
         { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
       ],
       "tier_2": [
-        { "param": "COM_PROTOCOL_TXT", "spaces": 0, "break": false },
-        { "param": "COM_IP_ADDRESS_TXT","spaces": 0, "break": true, "prefix_override": " | " }
+        { "param": "COM_C_PROTOCOL_TXT",        "spaces": 0, "break": false },
+        { "param": "COM_C_NETWORK_ADDRESS_TXT", "spaces": 0, "break": true, "prefix_override": " | " }
       ],
       "tier_3": [
         { "param": "COM_TAG_7_PARA_BMS_TXT", "spaces": 0, "break": true }
@@ -696,7 +696,7 @@
         { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
       ],
       "tier_2": [
-        { "param": "ICT_DATA_RATE_TXT", "spaces": 0, "break": true }
+        { "param": "ICT_OUTLET_TYPE_TXT", "spaces": 0, "break": true }
       ],
       "tier_3": [
         { "param": "ICT_TAG_7_PARA_DATA_TXT", "spaces": 0, "break": true }
@@ -726,7 +726,7 @@
         { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
       ],
       "tier_2": [
-        { "param": "SEC_DEVICE_TYPE_TXT", "spaces": 0, "break": true }
+        { "param": "SEC_DEV_ZONE_TXT", "spaces": 0, "break": true }
       ],
       "tier_3": [
         { "param": "SEC_TAG_7_PARA_SECURITY_TXT", "spaces": 0, "break": true }

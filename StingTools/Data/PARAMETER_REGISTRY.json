@@ -291,6 +291,13 @@
       { "key": "REV",             "param_name": "ASS_REV_TXT",                  "description": "Revision code" },
       { "key": "VOLUME",          "param_name": "ASS_VOL_TXT",                  "description": "Volume code" }
     ],
+    "iso19650_naming": [
+      { "key": "PROJECT_COD",     "param_name": "ASS_PROJECT_COD_TXT",     "guid": "24bc19e4-8ec6-4d4c-b457-5e14a1f42e58", "description": "ISO 19650 project code (GROUP 17)" },
+      { "key": "ORIGINATOR_COD",  "param_name": "ASS_ORIGINATOR_COD_TXT",  "guid": "87dc564e-8542-497d-a36f-ee335fd32bd4", "description": "ISO 19650 originator code (GROUP 17)" },
+      { "key": "VOLUME_COD",      "param_name": "ASS_VOLUME_COD_TXT",      "guid": "4f51f371-c2b1-43f5-9dea-da797442c1fb", "description": "ISO 19650 volume/zone code (GROUP 17)" },
+      { "key": "STATUS_COD",      "param_name": "ASS_STATUS_COD_TXT",      "guid": "a57dfe0c-6db9-4fb6-80e0-d2c453fe653b", "description": "ISO 19650 status/suitability code (GROUP 17)" },
+      { "key": "REV_COD",         "param_name": "ASS_REV_COD_TXT",         "guid": "83b2139d-67bb-48db-a50f-32140c0dc753", "description": "ISO 19650 revision code (GROUP 17)" }
+    ],
     "ble_dimensional": [
       { "key": "WALL_HEIGHT",     "param_name": "BLE_WALL_HEIGHT_MM",            "description": "Wall height (mm)" },
       { "key": "WALL_LENGTH",     "param_name": "BLE_WALL_LENGTH_MM",            "description": "Wall length (mm)" },
