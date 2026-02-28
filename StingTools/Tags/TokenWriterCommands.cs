@@ -106,7 +106,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
             => TokenWriter.WriteToken(cmd, ParamRegistry.DISC, "Discipline (DISC)",
-                new[] { "M", "E", "P", "A" });
+                new[] { "M", "E", "P", "A", "S", "FP", "LV", "G" });
     }
 
     [Transaction(TransactionMode.Manual)]
@@ -263,11 +263,39 @@ namespace StingTools.Tags
 
                     string catName = ParameterHelpers.GetCategoryName(elem);
 
-                    // Read all 8 tokens
+                    // Read all 8 tokens, auto-deriving any empty ones
                     string[] tokenValues = ParamRegistry.ReadTokenValues(elem);
 
                     string disc = tokenValues[0]; // DISC
-                    if (string.IsNullOrEmpty(disc)) { skipped++; continue; }
+                    if (string.IsNullOrEmpty(disc))
+                    {
+                        disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "";
+                        if (string.IsNullOrEmpty(disc)) { skipped++; continue; }
+                        tokenValues[0] = disc;
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.DISC, disc);
+                    }
+
+                    // Auto-derive SYS if missing (MEP-aware 6-layer detection)
+                    if (string.IsNullOrEmpty(tokenValues[4]))
+                    {
+                        string sys = TagConfig.GetMepSystemAwareSysCode(elem, catName);
+                        if (!string.IsNullOrEmpty(sys))
+                        {
+                            tokenValues[4] = sys;
+                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys);
+                        }
+                    }
+
+                    // Auto-derive FUNC if missing (smart subsystem differentiation)
+                    if (string.IsNullOrEmpty(tokenValues[5]))
+                    {
+                        string func = TagConfig.GetSmartFuncCode(elem, tokenValues[4]);
+                        if (!string.IsNullOrEmpty(func))
+                        {
+                            tokenValues[5] = func;
+                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func);
+                        }
+                    }
 
                     string seq = tokenValues[7]; // SEQ
 

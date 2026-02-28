@@ -484,7 +484,7 @@ namespace StingTools.Temp
                 viewCount > 0,
                 $"{viewCount} views in project"));
 
-            // Check if ASS_TAG_1_TXT parameter exists
+            // Check if the primary tag parameter exists
             bool hasTagParam = false;
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
@@ -500,7 +500,7 @@ namespace StingTools.Temp
             }
             results.Add(new ValidationResult("Tag parameters bound", "MODERATE",
                 hasTagParam,
-                hasTagParam ? "ASS_TAG_1_TXT found on elements" : "ASS_TAG_1_TXT NOT bound — run Load Params"));
+                hasTagParam ? $"{ParamRegistry.TAG1} found on elements" : $"{ParamRegistry.TAG1} NOT bound — run Load Params"));
         }
     }
 
