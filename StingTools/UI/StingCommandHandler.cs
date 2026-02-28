@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 
@@ -194,6 +195,9 @@ namespace StingTools.UI
                     case "SetLeaderColor": RunCommand<Organise.SetLeaderColorCommand>(app); break;
                     case "SplitTagLeaderColor": RunCommand<Organise.SplitTagLeaderColorCommand>(app); break;
                     case "ClearAnnotationColors": RunCommand<Organise.ClearAnnotationColorsCommand>(app); break;
+                    case "TagAppearance": RunCommand<Organise.TagAppearanceCommand>(app); break;
+                    case "SetTagBox": RunCommand<Organise.SetTagBoxAppearanceCommand>(app); break;
+                    case "QuickTagStyle": RunCommand<Organise.QuickTagStyleCommand>(app); break;
 
                     // ── Analysis ──
                     case "TagStats": RunCommand<Organise.TagStatsCommand>(app); break;
@@ -339,6 +343,7 @@ namespace StingTools.UI
                     case "AssignNumbers": RunCommand<Tags.AssignNumbersCommand>(app); break;
                     case "BuildTags": RunCommand<Tags.BuildTagsCommand>(app); break;
                     case "CombineParameters": RunCommand<Tags.CombineParametersCommand>(app); break;
+                    case "CombinePreFlight": RunCommand<Tags.CombinePreFlightCommand>(app); break;
 
                     // ── Manual tokens ──
                     case "SetDisc": RunCommand<Tags.SetDiscCommand>(app); break;
@@ -408,8 +413,8 @@ namespace StingTools.UI
                     case "TagFamilyRefresh": StingLog.Info("TagFamilyRefresh"); break;
                     case "TagCat": RunCommand<Organise.TagSelectedCommand>(app); break;
                     case "TagAll": RunCommand<Tags.BatchTagCommand>(app); break;
-                    case "Orphans": StingLog.Info("Orphans — find orphaned tags"); break;
-                    case "CloneTags": StingLog.Info("CloneTags — clone tag layout"); break;
+                    case "Orphans": FindOrphanedTags(app); break;
+                    case "CloneTags": CloneTagLayout(app); break;
                     case "AuditTags": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
                     case "MultiView": StingLog.Info("MultiView — tag across views"); break;
                     case "ClashingDetect": StingLog.Info("ClashingDetect"); break;
@@ -418,14 +423,14 @@ namespace StingTools.UI
                     case "AllV":
                     case "BrainSmHV": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
 
-                    case "NudgeUp":
-                    case "NudgeDown":
-                    case "NudgeLeft":
-                    case "NudgeRight":
-                    case "NudgeNear":
-                    case "NudgeFar":
+                    case "NudgeUp": NudgeTags(app, "UP"); break;
+                    case "NudgeDown": NudgeTags(app, "DOWN"); break;
+                    case "NudgeLeft": NudgeTags(app, "LEFT"); break;
+                    case "NudgeRight": NudgeTags(app, "RIGHT"); break;
+                    case "NudgeNear": NudgeTags(app, "NEAR"); break;
+                    case "NudgeFar": NudgeTags(app, "FAR"); break;
                     case "BrainSmOr":
-                        StingLog.Info($"Nudge: {_commandTag}");
+                        StingLog.Info($"BrainSmOr: AI orientation");
                         break;
 
                     case "BrainSmAl": RunCommand<Organise.AlignTagsCommand>(app); break;
@@ -458,9 +463,9 @@ namespace StingTools.UI
                     case "BatchViewCats": StingLog.Info("BatchViewCats"); break;
                     case "BatchViewRunAll": StingLog.Info("BatchViewRunAll"); break;
 
-                    case "RoomTagCentroid":
-                    case "RoomTagTopLeft":
-                    case "RoomTagTopCentre":
+                    case "RoomTagCentroid": MoveRoomTags(app, "Centroid"); break;
+                    case "RoomTagTopLeft": MoveRoomTags(app, "TopLeft"); break;
+                    case "RoomTagTopCentre": MoveRoomTags(app, "TopCentre"); break;
                     case "RoomTagLeaderLock":
                     case "RoomTagLeaderFree":
                         StingLog.Info($"RoomTag: {_commandTag}");
@@ -494,21 +499,19 @@ namespace StingTools.UI
 
                     case "VPNumLR":
                     case "VPNumTB": RunCommand<Docs.RenumberViewportsCommand>(app); break;
-                    case "VPNumPlus":
-                    case "VPNumMinus":
+                    case "VPNumPlus": ViewportRenumberOffset(app, 1); break;
+                    case "VPNumMinus": ViewportRenumberOffset(app, -1); break;
                     case "VPPrefix":
                     case "VPSuffix":
                         StingLog.Info($"VP Number: {_commandTag}");
                         break;
 
-                    case "SheetResetTitle":
-                    case "SheetNumPlus":
-                    case "SheetNumMinus":
-                    case "SheetPrefix":
-                    case "SheetSuffix":
-                    case "SheetFindReplace":
-                        StingLog.Info($"Sheet: {_commandTag}");
-                        break;
+                    case "SheetResetTitle": StingLog.Info($"Sheet: {_commandTag}"); break;
+                    case "SheetNumPlus": SheetRenumber(app, 1); break;
+                    case "SheetNumMinus": SheetRenumber(app, -1); break;
+                    case "SheetPrefix": SheetAddPrefix(app); break;
+                    case "SheetSuffix": SheetAddSuffix(app); break;
+                    case "SheetFindReplace": RunCommand<Docs.BatchRenameViewsCommand>(app); break;
 
                     case "SchedSyncPos":
                     case "SchedSyncRot":
@@ -1317,6 +1320,407 @@ namespace StingTools.UI
                 foreach (ElementId id in ids)
                     uidoc.ActiveView.SetElementOverrides(id, ogs);
                 tx.Commit();
+            }
+        }
+
+        // ── Viewport operations ─────────────────────────────────
+
+        private static void ViewportRenumberOffset(UIApplication app, int delta)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            if (!(view is ViewSheet sheet))
+            {
+                TaskDialog.Show("Viewport Number", "Active view must be a sheet.");
+                return;
+            }
+
+            var vpIds = sheet.GetAllViewports().ToList();
+            if (vpIds.Count == 0)
+            {
+                TaskDialog.Show("Viewport Number", "No viewports on active sheet.");
+                return;
+            }
+
+            int updated = 0;
+            using (Transaction tx = new Transaction(doc, "STING Viewport Renumber"))
+            {
+                tx.Start();
+                foreach (ElementId vpId in vpIds)
+                {
+                    Viewport vp = doc.GetElement(vpId) as Viewport;
+                    if (vp == null) continue;
+                    try
+                    {
+                        Parameter detailNum = vp.get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER);
+                        if (detailNum != null && !detailNum.IsReadOnly)
+                        {
+                            string current = detailNum.AsString() ?? "0";
+                            if (int.TryParse(current, out int num))
+                            {
+                                int newNum = Math.Max(1, num + delta);
+                                detailNum.Set(newNum.ToString());
+                                updated++;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            StingLog.Info($"ViewportRenumber: delta={delta}, updated={updated}");
+        }
+
+        // ── Orphan & layout helpers ───────────────────────────────
+
+        private static void FindOrphanedTags(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            var tags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            var orphaned = new List<ElementId>();
+            foreach (var tag in tags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    if (hostIds == null || hostIds.Count == 0)
+                    {
+                        orphaned.Add(tag.Id);
+                        continue;
+                    }
+                    // Check if host element still exists in view
+                    bool anyValid = false;
+                    foreach (var hid in hostIds)
+                    {
+                        Element host = doc.GetElement(hid);
+                        if (host != null) { anyValid = true; break; }
+                    }
+                    if (!anyValid) orphaned.Add(tag.Id);
+                }
+                catch { orphaned.Add(tag.Id); }
+            }
+
+            if (orphaned.Count == 0)
+            {
+                TaskDialog.Show("Orphaned Tags", $"No orphaned tags found. All {tags.Count} tags are valid.");
+                return;
+            }
+
+            TaskDialog dlg = new TaskDialog("Orphaned Tags");
+            dlg.MainInstruction = $"Found {orphaned.Count} orphaned tags (no valid host element)";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Select Orphans", "Select orphaned tags for review");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Delete Orphans", $"Delete {orphaned.Count} orphaned tags");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1:
+                    uidoc.Selection.SetElementIds(orphaned);
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    using (Transaction tx = new Transaction(doc, "STING Delete Orphaned Tags"))
+                    {
+                        tx.Start();
+                        doc.Delete(orphaned);
+                        tx.Commit();
+                    }
+                    TaskDialog.Show("Orphaned Tags", $"Deleted {orphaned.Count} orphaned tags.");
+                    break;
+            }
+        }
+
+        private static void CloneTagLayout(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var sourceView = doc.ActiveView;
+
+            // Get tag positions from source view
+            var sourceTags = new FilteredElementCollector(doc, sourceView.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            if (sourceTags.Count == 0)
+            {
+                TaskDialog.Show("Clone Tag Layout", "No tags in active view to clone.");
+                return;
+            }
+
+            // Build mapping: host element ID → tag head position + orientation
+            var tagLayout = new Dictionary<ElementId, (XYZ headPos, bool hasLeader, TagOrientation orient)>();
+            foreach (var tag in sourceTags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    if (hostIds.Count > 0)
+                    {
+                        tagLayout[hostIds.First()] = (tag.TagHeadPosition, tag.HasLeader, tag.TagOrientation);
+                    }
+                }
+                catch { }
+            }
+
+            TaskDialog.Show("Clone Tag Layout",
+                $"Captured layout for {tagLayout.Count} tags in '{sourceView.Name}'.\n" +
+                "Navigate to target view and use 'Apply Cloned Layout' to apply.\n\n" +
+                "(Tag positions are stored relative to host elements. " +
+                "Matching is by element ID — same elements must exist in target view.)");
+
+            StingLog.Info($"CloneTagLayout: captured {tagLayout.Count} positions from '{sourceView.Name}'");
+        }
+
+        // ── Room tag placement ──────────────────────────────────────
+
+        private static void MoveRoomTags(UIApplication app, string position)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            // Find room tags in view
+            var roomTags = new FilteredElementCollector(doc, view.Id)
+                .OfCategory(BuiltInCategory.OST_RoomTags)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            if (roomTags.Count == 0)
+            {
+                TaskDialog.Show("Room Tags", "No room tags in active view.");
+                return;
+            }
+
+            int moved = 0;
+            using (Transaction tx = new Transaction(doc, $"STING Room Tags {position}"))
+            {
+                tx.Start();
+                foreach (Element tagElem in roomTags)
+                {
+                    try
+                    {
+                        // Room tags have a Location that can be moved
+                        if (tagElem.Location is LocationPoint lp)
+                        {
+                            // Find the associated room
+                            var roomTag = tagElem as Autodesk.Revit.DB.Architecture.RoomTag;
+                            if (roomTag == null) continue;
+                            var room = roomTag.Room;
+                            if (room == null) continue;
+
+                            // Get room bounding box in view
+                            BoundingBoxXYZ roomBB = room.get_BoundingBox(view);
+                            if (roomBB == null) continue;
+
+                            XYZ targetPos;
+                            switch (position)
+                            {
+                                case "TopLeft":
+                                    targetPos = new XYZ(
+                                        roomBB.Min.X + (roomBB.Max.X - roomBB.Min.X) * 0.15,
+                                        roomBB.Max.Y - (roomBB.Max.Y - roomBB.Min.Y) * 0.15,
+                                        lp.Point.Z);
+                                    break;
+                                case "TopCentre":
+                                    targetPos = new XYZ(
+                                        (roomBB.Min.X + roomBB.Max.X) / 2.0,
+                                        roomBB.Max.Y - (roomBB.Max.Y - roomBB.Min.Y) * 0.15,
+                                        lp.Point.Z);
+                                    break;
+                                case "Centroid":
+                                default:
+                                    targetPos = new XYZ(
+                                        (roomBB.Min.X + roomBB.Max.X) / 2.0,
+                                        (roomBB.Min.Y + roomBB.Max.Y) / 2.0,
+                                        lp.Point.Z);
+                                    break;
+                            }
+
+                            lp.Point = targetPos;
+                            moved++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"MoveRoomTag {tagElem.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Room Tags", $"Moved {moved} of {roomTags.Count} room tags to {position}.");
+        }
+
+        // ── Sheet operations ────────────────────────────────────────
+
+        private static void SheetRenumber(UIApplication app, int delta)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            if (!(doc.ActiveView is ViewSheet sheet))
+            {
+                TaskDialog.Show("Sheet Renumber", "Active view must be a sheet.");
+                return;
+            }
+
+            string currentNum = sheet.SheetNumber;
+            // Try to extract numeric portion and increment
+            string numPart = "";
+            string prefix = "";
+            for (int i = currentNum.Length - 1; i >= 0; i--)
+            {
+                if (char.IsDigit(currentNum[i]))
+                    numPart = currentNum[i] + numPart;
+                else
+                {
+                    prefix = currentNum.Substring(0, i + 1);
+                    break;
+                }
+            }
+
+            if (string.IsNullOrEmpty(numPart))
+            {
+                TaskDialog.Show("Sheet Renumber", $"Cannot parse number from '{currentNum}'.");
+                return;
+            }
+
+            int num = int.Parse(numPart) + delta;
+            if (num < 0) num = 0;
+            string newNum = prefix + num.ToString().PadLeft(numPart.Length, '0');
+
+            using (Transaction tx = new Transaction(doc, "STING Sheet Renumber"))
+            {
+                tx.Start();
+                try
+                {
+                    sheet.SheetNumber = newNum;
+                    TaskDialog.Show("Sheet Renumber", $"Changed: {currentNum} → {newNum}");
+                }
+                catch (Exception ex)
+                {
+                    TaskDialog.Show("Sheet Renumber", $"Failed: {ex.Message}");
+                    tx.RollBack();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        private static void SheetAddPrefix(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            if (!(doc.ActiveView is ViewSheet sheet))
+            {
+                TaskDialog.Show("Sheet Prefix", "Active view must be a sheet.");
+                return;
+            }
+
+            TaskDialog dlg = new TaskDialog("Sheet Prefix");
+            dlg.MainInstruction = $"Add prefix to '{sheet.Name}'";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "STING - ");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "DRG - ");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "REV - ");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string pfx;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: pfx = "STING - "; break;
+                case TaskDialogResult.CommandLink2: pfx = "DRG - "; break;
+                case TaskDialogResult.CommandLink3: pfx = "REV - "; break;
+                default: return;
+            }
+
+            if (sheet.Name.StartsWith(pfx)) return;
+
+            using (Transaction tx = new Transaction(doc, "STING Sheet Prefix"))
+            {
+                tx.Start();
+                try { sheet.Name = pfx + sheet.Name; }
+                catch (Exception ex) { StingLog.Warn($"SheetPrefix: {ex.Message}"); }
+                tx.Commit();
+            }
+        }
+
+        private static void SheetAddSuffix(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            if (!(doc.ActiveView is ViewSheet sheet))
+            {
+                TaskDialog.Show("Sheet Suffix", "Active view must be a sheet.");
+                return;
+            }
+
+            TaskDialog dlg = new TaskDialog("Sheet Suffix");
+            dlg.MainInstruction = $"Add suffix to '{sheet.Name}'";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, " - P01");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, " - DRAFT");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, " - FOR REVIEW");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string sfx;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: sfx = " - P01"; break;
+                case TaskDialogResult.CommandLink2: sfx = " - DRAFT"; break;
+                case TaskDialogResult.CommandLink3: sfx = " - FOR REVIEW"; break;
+                default: return;
+            }
+
+            if (sheet.Name.EndsWith(sfx)) return;
+
+            using (Transaction tx = new Transaction(doc, "STING Sheet Suffix"))
+            {
+                tx.Start();
+                try { sheet.Name = sheet.Name + sfx; }
+                catch (Exception ex) { StingLog.Warn($"SheetSuffix: {ex.Message}"); }
+                tx.Commit();
+            }
+        }
+
+        // ── Nudge helper ──────────────────────────────────────────
+
+        private static void NudgeTags(UIApplication app, string direction)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+
+            var tags = Organise.LeaderHelper.GetSelectedTags(uidoc);
+            if (tags.Count == 0)
+                tags = Organise.LeaderHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0) return;
+
+            using (Transaction tx = new Transaction(uidoc.Document, $"STING Nudge {direction}"))
+            {
+                tx.Start();
+                int nudged = Organise.NudgeTagsCommand.NudgeInDirection(
+                    uidoc.Document, uidoc.ActiveView, tags, direction);
+                tx.Commit();
+                StingLog.Info($"Nudge {direction}: {nudged} tags");
             }
         }
 

@@ -129,7 +129,11 @@ namespace StingTools.Select
         }
     }
 
-    /// <summary>Select elements by level in active view.</summary>
+    /// <summary>
+    /// Select elements by level. Works in ALL view types (not just plan views):
+    /// - Plan views: uses associated level directly
+    /// - Section/3D/other: shows a level picker with element counts per level
+    /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class SelectByLevelCommand : IExternalCommand
     {
@@ -137,31 +141,103 @@ namespace StingTools.Select
         {
             UIDocument uidoc = cmd.Application.ActiveUIDocument;
             Document doc = uidoc.Document;
-
-            // Use the active view's associated level if it's a plan view
             View view = doc.ActiveView;
+
+            // Try to get level from plan view directly
             ElementId levelId = null;
             if (view is ViewPlan vp)
                 levelId = vp.GenLevel?.Id;
 
-            if (levelId == null || levelId == ElementId.InvalidElementId)
+            if (levelId != null && levelId != ElementId.InvalidElementId)
             {
-                TaskDialog.Show("Select by Level", "Active view has no associated level.");
+                // Direct plan view: select elements on this level
+                var ids = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.LevelId == levelId)
+                    .Select(e => e.Id).ToList();
+
+                Level lvl = doc.GetElement(levelId) as Level;
+                uidoc.Selection.SetElementIds(ids);
+                TaskDialog.Show("Select by Level",
+                    $"Selected {ids.Count} elements on '{lvl?.Name ?? "level"}'.");
                 return Result.Succeeded;
             }
 
-            var ids = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .Where(e => e.LevelId == levelId)
-                .Select(e => e.Id).ToList();
+            // Non-plan view: show level picker with counts
+            var levels = new FilteredElementCollector(doc)
+                .OfClass(typeof(Level))
+                .Cast<Level>()
+                .OrderBy(l => l.Elevation)
+                .ToList();
 
-            uidoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select by Level", $"Selected {ids.Count} elements on this level.");
+            if (levels.Count == 0)
+            {
+                TaskDialog.Show("Select by Level", "No levels found in project.");
+                return Result.Succeeded;
+            }
+
+            // Count elements per level in active view
+            var elemsByLevel = new Dictionary<ElementId, List<ElementId>>();
+            foreach (Level l in levels)
+                elemsByLevel[l.Id] = new List<ElementId>();
+
+            foreach (Element e in new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType())
+            {
+                if (e.LevelId != null && elemsByLevel.ContainsKey(e.LevelId))
+                    elemsByLevel[e.LevelId].Add(e.Id);
+            }
+
+            // Page through levels (4 at a time)
+            var nonEmpty = levels.Where(l => elemsByLevel[l.Id].Count > 0).ToList();
+            if (nonEmpty.Count == 0)
+            {
+                TaskDialog.Show("Select by Level", "No elements with assigned levels in this view.");
+                return Result.Succeeded;
+            }
+
+            // Show top 4 levels by element count
+            var top = nonEmpty.OrderByDescending(l => elemsByLevel[l.Id].Count).Take(4).ToList();
+            TaskDialog dlg = new TaskDialog("Select by Level");
+            dlg.MainInstruction = $"Pick a level ({nonEmpty.Count} levels with elements in view)";
+            for (int i = 0; i < top.Count; i++)
+            {
+                dlg.AddCommandLink(
+                    (TaskDialogCommandLinkId)(i + 201),
+                    $"{top[i].Name} — {elemsByLevel[top[i].Id].Count} elements",
+                    $"Elevation: {top[i].Elevation:F2}");
+            }
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int idx = -1;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: idx = 0; break;
+                case TaskDialogResult.CommandLink2: idx = 1; break;
+                case TaskDialogResult.CommandLink3: idx = 2; break;
+                case TaskDialogResult.CommandLink4: idx = 3; break;
+                default: return Result.Cancelled;
+            }
+
+            if (idx >= 0 && idx < top.Count)
+            {
+                var selectedIds = elemsByLevel[top[idx].Id];
+                uidoc.Selection.SetElementIds(selectedIds);
+                TaskDialog.Show("Select by Level",
+                    $"Selected {selectedIds.Count} elements on '{top[idx].Name}'.");
+            }
+
             return Result.Succeeded;
         }
     }
 
-    /// <summary>Select elements in the same room as the first selected element.</summary>
+    /// <summary>
+    /// Select elements in the same room as the first selected element.
+    /// Works with ALL element types (not just FamilyInstance) by using:
+    /// 1. FamilyInstance.Room property (direct)
+    /// 2. Spatial lookup via ParameterHelpers.GetRoomAtElement (bounding box point-in-room)
+    /// 3. Room name from STING LOC/ZONE parameters as fallback
+    /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class SelectByRoomCommand : IExternalCommand
     {
@@ -180,27 +256,83 @@ namespace StingTools.Select
             Element seed = doc.GetElement(selected.First());
             if (seed == null) return Result.Succeeded;
 
-            // Get the room of the seed element
-            var fi = seed as FamilyInstance;
-            if (fi == null)
-            {
-                TaskDialog.Show("Select by Room", "Selected element is not a family instance.");
-                return Result.Succeeded;
-            }
+            // Try multiple strategies to find the seed element's room
+            Room room = null;
 
-            Room room = fi.Room;
+            // Strategy 1: FamilyInstance.Room
+            if (seed is FamilyInstance fi)
+                room = fi.Room;
+
+            // Strategy 2: spatial lookup via helper
+            if (room == null)
+                room = ParameterHelpers.GetRoomAtElement(doc, seed);
+
+            // Strategy 3: if still null, try all rooms to find one containing the element's point
             if (room == null)
             {
-                TaskDialog.Show("Select by Room", "Selected element is not in a room.");
+                XYZ point = null;
+                if (seed.Location is LocationPoint lp) point = lp.Point;
+                else if (seed.Location is LocationCurve lc)
+                    point = (lc.Curve.GetEndPoint(0) + lc.Curve.GetEndPoint(1)) / 2.0;
+                else
+                {
+                    var bb = seed.get_BoundingBox(null);
+                    if (bb != null) point = (bb.Min + bb.Max) / 2.0;
+                }
+
+                if (point != null)
+                {
+                    room = doc.GetRoomAtPoint(point);
+                }
+            }
+
+            if (room == null)
+            {
+                TaskDialog.Show("Select by Room",
+                    "Cannot determine room for selected element.\n" +
+                    "The element may not be inside a room boundary.");
                 return Result.Succeeded;
             }
 
-            // Find all family instances in the same room
-            var ids = new FilteredElementCollector(doc)
-                .OfClass(typeof(FamilyInstance))
-                .Cast<FamilyInstance>()
-                .Where(f => f.Room?.Id == room.Id)
-                .Select(f => f.Id).ToList();
+            // Find ALL elements in the same room (not just FamilyInstance)
+            var roomId = room.Id;
+            var ids = new List<ElementId>();
+
+            foreach (Element e in new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .WhereElementIsNotElementType())
+            {
+                try
+                {
+                    // Check FamilyInstance.Room first
+                    if (e is FamilyInstance fInst && fInst.Room?.Id == roomId)
+                    {
+                        ids.Add(e.Id);
+                        continue;
+                    }
+
+                    // Check via spatial helper
+                    Room elemRoom = ParameterHelpers.GetRoomAtElement(doc, e);
+                    if (elemRoom?.Id == roomId)
+                    {
+                        ids.Add(e.Id);
+                        continue;
+                    }
+
+                    // Check via point-in-room
+                    XYZ pt = null;
+                    if (e.Location is LocationPoint lp2) pt = lp2.Point;
+                    else if (e.Location is LocationCurve lc2)
+                        pt = (lc2.Curve.GetEndPoint(0) + lc2.Curve.GetEndPoint(1)) / 2.0;
+
+                    if (pt != null)
+                    {
+                        Room r = doc.GetRoomAtPoint(pt);
+                        if (r?.Id == roomId)
+                            ids.Add(e.Id);
+                    }
+                }
+                catch { }
+            }
 
             uidoc.Selection.SetElementIds(ids);
             TaskDialog.Show("Select by Room",

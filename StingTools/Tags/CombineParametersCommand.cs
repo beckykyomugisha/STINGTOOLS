@@ -256,4 +256,159 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
     }
+
+    /// <summary>
+    /// Combine Pre-Flight Check: audits token completeness BEFORE writing containers.
+    /// Reports which tokens are missing, how many elements are ready vs incomplete,
+    /// and which disciplines/systems have gaps. Non-destructive ReadOnly audit.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CombinePreFlightCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            int total = 0, fullyReady = 0, partial = 0, empty = 0;
+            var missingByToken = new Dictionary<string, int>
+            {
+                { "DISC", 0 }, { "LOC", 0 }, { "ZONE", 0 }, { "LVL", 0 },
+                { "SYS", 0 }, { "FUNC", 0 }, { "PROD", 0 }, { "SEQ", 0 }
+            };
+            var readyByDisc = new Dictionary<string, int>();
+            var incompleteByDisc = new Dictionary<string, int>();
+            var placeholderCount = 0;
+            var emptyTagCount = 0;
+            var existingTagCount = 0;
+
+            string[] tokenNames = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+            string[] tokenParams = {
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.SEQ
+            };
+
+            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string catName = ParameterHelpers.GetCategoryName(el);
+                if (!knownCategories.Contains(catName)) continue;
+
+                total++;
+
+                // Check existing tag
+                string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (TagConfig.TagIsComplete(existingTag))
+                    existingTagCount++;
+                else if (!string.IsNullOrEmpty(existingTag))
+                    emptyTagCount++;
+
+                // Check token completeness
+                int filledCount = 0;
+                bool hasPlaceholder = false;
+                string disc = "";
+
+                for (int i = 0; i < tokenParams.Length; i++)
+                {
+                    string val = ParameterHelpers.GetString(el, tokenParams[i]);
+                    if (string.IsNullOrEmpty(val))
+                    {
+                        missingByToken[tokenNames[i]]++;
+                    }
+                    else
+                    {
+                        filledCount++;
+                        if (val == "XX" || val == "ZZ" || val == "0000")
+                            hasPlaceholder = true;
+                    }
+                    if (i == 0) disc = val;
+                }
+
+                if (hasPlaceholder) placeholderCount++;
+
+                if (filledCount == 8)
+                {
+                    fullyReady++;
+                    if (!string.IsNullOrEmpty(disc))
+                    {
+                        if (!readyByDisc.ContainsKey(disc)) readyByDisc[disc] = 0;
+                        readyByDisc[disc]++;
+                    }
+                }
+                else if (filledCount > 0)
+                {
+                    partial++;
+                    if (!string.IsNullOrEmpty(disc))
+                    {
+                        if (!incompleteByDisc.ContainsKey(disc)) incompleteByDisc[disc] = 0;
+                        incompleteByDisc[disc]++;
+                    }
+                }
+                else
+                {
+                    empty++;
+                }
+            }
+
+            // Build report
+            var report = new StringBuilder();
+            report.AppendLine("Combine Pre-Flight Check");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"  Taggable elements:     {total}");
+            report.AppendLine($"  Fully ready (8/8):     {fullyReady}");
+            report.AppendLine($"  Partial tokens:        {partial}");
+            report.AppendLine($"  No tokens at all:      {empty}");
+            report.AppendLine($"  With placeholders:     {placeholderCount}");
+            report.AppendLine($"  Already have TAG1:     {existingTagCount}");
+
+            double readyPct = total > 0 ? fullyReady * 100.0 / total : 0;
+            report.AppendLine($"  Readiness:             {readyPct:F1}%");
+
+            report.AppendLine();
+            report.AppendLine("Missing Tokens:");
+            report.AppendLine($"  {"Token",-8} {"Missing",8} {"Filled",8} {"%Ready",8}");
+            report.AppendLine($"  {new string('─', 34)}");
+            for (int i = 0; i < tokenNames.Length; i++)
+            {
+                int missing = missingByToken[tokenNames[i]];
+                int filled = total - missing;
+                double pct = total > 0 ? filled * 100.0 / total : 0;
+                string bar = missing > 0 ? " !!!" : "";
+                report.AppendLine($"  {tokenNames[i],-8} {missing,8} {filled,8} {pct,7:F0}%{bar}");
+            }
+
+            if (readyByDisc.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("Ready by Discipline:");
+                foreach (var kvp in readyByDisc.OrderByDescending(x => x.Value))
+                {
+                    int inc = incompleteByDisc.TryGetValue(kvp.Key, out int n) ? n : 0;
+                    report.AppendLine($"  {kvp.Key,-6} {kvp.Value,5} ready, {inc,5} incomplete");
+                }
+            }
+
+            // Recommendation
+            report.AppendLine();
+            if (readyPct >= 95)
+                report.AppendLine("RECOMMENDATION: Ready to combine! High token completeness.");
+            else if (readyPct >= 70)
+                report.AppendLine("RECOMMENDATION: Mostly ready. Run Family-Stage Populate to fill gaps.");
+            else if (readyPct >= 30)
+                report.AppendLine("RECOMMENDATION: Significant gaps. Run Auto Tag or Family-Stage Populate first.");
+            else
+                report.AppendLine("RECOMMENDATION: Too many gaps. Run the full tagging pipeline before combining.");
+
+            TaskDialog td = new TaskDialog("Combine Pre-Flight");
+            td.MainInstruction = $"Pre-Flight: {fullyReady}/{total} ready ({readyPct:F0}%)";
+            td.MainContent = report.ToString();
+            td.Show();
+
+            StingLog.Info($"CombinePreFlight: total={total}, ready={fullyReady}, " +
+                $"partial={partial}, empty={empty}, readiness={readyPct:F1}%");
+            return Result.Succeeded;
+        }
+    }
 }
