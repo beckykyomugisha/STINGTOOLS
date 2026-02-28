@@ -188,7 +188,7 @@ namespace StingTools.Tags
                     }
                     if (string.IsNullOrEmpty(sys))
                     {
-                        sys = TagConfig.GetSysCode(cat);
+                        sys = TagConfig.GetMepSystemAwareSysCode(elem, cat);
                         ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys);
                     }
                     if (string.IsNullOrEmpty(lvl))
