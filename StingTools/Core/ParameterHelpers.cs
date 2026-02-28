@@ -61,21 +61,62 @@ namespace StingTools.Core
                 string name = lvl.Name.Trim();
                 string lower = name.ToLowerInvariant();
 
-                if (lower.StartsWith("level "))
+                if (lower.StartsWith("level ") && name.Length > 6)
                     return "L" + name.Substring(6).Trim().PadLeft(2, '0');
                 if (lower == "ground" || lower == "ground floor" || lower == "ground level")
                     return "GF";
-                if (lower.StartsWith("basement") || lower.StartsWith("b"))
+                if (lower.StartsWith("lower ground") || lower == "lg")
+                    return "LG";
+                if (lower.StartsWith("upper ground") || lower == "ug")
+                    return "UG";
+                if (lower.StartsWith("sub-basement") || lower.StartsWith("sub basement") || lower == "sb")
+                {
+                    string digits = ExtractDigits(name);
+                    return "SB" + (digits.Length > 0 ? digits : "");
+                }
+                if (lower.StartsWith("basement") || lower == "b1" || lower == "b2" ||
+                    lower == "b3" || lower == "b4" || lower == "b5" ||
+                    (lower.Length >= 2 && lower[0] == 'b' && char.IsDigit(lower[1])))
                 {
                     string digits = ExtractDigits(name);
                     return "B" + (digits.Length > 0 ? digits : "1");
                 }
-                if (lower.StartsWith("roof"))
+                if (lower.StartsWith("roof") || lower == "rf")
                     return "RF";
+                if (lower.StartsWith("penthouse") || lower == "ph" || lower == "pent")
+                    return "PH";
+                if (lower.StartsWith("attic") || lower == "at" || lower == "att")
+                    return "AT";
+                if (lower.StartsWith("terrace") || lower == "tr")
+                    return "TR";
+                if (lower.StartsWith("podium") || lower == "pod")
+                    return "POD";
+                if (lower.StartsWith("mezzanine") || lower == "mezz")
+                    return "MZ";
+                if (lower.StartsWith("plant") && lower.Contains("room"))
+                    return "PL";
 
-                return name.ToUpperInvariant()
-                    .Replace(" ", "")
-                    .Substring(0, Math.Min(4, name.Length));
+                // Extract digits for "1st floor", "2nd floor", "L01" etc.
+                if (lower.Contains("first") || lower.Contains("1st"))
+                    return "L01";
+                if (lower.Contains("second") || lower.Contains("2nd"))
+                    return "L02";
+                if (lower.Contains("third") || lower.Contains("3rd"))
+                    return "L03";
+                if (lower.Contains("fourth") || lower.Contains("4th"))
+                    return "L04";
+                if (lower.Contains("fifth") || lower.Contains("5th"))
+                    return "L05";
+
+                // Try to extract a floor number from patterns like "L01", "L1", "Floor 3"
+                string digits = ExtractDigits(name);
+                if (digits.Length > 0 && digits.Length <= 2)
+                    return "L" + digits.PadLeft(2, '0');
+
+                // Unrecognized pattern — return XX rather than truncating the name
+                // which could produce nonsensical level codes
+                StingLog.Info($"GetLevelCode: unrecognized level name '{name}', defaulting to XX");
+                return "XX";
             }
             catch (Exception ex)
             {
@@ -276,14 +317,23 @@ namespace StingTools.Core
                     if (!string.IsNullOrEmpty(loc)) return loc;
                 }
 
-                // Check if element is outside (no room) → could be EXT
+                // Check if element is likely exterior
                 if (room == null && el.Location != null)
                 {
-                    // Elements with a valid level but no room might be exterior
-                    // Only flag as EXT if we have rooms defined but element isn't in one
+                    // Heuristic: if the project has rooms defined and this element
+                    // has a valid location but isn't in any room, check the element's
+                    // category and family name for exterior indicators
                     if (roomIndex.Count > 0)
                     {
-                        // Don't auto-flag as EXT — too aggressive. Use project default.
+                        string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
+                        string catName = ParameterHelpers.GetCategoryName(el).ToUpperInvariant();
+                        // Only flag specific elements that are commonly exterior
+                        if (familyName.Contains("EXTERNAL") || familyName.Contains("EXTERIOR") ||
+                            familyName.Contains("OUTDOOR") || familyName.Contains("WEATHERPROOF") ||
+                            familyName.Contains("BOLLARD") || familyName.Contains("FLOODLIGHT") ||
+                            (catName.Contains("LIGHTING") && familyName.Contains("POLE")) ||
+                            (catName.Contains("LIGHTING") && familyName.Contains("POST")))
+                            return "EXT";
                     }
                 }
             }
@@ -351,7 +401,9 @@ namespace StingTools.Core
                 return "BLD2";
             if (upper.Contains("BLD3") || upper.Contains("BUILDING 3") || upper.Contains("BLOCK C"))
                 return "BLD3";
-            if (upper.Contains("EXT") || upper.Contains("EXTERNAL") || upper.Contains("EXTERIOR"))
+            // Require word-boundary match for EXT to avoid matching "NEXT", "TEXTILE", "EXTENSION"
+            if (upper == "EXT" || upper.Contains("EXTERNAL") || upper.Contains("EXTERIOR") ||
+                upper.StartsWith("EXT ") || upper.Contains(" EXT ") || upper.EndsWith(" EXT"))
                 return "EXT";
 
             return null;
@@ -367,16 +419,36 @@ namespace StingTools.Core
             string upper = text.ToUpperInvariant();
 
             // Direct zone codes
-            if (upper.Contains("Z01") || upper.Contains("ZONE 1") || upper.Contains("ZONE A") || upper.Contains("WING A") || upper.Contains("NORTH"))
+            if (upper.Contains("Z01") || upper.Contains("ZONE 1") || upper.Contains("ZONE A") || upper.Contains("WING A"))
                 return "Z01";
-            if (upper.Contains("Z02") || upper.Contains("ZONE 2") || upper.Contains("ZONE B") || upper.Contains("WING B") || upper.Contains("SOUTH"))
+            if (upper.Contains("Z02") || upper.Contains("ZONE 2") || upper.Contains("ZONE B") || upper.Contains("WING B"))
                 return "Z02";
-            if (upper.Contains("Z03") || upper.Contains("ZONE 3") || upper.Contains("ZONE C") || upper.Contains("WING C") || upper.Contains("EAST"))
+            if (upper.Contains("Z03") || upper.Contains("ZONE 3") || upper.Contains("ZONE C") || upper.Contains("WING C"))
                 return "Z03";
-            if (upper.Contains("Z04") || upper.Contains("ZONE 4") || upper.Contains("ZONE D") || upper.Contains("WING D") || upper.Contains("WEST"))
+            if (upper.Contains("Z04") || upper.Contains("ZONE 4") || upper.Contains("ZONE D") || upper.Contains("WING D"))
                 return "Z04";
 
+            // Directional terms — require word-boundary match to avoid "NORTHAMPTON" etc.
+            if (MatchesWord(upper, "NORTH")) return "Z01";
+            if (MatchesWord(upper, "SOUTH")) return "Z02";
+            if (MatchesWord(upper, "EAST")) return "Z03";
+            if (MatchesWord(upper, "WEST")) return "Z04";
+
             return null;
+        }
+
+        /// <summary>Check if a word appears as a standalone token (not part of a longer word).</summary>
+        private static bool MatchesWord(string text, string word)
+        {
+            int idx = text.IndexOf(word);
+            while (idx >= 0)
+            {
+                bool startOk = idx == 0 || !char.IsLetter(text[idx - 1]);
+                bool endOk = (idx + word.Length) >= text.Length || !char.IsLetter(text[idx + word.Length]);
+                if (startOk && endOk) return true;
+                idx = text.IndexOf(word, idx + 1);
+            }
+            return false;
         }
     }
 
@@ -403,28 +475,28 @@ namespace StingTools.Core
             int written = 0;
 
             // ── Identity & Classification ──────────────────────────────────────
-            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MARK, "ASS_ID_TXT");
-            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS, "PRJ_COMMENTS_TXT");
-            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_DESCRIPTION, "ASS_DESCRIPTION_TXT");
-            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MODEL, "ASS_MODEL_NR_TXT");
-            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MANUFACTURER, "ASS_MANUFACTURER_TXT");
+            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MARK, ParamRegistry.ID);
+            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS, ParamRegistry.PRJ_COMMENTS);
+            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_DESCRIPTION, ParamRegistry.DESC);
+            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MODEL, ParamRegistry.MODEL);
+            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MANUFACTURER, ParamRegistry.MFR);
 
-            // Type Name → ASS_TYPE_NAME_TXT (from the family symbol name)
+            // Type Name (from the family symbol name)
             string typeName = ParameterHelpers.GetFamilySymbolName(el);
             if (!string.IsNullOrEmpty(typeName))
-                written += SetIfEmptyInt(el, "ASS_TYPE_NAME_TXT", typeName);
+                written += SetIfEmptyInt(el, ParamRegistry.TYPE_NAME, typeName);
 
-            // Family Name → ASS_FAMILY_NAME_TXT
+            // Family Name
             string familyName = ParameterHelpers.GetFamilyName(el);
             if (!string.IsNullOrEmpty(familyName))
-                written += SetIfEmptyInt(el, "ASS_FAMILY_NAME_TXT", familyName);
+                written += SetIfEmptyInt(el, ParamRegistry.FAMILY_NAME, familyName);
 
             // ── Spatial / Room data ────────────────────────────────────────────
             Room room = ParameterHelpers.GetRoomAtElement(doc, el);
             if (room != null)
             {
-                written += SetIfEmptyInt(el, "ASS_ROOM_NAME_TXT", room.Name ?? "");
-                written += SetIfEmptyInt(el, "ASS_ROOM_NUM_TXT", room.Number ?? "");
+                written += SetIfEmptyInt(el, ParamRegistry.ROOM_NAME, room.Name ?? "");
+                written += SetIfEmptyInt(el, ParamRegistry.ROOM_NUM, room.Number ?? "");
 
                 // Room area in m² (Revit stores in sq ft, convert)
                 double areaSqFt = room.Area;
@@ -432,7 +504,7 @@ namespace StingTools.Core
                 {
                     string areaM2 = (areaSqFt * 0.092903).ToString("F2",
                         System.Globalization.CultureInfo.InvariantCulture);
-                    written += SetIfEmptyInt(el, "ASS_ROOM_AREA_SQ_M", areaM2);
+                    written += SetIfEmptyInt(el, ParamRegistry.ROOM_AREA, areaM2);
                 }
 
                 // Room Department
@@ -440,7 +512,7 @@ namespace StingTools.Core
                 {
                     Parameter dept = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT);
                     if (dept != null && dept.HasValue)
-                        written += SetIfEmptyInt(el, "ASS_DEPARTMENT_ASSIGNMENT_TXT",
+                        written += SetIfEmptyInt(el, ParamRegistry.DEPT,
                             dept.AsString() ?? "");
                 }
                 catch { }
@@ -481,88 +553,87 @@ namespace StingTools.Core
                 {
                     case "Walls":
                         written += MapDimension(el, BuiltInParameter.WALL_USER_HEIGHT_PARAM,
-                            "BLE_WALL_HEIGHT_MM", ftToMm);
+                            ParamRegistry.WALL_HEIGHT, ftToMm);
                         written += MapDimension(el, BuiltInParameter.CURVE_ELEM_LENGTH,
-                            "BLE_WALL_LENGTH_MM", ftToMm);
+                            ParamRegistry.WALL_LENGTH, ftToMm);
                         written += MapDimension(el, BuiltInParameter.WALL_ATTR_WIDTH_PARAM,
-                            "BLE_WALL_THICKNESS_MM", ftToMm);
-                        // Fire rating from type
+                            ParamRegistry.WALL_THICKNESS, ftToMm);
                         written += MapStringParam(el, "Fire Rating",
-                            "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN");
+                            ParamRegistry.FIRE_RATING);
                         break;
 
                     case "Doors":
                         written += MapDimension(el, BuiltInParameter.FAMILY_WIDTH_PARAM,
-                            "BLE_DOOR_WIDTH_MM", ftToMm);
+                            ParamRegistry.DOOR_WIDTH, ftToMm);
                         written += MapDimension(el, BuiltInParameter.FAMILY_HEIGHT_PARAM,
-                            "BLE_DOOR_HEIGHT_MM", ftToMm);
+                            ParamRegistry.DOOR_HEIGHT, ftToMm);
                         written += MapStringParam(el, "Fire Rating",
-                            "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN");
+                            ParamRegistry.FIRE_RATING);
                         break;
 
                     case "Windows":
                         written += MapDimension(el, BuiltInParameter.FAMILY_WIDTH_PARAM,
-                            "BLE_WINDOW_WIDTH_MM", ftToMm);
+                            ParamRegistry.WINDOW_WIDTH, ftToMm);
                         written += MapDimension(el, BuiltInParameter.FAMILY_HEIGHT_PARAM,
-                            "BLE_WINDOW_HEIGHT_MM", ftToMm);
+                            ParamRegistry.WINDOW_HEIGHT, ftToMm);
                         written += MapDimension(el, BuiltInParameter.INSTANCE_SILL_HEIGHT_PARAM,
-                            "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM", ftToMm);
+                            ParamRegistry.WINDOW_SILL, ftToMm);
                         break;
 
                     case "Floors":
-                        written += MapFloorThickness(el, "BLE_FLR_THICKNESS_MM");
+                        written += MapFloorThickness(el, ParamRegistry.FLR_THICKNESS);
                         written += MapDimension(el, BuiltInParameter.HOST_AREA_COMPUTED,
-                            "BLE_ELE_AREA_SQ_M", sqFtToSqM);
+                            ParamRegistry.ELE_AREA, sqFtToSqM);
                         break;
 
                     case "Ceilings":
                         written += MapDimension(el, BuiltInParameter.CEILING_HEIGHTABOVELEVEL_PARAM,
-                            "BLE_CEILING_HEIGHT_MM", ftToMm);
+                            ParamRegistry.CEILING_HEIGHT, ftToMm);
                         written += MapDimension(el, BuiltInParameter.HOST_AREA_COMPUTED,
-                            "BLE_ELE_AREA_SQ_M", sqFtToSqM);
+                            ParamRegistry.ELE_AREA, sqFtToSqM);
                         written += MapStringParam(el, "Fire Rating",
-                            "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN");
+                            ParamRegistry.FIRE_RATING);
                         break;
 
                     case "Roofs":
-                        written += MapRoofSlope(el, "BLE_ROOF_SLOPE_DEG");
+                        written += MapRoofSlope(el, ParamRegistry.ROOF_SLOPE);
                         written += MapDimension(el, BuiltInParameter.HOST_AREA_COMPUTED,
-                            "BLE_ELE_AREA_SQ_M", sqFtToSqM);
+                            ParamRegistry.ELE_AREA, sqFtToSqM);
                         break;
 
                     case "Stairs":
                         written += MapDimension(el, BuiltInParameter.STAIRS_ACTUAL_TREAD_DEPTH,
-                            "BLE_STAIR_GOING_MM", ftToMm);
+                            ParamRegistry.STAIR_TREAD, ftToMm);
                         written += MapDimension(el, BuiltInParameter.STAIRS_ACTUAL_RISER_HEIGHT,
-                            "BLE_STAIR_RISE_MM", ftToMm);
-                        written += MapStairWidth(el, "BLE_STAIR_WIDTH_MM");
+                            ParamRegistry.STAIR_RISE, ftToMm);
+                        written += MapStairWidth(el, ParamRegistry.STAIR_WIDTH);
                         break;
 
                     case "Ramps":
-                        written += MapRampSlope(el, "BLE_RAMP_SLOPE_PCT");
-                        written += MapLookup(el, "Width", "BLE_RAMP_WIDTH_MM", ftToMm);
+                        written += MapRampSlope(el, ParamRegistry.RAMP_SLOPE);
+                        written += MapLookup(el, "Width", ParamRegistry.RAMP_WIDTH, ftToMm);
                         break;
 
                     case "Structural Framing":
                     case "Structural Columns":
                     case "Structural Foundations":
-                        written += MapStructuralType(el, "BLE_STRUCT_ELE_TYPE_TXT");
+                        written += MapStructuralType(el, ParamRegistry.STRUCT_TYPE);
                         break;
 
                     case "Rooms":
                         written += MapDimension(el, BuiltInParameter.ROOM_AREA,
-                            "ASS_ROOM_AREA_SQ_M", sqFtToSqM);
+                            ParamRegistry.ROOM_AREA, sqFtToSqM);
                         written += MapDimension(el, BuiltInParameter.ROOM_VOLUME,
-                            "ASS_ROOM_VOLUME_CU_M", 0.0283168); // cu ft → cu m
+                            ParamRegistry.ROOM_VOLUME, 0.0283168); // cu ft → cu m
                         written += MapDimension(el, BuiltInParameter.ROOM_UPPER_OFFSET,
-                            "BLE_CEILING_HEIGHT_MM", ftToMm);
+                            ParamRegistry.CEILING_HEIGHT, ftToMm);
                         written += MapRoomNameNumber(el);
                         break;
                 }
 
-                // Category name → ASS_CAT_TXT (all elements)
+                // Category name (all elements)
                 if (!string.IsNullOrEmpty(catName))
-                    written += SetIfEmptyInt(el, "ASS_CAT_TXT", catName);
+                    written += SetIfEmptyInt(el, ParamRegistry.CAT, catName);
             }
             catch (Exception ex)
             {
@@ -736,15 +807,15 @@ namespace StingTools.Core
             {
                 Parameter name = el.get_Parameter(BuiltInParameter.ROOM_NAME);
                 if (name != null && name.HasValue)
-                    written += SetIfEmptyInt(el, "BLE_ROOM_NAME_TXT", name.AsString() ?? "");
+                    written += SetIfEmptyInt(el, ParamRegistry.BLE_ROOM_NAME, name.AsString() ?? "");
 
                 Parameter num = el.get_Parameter(BuiltInParameter.ROOM_NUMBER);
                 if (num != null && num.HasValue)
-                    written += SetIfEmptyInt(el, "BLE_ROOM_NUMBER_TXT", num.AsString() ?? "");
+                    written += SetIfEmptyInt(el, ParamRegistry.BLE_ROOM_NUM, num.AsString() ?? "");
 
                 Parameter dept = el.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT);
                 if (dept != null && dept.HasValue)
-                    written += SetIfEmptyInt(el, "ASS_DEPARTMENT_ASSIGNMENT_TXT",
+                    written += SetIfEmptyInt(el, ParamRegistry.DEPT,
                         dept.AsString() ?? "");
             }
             catch { }
@@ -758,7 +829,7 @@ namespace StingTools.Core
         private static int MapDefaults(Element el)
         {
             int written = 0;
-            written += SetIfEmptyInt(el, "ASS_STATUS_TXT", "NEW");
+            written += SetIfEmptyInt(el, ParamRegistry.STATUS, "NEW");
             return written;
         }
 
@@ -778,82 +849,80 @@ namespace StingTools.Core
                 catUpper.Contains("CONDUIT") || catUpper.Contains("CABLE"))
             {
                 // Core electrical params
-                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_APPARENT_LOAD, "ELC_CKT_PWR_KW");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_VOLTAGE, "ELC_CKT_VLT_V");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER, "ELC_CKT_NR");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_CIRCUIT_PANEL_PARAM, "ELC_PNL_DESIGNATION_NAME_TXT");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_APPARENT_LOAD, ParamRegistry.ELC_POWER);
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_VOLTAGE, ParamRegistry.ELC_VOLTAGE);
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER, ParamRegistry.ELC_CIRCUIT_NR);
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_CIRCUIT_PANEL_PARAM, ParamRegistry.ELC_PNL_NAME);
 
                 // Also write to legacy param names used by schedules
-                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_VOLTAGE, "ELC_VLT_PRIMARY_RATING_V");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES, "ELC_CKT_PHASE_COUNT_NR");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_VOLTAGE, ParamRegistry.ELC_PNL_VOLTAGE);
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES, ParamRegistry.ELC_PHASES);
 
                 // Panel-specific params
                 if (catUpper.Contains("EQUIPMENT"))
                 {
                     written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM,
-                        "ELC_PNL_CONNECTED_LOAD_KW");
+                        ParamRegistry.ELC_PNL_LOAD);
                     written += MapBuiltIn(el, BuiltInParameter.RBS_ELEC_PANEL_FEED_PARAM,
-                        "ELC_PNL_FED_FROM_PNL_TXT");
-                    written += MapStringParam(el, "Mains", "ELC_PNL_MAIN_BRK_A");
+                        ParamRegistry.ELC_PNL_FED_FROM);
+                    written += MapStringParam(el, "Mains", ParamRegistry.ELC_MAIN_BRK);
                     written += MapStringParam(el, "Max #1 Pole Breakers",
-                        "ELC_PNL_NUM_OF_WAYS_NR");
-                    written += MapStringParam(el, "IP Rating", "ELC_IP_RATING_TXT");
+                        ParamRegistry.ELC_WAYS);
+                    written += MapStringParam(el, "IP Rating", ParamRegistry.ELC_IP_RATING);
                 }
 
                 // Lighting-specific params
                 if (catUpper.Contains("LIGHTING"))
                 {
-                    written += MapStringParam(el, "Wattage", "LTG_FIX_LMP_WATTAGE_W");
-                    written += MapStringParam(el, "Initial Intensity", "CST_FIX_LUMEN_OUTPUT_LM");
-                    written += MapStringParam(el, "Efficacy", "LTG_FIX_EFFICACY_LM_W");
-                    written += MapStringParam(el, "Lamp", "LTG_FIX_LAMP_TYPE_TXT");
+                    written += MapStringParam(el, "Wattage", ParamRegistry.LTG_WATTAGE);
+                    written += MapStringParam(el, "Initial Intensity", ParamRegistry.LTG_LUMENS);
+                    written += MapStringParam(el, "Efficacy", ParamRegistry.LTG_EFFICACY);
+                    written += MapStringParam(el, "Lamp", ParamRegistry.LTG_LAMP_TYPE);
                 }
             }
 
             // ── Duct & Air Terminal parameters ─────────────────────────────────
             if (catUpper.Contains("DUCT") || catUpper.Contains("AIR TERMINAL"))
             {
-                written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, "HVC_DCT_FLW_CFM");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, "HVC_VEL_MPS");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_LOSS_COEFFICIENT, "HVC_PRESSURE_DROP_PA");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, "HVC_AIRFLOW_LPS");
-                // System type name for schedule grouping
-                written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    "ASS_SYSTEM_TYPE_TXT");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_DUCT_FLOW);
+                written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, ParamRegistry.HVC_VELOCITY);
+                written += MapBuiltIn(el, BuiltInParameter.RBS_LOSS_COEFFICIENT, ParamRegistry.HVC_PRESSURE);
+                // HVC_AIRFLOW from velocity (distinct from HVC_DUCT_FLOW which is volume flow rate)
+                written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, ParamRegistry.HVC_AIRFLOW);
             }
 
             // ── Mechanical Equipment ───────────────────────────────────────────
             if (catName == "Mechanical Equipment")
             {
                 written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    "ASS_SYSTEM_TYPE_TXT");
+                    ParamRegistry.SYS);
             }
 
             // ── Pipe parameters ────────────────────────────────────────────────
             if (catUpper.Contains("PIPE") || catUpper.Contains("PLUMBING") ||
                 catUpper.Contains("SPRINKLER"))
             {
-                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM, "PLM_PPE_FLW_LPS");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_DIAMETER_PARAM, "PLM_PPE_SZ_MM");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, "PLM_VEL_MPS");
-                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM, "PLM_FLOW_RATE_LPS");
+                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM, ParamRegistry.PLM_PIPE_FLOW);
+                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_DIAMETER_PARAM, ParamRegistry.PLM_PIPE_SIZE);
+                written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, ParamRegistry.PLM_VELOCITY);
+                written += MapBuiltIn(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM, ParamRegistry.PLM_FLOW_RATE);
                 // Pipe length
                 written += MapDimension(el, BuiltInParameter.CURVE_ELEM_LENGTH,
-                    "PLM_PPE_LENGTH_M", 0.3048); // ft → m
+                    ParamRegistry.PLM_PIPE_LENGTH, 0.3048); // ft → m
                 // System type
                 written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    "ASS_SYSTEM_TYPE_TXT");
+                    ParamRegistry.SYS);
             }
 
             // ── Fire Alarm Devices ─────────────────────────────────────────────
             if (catName == "Fire Alarm Devices")
             {
                 written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    "ASS_SYSTEM_TYPE_TXT");
+                    ParamRegistry.SYS);
             }
 
             // ── Size parameters (generic MEP) ──────────────────────────────────
-            written += MapBuiltIn(el, BuiltInParameter.RBS_CALCULATED_SIZE, "ASS_SIZE_TXT");
+            written += MapBuiltIn(el, BuiltInParameter.RBS_CALCULATED_SIZE, ParamRegistry.SIZE);
 
             return written;
         }
@@ -874,43 +943,43 @@ namespace StingTools.Core
                 if (elType == null) return 0;
 
                 // Only fill STING params that are still empty after instance-level mapping
-                if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT")))
+                if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.DESC)))
                     written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_DESCRIPTION,
-                        "ASS_DESCRIPTION_TXT", el);
-                if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_MODEL_NR_TXT")))
+                        ParamRegistry.DESC, el);
+                if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.MODEL)))
                     written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_MODEL,
-                        "ASS_MODEL_NR_TXT", el);
-                if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_MANUFACTURER_TXT")))
+                        ParamRegistry.MODEL, el);
+                if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.MFR)))
                     written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_MANUFACTURER,
-                        "ASS_MANUFACTURER_TXT", el);
+                        ParamRegistry.MFR, el);
 
-                // Type Mark → ASS_TYPE_MARK_TXT (commonly used for spec references)
+                // Type Mark
                 written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_TYPE_MARK,
-                    "ASS_TYPE_MARK_TXT", el);
+                    ParamRegistry.TYPE_MARK, el);
 
                 // Type Comments
                 written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_TYPE_COMMENTS,
-                    "ASS_TYPE_COMMENTS_TXT", el);
+                    ParamRegistry.TYPE_COMMENTS, el);
 
                 // Keynote
                 written += MapBuiltIn(elType, BuiltInParameter.KEYNOTE_PARAM,
-                    "ASS_KEYNOTE_TXT", el);
+                    ParamRegistry.KEYNOTE, el);
 
                 // Assembly Code (Uniformat)
                 written += MapBuiltIn(elType, BuiltInParameter.UNIFORMAT_CODE,
-                    "ASS_UNIFORMAT_TXT", el);
+                    ParamRegistry.UNIFORMAT, el);
 
                 // Assembly Description
                 written += MapBuiltIn(elType, BuiltInParameter.UNIFORMAT_DESCRIPTION,
-                    "ASS_UNIFORMAT_DESC_TXT", el);
+                    ParamRegistry.UNIFORMAT_DESC, el);
 
                 // OmniClass Title
                 written += MapBuiltIn(elType, BuiltInParameter.OMNICLASS_CODE,
-                    "ASS_OMNICLASS_TXT", el);
+                    ParamRegistry.OMNICLASS, el);
 
                 // Cost (if available)
                 written += MapBuiltIn(elType, BuiltInParameter.ALL_MODEL_COST,
-                    "ASS_CST_UNIT_PRICE_UGX_NR", el);
+                    ParamRegistry.COST, el);
             }
             catch (Exception ex)
             {
