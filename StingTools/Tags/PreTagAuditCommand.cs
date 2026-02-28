@@ -230,7 +230,7 @@ namespace StingTools.Tags
 
                     // Check collision
                     int collisionCount = 0;
-                    while (simTags.Contains(predictedTag) && collisionCount < 100)
+                    while (simTags.Contains(predictedTag) && collisionCount < TagConfig.MaxCollisionDepth)
                     {
                         collisionCount++;
                         simCounters[seqKey]++;

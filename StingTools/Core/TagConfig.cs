@@ -38,6 +38,9 @@ namespace StingTools.Core
         public readonly Dictionary<string, int> TaggedBySys = new Dictionary<string, int>();
         public readonly Dictionary<string, int> TaggedByLevel = new Dictionary<string, int>();
         public readonly Dictionary<string, int> SkippedByCategory = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> OverwrittenByDisc = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> OverwrittenBySys = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> OverwrittenByLevel = new Dictionary<string, int>();
         public readonly List<string> Warnings = new List<string>();
         public readonly List<(string tag, int depth)> CollisionDetails = new List<(string, int)>();
 
@@ -56,10 +59,13 @@ namespace StingTools.Core
             Increment(SkippedByCategory, category);
         }
 
-        public void RecordOverwritten(string category)
+        public void RecordOverwritten(string category, string disc = null, string sys = null, string lvl = null)
         {
             TotalOverwritten++;
             Increment(TaggedByCategory, category);
+            if (!string.IsNullOrEmpty(disc)) Increment(OverwrittenByDisc, disc);
+            if (!string.IsNullOrEmpty(sys)) Increment(OverwrittenBySys, sys);
+            if (!string.IsNullOrEmpty(lvl)) Increment(OverwrittenByLevel, lvl);
         }
 
         public void RecordCollision(string tag, int depth)
@@ -112,6 +118,13 @@ namespace StingTools.Core
                 sb.AppendLine();
                 sb.AppendLine("  By Level:");
                 foreach (var kvp in TaggedByLevel.OrderBy(x => x.Key))
+                    sb.AppendLine($"    {kvp.Key,-6} {kvp.Value,5}");
+            }
+            if (TotalOverwritten > 0 && OverwrittenByDisc.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("  Overwritten By Discipline:");
+                foreach (var kvp in OverwrittenByDisc.OrderByDescending(x => x.Value))
                     sb.AppendLine($"    {kvp.Key,-6} {kvp.Value,5}");
             }
             if (Warnings.Count > 0)
@@ -173,7 +186,10 @@ namespace StingTools.Core
         {
             "SUP", "HTG", "DCW", "SAN", "RWD", "GAS", "FP", "PWR", "FLS",
             "COM", "ICT", "NCL", "SEC",
-            "FIT", "STR", "GEN", ""
+            "FIT", "STR", "GEN",
+            // Subsystem FUNC codes from GetSmartFuncCode HVAC/HWS differentiation
+            "EXH", "RTN", "FRA", "DHW",
+            ""
         };
 
         /// <summary>
@@ -545,7 +561,7 @@ namespace StingTools.Core
             {
                 string upper = familyName.ToUpperInvariant();
 
-                // Mechanical Equipment — distinguish AHU, FCU, VAV, CHR, BLR, PMP, FAN
+                // Mechanical Equipment — distinguish AHU, FCU, VAV, CHR, BLR, PMP, FAN, etc.
                 if (categoryName == "Mechanical Equipment")
                 {
                     if (upper.Contains("FCU") || upper.Contains("FAN COIL")) return "FCU";
@@ -556,9 +572,14 @@ namespace StingTools.Core
                     if (upper.Contains("FAN") || upper.Contains("EXF")) return "FAN";
                     if (upper.Contains("HRU") || upper.Contains("HEAT RECOVERY")) return "HRU";
                     if (upper.Contains("SPLIT") || upper.Contains("CASSETTE")) return "SPL";
+                    if (upper.Contains("INDUCTION")) return "IND";
+                    if (upper.Contains("RADIANT") || upper.Contains("RAD PANEL")) return "RAD";
+                    if (upper.Contains("DAMPER") || upper.Contains("DAM")) return "DAM";
+                    if (upper.Contains("COOLING TOWER") || upper.Contains("CLT")) return "CLT";
+                    if (upper.Contains("VFD") || upper.Contains("VARIABLE FREQ") || upper.Contains("INVERTER")) return "VFD";
                     if (upper.Contains("AHU") || upper.Contains("AIR HANDLING")) return "AHU";
                 }
-                // Electrical Equipment — distinguish DB, MCC, MSB, SWB, UPS, TRF, GEN
+                // Electrical Equipment — distinguish DB, MCC, MSB, SWB, UPS, TRF, GEN, etc.
                 else if (categoryName == "Electrical Equipment")
                 {
                     if (upper.Contains("MCC") || upper.Contains("MOTOR CONTROL")) return "MCC";
@@ -568,17 +589,29 @@ namespace StingTools.Core
                     if (upper.Contains("TRANSFORMER") || upper.Contains("TRF")) return "TRF";
                     if (upper.Contains("GENERATOR") || upper.Contains("GEN SET")) return "GEN";
                     if (upper.Contains("ATS") || upper.Contains("AUTO TRANSFER")) return "ATS";
+                    if (upper.Contains("VFD") || upper.Contains("VARIABLE FREQ") || upper.Contains("DRIVE")) return "VFD";
+                    if (upper.Contains("SPD") || upper.Contains("SURGE")) return "SPD";
+                    if (upper.Contains("RCD") || upper.Contains("RESIDUAL")) return "RCD";
+                    if (upper.Contains("ISOLAT") || upper.Contains("DISCONNECT")) return "ISO";
+                    if (upper.Contains("SOFT START")) return "SFS";
+                    if (upper.Contains("BATTERY") || upper.Contains("BKP")) return "BKP";
                     if (upper.Contains("DB") || upper.Contains("DISTRIBUTION")) return "DB";
                 }
-                // Lighting — distinguish LUM, EML, DEC, TRK
+                // Lighting — distinguish LUM, EML, DEC, TRK, DWN, LIN, SPT, etc.
                 else if (categoryName == "Lighting Fixtures")
                 {
                     if (upper.Contains("EMERGENCY") || upper.Contains("EML") || upper.Contains("EXIT")) return "EML";
                     if (upper.Contains("TRACK") || upper.Contains("TRK")) return "TRK";
                     if (upper.Contains("DECORATIVE") || upper.Contains("PENDANT") || upper.Contains("CHANDELIER")) return "DEC";
                     if (upper.Contains("DOWNLIGHT") || upper.Contains("RECESSED")) return "DWN";
+                    if (upper.Contains("LINEAR") || upper.Contains("CONTINUOUS") || upper.Contains("BATTEN")) return "LIN";
+                    if (upper.Contains("SPOTLIGHT") || upper.Contains("PROJECTOR")) return "SPT";
+                    if (upper.Contains("WALL") && (upper.Contains("WASH") || upper.Contains("LIGHT"))) return "WSH";
+                    if (upper.Contains("BOLLARD")) return "BOL";
+                    if (upper.Contains("UPLIGHT") || upper.Contains("UPLIGHTER")) return "UPL";
+                    if (upper.Contains("FLOOD") || upper.Contains("FLOODLIGHT")) return "FLD";
                 }
-                // Plumbing Fixtures — distinguish WC, WHB, URN, SNK, SHW, BTH
+                // Plumbing Fixtures — distinguish WC, WHB, URN, SNK, SHW, BTH, etc.
                 else if (categoryName == "Plumbing Fixtures")
                 {
                     if (upper.Contains("WC") || upper.Contains("WATER CLOSET") || upper.Contains("TOILET")) return "WC";
@@ -588,14 +621,31 @@ namespace StingTools.Core
                     if (upper.Contains("SHOWER") || upper.Contains("SHW")) return "SHW";
                     if (upper.Contains("BATH") || upper.Contains("BTH")) return "BTH";
                     if (upper.Contains("DRINKING") || upper.Contains("FOUNTAIN")) return "DRK";
+                    if (upper.Contains("COOLER") || upper.Contains("WATER COOLER")) return "CWL";
+                    if (upper.Contains("GREASE") || upper.Contains("TRAP")) return "TRP";
+                    if (upper.Contains("BIDET")) return "BID";
+                    if (upper.Contains("EYEWASH") || upper.Contains("EYE WASH")) return "EWS";
+                    if (upper.Contains("MOP") && upper.Contains("SINK")) return "MOP";
                 }
-                // Fire Alarm — distinguish FAD, SML, MCP, BLL
+                // Fire Alarm — distinguish FAD, SML, MCP, BLL, STB, etc.
                 else if (categoryName == "Fire Alarm Devices")
                 {
                     if (upper.Contains("SMOKE") || upper.Contains("DETECTOR") || upper.Contains("SML")) return "SML";
                     if (upper.Contains("MCP") || upper.Contains("CALL POINT") || upper.Contains("MANUAL")) return "MCP";
                     if (upper.Contains("BELL") || upper.Contains("SOUNDER") || upper.Contains("BLL")) return "BLL";
                     if (upper.Contains("STROBE") || upper.Contains("BEACON")) return "STB";
+                    if (upper.Contains("HEAT") && upper.Contains("DETECT")) return "HTD";
+                    if (upper.Contains("INTERFACE") || upper.Contains("MODULE")) return "FIM";
+                }
+                // Pipe Accessories — distinguish valve types
+                else if (categoryName == "Pipe Accessories")
+                {
+                    if (upper.Contains("BALANCING") || upper.Contains("BLV")) return "BLV";
+                    if (upper.Contains("TRV") || upper.Contains("THERMOSTATIC") || upper.Contains("RADIATOR VALVE")) return "TRV";
+                    if (upper.Contains("ISOLATION") || upper.Contains("GATE") || upper.Contains("BALL")) return "IVL";
+                    if (upper.Contains("CHECK") || upper.Contains("NON RETURN") || upper.Contains("NRV")) return "NRV";
+                    if (upper.Contains("PRESSURE REDUC") || upper.Contains("PRV")) return "PRV";
+                    if (upper.Contains("STRAINER") || upper.Contains("FILTER")) return "STN";
                 }
             }
 
@@ -701,7 +751,11 @@ namespace StingTools.Core
                         }
                         break;
                     case TagCollisionMode.Overwrite:
-                        stats?.RecordOverwritten(catName);
+                        // Record with existing token values being overwritten
+                        stats?.RecordOverwritten(catName,
+                            ParameterHelpers.GetString(el, ParamRegistry.DISC),
+                            ParameterHelpers.GetString(el, ParamRegistry.SYS),
+                            ParameterHelpers.GetString(el, ParamRegistry.LVL));
                         break; // Proceed to overwrite
                 }
             }
@@ -715,9 +769,9 @@ namespace StingTools.Core
                 stats.RecordWarning($"Element {el.Id}: category '{catName}' has no DISC mapping");
 
             string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-            if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+            if (string.IsNullOrEmpty(loc)) loc = LocCodes.Count > 0 ? LocCodes[0] : "BLD1";
             string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-            if (string.IsNullOrEmpty(zone)) zone = "Z01";
+            if (string.IsNullOrEmpty(zone)) zone = ZoneCodes.Count > 0 ? ZoneCodes[0] : "Z01";
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
 
             // Intelligence Layer: MEP system-aware SYS/FUNC derivation
@@ -1030,13 +1084,14 @@ namespace StingTools.Core
                 catch { }
 
                 string combined = $"{roomName} {dept}";
+                string catUpper = (el.Category?.Name ?? "").ToUpperInvariant();
 
                 // Server/comms rooms → ICT for generic devices
                 if (combined.Contains("SERVER") || combined.Contains("COMMS") ||
                     combined.Contains("DATA CENTRE") || combined.Contains("DATA CENTER") ||
-                    combined.Contains("TELECOM"))
+                    combined.Contains("TELECOM") || combined.Contains("SWITCH ROOM") ||
+                    combined.Contains("SWITCHROOM") || combined.Contains("COMMS ROOM"))
                 {
-                    string catUpper = (el.Category?.Name ?? "").ToUpperInvariant();
                     if (catUpper.Contains("GENERIC") || catUpper.Contains("DATA") ||
                         catUpper.Contains("COMMUNICATION"))
                         return "ICT";
@@ -1050,12 +1105,65 @@ namespace StingTools.Core
                 }
 
                 // Electrical rooms → LV
-                if (combined.Contains("ELECTRICAL") || combined.Contains("SWITCH ROOM") ||
-                    combined.Contains("SUBSTATION") || combined.Contains("TRANSFORMER"))
+                if (combined.Contains("ELECTRICAL") || combined.Contains("SUBSTATION") ||
+                    combined.Contains("TRANSFORMER") || combined.Contains("METER ROOM") ||
+                    combined.Contains("DB ROOM") || combined.Contains("DISTRIBUTION"))
                 {
-                    string catUpper = (el.Category?.Name ?? "").ToUpperInvariant();
-                    if (catUpper.Contains("ELECTRICAL") || catUpper.Contains("GENERIC"))
+                    if (catUpper.Contains("ELECTRICAL") || catUpper.Contains("GENERIC") ||
+                        catUpper.Contains("LIGHTING"))
                         return "LV";
+                }
+
+                // Fire protection rooms → FP
+                if (combined.Contains("FIRE PUMP") || combined.Contains("SPRINKLER") ||
+                    combined.Contains("FIRE RISER"))
+                {
+                    if (catUpper.Contains("GENERIC") || catUpper.Contains("PIPE") ||
+                        catUpper.Contains("SPRINKLER") || catUpper.Contains("FIRE"))
+                        return "FP";
+                }
+
+                // Gas rooms → GAS
+                if (combined.Contains("GAS ROOM") || combined.Contains("GAS RISER") ||
+                    combined.Contains("GAS METER"))
+                {
+                    if (catUpper.Contains("PIPE") || catUpper.Contains("GENERIC"))
+                        return "GAS";
+                }
+
+                // Water tank / pump rooms → DCW
+                if (combined.Contains("WATER TANK") || combined.Contains("PUMP ROOM") ||
+                    combined.Contains("COLD WATER") || combined.Contains("TANK ROOM"))
+                {
+                    if (catUpper.Contains("PIPE") || catUpper.Contains("PLUMBING") ||
+                        catUpper.Contains("GENERIC") || catUpper.Contains("MECHANICAL"))
+                        return "DCW";
+                }
+
+                // Bathrooms / toilets → SAN for plumbing fixtures
+                if (combined.Contains("BATHROOM") || combined.Contains("TOILET") ||
+                    combined.Contains("WC") || combined.Contains("WASHROOM") ||
+                    combined.Contains("SHOWER") || combined.Contains("ENSUITE"))
+                {
+                    if (catUpper.Contains("PLUMBING") || catUpper.Contains("GENERIC"))
+                        return "SAN";
+                }
+
+                // Kitchen → SAN for plumbing, GAS for gas-related
+                if (combined.Contains("KITCHEN") || combined.Contains("KITCHENETTE"))
+                {
+                    if (catUpper.Contains("PLUMBING"))
+                        return "SAN";
+                    if (catUpper.Contains("PIPE") && catUpper.Contains("GAS"))
+                        return "GAS";
+                }
+
+                // Security / CCTV rooms → SEC
+                if (combined.Contains("SECURITY") || combined.Contains("CCTV") ||
+                    combined.Contains("GUARD"))
+                {
+                    if (catUpper.Contains("GENERIC") || catUpper.Contains("SECURITY"))
+                        return "SEC";
                 }
             }
             catch { }
@@ -1152,6 +1260,13 @@ namespace StingTools.Core
 
             // Gas
             if (sysName.Contains("GAS") || sysName.Contains("NATURAL GAS") || sysName.Contains("LPG")) return "GAS";
+
+            // Additional HVAC abbreviations (relief, balanced, thermal)
+            if (sysName.Contains("RELIEF")) return "HVAC";
+            if (sysName.Contains("BALANCED") && sysName.Contains("VENT")) return "HVAC";
+            if (sysName == "UFH" || sysName.StartsWith("UFH ") || sysName.Contains("UNDERFLOOR HEAT")) return "HWS";
+            if (sysName.Contains("THERMAL STORAGE") || sysName.Contains("BUFFER TANK")) return "HWS";
+            if (sysName.Contains("SOLAR THERMAL") || sysName.Contains("SOLAR PANEL")) return "HWS";
 
             return null;
         }

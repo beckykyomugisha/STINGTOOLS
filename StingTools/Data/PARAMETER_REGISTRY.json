@@ -353,6 +353,7 @@
     "Conduits": "OST_Conduit",
     "Curtain Panels": "OST_CurtainWallPanels",
     "Curtain Wall Mullions": "OST_CurtainWallMullions",
+    "Curtain Systems": "OST_Curtain_Systems",
     "Data Devices": "OST_DataDevices",
     "Doors": "OST_Doors",
     "Duct Accessories": "OST_DuctAccessory",
@@ -412,7 +413,8 @@
     "Ceilings", "Roofs", "Rooms", "Furniture", "Furniture Systems",
     "Casework", "Columns", "Structural Columns", "Structural Framing",
     "Structural Foundations", "Structural Stiffener", "Railings", "Stairs",
-    "Ramps", "Generic Models", "Specialty Equipment", "Parking", "Site",
+    "Ramps", "Curtain Panels", "Curtain Wall Mullions", "Curtain Systems",
+    "Generic Models", "Specialty Equipment", "Parking", "Site",
     "Mass", "Parts", "Assemblies", "Detail Components"
   ]
 }

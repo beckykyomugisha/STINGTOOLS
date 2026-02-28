@@ -61,10 +61,19 @@ namespace StingTools.Core
                 string name = lvl.Name.Trim();
                 string lower = name.ToLowerInvariant();
 
-                if (lower.StartsWith("level "))
+                if (lower.StartsWith("level ") && name.Length > 6)
                     return "L" + name.Substring(6).Trim().PadLeft(2, '0');
                 if (lower == "ground" || lower == "ground floor" || lower == "ground level")
                     return "GF";
+                if (lower.StartsWith("lower ground") || lower == "lg")
+                    return "LG";
+                if (lower.StartsWith("upper ground") || lower == "ug")
+                    return "UG";
+                if (lower.StartsWith("sub-basement") || lower.StartsWith("sub basement") || lower == "sb")
+                {
+                    string digits = ExtractDigits(name);
+                    return "SB" + (digits.Length > 0 ? digits : "");
+                }
                 if (lower.StartsWith("basement") || lower == "b1" || lower == "b2" ||
                     lower == "b3" || lower == "b4" || lower == "b5" ||
                     (lower.Length >= 2 && lower[0] == 'b' && char.IsDigit(lower[1])))
@@ -74,6 +83,14 @@ namespace StingTools.Core
                 }
                 if (lower.StartsWith("roof") || lower == "rf")
                     return "RF";
+                if (lower.StartsWith("penthouse") || lower == "ph" || lower == "pent")
+                    return "PH";
+                if (lower.StartsWith("attic") || lower == "at" || lower == "att")
+                    return "AT";
+                if (lower.StartsWith("terrace") || lower == "tr")
+                    return "TR";
+                if (lower.StartsWith("podium") || lower == "pod")
+                    return "POD";
                 if (lower.StartsWith("mezzanine") || lower == "mezz")
                     return "MZ";
                 if (lower.StartsWith("plant") && lower.Contains("room"))
@@ -851,10 +868,8 @@ namespace StingTools.Core
                 written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_DUCT_FLOW);
                 written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, ParamRegistry.HVC_VELOCITY);
                 written += MapBuiltIn(el, BuiltInParameter.RBS_LOSS_COEFFICIENT, ParamRegistry.HVC_PRESSURE);
-                written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_AIRFLOW);
-                // System type name for schedule grouping
-                written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    ParamRegistry.SYS);
+                // HVC_AIRFLOW from velocity (distinct from HVC_DUCT_FLOW which is volume flow rate)
+                written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, ParamRegistry.HVC_AIRFLOW);
             }
 
             // ── Mechanical Equipment ───────────────────────────────────────────

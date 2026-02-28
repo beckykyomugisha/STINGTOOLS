@@ -210,6 +210,7 @@ namespace StingTools.Tags
                     return !string.IsNullOrEmpty(sys) ? sys : "ZZZ";
                 })
                 .ThenBy(e => ParameterHelpers.GetCategoryName(e))
+                .ThenBy(e => e.Id.Value) // Stable sort: consistent ordering across runs
                 .ToList();
         }
     }
