@@ -1584,6 +1584,45 @@ namespace StingTools.Core
             return maxSeq;
         }
 
+        /// <summary>
+        /// Combined single-pass scan: builds both the tag index and sequence counters
+        /// in one iteration over all project elements. Use this instead of calling
+        /// BuildExistingTagIndex + GetExistingSequenceCounters separately.
+        /// </summary>
+        public static (HashSet<string> tagIndex, Dictionary<string, int> seqCounters)
+            BuildTagIndexAndCounters(Document doc)
+        {
+            var index = new HashSet<string>(StringComparer.Ordinal);
+            var maxSeq = new Dictionary<string, int>();
+            var known = new HashSet<string>(DiscMap.Keys);
+
+            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(tag))
+                    index.Add(tag);
+
+                string cat = ParameterHelpers.GetCategoryName(elem);
+                if (!known.Contains(cat)) continue;
+
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string seqStr = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
+                if (string.IsNullOrEmpty(disc)) continue;
+
+                string key = $"{disc}_{sys}_{lvl}";
+                if (int.TryParse(seqStr, out int seqNum))
+                {
+                    if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
+                        maxSeq[key] = seqNum;
+                }
+            }
+
+            StingLog.Info($"Tag index built: {index.Count} existing tags, {maxSeq.Count} SEQ groups");
+            return (index, maxSeq);
+        }
+
         private static T TryDeserialize<T>(Dictionary<string, object> data, string key)
             where T : class
         {

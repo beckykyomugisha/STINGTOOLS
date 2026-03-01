@@ -66,8 +66,7 @@ namespace StingTools.Organise
                 }
             }
 
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
-            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var stats = new TaggingStats();
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
@@ -140,8 +139,7 @@ namespace StingTools.Organise
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
-            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
             int retagged = 0;
@@ -900,7 +898,7 @@ namespace StingTools.Organise
             td.MainInstruction = "Select elements by discipline code";
             for (int i = 0; i < top.Count; i++)
             {
-                td.AddCommandLink((TaskDialogCommandLinkId)(i + 201),
+                td.AddCommandLink((TaskDialogCommandLinkId)(i + 1001),
                     $"{top[i].Key} — {top[i].Value} elements");
             }
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
@@ -2082,7 +2080,7 @@ namespace StingTools.Organise
             paramDlg.MainInstruction = $"Color {allTags.Count} tags by which parameter?";
             paramDlg.FooterText = $"{paramNames.Count} parameters available on host elements.";
             for (int i = 0; i < top.Count; i++)
-                paramDlg.AddCommandLink((TaskDialogCommandLinkId)(i + 201), top[i]);
+                paramDlg.AddCommandLink((TaskDialogCommandLinkId)(i + 1001), top[i]);
             paramDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             int paramIdx = -1;
@@ -2243,7 +2241,7 @@ namespace StingTools.Organise
                 string.Join("\n", currentTypes.Select(kvp => $"  {kvp.Key}: {kvp.Value}"));
             for (int i = 0; i < topTypes.Count; i++)
             {
-                dlg.AddCommandLink((TaskDialogCommandLinkId)(i + 201),
+                dlg.AddCommandLink((TaskDialogCommandLinkId)(i + 1001),
                     $"{topTypes[i].Family.Name}: {topTypes[i].Name}");
             }
             dlg.CommonButtons = TaskDialogCommonButtons.Cancel;

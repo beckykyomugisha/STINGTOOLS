@@ -90,8 +90,7 @@ namespace StingTools.Tags
             }
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
-            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var sw = Stopwatch.StartNew();
 
             // Pre-build room spatial index for LOC/ZONE auto-detection

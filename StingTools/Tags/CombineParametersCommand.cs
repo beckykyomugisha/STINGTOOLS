@@ -126,7 +126,7 @@ namespace StingTools.Tags
                         : catCounts.Values.Sum();
                     string mark = selected.Contains(g.GroupCode) ? "[X] " : "[ ] ";
                     picker.AddCommandLink(
-                        (TaskDialogCommandLinkId)(i + 201),
+                        (TaskDialogCommandLinkId)(i + 1001),
                         $"{mark}{g.Group}",
                         $"{g.Params.Length} containers | {elemCount} elements");
                 }

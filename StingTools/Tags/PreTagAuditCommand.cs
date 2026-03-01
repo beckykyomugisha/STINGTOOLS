@@ -69,8 +69,7 @@ namespace StingTools.Tags
             }
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
-            var existingTags = TagConfig.BuildExistingTagIndex(doc);
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
 

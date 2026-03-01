@@ -712,8 +712,7 @@ namespace StingTools.Temp
             // ── Prepare indexes ────────────────────────────────────────────────
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
-            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Load formula engine
