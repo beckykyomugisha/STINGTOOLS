@@ -172,6 +172,9 @@ namespace StingTools.UI
                     case "CreateTagLegend": RunCommand<Tags.CreateTagLegendCommand>(app); break;
                     case "SheetTagLegend": RunCommand<Tags.SheetTagLegendCommand>(app); break;
                     case "BatchTagLegends": RunCommand<Tags.BatchTagLegendsCommand>(app); break;
+                    case "UpdateLegend": RunCommand<Tags.UpdateLegendCommand>(app); break;
+                    case "DeleteStaleLegend": RunCommand<Tags.DeleteStaleLegendCommand>(app); break;
+                    case "OneClickLegendPipeline": RunCommand<Tags.OneClickLegendPipelineCommand>(app); break;
 
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
@@ -1765,23 +1768,43 @@ namespace StingTools.UI
             { TaskDialog.Show("Legend Uniform", "Active view must be a sheet."); return; }
 
             var vpIds = sheet.GetAllViewports().ToList();
-            var legendVps = new List<Viewport>();
+            var legendVps = new List<(Viewport vp, View view)>();
             foreach (var vpId in vpIds)
             {
                 var vp = doc.GetElement(vpId) as Viewport;
                 if (vp == null) continue;
                 var vpView = doc.GetElement(vp.ViewId) as View;
-                if (vpView?.ViewType == ViewType.Legend)
-                    legendVps.Add(vp);
+                if (vpView != null && (vpView.ViewType == ViewType.Legend ||
+                    (vpView.ViewType == ViewType.DraftingView && vpView.Name.Contains("STING"))))
+                    legendVps.Add((vp, vpView));
             }
 
             if (legendVps.Count < 2)
-            { TaskDialog.Show("Legend Uniform", "Need 2+ legend viewports."); return; }
+            { TaskDialog.Show("Legend Uniform", "Need 2+ legend/STING viewports on sheet."); return; }
+
+            // Set all legend views to scale 1 (1:1) for uniform sizing
+            int updated = 0;
+            using (var tx = new Transaction(doc, "STING Legend Uniform Scale"))
+            {
+                tx.Start();
+                foreach (var (vp, view) in legendVps)
+                {
+                    try
+                    {
+                        if (view.Scale != 1)
+                        {
+                            view.Scale = 1;
+                            updated++;
+                        }
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
 
             TaskDialog.Show("Legend Uniform",
-                $"Found {legendVps.Count} legends on sheet.\n" +
-                "Legend size is controlled by the view scale. To make legends uniform,\n" +
-                "set the same scale on all legend views.");
+                $"Set {updated} of {legendVps.Count} legend views to 1:1 scale.\n" +
+                "All legends on this sheet now have uniform sizing.");
         }
 
         // ── TitleBlock operations ───────────────────────────────────

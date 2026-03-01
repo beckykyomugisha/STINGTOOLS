@@ -460,6 +460,7 @@
                                 <Button Style="{StaticResource BlueBtn}" Content="Tag Legend" Tag="CreateTagLegend" Click="Cmd_Click" ToolTip="Create tag legend showing loaded tag families per category with sample ISO 19650 tags — workaround for Revit's Legend Component limitation"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="Sheet Tags" Tag="SheetTagLegend" Click="Cmd_Click" ToolTip="Create tag legend for active sheet only — shows tag families for categories on this sheet, auto-placed"/>
                                 <Button Style="{StaticResource PurpleBtn}" Content="Batch Tags" Tag="BatchTagLegends" Click="Cmd_Click" ToolTip="Create per-sheet tag legends for ALL sheets — each shows only tag families for its own categories"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="One-Click" Tag="OneClickLegendPipeline" Click="Cmd_Click" ToolTip="Full legend pipeline: create color + tag + segment legends and place on all sheets"/>
                             </WrapPanel>
                         </Border>
 
@@ -793,6 +794,8 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Sync Pos" Tag="LegendSyncPos" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Title Line" Tag="LegendTitleLine" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Uniform" Tag="LegendUniform" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Refresh" Tag="UpdateLegend" Click="Cmd_Click" ToolTip="Refresh existing STING legends with current project data"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Cleanup" Tag="DeleteStaleLegend" Click="Cmd_Click" ToolTip="Delete stale/unplaced STING legend views"/>
                             </WrapPanel>
                         </Border>
 
