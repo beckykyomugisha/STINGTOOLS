@@ -33,7 +33,7 @@ namespace StingTools.Organise
             {
                 Element elem = doc.GetElement(id);
                 if (elem == null) continue;
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (TagConfig.TagIsComplete(tag)) alreadyTagged++;
             }
 
@@ -68,8 +68,6 @@ namespace StingTools.Organise
 
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var stats = new TaggingStats();
-
-            // Pre-build spatial index for LOC/ZONE auto-detection
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
 
@@ -81,18 +79,16 @@ namespace StingTools.Organise
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
-                    // Spatial pre-population (so BuildAndWriteTag uses detected values)
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, "ASS_LOC_TXT")))
+                    // Pre-populate LOC/ZONE from spatial data before tagging
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.LOC)))
                     {
                         string loc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
-                        if (!string.IsNullOrEmpty(loc))
-                            ParameterHelpers.SetIfEmpty(elem, "ASS_LOC_TXT", loc);
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LOC, loc);
                     }
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, "ASS_ZONE_TXT")))
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.ZONE)))
                     {
                         string zone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
-                        if (!string.IsNullOrEmpty(zone))
-                            ParameterHelpers.SetIfEmpty(elem, "ASS_ZONE_TXT", zone);
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.ZONE, zone);
                     }
 
                     bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
@@ -144,11 +140,9 @@ namespace StingTools.Organise
                 return Result.Cancelled;
 
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
-            int retagged = 0;
-
-            // Pre-build spatial index for LOC/ZONE auto-detection
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            int retagged = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Re-Tag"))
             {
@@ -158,13 +152,13 @@ namespace StingTools.Organise
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
-                    // Spatial pre-population before overwrite
-                    string locVal = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
-                    if (!string.IsNullOrEmpty(locVal))
-                        ParameterHelpers.SetString(elem, "ASS_LOC_TXT", locVal, overwrite: true);
-                    string zoneVal = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
-                    if (!string.IsNullOrEmpty(zoneVal))
-                        ParameterHelpers.SetString(elem, "ASS_ZONE_TXT", zoneVal, overwrite: true);
+                    // Update LOC/ZONE from spatial data before re-tagging
+                    string detectedLoc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
+                    if (!string.IsNullOrEmpty(detectedLoc))
+                        ParameterHelpers.SetString(elem, ParamRegistry.LOC, detectedLoc, overwrite: true);
+                    string detectedZone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
+                    if (!string.IsNullOrEmpty(detectedZone))
+                        ParameterHelpers.SetString(elem, ParamRegistry.ZONE, detectedZone, overwrite: true);
 
                     if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
                         skipComplete: false,
@@ -201,7 +195,7 @@ namespace StingTools.Organise
             {
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag)) continue;
                 if (!tagMap.ContainsKey(tag)) tagMap[tag] = new List<Element>();
                 tagMap[tag].Add(elem);
@@ -238,13 +232,13 @@ namespace StingTools.Organise
                     for (int i = 1; i < kvp.Value.Count; i++)
                     {
                         Element elem = kvp.Value[i];
-                        string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                        string loc = ParameterHelpers.GetString(elem, "ASS_LOC_TXT");
-                        string zone = ParameterHelpers.GetString(elem, "ASS_ZONE_TXT");
-                        string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
-                        string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                        string func = ParameterHelpers.GetString(elem, "ASS_FUNC_TXT");
-                        string prod = ParameterHelpers.GetString(elem, "ASS_PRODCT_COD_TXT");
+                        string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                        string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
+                        string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                        string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                        string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                        string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                        string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
 
                         if (string.IsNullOrEmpty(disc)) continue;
 
@@ -258,28 +252,26 @@ namespace StingTools.Organise
                         do
                         {
                             seqCounters[seqKey]++;
-                            newSeq = seqCounters[seqKey].ToString().PadLeft(TagConfig.NumPad, '0');
-                            newTag = string.Join(TagConfig.Separator, disc, loc, zone, lvl, sys, func, prod, newSeq);
+                            newSeq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                            newTag = string.Join(ParamRegistry.Separator, disc, loc, zone, lvl, sys, func, prod, newSeq);
                         } while (tagIndex.Contains(newTag) && safety-- > 0);
 
                         tagIndex.Add(newTag);
-                        ParameterHelpers.SetString(elem, "ASS_SEQ_NUM_TXT", newSeq, overwrite: true);
-                        ParameterHelpers.SetString(elem, "ASS_TAG_1_TXT", newTag, overwrite: true);
+                        ParameterHelpers.SetString(elem, ParamRegistry.SEQ, newSeq, overwrite: true);
+                        ParameterHelpers.SetString(elem, ParamRegistry.TAG1, newTag, overwrite: true);
 
-                        // Rebuild secondary containers to stay in sync with new tag
-                        var tokenValues = new Dictionary<string, string>();
-                        foreach (string tp in TagConfig.TokenParamNames)
-                            tokenValues[tp] = ParameterHelpers.GetString(elem, tp);
-                        ParameterHelpers.SetString(elem, "ASS_TAG_2_TXT",
-                            string.Join(TagConfig.Separator, TagConfig.ShortIdTokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
-                        ParameterHelpers.SetString(elem, "ASS_TAG_3_TXT",
-                            string.Join(TagConfig.Separator, TagConfig.LocationTokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
-                        ParameterHelpers.SetString(elem, "ASS_TAG_4_TXT",
-                            string.Join(TagConfig.Separator, TagConfig.SystemTokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
-                        ParameterHelpers.SetString(elem, "ASS_TAG_5_TXT",
-                            string.Join(TagConfig.Separator, TagConfig.Line1Tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
-                        ParameterHelpers.SetString(elem, "ASS_TAG_6_TXT",
-                            string.Join(TagConfig.Separator, TagConfig.Line2Tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
+                        // Update containers with the new tag
+                        try
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(elem);
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
+                            if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                                ParamRegistry.WriteContainers(elem, tokenVals, catName, overwrite: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"FixDuplicates: container write failed for {elem.Id}: {ex.Message}");
+                        }
 
                         fixed_++;
                     }
@@ -299,6 +291,14 @@ namespace StingTools.Organise
     [Regeneration(RegenerationOption.Manual)]
     public class DeleteTagsCommand : IExternalCommand
     {
+        private static readonly string[] TagParams = new[]
+        {
+            ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+            ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+            ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS,
+        };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
@@ -327,17 +327,33 @@ namespace StingTools.Organise
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
                     bool any = false;
-                    foreach (string param in TagConfig.AllTagParams)
+                    foreach (string param in TagParams)
                     {
                         if (ParameterHelpers.SetString(elem, param, "", overwrite: true))
                             any = true;
                     }
-                    if (any) cleared++;
+
+                    // Also clear all discipline-specific containers
+                    if (any)
+                    {
+                        try
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(elem);
+                            var emptyTokens = new string[8]; // All empty strings
+                            for (int i = 0; i < emptyTokens.Length; i++) emptyTokens[i] = "";
+                            ParamRegistry.WriteContainers(elem, emptyTokens, catName, overwrite: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"DeleteTags: container clear failed for {elem.Id}: {ex.Message}");
+                        }
+                        cleared++;
+                    }
                 }
                 tx.Commit();
             }
 
-            TaskDialog.Show("Delete Tags", $"Cleared tags from {cleared} elements.");
+            TaskDialog.Show("Delete Tags", $"Cleared tags and containers from {cleared} elements.");
             return Result.Succeeded;
         }
     }
@@ -365,9 +381,9 @@ namespace StingTools.Organise
             {
                 Element elem = doc.GetElement(id);
                 if (elem == null) continue;
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
                 if (string.IsNullOrEmpty(disc)) continue;
 
                 string key = $"{disc}_{sys}_{lvl}";
@@ -375,33 +391,42 @@ namespace StingTools.Organise
                 groups[key].Add(elem);
             }
 
-            // Get existing max SEQ per group to avoid collisions with unselected elements
-            var existingCounters = TagConfig.GetExistingSequenceCounters(doc);
-
             int renumbered = 0;
             using (Transaction tx = new Transaction(doc, "STING Renumber Tags"))
             {
                 tx.Start();
                 foreach (var kvp in groups)
                 {
-                    int seq = existingCounters.TryGetValue(kvp.Key, out int maxExisting)
-                        ? maxExisting + 1 : 1;
+                    int seq = 1;
                     foreach (Element elem in kvp.Value)
                     {
-                        string seqStr = seq.ToString().PadLeft(TagConfig.NumPad, '0');
-                        ParameterHelpers.SetString(elem, "ASS_SEQ_NUM_TXT", seqStr, overwrite: true);
+                        string seqStr = seq.ToString().PadLeft(ParamRegistry.NumPad, '0');
+                        ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seqStr, overwrite: true);
 
                         // Rebuild assembled tag
-                        string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                        string loc = ParameterHelpers.GetString(elem, "ASS_LOC_TXT");
-                        string zone = ParameterHelpers.GetString(elem, "ASS_ZONE_TXT");
-                        string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
-                        string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                        string func = ParameterHelpers.GetString(elem, "ASS_FUNC_TXT");
-                        string prod = ParameterHelpers.GetString(elem, "ASS_PRODCT_COD_TXT");
-                        string tag = string.Join(TagConfig.Separator,
+                        string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                        string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
+                        string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                        string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                        string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                        string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                        string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                        string tag = string.Join(ParamRegistry.Separator,
                             disc, loc, zone, lvl, sys, func, prod, seqStr);
-                        ParameterHelpers.SetString(elem, "ASS_TAG_1_TXT", tag, overwrite: true);
+                        ParameterHelpers.SetString(elem, ParamRegistry.TAG1, tag, overwrite: true);
+
+                        // Update containers with the new tag
+                        try
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(elem);
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
+                            if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                                ParamRegistry.WriteContainers(elem, tokenVals, catName, overwrite: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Renumber: container write failed for {elem.Id}: {ex.Message}");
+                        }
 
                         seq++;
                         renumbered++;
@@ -434,16 +459,16 @@ namespace StingTools.Organise
                 if (!known.Contains(cat)) continue;
 
                 total++;
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                string loc = ParameterHelpers.GetString(elem, "ASS_LOC_TXT");
-                string zone = ParameterHelpers.GetString(elem, "ASS_ZONE_TXT");
-                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
-                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                string func = ParameterHelpers.GetString(elem, "ASS_FUNC_TXT");
-                string prod = ParameterHelpers.GetString(elem, "ASS_PRODCT_COD_TXT");
-                string seq = ParameterHelpers.GetString(elem, "ASS_SEQ_NUM_TXT");
-                string status = ParameterHelpers.GetString(elem, "ASS_STATUS_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
+                string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                string seq = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
+                string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
                 bool valid = TagConfig.TagIsComplete(tag);
 
                 sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{valid}");
@@ -492,7 +517,7 @@ namespace StingTools.Organise
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
 
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag)) continue;
 
                 if (!tagMap.ContainsKey(tag)) tagMap[tag] = new List<ElementId>();
@@ -545,30 +570,24 @@ namespace StingTools.Organise
             View view = doc.ActiveView;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            // Red = missing, Orange = incomplete (line color + surface fill)
-            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(doc);
-
+            // Red = missing, Orange = incomplete, Yellow = ISO violation, Purple = placeholder
             var red = new OverrideGraphicSettings();
             red.SetProjectionLineColor(new Color(255, 0, 0));
             red.SetProjectionLineWeight(5);
-            if (solidFill != null)
-            {
-                red.SetSurfaceForegroundPatternId(solidFill.Id);
-                red.SetSurfaceForegroundPatternColor(new Color(255, 200, 200));
-                red.SetSurfaceTransparency(50);
-            }
 
             var orange = new OverrideGraphicSettings();
             orange.SetProjectionLineColor(new Color(255, 165, 0));
             orange.SetProjectionLineWeight(4);
-            if (solidFill != null)
-            {
-                orange.SetSurfaceForegroundPatternId(solidFill.Id);
-                orange.SetSurfaceForegroundPatternColor(new Color(255, 230, 180));
-                orange.SetSurfaceTransparency(50);
-            }
 
-            int missing = 0, incomplete = 0;
+            var yellow = new OverrideGraphicSettings();
+            yellow.SetProjectionLineColor(new Color(255, 255, 0));
+            yellow.SetProjectionLineWeight(3);
+
+            var purple = new OverrideGraphicSettings();
+            purple.SetProjectionLineColor(new Color(160, 32, 240));
+            purple.SetProjectionLineWeight(3);
+
+            int missing = 0, incomplete = 0, isoInvalid = 0, unresolved = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Highlight Invalid"))
             {
@@ -579,7 +598,7 @@ namespace StingTools.Organise
                     string cat = ParameterHelpers.GetCategoryName(elem);
                     if (!known.Contains(cat)) continue;
 
-                    string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                    string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag))
                     {
                         view.SetElementOverrides(elem.Id, red);
@@ -590,12 +609,30 @@ namespace StingTools.Organise
                         view.SetElementOverrides(elem.Id, orange);
                         incomplete++;
                     }
+                    else if (!TagConfig.TagIsFullyResolved(tag))
+                    {
+                        view.SetElementOverrides(elem.Id, purple);
+                        unresolved++;
+                    }
+                    else
+                    {
+                        // Check for ISO cross-validation errors (PROD/FUNC/DISC mismatches)
+                        var isoErrors = ISO19650Validator.ValidateElement(elem);
+                        if (isoErrors.Count > 0)
+                        {
+                            view.SetElementOverrides(elem.Id, yellow);
+                            isoInvalid++;
+                        }
+                    }
                 }
                 tx.Commit();
             }
 
             TaskDialog.Show("Highlight Invalid",
-                $"Red (missing): {missing}\nOrange (incomplete): {incomplete}\n\n" +
+                $"Red (missing tag):     {missing}\n" +
+                $"Orange (incomplete):   {incomplete}\n" +
+                $"Purple (placeholders): {unresolved}\n" +
+                $"Yellow (ISO issues):   {isoInvalid}\n\n" +
                 "Use 'Clear Overrides' to reset.");
             return Result.Succeeded;
         }
@@ -639,6 +676,14 @@ namespace StingTools.Organise
     [Regeneration(RegenerationOption.Manual)]
     public class CopyTagsCommand : IExternalCommand
     {
+        private static readonly string[] CopyParams = new[]
+        {
+            ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+            ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+            ParamRegistry.PROD, ParamRegistry.STATUS,
+        };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
@@ -657,20 +702,37 @@ namespace StingTools.Organise
 
             Element source = doc.GetElement(selected[0]);
             var values = new Dictionary<string, string>();
-            foreach (string p in TagConfig.CopyableTokenParams)
+            foreach (string p in CopyParams)
                 values[p] = ParameterHelpers.GetString(source, p);
 
-            string sourceTag = ParameterHelpers.GetString(source, "ASS_TAG_1_TXT");
-            if (string.IsNullOrEmpty(sourceTag)) sourceTag = "(empty)";
+            string sourceTag = values.TryGetValue(ParamRegistry.TAG1, out string t) ? t : "(empty)";
+
+            // Check for discipline mismatches between source and targets
+            string sourceCat = ParameterHelpers.GetCategoryName(source);
+            string sourceDisc = values.TryGetValue(ParamRegistry.DISC, out string sd) ? sd : "";
+            int discMismatches = 0;
+            for (int i = 1; i < selected.Count; i++)
+            {
+                Element target = doc.GetElement(selected[i]);
+                if (target == null) continue;
+                string targetCat = ParameterHelpers.GetCategoryName(target);
+                string expectedDisc = TagConfig.DiscMap.TryGetValue(targetCat, out string td2) ? td2 : "XX";
+                if (!string.IsNullOrEmpty(sourceDisc) && sourceDisc != expectedDisc)
+                    discMismatches++;
+            }
+
+            string warnText = "";
+            if (discMismatches > 0)
+                warnText = $"\n\nWARNING: {discMismatches} targets have different expected disciplines. " +
+                    "Copied DISC may cause cross-validation errors.";
 
             TaskDialog confirm = new TaskDialog("Copy Tags");
             confirm.MainInstruction = $"Copy tags from Element {source.Id}?";
             confirm.MainContent =
                 $"Source tag: {sourceTag}\n" +
+                $"Source category: {sourceCat}\n" +
                 $"Target: {selected.Count - 1} elements\n\n" +
-                "Copies token values (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS).\n" +
-                "SEQ numbers are NOT copied — each element keeps unique SEQ.\n" +
-                "Run 'Build Tags' afterwards to reassemble tags from tokens.";
+                "Copies all tag values except SEQ (sequence stays unique)." + warnText;
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
@@ -687,6 +749,20 @@ namespace StingTools.Organise
                     {
                         ParameterHelpers.SetString(target, kvp.Key, kvp.Value, overwrite: true);
                     }
+
+                    // Update containers with copied values
+                    try
+                    {
+                        string catName = ParameterHelpers.GetCategoryName(target);
+                        string[] tokenVals = ParamRegistry.ReadTokenValues(target);
+                        if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                            ParamRegistry.WriteContainers(target, tokenVals, catName, overwrite: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"CopyTags: container write failed for {target.Id}: {ex.Message}");
+                    }
+
                     copied++;
                 }
                 tx.Commit();
@@ -705,6 +781,14 @@ namespace StingTools.Organise
     [Regeneration(RegenerationOption.Manual)]
     public class SwapTagsCommand : IExternalCommand
     {
+        private static readonly string[] SwapParams = new[]
+        {
+            ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+            ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+            ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS,
+        };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
@@ -721,8 +805,8 @@ namespace StingTools.Organise
             Element a = doc.GetElement(selected[0]);
             Element b = doc.GetElement(selected[1]);
 
-            string tagA = ParameterHelpers.GetString(a, "ASS_TAG_1_TXT");
-            string tagB = ParameterHelpers.GetString(b, "ASS_TAG_1_TXT");
+            string tagA = ParameterHelpers.GetString(a, ParamRegistry.TAG1);
+            string tagB = ParameterHelpers.GetString(b, ParamRegistry.TAG1);
 
             TaskDialog confirm = new TaskDialog("Swap Tags");
             confirm.MainInstruction = "Swap tags between two elements?";
@@ -736,13 +820,32 @@ namespace StingTools.Organise
             using (Transaction tx = new Transaction(doc, "STING Swap Tags"))
             {
                 tx.Start();
-                foreach (string param in TagConfig.AllTagParams)
+                foreach (string param in SwapParams)
                 {
                     string valA = ParameterHelpers.GetString(a, param);
                     string valB = ParameterHelpers.GetString(b, param);
                     ParameterHelpers.SetString(a, param, valB, overwrite: true);
                     ParameterHelpers.SetString(b, param, valA, overwrite: true);
                 }
+
+                // Update containers for both elements
+                try
+                {
+                    string catA = ParameterHelpers.GetCategoryName(a);
+                    string[] tokensA = ParamRegistry.ReadTokenValues(a);
+                    if (tokensA.Any(v => !string.IsNullOrEmpty(v)))
+                        ParamRegistry.WriteContainers(a, tokensA, catA, overwrite: true);
+
+                    string catB = ParameterHelpers.GetCategoryName(b);
+                    string[] tokensB = ParamRegistry.ReadTokenValues(b);
+                    if (tokensB.Any(v => !string.IsNullOrEmpty(v)))
+                        ParamRegistry.WriteContainers(b, tokensB, catB, overwrite: true);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"SwapTags: container write failed: {ex.Message}");
+                }
+
                 tx.Commit();
             }
 
@@ -771,7 +874,7 @@ namespace StingTools.Organise
             foreach (Element elem in new FilteredElementCollector(doc, doc.ActiveView.Id)
                 .WhereElementIsNotElementType())
             {
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 if (string.IsNullOrEmpty(disc)) continue;
 
                 if (!discCounts.ContainsKey(disc))
@@ -793,16 +896,9 @@ namespace StingTools.Organise
             var top = discCounts.OrderByDescending(x => x.Value).Take(4).ToList();
             TaskDialog td = new TaskDialog("Select by Discipline");
             td.MainInstruction = "Select elements by discipline code";
-            var linkIds = new[]
-            {
-                TaskDialogCommandLinkId.CommandLink1,
-                TaskDialogCommandLinkId.CommandLink2,
-                TaskDialogCommandLinkId.CommandLink3,
-                TaskDialogCommandLinkId.CommandLink4,
-            };
             for (int i = 0; i < top.Count; i++)
             {
-                td.AddCommandLink(linkIds[i],
+                td.AddCommandLink((TaskDialogCommandLinkId)(i + 1001),
                     $"{top[i].Key} — {top[i].Value} elements");
             }
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
@@ -830,6 +926,1372 @@ namespace StingTools.Organise
         }
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // Tag & Leader Appearance Commands
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Shared helper for annotation tag/leader color operations.
+    /// </summary>
+    internal static class AnnotationColorHelper
+    {
+        /// <summary>Discipline → Color mapping for annotation tags.</summary>
+        public static readonly Dictionary<string, Color> DisciplineColors =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "M", new Color(0, 128, 255) },       // Blue
+            { "E", new Color(255, 180, 0) },        // Gold
+            { "P", new Color(0, 180, 0) },           // Green
+            { "A", new Color(120, 120, 120) },       // Grey
+            { "S", new Color(200, 0, 0) },           // Red
+            { "FP", new Color(255, 100, 0) },        // Orange
+            { "LV", new Color(160, 0, 200) },        // Purple
+            { "G", new Color(128, 80, 0) },          // Brown
+        };
+
+        /// <summary>Named quick-pick colors.</summary>
+        public static readonly (string name, Color color)[] QuickColors = new[]
+        {
+            ("Red", new Color(220, 20, 20)),
+            ("Blue", new Color(0, 100, 220)),
+            ("Green", new Color(0, 160, 0)),
+            ("Black", new Color(0, 0, 0)),
+            ("Orange", new Color(255, 140, 0)),
+            ("Purple", new Color(140, 0, 200)),
+            ("Grey", new Color(128, 128, 128)),
+            ("Cyan", new Color(0, 180, 200)),
+        };
+
+        /// <summary>Find the solid fill pattern (needed for surface overrides).</summary>
+        public static FillPatternElement FindSolidFill(Document doc)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement))
+                    .Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Build override settings for annotation coloring.</summary>
+        public static OverrideGraphicSettings BuildAnnotationOverride(
+            Color lineColor, int lineWeight = -1)
+        {
+            var ogs = new OverrideGraphicSettings();
+            ogs.SetProjectionLineColor(lineColor);
+            if (lineWeight > 0) ogs.SetProjectionLineWeight(lineWeight);
+            return ogs;
+        }
+
+        /// <summary>
+        /// Build granular override settings with SEPARATE control of text (projection line),
+        /// bounding box (surface pattern), and leader (cut line) aspects.
+        /// In Revit, OverrideGraphicSettings exposes:
+        ///   - Projection line color/weight → controls text + leader rendering
+        ///   - Surface foreground pattern/color → controls tag bounding box fill
+        ///   - Cut line color → we repurpose to differentiate (for tags in section)
+        ///   - Halftone → mutes all aspects equally
+        ///   - Transparency → controls surface fill transparency (box visibility)
+        ///
+        /// Strategy for "separate" control:
+        ///   - Text color = SetProjectionLineColor (this is what renders tag text)
+        ///   - Box fill color = SetSurfaceForegroundPatternColor + solid fill pattern
+        ///   - Box visibility = transparency (0 = opaque, 100 = invisible)
+        ///   - Leader visibility = controlled by toggling HasLeader on/off
+        ///   - We split tags into with/without leaders and apply different overrides
+        /// </summary>
+        public static OverrideGraphicSettings BuildGranularOverride(
+            Document doc,
+            Color textColor = null,
+            Color boxColor = null,
+            int boxTransparency = -1,
+            int lineWeight = -1,
+            Color cutLineColor = null)
+        {
+            var ogs = new OverrideGraphicSettings();
+
+            // Text + line color (projection line color controls tag text rendering)
+            if (textColor != null)
+                ogs.SetProjectionLineColor(textColor);
+
+            if (lineWeight > 0)
+                ogs.SetProjectionLineWeight(lineWeight);
+
+            // Bounding box fill — use surface foreground pattern color
+            if (boxColor != null)
+            {
+                var solidFill = FindSolidFill(doc);
+                if (solidFill != null)
+                {
+                    ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                    ogs.SetSurfaceForegroundPatternColor(boxColor);
+                }
+            }
+
+            // Box visibility via transparency (0=visible, 100=invisible)
+            if (boxTransparency >= 0 && boxTransparency <= 100)
+                ogs.SetSurfaceTransparency(boxTransparency);
+
+            // Cut line color for section-cut tag aspects
+            if (cutLineColor != null)
+                ogs.SetCutLineColor(cutLineColor);
+
+            return ogs;
+        }
+
+        /// <summary>Prompt user to pick a color from the standard 8 quick-pick options.</summary>
+        public static Color PickColor(string title, string instruction)
+        {
+            TaskDialog dlg = new TaskDialog(title);
+            dlg.MainInstruction = instruction;
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Red (220,20,20)", "Highlight / QA checking");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Blue (0,100,220)", "MEP / standard annotation");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Black (0,0,0)", "Print-ready / standard");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "More Colors...", "Extended palette (8 more options)");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return new Color(220, 20, 20);
+                case TaskDialogResult.CommandLink2: return new Color(0, 100, 220);
+                case TaskDialogResult.CommandLink3: return new Color(0, 0, 0);
+                case TaskDialogResult.CommandLink4: return PickColorExtended(title, instruction);
+                default: return null;
+            }
+        }
+
+        /// <summary>Prompt user to pick a color from an extended 8-option palette.</summary>
+        public static Color PickColorExtended(string title, string instruction)
+        {
+            TaskDialog dlg = new TaskDialog(title);
+            dlg.MainInstruction = instruction;
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Grey (128,128,128)", "Subtle / background");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Orange (255,140,0)", "Warning / attention");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Cyan (0,180,200)", "Reference / info");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "More Colors...", "Extra palette (green, white, yellow, purple)");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return new Color(128, 128, 128);
+                case TaskDialogResult.CommandLink2: return new Color(255, 140, 0);
+                case TaskDialogResult.CommandLink3: return new Color(0, 180, 200);
+                case TaskDialogResult.CommandLink4: return PickColorTertiary(title, instruction);
+                default: return null;
+            }
+        }
+
+        /// <summary>Tertiary color options (green, white, yellow, purple).</summary>
+        public static Color PickColorTertiary(string title, string instruction)
+        {
+            TaskDialog dlg = new TaskDialog(title);
+            dlg.MainInstruction = instruction;
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Green (0,160,0)", "Approved / verified");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "White (255,255,255)", "Clean / background");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Yellow (255,200,0)", "Caution / highlight");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Purple (140,0,200)", "Special / highlight");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return new Color(0, 160, 0);
+                case TaskDialogResult.CommandLink2: return new Color(255, 255, 255);
+                case TaskDialogResult.CommandLink3: return new Color(255, 200, 0);
+                case TaskDialogResult.CommandLink4: return new Color(140, 0, 200);
+                default: return null;
+            }
+        }
+
+        /// <summary>Get the transparency from a color name hint (for box visibility).</summary>
+        public static int GetBoxTransparencyChoice(string title)
+        {
+            TaskDialog dlg = new TaskDialog(title);
+            dlg.MainInstruction = "Tag bounding box visibility";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Fully Visible", "Opaque bounding box (0% transparent)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Semi-Transparent", "50% transparent box background");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Faded", "80% transparent — subtle box");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Hidden (Invisible)", "100% transparent — no visible box");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return 0;
+                case TaskDialogResult.CommandLink2: return 50;
+                case TaskDialogResult.CommandLink3: return 80;
+                case TaskDialogResult.CommandLink4: return 100;
+                default: return -1;
+            }
+        }
+
+        /// <summary>
+        /// Get annotation tags from selection or all in view.
+        /// Returns (tags, isFromSelection).
+        /// </summary>
+        public static (List<IndependentTag> tags, bool fromSelection)
+            GetTargetTags(UIDocument uidoc)
+        {
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var selIds = uidoc.Selection.GetElementIds();
+            if (selIds.Count > 0)
+            {
+                var tags = selIds
+                    .Select(id => doc.GetElement(id))
+                    .OfType<IndependentTag>()
+                    .ToList();
+                if (tags.Count > 0) return (tags, true);
+            }
+
+            var allTags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+            return (allTags, false);
+        }
+
+        /// <summary>Get the discipline code from the element that a tag hosts.</summary>
+        public static string GetTagDiscipline(IndependentTag tag, Document doc)
+        {
+            try
+            {
+                var hostIds = tag.GetTaggedLocalElementIds();
+                if (hostIds.Count == 0) return null;
+                Element host = doc.GetElement(hostIds.First());
+                if (host == null) return null;
+                return ParameterHelpers.GetString(host, ParamRegistry.DISC);
+            }
+            catch { return null; }
+        }
+    }
+
+    /// <summary>
+    /// Color annotation tag text and leaders by discipline (M=Blue, E=Gold, P=Green, etc.).
+    /// Applies per-element graphic overrides to IndependentTag annotation elements.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ColorTagsByDisciplineCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (tags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Color Tags", "No annotation tags found in view or selection.");
+                return Result.Succeeded;
+            }
+
+            int colored = 0;
+            var discCounts = new Dictionary<string, int>();
+
+            using (Transaction tx = new Transaction(doc, "STING Color Tags by Discipline"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    string disc = AnnotationColorHelper.GetTagDiscipline(tag, doc);
+                    if (string.IsNullOrEmpty(disc)) continue;
+
+                    if (AnnotationColorHelper.DisciplineColors.TryGetValue(disc, out Color col))
+                    {
+                        var ogs = AnnotationColorHelper.BuildAnnotationOverride(col, 2);
+                        view.SetElementOverrides(tag.Id, ogs);
+                        colored++;
+
+                        if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
+                        discCounts[disc]++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Colored {colored} of {tags.Count} annotation tags by discipline:");
+            foreach (var kvp in discCounts.OrderByDescending(x => x.Value))
+            {
+                var c = AnnotationColorHelper.DisciplineColors[kvp.Key];
+                report.AppendLine($"  {kvp.Key}: {kvp.Value} tags (RGB {c.Red},{c.Green},{c.Blue})");
+            }
+
+            TaskDialog.Show("Color Tags by Discipline", report.ToString());
+            StingLog.Info($"ColorTagsByDiscipline: colored={colored}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Set tag text color: applies a chosen color to tag annotation elements.
+    /// User picks from quick color options.
+    /// In Revit, the projection line color controls tag text rendering.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetTagTextColorCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (tags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Tag Text Color", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Filter to tags WITHOUT leaders (text-only tags)
+            var textOnlyTags = tags.Where(t =>
+            {
+                try { return !t.HasLeader; } catch { return true; }
+            }).ToList();
+
+            TaskDialog dlg = new TaskDialog("Set Tag Text Color");
+            dlg.MainInstruction = $"Choose color for {tags.Count} tags ({textOnlyTags.Count} without leaders):";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Red", "RGB 220,20,20 — for QA/checking");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Blue", "RGB 0,100,220 — for MEP tags");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Black", "RGB 0,0,0 — standard/print");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Green", "RGB 0,160,0 — for approved/verified");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            Color chosen;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: chosen = new Color(220, 20, 20); break;
+                case TaskDialogResult.CommandLink2: chosen = new Color(0, 100, 220); break;
+                case TaskDialogResult.CommandLink3: chosen = new Color(0, 0, 0); break;
+                case TaskDialogResult.CommandLink4: chosen = new Color(0, 160, 0); break;
+                default: return Result.Cancelled;
+            }
+
+            int colored = 0;
+            var ogs = AnnotationColorHelper.BuildAnnotationOverride(chosen, -1);
+
+            using (Transaction tx = new Transaction(doc, "STING Set Tag Text Color"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        view.SetElementOverrides(tag.Id, ogs);
+                        colored++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Tag Text Color",
+                $"Applied color (RGB {chosen.Red},{chosen.Green},{chosen.Blue}) to {colored} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Set leader line color: applies a chosen color to tags WITH leaders only.
+    /// Tags without leaders are unaffected, giving the visual effect of separate
+    /// text vs leader colors.
+    ///
+    /// Workflow for different text/leader colors:
+    ///   1. Use 'Set Tag Text Color' to color ALL tags (text + any leaders)
+    ///   2. Use 'Set Leader Color' to override color on leader-bearing tags only
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetLeaderColorCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (allTags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            var leaderTags = allTags.Where(t =>
+            {
+                try { return t.HasLeader; } catch { return false; }
+            }).ToList();
+
+            if (leaderTags.Count == 0)
+            {
+                TaskDialog.Show("Leader Color", "No tags with leaders found.");
+                return Result.Succeeded;
+            }
+
+            TaskDialog dlg = new TaskDialog("Set Leader Color");
+            dlg.MainInstruction = $"Choose leader color for {leaderTags.Count} tags with leaders:";
+            dlg.MainContent =
+                "This overrides the color of tags WITH leaders only.\n" +
+                "Tags without leaders keep their current color.\n\n" +
+                "Tip: Set text color first, then leader color for different colors.";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Grey", "RGB 128,128,128 — subtle leaders");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Red", "RGB 220,20,20 — highlight leaders");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Blue", "RGB 0,100,220 — standard leaders");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Black", "RGB 0,0,0 — print-ready leaders");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            Color chosen;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: chosen = new Color(128, 128, 128); break;
+                case TaskDialogResult.CommandLink2: chosen = new Color(220, 20, 20); break;
+                case TaskDialogResult.CommandLink3: chosen = new Color(0, 100, 220); break;
+                case TaskDialogResult.CommandLink4: chosen = new Color(0, 0, 0); break;
+                default: return Result.Cancelled;
+            }
+
+            int colored = 0;
+            var ogs = AnnotationColorHelper.BuildAnnotationOverride(chosen, -1);
+
+            using (Transaction tx = new Transaction(doc, "STING Set Leader Color"))
+            {
+                tx.Start();
+                foreach (var tag in leaderTags)
+                {
+                    try
+                    {
+                        view.SetElementOverrides(tag.Id, ogs);
+                        colored++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Leader Color",
+                $"Applied color (RGB {chosen.Red},{chosen.Green},{chosen.Blue}) to {colored} leader tags.\n" +
+                $"{allTags.Count - leaderTags.Count} tags without leaders unaffected.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Split color: apply one color to tag text (tags without leaders) and a different
+    /// color to leader-bearing tags. Quick two-step color application in one command.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SplitTagLeaderColorCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (allTags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (allTags.Count == 0)
+            {
+                TaskDialog.Show("Split Color", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            var withLeaders = new List<IndependentTag>();
+            var withoutLeaders = new List<IndependentTag>();
+            foreach (var tag in allTags)
+            {
+                try
+                {
+                    if (tag.HasLeader) withLeaders.Add(tag);
+                    else withoutLeaders.Add(tag);
+                }
+                catch { withoutLeaders.Add(tag); }
+            }
+
+            // Step 1: Pick text color
+            TaskDialog textDlg = new TaskDialog("Split Color — Step 1: Text Tags");
+            textDlg.MainInstruction = $"Color for {withoutLeaders.Count} tags WITHOUT leaders (text only):";
+            textDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Black", "RGB 0,0,0");
+            textDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Blue", "RGB 0,100,220");
+            textDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Red", "RGB 220,20,20");
+            textDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Green", "RGB 0,160,0");
+            textDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            Color textColor;
+            switch (textDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: textColor = new Color(0, 0, 0); break;
+                case TaskDialogResult.CommandLink2: textColor = new Color(0, 100, 220); break;
+                case TaskDialogResult.CommandLink3: textColor = new Color(220, 20, 20); break;
+                case TaskDialogResult.CommandLink4: textColor = new Color(0, 160, 0); break;
+                default: return Result.Cancelled;
+            }
+
+            // Step 2: Pick leader color
+            TaskDialog leaderDlg = new TaskDialog("Split Color — Step 2: Leader Tags");
+            leaderDlg.MainInstruction = $"Color for {withLeaders.Count} tags WITH leaders:";
+            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Grey", "RGB 128,128,128");
+            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Red", "RGB 220,20,20");
+            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Orange", "RGB 255,140,0");
+            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Cyan", "RGB 0,180,200");
+            leaderDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            Color leaderColor;
+            switch (leaderDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: leaderColor = new Color(128, 128, 128); break;
+                case TaskDialogResult.CommandLink2: leaderColor = new Color(220, 20, 20); break;
+                case TaskDialogResult.CommandLink3: leaderColor = new Color(255, 140, 0); break;
+                case TaskDialogResult.CommandLink4: leaderColor = new Color(0, 180, 200); break;
+                default: return Result.Cancelled;
+            }
+
+            var textOgs = AnnotationColorHelper.BuildAnnotationOverride(textColor, -1);
+            var leaderOgs = AnnotationColorHelper.BuildAnnotationOverride(leaderColor, -1);
+
+            int textColored = 0, leaderColored = 0;
+            using (Transaction tx = new Transaction(doc, "STING Split Tag/Leader Color"))
+            {
+                tx.Start();
+                foreach (var tag in withoutLeaders)
+                {
+                    try { view.SetElementOverrides(tag.Id, textOgs); textColored++; }
+                    catch { }
+                }
+                foreach (var tag in withLeaders)
+                {
+                    try { view.SetElementOverrides(tag.Id, leaderOgs); leaderColored++; }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Split Color",
+                $"Text tags (no leader): {textColored} colored " +
+                $"(RGB {textColor.Red},{textColor.Green},{textColor.Blue})\n" +
+                $"Leader tags: {leaderColored} colored " +
+                $"(RGB {leaderColor.Red},{leaderColor.Green},{leaderColor.Blue})");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Clear annotation tag overrides: reset tag text and leader colors to default.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ClearAnnotationColorsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (tags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Clear Colors", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            int cleared = 0;
+            var blank = new OverrideGraphicSettings();
+
+            using (Transaction tx = new Transaction(doc, "STING Clear Annotation Colors"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try { view.SetElementOverrides(tag.Id, blank); cleared++; }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Clear Colors",
+                $"Reset color overrides on {cleared} annotation tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Master tag appearance command: separate control of TEXT colour, LEADER colour,
+    /// and BOUNDING BOX colour + visibility. Applies different overrides to tags
+    /// with leaders vs without leaders, giving visual separation of all three aspects.
+    ///
+    /// Revit API strategy:
+    ///   - Text color → SetProjectionLineColor on tags WITHOUT leaders
+    ///   - Leader color → SetProjectionLineColor on tags WITH leaders
+    ///   - Box fill → SetSurfaceForegroundPatternColor (solid fill) on ALL tags
+    ///   - Box visibility → SetSurfaceTransparency (0=opaque to 100=invisible)
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TagAppearanceCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (allTags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (allTags.Count == 0)
+            {
+                TaskDialog.Show("Tag Appearance", "No annotation tags found in view or selection.");
+                return Result.Succeeded;
+            }
+
+            var withLeaders = new List<IndependentTag>();
+            var withoutLeaders = new List<IndependentTag>();
+            foreach (var tag in allTags)
+            {
+                try { if (tag.HasLeader) withLeaders.Add(tag); else withoutLeaders.Add(tag); }
+                catch { withoutLeaders.Add(tag); }
+            }
+
+            // Step 1: Text color
+            Color textColor = AnnotationColorHelper.PickColor(
+                "Tag Appearance — Step 1/4: Text Color",
+                $"Choose TEXT color for {allTags.Count} tags:");
+            if (textColor == null) return Result.Cancelled;
+
+            // Step 2: Leader color (if any leaders exist)
+            Color leaderColor = textColor;
+            if (withLeaders.Count > 0)
+            {
+                Color picked = AnnotationColorHelper.PickColor(
+                    "Tag Appearance — Step 2/4: Leader Color",
+                    $"Choose LEADER color for {withLeaders.Count} tags with leaders:");
+                if (picked == null) return Result.Cancelled;
+                leaderColor = picked;
+            }
+
+            // Step 3: Bounding box color
+            Color boxColor = AnnotationColorHelper.PickColorExtended(
+                "Tag Appearance — Step 3/4: Box Color",
+                "Choose BOUNDING BOX fill color:");
+            if (boxColor == null) return Result.Cancelled;
+
+            // Step 4: Bounding box visibility (transparency)
+            int boxTransparency = AnnotationColorHelper.GetBoxTransparencyChoice(
+                "Tag Appearance — Step 4/4: Box Visibility");
+            if (boxTransparency < 0) return Result.Cancelled;
+
+            // Build overrides
+            var textOgs = AnnotationColorHelper.BuildGranularOverride(
+                doc, textColor: textColor, boxColor: boxColor,
+                boxTransparency: boxTransparency);
+            var leaderOgs = AnnotationColorHelper.BuildGranularOverride(
+                doc, textColor: leaderColor, boxColor: boxColor,
+                boxTransparency: boxTransparency);
+
+            int textColored = 0, leaderColored = 0;
+            using (Transaction tx = new Transaction(doc, "STING Tag Appearance"))
+            {
+                tx.Start();
+                foreach (var tag in withoutLeaders)
+                {
+                    try { view.SetElementOverrides(tag.Id, textOgs); textColored++; }
+                    catch { }
+                }
+                foreach (var tag in withLeaders)
+                {
+                    try { view.SetElementOverrides(tag.Id, leaderOgs); leaderColored++; }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Tag Appearance Applied — {allTags.Count} tags");
+            report.AppendLine(new string('═', 45));
+            report.AppendLine($"  Text color:    RGB({textColor.Red},{textColor.Green},{textColor.Blue}) → {textColored} tags");
+            report.AppendLine($"  Leader color:  RGB({leaderColor.Red},{leaderColor.Green},{leaderColor.Blue}) → {leaderColored} tags");
+            report.AppendLine($"  Box color:     RGB({boxColor.Red},{boxColor.Green},{boxColor.Blue})");
+            report.AppendLine($"  Box visibility: {(boxTransparency == 0 ? "Opaque" : boxTransparency == 100 ? "Hidden" : $"{100 - boxTransparency}%")}");
+
+            TaskDialog.Show("Tag Appearance", report.ToString());
+            StingLog.Info($"TagAppearance: text=RGB({textColor.Red},{textColor.Green},{textColor.Blue}), " +
+                $"leader=RGB({leaderColor.Red},{leaderColor.Green},{leaderColor.Blue}), " +
+                $"box=RGB({boxColor.Red},{boxColor.Green},{boxColor.Blue}), " +
+                $"transparency={boxTransparency}%, applied={textColored + leaderColored}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Control tag bounding box appearance independently: set fill colour, visibility
+    /// (transparency), and outline weight. This targets the surface graphic overrides
+    /// which control the tag's bounding box/background fill separately from text color.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetTagBoxAppearanceCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (tags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Tag Box", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Choose box mode
+            TaskDialog modeDlg = new TaskDialog("Tag Bounding Box");
+            modeDlg.MainInstruction = $"Bounding box control for {tags.Count} tags";
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Set Box Color + Visibility",
+                "Choose fill color and transparency for tag background");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Hide Box (Transparent)",
+                "Make bounding box fully transparent (text and leaders remain visible)");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Show Box (Opaque)",
+                "Make bounding box fully opaque with white fill");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Reset Box (Clear Overrides)",
+                "Remove all surface overrides, restoring default box appearance");
+            modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var result = modeDlg.Show();
+            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            OverrideGraphicSettings ogs;
+
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1:
+                {
+                    // Pick box color
+                    Color boxColor = AnnotationColorHelper.PickColorExtended(
+                        "Box Color", "Choose bounding box fill color:");
+                    if (boxColor == null) return Result.Cancelled;
+
+                    int transparency = AnnotationColorHelper.GetBoxTransparencyChoice("Box Visibility");
+                    if (transparency < 0) return Result.Cancelled;
+
+                    ogs = AnnotationColorHelper.BuildGranularOverride(
+                        doc, boxColor: boxColor, boxTransparency: transparency);
+                    break;
+                }
+                case TaskDialogResult.CommandLink2:
+                    // Hide box — full transparency
+                    ogs = new OverrideGraphicSettings();
+                    ogs.SetSurfaceTransparency(100);
+                    break;
+
+                case TaskDialogResult.CommandLink3:
+                {
+                    // Show box — opaque white
+                    var solidFill = AnnotationColorHelper.FindSolidFill(doc);
+                    ogs = new OverrideGraphicSettings();
+                    if (solidFill != null)
+                    {
+                        ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                        ogs.SetSurfaceForegroundPatternColor(new Color(255, 255, 255));
+                    }
+                    ogs.SetSurfaceTransparency(0);
+                    break;
+                }
+                case TaskDialogResult.CommandLink4:
+                default:
+                    // Reset — blank override (clears surface-only, preserving line color)
+                    // We need to read existing line color and reapply it
+                    ogs = new OverrideGraphicSettings();
+                    break;
+            }
+
+            int modified = 0;
+            using (Transaction tx = new Transaction(doc, "STING Set Tag Box"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        if (result == TaskDialogResult.CommandLink4)
+                        {
+                            // Reset: preserve existing projection line color but clear surface
+                            var existing = view.GetElementOverrides(tag.Id);
+                            var reset = new OverrideGraphicSettings();
+                            // Preserve text/line color if set
+                            var existingColor = existing.ProjectionLineColor;
+                            if (existingColor.IsValid)
+                                reset.SetProjectionLineColor(existingColor);
+                            var existingWeight = existing.ProjectionLineWeight;
+                            if (existingWeight > 0)
+                                reset.SetProjectionLineWeight(existingWeight);
+                            view.SetElementOverrides(tag.Id, reset);
+                        }
+                        else
+                        {
+                            // Merge: apply surface overrides while preserving existing line color
+                            var existing = view.GetElementOverrides(tag.Id);
+                            var merged = new OverrideGraphicSettings();
+
+                            // Copy existing line overrides
+                            var existingColor = existing.ProjectionLineColor;
+                            if (existingColor.IsValid)
+                                merged.SetProjectionLineColor(existingColor);
+                            var existingWeight = existing.ProjectionLineWeight;
+                            if (existingWeight > 0)
+                                merged.SetProjectionLineWeight(existingWeight);
+
+                            // Apply new surface overrides from ogs
+                            var surfId = ogs.SurfaceForegroundPatternId;
+                            if (surfId != null && surfId != ElementId.InvalidElementId)
+                            {
+                                merged.SetSurfaceForegroundPatternId(surfId);
+                                merged.SetSurfaceForegroundPatternColor(
+                                    ogs.SurfaceForegroundPatternColor);
+                            }
+                            merged.SetSurfaceTransparency(ogs.SurfaceTransparency);
+
+                            view.SetElementOverrides(tag.Id, merged);
+                        }
+                        modified++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            string modeLabel = result == TaskDialogResult.CommandLink1 ? "Color + Visibility" :
+                               result == TaskDialogResult.CommandLink2 ? "Hidden (Transparent)" :
+                               result == TaskDialogResult.CommandLink3 ? "Visible (Opaque White)" :
+                               "Reset to Default";
+            TaskDialog.Show("Tag Box", $"Box mode '{modeLabel}' applied to {modified} tags.");
+            StingLog.Info($"SetTagBox: mode={modeLabel}, modified={modified}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Quick discipline-aware tag appearance: applies discipline colors to text,
+    /// grey to leaders, and transparent box in one click. Combines the most common
+    /// workflow into a single command.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class QuickTagStyleCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (allTags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (allTags.Count == 0)
+            {
+                TaskDialog.Show("Quick Style", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Choose style preset
+            TaskDialog dlg = new TaskDialog("Quick Tag Style");
+            dlg.MainInstruction = $"Apply preset style to {allTags.Count} tags";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Discipline Colors + Grey Leaders",
+                "Text = discipline color (M=Blue, E=Gold...), Leaders = grey, Box = transparent");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Black Text + Grey Leaders",
+                "Text = black, Leaders = grey, Box = transparent — print-ready");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "QA Mode (Red Text, No Box)",
+                "Text + leaders = red, Box = hidden — checking/markup mode");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Presentation (Blue Text, White Box)",
+                "Text = blue, Leaders = blue, Box = white opaque — clean presentation");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var mode = dlg.Show();
+            if (mode == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            int styled = 0;
+            var discCounts = new Dictionary<string, int>();
+
+            using (Transaction tx = new Transaction(doc, "STING Quick Tag Style"))
+            {
+                tx.Start();
+                foreach (var tag in allTags)
+                {
+                    try
+                    {
+                        bool hasLeader = false;
+                        try { hasLeader = tag.HasLeader; } catch { }
+
+                        OverrideGraphicSettings ogs;
+
+                        switch (mode)
+                        {
+                            case TaskDialogResult.CommandLink1:
+                            {
+                                // Discipline colors + grey leaders
+                                string disc = AnnotationColorHelper.GetTagDiscipline(tag, doc);
+                                Color textCol = new Color(0, 0, 0); // default black
+                                if (!string.IsNullOrEmpty(disc) &&
+                                    AnnotationColorHelper.DisciplineColors.TryGetValue(disc, out Color dc))
+                                {
+                                    textCol = dc;
+                                    if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
+                                    discCounts[disc]++;
+                                }
+
+                                Color lineCol = hasLeader
+                                    ? new Color(128, 128, 128) // grey leaders
+                                    : textCol;
+
+                                ogs = AnnotationColorHelper.BuildGranularOverride(
+                                    doc, textColor: lineCol, boxTransparency: 100);
+                                break;
+                            }
+                            case TaskDialogResult.CommandLink2:
+                            {
+                                // Black text + grey leaders
+                                Color lineCol = hasLeader
+                                    ? new Color(128, 128, 128)
+                                    : new Color(0, 0, 0);
+                                ogs = AnnotationColorHelper.BuildGranularOverride(
+                                    doc, textColor: lineCol, boxTransparency: 100);
+                                break;
+                            }
+                            case TaskDialogResult.CommandLink3:
+                            {
+                                // QA red, no box
+                                ogs = AnnotationColorHelper.BuildGranularOverride(
+                                    doc, textColor: new Color(220, 20, 20),
+                                    lineWeight: 2, boxTransparency: 100);
+                                break;
+                            }
+                            case TaskDialogResult.CommandLink4:
+                            default:
+                            {
+                                // Presentation blue + white box
+                                ogs = AnnotationColorHelper.BuildGranularOverride(
+                                    doc, textColor: new Color(0, 100, 220),
+                                    boxColor: new Color(255, 255, 255),
+                                    boxTransparency: 0);
+                                break;
+                            }
+                        }
+
+                        view.SetElementOverrides(tag.Id, ogs);
+                        styled++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Quick Style applied to {styled} tags.");
+            if (discCounts.Count > 0)
+            {
+                report.AppendLine("Disciplines:");
+                foreach (var kvp in discCounts.OrderByDescending(x => x.Value))
+                    report.AppendLine($"  {kvp.Key}: {kvp.Value}");
+            }
+            TaskDialog.Show("Quick Tag Style", report.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Set bounding box line weight (thickness) on annotation tags.
+    /// Controls the outline weight of the tag border independently from text color.
+    /// Uses SetProjectionLineWeight for the outline.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetTagLineWeightCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (tags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Tag Line Weight", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            TaskDialog dlg = new TaskDialog("Tag Bounding Box Line Weight");
+            dlg.MainInstruction = $"Set border line weight for {tags.Count} tags";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Thin (1)", "Hairline border — minimal visual weight");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Standard (3)", "Normal border weight — default appearance");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Bold (6)", "Thick border — strong emphasis / QA checking");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Extra Bold (10)", "Maximum emphasis — very heavy border for callouts");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int weight;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: weight = 1; break;
+                case TaskDialogResult.CommandLink2: weight = 3; break;
+                case TaskDialogResult.CommandLink3: weight = 6; break;
+                case TaskDialogResult.CommandLink4: weight = 10; break;
+                default: return Result.Cancelled;
+            }
+
+            int modified = 0;
+            using (Transaction tx = new Transaction(doc, "STING Tag Line Weight"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        // Preserve existing color but change line weight
+                        var existing = view.GetElementOverrides(tag.Id);
+                        var ogs = new OverrideGraphicSettings();
+                        var existingColor = existing.ProjectionLineColor;
+                        if (existingColor.IsValid)
+                            ogs.SetProjectionLineColor(existingColor);
+                        ogs.SetProjectionLineWeight(weight);
+
+                        // Preserve existing surface overrides
+                        var surfId = existing.SurfaceForegroundPatternId;
+                        if (surfId != null && surfId != ElementId.InvalidElementId)
+                        {
+                            ogs.SetSurfaceForegroundPatternId(surfId);
+                            ogs.SetSurfaceForegroundPatternColor(existing.SurfaceForegroundPatternColor);
+                        }
+                        ogs.SetSurfaceTransparency(existing.SurfaceTransparency);
+
+                        view.SetElementOverrides(tag.Id, ogs);
+                        modified++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Tag Line Weight",
+                $"Set border weight to {weight} on {modified} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Color annotation tags by the value of any parameter on the host element.
+    /// User picks from available parameters and palettes. Uses the same palette
+    /// system as ColorByParameterCommand but targets annotation tags specifically.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ColorTagsByParameterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var (allTags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (allTags.Count == 0)
+            {
+                TaskDialog.Show("Color Tags By Parameter", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Collect host elements to discover parameters
+            var hostElements = new List<Element>();
+            foreach (var tag in allTags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    foreach (var hid in hostIds)
+                    {
+                        Element host = doc.GetElement(hid);
+                        if (host != null) { hostElements.Add(host); break; }
+                    }
+                }
+                catch { }
+            }
+
+            if (hostElements.Count == 0)
+            {
+                TaskDialog.Show("Color Tags By Parameter", "No valid host elements found.");
+                return Result.Succeeded;
+            }
+
+            // Get available parameters from host elements
+            var paramNames = Select.ColorHelper.GetAvailableParameters(doc, hostElements);
+
+            // Step 1: Pick parameter (paged — show most useful first)
+            var priority = new[]
+            {
+                ParamRegistry.DISC, ParamRegistry.SYS, ParamRegistry.LOC,
+                ParamRegistry.ZONE, ParamRegistry.LVL, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.TAG1, ParamRegistry.STATUS,
+                "Mark", "Comments", "Type Name", "Family"
+            };
+            var top = priority.Where(p => paramNames.Contains(p)).Take(4).ToList();
+            if (top.Count == 0) top = paramNames.Take(4).ToList();
+
+            TaskDialog paramDlg = new TaskDialog("Color Tags — Pick Parameter");
+            paramDlg.MainInstruction = $"Color {allTags.Count} tags by which parameter?";
+            paramDlg.FooterText = $"{paramNames.Count} parameters available on host elements.";
+            for (int i = 0; i < top.Count; i++)
+                paramDlg.AddCommandLink((TaskDialogCommandLinkId)(i + 1001), top[i]);
+            paramDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int paramIdx = -1;
+            switch (paramDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: paramIdx = 0; break;
+                case TaskDialogResult.CommandLink2: paramIdx = 1; break;
+                case TaskDialogResult.CommandLink3: paramIdx = 2; break;
+                case TaskDialogResult.CommandLink4: paramIdx = 3; break;
+                default: return Result.Cancelled;
+            }
+            string selectedParam = top[paramIdx];
+
+            // Step 2: Pick palette
+            TaskDialog palDlg = new TaskDialog("Color Tags — Pick Palette");
+            palDlg.MainInstruction = $"Select palette for '{selectedParam}'";
+            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "STING Discipline", "M=Blue, E=Gold, P=Green (8 colors)");
+            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "High Contrast", "Saturated primaries (8 colors)");
+            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Accessible", "Colorblind-safe viridis (10 colors)");
+            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Pastel", "Soft muted tones (8 colors)");
+            palDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string paletteName;
+            Color[] palette;
+            switch (palDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: paletteName = "STING Discipline"; break;
+                case TaskDialogResult.CommandLink2: paletteName = "High Contrast"; break;
+                case TaskDialogResult.CommandLink3: paletteName = "Accessible"; break;
+                case TaskDialogResult.CommandLink4: paletteName = "Pastel"; break;
+                default: return Result.Cancelled;
+            }
+            palette = Select.ColorHelper.Palettes[paletteName];
+
+            // Group tags by host element's parameter value
+            var groups = new Dictionary<string, List<IndependentTag>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var tag in allTags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    Element host = hostIds.Count > 0 ? doc.GetElement(hostIds.First()) : null;
+                    string val = host != null
+                        ? Select.ColorHelper.GetParameterValue(host, selectedParam) ?? "<No Value>"
+                        : "<No Value>";
+
+                    if (!groups.ContainsKey(val)) groups[val] = new List<IndependentTag>();
+                    groups[val].Add(tag);
+                }
+                catch { }
+            }
+
+            // Assign colors
+            var sortedValues = groups.Keys.OrderBy(v => v).ToList();
+            var colorMap = Select.ColorHelper.AssignColors(sortedValues, palette);
+
+            int colored = 0;
+            using (Transaction tx = new Transaction(doc, $"STING Color Tags By {selectedParam}"))
+            {
+                tx.Start();
+                foreach (var kvp in groups)
+                {
+                    Color c = colorMap[kvp.Key];
+                    var ogs = AnnotationColorHelper.BuildAnnotationOverride(c);
+                    foreach (var tag in kvp.Value)
+                    {
+                        try { view.SetElementOverrides(tag.Id, ogs); colored++; }
+                        catch { }
+                    }
+                }
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Colored {colored} tags by '{selectedParam}'");
+            report.AppendLine($"Palette: {paletteName} | Values: {groups.Count}");
+            report.AppendLine();
+            foreach (string val in sortedValues.Take(15))
+            {
+                Color c = colorMap[val];
+                report.AppendLine($"  [{c.Red:D3},{c.Green:D3},{c.Blue:D3}]  {val} ({groups[val].Count})");
+            }
+            if (sortedValues.Count > 15)
+                report.AppendLine($"  ... and {sortedValues.Count - 15} more");
+
+            TaskDialog.Show("Color Tags By Parameter", report.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Batch swap tag types (families) in the active view. Allows changing from one
+    /// tag family to another (e.g., from default tags to STING tags with different
+    /// text styles/sizes). Uses ChangeTypeId on IndependentTag.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SwapTagTypeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Swap Tag Type", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Find all loaded tag families (FamilySymbol for annotation tags)
+            var tagTypes = new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .Where(fs =>
+                {
+                    try { return fs.Family.FamilyCategory?.CategoryType == CategoryType.Annotation; }
+                    catch { return false; }
+                })
+                .OrderBy(fs => fs.Family.Name)
+                .ThenBy(fs => fs.Name)
+                .ToList();
+
+            if (tagTypes.Count < 2)
+            {
+                TaskDialog.Show("Swap Tag Type",
+                    "Need at least 2 annotation tag families loaded.\n" +
+                    "Load additional tag families first.");
+                return Result.Succeeded;
+            }
+
+            // Show current tag type distribution
+            var currentTypes = new Dictionary<string, int>();
+            foreach (var tag in tags)
+            {
+                try
+                {
+                    ElementId typeId = tag.GetTypeId();
+                    Element type = doc.GetElement(typeId);
+                    string typeName = type?.Name ?? "Unknown";
+                    if (!currentTypes.ContainsKey(typeName)) currentTypes[typeName] = 0;
+                    currentTypes[typeName]++;
+                }
+                catch { }
+            }
+
+            // Pick target tag type (top 4 by prevalence)
+            var topTypes = tagTypes.Take(4).ToList();
+            TaskDialog dlg = new TaskDialog("Swap Tag Type");
+            dlg.MainInstruction = $"Change tag type for {tags.Count} tags";
+            dlg.MainContent = "Current types:\n" +
+                string.Join("\n", currentTypes.Select(kvp => $"  {kvp.Key}: {kvp.Value}"));
+            for (int i = 0; i < topTypes.Count; i++)
+            {
+                dlg.AddCommandLink((TaskDialogCommandLinkId)(i + 1001),
+                    $"{topTypes[i].Family.Name}: {topTypes[i].Name}");
+            }
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int picked = -1;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: picked = 0; break;
+                case TaskDialogResult.CommandLink2: picked = 1; break;
+                case TaskDialogResult.CommandLink3: picked = 2; break;
+                case TaskDialogResult.CommandLink4: picked = 3; break;
+                default: return Result.Cancelled;
+            }
+
+            ElementId newTypeId = topTypes[picked].Id;
+            int swapped = 0;
+            int failed = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Swap Tag Type"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        if (tag.GetTypeId() != newTypeId && tag.IsValidType(newTypeId))
+                        {
+                            tag.ChangeTypeId(newTypeId);
+                            swapped++;
+                        }
+                    }
+                    catch
+                    {
+                        failed++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Swap Tag Type",
+                $"Swapped {swapped} tags to '{topTypes[picked].Name}'.\n" +
+                (failed > 0 ? $"Failed: {failed} (incompatible category)." : ""));
+            return Result.Succeeded;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // Statistics / Analysis
+    // ══════════════════════════════════════════════════════════════════
+
     /// <summary>
     /// Quick tag statistics for the active view — shows counts per discipline,
     /// system, level, and overall tag/untag ratio.
@@ -855,25 +2317,25 @@ namespace StingTools.Organise
                 if (!known.Contains(cat)) continue;
 
                 total++;
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (TagConfig.TagIsComplete(tag))
                     tagged++;
                 else
                     untagged++;
 
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 if (!string.IsNullOrEmpty(disc))
                 {
                     if (!byDisc.ContainsKey(disc)) byDisc[disc] = 0;
                     byDisc[disc]++;
                 }
-                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
                 if (!string.IsNullOrEmpty(sys))
                 {
                     if (!bySys.ContainsKey(sys)) bySys[sys] = 0;
                     bySys[sys]++;
                 }
-                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
                 if (!string.IsNullOrEmpty(lvl))
                 {
                     if (!byLvl.ContainsKey(lvl)) byLvl[lvl] = 0;
@@ -946,7 +2408,7 @@ namespace StingTools.Organise
                 // Assembled Tags
                 "ASS_TAG_1 (Full)", "ASS_TAG_2 (Short)", "ASS_TAG_3 (Location)", "ASS_TAG_4 (System)",
                 // Validation
-                "TagValid", "TagComplete", "ValidationIssues",
+                "TagValid", "TagResolved", "TagComplete", "ValidationIssues",
                 // Status & Classification
                 "STATUS", "Mark", "Description", "Manufacturer", "Model",
                 // Spatial
@@ -977,23 +2439,24 @@ namespace StingTools.Organise
                 total++;
 
                 // Tag tokens
-                string disc = Gs(el, "ASS_DISCIPLINE_COD_TXT");
-                string loc = Gs(el, "ASS_LOC_TXT");
-                string zone = Gs(el, "ASS_ZONE_TXT");
-                string lvl = Gs(el, "ASS_LVL_COD_TXT");
-                string sys = Gs(el, "ASS_SYSTEM_TYPE_TXT");
-                string func = Gs(el, "ASS_FUNC_TXT");
-                string prod = Gs(el, "ASS_PRODCT_COD_TXT");
-                string seq = Gs(el, "ASS_SEQ_NUM_TXT");
+                string disc = Gs(el, ParamRegistry.DISC);
+                string loc = Gs(el, ParamRegistry.LOC);
+                string zone = Gs(el, ParamRegistry.ZONE);
+                string lvl = Gs(el, ParamRegistry.LVL);
+                string sys = Gs(el, ParamRegistry.SYS);
+                string func = Gs(el, ParamRegistry.FUNC);
+                string prod = Gs(el, ParamRegistry.PROD);
+                string seq = Gs(el, ParamRegistry.SEQ);
 
                 // Assembled tags
-                string tag1 = Gs(el, "ASS_TAG_1_TXT");
-                string tag2 = Gs(el, "ASS_TAG_2_TXT");
-                string tag3 = Gs(el, "ASS_TAG_3_TXT");
-                string tag4 = Gs(el, "ASS_TAG_4_TXT");
+                string tag1 = Gs(el, ParamRegistry.TAG1);
+                string tag2 = Gs(el, ParamRegistry.TAG2);
+                string tag3 = Gs(el, ParamRegistry.TAG3);
+                string tag4 = Gs(el, ParamRegistry.TAG4);
 
                 // Validation
                 bool isValid = TagConfig.TagIsComplete(tag1);
+                bool isResolved = TagConfig.TagIsFullyResolved(tag1);
                 if (isValid) valid++;
 
                 // Check for empty tokens
@@ -1006,58 +2469,64 @@ namespace StingTools.Organise
                 if (string.IsNullOrEmpty(func)) issues.Add("FUNC");
                 if (string.IsNullOrEmpty(prod)) issues.Add("PROD");
                 if (string.IsNullOrEmpty(seq)) issues.Add("SEQ");
+
+                // Cross-validation (ISO 19650)
+                var isoErrors = ISO19650Validator.ValidateElement(el);
+                if (isoErrors.Count > 0)
+                    issues.AddRange(isoErrors);
+
                 bool isComplete = issues.Count == 0;
                 if (!isComplete) incomplete++;
-                string issueStr = issues.Count > 0 ? "Missing: " + string.Join("; ", issues) : "";
+                string issueStr = issues.Count > 0 ? string.Join("; ", issues) : "";
 
                 // Identity
                 string familyName = ParameterHelpers.GetFamilyName(el);
                 string typeName = ParameterHelpers.GetFamilySymbolName(el);
-                string status = Gs(el, "ASS_STATUS_TXT");
+                string status = Gs(el, ParamRegistry.STATUS);
                 string mark = Gp(el, BuiltInParameter.ALL_MODEL_MARK);
-                string desc = Gs(el, "ASS_DESCRIPTION_TXT");
+                string desc = Gs(el, ParamRegistry.DESC);
                 if (string.IsNullOrEmpty(desc)) desc = Gp(el, BuiltInParameter.ALL_MODEL_DESCRIPTION);
-                string mfr = Gs(el, "ASS_MANUFACTURER_TXT");
+                string mfr = Gs(el, ParamRegistry.MFR);
                 if (string.IsNullOrEmpty(mfr)) mfr = Gp(el, BuiltInParameter.ALL_MODEL_MANUFACTURER);
-                string model = Gs(el, "ASS_MODEL_NR_TXT");
+                string model = Gs(el, ParamRegistry.MODEL);
                 if (string.IsNullOrEmpty(model)) model = Gp(el, BuiltInParameter.ALL_MODEL_MODEL);
 
                 // Spatial
                 string level = ParameterHelpers.GetLevelCode(doc, el);
-                string roomName = Gs(el, "ASS_ROOM_NAME_TXT");
-                if (string.IsNullOrEmpty(roomName)) roomName = Gs(el, "BLE_ROOM_NAME_TXT");
-                string roomNum = Gs(el, "ASS_ROOM_NUM_TXT");
-                if (string.IsNullOrEmpty(roomNum)) roomNum = Gs(el, "BLE_ROOM_NUMBER_TXT");
-                string dept = Gs(el, "ASS_DEPARTMENT_ASSIGNMENT_TXT");
-                string gridRef = Gs(el, "PRJ_GRID_REF_TXT");
+                string roomName = Gs(el, ParamRegistry.ROOM_NAME);
+                if (string.IsNullOrEmpty(roomName)) roomName = Gs(el, ParamRegistry.BLE_ROOM_NAME);
+                string roomNum = Gs(el, ParamRegistry.ROOM_NUM);
+                if (string.IsNullOrEmpty(roomNum)) roomNum = Gs(el, ParamRegistry.BLE_ROOM_NUM);
+                string dept = Gs(el, ParamRegistry.DEPT);
+                string gridRef = Gs(el, ParamRegistry.GRID_REF);
 
                 // Dimensional — try STING params, fallback to built-in
-                string width = GetDim(el, "BLE_DOOR_WIDTH_MM", "BLE_WINDOW_WIDTH_MM",
-                    "BLE_WALL_THICKNESS_MM", "BLE_RAMP_WIDTH_MM", "BLE_STAIR_WIDTH_MM");
-                string height = GetDim(el, "BLE_DOOR_HEIGHT_MM", "BLE_WINDOW_HEIGHT_MM",
-                    "BLE_WALL_HEIGHT_MM", "BLE_CEILING_HEIGHT_MM");
-                string length = GetDim(el, "BLE_WALL_LENGTH_MM", "PLM_PPE_LENGTH_M");
-                string area = Gs(el, "BLE_ELE_AREA_SQ_M");
-                if (string.IsNullOrEmpty(area)) area = Gs(el, "ASS_ROOM_AREA_SQ_M");
-                string thickness = GetDim(el, "BLE_FLR_THICKNESS_MM", "BLE_WALL_THICKNESS_MM");
+                string width = GetDim(el, ParamRegistry.DOOR_WIDTH, ParamRegistry.WINDOW_WIDTH,
+                    ParamRegistry.WALL_THICKNESS, ParamRegistry.RAMP_WIDTH, ParamRegistry.STAIR_WIDTH);
+                string height = GetDim(el, ParamRegistry.DOOR_HEIGHT, ParamRegistry.WINDOW_HEIGHT,
+                    ParamRegistry.WALL_HEIGHT, ParamRegistry.CEILING_HEIGHT);
+                string length = GetDim(el, ParamRegistry.WALL_LENGTH, ParamRegistry.PLM_PIPE_LENGTH);
+                string area = Gs(el, ParamRegistry.ELE_AREA);
+                if (string.IsNullOrEmpty(area)) area = Gs(el, ParamRegistry.ROOM_AREA);
+                string thickness = GetDim(el, ParamRegistry.FLR_THICKNESS, ParamRegistry.WALL_THICKNESS);
 
                 // MEP
                 string sysType = Gp(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM);
                 if (string.IsNullOrEmpty(sysType)) sysType = sys;
-                string size = Gs(el, "ASS_SIZE_TXT");
-                string flow = Gs(el, "HVC_DCT_FLW_CFM");
-                if (string.IsNullOrEmpty(flow)) flow = Gs(el, "PLM_PPE_FLW_LPS");
-                if (string.IsNullOrEmpty(flow)) flow = Gs(el, "HVC_AIRFLOW_LPS");
-                string voltage = Gs(el, "ELC_CKT_VLT_V");
-                if (string.IsNullOrEmpty(voltage)) voltage = Gs(el, "ELC_VLT_PRIMARY_RATING_V");
-                string power = Gs(el, "ELC_CKT_PWR_KW");
+                string size = Gs(el, ParamRegistry.SIZE);
+                string flow = Gs(el, ParamRegistry.HVC_DUCT_FLOW);
+                if (string.IsNullOrEmpty(flow)) flow = Gs(el, ParamRegistry.PLM_PIPE_FLOW);
+                if (string.IsNullOrEmpty(flow)) flow = Gs(el, ParamRegistry.HVC_AIRFLOW);
+                string voltage = Gs(el, ParamRegistry.ELC_VOLTAGE);
+                if (string.IsNullOrEmpty(voltage)) voltage = Gs(el, ParamRegistry.ELC_PNL_VOLTAGE);
+                string power = Gs(el, ParamRegistry.ELC_POWER);
 
                 // Cost & FM
-                string unitPrice = Gs(el, "ASS_CST_UNIT_PRICE_UGX_NR");
-                string typeMark = Gs(el, "ASS_TYPE_MARK_TXT");
-                string keynote = Gs(el, "ASS_KEYNOTE_TXT");
-                string uniformat = Gs(el, "ASS_UNIFORMAT_TXT");
-                string omniclass = Gs(el, "ASS_OMNICLASS_TXT");
+                string unitPrice = Gs(el, ParamRegistry.COST);
+                string typeMark = Gs(el, ParamRegistry.TYPE_MARK);
+                string keynote = Gs(el, ParamRegistry.KEYNOTE);
+                string uniformat = Gs(el, ParamRegistry.UNIFORMAT);
+                string omniclass = Gs(el, ParamRegistry.OMNICLASS);
 
                 // Track discipline counts
                 if (!string.IsNullOrEmpty(disc))
@@ -1084,6 +2553,7 @@ namespace StingTools.Organise
                 sb.Append(Esc(tag3)).Append(',');
                 sb.Append(Esc(tag4)).Append(',');
                 sb.Append(isValid).Append(',');
+                sb.Append(isResolved).Append(',');
                 sb.Append(isComplete).Append(',');
                 sb.Append(Esc(issueStr)).Append(',');
                 sb.Append(status).Append(',');
@@ -1468,7 +2938,8 @@ namespace StingTools.Organise
                     try
                     {
                         // Get the tagged element's location
-                        Element host = doc.GetElement(tag.TaggedLocalElementId);
+                        var _hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
                         if (host == null) continue;
 
                         XYZ center = LeaderHelper.GetElementCenter(host);
@@ -1700,12 +3171,16 @@ namespace StingTools.Organise
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                 "45° (Diagonal)",
                 "Snap elbows to 45° angles (compact, isometric style)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Straight (No Elbow)",
+                "Direct straight line from element to tag head — no elbow bend");
             dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             var result = dlg.Show();
             if (result == TaskDialogResult.Cancel) return Result.Cancelled;
 
             bool use45 = result == TaskDialogResult.CommandLink2;
+            bool useStraight = result == TaskDialogResult.CommandLink3;
             int snapped = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Snap Leader Elbows"))
@@ -1716,7 +3191,8 @@ namespace StingTools.Organise
                     try
                     {
                         // Get tagged element center and tag head
-                        Element host = doc.GetElement(tag.TaggedLocalElementId);
+                        var _hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
                         if (host == null) continue;
 
                         XYZ hostCenter = LeaderHelper.GetElementCenter(host);
@@ -1729,7 +3205,13 @@ namespace StingTools.Organise
 
                         // Calculate snapped elbow position
                         XYZ elbowPos;
-                        if (use45)
+                        if (useStraight)
+                        {
+                            // Straight: place elbow at midpoint of host→tagHead line
+                            // This effectively creates a straight leader (no visible bend)
+                            elbowPos = (hostCenter + tagHead) / 2.0;
+                        }
+                        else if (use45)
                         {
                             // 45° elbow: move along diagonal first, then horizontal
                             double absDx = Math.Abs(delta.X);
@@ -1743,14 +3225,14 @@ namespace StingTools.Organise
                                 // Diagonal from host, then horizontal to tag
                                 elbowPos = new XYZ(
                                     hostCenter.X + diag * signX,
-                                    tagHead.Y,
+                                    hostCenter.Y + diag * signY,
                                     hostCenter.Z);
                             }
                             else
                             {
                                 // Diagonal from host, then vertical to tag
                                 elbowPos = new XYZ(
-                                    tagHead.X,
+                                    hostCenter.X + diag * signX,
                                     hostCenter.Y + diag * signY,
                                     hostCenter.Z);
                             }
@@ -1761,20 +3243,12 @@ namespace StingTools.Organise
                             elbowPos = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
                         }
 
-                        // Set elbow position — try to preserve leader attachment
+                        // Set elbow position via leader end + head position
                         var refs = tag.GetTaggedReferences();
                         if (refs != null && refs.Count > 0)
                         {
-                            try
-                            {
-                                tag.SetLeaderElbow(refs.First(), elbowPos);
-                            }
-                            catch
-                            {
-                                // Some leader states require Free mode for elbow manipulation
-                                tag.LeaderEndCondition = LeaderEndCondition.Free;
-                                tag.SetLeaderElbow(refs.First(), elbowPos);
-                            }
+                            tag.LeaderEndCondition = LeaderEndCondition.Free;
+                            tag.SetLeaderElbow(refs.First(), elbowPos);
                             snapped++;
                         }
                     }
@@ -1786,7 +3260,7 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
-            string angle = use45 ? "45°" : "90°";
+            string angle = useStraight ? "Straight" : use45 ? "45°" : "90°";
             TaskDialog.Show("Snap Elbows",
                 $"Snapped {snapped} of {tags.Count} leader elbows to {angle}.");
             return Result.Succeeded;
@@ -1839,7 +3313,8 @@ namespace StingTools.Organise
                 {
                     try
                     {
-                        Element host = doc.GetElement(tag.TaggedLocalElementId);
+                        var _hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
                         if (host == null) continue;
 
                         XYZ center = LeaderHelper.GetElementCenter(host);
@@ -2077,6 +3552,119 @@ namespace StingTools.Organise
             string action = pin ? "Pinned" : "Unpinned";
             TaskDialog.Show("Pin Tags", $"{action} {modified} of {tags.Count} tags.");
             return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Nudge annotation tags in a specific direction by a small offset.
+    /// Adjusts TagHeadPosition by configurable increments.
+    /// Direction is determined from the command tag dispatched via StingCommandHandler.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class NudgeTagsCommand : IExternalCommand
+    {
+        /// <summary>Nudge amount in feet (1/4 inch = 0.0208 ft, approx 6.35mm).</summary>
+        private const double SmallNudge = 0.0208;
+        /// <summary>Medium nudge (1 inch = 0.0833 ft, approx 25mm).</summary>
+        private const double MediumNudge = 0.0833;
+        /// <summary>Large nudge (3 inches = 0.25 ft, approx 76mm).</summary>
+        private const double LargeNudge = 0.25;
+
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            var tags = LeaderHelper.GetSelectedTags(uidoc);
+            if (tags.Count == 0)
+            {
+                // Fall back to all tags in view
+                tags = LeaderHelper.GetTargetTags(uidoc);
+            }
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Nudge Tags", "No annotation tags found. Select tags first.");
+                return Result.Succeeded;
+            }
+
+            // Ask direction if not evident from dispatch
+            TaskDialog dlg = new TaskDialog("Nudge Tags");
+            dlg.MainInstruction = $"Nudge {tags.Count} tags";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "↑ Up", "Move tags upward in the view");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "↓ Down", "Move tags downward in the view");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "← Left", "Move tags to the left");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "→ Right", "Move tags to the right");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            XYZ direction;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: direction = XYZ.BasisY; break;  // Up
+                case TaskDialogResult.CommandLink2: direction = -XYZ.BasisY; break; // Down
+                case TaskDialogResult.CommandLink3: direction = -XYZ.BasisX; break; // Left
+                case TaskDialogResult.CommandLink4: direction = XYZ.BasisX; break;  // Right
+                default: return Result.Cancelled;
+            }
+
+            int nudged = 0;
+            XYZ offset = direction * MediumNudge;
+
+            using (Transaction tx = new Transaction(doc, "STING Nudge Tags"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        XYZ current = tag.TagHeadPosition;
+                        tag.TagHeadPosition = current + offset;
+                        nudged++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Nudge tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            StingLog.Info($"NudgeTags: direction={direction}, nudged={nudged}");
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Static nudge by direction string — called from StingCommandHandler inline.
+        /// </summary>
+        public static int NudgeInDirection(Document doc, View view, List<IndependentTag> tags, string direction)
+        {
+            XYZ offset;
+            switch (direction?.ToUpperInvariant())
+            {
+                case "UP": offset = XYZ.BasisY * MediumNudge; break;
+                case "DOWN": offset = -XYZ.BasisY * MediumNudge; break;
+                case "LEFT": offset = -XYZ.BasisX * MediumNudge; break;
+                case "RIGHT": offset = XYZ.BasisX * MediumNudge; break;
+                case "NEAR": offset = XYZ.BasisY * SmallNudge; break;
+                case "FAR": offset = -XYZ.BasisY * SmallNudge; break;
+                default: return 0;
+            }
+
+            int nudged = 0;
+            foreach (IndependentTag tag in tags)
+            {
+                try
+                {
+                    tag.TagHeadPosition = tag.TagHeadPosition + offset;
+                    nudged++;
+                }
+                catch { }
+            }
+            return nudged;
         }
     }
 

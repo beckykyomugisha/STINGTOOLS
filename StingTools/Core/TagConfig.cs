@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Newtonsoft.Json;
 
 namespace StingTools.Core
@@ -37,6 +38,9 @@ namespace StingTools.Core
         public readonly Dictionary<string, int> TaggedBySys = new Dictionary<string, int>();
         public readonly Dictionary<string, int> TaggedByLevel = new Dictionary<string, int>();
         public readonly Dictionary<string, int> SkippedByCategory = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> OverwrittenByDisc = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> OverwrittenBySys = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> OverwrittenByLevel = new Dictionary<string, int>();
         public readonly List<string> Warnings = new List<string>();
         public readonly List<(string tag, int depth)> CollisionDetails = new List<(string, int)>();
 
@@ -59,17 +63,30 @@ namespace StingTools.Core
         {
             TotalOverwritten++;
             Increment(TaggedByCategory, category);
-            if (!string.IsNullOrEmpty(disc)) Increment(TaggedByDisc, disc);
-            if (!string.IsNullOrEmpty(sys)) Increment(TaggedBySys, sys);
-            if (!string.IsNullOrEmpty(lvl)) Increment(TaggedByLevel, lvl);
+            if (!string.IsNullOrEmpty(disc)) Increment(OverwrittenByDisc, disc);
+            if (!string.IsNullOrEmpty(sys)) Increment(OverwrittenBySys, sys);
+            if (!string.IsNullOrEmpty(lvl)) Increment(OverwrittenByLevel, lvl);
         }
 
         public void RecordCollision(string tag, int depth)
         {
             TotalCollisions++;
             if (depth > MaxCollisionDepth) MaxCollisionDepth = depth;
-            if (CollisionDetails.Count < 50) // Cap detail collection
+            // Keep the top 20 collisions by depth (deepest = most concerning)
+            if (CollisionDetails.Count < 20)
+            {
                 CollisionDetails.Add((tag, depth));
+            }
+            else
+            {
+                // Replace the shallowest collision if this one is deeper
+                int minIdx = 0;
+                for (int i = 1; i < CollisionDetails.Count; i++)
+                    if (CollisionDetails[i].depth < CollisionDetails[minIdx].depth)
+                        minIdx = i;
+                if (depth > CollisionDetails[minIdx].depth)
+                    CollisionDetails[minIdx] = (tag, depth);
+            }
         }
 
         public void RecordWarning(string warning)
@@ -89,10 +106,11 @@ namespace StingTools.Core
             if (TotalCollisions > 0)
             {
                 sb.AppendLine($"  Collisions:   {TotalCollisions:N0} resolved (max depth: {MaxCollisionDepth})");
-                foreach (var (tag, depth) in CollisionDetails.Take(5))
+                // Show top 5 deepest collisions (most concerning)
+                foreach (var (tag, depth) in CollisionDetails.OrderByDescending(c => c.depth).Take(5))
                     sb.AppendLine($"    • {tag} (bumped {depth}×)");
-                if (CollisionDetails.Count > 5)
-                    sb.AppendLine($"    ... and {CollisionDetails.Count - 5} more");
+                if (TotalCollisions > 5)
+                    sb.AppendLine($"    ... and {TotalCollisions - 5} more");
             }
 
             if (TaggedByDisc.Count > 0)
@@ -114,6 +132,13 @@ namespace StingTools.Core
                 sb.AppendLine();
                 sb.AppendLine("  By Level:");
                 foreach (var kvp in TaggedByLevel.OrderBy(x => x.Key))
+                    sb.AppendLine($"    {kvp.Key,-6} {kvp.Value,5}");
+            }
+            if (TotalOverwritten > 0 && OverwrittenByDisc.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("  Overwritten By Discipline:");
+                foreach (var kvp in OverwrittenByDisc.OrderByDescending(x => x.Value))
                     sb.AppendLine($"    {kvp.Key,-6} {kvp.Value,5}");
             }
             if (Warnings.Count > 0)
@@ -173,11 +198,12 @@ namespace StingTools.Core
         /// </summary>
         public static readonly HashSet<string> ValidFuncCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "SUP", "RTN", "EXH", "FRA", // HVAC sub-functions (supply, return, exhaust, fresh air)
-            "HTG", "DHW",               // HWS sub-functions (heating, domestic hot water)
-            "DCW", "SAN", "RWD", "GAS", "FP", "PWR", "LTG", "FLS",
+            "SUP", "HTG", "DCW", "SAN", "RWD", "GAS", "FP", "PWR", "FLS",
             "COM", "ICT", "NCL", "SEC",
-            "FIT", "STR", "GEN", ""
+            "FIT", "STR", "GEN",
+            // Subsystem FUNC codes from GetSmartFuncCode HVAC/HWS differentiation
+            "EXH", "RTN", "FRA", "DHW",
+            ""
         };
 
         /// <summary>
@@ -191,37 +217,49 @@ namespace StingTools.Core
 
             switch (tokenName)
             {
-                case "ASS_DISCIPLINE_COD_TXT":
+                case ParamRegistry.DISC:
                     if (!ValidDiscCodes.Contains(value))
                         return $"DISC '{value}' not in valid set ({string.Join(",", ValidDiscCodes)})";
                     break;
-                case "ASS_LOC_TXT":
+                case ParamRegistry.LOC:
                     if (!TagConfig.LocCodes.Contains(value))
                         return $"LOC '{value}' not in valid set ({string.Join(",", TagConfig.LocCodes)})";
                     break;
-                case "ASS_ZONE_TXT":
+                case ParamRegistry.ZONE:
                     if (!TagConfig.ZoneCodes.Contains(value))
                         return $"ZONE '{value}' not in valid set ({string.Join(",", TagConfig.ZoneCodes)})";
                     break;
-                case "ASS_SYSTEM_TYPE_TXT":
+                case ParamRegistry.SYS:
                     if (!ValidSysCodes.Contains(value))
                         return $"SYS '{value}' not in valid set ({string.Join(",", ValidSysCodes)})";
                     break;
-                case "ASS_FUNC_TXT":
+                case ParamRegistry.FUNC:
                     if (!ValidFuncCodes.Contains(value))
                         return $"FUNC '{value}' not in valid set ({string.Join(",", ValidFuncCodes)})";
                     break;
-                case "ASS_LVL_COD_TXT":
-                    // LVL codes: L01-L99, GF, B1-B9, RF, XX, or up to 4 uppercase chars
+                case ParamRegistry.LVL:
+                    // Valid LVL codes: L01-L99, GF, LG, UG, B1-B9, SB, RF, PH, AT, TR, POD, MZ, PL, XX
                     if (value.Length > 4 || value.Contains(" "))
                         return $"LVL '{value}' exceeds 4-char limit or contains spaces";
+                    // Warn on known placeholder
+                    if (value == "XX")
+                        return null; // XX is valid but a placeholder
+                    // Check against known patterns
+                    bool isKnownLvl = value == "GF" || value == "RF" || value == "LG" ||
+                        value == "UG" || value == "MZ" || value == "PL" || value == "PH" ||
+                        value == "AT" || value == "TR" || value == "POD" ||
+                        (value.StartsWith("L") && value.Length <= 3 && value.Substring(1).All(char.IsDigit)) ||
+                        (value.StartsWith("B") && value.Length <= 2 && value.Substring(1).All(char.IsDigit)) ||
+                        (value.StartsWith("SB") && (value.Length == 2 || value.Substring(2).All(char.IsDigit)));
+                    if (!isKnownLvl && !value.All(c => char.IsLetterOrDigit(c)))
+                        return $"LVL '{value}' contains invalid characters";
                     break;
-                case "ASS_PRODCT_COD_TXT":
+                case ParamRegistry.PROD:
                     // PROD codes: 2-4 uppercase alphanumeric
                     if (value.Length < 2 || value.Length > 4)
                         return $"PROD '{value}' should be 2-4 characters";
                     break;
-                case "ASS_SEQ_NUM_TXT":
+                case ParamRegistry.SEQ:
                     if (!int.TryParse(value, out _))
                         return $"SEQ '{value}' is not a valid number";
                     break;
@@ -236,8 +274,14 @@ namespace StingTools.Core
         public static List<string> ValidateElement(Element el)
         {
             var errors = new List<string>();
+            string[] tokenParams = new[]
+            {
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.SEQ,
+            };
 
-            foreach (string param in TagConfig.TokenParamNames)
+            foreach (string param in tokenParams)
             {
                 string val = ParameterHelpers.GetString(el, param);
                 string error = ValidateToken(param, val);
@@ -247,7 +291,7 @@ namespace StingTools.Core
 
             // Cross-validate: DISC must match element category
             string catName = ParameterHelpers.GetCategoryName(el);
-            string disc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
+            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
             if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(disc))
             {
                 string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : null;
@@ -255,25 +299,38 @@ namespace StingTools.Core
                     errors.Add($"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'");
             }
 
-            // Cross-validate: SYS should be valid for the element's DISC
-            // (MEP system-aware detection may set SYS different from category default,
-            // e.g., a pipe connected to HWS system gets SYS=HWS instead of category default DCW)
-            string sys = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
-            if (!string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(sys))
+            // Cross-validate: SYS should match category
+            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+            if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(sys))
             {
-                var validSysForDisc = new Dictionary<string, HashSet<string>>
+                string expectedSys = TagConfig.GetSysCode(catName);
+                if (!string.IsNullOrEmpty(expectedSys) && expectedSys != sys)
+                    errors.Add($"SYS mismatch: category '{catName}' expects '{expectedSys}' but has '{sys}'");
+            }
+
+            // Cross-validate: PROD should be consistent with DISC/SYS
+            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+            if (!string.IsNullOrEmpty(prod) && !string.IsNullOrEmpty(disc))
+            {
+                string prodError = ValidateProdForDisc(prod, disc);
+                if (prodError != null)
+                    errors.Add(prodError);
+            }
+
+            // Cross-validate: FUNC should be consistent with SYS
+            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+            if (!string.IsNullOrEmpty(func) && !string.IsNullOrEmpty(sys))
+            {
+                string expectedFunc = TagConfig.GetFuncCode(sys);
+                // Allow smart FUNC codes (EXH, RTN, FRA, DHW) as valid overrides
+                if (!string.IsNullOrEmpty(expectedFunc) && expectedFunc != func)
                 {
-                    { "M", new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN" } },
-                    { "E", new HashSet<string> { "LV", "FLS", "SEC", "ICT", "COM", "NCL" } },
-                    { "P", new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS" } },
-                    { "FP", new HashSet<string> { "FP", "FLS" } },
-                    { "A", new HashSet<string> { "ARC" } },
-                    { "S", new HashSet<string> { "STR" } },
-                    { "LV", new HashSet<string> { "LV", "ICT", "COM", "SEC", "NCL" } },
-                    { "G", new HashSet<string> { "GEN" } },
-                };
-                if (validSysForDisc.TryGetValue(disc, out var validSys) && !validSys.Contains(sys))
-                    errors.Add($"SYS '{sys}' not valid for DISC '{disc}' (expected: {string.Join("/", validSys)})");
+                    // Only flag if FUNC doesn't belong to any related system
+                    bool isSmartFunc = (sys == "HVAC" && (func == "SUP" || func == "RTN" || func == "EXH" || func == "FRA")) ||
+                                       (sys == "HWS" && (func == "HTG" || func == "DHW"));
+                    if (!isSmartFunc)
+                        errors.Add($"FUNC '{func}' unexpected for SYS '{sys}' (expected '{expectedFunc}')");
+                }
             }
 
             return errors;
@@ -288,7 +345,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(tag))
                 return "Tag is empty";
 
-            string[] parts = tag.Split(new[] { TagConfig.Separator }, StringSplitOptions.None);
+            string[] parts = tag.Split('-');
             if (parts.Length != 8)
                 return $"Tag has {parts.Length} segments (expected 8): {tag}";
 
@@ -298,26 +355,73 @@ namespace StingTools.Core
                     return $"Segment {i + 1} is empty in tag: {tag}";
             }
 
-            // Validate all 8 segments against their respective token rules
-            string discError = ValidateToken("ASS_DISCIPLINE_COD_TXT", parts[0]);
+            // Validate individual segments
+            string discError = ValidateToken(ParamRegistry.DISC, parts[0]);
             if (discError != null) return discError;
 
-            string locError = ValidateToken("ASS_LOC_TXT", parts[1]);
+            string locError = ValidateToken(ParamRegistry.LOC, parts[1]);
             if (locError != null) return locError;
 
-            string zoneError = ValidateToken("ASS_ZONE_TXT", parts[2]);
+            string zoneError = ValidateToken(ParamRegistry.ZONE, parts[2]);
             if (zoneError != null) return zoneError;
 
-            string sysError = ValidateToken("ASS_SYSTEM_TYPE_TXT", parts[4]);
-            if (sysError != null) return sysError;
-
-            string funcError = ValidateToken("ASS_FUNC_TXT", parts[5]);
-            if (funcError != null) return funcError;
-
-            string seqError = ValidateToken("ASS_SEQ_NUM_TXT", parts[7]);
+            string seqError = ValidateToken(ParamRegistry.SEQ, parts[7]);
             if (seqError != null) return seqError;
 
             return null; // valid
+        }
+
+        /// <summary>Known PROD codes by discipline group for cross-validation.</summary>
+        private static readonly Dictionary<string, HashSet<string>> ProdCodesByDisc =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "M", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "AHU", "FCU", "VAV", "CHR", "BLR", "PMP", "FAN", "HRU", "SPL", "GRL",
+                    "DAC", "DFT", "DU", "FDU", "IND", "RAD", "DAM", "CLT", "VFD", "GEN" } },
+                { "E", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "DB", "MCC", "MSB", "SWB", "UPS", "TRF", "ATS", "VFD", "SPD", "RCD",
+                    "ISO", "SFS", "BKP", "SKT", "LUM", "LDV", "DWN", "LIN", "SPT", "WSH",
+                    "BOL", "UPL", "FLD", "EML", "TRK", "DEC", "CDT", "CFT", "CBLT", "CTF", "GEN" } },
+                { "P", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "PP", "PFT", "PAC", "FPP", "FIX", "WC", "WHB", "URN", "SNK", "SHW",
+                    "BTH", "DRK", "CWL", "TRP", "BID", "EWS", "MOP", "GEN" } },
+                { "FP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "SPR", "FAD", "SML", "MCP", "BLL", "STB", "HTD", "FIM", "PP", "PFT",
+                    "PAC", "GEN" } },
+                { "A", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "DR", "WIN", "WL", "FL", "CLG", "RF", "RM", "FUR", "FUS", "CWK",
+                    "RLG", "STR", "RMP", "CPN", "MUL", "CWS", "GEN" } },
+                { "S", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "COL", "BM", "FDN", "GEN" } },
+                { "LV", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                    "COM", "DAT", "NCL", "SEC", "TEL", "DB", "SKT", "LUM", "LDV",
+                    "CDT", "CFT", "CBLT", "CTF", "GEN" } },
+            };
+
+        /// <summary>
+        /// Validate that a PROD code is reasonable for the given DISC.
+        /// Returns null if valid, error message if mismatched.
+        /// Only flags clear mismatches (e.g., plumbing PROD on an M element).
+        /// </summary>
+        private static string ValidateProdForDisc(string prod, string disc)
+        {
+            // GEN is valid for all disciplines
+            if (prod == "GEN" || prod == "SPE" || prod == "MED") return null;
+            // If we don't have a mapping for this discipline, skip
+            if (!ProdCodesByDisc.TryGetValue(disc, out var validProds)) return null;
+            // VFD appears in both M and E — skip cross-disc check for shared codes
+            if (prod == "VFD" || prod == "PMP") return null;
+            // Only flag if the PROD is known to belong exclusively to a different discipline
+            if (!validProds.Contains(prod))
+            {
+                // Check if the PROD belongs to a clearly different discipline
+                foreach (var kvp in ProdCodesByDisc)
+                {
+                    if (kvp.Key != disc && kvp.Value.Contains(prod))
+                        return $"PROD '{prod}' typically belongs to DISC '{kvp.Key}', not '{disc}'";
+                }
+            }
+            return null;
         }
     }
 
@@ -330,57 +434,7 @@ namespace StingTools.Core
     {
         public const int NumPad = 4;
         public const string Separator = "-";
-
-        /// <summary>All 15 tag-related parameters (6 containers + 8 tokens + 1 status). Used for clear/delete/swap.</summary>
-        public static readonly string[] AllTagParams = new[]
-        {
-            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
-        };
-
-        /// <summary>Copyable token parameters (excludes SEQ and assembled tags to prevent duplicates).</summary>
-        public static readonly string[] CopyableTokenParams = new[]
-        {
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_STATUS_TXT",
-        };
-
-        /// <summary>The 8 tag-building token parameters (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ) in tag segment order.</summary>
-        public static readonly string[] TokenParamNames = new[]
-        {
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-        };
-
-        // ── Token sub-arrays for container combine operations ──────────────
-        /// <summary>Short ID tokens: DISC-PROD-SEQ.</summary>
-        public static readonly string[] ShortIdTokens = new[]
-        { "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" };
-
-        /// <summary>Location tokens: LOC-ZONE-LVL.</summary>
-        public static readonly string[] LocationTokens = new[]
-        { "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT" };
-
-        /// <summary>System tokens: SYS-FUNC.</summary>
-        public static readonly string[] SystemTokens = new[]
-        { "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT" };
-
-        /// <summary>Multi-line top: DISC-LOC-ZONE-LVL.</summary>
-        public static readonly string[] Line1Tokens = new[]
-        { "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT" };
-
-        /// <summary>Multi-line bottom: SYS-FUNC-PROD-SEQ.</summary>
-        public static readonly string[] Line2Tokens = new[]
-        { "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" };
-
-        /// <summary>System reference tokens: SYS-FUNC-PROD.</summary>
-        public static readonly string[] SysRefTokens = new[]
-        { "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT" };
+        public const int MaxCollisionDepth = 10000;
 
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
         public static Dictionary<string, string> DiscMap { get; private set; }
@@ -402,9 +456,30 @@ namespace StingTools.Core
 
         public static string ConfigSource { get; private set; }
 
+        /// <summary>Reverse lookup: category name → SYS code. Built lazily from SysMap.</summary>
+        private static Dictionary<string, string> _reverseSysMap;
+
         static TagConfig()
         {
             LoadDefaults();
+        }
+
+        /// <summary>Build or return the cached reverse SysMap (category → SYS code).</summary>
+        private static Dictionary<string, string> GetReverseSysMap()
+        {
+            if (_reverseSysMap == null)
+            {
+                _reverseSysMap = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var kvp in SysMap)
+                {
+                    foreach (string cat in kvp.Value)
+                    {
+                        if (!_reverseSysMap.ContainsKey(cat))
+                            _reverseSysMap[cat] = kvp.Key;
+                    }
+                }
+            }
+            return _reverseSysMap;
         }
 
         /// <summary>Load from a JSON config file, falling back to defaults.</summary>
@@ -432,8 +507,8 @@ namespace StingTools.Core
                 FuncMap = TryDeserialize<Dictionary<string, string>>(data, "FUNC_MAP") ?? DefaultFuncMap();
                 LocCodes = TryDeserialize<List<string>>(data, "LOC_CODES") ?? DefaultLocCodes();
                 ZoneCodes = TryDeserialize<List<string>>(data, "ZONE_CODES") ?? DefaultZoneCodes();
+                _reverseSysMap = null; // Invalidate cache
                 ConfigSource = "project_config.json";
-                _sysReverseLookup = null; // Invalidate reverse lookup cache
             }
             catch (Exception ex)
             {
@@ -450,32 +525,15 @@ namespace StingTools.Core
             FuncMap = DefaultFuncMap();
             LocCodes = DefaultLocCodes();
             ZoneCodes = DefaultZoneCodes();
+            _reverseSysMap = null; // Invalidate cache
             ConfigSource = "built-in defaults";
-            _sysReverseLookup = null; // Invalidate reverse lookup cache
         }
 
-        // Reverse lookup cache: category name → SYS code (rebuilt when SysMap changes)
-        private static Dictionary<string, string> _sysReverseLookup;
-
-        private static void RebuildSysReverseLookup()
-        {
-            var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            if (SysMap != null)
-            {
-                foreach (var kvp in SysMap)
-                    foreach (string cat in kvp.Value)
-                        if (!lookup.ContainsKey(cat))
-                            lookup[cat] = kvp.Key;
-            }
-            _sysReverseLookup = lookup;
-        }
-
-        /// <summary>Get the SYS code for a category name. Uses O(1) cached reverse lookup.</summary>
+        /// <summary>Get the SYS code for a category name. O(1) via cached reverse lookup.</summary>
         public static string GetSysCode(string categoryName)
         {
-            if (_sysReverseLookup == null)
-                RebuildSysReverseLookup();
-            return _sysReverseLookup.TryGetValue(categoryName, out string code) ? code : string.Empty;
+            var reverse = GetReverseSysMap();
+            return reverse.TryGetValue(categoryName, out string sys) ? sys : string.Empty;
         }
 
         /// <summary>Get the FUNC code for a SYS code (basic lookup).</summary>
@@ -553,7 +611,7 @@ namespace StingTools.Core
                 if (familyName.Contains("RETURN") || familyName.Contains("RETURN GRILLE")) return "RTN";
                 if (familyName.Contains("EXHAUST") || familyName.Contains("EXTRACT FAN")) return "EXH";
             }
-            catch (Exception ex) { StingLog.Warn("HVAC sub-function detection failed: " + ex.Message); }
+            catch { }
             return null;
         }
 
@@ -586,7 +644,7 @@ namespace StingTools.Core
                 if (familyName.Contains("RADIATOR") || familyName.Contains("UNDERFLOOR")) return "HTG";
                 if (familyName.Contains("CALORIFIER") || familyName.Contains("WATER HEATER")) return "DHW";
             }
-            catch (Exception ex) { StingLog.Warn("HWS sub-function detection failed: " + ex.Message); }
+            catch { }
             return null;
         }
 
@@ -607,7 +665,7 @@ namespace StingTools.Core
             {
                 string upper = familyName.ToUpperInvariant();
 
-                // Mechanical Equipment — distinguish AHU, FCU, VAV, CHR, BLR, PMP, FAN
+                // Mechanical Equipment — distinguish AHU, FCU, VAV, CHR, BLR, PMP, FAN, etc.
                 if (categoryName == "Mechanical Equipment")
                 {
                     if (upper.Contains("FCU") || upper.Contains("FAN COIL")) return "FCU";
@@ -618,9 +676,14 @@ namespace StingTools.Core
                     if (upper.Contains("FAN") || upper.Contains("EXF")) return "FAN";
                     if (upper.Contains("HRU") || upper.Contains("HEAT RECOVERY")) return "HRU";
                     if (upper.Contains("SPLIT") || upper.Contains("CASSETTE")) return "SPL";
+                    if (upper.Contains("INDUCTION")) return "IND";
+                    if (upper.Contains("RADIANT") || upper.Contains("RAD PANEL")) return "RAD";
+                    if (upper.Contains("DAMPER") || upper.Contains("DAM")) return "DAM";
+                    if (upper.Contains("COOLING TOWER") || upper.Contains("CLT")) return "CLT";
+                    if (upper.Contains("VFD") || upper.Contains("VARIABLE FREQ") || upper.Contains("INVERTER")) return "VFD";
                     if (upper.Contains("AHU") || upper.Contains("AIR HANDLING")) return "AHU";
                 }
-                // Electrical Equipment — distinguish DB, MCC, MSB, SWB, UPS, TRF, GEN
+                // Electrical Equipment — distinguish DB, MCC, MSB, SWB, UPS, TRF, GEN, etc.
                 else if (categoryName == "Electrical Equipment")
                 {
                     if (upper.Contains("MCC") || upper.Contains("MOTOR CONTROL")) return "MCC";
@@ -630,17 +693,29 @@ namespace StingTools.Core
                     if (upper.Contains("TRANSFORMER") || upper.Contains("TRF")) return "TRF";
                     if (upper.Contains("GENERATOR") || upper.Contains("GEN SET")) return "GEN";
                     if (upper.Contains("ATS") || upper.Contains("AUTO TRANSFER")) return "ATS";
+                    if (upper.Contains("VFD") || upper.Contains("VARIABLE FREQ") || upper.Contains("DRIVE")) return "VFD";
+                    if (upper.Contains("SPD") || upper.Contains("SURGE")) return "SPD";
+                    if (upper.Contains("RCD") || upper.Contains("RESIDUAL")) return "RCD";
+                    if (upper.Contains("ISOLAT") || upper.Contains("DISCONNECT")) return "ISO";
+                    if (upper.Contains("SOFT START")) return "SFS";
+                    if (upper.Contains("BATTERY") || upper.Contains("BKP")) return "BKP";
                     if (upper.Contains("DB") || upper.Contains("DISTRIBUTION")) return "DB";
                 }
-                // Lighting — distinguish LUM, EML, DEC, TRK
+                // Lighting — distinguish LUM, EML, DEC, TRK, DWN, LIN, SPT, etc.
                 else if (categoryName == "Lighting Fixtures")
                 {
                     if (upper.Contains("EMERGENCY") || upper.Contains("EML") || upper.Contains("EXIT")) return "EML";
                     if (upper.Contains("TRACK") || upper.Contains("TRK")) return "TRK";
                     if (upper.Contains("DECORATIVE") || upper.Contains("PENDANT") || upper.Contains("CHANDELIER")) return "DEC";
                     if (upper.Contains("DOWNLIGHT") || upper.Contains("RECESSED")) return "DWN";
+                    if (upper.Contains("LINEAR") || upper.Contains("CONTINUOUS") || upper.Contains("BATTEN")) return "LIN";
+                    if (upper.Contains("SPOTLIGHT") || upper.Contains("PROJECTOR")) return "SPT";
+                    if (upper.Contains("WALL") && (upper.Contains("WASH") || upper.Contains("LIGHT"))) return "WSH";
+                    if (upper.Contains("BOLLARD")) return "BOL";
+                    if (upper.Contains("UPLIGHT") || upper.Contains("UPLIGHTER")) return "UPL";
+                    if (upper.Contains("FLOOD") || upper.Contains("FLOODLIGHT")) return "FLD";
                 }
-                // Plumbing Fixtures — distinguish WC, WHB, URN, SNK, SHW, BTH
+                // Plumbing Fixtures — distinguish WC, WHB, URN, SNK, SHW, BTH, etc.
                 else if (categoryName == "Plumbing Fixtures")
                 {
                     if (upper.Contains("WC") || upper.Contains("WATER CLOSET") || upper.Contains("TOILET")) return "WC";
@@ -650,14 +725,31 @@ namespace StingTools.Core
                     if (upper.Contains("SHOWER") || upper.Contains("SHW")) return "SHW";
                     if (upper.Contains("BATH") || upper.Contains("BTH")) return "BTH";
                     if (upper.Contains("DRINKING") || upper.Contains("FOUNTAIN")) return "DRK";
+                    if (upper.Contains("COOLER") || upper.Contains("WATER COOLER")) return "CWL";
+                    if (upper.Contains("GREASE") || upper.Contains("TRAP")) return "TRP";
+                    if (upper.Contains("BIDET")) return "BID";
+                    if (upper.Contains("EYEWASH") || upper.Contains("EYE WASH")) return "EWS";
+                    if (upper.Contains("MOP") && upper.Contains("SINK")) return "MOP";
                 }
-                // Fire Alarm — distinguish FAD, SML, MCP, BLL
+                // Fire Alarm — distinguish FAD, SML, MCP, BLL, STB, etc.
                 else if (categoryName == "Fire Alarm Devices")
                 {
                     if (upper.Contains("SMOKE") || upper.Contains("DETECTOR") || upper.Contains("SML")) return "SML";
                     if (upper.Contains("MCP") || upper.Contains("CALL POINT") || upper.Contains("MANUAL")) return "MCP";
                     if (upper.Contains("BELL") || upper.Contains("SOUNDER") || upper.Contains("BLL")) return "BLL";
                     if (upper.Contains("STROBE") || upper.Contains("BEACON")) return "STB";
+                    if (upper.Contains("HEAT") && upper.Contains("DETECT")) return "HTD";
+                    if (upper.Contains("INTERFACE") || upper.Contains("MODULE")) return "FIM";
+                }
+                // Pipe Accessories — distinguish valve types
+                else if (categoryName == "Pipe Accessories")
+                {
+                    if (upper.Contains("BALANCING") || upper.Contains("BLV")) return "BLV";
+                    if (upper.Contains("TRV") || upper.Contains("THERMOSTATIC") || upper.Contains("RADIATOR VALVE")) return "TRV";
+                    if (upper.Contains("ISOLATION") || upper.Contains("GATE") || upper.Contains("BALL")) return "IVL";
+                    if (upper.Contains("CHECK") || upper.Contains("NON RETURN") || upper.Contains("NRV")) return "NRV";
+                    if (upper.Contains("PRESSURE REDUC") || upper.Contains("PRV")) return "PRV";
+                    if (upper.Contains("STRAINER") || upper.Contains("FILTER")) return "STN";
                 }
             }
 
@@ -680,6 +772,26 @@ namespace StingTools.Core
             for (int i = 0; i < parts.Length; i++)
             {
                 if (string.IsNullOrWhiteSpace(parts[i]))
+                    return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Strict tag completeness check. In addition to the standard check,
+        /// rejects tags where any segment is a placeholder ("XX", "ZZ", "0000").
+        /// Useful for compliance dashboards that require fully-resolved tags.
+        /// </summary>
+        public static bool TagIsFullyResolved(string tagValue, int expectedTokens = 8)
+        {
+            if (!TagIsComplete(tagValue, expectedTokens))
+                return false;
+            string[] parts = tagValue.Split(new[] { Separator[0] });
+            // Reject placeholder segments
+            var placeholders = new HashSet<string> { "XX", "ZZ", "0000" };
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (placeholders.Contains(parts[i]))
                     return false;
             }
             return true;
@@ -724,15 +836,8 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(catName) || !DiscMap.ContainsKey(catName))
                 return false;
 
-            // Skip elements in non-primary design options to avoid double-tagging
-            if (ParameterHelpers.IsInNonPrimaryDesignOption(el))
-            {
-                stats?.RecordSkipped(catName);
-                return false;
-            }
-
             // Handle already-tagged elements based on collision mode
-            string existingTag = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
+            string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
             bool hasCompleteTag = TagIsComplete(existingTag);
 
             if (hasCompleteTag)
@@ -750,59 +855,65 @@ namespace StingTools.Core
                         }
                         break;
                     case TagCollisionMode.Overwrite:
-                        // RecordOverwritten deferred until after disc/sys/lvl are derived
+                        // Record with existing token values being overwritten
+                        stats?.RecordOverwritten(catName,
+                            ParameterHelpers.GetString(el, ParamRegistry.DISC),
+                            ParameterHelpers.GetString(el, ParamRegistry.SYS),
+                            ParameterHelpers.GetString(el, ParamRegistry.LVL));
                         break; // Proceed to overwrite
                 }
             }
 
             bool overwriteTokens = (collisionMode == TagCollisionMode.Overwrite);
 
-            // Derive fresh values from intelligence layers
-            string derivedDisc = DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-            string derivedSys = GetMepSystemAwareSysCode(el, catName);
-            string derivedFunc = GetSmartFuncCode(el, derivedSys);
-            string derivedProd = GetFamilyAwareProdCode(el, catName);
-            string derivedLvl = ParameterHelpers.GetLevelCode(doc, el);
-
-            // When not overwriting, prefer existing token values on the element
-            // so the assembled tag matches what FamilyStagePopulate or the user set.
-            // Only fall back to derived values when the element parameter is empty.
-            string disc, loc, zone, lvl, sys, func, prod;
-            if (overwriteTokens)
-            {
-                disc = derivedDisc;
-                sys = derivedSys;
-                func = derivedFunc;
-                prod = derivedProd;
-                lvl = derivedLvl;
-            }
-            else
-            {
-                string existDisc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
-                disc = !string.IsNullOrEmpty(existDisc) ? existDisc : derivedDisc;
-                string existSys = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
-                sys = !string.IsNullOrEmpty(existSys) ? existSys : derivedSys;
-                string existFunc = ParameterHelpers.GetString(el, "ASS_FUNC_TXT");
-                func = !string.IsNullOrEmpty(existFunc) ? existFunc : derivedFunc;
-                string existProd = ParameterHelpers.GetString(el, "ASS_PRODCT_COD_TXT");
-                prod = !string.IsNullOrEmpty(existProd) ? existProd : derivedProd;
-                string existLvl = ParameterHelpers.GetString(el, "ASS_LVL_COD_TXT");
-                lvl = !string.IsNullOrEmpty(existLvl) ? existLvl : derivedLvl;
-            }
-
-            loc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
-            if (string.IsNullOrEmpty(loc)) loc = "BLD1";
-            zone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
-            if (string.IsNullOrEmpty(zone)) zone = "Z01";
+            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "XX";
 
             // Intelligence Layer: cross-validate DISC against element category
             if (stats != null && disc == "XX")
                 stats.RecordWarning($"Element {el.Id}: category '{catName}' has no DISC mapping");
 
+            string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+            if (string.IsNullOrEmpty(loc)) loc = LocCodes.Count > 0 ? LocCodes[0] : "BLD1";
+            string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+            if (string.IsNullOrEmpty(zone)) zone = ZoneCodes.Count > 0 ? ZoneCodes[0] : "Z01";
+            string lvl = ParameterHelpers.GetLevelCode(doc, el);
+
+            // Intelligence Layer: MEP system-aware SYS/FUNC derivation
+            // 6-layer system detection: connector → sys param → circuit → family → room → category
+            string sys = GetMepSystemAwareSysCode(el, catName);
+
+            // Intelligence Layer: System-aware DISC correction for pipes
+            // Pipes are mapped to "M" by default, but if the connected system is plumbing
+            // (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
+            disc = GetSystemAwareDisc(disc, sys, catName);
+
+            // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
+            string func = GetSmartFuncCode(el, sys);
+            string prod = GetFamilyAwareProdCode(el, catName);
+
+            // Log when defaults are applied for LOC/ZONE
+            if (stats != null)
+            {
+                if (loc == "BLD1" && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
+                    stats.RecordWarning($"Element {el.Id}: LOC defaulted to BLD1");
+                if (zone == "Z01" && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
+                    stats.RecordWarning($"Element {el.Id}: ZONE defaulted to Z01");
+            }
+
             string seqKey = $"{disc}_{sys}_{lvl}";
             if (!sequenceCounters.ContainsKey(seqKey))
                 sequenceCounters[seqKey] = 0;
             sequenceCounters[seqKey]++;
+
+            // SEQ overflow detection: warn when sequence exceeds format capacity
+            int maxSeq = (int)Math.Pow(10, NumPad) - 1; // 9999 for NumPad=4
+            if (sequenceCounters[seqKey] > maxSeq)
+            {
+                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq})";
+                StingLog.Warn(overflowMsg);
+                stats?.RecordWarning(overflowMsg);
+            }
+
             string seq = sequenceCounters[seqKey].ToString().PadLeft(NumPad, '0');
 
             string tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
@@ -810,7 +921,7 @@ namespace StingTools.Core
             // Collision detection: if this exact tag already exists, increment SEQ
             if (existingTags != null)
             {
-                int safetyLimit = 10000;
+                int safetyLimit = MaxCollisionDepth;
                 int collisionCount = 0;
                 while (existingTags.Contains(tag) && safetyLimit-- > 0)
                 {
@@ -829,33 +940,43 @@ namespace StingTools.Core
 
             if (overwriteTokens)
             {
-                ParameterHelpers.SetString(el, "ASS_DISCIPLINE_COD_TXT", disc, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_LOC_TXT", loc, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_ZONE_TXT", zone, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_LVL_COD_TXT", lvl, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_SYSTEM_TYPE_TXT", sys, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_FUNC_TXT", func, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_PRODCT_COD_TXT", prod, overwrite: true);
-                ParameterHelpers.SetString(el, "ASS_SEQ_NUM_TXT", seq, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.LVL, lvl, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.PROD, prod, overwrite: true);
+                ParameterHelpers.SetString(el, ParamRegistry.SEQ, seq, overwrite: true);
             }
             else
             {
-                ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc);
-                ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc);
-                ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone);
-                ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl);
-                ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys);
-                ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func);
-                ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod);
-                // SEQ must always match the assembled tag — force overwrite
-                ParameterHelpers.SetString(el, "ASS_SEQ_NUM_TXT", seq, overwrite: true);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod);
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.SEQ, seq);
             }
-            ParameterHelpers.SetString(el, "ASS_TAG_1_TXT", tag, overwrite: true);
-            // Record stats: overwrite or new tag
-            if (hasCompleteTag && collisionMode == TagCollisionMode.Overwrite)
-                stats?.RecordOverwritten(catName, disc, sys, lvl);
-            else
-                stats?.RecordTagged(catName, disc, sys, lvl);
+            ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
+
+            // Auto-write containers: populate discipline-specific and universal containers
+            // from the token values just written. This eliminates the need for a separate
+            // "Combine" step after tagging — tags are immediately available in all containers.
+            try
+            {
+                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                    ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Container write failed for {el.Id}: {ex.Message}");
+            }
+
+            stats?.RecordTagged(catName, disc, sys, lvl);
             return true;
         }
 
@@ -917,7 +1038,7 @@ namespace StingTools.Core
                     }
                 }
             }
-            catch (Exception ex) { StingLog.Warn("MEP system connector lookup failed: " + ex.Message); }
+            catch { }
             return null;
         }
 
@@ -945,7 +1066,7 @@ namespace StingTools.Core
                     if (!string.IsNullOrEmpty(mapped)) return mapped;
                 }
             }
-            catch (Exception ex) { StingLog.Warn("System type parameter lookup failed: " + ex.Message); }
+            catch { }
             return null;
         }
 
@@ -976,19 +1097,12 @@ namespace StingTools.Core
                         return "COM";
                     if (panel.Contains("UPS"))
                         return "LV";
-                    // Default electrical panels → LV only for electrical/lighting categories
-                    // (avoid classifying HVAC equipment with a panel connection as LV)
+                    // Default electrical panels → LV
                     if (panel.Length > 0)
-                    {
-                        string catForCircuit = ParameterHelpers.GetCategoryName(el);
-                        string catUpper2 = (catForCircuit ?? "").ToUpperInvariant();
-                        if (catUpper2.Contains("ELECTRICAL") || catUpper2.Contains("LIGHTING") ||
-                            catUpper2.Contains("CONDUIT") || catUpper2.Contains("CABLE"))
-                            return "LV";
-                    }
+                        return "LV";
                 }
             }
-            catch (Exception ex) { StingLog.Warn("Electrical circuit panel lookup failed: " + ex.Message); }
+            catch { }
             return null;
         }
 
@@ -1071,16 +1185,17 @@ namespace StingTools.Core
                     Parameter deptParam = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT);
                     if (deptParam != null) dept = (deptParam.AsString() ?? "").ToUpperInvariant();
                 }
-                catch (Exception ex) { StingLog.Warn("Room department parameter read failed: " + ex.Message); }
+                catch { }
 
                 string combined = $"{roomName} {dept}";
+                string catUpper = (el.Category?.Name ?? "").ToUpperInvariant();
 
                 // Server/comms rooms → ICT for generic devices
                 if (combined.Contains("SERVER") || combined.Contains("COMMS") ||
                     combined.Contains("DATA CENTRE") || combined.Contains("DATA CENTER") ||
-                    combined.Contains("TELECOM"))
+                    combined.Contains("TELECOM") || combined.Contains("SWITCH ROOM") ||
+                    combined.Contains("SWITCHROOM") || combined.Contains("COMMS ROOM"))
                 {
-                    string catUpper = (el.Category?.Name ?? "").ToUpperInvariant();
                     if (catUpper.Contains("GENERIC") || catUpper.Contains("DATA") ||
                         catUpper.Contains("COMMUNICATION"))
                         return "ICT";
@@ -1094,16 +1209,104 @@ namespace StingTools.Core
                 }
 
                 // Electrical rooms → LV
-                if (combined.Contains("ELECTRICAL") || combined.Contains("SWITCH ROOM") ||
-                    combined.Contains("SUBSTATION") || combined.Contains("TRANSFORMER"))
+                if (combined.Contains("ELECTRICAL") || combined.Contains("SUBSTATION") ||
+                    combined.Contains("TRANSFORMER") || combined.Contains("METER ROOM") ||
+                    combined.Contains("DB ROOM") || combined.Contains("DISTRIBUTION"))
                 {
-                    string catUpper = (el.Category?.Name ?? "").ToUpperInvariant();
-                    if (catUpper.Contains("ELECTRICAL") || catUpper.Contains("GENERIC"))
+                    if (catUpper.Contains("ELECTRICAL") || catUpper.Contains("GENERIC") ||
+                        catUpper.Contains("LIGHTING"))
                         return "LV";
                 }
+
+                // Fire protection rooms → FP
+                if (combined.Contains("FIRE PUMP") || combined.Contains("SPRINKLER") ||
+                    combined.Contains("FIRE RISER"))
+                {
+                    if (catUpper.Contains("GENERIC") || catUpper.Contains("PIPE") ||
+                        catUpper.Contains("SPRINKLER") || catUpper.Contains("FIRE"))
+                        return "FP";
+                }
+
+                // Gas rooms → GAS
+                if (combined.Contains("GAS ROOM") || combined.Contains("GAS RISER") ||
+                    combined.Contains("GAS METER"))
+                {
+                    if (catUpper.Contains("PIPE") || catUpper.Contains("GENERIC"))
+                        return "GAS";
+                }
+
+                // Water tank / pump rooms → DCW
+                if (combined.Contains("WATER TANK") || combined.Contains("PUMP ROOM") ||
+                    combined.Contains("COLD WATER") || combined.Contains("TANK ROOM"))
+                {
+                    if (catUpper.Contains("PIPE") || catUpper.Contains("PLUMBING") ||
+                        catUpper.Contains("GENERIC") || catUpper.Contains("MECHANICAL"))
+                        return "DCW";
+                }
+
+                // Bathrooms / toilets → SAN for plumbing fixtures
+                if (combined.Contains("BATHROOM") || combined.Contains("TOILET") ||
+                    combined.Contains("WC") || combined.Contains("WASHROOM") ||
+                    combined.Contains("SHOWER") || combined.Contains("ENSUITE"))
+                {
+                    if (catUpper.Contains("PLUMBING") || catUpper.Contains("GENERIC"))
+                        return "SAN";
+                }
+
+                // Kitchen → SAN for plumbing, GAS for gas-related
+                if (combined.Contains("KITCHEN") || combined.Contains("KITCHENETTE"))
+                {
+                    if (catUpper.Contains("PLUMBING"))
+                        return "SAN";
+                    if (catUpper.Contains("PIPE") && catUpper.Contains("GAS"))
+                        return "GAS";
+                }
+
+                // Security / CCTV rooms → SEC
+                if (combined.Contains("SECURITY") || combined.Contains("CCTV") ||
+                    combined.Contains("GUARD"))
+                {
+                    if (catUpper.Contains("GENERIC") || catUpper.Contains("SECURITY"))
+                        return "SEC";
+                }
             }
-            catch (Exception ex) { StingLog.Warn("Room-type SYS inference failed: " + ex.Message); }
+            catch { }
             return null;
+        }
+
+        /// <summary>
+        /// System-aware DISC correction. Pipes/pipe fittings are categorised as "M"
+        /// (Mechanical) by default, but if the connected MEP system is plumbing
+        /// (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
+        /// Similarly, fire protection pipes should be "FP".
+        /// </summary>
+        public static string GetSystemAwareDisc(string disc, string sys, string categoryName)
+        {
+            // Only apply system-aware override for ambiguous categories (pipes, pipe fittings, etc.)
+            var pipeCategories = new HashSet<string>
+            {
+                "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes"
+            };
+            if (!pipeCategories.Contains(categoryName))
+                return disc;
+
+            // Override DISC based on the detected system
+            switch (sys)
+            {
+                case "DCW":
+                case "DHW":
+                case "SAN":
+                case "RWD":
+                case "GAS":
+                case "HWS":
+                    return "P";
+                case "FP":
+                    return "FP";
+                case "HVAC":
+                    return "M";
+                default:
+                    return disc; // Keep original mapping
+            }
         }
 
         /// <summary>
@@ -1114,19 +1317,30 @@ namespace StingTools.Core
         {
             if (string.IsNullOrEmpty(sysName)) return null;
 
-            // HVAC systems
+            // HVAC systems — full names and Revit abbreviated system types
             if (sysName.Contains("SUPPLY AIR") || sysName.Contains("SUPPLY DUCT")) return "HVAC";
             if (sysName.Contains("RETURN AIR") || sysName.Contains("RETURN DUCT")) return "HVAC";
             if (sysName.Contains("EXHAUST") || sysName.Contains("EXTRACT")) return "HVAC";
             if (sysName.Contains("FRESH AIR") || sysName.Contains("OUTSIDE AIR")) return "HVAC";
-            if (sysName.Contains("CHILLED") || sysName.Contains("COOLING") || sysName.Contains("CHW")) return "HVAC";
+            if (sysName.Contains("CHILLED") || sysName.Contains("COOLING")) return "HVAC";
             if (sysName.Contains("VENT") || sysName.Contains("VENTILATION")) return "HVAC";
+            // Abbreviated HVAC system names (Revit defaults and common shorthand)
+            if (sysName == "SA" || sysName.StartsWith("SA ") || sysName.Contains(" SA ")) return "HVAC";
+            if (sysName == "RA" || sysName.StartsWith("RA ") || sysName.Contains(" RA ")) return "HVAC";
+            if (sysName == "EA" || sysName.StartsWith("EA ") || sysName.Contains(" EA ")) return "HVAC";
+            if (sysName == "OA" || sysName.StartsWith("OA ") || sysName.Contains(" OA ")) return "HVAC";
+            if (sysName == "CHW" || sysName.StartsWith("CHW ") || sysName.Contains(" CHW ")) return "HVAC";
+            if (sysName == "CW" || sysName.StartsWith("CW ") || sysName.Contains(" CW ")) return "HVAC";
+            if (sysName == "FCU" || sysName.StartsWith("FCU ")) return "HVAC";
 
             // Heating / hot water systems
             if (sysName.Contains("HOT WATER") || sysName.Contains("DHW") || sysName.Contains("HWS")) return "HWS";
             if (sysName.Contains("HEATING") || sysName.Contains("LTHW") || sysName.Contains("MTHW")) return "HWS";
             if (sysName.Contains("RADIATOR") || sysName.Contains("UNDERFLOOR")) return "HWS";
             if (sysName.Contains("STEAM") || sysName.Contains("CONDENSATE")) return "HWS";
+            // Abbreviated heating
+            if (sysName == "LTHW" || sysName == "MTHW" || sysName == "HTHW") return "HWS";
+            if (sysName == "HW" || sysName.StartsWith("HW ")) return "HWS";
 
             // Domestic cold water
             if (sysName.Contains("COLD WATER") || sysName.Contains("CWS") || sysName.Contains("DCW")) return "DCW";
@@ -1140,13 +1354,23 @@ namespace StingTools.Core
             // Sanitary / drainage
             if (sysName.Contains("SANITARY") || sysName.Contains("WASTE") || sysName.Contains("SOIL")) return "SAN";
             if (sysName.Contains("DRAIN") || sysName.Contains("SEWAGE") || sysName.Contains("FOUL")) return "SAN";
+            // Abbreviated sanitary
+            if (sysName == "SVP" || sysName == "WP" || sysName.StartsWith("SVP ") || sysName.StartsWith("WP ")) return "SAN";
 
             // Rainwater
             if (sysName.Contains("RAINWATER") || sysName.Contains("STORM") || sysName.Contains("SURFACE WATER")) return "RWD";
             if (sysName.Contains("ROOF DRAIN")) return "RWD";
+            if (sysName == "RWP" || sysName.StartsWith("RWP ")) return "RWD";
 
             // Gas
             if (sysName.Contains("GAS") || sysName.Contains("NATURAL GAS") || sysName.Contains("LPG")) return "GAS";
+
+            // Additional HVAC abbreviations (relief, balanced, thermal)
+            if (sysName.Contains("RELIEF")) return "HVAC";
+            if (sysName.Contains("BALANCED") && sysName.Contains("VENT")) return "HVAC";
+            if (sysName == "UFH" || sysName.StartsWith("UFH ") || sysName.Contains("UNDERFLOOR HEAT")) return "HWS";
+            if (sysName.Contains("THERMAL STORAGE") || sysName.Contains("BUFFER TANK")) return "HWS";
+            if (sysName.Contains("SOLAR THERMAL") || sysName.Contains("SOLAR PANEL")) return "HWS";
 
             return null;
         }
@@ -1169,9 +1393,29 @@ namespace StingTools.Core
         {
             if (view == null) return null;
 
-            // 3D views and schedules are typically coordination — tag all
-            if (view.ViewType == ViewType.ThreeD || view.ViewType == ViewType.Schedule)
+            // Schedules are always all-discipline
+            if (view.ViewType == ViewType.Schedule)
                 return null;
+
+            // 3D views: check name for discipline hints before defaulting to all
+            if (view.ViewType == ViewType.ThreeD)
+            {
+                string name3d = (view.Name ?? "").ToUpperInvariant();
+                // Discipline-specific 3D views (e.g., "3D - Mechanical", "HVAC 3D")
+                var detected3d = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (name3d.Contains("MECHANICAL") || name3d.Contains("HVAC"))
+                    detected3d.Add("M");
+                if (name3d.Contains("ELECTRICAL") || name3d.Contains("LIGHTING"))
+                    detected3d.Add("E");
+                if (name3d.Contains("PLUMBING") || name3d.Contains("PUBLIC HEALTH"))
+                    detected3d.Add("P");
+                if (name3d.Contains("FIRE"))
+                    detected3d.Add("FP");
+                if (name3d.Contains("COORDINATION") || name3d.Contains("COMBINED") || name3d.Contains("MEP"))
+                { detected3d.Add("M"); detected3d.Add("E"); detected3d.Add("P"); }
+                // If no discipline detected in 3D view name, tag all
+                return detected3d.Count > 0 ? detected3d : null;
+            }
 
             string viewName = (view.Name ?? "").ToUpperInvariant();
             string templateName = "";
@@ -1184,7 +1428,7 @@ namespace StingTools.Core
                         templateName = (template.Name ?? "").ToUpperInvariant();
                 }
             }
-            catch (Exception ex) { StingLog.Warn("Template lookup failed: " + ex.Message); }
+            catch { /* template lookup failed — proceed with view name */ }
 
             string combined = $"{viewName} {templateName}";
 
@@ -1247,7 +1491,7 @@ namespace StingTools.Core
                         IsCategoryVisible(view, BuiltInCategory.OST_FireAlarmDevices))
                         detected.Add("FP");
                 }
-                catch (Exception ex) { StingLog.Warn("Visibility check failed: " + ex.Message); }
+                catch { /* Visibility check failed — return all */ }
             }
 
             // If still no disciplines detected, tag everything
@@ -1263,7 +1507,7 @@ namespace StingTools.Core
                 if (cat == null) return false;
                 return view.GetCategoryHidden(cat.Id) == false;
             }
-            catch (Exception ex) { StingLog.Warn("Category visibility check failed: " + ex.Message); return false; }
+            catch { return true; } // Assume visible if check fails
         }
 
         /// <summary>
@@ -1291,42 +1535,43 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Build both the tag index (HashSet of existing tags) and sequence counters
-        /// (max SEQ per DISC_SYS_LVL group) in a single pass over all project elements.
-        /// This replaces calling BuildExistingTagIndex + GetExistingSequenceCounters
-        /// separately, which performed two full-project scans.
+        /// Build a HashSet of all existing ASS_TAG_1_TXT values in the project.
+        /// Call once before a batch tagging loop and pass to BuildAndWriteTag
+        /// for collision detection. O(n) scan, O(1) per lookup thereafter.
         /// </summary>
-        public static (HashSet<string> tagIndex, Dictionary<string, int> seqCounters)
-            BuildTagIndexAndCounters(Document doc)
+        public static HashSet<string> BuildExistingTagIndex(Document doc)
         {
-            var tagIndex = new HashSet<string>(StringComparer.Ordinal);
+            var index = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(tag))
+                    index.Add(tag);
+            }
+            StingLog.Info($"Tag index built: {index.Count} existing tags");
+            return index;
+        }
+
+        /// <summary>
+        /// Scan the entire project and find the highest existing sequence number
+        /// for each (DISC, SYS, LVL) group. Returns a dictionary that can be passed
+        /// to BuildAndWriteTag so new tags continue from existing numbering.
+        /// </summary>
+        public static Dictionary<string, int> GetExistingSequenceCounters(Document doc)
+        {
             var maxSeq = new Dictionary<string, int>();
             var known = new HashSet<string>(DiscMap.Keys);
 
-            foreach (Element elem in new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .WherePasses(new ElementMulticategoryFilter(
-                    SharedParamGuids.AllCategoryEnums.ToList())))
+            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
-                if (!string.IsNullOrEmpty(tag))
-                {
-                    tagIndex.Add(tag);
-                    // Warn about malformed tags (expected 8 segments)
-                    int segCount = tag.Split(Separator[0]).Length;
-                    if (segCount != 8 && segCount > 1)
-                        StingLog.Warn($"Malformed tag on element {elem.Id}: '{tag}' has {segCount} segments (expected 8)");
-                }
-
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
 
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string seqStr = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
                 if (string.IsNullOrEmpty(disc)) continue;
-
-                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
-                string seqStr = ParameterHelpers.GetString(elem, "ASS_SEQ_NUM_TXT");
 
                 string key = $"{disc}_{sys}_{lvl}";
                 if (int.TryParse(seqStr, out int seqNum))
@@ -1336,30 +1581,46 @@ namespace StingTools.Core
                 }
             }
 
-            StingLog.Info($"Tag index built: {tagIndex.Count} existing tags, {maxSeq.Count} sequence groups");
-            return (tagIndex, maxSeq);
+            return maxSeq;
         }
 
         /// <summary>
-        /// Build a HashSet of all existing ASS_TAG_1_TXT values in the project.
-        /// Delegates to <see cref="BuildTagIndexAndCounters"/> for single-pass efficiency
-        /// when called alone. Prefer calling BuildTagIndexAndCounters directly when
-        /// both tag index and sequence counters are needed.
+        /// Combined single-pass scan: builds both the tag index and sequence counters
+        /// in one iteration over all project elements. Use this instead of calling
+        /// BuildExistingTagIndex + GetExistingSequenceCounters separately.
         /// </summary>
-        public static HashSet<string> BuildExistingTagIndex(Document doc)
+        public static (HashSet<string> tagIndex, Dictionary<string, int> seqCounters)
+            BuildTagIndexAndCounters(Document doc)
         {
-            return BuildTagIndexAndCounters(doc).tagIndex;
-        }
+            var index = new HashSet<string>(StringComparer.Ordinal);
+            var maxSeq = new Dictionary<string, int>();
+            var known = new HashSet<string>(DiscMap.Keys);
 
-        /// <summary>
-        /// Scan the entire project and find the highest existing sequence number
-        /// for each (DISC, SYS, LVL) group. Delegates to <see cref="BuildTagIndexAndCounters"/>
-        /// for single-pass efficiency when called alone. Prefer calling
-        /// BuildTagIndexAndCounters directly when both are needed.
-        /// </summary>
-        public static Dictionary<string, int> GetExistingSequenceCounters(Document doc)
-        {
-            return BuildTagIndexAndCounters(doc).seqCounters;
+            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(tag))
+                    index.Add(tag);
+
+                string cat = ParameterHelpers.GetCategoryName(elem);
+                if (!known.Contains(cat)) continue;
+
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string seqStr = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
+                if (string.IsNullOrEmpty(disc)) continue;
+
+                string key = $"{disc}_{sys}_{lvl}";
+                if (int.TryParse(seqStr, out int seqNum))
+                {
+                    if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
+                        maxSeq[key] = seqNum;
+                }
+            }
+
+            StingLog.Info($"Tag index built: {index.Count} existing tags, {maxSeq.Count} SEQ groups");
+            return (index, maxSeq);
         }
 
         private static T TryDeserialize<T>(Dictionary<string, object> data, string key)
@@ -1406,6 +1667,9 @@ namespace StingTools.Core
                 // Structure
                 { "Structural Columns", "S" }, { "Structural Framing", "S" },
                 { "Structural Foundations", "S" }, { "Columns", "S" },
+                // Curtain wall elements
+                { "Curtain Panels", "A" }, { "Curtain Wall Mullions", "A" },
+                { "Curtain Systems", "A" },
                 // Generic
                 { "Generic Models", "G" }, { "Specialty Equipment", "G" },
                 { "Medical Equipment", "G" },
@@ -1420,10 +1684,7 @@ namespace StingTools.Core
                 // Pipes default to DCW (Domestic Cold Water per CIBSE/CAWS S10); runtime MEP
                 // system detection in GetMepSystemAwareSysCode overrides to HWS/SAN/GAS as needed
                 { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories" } },
-                // Plumbing Fixtures default to SAN (most fixtures are drainage/cold water);
-                // MEP system-aware detection overrides to DHW/DCW as needed
-                { "SAN", new List<string> { "Plumbing Fixtures" } },
-                { "DHW", new List<string> { "Flex Pipes" } },
+                { "DHW", new List<string> { "Plumbing Fixtures", "Flex Pipes" } },
                 { "FP", new List<string> { "Sprinklers" } },
                 { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings" } },
                 { "FLS", new List<string> { "Fire Alarm Devices" } },
@@ -1432,7 +1693,7 @@ namespace StingTools.Core
                 { "NCL", new List<string> { "Nurse Call Devices" } },
                 { "SEC", new List<string> { "Security Devices" } },
                 // Architecture
-                { "ARC", new List<string> { "Doors", "Windows", "Walls", "Floors", "Ceilings", "Roofs", "Rooms", "Furniture", "Furniture Systems", "Casework", "Railings", "Stairs", "Ramps" } },
+                { "ARC", new List<string> { "Doors", "Windows", "Walls", "Floors", "Ceilings", "Roofs", "Rooms", "Furniture", "Furniture Systems", "Casework", "Railings", "Stairs", "Ramps", "Curtain Panels", "Curtain Wall Mullions", "Curtain Systems" } },
                 // Structure
                 { "STR", new List<string> { "Structural Columns", "Structural Framing", "Structural Foundations", "Columns" } },
                 // Generic
@@ -1465,6 +1726,8 @@ namespace StingTools.Core
                 { "Railings", "RLG" }, { "Stairs", "STR" }, { "Ramps", "RMP" },
                 { "Structural Columns", "COL" }, { "Structural Framing", "BM" },
                 { "Structural Foundations", "FDN" }, { "Columns", "COL" },
+                { "Curtain Panels", "CPN" }, { "Curtain Wall Mullions", "MUL" },
+                { "Curtain Systems", "CWS" },
                 { "Generic Models", "GEN" }, { "Specialty Equipment", "SPE" },
                 { "Medical Equipment", "MED" },
             };
@@ -1474,7 +1737,7 @@ namespace StingTools.Core
         {
             return new Dictionary<string, string>
             {
-                { "HVAC", "SUP" }, { "HWS", "HTG" }, { "DHW", "DCW" },
+                { "HVAC", "SUP" }, { "HWS", "HTG" }, { "DHW", "DHW" },
                 { "DCW", "DCW" }, { "SAN", "SAN" }, { "RWD", "RWD" }, { "GAS", "GAS" },
                 { "FP", "FP" }, { "LV", "PWR" }, { "FLS", "FLS" },
                 { "COM", "COM" }, { "ICT", "ICT" }, { "NCL", "NCL" },
@@ -1725,10 +1988,10 @@ namespace StingTools.Core
         public static List<string> CrossValidate(Element el)
         {
             var issues = new List<string>();
-            string disc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
-            string sys = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
-            string func = ParameterHelpers.GetString(el, "ASS_FUNC_TXT");
-            string prod = ParameterHelpers.GetString(el, "ASS_PRODCT_COD_TXT");
+            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
             string catName = ParameterHelpers.GetCategoryName(el);
 
             if (string.IsNullOrEmpty(disc)) return issues;
@@ -1743,7 +2006,6 @@ namespace StingTools.Core
                 { "A", new HashSet<string> { "ARC" } },
                 { "S", new HashSet<string> { "STR" } },
                 { "LV", new HashSet<string> { "LV", "ICT", "COM", "SEC", "NCL" } },
-                { "G", new HashSet<string> { "GEN" } },
             };
 
             if (!string.IsNullOrEmpty(sys) && validSysForDisc.TryGetValue(disc, out var validSys))

@@ -24,12 +24,12 @@ namespace StingTools.Tags
     [Regeneration(RegenerationOption.Manual)]
     public class ValidateTagsCommand : IExternalCommand
     {
-        private static readonly string[] TokenParams = TagConfig.TokenParamNames;
+        private static string[] TokenParams => ParamRegistry.AllTokenParams;
 
-        private static readonly string[] UniversalContainers = new[]
+        private static string[] UniversalContainers => new[]
         {
-            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
+            ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+            ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
         };
 
         public Result Execute(ExternalCommandData commandData,
@@ -49,10 +49,14 @@ namespace StingTools.Tags
             int containersEmpty = 0; // TAG_2-6 not populated
             int tokensMissing = 0;
             int isoViolations = 0; // ISO 19650 code violations
+            int crossValErrors = 0; // PROD/FUNC/DISC cross-validation errors
+            int duplicateTags = 0;
             var issuesByCategory = new Dictionary<string, int>();
             var tokenIssues = new Dictionary<string, int>(); // which tokens are most often empty
             var isoIssueTypes = new Dictionary<string, int>(); // ISO violation types
             var csvRows = new List<string>();
+            // Track tag uniqueness
+            var tagCounts = new Dictionary<string, int>(StringComparer.Ordinal);
 
             csvRows.Add("ElementId,Category,TAG_1_Status,EmptyTokens,EmptyContainers,ISOErrors,TAG_1,TAG_2,TAG_3,TAG_4,TAG_5,TAG_6");
 
@@ -63,7 +67,7 @@ namespace StingTools.Tags
                     continue;
 
                 total++;
-                string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
 
                 // Check TAG_1
                 string tag1Status;
@@ -77,16 +81,6 @@ namespace StingTools.Tags
                 {
                     tag1Valid++;
                     tag1Status = "VALID";
-
-                    // ISO 19650 format validation on complete tags
-                    string formatError = ISO19650Validator.ValidateTagFormat(tag1);
-                    if (formatError != null)
-                    {
-                        tag1Status = "ISO_INVALID";
-                        isoViolations++;
-                        IncrementDict(isoIssueTypes, formatError);
-                        IncrementDict(issuesByCategory, catName);
-                    }
                 }
                 else
                 {
@@ -97,7 +91,6 @@ namespace StingTools.Tags
 
                 // Check individual tokens
                 int emptyTokenCount = 0;
-                int elementIsoErrors = 0;
                 foreach (string token in TokenParams)
                 {
                     string val = ParameterHelpers.GetString(el, token);
@@ -107,30 +100,29 @@ namespace StingTools.Tags
                         tokensMissing++;
                         IncrementDict(tokenIssues, token);
                     }
-                    else
-                    {
-                        // ISO 19650 code validation for non-empty tokens
-                        string tokenError = ISO19650Validator.ValidateToken(token, val);
-                        if (tokenError != null)
-                        {
-                            isoViolations++;
-                            elementIsoErrors++;
-                            IncrementDict(isoIssueTypes, tokenError);
-                        }
-                    }
                 }
 
-                // Cross-validate DISC against element category
-                string disc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
-                if (!string.IsNullOrEmpty(disc))
+                // Track tag uniqueness
+                if (!string.IsNullOrEmpty(tag1))
                 {
-                    string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string dd) ? dd : null;
-                    if (expectedDisc != null && expectedDisc != disc)
-                    {
-                        isoViolations++;
-                        elementIsoErrors++;
-                        IncrementDict(isoIssueTypes, $"DISC mismatch: {catName} expects {expectedDisc}");
-                    }
+                    if (!tagCounts.ContainsKey(tag1)) tagCounts[tag1] = 0;
+                    tagCounts[tag1]++;
+                }
+
+                // Single-pass ISO validation via ValidateElement (avoids double-counting)
+                // Now includes PROD↔DISC, FUNC↔SYS cross-validation
+                var elementErrors = ISO19650Validator.ValidateElement(el);
+                int elementIsoErrors = elementErrors.Count;
+                int crossErrors = elementErrors.Count(e =>
+                    e.Contains("mismatch") || e.Contains("typically belongs") || e.Contains("unexpected"));
+                crossValErrors += crossErrors;
+                if (elementIsoErrors > 0)
+                {
+                    isoViolations += elementIsoErrors;
+                    if (tag1Status == "VALID") tag1Status = "ISO_INVALID";
+                    IncrementDict(issuesByCategory, catName);
+                    foreach (string err in elementErrors)
+                        IncrementDict(isoIssueTypes, err);
                 }
 
                 // Check TAG_2-6 containers
@@ -168,9 +160,14 @@ namespace StingTools.Tags
             double tag1Pct = total > 0 ? tag1Valid * 100.0 / total : 0;
             report.AppendLine($"  TAG_1 compliance: {tag1Pct:F1}%");
 
+            // Count duplicate tags
+            duplicateTags = tagCounts.Count(kvp => kvp.Value > 1);
+
             report.AppendLine();
             report.AppendLine("── ISO 19650 Code Validation ──");
-            report.AppendLine($"  Token violations: {isoViolations}");
+            report.AppendLine($"  Token violations:    {isoViolations}");
+            report.AppendLine($"  Cross-val errors:    {crossValErrors} (PROD/FUNC/DISC mismatches)");
+            report.AppendLine($"  Duplicate tags:      {duplicateTags}");
             if (isoIssueTypes.Count > 0)
             {
                 foreach (var kvp in isoIssueTypes.OrderByDescending(x => x.Value).Take(10))
@@ -179,6 +176,16 @@ namespace StingTools.Tags
             else
             {
                 report.AppendLine("    All codes conform to ISO 19650");
+            }
+
+            // Show top duplicate tags
+            if (duplicateTags > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("── Duplicate Tags (top 5) ──");
+                foreach (var kvp in tagCounts.Where(x => x.Value > 1)
+                    .OrderByDescending(x => x.Value).Take(5))
+                    report.AppendLine($"    {kvp.Key}: {kvp.Value} instances");
             }
 
             report.AppendLine();
@@ -224,7 +231,7 @@ namespace StingTools.Tags
             }
 
             TaskDialog td = new TaskDialog("Validate Tags (ISO 19650)");
-            td.MainInstruction = $"TAG_1: {tag1Pct:F1}% | ISO: {fullPct:F1}% | Violations: {isoViolations}";
+            td.MainInstruction = $"TAG_1: {tag1Pct:F1}% | ISO: {fullPct:F1}% | Violations: {isoViolations} | Dupes: {duplicateTags}";
             td.MainContent = report.ToString();
             td.Show();
 

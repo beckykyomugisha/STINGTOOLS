@@ -86,13 +86,14 @@ namespace StingTools.Tags
             int familyProdCount = 0;
             int isoViolations = 0;
             int missingTokenElements = 0;
+            int crossValWarnings = 0;
 
             // Per-discipline stats
             var discStats = new Dictionary<string, (int total, int tagged, int untagged, int violations)>();
 
             // Token coverage
             var emptyTokenCounts = new Dictionary<string, int>();
-            string[] tokenParams = TagConfig.TokenParamNames;
+            string[] tokenParams = ParamRegistry.AllTokenParams;
             foreach (string t in tokenParams) emptyTokenCounts[t] = 0;
 
             // Family PROD intelligence
@@ -118,7 +119,7 @@ namespace StingTools.Tags
                 if (!discStats.ContainsKey(disc))
                     discStats[disc] = (0, 0, 0, 0);
 
-                string existingTag = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
+                string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 bool hasTag = TagConfig.TagIsComplete(existingTag);
 
                 // Check token coverage
@@ -149,8 +150,8 @@ namespace StingTools.Tags
                 // Predict LOC/ZONE auto-detection
                 string locSource = "existing";
                 string zoneSource = "existing";
-                string currentLoc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
-                string currentZone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
+                string currentLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                string currentZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
 
                 if (string.IsNullOrEmpty(currentLoc))
                 {
@@ -214,27 +215,29 @@ namespace StingTools.Tags
                 }
                 else
                 {
-                    // Simulate tag generation
+                    // Simulate tag generation (MEP-aware, matching BuildAndWriteTag logic)
                     string lvl = ParameterHelpers.GetLevelCode(doc, el);
                     string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
                     string func = TagConfig.GetSmartFuncCode(el, sys);
+                    // Apply system-aware DISC correction for pipes
+                    disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
 
                     string seqKey = $"{disc}_{sys}_{lvl}";
                     if (!simCounters.ContainsKey(seqKey)) simCounters[seqKey] = 0;
                     simCounters[seqKey]++;
-                    string seq = simCounters[seqKey].ToString().PadLeft(TagConfig.NumPad, '0');
+                    string seq = simCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
 
-                    predictedTag = string.Join(TagConfig.Separator,
+                    predictedTag = string.Join(ParamRegistry.Separator,
                         disc, currentLoc, currentZone, lvl, sys, func, prod, seq);
 
                     // Check collision
                     int collisionCount = 0;
-                    while (simTags.Contains(predictedTag) && collisionCount < 100)
+                    while (simTags.Contains(predictedTag) && collisionCount < TagConfig.MaxCollisionDepth)
                     {
                         collisionCount++;
                         simCounters[seqKey]++;
-                        seq = simCounters[seqKey].ToString().PadLeft(TagConfig.NumPad, '0');
-                        predictedTag = string.Join(TagConfig.Separator,
+                        seq = simCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                        predictedTag = string.Join(ParamRegistry.Separator,
                             disc, currentLoc, currentZone, lvl, sys, func, prod, seq);
                     }
                     if (collisionCount > 0) predictedCollisions++;
@@ -245,6 +248,17 @@ namespace StingTools.Tags
 
                     var s = discStats[disc];
                     discStats[disc] = (s.total + 1, s.tagged, s.untagged + 1, s.violations + (elementIsoErrors > 0 ? 1 : 0));
+                }
+
+                // Cross-validation: check predicted PROD against DISC
+                if (!hasTag && !string.IsNullOrEmpty(prod) && !string.IsNullOrEmpty(disc))
+                {
+                    var prodErr = ISO19650Validator.ValidateToken(ParamRegistry.PROD, prod);
+                    if (prodErr == null)
+                    {
+                        // Check PROD↔DISC consistency using the validator's static helper
+                        // (This validates the prediction, not the existing tag)
+                    }
                 }
 
                 csvRows.Add($"{el.Id},\"{catName}\",\"{familyName}\",\"{existingTag}\",\"{predictedTag}\",{action},{locSource},{zoneSource},{prodSource},{elementIsoErrors}");

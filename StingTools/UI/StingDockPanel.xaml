@@ -5,27 +5,24 @@
       Background="#FAFAFA">
 
     <Page.Resources>
-        <!-- ── Shared styles ── -->
         <Style x:Key="SectionHeader" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Margin" Value="0,8,0,4"/>
-            <Setter Property="Foreground" Value="#333"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,6,0,3"/>
+            <Setter Property="Foreground" Value="#6A1B9A"/>
         </Style>
-
         <Style x:Key="GroupBorder" TargetType="Border">
             <Setter Property="BorderBrush" Value="#DDD"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="6"/>
-            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="Margin" Value="0,3"/>
             <Setter Property="Background" Value="White"/>
         </Style>
-
         <Style x:Key="CatBtn" TargetType="Button">
-            <Setter Property="MinWidth" Value="36"/>
+            <Setter Property="MinWidth" Value="34"/>
             <Setter Property="Height" Value="24"/>
-            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Margin" Value="1"/>
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="Padding" Value="4,2"/>
             <Setter Property="Background" Value="#F0F0F0"/>
@@ -33,126 +30,142 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
-
         <Style x:Key="ActionBtn" TargetType="Button">
-            <Setter Property="MinWidth" Value="50"/>
+            <Setter Property="MinWidth" Value="46"/>
             <Setter Property="Height" Value="26"/>
-            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Margin" Value="1"/>
             <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="Padding" Value="5,2"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
-
         <Style x:Key="GreenBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
             <Setter Property="Background" Value="#4CAF50"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="BorderBrush" Value="#388E3C"/>
         </Style>
-
         <Style x:Key="OrangeBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
             <Setter Property="Background" Value="#FF9800"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="BorderBrush" Value="#F57C00"/>
         </Style>
-
         <Style x:Key="RedBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
             <Setter Property="Background" Value="#F44336"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="BorderBrush" Value="#D32F2F"/>
         </Style>
-
         <Style x:Key="BlueBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
             <Setter Property="Background" Value="#2196F3"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="BorderBrush" Value="#1976D2"/>
         </Style>
-
         <Style x:Key="PurpleBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
             <Setter Property="Background" Value="#9C27B0"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="BorderBrush" Value="#7B1FA2"/>
         </Style>
-
         <Style x:Key="TealBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
             <Setter Property="Background" Value="#009688"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="BorderBrush" Value="#00796B"/>
         </Style>
-
         <Style x:Key="SectionLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="#6A1B9A"/>
+            <Setter Property="Margin" Value="0,5,0,2"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style x:Key="SubLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="9"/>
             <Setter Property="Foreground" Value="#888"/>
-            <Setter Property="Margin" Value="0,4,0,2"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,3,0,1"/>
         </Style>
     </Page.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- ── Header ── -->
-        <Border Grid.Row="0" Background="#6A1B9A" Padding="8,6">
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#6A1B9A" Padding="8,5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="STING TOOLS v2.0" FontWeight="Bold" FontSize="14" Foreground="White"/>
-                    <TextBlock x:Name="txtStatus" Text="Ready" FontSize="10" Foreground="#CE93D8"/>
+                    <TextBlock Text="STING TAGS v9.6" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                    <TextBlock x:Name="txtStatus" Text="Always on top: ON" FontSize="9" Foreground="#CE93D8"/>
                 </StackPanel>
-                <Button x:Name="btnPin" Grid.Column="1" Content="Pin" Width="30" Height="20"
+                <TextBlock Grid.Column="1" x:Name="txtSelCount" Text="sel 0" FontSize="9" Foreground="#CE93D8" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <Button x:Name="btnPin" Grid.Column="2" Content="Pin" Width="30" Height="20"
                         FontSize="9" Background="#7B1FA2" Foreground="White" BorderThickness="0"
-                        ToolTip="Pin panel to stay visible" Click="BtnPin_Click"/>
+                        ToolTip="Pin panel" Click="BtnPin_Click" Margin="0,0,2,0"/>
+                <Button Grid.Column="3" Content="Pin" Width="30" Height="20"
+                        FontSize="9" Background="#7B1FA2" Foreground="White" BorderThickness="0"/>
             </Grid>
         </Border>
 
-        <!-- ── Tab control ── -->
-        <TabControl Grid.Row="1" x:Name="tabMain" Height="Auto"
-                    SelectionChanged="TabMain_SelectionChanged">
+        <!-- Tab control -->
+        <TabControl Grid.Row="1" x:Name="tabMain" SelectionChanged="TabMain_SelectionChanged">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
                     <Setter Property="FontWeight" Value="Bold"/>
-                    <Setter Property="FontSize" Value="11"/>
-                    <Setter Property="Padding" Value="10,4"/>
+                    <Setter Property="FontSize" Value="10"/>
+                    <Setter Property="Padding" Value="5,2"/>
                 </Style>
             </TabControl.Resources>
 
-            <!-- ═══════════════ SELECT TAB ═══════════════ -->
+            <!-- =============== SELECT TAB =============== -->
             <TabItem Header="SELECT">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel>
+
+                        <!-- AI SMART SELECT -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚡ AI SMART SELECT"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#FF9800">
+                            <WrapPanel>
+                                <Button Style="{StaticResource OrangeBtn}" Content="[AI] Predict" Tag="AIPredictSelect" Click="Cmd_Click" ToolTip="AI predict selection"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Similar" Tag="AISimilarSelect" Click="Cmd_Click" ToolTip="Select similar elements"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Chain" Tag="AIChainSelect" Click="Cmd_Click" ToolTip="Select connected chain"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Cluster" Tag="AIClusterSelect" Click="Cmd_Click" ToolTip="Select spatial clusters"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Pattern" Tag="AIPatternSelect" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Boundary" Tag="AIBoundarySelect" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Outliers" Tag="AIOutliersSelect" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Dense" Tag="AIDenseSelect" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
 
                         <!-- CATEGORY -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CATEGORY"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource CatBtn}" Content="Lgt" Tag="SelectLighting" Click="Cmd_Click" ToolTip="Select Lighting Fixtures"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Elc" Tag="SelectElectrical" Click="Cmd_Click" ToolTip="Select Electrical Equipment"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Mch" Tag="SelectMechanical" Click="Cmd_Click" ToolTip="Select Mechanical Equipment"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Plb" Tag="SelectPlumbing" Click="Cmd_Click" ToolTip="Select Plumbing Fixtures"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Air" Tag="SelectAirTerminals" Click="Cmd_Click" ToolTip="Select Air Terminals"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Fur" Tag="SelectFurniture" Click="Cmd_Click" ToolTip="Select Furniture"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Dr" Tag="SelectDoors" Click="Cmd_Click" ToolTip="Select Doors"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Win" Tag="SelectWindows" Click="Cmd_Click" ToolTip="Select Windows"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Rm" Tag="SelectRooms" Click="Cmd_Click" ToolTip="Select Rooms"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Spr" Tag="SelectSprinklers" Click="Cmd_Click" ToolTip="Select Sprinklers"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Pipe" Tag="SelectPipes" Click="Cmd_Click" ToolTip="Select Pipes"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Duct" Tag="SelectDucts" Click="Cmd_Click" ToolTip="Select Ducts"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Cnd" Tag="SelectConduits" Click="Cmd_Click" ToolTip="Select Conduits"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Cbl" Tag="SelectCableTrays" Click="Cmd_Click" ToolTip="Select Cable Trays"/>
-                                <Button Style="{StaticResource CatBtn}" Content="ALL" Tag="SelectAllTaggable" Click="Cmd_Click" ToolTip="Select ALL Taggable" Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
-                                <Button Style="{StaticResource CatBtn}" Content="View" Tag="SelectByLevel" Click="Cmd_Click" ToolTip="Select elements in active view level"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Lgt" Tag="SelectLighting" Click="Cmd_Click" ToolTip="Lighting Fixtures"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Elc" Tag="SelectElectrical" Click="Cmd_Click" ToolTip="Electrical Equipment"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Mch" Tag="SelectMechanical" Click="Cmd_Click" ToolTip="Mechanical Equipment"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Plb" Tag="SelectPlumbing" Click="Cmd_Click" ToolTip="Plumbing Fixtures"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Air" Tag="SelectAirTerminals" Click="Cmd_Click" ToolTip="Air Terminals"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Fur" Tag="SelectFurniture" Click="Cmd_Click" ToolTip="Furniture"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Dr" Tag="SelectDoors" Click="Cmd_Click" ToolTip="Doors"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Win" Tag="SelectWindows" Click="Cmd_Click" ToolTip="Windows"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Rm" Tag="SelectRooms" Click="Cmd_Click" ToolTip="Rooms"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Spr" Tag="SelectSprinklers" Click="Cmd_Click" ToolTip="Sprinklers"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Pipe" Tag="SelectPipes" Click="Cmd_Click" ToolTip="Pipes"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Duct" Tag="SelectDucts" Click="Cmd_Click" ToolTip="Ducts"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Cnd" Tag="SelectConduits" Click="Cmd_Click" ToolTip="Conduits"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Cbl" Tag="SelectCableTrays" Click="Cmd_Click" ToolTip="Cable Trays"/>
+                                <Button Style="{StaticResource CatBtn}" Content="ALL..." Tag="SelectAllTaggable" Click="Cmd_Click" ToolTip="ALL Taggable" Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
+                                <Button Style="{StaticResource CatBtn}" Content="View" Tag="SelectView" Click="Cmd_Click" ToolTip="Select view elements"/>
                             </WrapPanel>
                         </Border>
 
@@ -160,9 +173,13 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SPATIAL"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource CatBtn}" Content="Near" Tag="SelectByRoom" Click="Cmd_Click" ToolTip="Select by Room"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Room" Tag="SelectByRoom" Click="Cmd_Click" ToolTip="Select by Room"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Level" Tag="SelectByLevel" Click="Cmd_Click" ToolTip="Select by Level"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Near" Tag="SelectNear" Click="Cmd_Click" ToolTip="Select nearby elements"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Room" Tag="SelectByRoom" Click="Cmd_Click" ToolTip="Select by room"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Level" Tag="SelectByLevel" Click="Cmd_Click" ToolTip="Select by level"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Quad" Tag="SelectQuad" Click="Cmd_Click" ToolTip="Select by quadrant"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Edge" Tag="SelectEdge" Click="Cmd_Click" ToolTip="Select edge elements"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Grid" Tag="SelectGrid" Click="Cmd_Click" ToolTip="Select by grid"/>
+                                <Button Style="{StaticResource CatBtn}" Content="BBox" Tag="SelectBBox" Click="Cmd_Click" ToolTip="Select by bounding box"/>
                             </WrapPanel>
                         </Border>
 
@@ -170,23 +187,23 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="STATE"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource CatBtn}" Content="Untagged" Tag="SelectUntagged" Click="Cmd_Click" Background="#FF9800" Foreground="White" FontWeight="Bold" ToolTip="Select untagged elements"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Tagged" Tag="SelectTagged" Click="Cmd_Click" Background="#4CAF50" Foreground="White" FontWeight="Bold" ToolTip="Select tagged elements"/>
-                                <Button Style="{StaticResource CatBtn}" Content="EmptyMark" Tag="SelectEmptyMark" Click="Cmd_Click" Background="#F44336" Foreground="White" FontWeight="Bold" ToolTip="Select empty Mark parameter"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Visible" Tag="SelectAllTaggable" Click="Cmd_Click" ToolTip="Select visible elements"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Pinned" Tag="SelectPinned" Click="Cmd_Click" Background="#2196F3" Foreground="White" ToolTip="Select pinned elements"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Unpinned" Tag="SelectUnpinned" Click="Cmd_Click" ToolTip="Select unpinned elements"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Untagged" Tag="SelectUntagged" Click="Cmd_Click" Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Tagged" Tag="SelectTagged" Click="Cmd_Click" Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
+                                <Button Style="{StaticResource CatBtn}" Content="EmptyMark" Tag="SelectEmptyMark" Click="Cmd_Click" Background="#FF9800" Foreground="White" FontWeight="Bold"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Visible" Tag="SelectVisible" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="[Pin]Pinned" Tag="SelectPinned" Click="Cmd_Click" Background="#2196F3" Foreground="White"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Unpinned" Tag="SelectUnpinned" Click="Cmd_Click"/>
                             </WrapPanel>
                         </Border>
 
-                        <!-- VIEW — ISOLATE & HIDE -->
+                        <!-- VIEW - ISOLATE & HIDE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="VIEW — ISOLATE &amp; HIDE"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="[Find] Isolate" Tag="ViewIsolate" Click="Cmd_Click" ToolTip="Isolate selected in view"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="[Hide] Hide" Tag="ViewHide" Click="Cmd_Click" ToolTip="Hide selected in view"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="[Look] Reveal" Tag="ViewReveal" Click="Cmd_Click" ToolTip="Reveal hidden elements"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="↺ Reset" Tag="ViewReset" Click="Cmd_Click" ToolTip="Reset temporary hide/isolate"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="[Find] Isolate" Tag="ViewIsolate" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="[Hide] Hide" Tag="ViewHide" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="[Look] Reveal" Tag="ViewReveal" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="↻ Reset" Tag="ViewReset" Click="Cmd_Click"/>
                             </WrapPanel>
                         </Border>
 
@@ -194,16 +211,16 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SELECTION OPS"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource CatBtn}" Content="All" Tag="SelectAll" Click="Cmd_Click" ToolTip="Select all visible"/>
-                                <Button Style="{StaticResource CatBtn}" Content="⊘Clr" Tag="SelectClear" Click="Cmd_Click" ToolTip="Clear selection"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Deselect" Tag="Deselect" Click="Cmd_Click" ToolTip="Deselect"/>
-                                <Button Style="{StaticResource CatBtn}" Content="✕Del" Tag="DeleteSelected" Click="Cmd_Click" ToolTip="Delete selected"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Invert" Tag="InvertSelection" Click="Cmd_Click" ToolTip="Invert selection"/>
-                                <Button Style="{StaticResource CatBtn}" Content="+M1" Tag="AddToM1" Click="Cmd_Click" ToolTip="Add to selection memory M1"/>
-                                <Button Style="{StaticResource CatBtn}" Content="−M1" Tag="RemoveFromM1" Click="Cmd_Click" ToolTip="Remove from M1"/>
+                                <Button Style="{StaticResource CatBtn}" Content="All" Tag="SelectAll" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="⊕Clr" Tag="SelectClear" Click="Cmd_Click" ToolTip="Clear selection"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Deselect" Tag="Deselect" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="✕Del" Tag="DeleteSelected" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Invert" Tag="InvertSelection" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="+M1" Tag="AddToM1" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="-M1" Tag="RemoveFromM1" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource CatBtn}" Content="∩M1" Tag="IntersectM1" Click="Cmd_Click" ToolTip="Intersect with M1"/>
-                                <Button Style="{StaticResource CatBtn}" Content="→Tags" Tag="SelectTags" Click="Cmd_Click" ToolTip="Select tags of selected elements"/>
-                                <Button Style="{StaticResource CatBtn}" Content="→Elem" Tag="SelectHostElements" Click="Cmd_Click" ToolTip="Select host elements of tags"/>
+                                <Button Style="{StaticResource CatBtn}" Content="→Tags" Tag="SelectTags" Click="Cmd_Click" ToolTip="Select tags of selection"/>
+                                <Button Style="{StaticResource CatBtn}" Content="→Elem" Tag="SelectHostElements" Click="Cmd_Click" ToolTip="Select host elements"/>
                             </WrapPanel>
                         </Border>
 
@@ -211,14 +228,14 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SELECTION MEMORY"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource CatBtn}" Content="M1▼" Tag="SaveM1" Click="Cmd_Click" ToolTip="Save current to M1"/>
+                                <Button Style="{StaticResource CatBtn}" Content="M1▼" Tag="SaveM1" Click="Cmd_Click" ToolTip="Save to M1"/>
                                 <Button Style="{StaticResource CatBtn}" Content="M1▲" Tag="LoadM1" Click="Cmd_Click" ToolTip="Load M1"/>
-                                <Button Style="{StaticResource CatBtn}" Content="M2▼" Tag="SaveM2" Click="Cmd_Click" ToolTip="Save current to M2"/>
+                                <Button Style="{StaticResource CatBtn}" Content="M2▼" Tag="SaveM2" Click="Cmd_Click" ToolTip="Save to M2"/>
                                 <Button Style="{StaticResource CatBtn}" Content="M2▲" Tag="LoadM2" Click="Cmd_Click" ToolTip="Load M2"/>
-                                <Button Style="{StaticResource CatBtn}" Content="M3▼" Tag="SaveM3" Click="Cmd_Click" ToolTip="Save current to M3"/>
+                                <Button Style="{StaticResource CatBtn}" Content="M3▼" Tag="SaveM3" Click="Cmd_Click" ToolTip="Save to M3"/>
                                 <Button Style="{StaticResource CatBtn}" Content="M3▲" Tag="LoadM3" Click="Cmd_Click" ToolTip="Load M3"/>
-                                <Button Style="{StaticResource CatBtn}" Content="1↔2" Tag="SwapM1M2" Click="Cmd_Click" ToolTip="Swap M1 and M2"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Info" Tag="SelectionInfo" Click="Cmd_Click" ToolTip="Show selection info"/>
+                                <Button Style="{StaticResource CatBtn}" Content="1↔2" Tag="SwapM1M2" Click="Cmd_Click" ToolTip="Swap M1/M2"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Info" Tag="SelectionInfo" Click="Cmd_Click"/>
                             </WrapPanel>
                         </Border>
 
@@ -226,12 +243,12 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="PROJECT FILTER"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource CatBtn}" Content="Workset..." Tag="FilterWorkset" Click="Cmd_Click" ToolTip="Filter by workset"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Phase..." Tag="FilterPhase" Click="Cmd_Click" ToolTip="Filter by phase"/>
-                                <Button Style="{StaticResource CatBtn}" Content="D.Option..." Tag="FilterDesignOption" Click="Cmd_Click" ToolTip="Filter by design option"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Group..." Tag="FilterGroup" Click="Cmd_Click" ToolTip="Filter by group"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Assembly..." Tag="FilterAssembly" Click="Cmd_Click" ToolTip="Filter by assembly"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Connected" Tag="FilterConnected" Click="Cmd_Click" ToolTip="Filter connected elements"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Workset..." Tag="FilterWorkset" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Phase..." Tag="FilterPhase" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="D.Option..." Tag="FilterDesignOption" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Group..." Tag="FilterGroup" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Assembly..." Tag="FilterAssembly" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Connected" Tag="FilterConnected" Click="Cmd_Click"/>
                             </WrapPanel>
                         </Border>
 
@@ -239,15 +256,15 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="QUICK PARAM"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource CatBtn}" Content="Mark" Tag="QuickMark" Click="Cmd_Click" ToolTip="Quick-set Mark parameter"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Type" Tag="QuickType" Click="Cmd_Click" ToolTip="Quick-filter by type"/>
-                                <Button Style="{StaticResource CatBtn}" Content="Family" Tag="QuickFamily" Click="Cmd_Click" ToolTip="Quick-filter by family"/>
-                                <Button Style="{StaticResource CatBtn}" Content="System" Tag="QuickSystem" Click="Cmd_Click" ToolTip="Quick-filter by system"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Mark" Tag="QuickMark" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Type" Tag="QuickType" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Family" Tag="QuickFamily" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="System" Tag="QuickSystem" Click="Cmd_Click"/>
                             </WrapPanel>
                         </Border>
 
                         <!-- BULK PARAMETER WRITE -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚡ BULK PARAMETER WRITE"/>
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="✏ BULK PARAMETER WRITE"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#FF9800">
                             <StackPanel>
                                 <Grid>
@@ -257,8 +274,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <ComboBox x:Name="cmbBulkParam" IsEditable="True" FontSize="10" Height="24" ToolTip="Parameter name"/>
-                                    <Button Grid.Column="1" Content="↺" Width="24" Height="24" Click="BtnRefreshParams_Click" ToolTip="Refresh parameter list"/>
-                                    <Button Grid.Column="2" Content="[Brain]" Width="40" Height="24" Style="{StaticResource PurpleBtn}" FontSize="9" Tag="FamilyStagePopulate" Click="Cmd_Click" ToolTip="Auto-populate all tokens from category/spatial data"/>
+                                    <Button Grid.Column="1" Content="↻" Width="26" Height="24" FontSize="12" Click="BtnRefreshParams_Click" ToolTip="Refresh param list"/>
+                                    <Button Grid.Column="2" Style="{StaticResource PurpleBtn}" Content="[Brain]" FontSize="9" Tag="BulkBrain" Click="Cmd_Click" ToolTip="AI suggest parameter"/>
                                 </Grid>
                                 <Grid Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
@@ -268,16 +285,16 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBox x:Name="txtBulkValue" FontSize="10" Height="24" ToolTip="Value to write"/>
-                                    <Button Grid.Column="1" Content="Preview" Style="{StaticResource ActionBtn}" Click="BtnBulkPreview_Click" ToolTip="Preview changes"/>
-                                    <Button Grid.Column="2" Content="▶ Write" Style="{StaticResource GreenBtn}" Click="BtnBulkWrite_Click" ToolTip="Write value to selected elements"/>
-                                    <Button Grid.Column="3" Content="Clear" Style="{StaticResource RedBtn}" Click="BtnBulkClear_Click" ToolTip="Clear parameter on selected"/>
+                                    <Button Grid.Column="1" Content="Preview" Style="{StaticResource ActionBtn}" Click="BtnBulkPreview_Click"/>
+                                    <Button Grid.Column="2" Content="▶ Write" Style="{StaticResource GreenBtn}" Click="BtnBulkWrite_Click"/>
+                                    <Button Grid.Column="3" Content="Clear" Style="{StaticResource RedBtn}" Click="BtnBulkClear_Click"/>
                                 </Grid>
                                 <TextBlock x:Name="txtBulkStatus" Text="Select elements, pick param, enter value" FontSize="9" Foreground="#888" Margin="0,2,0,0"/>
                             </StackPanel>
                         </Border>
 
                         <!-- PARAMETER LOOKUP -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Find] PARAMETER LOOKUP"/>
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Find] PARAMETER LOOKUP (885 params)"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
                                 <Grid>
@@ -285,15 +302,49 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Live param:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                     <ComboBox Grid.Column="1" x:Name="cmbLookupParam" IsEditable="True" FontSize="10" Height="24"/>
-                                    <Button Grid.Column="2" Content="▼" Width="20" Height="24" Tag="RefreshParamList" Click="Cmd_Click" ToolTip="Refresh parameter list"/>
-                                    <Button Grid.Column="3" Content="⊙" Width="20" Height="24" Tag="SelectionInfo" Click="Cmd_Click" ToolTip="Show selection info"/>
+                                    <Button Grid.Column="2" Content="↻" Width="26" Height="24" FontSize="12" Tag="ParamLookupRefresh" Click="Cmd_Click"/>
                                 </Grid>
-                                <TextBox x:Name="txtLookupFilter" FontSize="10" Height="24" Margin="0,4,0,0" ToolTip="Search/filter"/>
+                                <ComboBox x:Name="cmbLookupCategory" FontSize="10" Height="24" Margin="0,4,0,0" ToolTip="Filter by category">
+                                    <ComboBoxItem Content="All Categories" IsSelected="True"/>
+                                </ComboBox>
                                 <TextBlock x:Name="txtParamInfo" Text="Type: —&#x0a;Group: —&#x0a;GUID: —" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- CONDITIONS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="CONDITIONS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="cmbCondParam" IsEditable="True" FontSize="10" Height="24"/>
+                                    <ComboBox Grid.Column="1" x:Name="cmbCondOp" FontSize="10" Height="24" Width="70" Margin="2,0">
+                                        <ComboBoxItem Content="contains" IsSelected="True"/>
+                                        <ComboBoxItem Content="equals"/>
+                                        <ComboBoxItem Content="starts"/>
+                                        <ComboBoxItem Content="ends"/>
+                                        <ComboBoxItem Content="&gt;"/>
+                                        <ComboBoxItem Content="&lt;"/>
+                                    </ComboBox>
+                                    <TextBox Grid.Column="2" x:Name="txtCondValue" FontSize="10" Height="24"/>
+                                    <Button Grid.Column="3" Content="⚙" Width="24" Height="24" FontSize="12"/>
+                                </Grid>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource CatBtn}" Content="+Cond" Tag="CondAdd" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="-Cond" Tag="CondRemove" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Clear" Tag="CondClear" Click="Cmd_Click"/>
+                                    <TextBlock x:Name="txtCondMatches" Text="0 matches" FontSize="9" Foreground="#888" VerticalAlignment="Center" Margin="4,0"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Preview" Tag="CondPreview" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="▶ Apply" Tag="CondApply" Click="Cmd_Click"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
@@ -301,126 +352,457 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ═══════════════ ORGANISE TAB ═══════════════ -->
+            <!-- =============== ORGANISE TAB =============== -->
             <TabItem Header="ORGANISE">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel>
+
+                        <!-- AI ORGANISE ENGINE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Brain] AI ORGANISE ENGINE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="▶ SMART ORGANISE" Tag="SmartOrganise" Click="Cmd_Click" HorizontalAlignment="Stretch"/>
+                                    <TextBlock Grid.Column="1" x:Name="txtOrgScore" Text="-/8" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                </Grid>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource CatBtn}" Content="Quick" Tag="OrgQuick" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Deep" Tag="OrgDeep" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Anneal" Tag="OrgAnneal" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="←Reset" Tag="OrgReset" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="[Brain]Sp" Tag="OrgBrainSp" Click="Cmd_Click" FontSize="9"/>
+                                </WrapPanel>
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Style="{StaticResource ActionBtn}" Content="↻ Undo" Tag="OrgUndo" Click="Cmd_Click" HorizontalAlignment="Left"/>
+                                    <TextBlock Grid.Column="1" x:Name="txtOrgUndo" Text="0/5" FontSize="10" VerticalAlignment="Center"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- TAG FAMILY -->
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Tag family:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <ComboBox Grid.Column="1" x:Name="cmbTagFamily" IsEditable="True" FontSize="10" Height="24"/>
+                            <Button Grid.Column="2" Content="↻" Width="26" Height="24" FontSize="12" Tag="TagFamilyRefresh" Click="Cmd_Click"/>
+                        </Grid>
+                        <TextBlock Text="Click ☰ to load by discipline" FontSize="9" Foreground="#888" Margin="0,1,0,4"/>
 
                         <!-- TAG OPERATIONS -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="TAG OPERATIONS"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Tag Sel" Tag="TagSelected" Click="Cmd_Click" ToolTip="Tag selected elements"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Tag Cat" Tag="AutoTag" Click="Cmd_Click" ToolTip="Tag by category in view"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Tag All" Tag="BatchTag" Click="Cmd_Click" ToolTip="Batch tag entire project"/>
-                                <Button Style="{StaticResource RedBtn}" Content="Del Tags" Tag="DeleteTags" Click="Cmd_Click" ToolTip="Delete all tags from selection"/>
-                                <Button Style="{StaticResource OrangeBtn}" Content="Orphans" Tag="FindDuplicates" Click="Cmd_Click" ToolTip="Find orphaned/duplicate tags"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="[Num]Renum" Tag="RenumberTags" Click="Cmd_Click" ToolTip="Renumber tags sequentially"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="[List]Clone" Tag="CopyTags" Click="Cmd_Click" ToolTip="Copy tags from first to all"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="ValidateTags" Click="Cmd_Click" ToolTip="Validate tag completeness"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="AuditCSV" Tag="AuditTagsCSV" Click="Cmd_Click" ToolTip="Export tag audit to CSV"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="MultiView" Tag="BatchTag" Click="Cmd_Click" ToolTip="Tag across multiple views"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clashing▶" Tag="FixDuplicates" Click="Cmd_Click" ToolTip="Fix duplicate/clashing tags"/>
-                                <Button Style="{StaticResource GreenBtn}" Content="☞New" Tag="TagNewOnly" Click="Cmd_Click" ToolTip="Tag new/untagged elements only"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="↔Swap" Tag="SwapTags" Click="Cmd_Click" ToolTip="Swap tags between 2 elements"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="ReTag" Tag="ReTag" Click="Cmd_Click" ToolTip="Force re-derive tags on selection"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Tag Sel" Tag="TagSelected" Click="Cmd_Click" ToolTip="Tag selected"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Tag Cat" Tag="TagCat" Click="Cmd_Click" ToolTip="Tag by category"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Tag All" Tag="TagAll" Click="Cmd_Click" ToolTip="Tag all in view"/>
+                                <Button Style="{StaticResource RedBtn}" Content="Del Tags" Tag="DeleteTags" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Orphans" Tag="Orphans" Click="Cmd_Click" ToolTip="Find orphaned tags"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="[Num]Renumb" Tag="RenumberTags" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="[List]Clone" Tag="CloneTags" Click="Cmd_Click" ToolTip="Clone tag layout"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="AuditTags" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="AuditCSV" Tag="AuditTagsCSV" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="MultiView" Tag="MultiView" Click="Cmd_Click" ToolTip="Tag across views"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Clashing▶" Tag="ClashingDetect" Click="Cmd_Click" ToolTip="Detect clashing tags"/>
                             </WrapPanel>
                         </Border>
 
                         <!-- ORIENTATION & TEXT ALIGNMENT -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="⟳ ORIENTATION &amp; TEXT ALIGNMENT"/>
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="ORIENTATION &amp; TEXT ALIGNMENT"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <StackPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource CatBtn}" Content="⊘H↔V" Tag="ToggleTagOrientation" Click="Cmd_Click" ToolTip="Toggle horizontal/vertical"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="All H" Tag="AlignTagsH" Click="Cmd_Click" ToolTip="All horizontal"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="All V" Tag="AlignTagsV" Click="Cmd_Click" ToolTip="All vertical"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="→FlipH" Tag="FlipTagsH" Click="Cmd_Click" ToolTip="Flip horizontal"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="↑FlipV" Tag="FlipTagsV" Click="Cmd_Click" ToolTip="Flip vertical"/>
-                                </WrapPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                    <TextBlock Text="Text:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="◀" Tag="AlignTextLeft" Click="Cmd_Click" ToolTip="Align text left"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="≡C" Tag="AlignTextCenter" Click="Cmd_Click" ToolTip="Align text center"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="R▶" Tag="AlignTextRight" Click="Cmd_Click" ToolTip="Align text right"/>
-                                </StackPanel>
-                            </StackPanel>
+                            <WrapPanel>
+                                <Button Style="{StaticResource CatBtn}" Content="⊕H↔V" Tag="ToggleTagOrientation" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="All H" Tag="AllH" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="All V" Tag="AllV" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="→FlipH" Tag="FlipTagsH" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="↑FlipV" Tag="FlipTagsV" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="[Brain]SmH/V" Tag="BrainSmHV" Click="Cmd_Click" FontSize="9"/>
+                                <TextBlock Text="Text:" FontSize="10" VerticalAlignment="Center" Margin="4,0,2,0"/>
+                                <Button Style="{StaticResource CatBtn}" Content="◁" Tag="AlignTextLeft" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="=C" Tag="AlignTextCenter" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="R▷" Tag="AlignTextRight" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- NUDGE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="NUDGE (↑↓←→ keys active when panel focused)"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource CatBtn}" Content="↑" Tag="NudgeUp" Click="Cmd_Click" Width="30"/>
+                                <Button Style="{StaticResource CatBtn}" Content="↓" Tag="NudgeDown" Click="Cmd_Click" Width="30"/>
+                                <Button Style="{StaticResource CatBtn}" Content="←" Tag="NudgeLeft" Click="Cmd_Click" Width="30"/>
+                                <Button Style="{StaticResource CatBtn}" Content="→" Tag="NudgeRight" Click="Cmd_Click" Width="30"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Near 0.25" Tag="NudgeNear" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Far 1.0" Tag="NudgeFar" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="[Brain]SmOr" Tag="BrainSmOr" Click="Cmd_Click" FontSize="9"/>
+                            </WrapPanel>
                         </Border>
 
                         <!-- ALIGN & DISTRIBUTE -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="⊞ ALIGN &amp; DISTRIBUTE"/>
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="ALIGN &amp; DISTRIBUTE"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource CatBtn}" Content="↰L" Tag="AlignLeft" Click="Cmd_Click" ToolTip="Align left"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="R↱" Tag="AlignRight" Click="Cmd_Click" ToolTip="Align right"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="△T" Tag="AlignTop" Click="Cmd_Click" ToolTip="Align top"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="B▽" Tag="AlignBottom" Click="Cmd_Click" ToolTip="Align bottom"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="→CH" Tag="AlignCenterH" Click="Cmd_Click" ToolTip="Center horizontal"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="|CV" Tag="AlignCenterV" Click="Cmd_Click" ToolTip="Center vertical"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="→H" Tag="DistributeH" Click="Cmd_Click" ToolTip="Distribute horizontal"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="↕V" Tag="DistributeV" Click="Cmd_Click" ToolTip="Distribute vertical"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="tH" Tag="AlignTagsH" Click="Cmd_Click" ToolTip="Align tags horizontal"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="tV" Tag="AlignTagsV" Click="Cmd_Click" ToolTip="Align tags vertical"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="←L" Tag="AlignLeft" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="R→" Tag="AlignRight" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="↓T" Tag="AlignTop" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="B↑" Tag="AlignBottom" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="←CH" Tag="AlignCenterH" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="|CV" Tag="AlignCenterV" Click="Cmd_Click"/>
                                 </WrapPanel>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource CatBtn}" Content="Grid" Tag="ArrangeGrid" Click="Cmd_Click" ToolTip="Grid arrange"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Circle" Tag="ArrangeCircle" Click="Cmd_Click" ToolTip="Circle arrange"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Stack" Tag="ArrangeStack" Click="Cmd_Click" ToolTip="Stack arrange"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="StackH" Tag="ArrangeStackH" Click="Cmd_Click" ToolTip="Stack horizontal"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Mirror" Tag="ArrangeMirror" Click="Cmd_Click" ToolTip="Mirror arrange"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Radial" Tag="ArrangeRadial" Click="Cmd_Click" ToolTip="Radial arrange"/>
+                                <WrapPanel Margin="0,2,0,0">
+                                    <Button Style="{StaticResource CatBtn}" Content="→H" Tag="DistributeH" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="↓V" Tag="DistributeV" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="↔H" Tag="AlignTagsH" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="↕V" Tag="AlignTagsV" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="[Brain]SmAl" Tag="BrainSmAl" Click="Cmd_Click" FontSize="9"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,2,0,0">
+                                    <Button Style="{StaticResource CatBtn}" Content="Grid" Tag="ArrangeGrid" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Circle" Tag="ArrangeCircle" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Stack" Tag="ArrangeStack" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="StackH" Tag="ArrangeStackH" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Mirror" Tag="ArrangeMirror" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Radial" Tag="ArrangeRadial" Click="Cmd_Click"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
 
                         <!-- LEADERS -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="⟋ LEADERS"/>
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LEADERS"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
-                                <TextBlock Text="ADD / REMOVE" FontSize="9" Foreground="#888"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ADD/REMOVE"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="+Leader" Tag="AddLeaders" Click="Cmd_Click" ToolTip="Add leaders"/>
-                                    <Button Style="{StaticResource RedBtn}" Content="−Leader" Tag="RemoveLeaders" Click="Cmd_Click" ToolTip="Remove leaders"/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="+Multi" Tag="ToggleLeaders" Click="Cmd_Click" ToolTip="Toggle multi-leader"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Combine" Tag="ToggleLeaders" Click="Cmd_Click" ToolTip="Combine leaders"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="+Leader" Tag="AddLeaders" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource RedBtn}" Content="-Leader" Tag="RemoveLeaders" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="+Multi" Tag="LeaderMulti" Click="Cmd_Click" ToolTip="Add multi leaders"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Combine" Tag="LeaderCombine" Click="Cmd_Click"/>
                                 </WrapPanel>
-                                <TextBlock Text="ELBOW — click to switch style" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ELBOW"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource CatBtn}" Content="⊾90°" Tag="SnapElbow90" Click="Cmd_Click" ToolTip="Snap elbow 90 degrees"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="∠45°" Tag="SnapElbow45" Click="Cmd_Click" ToolTip="Snap elbow 45 degrees"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="→Str" Tag="SnapElbowStraight" Click="Cmd_Click" ToolTip="Straight elbow"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Flip" Tag="FlipTags" Click="Cmd_Click" ToolTip="Flip leader side"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="+Add" Tag="AddLeaders" Click="Cmd_Click" ToolTip="Add elbow point"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="→Straight" Tag="SnapElbowStraight" Click="Cmd_Click" ToolTip="Make straight"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="∠90°" Tag="SnapElbow90" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="∠45°" Tag="SnapElbow45" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="-Str" Tag="SnapElbowStraight" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Flip" Tag="FlipTags" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="+Add" Tag="LeaderAdd" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="-Straight" Tag="LeaderStraight" Click="Cmd_Click"/>
                                 </WrapPanel>
-                                <TextBlock Text="SNAP TAG POSITION" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="SNAP TAG POSITION"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource CatBtn}" Content="Tag→45°" Tag="SnapElbow45" Click="Cmd_Click" ToolTip="Snap tag at 45 degrees"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Tag→90°" Tag="SnapElbow90" Click="Cmd_Click" ToolTip="Snap tag at 90 degrees"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="📌Pin" Tag="PinTags" Click="Cmd_Click" ToolTip="Pin/unpin selected tags"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="↺Reset" Tag="ResetTagPositions" Click="Cmd_Click" ToolTip="Reset tag positions to element centers"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Tag→45°" Tag="TagSnap45" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Tag→90°" Tag="TagSnap90" Click="Cmd_Click"/>
                                 </WrapPanel>
-                                <TextBlock Text="LENGTH" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="LENGTH"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource CatBtn}" Content="0.25ft" Tag="LeaderLength025" Click="Cmd_Click" ToolTip="Set leader 0.25ft"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="0.5ft" Tag="LeaderLength05" Click="Cmd_Click" ToolTip="Set leader 0.5ft"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="1.0ft" Tag="LeaderLength1" Click="Cmd_Click" ToolTip="Set leader 1.0ft"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="=Spacing" Tag="LeaderEqualSpacing" Click="Cmd_Click" ToolTip="Equal spacing"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Equalise" Tag="LeaderEqualise" Click="Cmd_Click" ToolTip="Equalise leader lengths"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="0.25ft" Tag="LeaderLength025" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="0.5ft" Tag="LeaderLength05" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="1.0ft" Tag="LeaderLength1" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="=Spacing" Tag="LeaderSpacing" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Equalise" Tag="LeaderEqualise" Click="Cmd_Click"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
 
+                        <!-- AI/AUTO -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="AI/AUTO"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
+                            <WrapPanel>
+                                <Button Style="{StaticResource PurpleBtn}" Content="[Brain]SmartLdr" Tag="BrainSmartLdr" Click="Cmd_Click" FontSize="9"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="[Brain]Uncross" Tag="BrainUncross" Click="Cmd_Click" FontSize="9"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="[Brain]Tidy" Tag="BrainTidy" Click="Cmd_Click" FontSize="9"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- ANALYSE -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="⟐ ANALYSE"/>
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="ANALYSE"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Score" Tag="TagStats" Click="Cmd_Click" ToolTip="Tag statistics score"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clashes" Tag="FindDuplicates" Click="Cmd_Click" ToolTip="Find clashing/duplicate tags"/>
-                                <Button Style="{StaticResource BlueBtn}" Content="ByDisc" Tag="SelectByDiscipline" Click="Cmd_Click" ToolTip="Select elements by discipline"/>
-                                <Button Style="{StaticResource BlueBtn}" Content="W/Leaders" Tag="SelectTagsWithLeaders" Click="Cmd_Click" ToolTip="Select tags with leaders"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Register" Tag="TagRegisterExport" Click="Cmd_Click" ToolTip="Export tag register to CSV"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Score" Tag="AnalyseScore" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clashes" Tag="AnalyseClashes" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Crossings" Tag="AnalyseCrossings" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Density" Tag="AnalyseDensity" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clusters" Tag="AnalyseClusters" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- PATTERN LEARNING -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="PATTERN LEARNING"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#009688">
+                            <WrapPanel>
+                                <Button Style="{StaticResource TealBtn}" Content="[Edu]Learn" Tag="PatternLearn" Click="Cmd_Click" ToolTip="Learn tag arrangement pattern"/>
+                                <Button Style="{StaticResource TealBtn}" Content="✦Apply" Tag="PatternApplyLearned" Click="Cmd_Click" ToolTip="Apply learned pattern"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- BATCH VIEW PROCESSING -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="BATCH VIEW PROCESSING"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="[Cats]" Tag="BatchViewCats" Click="Cmd_Click" ToolTip="Select categories to process"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="▶▶ Run on All Sheets" Tag="BatchViewRunAll" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- ROOM TAG POSITION SYNC -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="ROOM TAG POSITION SYNC"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource CatBtn}" Content="Centroid" Tag="RoomTagCentroid" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Top-Left" Tag="RoomTagTopLeft" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Top-Centre" Tag="RoomTagTopCentre" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Leader Lock" Tag="RoomTagLeaderLock" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Leader Free" Tag="RoomTagLeaderFree" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- LINKED MODEL ELEMENTS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LINKED MODEL ELEMENTS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="List Links" Tag="ListLinks" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Sel in Link..." Tag="SelInLink" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Tag Linked" Tag="TagLinked" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Audit Links" Tag="AuditLinks" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- PDF EXPORT -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="PDF EXPORT"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <ComboBox x:Name="cmbPaperSize" FontSize="10" Height="24" Width="60">
+                                    <ComboBoxItem Content="A1" IsSelected="True"/>
+                                    <ComboBoxItem Content="A0"/>
+                                    <ComboBoxItem Content="A2"/>
+                                    <ComboBoxItem Content="A3"/>
+                                    <ComboBoxItem Content="A4"/>
+                                </ComboBox>
+                                <Button Style="{StaticResource ActionBtn}" Content="Selected Sheets" Tag="PdfSelectedSheets" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Active View" Tag="PdfActiveView" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- SHEET INDEX -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SHEET INDEX"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Generate Index" Tag="GenSheetIndex" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportSheetCSV" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Prefix filter:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBox Grid.Column="1" x:Name="txtSheetPrefix" FontSize="10" Height="24"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- =============== DOCS TAB =============== -->
+            <TabItem Header="DOCS">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+
+                        <!-- VIEWPORT TOOLS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="📐 VIEWPORT TOOLS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ALIGNMENT"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource CatBtn}" Content="↑Top" Tag="VPAlignTop" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="↕MidY" Tag="VPAlignMidY" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="↓Bot" Tag="VPAlignBot" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="←Left" Tag="VPAlignLeft" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="↔MidX" Tag="VPAlignMidX" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="→Right" Tag="VPAlignRight" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="NUMBERING"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="L→R" Tag="VPNumLR" Click="Cmd_Click" ToolTip="Number left to right"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T→B" Tag="VPNumTB" Click="Cmd_Click" ToolTip="Number top to bottom"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="+1" Tag="VPNumPlus" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="-1" Tag="VPNumMinus" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Prefix" Tag="VPPrefix" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Suffix" Tag="VPSuffix" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="SPACING"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Place" Tag="AutoPlaceViewports" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Align" Tag="BatchAlignViewports" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Align VP" Tag="AlignViewports" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Renum VP" Tag="RenumberViewports" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- SHEET TOOLS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="📄 SHEET TOOLS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Organizer" Tag="SheetOrganizer" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Index" Tag="SheetIndex" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Transmittal" Tag="Transmittal" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Naming" Tag="SheetNamingCheck" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Num" Tag="AutoNumberSheets" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="SHEET NUMBER"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource CatBtn}" Content="Reset Title" Tag="SheetResetTitle" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="+1" Tag="SheetNumPlus" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="-1" Tag="SheetNumMinus" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Prefix" Tag="SheetPrefix" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Suffix" Tag="SheetSuffix" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Find&amp;Replace" Tag="SheetFindReplace" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- SCHEDULE TOOLS (incl column width sync) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="📊 SCHEDULE TOOLS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Pos" Tag="SchedSyncPos" Click="Cmd_Click" ToolTip="Sync instance positions"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Rot" Tag="SchedSyncRot" Click="Cmd_Click" ToolTip="Sync rotations"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Show Hidden" Tag="SchedShowHidden" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="COLUMN WIDTH SYNC"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Width mm:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBox Grid.Column="1" x:Name="txtSchedWidth" Text="25" FontSize="10" Height="24"/>
+                                </Grid>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Match Widest" Tag="SchedMatchWidest" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Set Width" Tag="SchedSetWidth" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Equalise" Tag="SchedEqualise" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- TEXT NOTE TOOLS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="📝 TEXT NOTE TOOLS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="CASE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource CatBtn}" Content="lower" Tag="TextLower" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="UPPER" Tag="TextUpper" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Title" Tag="TextCase" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ALIGN"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource CatBtn}" Content="Left" Tag="TextAlignLeft" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Center" Tag="TextAlignCenter" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Right" Tag="TextAlignRight" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="To Axis" Tag="TextAlignAxis" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="LEADERS"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource CatBtn}" Content="Horiz" Tag="TextLeaderH" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Vert" Tag="TextLeaderV" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="90° Elbow" Tag="TextLeader90" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- DIMENSION TOOLS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="📏 DIMENSION TOOLS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Reset Overrides" Tag="DimResetOverrides" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Reset Text" Tag="DimResetText" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Find Zero" Tag="DimFindZero" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Find&amp;Replace" Tag="DimFindReplace" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- LEGEND TOOLS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="📑 LEGEND TOOLS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Sync Pos" Tag="LegendSyncPos" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Title Line" Tag="LegendTitleLine" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Uniform" Tag="LegendUniform" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- TITLE BLOCK TOOLS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="🖼️ TITLE BLOCK TOOLS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Reset Pos" Tag="TitleBlockReset" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Rescue" Tag="TitleBlockRescue" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- REVISION TOOLS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="📋 REVISION TOOLS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Show Clouds" Tag="RevShowClouds" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Show Tags" Tag="RevShowTags" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource RedBtn}" Content="Del Clouds (View)" Tag="RevDelCloudsView" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource RedBtn}" Content="Del Clouds (Sel)" Tag="RevDelCloudsSel" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- VIEWS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="VIEWS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Organizer" Tag="ViewOrganizer" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Del Unused" Tag="DeleteUnusedViews" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Duplicate" Tag="DuplicateView" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Batch Rename" Tag="BatchRenameViews" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Copy Settings" Tag="CopyViewSettings" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Crop Content" Tag="CropToContent" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Sum Areas" Tag="SumAreas" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- MEASUREMENT TOOLS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="📐 MEASUREMENT TOOLS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Lines" Tag="MeasureLines" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Areas" Tag="MeasureAreas" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Perimeters" Tag="MeasurePerimeters" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Room Areas" Tag="MeasureRoomAreas" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- UTILITIES -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="🔧 UTILITIES"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Swap Elements" Tag="SwapElements" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Convert Regions" Tag="ConvertRegions" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clean Spaces" Tag="CleanSpaces" Click="Cmd_Click" ToolTip="Clean double spaces"/>
                             </WrapPanel>
                         </Border>
 
@@ -428,18 +810,129 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ═══════════════ CREATE TAB ═══════════════ -->
+            <!-- =============== TEMP TAB =============== -->
+            <TabItem Header="TEMP">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+
+                        <!-- SETUP -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ SETUP"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <WrapPanel>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Master Setup" Tag="MasterSetup" Click="Cmd_Click" ToolTip="One-click full project setup"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Create Params" Tag="CreateParameters" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Check Data" Tag="CheckData" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- MATERIALS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="MATERIALS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="BLE (815)" Tag="CreateBLEMaterials" Click="Cmd_Click" ToolTip="815 building materials"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="MEP (464)" Tag="CreateMEPMaterials" Click="Cmd_Click" ToolTip="464 MEP materials"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- FAMILY TYPES -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="FAMILY TYPES"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource CatBtn}" Content="Walls" Tag="CreateWalls" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Floors" Tag="CreateFloors" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Ceilings" Tag="CreateCeilings" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Roofs" Tag="CreateRoofs" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Ducts" Tag="CreateDucts" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Pipes" Tag="CreatePipes" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="CblTray" Tag="CreateCableTrays" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Conduit" Tag="CreateConduits" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- SCHEDULES -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SCHEDULES"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="Full AutoPop" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="Zero-input full pipeline"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Batch Create" Tag="BatchSchedules" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Mat Takeoff" Tag="MaterialSchedules" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="AutoPop Tok" Tag="AutoPopulate" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Formulas" Tag="FormulaEvaluator" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportCSV" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- VIEW TEMPLATES -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="VIEW TEMPLATES"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Filters" Tag="CreateFilters" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Apply Filt" Tag="ApplyFilters" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Worksets" Tag="CreateWorksets" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="View Tmpl" Tag="ViewTemplates" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Line Pat" Tag="CreateLinePatterns" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Phases" Tag="CreatePhases" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- TEMPLATE MANAGER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TEMPLATE MANAGER"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#009688">
+                            <WrapPanel>
+                                <Button Style="{StaticResource TealBtn}" Content="Wizard" Tag="TemplateSetupWizard" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Auto-Assign" Tag="AutoAssignTemplates" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="TemplateAudit" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Diff" Tag="TemplateDiff" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Comply" Tag="TemplateComplianceScore" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="AutoFix" Tag="AutoFixTemplate" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Sync VG" Tag="SyncTemplateOverrides" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Apply VG" Tag="CreateVGOverrides" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clone" Tag="CloneTemplate" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="VG Reset" Tag="BatchVGReset" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Fam Params" Tag="BatchAddFamilyParams" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Tmpl Sched" Tag="CreateTemplateSchedules" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- STYLES -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="STYLES"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Fill Pat" Tag="CreateFillPatterns" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Line Sty" Tag="CreateLineStyles" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Obj Sty" Tag="CreateObjectStyles" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Txt Sty" Tag="CreateTextStyles" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Dim Sty" Tag="CreateDimensionStyles" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- DATA QA -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DATA QA"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#F44336">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Val Tmpl" Tag="ValidateTemplate" Click="Cmd_Click" ToolTip="Validate template (45 checks)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Dyn Bind" Tag="DynamicBindings" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Schema" Tag="SchemaValidate" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- =============== CREATE TAB =============== -->
             <TabItem Header="CREATE">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel>
 
-                        <!-- ISO 19650 — CREATE & POPULATE -->
-                        <TextBlock Style="{StaticResource SectionHeader}" Text="ISO 19650 — CREATE &amp; POPULATE"/>
-                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                        <!-- ISO HEADER -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
                             <StackPanel>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Scope: View" Tag="ScopeView" Click="Cmd_Click" Background="#E1BEE7" ToolTip="Set scope to active view"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="Overwrite: No" Tag="ToggleOverwrite" Click="Cmd_Click" ToolTip="Toggle overwrite mode"/>
+                                <TextBlock Text="ISO 19650 — CREATE &amp; POPULATE" FontWeight="Bold" FontSize="11" Foreground="#333"/>
+                                <TextBlock x:Name="txtCreateScope" Text="Scope: View  |  Overwrite: No" FontSize="10" Foreground="#888"/>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource BlueBtn}" Content="Scope: View" Tag="ScopeView" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Overwrite: No" Tag="ToggleOverwrite" Click="Cmd_Click"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -447,10 +940,18 @@
                         <!-- SETUP -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ SETUP"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Load Shared Params" Tag="LoadSharedParams" Click="Cmd_Click" ToolTip="Bind shared parameters to project"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Project Config" Tag="ConfigEditor" Click="Cmd_Click" ToolTip="Edit project configuration"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Shared Params" Tag="LoadSharedParams" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Project Config" Tag="ConfigEditor" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource BlueBtn}" Content="Create Tag Families" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Create STING tag families for all 50 categories"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Configure Labels" Tag="ConfigureTagLabels" Click="Cmd_Click" ToolTip="Guided wizard to set Labels in each tag family"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load" Tag="LoadTagFamilies" Click="Cmd_Click" ToolTip="Load pre-created tag families into project"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="AuditTagFamilies" Click="Cmd_Click" ToolTip="Check tag family coverage by category"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                         <!-- POPULATE TOKENS -->
@@ -458,31 +959,31 @@
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
                             <StackPanel>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="▶ Auto Populate" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="One-click full auto-populate pipeline"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Assign Numbers" Tag="AssignNumbers" Click="Cmd_Click" ToolTip="Assign sequential SEQ numbers"/>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="[Brain] Smart Tokens" Tag="FamilyStagePopulate" Click="Cmd_Click" ToolTip="AI-powered token pre-population"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="▶ Auto Populate" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="One-click full pipeline"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Assign Numbers" Tag="AssignNumbers" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="[Brain] Smart Tokens" Tag="FamilyStagePopulate" Click="Cmd_Click" ToolTip="Pre-populate all 7 tokens"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource TealBtn}" Content="⚙ Build Tags" Tag="BuildTags" Click="Cmd_Click" ToolTip="Rebuild tags from tokens"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="T3 Tags" Tag="TagAndCombine" Click="Cmd_Click" ToolTip="Tag &amp; Combine all"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Mat Tags" Tag="CombineParameters" Click="Cmd_Click" ToolTip="Material tag containers"/>
-                                    <Button Style="{StaticResource TealBtn}" Content="⚙ Build ALL" Tag="TagAndCombine" Click="Cmd_Click" ToolTip="Build all tags and containers"/>
+                                    <Button Style="{StaticResource TealBtn}" Content="⚡ Build Tags" Tag="BuildTags" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="T3 Tags" Tag="T3Tags" Click="Cmd_Click" ToolTip="Build T3 combined tags"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Mat Tags" Tag="MatTags" Click="Cmd_Click" ToolTip="Build material tags"/>
+                                    <Button Style="{StaticResource TealBtn}" Content="⚡ Build ALL" Tag="BuildAll" Click="Cmd_Click" ToolTip="Build all tag variants"/>
                                 </WrapPanel>
-                                <TextBlock Text="Manual — all 13 tokens:" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
+                                <TextBlock Text="Manual — all 13 tokens:" FontSize="9" Foreground="#888" Margin="0,4,0,1"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource CatBtn}" Content="PROJ" Tag="SetProj" Click="Cmd_Click" FontSize="9" ToolTip="Set Project token"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="ORIG" Tag="SetOrig" Click="Cmd_Click" FontSize="9" ToolTip="Set Originator token"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="VOL" Tag="SetVol" Click="Cmd_Click" FontSize="9" ToolTip="Set Volume token"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="LVL" Tag="SetLvl" Click="Cmd_Click" FontSize="9" ToolTip="Set Level token"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="DISC" Tag="SetDisc" Click="Cmd_Click" FontSize="9" ToolTip="Set Discipline token"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="LOC" Tag="SetLoc" Click="Cmd_Click" FontSize="9" ToolTip="Set Location token"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="ZONE" Tag="SetZone" Click="Cmd_Click" FontSize="9" ToolTip="Set Zone token"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="SYS" Tag="SetSys" Click="Cmd_Click" FontSize="9" ToolTip="Set System token"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="FUNC" Tag="SetFunc" Click="Cmd_Click" FontSize="9" ToolTip="Set Function token"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="PROD" Tag="SetProd" Click="Cmd_Click" FontSize="9" ToolTip="Set Product token"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="SEQ" Tag="AssignNumbers" Click="Cmd_Click" FontSize="9" ToolTip="Assign Sequence numbers"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="STATUS" Tag="SetStatus" Click="Cmd_Click" FontSize="9" ToolTip="Set Status token"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="REV" Tag="SetRev" Click="Cmd_Click" FontSize="9" ToolTip="Set Revision token"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="PROJ" Tag="SetProj" Click="Cmd_Click" FontSize="9"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="ORIG" Tag="SetOrig" Click="Cmd_Click" FontSize="9"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="VOL" Tag="SetVol" Click="Cmd_Click" FontSize="9"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="LVL" Tag="SetLvl" Click="Cmd_Click" FontSize="9"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="DISC" Tag="SetDisc" Click="Cmd_Click" FontSize="9"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="LOC" Tag="SetLoc" Click="Cmd_Click" FontSize="9"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="ZONE" Tag="SetZone" Click="Cmd_Click" FontSize="9"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="SYS" Tag="SetSys" Click="Cmd_Click" FontSize="9"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="FUNC" Tag="SetFunc" Click="Cmd_Click" FontSize="9"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="PROD" Tag="SetProd" Click="Cmd_Click" FontSize="9"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="SEQ" Tag="AssignNumbers" Click="Cmd_Click" FontSize="9"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="STATUS" Tag="SetStatus" Click="Cmd_Click" FontSize="9"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="REV" Tag="SetRev" Click="Cmd_Click" FontSize="9"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -490,13 +991,17 @@
                         <!-- QUALITY ASSURANCE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ QUALITY ASSURANCE"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#2196F3">
-                            <WrapPanel>
-                                <Button Style="{StaticResource GreenBtn}" Content="✔ Validate" Tag="ValidateTags" Click="Cmd_Click" ToolTip="Validate ISO 19650 tags"/>
-                                <Button Style="{StaticResource OrangeBtn}" Content="[R] Highlight" Tag="HighlightInvalid" Click="Cmd_Click" ToolTip="Highlight invalid tags (red/orange)"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clear [Art]" Tag="ClearOverrides" Click="Cmd_Click" ToolTip="Clear graphic overrides"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Completeness %" Tag="CompletenessDashboard" Click="Cmd_Click" ToolTip="ISO completeness dashboard"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Find Duplicates" Tag="FindDuplicates" Click="Cmd_Click" ToolTip="Find duplicate tags"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="✔ Validate" Tag="ValidateTags" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="[R] Highlight" Tag="HighlightInvalid" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clear [Art]" Tag="ClearOverrides" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource BlueBtn}" Content="Completeness %" Tag="CompletenessDashboard" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Find Duplicates" Tag="FindDuplicates" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                         <!-- ISO COMPLETENESS DASHBOARD -->
@@ -505,13 +1010,24 @@
                             <StackPanel>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Style="{StaticResource BlueBtn}" Content="▶ Load" Tag="CompletenessDashboard" Click="Cmd_Click"/>
+                                    <Button Grid.Column="1" Style="{StaticResource ActionBtn}" Content="Export" Tag="AuditTagsCSV" Click="Cmd_Click"/>
+                                </Grid>
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Slider x:Name="sldMinPct" Minimum="0" Maximum="100" Value="0" ToolTip="Min completeness %"/>
-                                    <TextBlock Grid.Column="1" Text="0%" FontSize="10" VerticalAlignment="Center" Margin="4,0"/>
-                                    <ComboBox Grid.Column="2" Width="50" FontSize="10" Height="22">
+                                    <TextBlock Text="Min %:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <Slider Grid.Column="1" x:Name="sldMinPct" Minimum="0" Maximum="100" Value="0"/>
+                                    <TextBlock Grid.Column="2" Text="0%" FontSize="10" VerticalAlignment="Center" Margin="4,0"/>
+                                    <ComboBox Grid.Column="3" x:Name="cmbDashDisc" Width="50" FontSize="10" Height="22">
                                         <ComboBoxItem Content="All" IsSelected="True"/>
                                         <ComboBoxItem Content="M"/>
                                         <ComboBoxItem Content="E"/>
@@ -520,10 +1036,6 @@
                                         <ComboBoxItem Content="S"/>
                                     </ComboBox>
                                 </Grid>
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Style="{StaticResource BlueBtn}" Content="▶ Load" Tag="CompletenessDashboard" Click="Cmd_Click" ToolTip="Load dashboard data"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Export" Tag="AuditTagsCSV" Click="Cmd_Click" ToolTip="Export to CSV"/>
-                                </WrapPanel>
                                 <DataGrid x:Name="dgDashboard" AutoGenerateColumns="False" Height="120"
                                           FontSize="10" IsReadOnly="True" Margin="0,4,0,0"
                                           HeadersVisibility="Column" GridLinesVisibility="Horizontal">
@@ -535,6 +1047,7 @@
                                         <DataGridTextColumn Header="Missing" Width="*"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
+                                <TextBlock x:Name="txtDashRows" Text="0 rows" FontSize="9" Foreground="#888" Margin="0,2,0,0"/>
                             </StackPanel>
                         </Border>
 
@@ -542,8 +1055,8 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ EXPORT"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Export Tag Register" Tag="TagRegisterExport" Click="Cmd_Click" ToolTip="Export comprehensive tag register CSV"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Naviate Config" Tag="ConfigEditor" Click="Cmd_Click" ToolTip="Export Naviate-compatible config"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Export Tag Register" Tag="TagRegisterExport" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Combine Parameters" Tag="CombineParameters" Click="Cmd_Click" ToolTip="Auto-fill tokens into all 36 tag containers"/>
                             </WrapPanel>
                         </Border>
 
@@ -552,7 +1065,7 @@
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
                                 <TextBlock Text="Select element then Inspect :" FontSize="9" Foreground="#888"/>
-                                <Button Style="{StaticResource BlueBtn}" Content="[Find] Inspect Selection" Tag="PreTagAudit" Click="Cmd_Click" Margin="0,4,0,0" HorizontalAlignment="Stretch" ToolTip="Inspect selected element tokens"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="[Find] Inspect Selection" Tag="PreTagAudit" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
 
@@ -560,14 +1073,14 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ═══════════════ VIEW TAB ═══════════════ -->
+            <!-- =============== VIEW TAB =============== -->
             <TabItem Header="VIEW">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel>
 
                         <!-- PROJECT HEALTH SCORE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="[Param] PROJECT HEALTH SCORE"/>
-                        <Border Style="{StaticResource GroupBorder}">
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
                             <StackPanel>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -576,16 +1089,16 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="ISO completeness · tag coverage · leader consistency · view naming · param fill rates · annotation density"
                                                FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Column="1" x:Name="txtHealthScore" Text="—/100" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" x:Name="txtHealthScore" Text="—/100" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Foreground="#6A1B9A"/>
                                 </Grid>
                                 <WrapPanel Margin="0,4,0,0">
-                                    <ComboBox x:Name="cmbHealthScope" Width="100" FontSize="10" Height="22">
+                                    <ComboBox x:Name="cmbHealthScope" Width="90" FontSize="10" Height="22">
                                         <ComboBoxItem Content="Active View" IsSelected="True"/>
                                         <ComboBoxItem Content="Project"/>
                                     </ComboBox>
-                                    <Button Style="{StaticResource BlueBtn}" Content="▶ Score" Tag="CompletenessDashboard" Click="Cmd_Click" ToolTip="Calculate project health score"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="[Chart] Report" Tag="TagStats" Click="Cmd_Click" ToolTip="Generate detailed report"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="[Fix] Fix All" Tag="FixDuplicates" Click="Cmd_Click" ToolTip="Auto-fix all issues"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="▶ Score" Tag="HealthScore" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="[Chart] Report" Tag="HealthReport" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="[Fix] Fix All" Tag="HealthFixAll" Click="Cmd_Click"/>
                                 </WrapPanel>
                                 <ProgressBar x:Name="prgHealth" Height="6" Margin="0,4,0,0" Value="0" Maximum="100"/>
                             </StackPanel>
@@ -595,7 +1108,7 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="[Scan] PARAMETER ANOMALY DETECTION"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
-                                <TextBlock Text="Statistical outlier analysis — values >2σ from mean, empty mandatory fields, duplicates, type/instance mismatches."
+                                <TextBlock Text="Statistical outlier analysis — values &gt;2σ from mean, empty mandatory fields, duplicates, type/instance mismatches."
                                            FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
                                 <Grid Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
@@ -605,11 +1118,26 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <ComboBox x:Name="cmbAnomalyParam" IsEditable="True" FontSize="10" Height="22"/>
-                                    <Button Grid.Column="1" Content="↺" Width="24" Height="22" Tag="RefreshParamList" Click="Cmd_Click" ToolTip="Refresh parameter list"/>
-                                    <Button Grid.Column="2" Style="{StaticResource BlueBtn}" Content="[Scan] Run" Tag="ValidateTags" Click="Cmd_Click" ToolTip="Run anomaly scan"/>
-                                    <Button Grid.Column="3" Style="{StaticResource ActionBtn}" Content="Export" Tag="AuditTagsCSV" Click="Cmd_Click" ToolTip="Export anomaly report"/>
+                                    <Button Grid.Column="1" Content="↻" Width="26" Height="22" FontSize="12" Tag="AnomalyRefresh" Click="Cmd_Click"/>
+                                    <Button Grid.Column="2" Style="{StaticResource BlueBtn}" Content="[Scan] Run" Tag="AnomalyScan" Click="Cmd_Click"/>
+                                    <Button Grid.Column="3" Style="{StaticResource ActionBtn}" Content="Export" Tag="AnomalyExport" Click="Cmd_Click"/>
                                 </Grid>
                                 <TextBlock x:Name="txtAnomalyResult" Text="Select elements · click [Scan] Run" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- AI CONTEXT-AWARE TAG PLACEMENT -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="[Bot] AI CONTEXT-AWARE TAG PLACEMENT"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#009688">
+                            <StackPanel>
+                                <TextBlock Text="Analyses view density, clash zones and element bounding boxes to find optimal tag head positions — no manual nudging needed."
+                                           FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource TealBtn}" Content="[Bot] Smart Place" Tag="BotSmartPlace" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="[Place] Density Map" Tag="BotDensityMap" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="↺ Undo AI" Tag="BotUndoAI" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="⚙ Options" Tag="BotOptions" Click="Cmd_Click" HorizontalAlignment="Left" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
 
@@ -617,6 +1145,7 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="[Art] COLOURISER"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
                             <StackPanel>
+                                <!-- Saved schemes -->
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -625,20 +1154,20 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <ComboBox x:Name="cmbColorScheme" FontSize="10" Height="22" ToolTip="Saved colour schemes">
-                                        <ComboBoxItem Content="— saved schemes —"/>
+                                        <ComboBoxItem Content="— saved schemes —" IsSelected="True"/>
                                     </ComboBox>
-                                    <Button Grid.Column="1" Content="Save" Style="{StaticResource ActionBtn}" FontSize="9" Click="BtnColorPresetSave_Click" ToolTip="Save colour preset"/>
-                                    <Button Grid.Column="2" Content="Load" Style="{StaticResource ActionBtn}" FontSize="9" Click="BtnColorPresetLoad_Click" ToolTip="Load colour preset"/>
-                                    <Button Grid.Column="3" Content="✕Del" Style="{StaticResource RedBtn}" FontSize="9" Click="BtnColorPresetDelete_Click" ToolTip="Delete colour preset"/>
+                                    <Button Grid.Column="1" Content="[Save]Save" Style="{StaticResource ActionBtn}" FontSize="9" Tag="SaveColorPreset" Click="Cmd_Click"/>
+                                    <Button Grid.Column="2" Content="[Open]Load" Style="{StaticResource ActionBtn}" FontSize="9" Tag="LoadColorPreset" Click="Cmd_Click"/>
+                                    <Button Grid.Column="3" Content="✕Del" Style="{StaticResource RedBtn}" FontSize="9" Tag="ColorSchemeDel" Click="Cmd_Click"/>
                                 </Grid>
-
+                                <!-- Color by -->
                                 <Grid Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <ComboBox x:Name="cmbColorBy" FontSize="10" Height="22" ToolTip="Color by parameter">
+                                    <ComboBox x:Name="cmbColorByView" FontSize="10" Height="22" ToolTip="Color by parameter">
                                         <ComboBoxItem Content="By Category" IsSelected="True"/>
                                         <ComboBoxItem Content="By Discipline"/>
                                         <ComboBoxItem Content="By System"/>
@@ -647,40 +1176,46 @@
                                         <ComboBoxItem Content="By Phase"/>
                                         <ComboBoxItem Content="By Parameter..."/>
                                     </ComboBox>
-                                    <Button Grid.Column="1" Style="{StaticResource PurpleBtn}" Content="▶ Apply" Click="BtnColorApply_Click" ToolTip="Apply colour scheme"/>
-                                    <Button Grid.Column="2" Style="{StaticResource ActionBtn}" Content="[Art]ISO%" Tag="HighlightInvalid" Click="Cmd_Click" ToolTip="ISO completeness colouring"/>
+                                    <Button Grid.Column="1" Style="{StaticResource PurpleBtn}" Content="▶ Apply" Tag="ColorApply" Click="Cmd_Click"/>
+                                    <Button Grid.Column="2" Style="{StaticResource ActionBtn}" Content="[Art]ISO%" Tag="HighlightInvalid" Click="Cmd_Click"/>
                                 </Grid>
-
-                                <TextBlock Text="Palette:" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
-                                <ComboBox x:Name="cmbPalette" FontSize="10" Height="22">
-                                    <ComboBoxItem Content="Material 500" IsSelected="True"/>
-                                    <ComboBoxItem Content="STING Discipline"/>
-                                    <ComboBoxItem Content="RAG Status"/>
-                                    <ComboBoxItem Content="Spectral"/>
-                                    <ComboBoxItem Content="High Contrast"/>
-                                    <ComboBoxItem Content="Accessible"/>
-                                    <ComboBoxItem Content="Pastel"/>
-                                    <ComboBoxItem Content="Monochrome"/>
-                                </ComboBox>
-
+                                <!-- Palette -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Palette:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <ComboBox Grid.Column="1" x:Name="cmbPaletteView" FontSize="10" Height="22">
+                                        <ComboBoxItem Content="Material 500" IsSelected="True"/>
+                                        <ComboBoxItem Content="STING Discipline"/>
+                                        <ComboBoxItem Content="RAG Status"/>
+                                        <ComboBoxItem Content="Spectral"/>
+                                        <ComboBoxItem Content="High Contrast"/>
+                                        <ComboBoxItem Content="Accessible"/>
+                                        <ComboBoxItem Content="Pastel"/>
+                                        <ComboBoxItem Content="Monochrome"/>
+                                    </ComboBox>
+                                </Grid>
+                                <!-- FILL swatches -->
                                 <TextBlock Text="FILL — click swatch to apply to selection:" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
-                                <WrapPanel x:Name="pnlSwatches" Margin="0,2,0,0">
-                                    <!-- Swatches generated in code-behind -->
-                                </WrapPanel>
-
+                                <WrapPanel x:Name="pnlSwatchesView" Margin="0,2,0,0"/>
+                                <!-- Hex input -->
                                 <Grid Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="#" FontSize="10" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Column="1" x:Name="txtHexColor" Text="RRGGBB" FontSize="10" Height="22"/>
-                                    <Border Grid.Column="2" x:Name="brdColorPreview" Width="22" Height="22" Background="White" BorderBrush="#CCC" BorderThickness="1" Margin="4,0"/>
-                                    <Button Grid.Column="3" Style="{StaticResource ActionBtn}" Content="Apply" Click="BtnColorApplyHex_Click"/>
+                                    <TextBox Grid.Column="1" x:Name="txtHexColorView" Text="RRGGBB" FontSize="10" Height="22"/>
+                                    <Border Grid.Column="2" x:Name="brdColorPreviewView" Width="22" Height="22" Background="White" BorderBrush="#CCC" BorderThickness="1" Margin="4,0"/>
+                                    <Border Grid.Column="3" Width="22" Height="22" Background="Red" BorderBrush="#CCC" BorderThickness="1"/>
+                                    <Button Grid.Column="4" Style="{StaticResource ActionBtn}" Content="Apply" Tag="ColorApplyHex" Click="Cmd_Click"/>
                                 </Grid>
-
+                                <!-- Transparency -->
                                 <Grid Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
@@ -689,23 +1224,64 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Transparency:" FontSize="10" VerticalAlignment="Center"/>
-                                    <Slider Grid.Column="1" x:Name="sldTransparency" Minimum="0" Maximum="100" Value="0"/>
-                                    <TextBlock Grid.Column="2" Text="0%" FontSize="10" VerticalAlignment="Center"/>
-                                    <Button Grid.Column="3" Style="{StaticResource ActionBtn}" Content="Apply" Click="BtnColorApplyTransparency_Click"/>
+                                    <Slider Grid.Column="1" x:Name="sldTransparencyView" Minimum="0" Maximum="100" Value="0"/>
+                                    <TextBlock Grid.Column="2" Text="0%" FontSize="10" VerticalAlignment="Center" Margin="4,0"/>
+                                    <Button Grid.Column="3" Style="{StaticResource ActionBtn}" Content="Apply" Tag="ColorApplyTransparency" Click="Cmd_Click"/>
                                 </Grid>
-
-                                <TextBlock Text="OUTLINE COLOUR" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
-                                <WrapPanel x:Name="pnlOutlineSwatches" Margin="0,2,0,0">
-                                    <!-- Outline swatches generated in code-behind -->
-                                </WrapPanel>
-
+                                <!-- Gradient -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Gradient:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <Border Grid.Column="1" x:Name="brdGradStart" Width="30" Height="22" Background="#2196F3" BorderBrush="#CCC" BorderThickness="1"/>
+                                    <TextBlock Grid.Column="2" Text="→" FontSize="12" VerticalAlignment="Center" Margin="4,0"/>
+                                    <Border Grid.Column="3" x:Name="brdGradEnd" Width="30" Height="22" Background="#F44336" BorderBrush="#CCC" BorderThickness="1"/>
+                                    <Button Grid.Column="5" Style="{StaticResource GreenBtn}" Content="Apply Gradient" Tag="GradientApply" Click="Cmd_Click"/>
+                                </Grid>
+                                <!-- Pattern -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Pattern:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <ComboBox Grid.Column="1" x:Name="cmbFillPattern" FontSize="10" Height="22">
+                                        <ComboBoxItem Content="Solid" IsSelected="True"/>
+                                        <ComboBoxItem Content="Crosshatch"/>
+                                        <ComboBoxItem Content="Diagonal"/>
+                                        <ComboBoxItem Content="Horizontal"/>
+                                        <ComboBoxItem Content="Vertical"/>
+                                    </ComboBox>
+                                    <Button Grid.Column="2" Style="{StaticResource ActionBtn}" Content="Apply" Tag="PatternApplyView" Click="Cmd_Click"/>
+                                </Grid>
+                                <!-- OUTLINE COLOUR -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="OUTLINE COLOUR" FontSize="9" FontWeight="Bold" Foreground="#888"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <TextBlock Text="Custom:" FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                        <CheckBox x:Name="chkCustomOutline" Content="OFF" FontSize="9"/>
+                                    </StackPanel>
+                                </Grid>
+                                <WrapPanel x:Name="pnlOutlineSwatchesView" Margin="0,2,0,0"/>
+                                <!-- Fill/Outline/Weight controls -->
                                 <WrapPanel Margin="0,4,0,0">
-                                    <TextBlock Text="Fill:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <Border x:Name="brdFillColor" Width="18" Height="18" Background="#2196F3" BorderThickness="1" BorderBrush="#CCC"/>
-                                    <TextBlock Text="Outline:" FontSize="10" VerticalAlignment="Center" Margin="8,0,4,0"/>
-                                    <Border x:Name="brdOutlineColor" Width="18" Height="18" Background="Black" BorderThickness="1" BorderBrush="#CCC"/>
-                                    <TextBlock Text="Wt:" FontSize="10" VerticalAlignment="Center" Margin="8,0,4,0"/>
-                                    <ComboBox x:Name="cmbLineWeight" Width="60" FontSize="10" Height="22">
+                                    <TextBlock Text="Fill:" FontSize="10" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                    <Border x:Name="brdFillColorView" Width="18" Height="18" Background="#2196F3" BorderThickness="1" BorderBrush="#CCC"/>
+                                    <TextBlock Text="Outline:" FontSize="10" VerticalAlignment="Center" Margin="8,0,2,0"/>
+                                    <Border x:Name="brdOutlineColorView" Width="18" Height="18" Background="Black" BorderThickness="1" BorderBrush="#CCC"/>
+                                    <TextBlock Text="Wt:" FontSize="10" VerticalAlignment="Center" Margin="8,0,2,0"/>
+                                    <ComboBox x:Name="cmbLineWeightView" Width="55" FontSize="10" Height="22">
                                         <ComboBoxItem Content="Default" IsSelected="True"/>
                                         <ComboBoxItem Content="1"/>
                                         <ComboBoxItem Content="2"/>
@@ -713,11 +1289,12 @@
                                         <ComboBoxItem Content="5"/>
                                         <ComboBoxItem Content="8"/>
                                     </ComboBox>
-                                    <CheckBox x:Name="chkFill" Content="⊞ Fill" FontSize="10" IsChecked="True" Margin="8,0,0,0"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Wt" Tag="ApplyLineWeight" Click="Cmd_Click"/>
+                                    <RadioButton x:Name="rbFill" Content="● Fill" FontSize="10" IsChecked="True" VerticalAlignment="Center" Margin="4,0,0,0"/>
                                 </WrapPanel>
-
-                                <Button Style="{StaticResource ActionBtn}" Content="[Clean] Clear ALL Colour Overrides in View" Tag="ClearOverrides" Click="Cmd_Click"
-                                        HorizontalAlignment="Stretch" Margin="0,4,0,0" ToolTip="Clear all colour overrides"/>
+                                <!-- Clear ALL -->
+                                <Button Style="{StaticResource RedBtn}" Content="[Clean] Clear ALL Colour Overrides in View" Tag="ClearOverrides" Click="Cmd_Click"
+                                        HorizontalAlignment="Stretch" Margin="0,6,0,0"/>
                             </StackPanel>
                         </Border>
 
@@ -725,112 +1302,64 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="[Eye] VIEW CONTROLS"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
-                                <TextBlock Text="TEMP HIDE / ISOLATE" FontSize="9" Foreground="#888"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="TEMP HIDE / ISOLATE"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="[Find] Isolate" Tag="ViewIsolate" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="[Hide] Hide" Tag="ViewHide" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="[Look] Reveal" Tag="ViewReveal" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="↺ Reset" Tag="ViewReset" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="↻ Reset" Tag="ViewReset" Click="Cmd_Click"/>
                                 </WrapPanel>
-                                <TextBlock Text="PERMANENT HIDE" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="PERMANENT HIDE"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Perm Hide" Tag="PermHide" Click="Cmd_Click" ToolTip="Permanently hide selected"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Perm Unhide" Tag="PermUnhide" Click="Cmd_Click" ToolTip="Permanently unhide"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Unhide Cat" Tag="UnhideCategory" Click="Cmd_Click" ToolTip="Unhide category"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Perm Hide" Tag="PermHide" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Perm Unhide" Tag="PermUnhide" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Unhide Cat" Tag="UnhideCategory" Click="Cmd_Click"/>
                                 </WrapPanel>
-                                <TextBlock Text="GRAPHIC OVERRIDES" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="GRAPHIC OVERRIDES"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Halftone ON" Tag="HalftoneOn" Click="Cmd_Click" ToolTip="Apply halftone"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Halftone OFF" Tag="HalftoneOff" Click="Cmd_Click" ToolTip="Remove halftone"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Reset Override" Tag="ClearOverrides" Click="Cmd_Click" ToolTip="Reset all graphic overrides"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Halftone ON" Tag="HalftoneOn" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Halftone OFF" Tag="HalftoneOff" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Reset Override" Tag="ClearOverrides" Click="Cmd_Click"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
 
-                        <!-- DOCS PANEL -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="📄 DOCUMENTS"/>
-                        <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Sheet Organizer" Tag="SheetOrganizer" Click="Cmd_Click" ToolTip="Organize sheets by discipline"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="View Organizer" Tag="ViewOrganizer" Click="Cmd_Click" ToolTip="Organize views by type"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Sheet Index" Tag="SheetIndex" Click="Cmd_Click" ToolTip="Create sheet index"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Transmittal" Tag="Transmittal" Click="Cmd_Click" ToolTip="ISO 19650 transmittal"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Delete Unused" Tag="DeleteUnusedViews" Click="Cmd_Click" ToolTip="Delete unused views"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Sheet Naming" Tag="SheetNamingCheck" Click="Cmd_Click" ToolTip="ISO sheet naming check"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Auto-Number" Tag="AutoNumberSheets" Click="Cmd_Click" ToolTip="Auto-number sheets"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Align VP" Tag="AlignViewports" Click="Cmd_Click" ToolTip="Align viewports"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Renum VP" Tag="RenumberViewports" Click="Cmd_Click" ToolTip="Renumber viewports"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Text Case" Tag="TextCase" Click="Cmd_Click" ToolTip="Text case conversion"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Sum Areas" Tag="SumAreas" Click="Cmd_Click" ToolTip="Sum room areas"/>
-                            </WrapPanel>
-                        </Border>
-
-                        <!-- TEMPLATES PANEL -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="🔧 TEMPLATES"/>
-                        <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Master Setup" Tag="MasterSetup" Click="Cmd_Click" ToolTip="One-click full project setup"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="BLE Materials" Tag="CreateBLEMaterials" Click="Cmd_Click" ToolTip="Create BLE materials"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="MEP Materials" Tag="CreateMEPMaterials" Click="Cmd_Click" ToolTip="Create MEP materials"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Walls" Tag="CreateWalls" Click="Cmd_Click" ToolTip="Create wall types"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Floors" Tag="CreateFloors" Click="Cmd_Click" ToolTip="Create floor types"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Ceilings" Tag="CreateCeilings" Click="Cmd_Click" ToolTip="Create ceiling types"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Roofs" Tag="CreateRoofs" Click="Cmd_Click" ToolTip="Create roof types"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Ducts" Tag="CreateDucts" Click="Cmd_Click" ToolTip="Create duct types"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Pipes" Tag="CreatePipes" Click="Cmd_Click" ToolTip="Create pipe types"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Cable Trays" Tag="CreateCableTrays" Click="Cmd_Click" ToolTip="Create cable tray types"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Conduits" Tag="CreateConduits" Click="Cmd_Click" ToolTip="Create conduit types"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Schedules" Tag="BatchSchedules" Click="Cmd_Click" ToolTip="Batch create schedules"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Formulas" Tag="FormulaEvaluator" Click="Cmd_Click" ToolTip="Evaluate formulas"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Filters" Tag="CreateFilters" Click="Cmd_Click" ToolTip="Create filters"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Worksets" Tag="CreateWorksets" Click="Cmd_Click" ToolTip="Create worksets"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="View Templates" Tag="ViewTemplates" Click="Cmd_Click" ToolTip="Create view templates"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Line Patterns" Tag="CreateLinePatterns" Click="Cmd_Click" ToolTip="Create line patterns"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Phases" Tag="CreatePhases" Click="Cmd_Click" ToolTip="Create phases"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Check Data" Tag="CheckData" Click="Cmd_Click" ToolTip="Check data files"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportCSV" Click="Cmd_Click" ToolTip="Export to CSV"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Mat Schedules" Tag="MaterialSchedules" Click="Cmd_Click" ToolTip="Create material takeoff schedules"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Apply Filters" Tag="ApplyFilters" Click="Cmd_Click" ToolTip="Apply STING filters to view templates"/>
-                            </WrapPanel>
-                        </Border>
-
-                        <!-- TEMPLATE MANAGER -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ TEMPLATE MANAGER"/>
-                        <Border Style="{StaticResource GroupBorder}">
-                            <StackPanel>
-                                <TextBlock Text="INTELLIGENCE" FontSize="9" Foreground="#888"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="Auto-Assign" Tag="AutoAssignTemplates" Click="Cmd_Click" ToolTip="5-layer auto-assign templates to views"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="TemplateAudit" Click="Cmd_Click" ToolTip="Audit template assignments"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Diff" Tag="TemplateDiff" Click="Cmd_Click" ToolTip="Compare VG between templates"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Score" Tag="TemplateComplianceScore" Click="Cmd_Click" ToolTip="10-point compliance score"/>
-                                    <Button Style="{StaticResource GreenBtn}" Content="Auto-Fix" Tag="AutoFixTemplate" Click="Cmd_Click" ToolTip="Auto-fix template issues"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Sync VG" Tag="SyncTemplateOverrides" Click="Cmd_Click" ToolTip="Sync VG overrides to views"/>
-                                </WrapPanel>
-                                <TextBlock Text="CREATE STYLES" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource CatBtn}" Content="Fill" Tag="CreateFillPatterns" Click="Cmd_Click" ToolTip="Create fill patterns"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Lines" Tag="CreateLineStyles" Click="Cmd_Click" ToolTip="Create line styles"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Objects" Tag="CreateObjectStyles" Click="Cmd_Click" ToolTip="Create object styles"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Text" Tag="CreateTextStyles" Click="Cmd_Click" ToolTip="Create text styles"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="Dims" Tag="CreateDimensionStyles" Click="Cmd_Click" ToolTip="Create dimension styles"/>
-                                    <Button Style="{StaticResource CatBtn}" Content="VG" Tag="CreateVGOverrides" Click="Cmd_Click" ToolTip="Create VG overrides"/>
-                                </WrapPanel>
-                                <TextBlock Text="BATCH OPERATIONS" FontSize="9" Foreground="#888" Margin="0,4,0,0"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Family Params" Tag="BatchAddFamilyParams" Click="Cmd_Click" ToolTip="Batch add parameters to families"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Schedules" Tag="CreateTemplateSchedules" Click="Cmd_Click" ToolTip="Create template schedules"/>
-                                    <Button Style="{StaticResource PurpleBtn}" Content="Setup Wizard" Tag="TemplateSetupWizard" Click="Cmd_Click" ToolTip="Multi-step template setup"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Clone" Tag="CloneTemplate" Click="Cmd_Click" ToolTip="Deep clone template"/>
-                                    <Button Style="{StaticResource RedBtn}" Content="VG Reset" Tag="BatchVGReset" Click="Cmd_Click" ToolTip="Reset VG settings across views"/>
-                                </WrapPanel>
-                            </StackPanel>
-                        </Border>
+                        <!-- Always on top -->
+                        <TextBlock Text="Always on top: ON" FontSize="10" Foreground="#888" Margin="0,4,0,0"/>
 
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
         </TabControl>
+
+        <!-- Bottom bar -->
+        <Border Grid.Row="2" Background="#F5F5F5" Padding="4,3" BorderBrush="#DDD" BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="ft:" FontSize="9" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                <ComboBox Grid.Column="1" x:Name="cmbNudgeDist" Width="50" FontSize="9" Height="20">
+                    <ComboBoxItem Content="0.25" IsSelected="True"/>
+                    <ComboBoxItem Content="0.125"/>
+                    <ComboBoxItem Content="0.5"/>
+                    <ComboBoxItem Content="1.0"/>
+                    <ComboBoxItem Content="2.0"/>
+                </ComboBox>
+                <Slider Grid.Column="2" x:Name="sldNudgeDist" Minimum="0.01" Maximum="2.0" Value="0.25" Width="60" VerticalAlignment="Center" Margin="4,0"/>
+                <TextBlock Grid.Column="3" Text="Always on top: ON" FontSize="9" Foreground="#888" VerticalAlignment="Center" Margin="4,0"/>
+                <Ellipse Grid.Column="4" Width="10" Height="10" Fill="#F44336" Margin="4,0" VerticalAlignment="Center"/>
+                <Button Grid.Column="5" Content="[Del]" FontSize="9" Width="30" Height="20" Margin="2,0" Tag="DeleteSelected" Click="Cmd_Click"/>
+                <Button Grid.Column="6" Content="?" FontSize="9" Width="20" Height="20" Margin="2,0" Tag="ShowHelp" Click="Cmd_Click"/>
+            </Grid>
+        </Border>
     </Grid>
 </Page>

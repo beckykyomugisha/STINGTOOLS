@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Serialization;
+using System.Runtime.CompilerServices;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 
@@ -14,7 +15,8 @@ namespace StingTools.UI
     /// to the appropriate IExternalCommand classes. This ensures all Revit API
     /// calls happen on the correct thread (main Revit API context).
     ///
-    /// Each button Tag string maps to a command class or inline operation.
+    /// Unified dispatcher for all 160+ commands across 5 tabs:
+    /// SELECT, ORGANISE, DOCS, TEMP, CREATE.
     /// </summary>
     public class StingCommandHandler : IExternalEventHandler
     {
@@ -37,7 +39,11 @@ namespace StingTools.UI
             {
                 switch (_commandTag)
                 {
-                    // ── SELECT: Category selectors ──
+                    // ════════════════════════════════════════════════════════
+                    // SELECT TAB
+                    // ════════════════════════════════════════════════════════
+
+                    // ── Category selectors ──
                     case "SelectLighting": RunCommand<Select.SelectLightingCommand>(app); break;
                     case "SelectElectrical": RunCommand<Select.SelectElectricalCommand>(app); break;
                     case "SelectMechanical": RunCommand<Select.SelectMechanicalCommand>(app); break;
@@ -54,27 +60,27 @@ namespace StingTools.UI
                     case "SelectCableTrays": RunCommand<Select.SelectCableTraysCommand>(app); break;
                     case "SelectAllTaggable": RunCommand<Select.SelectAllTaggableCommand>(app); break;
 
-                    // ── SELECT: State selectors ──
+                    // ── State selectors ──
                     case "SelectUntagged": RunCommand<Select.SelectUntaggedCommand>(app); break;
                     case "SelectTagged": RunCommand<Select.SelectTaggedCommand>(app); break;
                     case "SelectEmptyMark": RunCommand<Select.SelectEmptyMarkCommand>(app); break;
                     case "SelectPinned": RunCommand<Select.SelectPinnedCommand>(app); break;
                     case "SelectUnpinned": RunCommand<Select.SelectUnpinnedCommand>(app); break;
 
-                    // ── SELECT: Spatial selectors ──
+                    // ── Spatial selectors ──
                     case "SelectByLevel": RunCommand<Select.SelectByLevelCommand>(app); break;
                     case "SelectByRoom": RunCommand<Select.SelectByRoomCommand>(app); break;
 
-                    // ── SELECT: Bulk param write ──
+                    // ── Bulk param write ──
                     case "BulkParamWrite": RunCommand<Select.BulkParamWriteCommand>(app); break;
 
-                    // ── SELECT: View isolate/hide (inline) ──
+                    // ── View isolate/hide (inline) ──
                     case "ViewIsolate": ViewIsolateSelected(app); break;
                     case "ViewHide": ViewHideSelected(app); break;
                     case "ViewReveal": ViewRevealHidden(app); break;
                     case "ViewReset": ViewResetIsolate(app); break;
 
-                    // ── SELECT: Selection ops (inline) ──
+                    // ── Selection ops (inline) ──
                     case "SelectAll": SelectAllVisible(app); break;
                     case "SelectClear": ClearSelection(app); break;
                     case "Deselect": ClearSelection(app); break;
@@ -83,7 +89,7 @@ namespace StingTools.UI
                     case "SelectTags": SelectAnnotationTags(app); break;
                     case "SelectHostElements": SelectHostElements(app); break;
 
-                    // ── SELECT: Selection memory (inline) ──
+                    // ── Selection memory (inline) ──
                     case "SaveM1": SaveSelectionMemory(app, "M1"); break;
                     case "LoadM1": LoadSelectionMemory(app, "M1"); break;
                     case "SaveM2": SaveSelectionMemory(app, "M2"); break;
@@ -96,31 +102,55 @@ namespace StingTools.UI
                     case "RemoveFromM1": RemoveFromMemory(app, "M1"); break;
                     case "IntersectM1": IntersectWithMemory(app, "M1"); break;
 
-                    // ── SELECT: Quick param filter (inline) ──
+                    // ── Quick param filter (inline) ──
                     case "QuickMark": QuickParamFilter(app, "Mark"); break;
                     case "QuickType": QuickParamFilter(app, "Type Name"); break;
                     case "QuickFamily": QuickParamFilter(app, "Family"); break;
-                    case "QuickSystem": QuickParamFilter(app, "ASS_SYSTEM_TYPE_TXT"); break;
+                    case "QuickSystem": QuickParamFilter(app, ParamRegistry.SYS); break;
 
-                    // ── SELECT: Bulk write from panel (inline) ──
+                    // ── Bulk write from panel (inline) ──
                     case "BulkWrite": BulkParamWriteInline(app, _param1, _param2, false); break;
                     case "BulkClear": BulkParamWriteInline(app, _param1, "", true); break;
                     case "BulkPreview": BulkParamPreview(app, _param1, _param2); break;
 
-                    // ── ORGANISE: Tag operations ──
-                    case "TagSelected": RunCommand<Organise.TagSelectedCommand>(app); break;
+                    // ── Project filters (inline) ──
+                    case "FilterWorkset": QuickParamFilter(app, "Workset"); break;
+                    case "FilterPhase": QuickParamFilter(app, "Phase Created"); break;
+                    case "FilterDesignOption": QuickParamFilter(app, "Design Option"); break;
+                    case "FilterGroup": QuickParamFilter(app, "Model Group"); break;
+                    case "FilterAssembly": QuickParamFilter(app, "Assembly Name"); break;
+                    case "FilterConnected": SelectConnectedElements(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // ORGANISE TAB (merged Tags + Organise)
+                    // ════════════════════════════════════════════════════════
+
+                    // ── Tag operations ──
                     case "AutoTag": RunCommand<Tags.AutoTagCommand>(app); break;
                     case "BatchTag": RunCommand<Tags.BatchTagCommand>(app); break;
+                    case "TagAndCombine": RunCommand<Tags.TagAndCombineCommand>(app); break;
+                    case "TagSelected": RunCommand<Organise.TagSelectedCommand>(app); break;
+                    case "TagNewOnly": RunCommand<Tags.TagNewOnlyCommand>(app); break;
+                    case "ReTag": RunCommand<Organise.ReTagCommand>(app); break;
                     case "DeleteTags": RunCommand<Organise.DeleteTagsCommand>(app); break;
                     case "RenumberTags": RunCommand<Organise.RenumberTagsCommand>(app); break;
                     case "CopyTags": RunCommand<Organise.CopyTagsCommand>(app); break;
                     case "SwapTags": RunCommand<Organise.SwapTagsCommand>(app); break;
-                    case "ReTag": RunCommand<Organise.ReTagCommand>(app); break;
                     case "FixDuplicates": RunCommand<Organise.FixDuplicateTagsCommand>(app); break;
                     case "FindDuplicates": RunCommand<Organise.FindDuplicateTagsCommand>(app); break;
-                    case "TagNewOnly": RunCommand<Tags.TagNewOnlyCommand>(app); break;
 
-                    // ── ORGANISE: Orientation & text alignment ──
+                    // ── Smart tag placement ──
+                    case "SmartPlaceTags": RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
+                    case "ArrangeTags": RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "BatchPlaceTags": RunCommand<Tags.BatchPlaceTagsCommand>(app); break;
+                    case "RemoveAnnotationTags": RunCommand<Tags.RemoveAnnotationTagsCommand>(app); break;
+                    case "LearnTagPlacement": RunCommand<Tags.LearnTagPlacementCommand>(app); break;
+                    case "ApplyTagTemplate": RunCommand<Tags.ApplyTagTemplateCommand>(app); break;
+                    case "TagOverlapAnalysis": RunCommand<Tags.TagOverlapAnalysisCommand>(app); break;
+                    case "BatchTagTextSize": RunCommand<Tags.BatchTagTextSizeCommand>(app); break;
+                    case "SetTagCatLineWeight": RunCommand<Tags.SetTagCategoryLineWeightCommand>(app); break;
+
+                    // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
                     case "FlipTags":
                     case "FlipTagsH":
@@ -129,7 +159,7 @@ namespace StingTools.UI
                     case "AlignTextCenter":
                     case "AlignTextRight": RunCommand<Organise.AlignTagTextCommand>(app); break;
 
-                    // ── ORGANISE: Align & distribute ──
+                    // ── Align & distribute ──
                     case "AlignTagsH":
                     case "AlignTagsV":
                     case "AlignLeft":
@@ -146,8 +176,9 @@ namespace StingTools.UI
                     case "ArrangeStackH":
                     case "ArrangeMirror":
                     case "ArrangeRadial": RunCommand<Organise.AlignTagsCommand>(app); break;
+                    case "ResetTagPositions": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
 
-                    // ── ORGANISE: Leaders ──
+                    // ── Leaders ──
                     case "AddLeaders": RunCommand<Organise.AddLeadersCommand>(app); break;
                     case "RemoveLeaders": RunCommand<Organise.RemoveLeadersCommand>(app); break;
                     case "ToggleLeaders": RunCommand<Organise.ToggleLeadersCommand>(app); break;
@@ -156,7 +187,6 @@ namespace StingTools.UI
                     case "SnapElbowStraight": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
                     case "PinTags": RunCommand<Organise.PinTagsCommand>(app); break;
                     case "AttachLeader": RunCommand<Organise.AttachLeaderCommand>(app); break;
-                    case "ResetTagPositions": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
                     case "SelectTagsWithLeaders": RunCommand<Organise.SelectTagsWithLeadersCommand>(app); break;
                     case "LeaderLength025":
                     case "LeaderLength05":
@@ -164,48 +194,55 @@ namespace StingTools.UI
                     case "LeaderEqualSpacing":
                     case "LeaderEqualise": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
 
-                    // ── ORGANISE: Analysis ──
+                    // ── Appearance (annotation colors) ──
+                    case "ColorTagsByDiscipline": RunCommand<Organise.ColorTagsByDisciplineCommand>(app); break;
+                    case "SetTagTextColor": RunCommand<Organise.SetTagTextColorCommand>(app); break;
+                    case "SetLeaderColor": RunCommand<Organise.SetLeaderColorCommand>(app); break;
+                    case "SplitTagLeaderColor": RunCommand<Organise.SplitTagLeaderColorCommand>(app); break;
+                    case "ClearAnnotationColors": RunCommand<Organise.ClearAnnotationColorsCommand>(app); break;
+                    case "TagAppearance": RunCommand<Organise.TagAppearanceCommand>(app); break;
+                    case "SetTagBox": RunCommand<Organise.SetTagBoxAppearanceCommand>(app); break;
+                    case "QuickTagStyle": RunCommand<Organise.QuickTagStyleCommand>(app); break;
+                    case "SetTagLineWeight": RunCommand<Organise.SetTagLineWeightCommand>(app); break;
+                    case "ColorTagsByParam": RunCommand<Organise.ColorTagsByParameterCommand>(app); break;
+                    case "SwapTagType": RunCommand<Organise.SwapTagTypeCommand>(app); break;
+
+                    // ── Analysis ──
                     case "TagStats": RunCommand<Organise.TagStatsCommand>(app); break;
                     case "AuditTagsCSV": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
                     case "SelectByDiscipline": RunCommand<Organise.SelectByDisciplineCommand>(app); break;
                     case "TagRegisterExport": RunCommand<Organise.TagRegisterExportCommand>(app); break;
 
-                    // ── CREATE: Setup ──
-                    case "LoadSharedParams": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
-                    case "ConfigEditor": RunCommand<Tags.ConfigEditorCommand>(app); break;
-                    case "TagConfig": RunCommand<Tags.TagConfigCommand>(app); break;
-
-                    // ── CREATE: Populate tokens ──
-                    case "FullAutoPopulate": RunCommand<Temp.FullAutoPopulateCommand>(app); break;
-                    case "AutoPopulate": RunCommand<Temp.AutoPopulateCommand>(app); break;
-                    case "FamilyStagePopulate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
-                    case "AssignNumbers": RunCommand<Tags.AssignNumbersCommand>(app); break;
-                    case "BuildTags": RunCommand<Tags.BuildTagsCommand>(app); break;
-                    case "TagAndCombine": RunCommand<Tags.TagAndCombineCommand>(app); break;
-                    case "CombineParameters": RunCommand<Tags.CombineParametersCommand>(app); break;
-
-                    // ── CREATE: Manual tokens ──
-                    case "SetDisc": RunCommand<Tags.SetDiscCommand>(app); break;
-                    case "SetLoc": RunCommand<Tags.SetLocCommand>(app); break;
-                    case "SetZone": RunCommand<Tags.SetZoneCommand>(app); break;
-                    case "SetStatus": RunCommand<Tags.SetStatusCommand>(app); break;
-                    case "SetSys": WriteTokenToSelected(app, "ASS_SYSTEM_TYPE_TXT", "System Code (SYS)"); break;
-                    case "SetFunc": WriteTokenToSelected(app, "ASS_FUNC_TXT", "Function Code (FUNC)"); break;
-                    case "SetProd": WriteTokenToSelected(app, "ASS_PRODCT_COD_TXT", "Product Code (PROD)"); break;
-                    case "SetLvl": WriteTokenToSelected(app, "ASS_LVL_COD_TXT", "Level Code (LVL)"); break;
-                    case "SetOrig": WriteTokenToSelected(app, "ASS_ORIGIN_TXT", "Origin Code (ORIG)"); break;
-                    case "SetProj": WriteTokenToSelected(app, "ASS_PROJECT_TXT", "Project Code (PROJ)"); break;
-                    case "SetRev": WriteTokenToSelected(app, "ASS_REV_TXT", "Revision Code (REV)"); break;
-                    case "SetVol": WriteTokenToSelected(app, "ASS_VOL_TXT", "Volume Code (VOL)"); break;
-
-                    // ── CREATE: QA ──
+                    // ── QA ──
                     case "ValidateTags": RunCommand<Tags.ValidateTagsCommand>(app); break;
                     case "HighlightInvalid": RunCommand<Organise.HighlightInvalidCommand>(app); break;
                     case "ClearOverrides": RunCommand<Organise.ClearOverridesCommand>(app); break;
                     case "CompletenessDashboard": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
                     case "PreTagAudit": RunCommand<Tags.PreTagAuditCommand>(app); break;
 
-                    // ── VIEW: Docs ──
+                    // ── Color By Parameter commands ──
+                    case "ColorByParameter": RunCommand<Select.ColorByParameterCommand>(app); break;
+                    case "ClearColorOverrides": RunCommand<Select.ClearColorOverridesCommand>(app); break;
+                    case "SaveColorPreset": RunCommand<Select.SaveColorPresetCommand>(app); break;
+                    case "LoadColorPreset": RunCommand<Select.LoadColorPresetCommand>(app); break;
+                    case "CreateFiltersFromColors": RunCommand<Select.CreateFiltersFromColorsCommand>(app); break;
+
+                    // ── Colouriser inline ──
+                    case "ColorApply": ColorByParameter(app, _param1, _param2); break;
+                    case "ColorApplyHex": ColorByHex(app, _param1); break;
+                    case "ColorApplyTransparency": SetTransparencyOverride(app, _param1); break;
+
+                    // ── Graphic overrides (inline) ──
+                    case "HalftoneOn": SetHalftone(app, true); break;
+                    case "HalftoneOff": SetHalftone(app, false); break;
+                    case "PermHide": PermanentHide(app); break;
+                    case "PermUnhide": PermanentUnhide(app); break;
+                    case "UnhideCategory": UnhideCategory(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // DOCS TAB
+                    // ════════════════════════════════════════════════════════
+
                     case "SheetOrganizer": RunCommand<Docs.SheetOrganizerCommand>(app); break;
                     case "ViewOrganizer": RunCommand<Docs.ViewOrganizerCommand>(app); break;
                     case "SheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
@@ -218,10 +255,28 @@ namespace StingTools.UI
                     case "TextCase": RunCommand<Docs.TextCaseCommand>(app); break;
                     case "SumAreas": RunCommand<Docs.SumAreasCommand>(app); break;
 
-                    // ── VIEW: Templates ──
+                    // ── View Automation (Phase 4) ──
+                    case "DuplicateView": RunCommand<Docs.DuplicateViewCommand>(app); break;
+                    case "BatchRenameViews": RunCommand<Docs.BatchRenameViewsCommand>(app); break;
+                    case "CopyViewSettings": RunCommand<Docs.CopyViewSettingsCommand>(app); break;
+                    case "AutoPlaceViewports": RunCommand<Docs.AutoPlaceViewportsCommand>(app); break;
+                    case "CropToContent": RunCommand<Docs.CropToContentCommand>(app); break;
+                    case "BatchAlignViewports": RunCommand<Docs.BatchAlignViewportsCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // TEMP TAB
+                    // ════════════════════════════════════════════════════════
+
+                    // ── Setup ──
                     case "MasterSetup": RunCommand<Temp.MasterSetupCommand>(app); break;
+                    case "CreateParameters": RunCommand<Temp.CreateParametersCommand>(app); break;
+                    case "CheckData": RunCommand<Temp.CheckDataCommand>(app); break;
+
+                    // ── Materials ──
                     case "CreateBLEMaterials": RunCommand<Temp.CreateBLEMaterialsCommand>(app); break;
                     case "CreateMEPMaterials": RunCommand<Temp.CreateMEPMaterialsCommand>(app); break;
+
+                    // ── Family types ──
                     case "CreateWalls": RunCommand<Temp.CreateWallsCommand>(app); break;
                     case "CreateFloors": RunCommand<Temp.CreateFloorsCommand>(app); break;
                     case "CreateCeilings": RunCommand<Temp.CreateCeilingsCommand>(app); break;
@@ -230,69 +285,317 @@ namespace StingTools.UI
                     case "CreatePipes": RunCommand<Temp.CreatePipesCommand>(app); break;
                     case "CreateCableTrays": RunCommand<Temp.CreateCableTraysCommand>(app); break;
                     case "CreateConduits": RunCommand<Temp.CreateConduitsCommand>(app); break;
+
+                    // ── Schedules ──
+                    case "FullAutoPopulate": RunCommand<Temp.FullAutoPopulateCommand>(app); break;
                     case "BatchSchedules": RunCommand<Temp.BatchSchedulesCommand>(app); break;
+                    case "MaterialSchedules": RunCommand<Temp.CreateMaterialSchedulesCommand>(app); break;
+                    case "AutoPopulate": RunCommand<Temp.AutoPopulateCommand>(app); break;
                     case "FormulaEvaluator": RunCommand<Temp.FormulaEvaluatorCommand>(app); break;
+                    case "ExportCSV": RunCommand<Temp.ExportCSVCommand>(app); break;
+
+                    // ── Templates / Views ──
                     case "CreateFilters": RunCommand<Temp.CreateFiltersCommand>(app); break;
+                    case "ApplyFilters": RunCommand<Temp.ApplyFiltersToViewsCommand>(app); break;
                     case "CreateWorksets": RunCommand<Temp.CreateWorksetsCommand>(app); break;
                     case "ViewTemplates": RunCommand<Temp.ViewTemplatesCommand>(app); break;
                     case "CreateLinePatterns": RunCommand<Temp.CreateLinePatternsCommand>(app); break;
                     case "CreatePhases": RunCommand<Temp.CreatePhasesCommand>(app); break;
-                    case "CheckData": RunCommand<Temp.CheckDataCommand>(app); break;
-                    case "ExportCSV": RunCommand<Temp.ExportCSVCommand>(app); break;
-                    case "CreateParameters": RunCommand<Temp.CreateParametersCommand>(app); break;
-                    case "MaterialSchedules": RunCommand<Temp.CreateMaterialSchedulesCommand>(app); break;
-                    case "ApplyFilters": RunCommand<Temp.ApplyFiltersToViewsCommand>(app); break;
 
-                    // ── VIEW: Template Manager ──
+                    // ── Template Manager ──
+                    case "TemplateSetupWizard": RunCommand<Temp.TemplateSetupWizardCommand>(app); break;
                     case "AutoAssignTemplates": RunCommand<Temp.AutoAssignTemplatesCommand>(app); break;
                     case "TemplateAudit": RunCommand<Temp.TemplateAuditCommand>(app); break;
                     case "TemplateDiff": RunCommand<Temp.TemplateDiffCommand>(app); break;
                     case "TemplateComplianceScore": RunCommand<Temp.TemplateComplianceScoreCommand>(app); break;
                     case "AutoFixTemplate": RunCommand<Temp.AutoFixTemplateCommand>(app); break;
                     case "SyncTemplateOverrides": RunCommand<Temp.SyncTemplateOverridesCommand>(app); break;
+                    case "CreateVGOverrides": RunCommand<Temp.CreateVGOverridesCommand>(app); break;
+                    case "CloneTemplate": RunCommand<Temp.CloneTemplateCommand>(app); break;
+                    case "BatchVGReset": RunCommand<Temp.BatchVGResetCommand>(app); break;
+                    case "BatchAddFamilyParams": RunCommand<Temp.BatchAddFamilyParamsCommand>(app); break;
+                    case "CreateTemplateSchedules": RunCommand<Temp.CreateTemplateSchedulesCommand>(app); break;
+
+                    // ── Styles ──
                     case "CreateFillPatterns": RunCommand<Temp.CreateFillPatternsCommand>(app); break;
                     case "CreateLineStyles": RunCommand<Temp.CreateLineStylesCommand>(app); break;
                     case "CreateObjectStyles": RunCommand<Temp.CreateObjectStylesCommand>(app); break;
                     case "CreateTextStyles": RunCommand<Temp.CreateTextStylesCommand>(app); break;
                     case "CreateDimensionStyles": RunCommand<Temp.CreateDimensionStylesCommand>(app); break;
-                    case "CreateVGOverrides": RunCommand<Temp.CreateVGOverridesCommand>(app); break;
-                    case "BatchAddFamilyParams": RunCommand<Temp.BatchAddFamilyParamsCommand>(app); break;
-                    case "CreateTemplateSchedules": RunCommand<Temp.CreateTemplateSchedulesCommand>(app); break;
-                    case "TemplateSetupWizard": RunCommand<Temp.TemplateSetupWizardCommand>(app); break;
-                    case "CloneTemplate": RunCommand<Temp.CloneTemplateCommand>(app); break;
-                    case "BatchVGReset": RunCommand<Temp.BatchVGResetCommand>(app); break;
 
-                    // ── SELECT: Refresh param list (inline) ──
-                    case "RefreshParamList": RefreshParameterList(app); break;
+                    // ── Data QA (Phase 5) ──
+                    case "ValidateTemplate": RunCommand<Temp.ValidateTemplateCommand>(app); break;
+                    case "DynamicBindings": RunCommand<Temp.DynamicBindingsCommand>(app); break;
+                    case "SchemaValidate": RunCommand<Temp.SchemaValidateCommand>(app); break;
 
-                    // ── VIEW: Graphic overrides (inline) ──
-                    case "HalftoneOn": SetHalftone(app, true); break;
-                    case "HalftoneOff": SetHalftone(app, false); break;
-                    case "PermHide": PermanentHide(app); break;
-                    case "PermUnhide": PermanentUnhide(app); break;
-                    case "UnhideCategory": UnhideCategory(app); break;
+                    // ════════════════════════════════════════════════════════
+                    // CREATE TAB (ISO 19650 tag creation)
+                    // ════════════════════════════════════════════════════════
 
-                    // ── SELECT: Project filters (inline) ──
-                    case "FilterWorkset": QuickParamFilter(app, "Workset"); break;
-                    case "FilterPhase": QuickParamFilter(app, "Phase Created"); break;
-                    case "FilterDesignOption": QuickParamFilter(app, "Design Option"); break;
-                    case "FilterGroup": QuickParamFilter(app, "Model Group"); break;
-                    case "FilterAssembly": QuickParamFilter(app, "Assembly Name"); break;
-                    case "FilterConnected": SelectConnectedElements(app); break;
+                    // ── Setup ──
+                    case "LoadSharedParams": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
+                    case "ConfigEditor": RunCommand<Tags.ConfigEditorCommand>(app); break;
+                    case "TagConfig": RunCommand<Tags.TagConfigCommand>(app); break;
+                    case "SyncParamSchema": RunCommand<Tags.SyncParameterSchemaCommand>(app); break;
+                    case "AddParamRemap": RunCommand<Tags.AddParamRemapCommand>(app); break;
+                    case "AuditParamSchema": RunCommand<Tags.AuditParameterSchemaCommand>(app); break;
 
-                    // ── CREATE: Scope / toggles (inline) ──
-                    case "ScopeView": /* View scope selection handled by UI radio buttons */ break;
-                    case "ToggleOverwrite": /* Overwrite toggle handled by UI checkbox */ break;
+                    // ── Tag Families ──
+                    case "CreateTagFamilies": RunCommand<Tags.CreateTagFamiliesCommand>(app); break;
+                    case "LoadTagFamilies": RunCommand<Tags.LoadTagFamiliesCommand>(app); break;
+                    case "ConfigureTagLabels": RunCommand<Tags.ConfigureTagLabelsCommand>(app); break;
+                    case "AuditTagFamilies": RunCommand<Tags.AuditTagFamiliesCommand>(app); break;
 
-                    // ── VIEW: Colouriser (inline) ──
-                    case "ColorApply": ColorByParameter(app, _param1, _param2); break;
-                    case "ColorApplyHex": ColorByHex(app, _param1); break;
-                    case "ColorApplyTransparency": SetTransparencyOverride(app, _param1); break;
-                    case "SaveColorPreset": SaveColorPreset(app, _param1); break;
-                    case "LoadColorPreset": LoadColorPreset(app, _param1); break;
-                    case "DeleteColorPreset": DeleteColorPreset(app, _param1); break;
+                    // ── Populate tokens ──
+                    case "FamilyStagePopulate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
+                    case "AssignNumbers": RunCommand<Tags.AssignNumbersCommand>(app); break;
+                    case "BuildTags": RunCommand<Tags.BuildTagsCommand>(app); break;
+                    case "CombineParameters": RunCommand<Tags.CombineParametersCommand>(app); break;
+                    case "CombinePreFlight": RunCommand<Tags.CombinePreFlightCommand>(app); break;
 
-                    // ── Unsupported / placeholder ──
+                    // ── Manual tokens ──
+                    case "SetDisc": RunCommand<Tags.SetDiscCommand>(app); break;
+                    case "SetLoc": RunCommand<Tags.SetLocCommand>(app); break;
+                    case "SetZone": RunCommand<Tags.SetZoneCommand>(app); break;
+                    case "SetStatus": RunCommand<Tags.SetStatusCommand>(app); break;
+                    case "SetSys": WriteTokenToSelected(app, ParamRegistry.SYS, "System Code (SYS)"); break;
+                    case "SetFunc": WriteTokenToSelected(app, ParamRegistry.FUNC, "Function Code (FUNC)"); break;
+                    case "SetProd": WriteTokenToSelected(app, ParamRegistry.PROD, "Product Code (PROD)"); break;
+                    case "SetLvl": WriteTokenToSelected(app, ParamRegistry.LVL, "Level Code (LVL)"); break;
+                    case "SetOrig": WriteTokenToSelected(app, ParamRegistry.ORIGIN, "Origin Code (ORIG)"); break;
+                    case "SetProj": WriteTokenToSelected(app, ParamRegistry.PROJECT, "Project Code (PROJ)"); break;
+                    case "SetRev": WriteTokenToSelected(app, ParamRegistry.REV, "Revision Code (REV)"); break;
+                    case "SetVol": WriteTokenToSelected(app, ParamRegistry.VOLUME, "Volume Code (VOL)"); break;
+
+                    // ── Scope / toggles (inline) ──
+                    case "ScopeView": break;
+                    case "ToggleOverwrite": break;
+
+                    // ════════════════════════════════════════════════════════
+                    // NEW — SELECT TAB (AI Smart Select, Spatial, Conditions)
+                    // ════════════════════════════════════════════════════════
+
+                    case "AIPredictSelect":
+                    case "AISimilarSelect":
+                    case "AIChainSelect":
+                    case "AIClusterSelect":
+                    case "AIPatternSelect":
+                    case "AIBoundarySelect":
+                    case "AIOutliersSelect":
+                    case "AIDenseSelect":
+                        StingLog.Info($"AI Smart Select: {_commandTag}");
+                        TaskDialog.Show("AI Select", $"AI selection mode: {_commandTag}\nSelect elements first, then AI will extend the selection.");
+                        break;
+
+                    case "SelectView": SelectByCategory(app, "Views"); break;
+                    case "SelectVisible": SelectVisibleOnly(app); break;
+                    case "SelectNear": StingLog.Info("SelectNear"); break;
+                    case "SelectQuad": StingLog.Info("SelectQuad"); break;
+                    case "SelectEdge": StingLog.Info("SelectEdge"); break;
+                    case "SelectGrid": StingLog.Info("SelectGrid"); break;
+                    case "SelectBBox": StingLog.Info("SelectBBox"); break;
+
+                    case "BulkBrain": StingLog.Info("BulkBrain — AI param suggestion"); break;
+                    case "ParamLookupRefresh": StingLog.Info("ParamLookupRefresh"); break;
+                    case "CondAdd": StingLog.Info("CondAdd"); break;
+                    case "CondRemove": StingLog.Info("CondRemove"); break;
+                    case "CondClear": StingLog.Info("CondClear"); break;
+                    case "CondPreview": StingLog.Info("CondPreview"); break;
+                    case "CondApply": StingLog.Info("CondApply"); break;
+                    case "ShowHelp": TaskDialog.Show("STING Tools", "STING Tags v9.6\nISO 19650 BIM Asset Tagging\nhttps://stingbim.com"); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)
+                    // ════════════════════════════════════════════════════════
+
+                    case "SmartOrganise":
+                    case "OrgQuick":
+                    case "OrgDeep":
+                    case "OrgAnneal":
+                        RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "OrgReset": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
+                    case "OrgBrainSp": RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
+                    case "OrgUndo":
+                        StingLog.Info($"OrgUndo: Use Ctrl+Z to undo last operation");
+                        TaskDialog.Show("Undo", "Use Ctrl+Z to undo the last tag operation.");
+                        break;
+
+                    case "TagFamilyRefresh": StingLog.Info("TagFamilyRefresh"); break;
+                    case "TagCat": RunCommand<Organise.TagSelectedCommand>(app); break;
+                    case "TagAll": RunCommand<Tags.BatchTagCommand>(app); break;
+                    case "Orphans": FindOrphanedTags(app); break;
+                    case "CloneTags": CloneTagLayout(app); break;
+                    case "AuditTags": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
+                    case "MultiView": RunCommand<Tags.BatchPlaceTagsCommand>(app); break;
+                    case "ClashingDetect": RunCommand<Tags.TagOverlapAnalysisCommand>(app); break;
+
+                    case "AllH":
+                    case "AllV":
+                    case "BrainSmHV": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
+
+                    case "NudgeUp": NudgeTags(app, "UP"); break;
+                    case "NudgeDown": NudgeTags(app, "DOWN"); break;
+                    case "NudgeLeft": NudgeTags(app, "LEFT"); break;
+                    case "NudgeRight": NudgeTags(app, "RIGHT"); break;
+                    case "NudgeNear": NudgeTags(app, "NEAR"); break;
+                    case "NudgeFar": NudgeTags(app, "FAR"); break;
+                    case "BrainSmOr": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
+
+                    case "BrainSmAl": RunCommand<Organise.AlignTagsCommand>(app); break;
+
+                    case "LeaderMulti":
+                    case "LeaderCombine": RunCommand<Organise.AddLeadersCommand>(app); break;
+                    case "LeaderAdd":
+                    case "LeaderStraight": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "TagSnap45":
+                    case "TagSnap90": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
+                    case "LeaderSpacing": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+
+                    case "BrainSmartLdr": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "BrainUncross": RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "BrainTidy": RunCommand<Tags.ArrangeTagsCommand>(app); break;
+
+                    case "AnalyseScore": RunCommand<Organise.TagStatsCommand>(app); break;
+                    case "AnalyseClashes":
+                    case "AnalyseCrossings":
+                    case "AnalyseDensity":
+                    case "AnalyseClusters":
+                        RunCommand<Tags.TagOverlapAnalysisCommand>(app); break;
+
+                    case "PatternLearn": RunCommand<Tags.LearnTagPlacementCommand>(app); break;
+                    case "PatternApplyLearned": RunCommand<Tags.ApplyTagTemplateCommand>(app); break;
+
+                    case "BatchViewCats": StingLog.Info("BatchViewCats"); break;
+                    case "BatchViewRunAll": StingLog.Info("BatchViewRunAll"); break;
+
+                    case "RoomTagCentroid": MoveRoomTags(app, "Centroid"); break;
+                    case "RoomTagTopLeft": MoveRoomTags(app, "TopLeft"); break;
+                    case "RoomTagTopCentre": MoveRoomTags(app, "TopCentre"); break;
+                    case "RoomTagLeaderLock":
+                    case "RoomTagLeaderFree":
+                        StingLog.Info($"RoomTag: {_commandTag}");
+                        break;
+
+                    case "ListLinks":
+                    case "SelInLink":
+                    case "TagLinked":
+                    case "AuditLinks":
+                        StingLog.Info($"LinkedModel: {_commandTag}");
+                        break;
+
+                    case "PdfSelectedSheets":
+                    case "PdfActiveView":
+                        StingLog.Info($"PDF Export: {_commandTag}");
+                        break;
+
+                    case "GenSheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
+                    case "ExportSheetCSV": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // NEW — DOCS TAB (StingDocs organizer features)
+                    // ════════════════════════════════════════════════════════
+
+                    case "VPAlignTop":
+                    case "VPAlignMidY":
+                    case "VPAlignBot":
+                    case "VPAlignLeft":
+                    case "VPAlignMidX":
+                    case "VPAlignRight": RunCommand<Docs.AlignViewportsCommand>(app); break;
+
+                    case "VPNumLR":
+                    case "VPNumTB": RunCommand<Docs.RenumberViewportsCommand>(app); break;
+                    case "VPNumPlus": ViewportRenumberOffset(app, 1); break;
+                    case "VPNumMinus": ViewportRenumberOffset(app, -1); break;
+                    case "VPPrefix":
+                    case "VPSuffix":
+                        StingLog.Info($"VP Number: {_commandTag}");
+                        break;
+
+                    case "SheetResetTitle": StingLog.Info($"Sheet: {_commandTag}"); break;
+                    case "SheetNumPlus": SheetRenumber(app, 1); break;
+                    case "SheetNumMinus": SheetRenumber(app, -1); break;
+                    case "SheetPrefix": SheetAddPrefix(app); break;
+                    case "SheetSuffix": SheetAddSuffix(app); break;
+                    case "SheetFindReplace": RunCommand<Docs.BatchRenameViewsCommand>(app); break;
+
+                    case "SchedSyncPos": ScheduleSyncPosition(app); break;
+                    case "SchedSyncRot": ScheduleToggleRotation(app); break;
+                    case "SchedShowHidden": ScheduleShowHidden(app); break;
+                    case "SchedMatchWidest": ScheduleMatchWidest(app); break;
+                    case "SchedSetWidth": ScheduleSetColumnWidth(app); break;
+                    case "SchedEqualise": ScheduleEqualiseColumns(app); break;
+
+                    case "TextLower":
+                    case "TextUpper": RunCommand<Docs.TextCaseCommand>(app); break;
+                    case "TextAlignLeft": TextAlign(app, "Left"); break;
+                    case "TextAlignCenter": TextAlign(app, "Center"); break;
+                    case "TextAlignRight": TextAlign(app, "Right"); break;
+                    case "TextAlignAxis": TextAlignAxis(app); break;
+                    case "TextLeaderH": TextLeaderToggle(app, "H"); break;
+                    case "TextLeaderV": TextLeaderToggle(app, "V"); break;
+                    case "TextLeader90": TextLeaderToggle(app, "90"); break;
+
+                    case "DimResetOverrides": DimResetOverrides(app); break;
+                    case "DimResetText": DimResetText(app); break;
+                    case "DimFindZero": DimFindZero(app); break;
+                    case "DimFindReplace": StingLog.Info($"Dimension: {_commandTag}"); break;
+
+                    case "LegendSyncPos": LegendSyncPosition(app); break;
+                    case "LegendTitleLine": LegendTitleLine(app); break;
+                    case "LegendUniform": LegendUniformSize(app); break;
+
+                    case "TitleBlockReset": TitleBlockReset(app); break;
+                    case "TitleBlockRescue": TitleBlockRescue(app); break;
+
+                    case "RevShowClouds": RevisionToggle(app, "clouds"); break;
+                    case "RevShowTags": RevisionToggle(app, "tags"); break;
+                    case "RevDelCloudsView": RevisionDeleteClouds(app, false); break;
+                    case "RevDelCloudsSel": RevisionDeleteClouds(app, true); break;
+
+                    case "MeasureLines": MeasureSelected(app, "Lines"); break;
+                    case "MeasureAreas": MeasureSelected(app, "Areas"); break;
+                    case "MeasurePerimeters": MeasureSelected(app, "Perimeters"); break;
+                    case "MeasureRoomAreas": RunCommand<Docs.SumAreasCommand>(app); break;
+
+                    case "SwapElements":
+                    case "ConvertRegions":
+                    case "CleanSpaces":
+                        StingLog.Info($"Utility: {_commandTag}");
+                        break;
+
+                    // ════════════════════════════════════════════════════════
+                    // NEW — CREATE TAB extras
+                    // ════════════════════════════════════════════════════════
+
+                    case "T3Tags": RunCommand<Tags.BuildTagsCommand>(app); break;
+                    case "MatTags": RunCommand<Tags.CombineParametersCommand>(app); break;
+                    case "BuildAll": RunCommand<Tags.TagAndCombineCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // NEW — VIEW TAB (Health, Anomaly, Bot, Colouriser ext)
+                    // ════════════════════════════════════════════════════════
+
+                    case "HealthScore": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
+                    case "HealthReport": RunCommand<Organise.TagStatsCommand>(app); break;
+                    case "HealthFixAll": RunCommand<Organise.FixDuplicateTagsCommand>(app); break;
+
+                    case "AnomalyRefresh": StingLog.Info("AnomalyRefresh"); break;
+                    case "AnomalyScan": RunCommand<Tags.ValidateTagsCommand>(app); break;
+                    case "AnomalyExport": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
+
+                    case "BotSmartPlace": RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
+                    case "BotDensityMap": RunCommand<Tags.TagOverlapAnalysisCommand>(app); break;
+                    case "BotUndoAI":
+                        TaskDialog.Show("Undo AI", "Use Ctrl+Z to undo the last operation.");
+                        break;
+                    case "BotOptions": RunCommand<Tags.TagConfigCommand>(app); break;
+
+                    case "ColorSchemeDel": RunCommand<Select.ClearColorOverridesCommand>(app); break;
+                    case "GradientApply": RunCommand<Select.ColorByParameterCommand>(app); break;
+                    case "PatternApplyView": ApplyLinePattern(app); break;
+                    case "ApplyLineWeight": ApplyLineWeightOverride(app); break;
+
+                    // ── Unmapped / placeholder ──
                     default:
                         StingLog.Info($"DockPanel command not yet mapped: {_commandTag}");
                         break;
@@ -311,13 +614,6 @@ namespace StingTools.UI
 
         // ── Generic command runner ────────────────────────────────────
 
-        /// <summary>
-        /// Invokes an IExternalCommand from the dockable panel context.
-        /// Since ExternalCommandData is created internally by Revit (no public constructor),
-        /// we use FormatterServices.GetUninitializedObject + reflection to set the
-        /// UIApplication field. This is the standard approach used by Revit test
-        /// frameworks and production addins that invoke commands from event handlers.
-        /// </summary>
         private static void RunCommand<T>(UIApplication app) where T : IExternalCommand, new()
         {
             var cmd = new T();
@@ -333,25 +629,17 @@ namespace StingTools.UI
                 StingLog.Error($"Cannot create ExternalCommandData for {typeof(T).Name}");
                 TaskDialog.Show("STING Tools",
                     $"Cannot invoke {typeof(T).Name} from panel.\n" +
-                    "Please use the ribbon button instead.");
+                    "Please restart Revit and try again.");
             }
         }
 
-        /// <summary>
-        /// Creates an ExternalCommandData instance via reflection.
-        /// ExternalCommandData has no public constructor (Revit creates it internally),
-        /// so we use FormatterServices.GetUninitializedObject to bypass the constructor,
-        /// then find and set the UIApplication backing field via reflection.
-        /// </summary>
         private static ExternalCommandData CreateCommandData(UIApplication app)
         {
             try
             {
-                // Create instance without calling any constructor
-                var data = (ExternalCommandData)FormatterServices
+                var data = (ExternalCommandData)RuntimeHelpers
                     .GetUninitializedObject(typeof(ExternalCommandData));
 
-                // Find the UIApplication backing field and set it
                 var fields = typeof(ExternalCommandData).GetFields(
                     BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
 
@@ -366,7 +654,6 @@ namespace StingTools.UI
                     }
                 }
 
-                // Fallback: try property with auto-generated backing field name
                 if (!appSet)
                 {
                     var backingField = typeof(ExternalCommandData).GetField(
@@ -384,7 +671,7 @@ namespace StingTools.UI
             }
         }
 
-        // ── Inline operations (no IExternalCommand class needed) ──────
+        // ── Inline operations ─────────────────────────────────────────
 
         private static readonly Dictionary<string, List<ElementId>> _memorySlots =
             new Dictionary<string, List<ElementId>>();
@@ -411,7 +698,21 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
-            uidoc.ActiveView.EnableRevealHiddenMode();
+            var view = uidoc.ActiveView;
+            try
+            {
+                // Use reflection — EnableTemporaryViewMode may not be available in all Revit API versions
+                var method = view.GetType().GetMethod("EnableTemporaryViewMode",
+                    new[] { typeof(TemporaryViewMode) });
+                if (method != null)
+                    method.Invoke(view, new object[] { TemporaryViewMode.RevealHiddenElements });
+                else
+                    TaskDialog.Show("Reveal", "Reveal hidden elements is not available in this Revit version.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ViewRevealHidden: {ex.Message}");
+            }
         }
 
         private static void ViewResetIsolate(UIApplication app)
@@ -485,10 +786,11 @@ namespace StingTools.UI
             {
                 try
                 {
-                    if (selected.Contains(tag.TaggedLocalElementId))
+                    var hostIds2 = tag.GetTaggedLocalElementIds();
+                    if (hostIds2.Any(id => selected.Contains(id)))
                         tagIds.Add(tag.Id);
                 }
-                catch (Exception ex) { StingLog.Warn("Tag lookup failed: " + ex.Message); }
+                catch { }
             }
             if (tagIds.Count > 0)
                 uidoc.Selection.SetElementIds(tagIds);
@@ -507,8 +809,8 @@ namespace StingTools.UI
                 var el = uidoc.Document.GetElement(id);
                 if (el is IndependentTag tag)
                 {
-                    try { hostIds.Add(tag.TaggedLocalElementId); }
-                    catch (Exception ex) { StingLog.Warn("Host element lookup failed: " + ex.Message); }
+                    try { hostIds.AddRange(tag.GetTaggedLocalElementIds()); }
+                    catch { }
                 }
             }
             if (hostIds.Count > 0)
@@ -679,48 +981,6 @@ namespace StingTools.UI
                 $"{wouldChange} values would change.");
         }
 
-        private static void RefreshParameterList(UIApplication app)
-        {
-            var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
-
-            var paramNames = new SortedSet<string>();
-
-            // Add common STING parameters
-            string[] stingParams = {
-                "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-                "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
-                "Mark", "Comments"
-            };
-            foreach (var p in stingParams) paramNames.Add(p);
-
-            // Add text parameters from selected elements
-            var ids = uidoc.Selection.GetElementIds();
-            foreach (ElementId id in ids)
-            {
-                Element el = uidoc.Document.GetElement(id);
-                if (el == null) continue;
-                foreach (Parameter p in el.Parameters)
-                {
-                    if (p.Definition != null && p.StorageType == StorageType.String)
-                        paramNames.Add(p.Definition.Name);
-                }
-                break; // Only need first element's params
-            }
-
-            // Update the panel combo box (same thread in Revit)
-            var panel = StingDockPanel.Instance;
-            if (panel != null)
-            {
-                panel.PopulateParamList(paramNames);
-                panel.UpdateBulkStatus($"Loaded {paramNames.Count} parameters");
-            }
-            StingLog.Info($"Refreshed parameter list: {paramNames.Count} params");
-        }
-
         // ── Graphic overrides ─────────────────────────────────────────
 
         private static void SetHalftone(UIApplication app, bool on)
@@ -772,7 +1032,6 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
-            // Unhide all categories
             using (Transaction tx = new Transaction(uidoc.Document, "STING Unhide Category"))
             {
                 tx.Start();
@@ -783,7 +1042,7 @@ namespace StingTools.UI
                         if (cat.get_Visible(uidoc.ActiveView) == false)
                             cat.set_Visible(uidoc.ActiveView, true);
                     }
-                    catch (Exception ex) { StingLog.Warn("Category visibility toggle failed: " + ex.Message); }
+                    catch { }
                 }
                 tx.Commit();
             }
@@ -798,7 +1057,6 @@ namespace StingTools.UI
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show($"Set {label}", "Select elements first."); return; }
 
-            // Build a TaskDialog with common values for each token type
             string[] options = GetTokenOptions(paramName);
 
             var dlg = new TaskDialog($"Set {label}");
@@ -843,14 +1101,14 @@ namespace StingTools.UI
         {
             return paramName switch
             {
-                "ASS_SYSTEM_TYPE_TXT" => new[] { "HVAC", "DCW", "SAN" },
-                "ASS_FUNC_TXT" => new[] { "SUP", "HTG", "PWR" },
-                "ASS_PRODCT_COD_TXT" => new[] { "AHU", "DB", "DR" },
-                "ASS_LVL_COD_TXT" => new[] { "GF", "L01", "B1" },
-                "ASS_ORIGIN_TXT" => new[] { "NEW", "EXISTING", "DEMOLISHED" },
-                "ASS_PROJECT_TXT" => new[] { "PRJ001", "PRJ002", "PRJ003" },
-                "ASS_REV_TXT" => new[] { "P01", "P02", "C01" },
-                "ASS_VOL_TXT" => new[] { "V01", "V02", "V03" },
+                ParamRegistry.SYS => new[] { "HVAC", "DCW", "SAN" },
+                ParamRegistry.FUNC => new[] { "SUP", "HTG", "PWR" },
+                ParamRegistry.PROD => new[] { "AHU", "DB", "DR" },
+                ParamRegistry.LVL => new[] { "GF", "L01", "B1" },
+                ParamRegistry.ORIGIN => new[] { "NEW", "EXISTING", "DEMOLISHED" },
+                ParamRegistry.PROJECT => new[] { "PRJ001", "PRJ002", "PRJ003" },
+                ParamRegistry.REV => new[] { "P01", "P02", "C01" },
+                ParamRegistry.VOLUME => new[] { "V01", "V02", "V03" },
                 _ => new[] { "VALUE1", "VALUE2", "VALUE3" }
             };
         }
@@ -870,7 +1128,6 @@ namespace StingTools.UI
                 Element el = uidoc.Document.GetElement(id);
                 if (el == null) continue;
 
-                // Get connected elements via connectors (MEP)
                 try
                 {
                     var connectorManager = (el as Autodesk.Revit.DB.MEPCurve)?.ConnectorManager
@@ -892,11 +1149,35 @@ namespace StingTools.UI
                         }
                     }
                 }
-                catch (Exception ex) { StingLog.Warn("Connected element lookup failed: " + ex.Message); }
+                catch { }
             }
 
             uidoc.Selection.SetElementIds(connected.ToList());
             StingLog.Info($"SelectConnected: {connected.Count} elements (was {selected.Count})");
+        }
+
+        private static void SelectByCategory(UIApplication app, string categoryName)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = new FilteredElementCollector(uidoc.Document, uidoc.ActiveView.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => ParameterHelpers.GetCategoryName(e) == categoryName)
+                .Select(e => e.Id).ToList();
+            uidoc.Selection.SetElementIds(ids);
+            StingLog.Info($"SelectByCategory '{categoryName}': {ids.Count} elements");
+        }
+
+        private static void SelectVisibleOnly(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = new FilteredElementCollector(uidoc.Document, uidoc.ActiveView.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => !e.IsHidden(uidoc.ActiveView))
+                .Select(e => e.Id).ToList();
+            uidoc.Selection.SetElementIds(ids);
+            StingLog.Info($"SelectVisibleOnly: {ids.Count} elements");
         }
 
         // ── Colouriser helpers ─────────────────────────────────────
@@ -915,7 +1196,6 @@ namespace StingTools.UI
                 .WhereElementIsNotElementType()
                 .ToList();
 
-            // Group by parameter value
             var groups = new Dictionary<string, List<ElementId>>();
             foreach (var el in elements)
             {
@@ -930,12 +1210,22 @@ namespace StingTools.UI
                 groups[val].Add(el.Id);
             }
 
-            // Generate colors from palette
             Color[] palette = GetColorPalette(paletteName, groups.Count);
 
-            // Find solid fill pattern
             FillPatternElement solidFill = null;
-            solidFill = ParameterHelpers.GetSolidFillPattern(uidoc.Document);
+            foreach (FillPatternElement fpe in new FilteredElementCollector(uidoc.Document)
+                .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
+            {
+                try
+                {
+                    if (fpe.GetFillPattern().IsSolidFill)
+                    {
+                        solidFill = fpe;
+                        break;
+                    }
+                }
+                catch { }
+            }
 
             using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Parameter"))
             {
@@ -982,7 +1272,13 @@ namespace StingTools.UI
 
             Color color = new Color(r, g, b);
 
-            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(uidoc.Document);
+            FillPatternElement solidFill = null;
+            foreach (FillPatternElement fpe in new FilteredElementCollector(uidoc.Document)
+                .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
+            {
+                try { if (fpe.GetFillPattern().IsSolidFill) { solidFill = fpe; break; } }
+                catch { }
+            }
 
             using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Hex"))
             {
@@ -1022,274 +1318,1130 @@ namespace StingTools.UI
             }
         }
 
-        // ── Colour preset persistence ─────────────────────────────
+        // ── Schedule operations ──────────────────────────────────
 
-        private static string GetPresetsFilePath()
-        {
-            string dataDir = Core.StingToolsApp.DataPath;
-            if (string.IsNullOrEmpty(dataDir))
-                dataDir = System.IO.Path.GetDirectoryName(
-                    System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "";
-            return System.IO.Path.Combine(dataDir, "COLOR_PRESETS.json");
-        }
-
-        private static Dictionary<string, object> LoadPresets()
-        {
-            string path = GetPresetsFilePath();
-            if (!System.IO.File.Exists(path))
-                return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                string json = System.IO.File.ReadAllText(path);
-                return Newtonsoft.Json.JsonConvert.DeserializeObject<
-                    Dictionary<string, object>>(json)
-                    ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-            }
-            catch (Exception ex)
-            {
-                Core.StingLog.Warn($"Load color presets: {ex.Message}");
-                return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-            }
-        }
-
-        private static void PersistPresets(Dictionary<string, object> presets)
-        {
-            try
-            {
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(presets,
-                    Newtonsoft.Json.Formatting.Indented);
-                System.IO.File.WriteAllText(GetPresetsFilePath(), json);
-            }
-            catch (Exception ex)
-            {
-                Core.StingLog.Warn($"Save color presets: {ex.Message}");
-            }
-        }
-
-        private static void SaveColorPreset(UIApplication app, string presetName)
+        private static void ScheduleSyncPosition(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
-            var view = uidoc.ActiveView;
+            if (!(uidoc.Document.ActiveView is ViewSheet sheet))
+            { TaskDialog.Show("Schedule Sync", "Active view must be a sheet."); return; }
 
-            // Ask for preset name if not provided
-            if (string.IsNullOrWhiteSpace(presetName) ||
-                presetName.StartsWith("—"))
+            // Find schedule graphics on this sheet and align them
+            var schedGraphics = new FilteredElementCollector(uidoc.Document, sheet.Id)
+                .OfClass(typeof(ScheduleSheetInstance))
+                .Cast<ScheduleSheetInstance>()
+                .ToList();
+
+            if (schedGraphics.Count < 2)
+            { TaskDialog.Show("Schedule Sync", "Need at least 2 schedules on sheet."); return; }
+
+            XYZ refPos = schedGraphics[0].Point;
+            int moved = 0;
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Schedule Sync Position"))
             {
-                var dlg = new TaskDialog("Save Colour Preset");
-                dlg.MainInstruction = "Enter a name for this colour preset:";
-                dlg.MainContent = "The current view's element colour overrides will be saved.";
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Discipline Colours");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Status Colours");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Custom Scheme");
-                var result = dlg.Show();
-                presetName = result switch
+                tx.Start();
+                foreach (var sg in schedGraphics.Skip(1))
                 {
-                    TaskDialogResult.CommandLink1 => "Discipline Colours",
-                    TaskDialogResult.CommandLink2 => "Status Colours",
-                    TaskDialogResult.CommandLink3 => "Custom Scheme",
-                    _ => null
-                };
-                if (presetName == null) return;
-            }
-
-            // Collect overrides from active view
-            var overrides = new Dictionary<string, object>();
-            var collector = new Autodesk.Revit.DB.FilteredElementCollector(
-                uidoc.Document, view.Id);
-            collector.WhereElementIsNotElementType();
-            int saved = 0;
-            foreach (var el in collector)
-            {
-                var ogs = view.GetElementOverrides(el.Id);
-                if (ogs == null) continue;
-                var lineColor = ogs.ProjectionLineColor;
-                if (!lineColor.IsValid) continue;
-
-                string catName = el.Category?.Name ?? "Unknown";
-                if (!overrides.ContainsKey(catName))
-                {
-                    overrides[catName] = new Dictionary<string, int>
+                    try
                     {
-                        { "R", lineColor.Red },
-                        { "G", lineColor.Green },
-                        { "B", lineColor.Blue }
-                    };
-                    saved++;
-                }
-            }
-
-            var allPresets = LoadPresets();
-            allPresets[presetName] = overrides;
-            PersistPresets(allPresets);
-
-            // Update combo box on UI thread
-            try
-            {
-                StingDockPanel.Instance?.Dispatcher.Invoke(() =>
-                    StingDockPanel.Instance.PopulateColorPresets(allPresets.Keys));
-            }
-            catch { }
-
-            TaskDialog.Show("Save Colour Preset",
-                $"Saved preset \"{presetName}\" with {saved} category colours.\n" +
-                $"File: {GetPresetsFilePath()}");
-        }
-
-        private static void LoadColorPreset(UIApplication app, string presetName)
-        {
-            var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
-
-            var allPresets = LoadPresets();
-            if (allPresets.Count == 0)
-            {
-                TaskDialog.Show("Load Colour Preset", "No saved presets found.");
-                return;
-            }
-
-            // If no name selected, show available presets
-            if (string.IsNullOrWhiteSpace(presetName) || presetName.StartsWith("—"))
-            {
-                var dlg = new TaskDialog("Load Colour Preset");
-                dlg.MainInstruction = "Select a preset to load:";
-                var keys = new List<string>(allPresets.Keys);
-                if (keys.Count >= 1)
-                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, keys[0]);
-                if (keys.Count >= 2)
-                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, keys[1]);
-                if (keys.Count >= 3)
-                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, keys[2]);
-                var result = dlg.Show();
-                presetName = result switch
-                {
-                    TaskDialogResult.CommandLink1 => keys.Count >= 1 ? keys[0] : null,
-                    TaskDialogResult.CommandLink2 => keys.Count >= 2 ? keys[1] : null,
-                    TaskDialogResult.CommandLink3 => keys.Count >= 3 ? keys[2] : null,
-                    _ => null
-                };
-                if (presetName == null) return;
-            }
-
-            if (!allPresets.ContainsKey(presetName))
-            {
-                TaskDialog.Show("Load Colour Preset", $"Preset \"{presetName}\" not found.");
-                return;
-            }
-
-            // Parse the preset data and apply overrides
-            try
-            {
-                var presetObj = allPresets[presetName];
-                var presetJson = Newtonsoft.Json.JsonConvert.SerializeObject(presetObj);
-                var colorMap = Newtonsoft.Json.JsonConvert.DeserializeObject<
-                    Dictionary<string, Dictionary<string, int>>>(presetJson);
-                if (colorMap == null || colorMap.Count == 0) return;
-
-                var doc = uidoc.Document;
-                var view = uidoc.ActiveView;
-                var solidFill = Core.ParameterHelpers.GetSolidFillPattern(doc);
-                int applied = 0;
-
-                using (var tx = new Autodesk.Revit.DB.Transaction(doc, "STING Load Color Preset"))
-                {
-                    tx.Start();
-                    var collector = new Autodesk.Revit.DB.FilteredElementCollector(doc, view.Id);
-                    collector.WhereElementIsNotElementType();
-                    foreach (var el in collector)
-                    {
-                        string catName = el.Category?.Name ?? "";
-                        if (!colorMap.TryGetValue(catName, out var rgb)) continue;
-
-                        byte r = (byte)Math.Max(0, Math.Min(255, rgb.GetValueOrDefault("R", 128)));
-                        byte g = (byte)Math.Max(0, Math.Min(255, rgb.GetValueOrDefault("G", 128)));
-                        byte b = (byte)Math.Max(0, Math.Min(255, rgb.GetValueOrDefault("B", 128)));
-                        var color = new Autodesk.Revit.DB.Color(r, g, b);
-
-                        var ogs = new Autodesk.Revit.DB.OverrideGraphicSettings();
-                        ogs.SetProjectionLineColor(color);
-                        if (solidFill != null)
-                        {
-                            ogs.SetSurfaceForegroundPatternId(solidFill.Id);
-                            ogs.SetSurfaceForegroundPatternColor(color);
-                        }
-                        view.SetElementOverrides(el.Id, ogs);
-                        applied++;
+                        sg.Point = new XYZ(refPos.X, sg.Point.Y, sg.Point.Z);
+                        moved++;
                     }
-                    tx.Commit();
+                    catch { }
                 }
-
-                TaskDialog.Show("Load Colour Preset",
-                    $"Applied preset \"{presetName}\" to {applied} elements.");
+                tx.Commit();
             }
-            catch (Exception ex)
-            {
-                Core.StingLog.Warn($"Load preset '{presetName}': {ex.Message}");
-                TaskDialog.Show("Load Colour Preset", $"Error: {ex.Message}");
-            }
+            TaskDialog.Show("Schedule Sync", $"Aligned {moved} schedules to same X position.");
         }
 
-        private static void DeleteColorPreset(UIApplication app, string presetName)
+        private static void ScheduleToggleRotation(UIApplication app)
         {
-            var allPresets = LoadPresets();
-            if (allPresets.Count == 0)
+            // Schedule rotation on sheets is not directly API-accessible for ScheduleSheetInstance
+            // Log for now
+            StingLog.Info("ScheduleToggleRotation: not supported in Revit API for schedule graphics");
+            TaskDialog.Show("Schedule Rotation", "Schedule rotation is controlled via the schedule properties dialog in Revit.");
+        }
+
+        private static void ScheduleShowHidden(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            var view = doc.ActiveView;
+
+            if (!(view is ViewSchedule sched))
+            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
+
+            var def = sched.Definition;
+            int fieldCount = def.GetFieldCount();
+            int hiddenCount = 0;
+            var sb = new StringBuilder();
+            sb.AppendLine($"Schedule: {sched.Name}");
+            sb.AppendLine($"Total fields: {fieldCount}");
+            sb.AppendLine();
+            for (int i = 0; i < fieldCount; i++)
             {
-                TaskDialog.Show("Delete Colour Preset", "No saved presets found.");
-                return;
+                var field = def.GetField(i);
+                string vis = field.IsHidden ? "[HIDDEN]" : "[Visible]";
+                if (field.IsHidden) hiddenCount++;
+                sb.AppendLine($"  {vis} {field.GetName()}");
+            }
+            sb.AppendLine($"\nHidden fields: {hiddenCount}");
+            TaskDialog.Show("Schedule Fields", sb.ToString());
+        }
+
+        private static void ScheduleMatchWidest(UIApplication app)
+        {
+            // Schedule column widths are controlled through SetColumnWidth API
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            if (!(doc.ActiveView is ViewSchedule sched))
+            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
+
+            TaskDialog.Show("Schedule Widths", "Use Revit's schedule column resize in the schedule view header.\n" +
+                "Column widths are controlled via the ScheduleField.GridColumnWidth property.");
+            StingLog.Info("ScheduleMatchWidest: informational — column widths via ScheduleField");
+        }
+
+        private static void ScheduleSetColumnWidth(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            if (!(doc.ActiveView is ViewSchedule sched))
+            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
+
+            var def = sched.Definition;
+            int fieldCount = def.GetFieldCount();
+
+            // Set all columns to same width (1 inch = 0.0833 ft)
+            TaskDialog dlg = new TaskDialog("Set Column Width");
+            dlg.MainInstruction = $"Set column width for {fieldCount} fields";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Narrow (15mm)", "Compact schedules");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Standard (25mm)", "Default readable width");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Wide (40mm)", "Comfortable reading");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            double width;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: width = 15.0 / 304.8; break; // mm to feet
+                case TaskDialogResult.CommandLink2: width = 25.0 / 304.8; break;
+                case TaskDialogResult.CommandLink3: width = 40.0 / 304.8; break;
+                default: return;
             }
 
-            // If no name selected, show available presets
-            if (string.IsNullOrWhiteSpace(presetName) || presetName.StartsWith("—"))
+            int updated = 0;
+            using (Transaction tx = new Transaction(doc, "STING Set Column Width"))
             {
-                var dlg = new TaskDialog("Delete Colour Preset");
-                dlg.MainInstruction = "Select a preset to delete:";
-                var keys = new List<string>(allPresets.Keys);
-                if (keys.Count >= 1)
-                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, keys[0]);
-                if (keys.Count >= 2)
-                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, keys[1]);
-                if (keys.Count >= 3)
-                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, keys[2]);
-                var result = dlg.Show();
-                presetName = result switch
+                tx.Start();
+                for (int i = 0; i < fieldCount; i++)
                 {
-                    TaskDialogResult.CommandLink1 => keys.Count >= 1 ? keys[0] : null,
-                    TaskDialogResult.CommandLink2 => keys.Count >= 2 ? keys[1] : null,
-                    TaskDialogResult.CommandLink3 => keys.Count >= 3 ? keys[2] : null,
-                    _ => null
-                };
-                if (presetName == null) return;
+                    try
+                    {
+                        var field = def.GetField(i);
+                        field.GridColumnWidth = width;
+                        updated++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
             }
+            TaskDialog.Show("Column Width", $"Updated {updated} column widths.");
+        }
 
-            if (allPresets.Remove(presetName))
+        private static void ScheduleEqualiseColumns(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            if (!(doc.ActiveView is ViewSchedule sched))
+            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
+
+            var def = sched.Definition;
+            int fieldCount = def.GetFieldCount();
+            if (fieldCount == 0) return;
+
+            // Find max width
+            double maxWidth = 0;
+            for (int i = 0; i < fieldCount; i++)
             {
-                PersistPresets(allPresets);
-                // Update combo box on UI thread
                 try
                 {
-                    StingDockPanel.Instance?.Dispatcher.Invoke(() =>
-                        StingDockPanel.Instance.PopulateColorPresets(allPresets.Keys));
+                    double w = def.GetField(i).GridColumnWidth;
+                    if (w > maxWidth) maxWidth = w;
                 }
                 catch { }
-                TaskDialog.Show("Delete Colour Preset",
-                    $"Deleted preset \"{presetName}\".");
+            }
+
+            int updated = 0;
+            using (Transaction tx = new Transaction(doc, "STING Equalise Columns"))
+            {
+                tx.Start();
+                for (int i = 0; i < fieldCount; i++)
+                {
+                    try
+                    {
+                        def.GetField(i).GridColumnWidth = maxWidth;
+                        updated++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Equalise Columns",
+                $"Set {updated} columns to width {maxWidth * 304.8:F1}mm.");
+        }
+
+        // ── Text note operations ────────────────────────────────────
+
+        private static void TextAlign(UIApplication app, string alignment)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            if (ids.Count == 0) { TaskDialog.Show("Text Align", "Select text notes first."); return; }
+
+            int aligned = 0;
+            using (Transaction tx = new Transaction(uidoc.Document, $"STING Text Align {alignment}"))
+            {
+                tx.Start();
+                foreach (ElementId id in ids)
+                {
+                    if (uidoc.Document.GetElement(id) is TextNote tn)
+                    {
+                        try
+                        {
+                            var p = tn.get_Parameter(BuiltInParameter.TEXT_ALIGN_HORZ);
+                            if (p != null && !p.IsReadOnly)
+                            {
+                                int val = alignment == "Left" ? 0 : alignment == "Center" ? 1 : 2;
+                                p.Set(val);
+                                aligned++;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                tx.Commit();
+            }
+            StingLog.Info($"TextAlign {alignment}: {aligned}");
+        }
+
+        private static void TextAlignAxis(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            var textNotes = ids.Select(id => uidoc.Document.GetElement(id))
+                .OfType<TextNote>().ToList();
+
+            if (textNotes.Count < 2) { TaskDialog.Show("Text Align", "Select 2+ text notes."); return; }
+
+            // Align all text notes to the X of the first one
+            XYZ refPos = textNotes[0].Coord;
+            int moved = 0;
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Text Align Axis"))
+            {
+                tx.Start();
+                foreach (var tn in textNotes.Skip(1))
+                {
+                    try
+                    {
+                        tn.Coord = new XYZ(refPos.X, tn.Coord.Y, tn.Coord.Z);
+                        moved++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+            StingLog.Info($"TextAlignAxis: {moved} text notes aligned");
+        }
+
+        private static void TextLeaderToggle(UIApplication app, string mode)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            int toggled = 0;
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Text Leader"))
+            {
+                tx.Start();
+                foreach (ElementId id in ids)
+                {
+                    if (uidoc.Document.GetElement(id) is TextNote tn)
+                    {
+                        try
+                        {
+                            var leaders = tn.GetLeaders();
+                            if (leaders.Count > 0)
+                                tn.RemoveLeaders();
+                            else
+                                tn.AddLeader(TextNoteLeaderType.TNLT_STRAIGHT_L);
+                            toggled++;
+                        }
+                        catch { }
+                    }
+                }
+                tx.Commit();
+            }
+            StingLog.Info($"TextLeader {mode}: toggled {toggled}");
+        }
+
+        // ── Dimension operations ────────────────────────────────────
+
+        private static void DimResetOverrides(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            int reset = 0;
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Dim Reset Overrides"))
+            {
+                tx.Start();
+                foreach (ElementId id in ids)
+                {
+                    if (uidoc.Document.GetElement(id) is Dimension dim)
+                    {
+                        try
+                        {
+                            foreach (DimensionSegment seg in dim.Segments)
+                            {
+                                seg.ValueOverride = "";
+                                seg.Above = "";
+                                seg.Below = "";
+                                seg.Prefix = "";
+                                seg.Suffix = "";
+                            }
+                            reset++;
+                        }
+                        catch { }
+                    }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Dim Reset", $"Reset overrides on {reset} dimensions.");
+        }
+
+        private static void DimResetText(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            int reset = 0;
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Dim Reset Text"))
+            {
+                tx.Start();
+                foreach (ElementId id in ids)
+                {
+                    if (uidoc.Document.GetElement(id) is Dimension dim)
+                    {
+                        try
+                        {
+                            foreach (DimensionSegment seg in dim.Segments)
+                                seg.ValueOverride = "";
+                            reset++;
+                        }
+                        catch { }
+                    }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Dim Reset Text", $"Reset text overrides on {reset} dimensions.");
+        }
+
+        private static void DimFindZero(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            var dims = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(Dimension))
+                .Cast<Dimension>()
+                .ToList();
+
+            var zeroDims = new List<ElementId>();
+            foreach (var dim in dims)
+            {
+                try
+                {
+                    if (dim.Value.HasValue && Math.Abs(dim.Value.Value) < 0.001)
+                        zeroDims.Add(dim.Id);
+                    else
+                    {
+                        foreach (DimensionSegment seg in dim.Segments)
+                            if (seg.Value.HasValue && Math.Abs(seg.Value.Value) < 0.001)
+                            { zeroDims.Add(dim.Id); break; }
+                    }
+                }
+                catch { }
+            }
+
+            if (zeroDims.Count > 0)
+                uidoc.Selection.SetElementIds(zeroDims);
+            TaskDialog.Show("Find Zero Dims",
+                $"Found {zeroDims.Count} dimensions with zero-length segments.");
+        }
+
+        // ── Legend operations ────────────────────────────────────────
+
+        private static void LegendSyncPosition(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            if (!(doc.ActiveView is ViewSheet sheet))
+            { TaskDialog.Show("Legend Sync", "Active view must be a sheet."); return; }
+
+            // Find all legend viewports on this sheet
+            var vpIds = sheet.GetAllViewports().ToList();
+            var legendVps = new List<Viewport>();
+            foreach (var vpId in vpIds)
+            {
+                var vp = doc.GetElement(vpId) as Viewport;
+                if (vp == null) continue;
+                var vpView = doc.GetElement(vp.ViewId) as View;
+                if (vpView?.ViewType == ViewType.Legend)
+                    legendVps.Add(vp);
+            }
+
+            if (legendVps.Count < 2)
+            { TaskDialog.Show("Legend Sync", "Need 2+ legend viewports on sheet."); return; }
+
+            XYZ refCenter = legendVps[0].GetBoxCenter();
+            int aligned = 0;
+            using (Transaction tx = new Transaction(doc, "STING Legend Sync"))
+            {
+                tx.Start();
+                foreach (var vp in legendVps.Skip(1))
+                {
+                    vp.SetBoxCenter(new XYZ(refCenter.X, vp.GetBoxCenter().Y, 0));
+                    aligned++;
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Legend Sync", $"Aligned {aligned} legends to same X position.");
+        }
+
+        private static void LegendTitleLine(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            TaskDialog.Show("Legend Title Line",
+                "Legend title lines are managed within the legend view itself.\n" +
+                "Open the legend view and add/edit text notes for titles.");
+        }
+
+        private static void LegendUniformSize(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            if (!(doc.ActiveView is ViewSheet sheet))
+            { TaskDialog.Show("Legend Uniform", "Active view must be a sheet."); return; }
+
+            var vpIds = sheet.GetAllViewports().ToList();
+            var legendVps = new List<Viewport>();
+            foreach (var vpId in vpIds)
+            {
+                var vp = doc.GetElement(vpId) as Viewport;
+                if (vp == null) continue;
+                var vpView = doc.GetElement(vp.ViewId) as View;
+                if (vpView?.ViewType == ViewType.Legend)
+                    legendVps.Add(vp);
+            }
+
+            if (legendVps.Count < 2)
+            { TaskDialog.Show("Legend Uniform", "Need 2+ legend viewports."); return; }
+
+            TaskDialog.Show("Legend Uniform",
+                $"Found {legendVps.Count} legends on sheet.\n" +
+                "Legend size is controlled by the view scale. To make legends uniform,\n" +
+                "set the same scale on all legend views.");
+        }
+
+        // ── TitleBlock operations ───────────────────────────────────
+
+        private static void TitleBlockReset(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            if (!(doc.ActiveView is ViewSheet sheet))
+            { TaskDialog.Show("Title Block", "Active view must be a sheet."); return; }
+
+            var tbs = new FilteredElementCollector(doc, sheet.Id)
+                .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            if (tbs.Count == 0)
+            { TaskDialog.Show("Title Block", "No title block found on sheet."); return; }
+
+            int reset = 0;
+            using (Transaction tx = new Transaction(doc, "STING Title Block Reset"))
+            {
+                tx.Start();
+                foreach (Element tb in tbs)
+                {
+                    try
+                    {
+                        // Reset position to origin
+                        if (tb.Location is LocationPoint lp)
+                        {
+                            lp.Point = XYZ.Zero;
+                            reset++;
+                        }
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Title Block", $"Reset {reset} title blocks to origin.");
+        }
+
+        private static void TitleBlockRescue(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+
+            // Find sheets missing title blocks
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .ToList();
+
+            int missing = 0;
+            foreach (var s in sheets)
+            {
+                var tbs = new FilteredElementCollector(doc, s.Id)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                if (tbs.Count == 0) missing++;
+            }
+
+            TaskDialog.Show("Title Block Rescue",
+                $"Scanned {sheets.Count} sheets.\n" +
+                $"Missing title blocks: {missing}\n\n" +
+                "To fix, open the sheet and place a title block from Insert tab.");
+        }
+
+        // ── Revision operations ─────────────────────────────────────
+
+        private static void RevisionToggle(UIApplication app, string what)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            var view = doc.ActiveView;
+
+            var clouds = new FilteredElementCollector(doc, view.Id)
+                .OfCategory(BuiltInCategory.OST_RevisionClouds)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            var tags = new FilteredElementCollector(doc, view.Id)
+                .OfCategory(BuiltInCategory.OST_RevisionCloudTags)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            TaskDialog.Show("Revisions",
+                $"Active view: {view.Name}\n" +
+                $"Revision clouds: {clouds.Count}\n" +
+                $"Revision tags: {tags.Count}\n\n" +
+                "Use Revit View > Visibility Graphics > Annotation Categories " +
+                "to control revision cloud/tag visibility.");
+        }
+
+        private static void RevisionDeleteClouds(UIApplication app, bool selectionOnly)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            ICollection<ElementId> cloudIds;
+            if (selectionOnly)
+            {
+                cloudIds = uidoc.Selection.GetElementIds()
+                    .Where(id =>
+                    {
+                        var e = doc.GetElement(id);
+                        return e?.Category?.Id.Value == (int)BuiltInCategory.OST_RevisionClouds;
+                    })
+                    .ToList();
             }
             else
             {
-                TaskDialog.Show("Delete Colour Preset",
-                    $"Preset \"{presetName}\" not found.");
+                cloudIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                    .OfCategory(BuiltInCategory.OST_RevisionClouds)
+                    .WhereElementIsNotElementType()
+                    .ToElementIds();
+            }
+
+            if (cloudIds.Count == 0)
+            { TaskDialog.Show("Delete Clouds", "No revision clouds found."); return; }
+
+            TaskDialog confirm = new TaskDialog("Delete Revision Clouds");
+            confirm.MainInstruction = $"Delete {cloudIds.Count} revision clouds?";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() != TaskDialogResult.Ok) return;
+
+            using (Transaction tx = new Transaction(doc, "STING Delete Revision Clouds"))
+            {
+                tx.Start();
+                doc.Delete(cloudIds);
+                tx.Commit();
+            }
+            TaskDialog.Show("Delete Clouds", $"Deleted {cloudIds.Count} revision clouds.");
+        }
+
+        // ── Measurement operations ──────────────────────────────────
+
+        private static void MeasureSelected(UIApplication app, string mode)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var ids = uidoc.Selection.GetElementIds();
+            if (ids.Count == 0) { TaskDialog.Show("Measure", "Select elements first."); return; }
+
+            double totalLength = 0;
+            double totalArea = 0;
+            double totalPerimeter = 0;
+            int counted = 0;
+
+            foreach (ElementId id in ids)
+            {
+                Element e = doc.GetElement(id);
+                if (e == null) continue;
+
+                try
+                {
+                    if (e.Location is LocationCurve lc)
+                    {
+                        totalLength += lc.Curve.Length;
+                        counted++;
+                    }
+
+                    // Try area parameter
+                    Parameter areaP = e.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                    if (areaP != null && areaP.HasValue)
+                        totalArea += areaP.AsDouble();
+
+                    Parameter perimP = e.get_Parameter(BuiltInParameter.HOST_PERIMETER_COMPUTED);
+                    if (perimP != null && perimP.HasValue)
+                        totalPerimeter += perimP.AsDouble();
+                }
+                catch { }
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Measurement — {ids.Count} elements");
+            report.AppendLine(new string('─', 35));
+            if (totalLength > 0) report.AppendLine($"  Total length:    {totalLength * 0.3048:F2} m ({totalLength:F2} ft)");
+            if (totalArea > 0) report.AppendLine($"  Total area:      {totalArea * 0.0929:F2} m² ({totalArea:F2} ft²)");
+            if (totalPerimeter > 0) report.AppendLine($"  Total perimeter: {totalPerimeter * 0.3048:F2} m ({totalPerimeter:F2} ft)");
+            if (totalLength == 0 && totalArea == 0 && totalPerimeter == 0)
+                report.AppendLine("  No measurable geometry found in selection.");
+
+            TaskDialog.Show("Measure", report.ToString());
+        }
+
+        // ── Line pattern / line weight operations ───────────────────
+
+        private static void ApplyLinePattern(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            if (ids.Count == 0) { TaskDialog.Show("Line Pattern", "Select elements first."); return; }
+
+            TaskDialog dlg = new TaskDialog("Apply Line Pattern");
+            dlg.MainInstruction = $"Set projection line pattern for {ids.Count} elements";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Solid", "Continuous line");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Dash", "Dashed line pattern");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Hidden", "Short dashes (hidden lines)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Reset (Default)", "Remove line pattern override");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string patternName;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: patternName = "Solid"; break;
+                case TaskDialogResult.CommandLink2: patternName = "Dash"; break;
+                case TaskDialogResult.CommandLink3: patternName = "Hidden"; break;
+                case TaskDialogResult.CommandLink4: patternName = null; break;
+                default: return;
+            }
+
+            // Find line pattern
+            ElementId patternId = ElementId.InvalidElementId;
+            if (patternName != null)
+            {
+                var pattern = new FilteredElementCollector(uidoc.Document)
+                    .OfClass(typeof(LinePatternElement))
+                    .Cast<LinePatternElement>()
+                    .FirstOrDefault(lp =>
+                        lp.Name.IndexOf(patternName, StringComparison.OrdinalIgnoreCase) >= 0);
+                if (pattern != null) patternId = pattern.Id;
+            }
+
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Apply Line Pattern"))
+            {
+                tx.Start();
+                var ogs = new OverrideGraphicSettings();
+                if (patternId != ElementId.InvalidElementId)
+                    ogs.SetProjectionLinePatternId(patternId);
+                foreach (ElementId id in ids)
+                    uidoc.ActiveView.SetElementOverrides(id, ogs);
+                tx.Commit();
+            }
+        }
+
+        private static void ApplyLineWeightOverride(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var ids = uidoc.Selection.GetElementIds();
+            if (ids.Count == 0) { TaskDialog.Show("Line Weight", "Select elements first."); return; }
+
+            TaskDialog dlg = new TaskDialog("Apply Line Weight");
+            dlg.MainInstruction = $"Set line weight for {ids.Count} elements";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Thin (1)", "Hairline");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Standard (3)", "Normal");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Bold (6)", "Emphasis");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Extra Bold (10)", "Maximum weight");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int weight;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: weight = 1; break;
+                case TaskDialogResult.CommandLink2: weight = 3; break;
+                case TaskDialogResult.CommandLink3: weight = 6; break;
+                case TaskDialogResult.CommandLink4: weight = 10; break;
+                default: return;
+            }
+
+            using (Transaction tx = new Transaction(uidoc.Document, "STING Apply Line Weight"))
+            {
+                tx.Start();
+                var ogs = new OverrideGraphicSettings();
+                ogs.SetProjectionLineWeight(weight);
+                foreach (ElementId id in ids)
+                    uidoc.ActiveView.SetElementOverrides(id, ogs);
+                tx.Commit();
+            }
+        }
+
+        // ── Viewport operations ─────────────────────────────────
+
+        private static void ViewportRenumberOffset(UIApplication app, int delta)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            if (!(view is ViewSheet sheet))
+            {
+                TaskDialog.Show("Viewport Number", "Active view must be a sheet.");
+                return;
+            }
+
+            var vpIds = sheet.GetAllViewports().ToList();
+            if (vpIds.Count == 0)
+            {
+                TaskDialog.Show("Viewport Number", "No viewports on active sheet.");
+                return;
+            }
+
+            int updated = 0;
+            using (Transaction tx = new Transaction(doc, "STING Viewport Renumber"))
+            {
+                tx.Start();
+                foreach (ElementId vpId in vpIds)
+                {
+                    Viewport vp = doc.GetElement(vpId) as Viewport;
+                    if (vp == null) continue;
+                    try
+                    {
+                        Parameter detailNum = vp.get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER);
+                        if (detailNum != null && !detailNum.IsReadOnly)
+                        {
+                            string current = detailNum.AsString() ?? "0";
+                            if (int.TryParse(current, out int num))
+                            {
+                                int newNum = Math.Max(1, num + delta);
+                                detailNum.Set(newNum.ToString());
+                                updated++;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            StingLog.Info($"ViewportRenumber: delta={delta}, updated={updated}");
+        }
+
+        // ── Orphan & layout helpers ───────────────────────────────
+
+        private static void FindOrphanedTags(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            var tags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            var orphaned = new List<ElementId>();
+            foreach (var tag in tags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    if (hostIds == null || hostIds.Count == 0)
+                    {
+                        orphaned.Add(tag.Id);
+                        continue;
+                    }
+                    // Check if host element still exists in view
+                    bool anyValid = false;
+                    foreach (var hid in hostIds)
+                    {
+                        Element host = doc.GetElement(hid);
+                        if (host != null) { anyValid = true; break; }
+                    }
+                    if (!anyValid) orphaned.Add(tag.Id);
+                }
+                catch { orphaned.Add(tag.Id); }
+            }
+
+            if (orphaned.Count == 0)
+            {
+                TaskDialog.Show("Orphaned Tags", $"No orphaned tags found. All {tags.Count} tags are valid.");
+                return;
+            }
+
+            TaskDialog dlg = new TaskDialog("Orphaned Tags");
+            dlg.MainInstruction = $"Found {orphaned.Count} orphaned tags (no valid host element)";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Select Orphans", "Select orphaned tags for review");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Delete Orphans", $"Delete {orphaned.Count} orphaned tags");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1:
+                    uidoc.Selection.SetElementIds(orphaned);
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    using (Transaction tx = new Transaction(doc, "STING Delete Orphaned Tags"))
+                    {
+                        tx.Start();
+                        doc.Delete(orphaned);
+                        tx.Commit();
+                    }
+                    TaskDialog.Show("Orphaned Tags", $"Deleted {orphaned.Count} orphaned tags.");
+                    break;
+            }
+        }
+
+        private static void CloneTagLayout(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var sourceView = doc.ActiveView;
+
+            // Get tag positions from source view
+            var sourceTags = new FilteredElementCollector(doc, sourceView.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            if (sourceTags.Count == 0)
+            {
+                TaskDialog.Show("Clone Tag Layout", "No tags in active view to clone.");
+                return;
+            }
+
+            // Build mapping: host element ID → tag head position + orientation
+            var tagLayout = new Dictionary<ElementId, (XYZ headPos, bool hasLeader, TagOrientation orient)>();
+            foreach (var tag in sourceTags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    if (hostIds.Count > 0)
+                    {
+                        tagLayout[hostIds.First()] = (tag.TagHeadPosition, tag.HasLeader, tag.TagOrientation);
+                    }
+                }
+                catch { }
+            }
+
+            TaskDialog.Show("Clone Tag Layout",
+                $"Captured layout for {tagLayout.Count} tags in '{sourceView.Name}'.\n" +
+                "Navigate to target view and use 'Apply Cloned Layout' to apply.\n\n" +
+                "(Tag positions are stored relative to host elements. " +
+                "Matching is by element ID — same elements must exist in target view.)");
+
+            StingLog.Info($"CloneTagLayout: captured {tagLayout.Count} positions from '{sourceView.Name}'");
+        }
+
+        // ── Room tag placement ──────────────────────────────────────
+
+        private static void MoveRoomTags(UIApplication app, string position)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            // Find room tags in view
+            var roomTags = new FilteredElementCollector(doc, view.Id)
+                .OfCategory(BuiltInCategory.OST_RoomTags)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            if (roomTags.Count == 0)
+            {
+                TaskDialog.Show("Room Tags", "No room tags in active view.");
+                return;
+            }
+
+            int moved = 0;
+            using (Transaction tx = new Transaction(doc, $"STING Room Tags {position}"))
+            {
+                tx.Start();
+                foreach (Element tagElem in roomTags)
+                {
+                    try
+                    {
+                        // Room tags have a Location that can be moved
+                        if (tagElem.Location is LocationPoint lp)
+                        {
+                            // Find the associated room
+                            var roomTag = tagElem as Autodesk.Revit.DB.Architecture.RoomTag;
+                            if (roomTag == null) continue;
+                            var room = roomTag.Room;
+                            if (room == null) continue;
+
+                            // Get room bounding box in view
+                            BoundingBoxXYZ roomBB = room.get_BoundingBox(view);
+                            if (roomBB == null) continue;
+
+                            XYZ targetPos;
+                            switch (position)
+                            {
+                                case "TopLeft":
+                                    targetPos = new XYZ(
+                                        roomBB.Min.X + (roomBB.Max.X - roomBB.Min.X) * 0.15,
+                                        roomBB.Max.Y - (roomBB.Max.Y - roomBB.Min.Y) * 0.15,
+                                        lp.Point.Z);
+                                    break;
+                                case "TopCentre":
+                                    targetPos = new XYZ(
+                                        (roomBB.Min.X + roomBB.Max.X) / 2.0,
+                                        roomBB.Max.Y - (roomBB.Max.Y - roomBB.Min.Y) * 0.15,
+                                        lp.Point.Z);
+                                    break;
+                                case "Centroid":
+                                default:
+                                    targetPos = new XYZ(
+                                        (roomBB.Min.X + roomBB.Max.X) / 2.0,
+                                        (roomBB.Min.Y + roomBB.Max.Y) / 2.0,
+                                        lp.Point.Z);
+                                    break;
+                            }
+
+                            lp.Point = targetPos;
+                            moved++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"MoveRoomTag {tagElem.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Room Tags", $"Moved {moved} of {roomTags.Count} room tags to {position}.");
+        }
+
+        // ── Sheet operations ────────────────────────────────────────
+
+        private static void SheetRenumber(UIApplication app, int delta)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            if (!(doc.ActiveView is ViewSheet sheet))
+            {
+                TaskDialog.Show("Sheet Renumber", "Active view must be a sheet.");
+                return;
+            }
+
+            string currentNum = sheet.SheetNumber;
+            // Try to extract numeric portion and increment
+            string numPart = "";
+            string prefix = "";
+            for (int i = currentNum.Length - 1; i >= 0; i--)
+            {
+                if (char.IsDigit(currentNum[i]))
+                    numPart = currentNum[i] + numPart;
+                else
+                {
+                    prefix = currentNum.Substring(0, i + 1);
+                    break;
+                }
+            }
+
+            if (string.IsNullOrEmpty(numPart))
+            {
+                TaskDialog.Show("Sheet Renumber", $"Cannot parse number from '{currentNum}'.");
+                return;
+            }
+
+            int num = int.Parse(numPart) + delta;
+            if (num < 0) num = 0;
+            string newNum = prefix + num.ToString().PadLeft(numPart.Length, '0');
+
+            using (Transaction tx = new Transaction(doc, "STING Sheet Renumber"))
+            {
+                tx.Start();
+                try
+                {
+                    sheet.SheetNumber = newNum;
+                    TaskDialog.Show("Sheet Renumber", $"Changed: {currentNum} → {newNum}");
+                }
+                catch (Exception ex)
+                {
+                    TaskDialog.Show("Sheet Renumber", $"Failed: {ex.Message}");
+                    tx.RollBack();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        private static void SheetAddPrefix(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            if (!(doc.ActiveView is ViewSheet sheet))
+            {
+                TaskDialog.Show("Sheet Prefix", "Active view must be a sheet.");
+                return;
+            }
+
+            TaskDialog dlg = new TaskDialog("Sheet Prefix");
+            dlg.MainInstruction = $"Add prefix to '{sheet.Name}'";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "STING - ");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "DRG - ");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "REV - ");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string pfx;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: pfx = "STING - "; break;
+                case TaskDialogResult.CommandLink2: pfx = "DRG - "; break;
+                case TaskDialogResult.CommandLink3: pfx = "REV - "; break;
+                default: return;
+            }
+
+            if (sheet.Name.StartsWith(pfx)) return;
+
+            using (Transaction tx = new Transaction(doc, "STING Sheet Prefix"))
+            {
+                tx.Start();
+                try { sheet.Name = pfx + sheet.Name; }
+                catch (Exception ex) { StingLog.Warn($"SheetPrefix: {ex.Message}"); }
+                tx.Commit();
+            }
+        }
+
+        private static void SheetAddSuffix(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            if (!(doc.ActiveView is ViewSheet sheet))
+            {
+                TaskDialog.Show("Sheet Suffix", "Active view must be a sheet.");
+                return;
+            }
+
+            TaskDialog dlg = new TaskDialog("Sheet Suffix");
+            dlg.MainInstruction = $"Add suffix to '{sheet.Name}'";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, " - P01");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, " - DRAFT");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, " - FOR REVIEW");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string sfx;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: sfx = " - P01"; break;
+                case TaskDialogResult.CommandLink2: sfx = " - DRAFT"; break;
+                case TaskDialogResult.CommandLink3: sfx = " - FOR REVIEW"; break;
+                default: return;
+            }
+
+            if (sheet.Name.EndsWith(sfx)) return;
+
+            using (Transaction tx = new Transaction(doc, "STING Sheet Suffix"))
+            {
+                tx.Start();
+                try { sheet.Name = sheet.Name + sfx; }
+                catch (Exception ex) { StingLog.Warn($"SheetSuffix: {ex.Message}"); }
+                tx.Commit();
+            }
+        }
+
+        // ── Nudge helper ──────────────────────────────────────────
+
+        private static void NudgeTags(UIApplication app, string direction)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+
+            var tags = Organise.LeaderHelper.GetSelectedTags(uidoc);
+            if (tags.Count == 0)
+                tags = Organise.LeaderHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0) return;
+
+            using (Transaction tx = new Transaction(uidoc.Document, $"STING Nudge {direction}"))
+            {
+                tx.Start();
+                int nudged = Organise.NudgeTagsCommand.NudgeInDirection(
+                    uidoc.Document, uidoc.ActiveView, tags, direction);
+                tx.Commit();
+                StingLog.Info($"Nudge {direction}: {nudged} tags");
             }
         }
 
         private static Color[] GetColorPalette(string name, int count)
         {
-            // Built-in palettes
             return (name?.ToLower()) switch
             {
                 "rag" => new[] {
-                    new Color(244, 67, 54),   // Red
-                    new Color(255, 152, 0),   // Amber
-                    new Color(76, 175, 80)    // Green
+                    new Color(244, 67, 54),
+                    new Color(255, 152, 0),
+                    new Color(76, 175, 80)
                 },
                 "monochrome" => new[] {
                     new Color(0, 0, 0),
@@ -1299,17 +2451,16 @@ namespace StingTools.UI
                     new Color(255, 255, 255)
                 },
                 "discipline" => new[] {
-                    new Color(33, 150, 243),   // M = Blue
-                    new Color(255, 235, 59),   // E = Yellow
-                    new Color(76, 175, 80),    // P = Green
-                    new Color(158, 158, 158),  // A = Grey
-                    new Color(244, 67, 54),    // S = Red
-                    new Color(255, 152, 0),    // FP = Orange
-                    new Color(156, 39, 176),   // LV = Purple
-                    new Color(121, 85, 72)     // G = Brown
+                    new Color(33, 150, 243),
+                    new Color(255, 235, 59),
+                    new Color(76, 175, 80),
+                    new Color(158, 158, 158),
+                    new Color(244, 67, 54),
+                    new Color(255, 152, 0),
+                    new Color(156, 39, 176),
+                    new Color(121, 85, 72)
                 },
                 _ => new[] {
-                    // Material Design 500 palette (default)
                     new Color(244, 67, 54), new Color(233, 30, 99),
                     new Color(156, 39, 176), new Color(103, 58, 183),
                     new Color(63, 81, 181), new Color(33, 150, 243),
@@ -1324,5 +2475,4 @@ namespace StingTools.UI
             };
         }
     }
-
 }

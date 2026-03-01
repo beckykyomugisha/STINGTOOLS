@@ -9,22 +9,21 @@ namespace StingTools.UI
 {
     /// <summary>
     /// Code-behind for the STING Tools dockable panel.
-    /// Replicates the original pyRevit STINGTags dockable panel with 4 tabs:
-    /// SELECT, ORGANISE, CREATE, VIEW — plus Docs/Temp commands in VIEW tab.
-    /// All button clicks are dispatched via IExternalEventHandler for thread safety.
+    /// Unified 6-tab layout: SELECT, ORGANISE, DOCS, TEMP, CREATE, VIEW.
+    /// All button clicks dispatched via IExternalEventHandler for thread safety.
     /// </summary>
     public partial class StingDockPanel : Page
     {
         private static ExternalEvent _externalEvent;
         private static StingCommandHandler _handler;
+        private static UIApplication _uiApp;
 
-        /// <summary>Singleton instance for cross-thread access from IExternalEventHandler.</summary>
-        public static StingDockPanel Instance { get; private set; }
+        private static readonly Dictionary<string, List<int>> SelectionMemory =
+            new Dictionary<string, List<int>>();
 
         public StingDockPanel()
         {
             InitializeComponent();
-            Instance = this;
             BuildColorSwatches();
         }
 
@@ -33,6 +32,12 @@ namespace StingTools.UI
         {
             _handler = new StingCommandHandler();
             _externalEvent = ExternalEvent.Create(_handler);
+        }
+
+        /// <summary>Store UIApplication reference when available.</summary>
+        public static void SetUIApplication(UIApplication uiApp)
+        {
+            _uiApp = uiApp;
         }
 
         // ── Unified button click dispatcher ──────────────────────────────
@@ -92,7 +97,6 @@ namespace StingTools.UI
 
         private void BuildColorSwatches()
         {
-            // Material Design 500 palette
             string[] fillColors = {
                 "#F44336", "#E91E63", "#9C27B0", "#673AB7",
                 "#3F51B5", "#2196F3", "#03A9F4", "#00BCD4",
@@ -118,15 +122,14 @@ namespace StingTools.UI
                 {
                     if (s is Border b && b.Tag is string h)
                     {
-                        txtHexColor.Text = h.TrimStart('#');
-                        brdColorPreview.Background =
+                        txtHexColorView.Text = h.TrimStart('#');
+                        brdColorPreviewView.Background =
                             (SolidColorBrush)new BrushConverter().ConvertFromString(h);
                     }
                 };
-                pnlSwatches?.Children.Add(swatch);
+                pnlSwatchesView?.Children.Add(swatch);
             }
 
-            // Outline swatches (subset)
             string[] outlineColors = {
                 "#F44336", "#E91E63", "#9C27B0", "#3F51B5",
                 "#2196F3", "#009688", "#4CAF50", "#FF9800",
@@ -150,109 +153,12 @@ namespace StingTools.UI
                 {
                     if (s is Border b && b.Tag is string h)
                     {
-                        brdOutlineColor.Background =
+                        brdOutlineColorView.Background =
                             (SolidColorBrush)new BrushConverter().ConvertFromString(h);
                     }
                 };
-                pnlOutlineSwatches?.Children.Add(swatch);
+                pnlOutlineSwatchesView?.Children.Add(swatch);
             }
-        }
-
-        // ── Colouriser button handlers ──────────────────────────────
-
-        private void BtnColorApply_Click(object sender, RoutedEventArgs e)
-        {
-            string paramName = (cmbColorBy?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-            string palette = (cmbPalette?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-            // Map display text to actual parameter names
-            paramName = paramName switch
-            {
-                "By Category" => "Category",
-                "By Discipline" => "ASS_DISCIPLINE_COD_TXT",
-                "By System" => "ASS_SYSTEM_TYPE_TXT",
-                "By Level" => "Level",
-                "By Workset" => "Workset",
-                "By Phase" => "Phase Created",
-                _ => paramName
-            };
-            // Map palette display text to internal names
-            palette = palette switch
-            {
-                "STING Discipline" => "discipline",
-                "RAG Status" => "rag",
-                "Monochrome" => "monochrome",
-                _ => ""
-            };
-            _handler?.SetCommand("ColorApply", paramName, palette);
-            _externalEvent?.Raise();
-            UpdateStatus("Applying colour scheme...");
-        }
-
-        private void BtnColorApplyHex_Click(object sender, RoutedEventArgs e)
-        {
-            string hex = txtHexColor?.Text ?? "";
-            _handler?.SetCommand("ColorApplyHex", hex);
-            _externalEvent?.Raise();
-            UpdateStatus("Applying hex colour...");
-        }
-
-        private void BtnColorApplyTransparency_Click(object sender, RoutedEventArgs e)
-        {
-            string transparency = ((int)(sldTransparency?.Value ?? 0)).ToString();
-            _handler?.SetCommand("ColorApplyTransparency", transparency);
-            _externalEvent?.Raise();
-            UpdateStatus($"Applying {transparency}% transparency...");
-        }
-
-        // ── Colour preset button handlers ──────────────────────────
-
-        private void BtnColorPresetSave_Click(object sender, RoutedEventArgs e)
-        {
-            string schemeName = (cmbColorScheme?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-            _handler?.SetCommand("SaveColorPreset", schemeName);
-            _externalEvent?.Raise();
-            UpdateStatus("Saving colour preset...");
-        }
-
-        private void BtnColorPresetLoad_Click(object sender, RoutedEventArgs e)
-        {
-            string schemeName = (cmbColorScheme?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-            _handler?.SetCommand("LoadColorPreset", schemeName);
-            _externalEvent?.Raise();
-            UpdateStatus("Loading colour preset...");
-        }
-
-        private void BtnColorPresetDelete_Click(object sender, RoutedEventArgs e)
-        {
-            string schemeName = (cmbColorScheme?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-            _handler?.SetCommand("DeleteColorPreset", schemeName);
-            _externalEvent?.Raise();
-            UpdateStatus("Deleting colour preset...");
-        }
-
-        /// <summary>Populate the colour scheme combo box with saved preset names.</summary>
-        public void PopulateColorPresets(IEnumerable<string> presetNames)
-        {
-            if (cmbColorScheme == null) return;
-            cmbColorScheme.Items.Clear();
-            cmbColorScheme.Items.Add(new ComboBoxItem { Content = "— saved schemes —" });
-            foreach (var name in presetNames)
-                cmbColorScheme.Items.Add(new ComboBoxItem { Content = name });
-            cmbColorScheme.SelectedIndex = 0;
-        }
-
-        // ── Panel data helpers ──────────────────────────────────────
-
-        /// <summary>Populate the bulk parameter combo box (thread-safe via Dispatcher).</summary>
-        public void PopulateParamList(IEnumerable<string> paramNames)
-        {
-            if (cmbBulkParam == null) return;
-            Dispatcher.Invoke(() =>
-            {
-                cmbBulkParam.Items.Clear();
-                foreach (var name in paramNames)
-                    cmbBulkParam.Items.Add(name);
-            });
         }
 
         // ── Status bar helper ──────────────────────────────────────
@@ -260,13 +166,13 @@ namespace StingTools.UI
         public void UpdateStatus(string message)
         {
             if (txtStatus != null)
-                Dispatcher.Invoke(() => txtStatus.Text = message);
+                txtStatus.Text = message;
         }
 
         public void UpdateBulkStatus(string message)
         {
             if (txtBulkStatus != null)
-                Dispatcher.Invoke(() => txtBulkStatus.Text = message);
+                txtBulkStatus.Text = message;
         }
     }
 }

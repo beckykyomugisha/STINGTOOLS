@@ -331,7 +331,7 @@ namespace StingTools.Temp
                                     {
                                         var ogs = tmpl.GetFilterOverrides(fid);
                                         if (ogs.ProjectionLineColor.IsValid ||
-                                            ogs.IsHalftone ||
+                                            ogs.Halftone ||
                                             ogs.Transparency > 0)
                                             overridden++;
                                     }
@@ -432,7 +432,7 @@ namespace StingTools.Temp
                     desc.Append($" LineCol=({ogs.ProjectionLineColor.Red},{ogs.ProjectionLineColor.Green},{ogs.ProjectionLineColor.Blue})");
                 if (ogs.ProjectionLineWeight > 0)
                     desc.Append($" LineWt={ogs.ProjectionLineWeight}");
-                if (ogs.IsHalftone)
+                if (ogs.Halftone)
                     desc.Append(" Halftone");
                 if (ogs.Transparency > 0)
                     desc.Append($" Trans={ogs.Transparency}%");
@@ -484,7 +484,7 @@ namespace StingTools.Temp
                 if (doc.GetElement(fid) == null)
                 {
                     ElementId capturedId = fid;
-                    issues.Add(($"Orphan filter ID {fid.IntegerValue}",
+                    issues.Add(($"Orphan filter ID {fid.Value}",
                         "HIGH",
                         (d, v, tx) =>
                         {
@@ -540,7 +540,7 @@ namespace StingTools.Temp
                 try
                 {
                     var ogs = template.GetFilterOverrides(fid);
-                    if (ogs.ProjectionLineColor.IsValid || ogs.IsHalftone ||
+                    if (ogs.ProjectionLineColor.IsValid || ogs.Halftone ||
                         ogs.Transparency > 0)
                     { anyOverride = true; break; }
                 }
@@ -580,7 +580,223 @@ namespace StingTools.Temp
             }
         }
 
-        // ── Style Definition Tables ──────────────────────────────────────
+        // ── CSV Record Loaders (MR_SCHEDULES.csv v2.8+) ──────────────────
+
+        /// <summary>
+        /// Loads LINE_STYLE records from MR_SCHEDULES.csv and returns parsed definitions.
+        /// Fields encoding: "Weight=n, RGB(r,g,b), Pattern=..., Disc=..., Use=..., Std=..."
+        /// Falls back to hardcoded LineStyleDefs if CSV not found or parse fails.
+        /// </summary>
+        public static List<(string name, byte r, byte g, byte b, int weight, string pattern)>
+            LoadLineStylesFromCsv()
+        {
+            var results = new List<(string, byte, byte, byte, int, string)>();
+            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
+            if (string.IsNullOrEmpty(csvPath)) return results;
+            try
+            {
+                foreach (string line in File.ReadAllLines(csvPath))
+                {
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 8) continue;
+                    if (cols[0].Trim() != "LINE_STYLE") continue;
+
+                    string name = "STING - " + cols[3].Trim();
+                    string fields = cols[7].Trim();
+
+                    // Parse encoded fields: "Weight=n, RGB(r,g,b), Pattern=..."
+                    int weight = 2;
+                    byte cr = 0, cg = 0, cb = 0;
+                    string patName = null;
+
+                    foreach (string part in fields.Split(','))
+                    {
+                        string p = part.Trim();
+                        if (p.StartsWith("Weight="))
+                        {
+                            string wStr = p.Substring(7).Trim();
+                            if (int.TryParse(wStr, out int w)) weight = w;
+                        }
+                        else if (p.StartsWith("RGB(") && p.EndsWith(")"))
+                        {
+                            string rgb = p.Substring(4, p.Length - 5);
+                            string[] parts = rgb.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            if (parts.Length >= 3 &&
+                                byte.TryParse(parts[0], out byte pr) &&
+                                byte.TryParse(parts[1], out byte pg) &&
+                                byte.TryParse(parts[2], out byte pb))
+                            { cr = pr; cg = pg; cb = pb; }
+                        }
+                        else if (p.StartsWith("Pattern="))
+                        {
+                            string pat = p.Substring(8).Trim();
+                            if (pat != "Solid" && pat.Length > 0) patName = pat;
+                        }
+                    }
+                    results.Add((name, cr, cg, cb, weight, patName));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadLineStylesFromCsv: {ex.Message}"); }
+            return results;
+        }
+
+        /// <summary>
+        /// Loads OBJECT_STYLE records from MR_SCHEDULES.csv.
+        /// Fields encoding: "ProjW=n, CutW=n, ProjRGB(r,g,b), ..."
+        /// </summary>
+        public static List<(BuiltInCategory cat, int projWt, int cutWt, byte r, byte g, byte b)>
+            LoadObjectStylesFromCsv()
+        {
+            var results = new List<(BuiltInCategory, int, int, byte, byte, byte)>();
+            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
+            if (string.IsNullOrEmpty(csvPath)) return results;
+            try
+            {
+                foreach (string line in File.ReadAllLines(csvPath))
+                {
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 8) continue;
+                    if (cols[0].Trim() != "OBJECT_STYLE") continue;
+
+                    string catName = cols[4].Trim();
+                    string fields = cols[7].Trim();
+
+                    if (!CategoryNameToEnum.TryGetValue(catName, out BuiltInCategory bic))
+                        continue;
+
+                    int projWt = 2, cutWt = 3;
+                    byte cr = 0, cg = 0, cb = 0;
+
+                    foreach (string part in fields.Split(','))
+                    {
+                        string p = part.Trim();
+                        if (p.StartsWith("ProjW=") && int.TryParse(p.Substring(6).Trim(), out int pw))
+                            projWt = pw;
+                        else if (p.StartsWith("CutW=") && int.TryParse(p.Substring(5).Trim(), out int cw))
+                            cutWt = cw;
+                        else if (p.StartsWith("ProjRGB(") && p.EndsWith(")"))
+                        {
+                            string rgb = p.Substring(8, p.Length - 9);
+                            string[] parts = rgb.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            if (parts.Length >= 3 &&
+                                byte.TryParse(parts[0], out byte pr) &&
+                                byte.TryParse(parts[1], out byte pg) &&
+                                byte.TryParse(parts[2], out byte pb))
+                            { cr = pr; cg = pg; cb = pb; }
+                        }
+                    }
+                    results.Add((bic, projWt, cutWt, cr, cg, cb));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadObjectStylesFromCsv: {ex.Message}"); }
+            return results;
+        }
+
+        /// <summary>
+        /// Loads VIEW_TEMPLATE records from MR_SCHEDULES.csv.
+        /// Returns template name, discipline, VG scheme, detail level, scale.
+        /// </summary>
+        public static List<(string name, string discipline, string vgScheme, string detailLevel, string scale)>
+            LoadViewTemplatesFromCsv()
+        {
+            var results = new List<(string, string, string, string, string)>();
+            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
+            if (string.IsNullOrEmpty(csvPath)) return results;
+            try
+            {
+                foreach (string line in File.ReadAllLines(csvPath))
+                {
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 9) continue;
+                    if (cols[0].Trim() != "VIEW_TEMPLATE") continue;
+
+                    string name = cols[1].Trim();       // Source_File = template name
+                    string discipline = cols[2].Trim();  // Discipline
+                    string fields = cols[7].Trim();      // Fields = encoded settings
+                    string filters = cols[8].Trim();     // Filters = VG scheme name
+
+                    // Parse detail level and scale from Fields
+                    string detailLevel = "Medium";
+                    string scale = "100";
+                    foreach (string part in fields.Split(','))
+                    {
+                        string p = part.Trim();
+                        if (p.StartsWith("Detail=")) detailLevel = p.Substring(7).Trim();
+                        else if (p.StartsWith("Scale=1:")) scale = p.Substring(8).Trim();
+                    }
+
+                    results.Add((name, discipline, filters, detailLevel, scale));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadViewTemplatesFromCsv: {ex.Message}"); }
+            return results;
+        }
+
+        /// <summary>
+        /// Loads VIEW_FILTER records from MR_SCHEDULES.csv.
+        /// Returns filter name, categories, rule type, parameter, value, override settings.
+        /// </summary>
+        public static List<(string name, string discipline, string categories, string fields)>
+            LoadViewFiltersFromCsv()
+        {
+            var results = new List<(string, string, string, string)>();
+            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
+            if (string.IsNullOrEmpty(csvPath)) return results;
+            try
+            {
+                foreach (string line in File.ReadAllLines(csvPath))
+                {
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 8) continue;
+                    if (cols[0].Trim() != "VIEW_FILTER") continue;
+
+                    string name = cols[3].Trim();        // Schedule_Name = filter name
+                    string discipline = cols[2].Trim();   // Discipline
+                    string categories = cols[6].Trim();   // Multi_Categories
+                    string fields = cols[7].Trim();       // Fields = rules
+
+                    results.Add((name, discipline, categories, fields));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadViewFiltersFromCsv: {ex.Message}"); }
+            return results;
+        }
+
+        /// <summary>
+        /// Loads VG_SCHEME records from MR_SCHEDULES.csv.
+        /// Returns scheme name, category, override fields.
+        /// </summary>
+        public static List<(string schemeName, string category, string fields)>
+            LoadVGSchemesFromCsv()
+        {
+            var results = new List<(string, string, string)>();
+            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
+            if (string.IsNullOrEmpty(csvPath)) return results;
+            try
+            {
+                foreach (string line in File.ReadAllLines(csvPath))
+                {
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 8) continue;
+                    if (cols[0].Trim() != "VG_SCHEME") continue;
+
+                    string schemeName = cols[1].Trim();  // Source_File = scheme name
+                    string category = cols[4].Trim();    // Category
+                    string fields = cols[7].Trim();      // Fields = VG settings
+
+                    results.Add((schemeName, category, fields));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadVGSchemesFromCsv: {ex.Message}"); }
+            return results;
+        }
+
+        // ── Style Definition Tables (hardcoded fallbacks) ─────────────────
 
         /// <summary>Fill pattern definitions for ISO 128-2:2020 standard patterns.</summary>
         public static readonly (string name, FillPatternTarget target,
@@ -1503,12 +1719,26 @@ namespace StingTools.Temp
                         double spacing1 = s1 * MmToFeet;
                         double spacing2 = s2 * MmToFeet;
                         if (spacing1 > 0)
-                            grids.Add(new FillGrid(a1 * DegToRad, 0, 0, spacing1, new List<double>()));
+                        {
+                            var g1 = new FillGrid();
+                            g1.Angle = a1 * DegToRad;
+                            g1.Offset = spacing1;
+                            grids.Add(g1);
+                        }
                         if (spacing2 > 0)
-                            grids.Add(new FillGrid(a2 * DegToRad, 0, 0, spacing2, new List<double>()));
+                        {
+                            var g2 = new FillGrid();
+                            g2.Angle = a2 * DegToRad;
+                            g2.Offset = spacing2;
+                            grids.Add(g2);
+                        }
                         if (grids.Count > 0)
                         {
-                            FillPatternElement.Create(doc, new FillPattern(name, target, grids));
+                            var pattern = new FillPattern();
+                            pattern.Target = target;
+                            pattern.SetFillGrids(grids);
+                            pattern.Name = name;
+                            FillPatternElement.Create(doc, pattern);
                             created++;
                         }
                     }
@@ -1549,12 +1779,20 @@ namespace StingTools.Temp
             var existingSubs = new HashSet<string>(
                 linesCat.SubCategories.Cast<Category>().Select(c => c.Name));
 
+            // Load from CSV (79 rows in v2.8), fall back to hardcoded (16)
+            var csvStyles = TemplateManager.LoadLineStylesFromCsv();
+            var styleDefs = csvStyles.Count > 0
+                ? csvStyles
+                : TemplateManager.LineStyleDefs
+                    .Select(s => (s.name, s.r, s.g, s.b, s.weight, s.patternName)).ToList();
+            string source = csvStyles.Count > 0 ? "CSV" : "hardcoded";
+
             int created = 0, skipped = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Create Line Styles"))
             {
                 tx.Start();
-                foreach (var (name, r, g, b, weight, patternName) in TemplateManager.LineStyleDefs)
+                foreach (var (name, r, g, b, weight, patternName) in styleDefs)
                 {
                     if (existingSubs.Contains(name)) { skipped++; continue; }
                     try
@@ -1573,8 +1811,8 @@ namespace StingTools.Temp
             }
 
             TaskDialog.Show("Create Line Styles",
-                $"Created {created} line styles.\nSkipped {skipped}.\n" +
-                $"Total defined: {TemplateManager.LineStyleDefs.Length}");
+                $"Created {created} line styles ({source}).\nSkipped {skipped}.\n" +
+                $"Total defined: {styleDefs.Count}");
             return Result.Succeeded;
         }
     }
@@ -1591,12 +1829,20 @@ namespace StingTools.Temp
             ref string message, ElementSet elements)
         {
             Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            // Load from CSV (62 rows in v2.8), fall back to hardcoded (40)
+            var csvStyles = TemplateManager.LoadObjectStylesFromCsv();
+            var styleDefs = csvStyles.Count > 0
+                ? csvStyles
+                : TemplateManager.ObjectStyleDefs.ToList();
+            string source = csvStyles.Count > 0 ? "CSV" : "hardcoded";
+
             int configured = 0, skipped = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Configure Object Styles"))
             {
                 tx.Start();
-                foreach (var (cat, projWt, cutWt, r, g, b) in TemplateManager.ObjectStyleDefs)
+                foreach (var (cat, projWt, cutWt, r, g, b) in styleDefs)
                 {
                     try
                     {
@@ -1613,8 +1859,8 @@ namespace StingTools.Temp
             }
 
             TaskDialog.Show("Configure Object Styles",
-                $"Configured {configured} categories.\nSkipped {skipped}.\n" +
-                $"Total: {TemplateManager.ObjectStyleDefs.Length}\n\n" +
+                $"Configured {configured} categories ({source}).\nSkipped {skipped}.\n" +
+                $"Total: {styleDefs.Count}\n\n" +
                 "Discipline colours: M=Blue, E=Yellow, P=Green, A=Black,\n" +
                 "S=Red, FP=Orange, LV=Purple, Conduit=Olive");
             return Result.Succeeded;
@@ -1705,7 +1951,7 @@ namespace StingTools.Temp
             DimensionType baseType = new FilteredElementCollector(doc)
                 .OfClass(typeof(DimensionType)).Cast<DimensionType>()
                 .FirstOrDefault(dt =>
-                { try { return dt.StyleType == DimensionStyleType.Linear; } catch { return false; } })
+                { try { return dt.Name.Contains("Linear"); } catch { return false; } })
                 ?? new FilteredElementCollector(doc)
                     .OfClass(typeof(DimensionType)).Cast<DimensionType>().FirstOrDefault();
 
@@ -1860,6 +2106,18 @@ namespace StingTools.Temp
 
             int viewsConfigured = 0;
             int filtersApplied = 0;
+            int schemesApplied = 0;
+
+            // Load VG schemes from CSV for Layer 6
+            var csvSchemesList = TemplateManager.LoadVGSchemesFromCsv();
+            var csvSchemes = new Dictionary<string, List<(string cat, string fields)>>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var (sName, sCat, sFields) in csvSchemesList)
+            {
+                if (!csvSchemes.ContainsKey(sName))
+                    csvSchemes[sName] = new List<(string, string)>();
+                csvSchemes[sName].Add((sCat, sFields));
+            }
 
             using (Transaction tx = new Transaction(doc, "STING Apply VG Overrides"))
             {
@@ -1995,6 +2253,94 @@ namespace StingTools.Temp
                         }
                         catch { /* worksharing not available */ }
 
+                        // Layer 6: CSV-driven VG schemes (106 VG_SCHEME rows)
+                        // Match template name to a VG scheme and apply category-level overrides
+                        try
+                        {
+                            string disc = TemplateManager.GetDisciplineFromTemplateName(target.Name);
+                            string schemeName = null;
+
+                            // Map discipline to default VG scheme
+                            if (disc == "M") schemeName = "HVAC Systems";
+                            else if (disc == "E") schemeName = "Electrical Systems";
+                            else if (disc == "P") schemeName = "Plumbing Systems";
+                            else if (disc == "FP") schemeName = "Fire Protection";
+                            else if (disc == "S") schemeName = "Structural GA";
+                            else if (disc == "A") schemeName = "Standard Architectural";
+                            else if (disc == "PRES_C" || disc == "PRES_E") schemeName = "Monochrome";
+                            else if (disc == "DEMO") schemeName = "Demolition";
+
+                            if (schemeName != null && csvSchemes.ContainsKey(schemeName))
+                            {
+                                foreach (var (cat, schFields) in csvSchemes[schemeName])
+                                {
+                                    if (!TemplateManager.CategoryNameToEnum.TryGetValue(cat,
+                                        out BuiltInCategory schemeBic)) continue;
+                                    try
+                                    {
+                                        // Parse VG scheme fields
+                                        byte sr = 0, sg = 0, sb = 0;
+                                        int transp = 0;
+                                        bool halftone = false;
+
+                                        foreach (string p in schFields.Split(','))
+                                        {
+                                            string pt = p.Trim();
+                                            if (pt.StartsWith("SurfRGB(") && pt.EndsWith(")"))
+                                            {
+                                                string rgb = pt.Substring(8, pt.Length - 9);
+                                                string[] parts = rgb.Split(new[] { ' ', ',' },
+                                                    StringSplitOptions.RemoveEmptyEntries);
+                                                if (parts.Length >= 3 &&
+                                                    byte.TryParse(parts[0], out byte pr) &&
+                                                    byte.TryParse(parts[1], out byte pg) &&
+                                                    byte.TryParse(parts[2], out byte pb))
+                                                { sr = pr; sg = pg; sb = pb; }
+                                            }
+                                            else if (pt.StartsWith("Transp="))
+                                            {
+                                                string tv = pt.Substring(7).Replace("%", "").Trim();
+                                                int.TryParse(tv, out transp);
+                                            }
+                                            else if (pt.StartsWith("Halftone="))
+                                            {
+                                                halftone = pt.Substring(9).Trim()
+                                                    .Equals("Yes", StringComparison.OrdinalIgnoreCase);
+                                            }
+                                        }
+
+                                        // Apply per-category overrides
+                                        var catOgs = new OverrideGraphicSettings();
+                                        if (sr > 0 || sg > 0 || sb > 0)
+                                        {
+                                            catOgs.SetProjectionLineColor(new Color(sr, sg, sb));
+                                            if (solidFill != null)
+                                            {
+                                                catOgs.SetSurfaceForegroundPatternId(solidFill.Id);
+                                                catOgs.SetSurfaceForegroundPatternColor(
+                                                    new Color(sr, sg, sb));
+                                            }
+                                        }
+                                        if (transp > 0) catOgs.SetSurfaceTransparency(transp);
+                                        if (halftone) catOgs.SetHalftone(true);
+
+                                        Category revCat = doc.Settings.Categories.get_Item(schemeBic);
+                                        if (revCat != null)
+                                        {
+                                            target.SetCategoryOverrides(
+                                                new ElementId(schemeBic), catOgs);
+                                            schemesApplied++;
+                                        }
+                                    }
+                                    catch { }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"VG scheme on '{target.Name}': {ex.Message}");
+                        }
+
                         viewsConfigured++;
                     }
                     catch (Exception ex)
@@ -2012,13 +2358,15 @@ namespace StingTools.Temp
 
             TaskDialog.Show("VG Overrides",
                 $"Applied VG overrides to {scope}.\n" +
-                $"Filters configured: {filtersApplied}\n\n" +
-                "Intelligence layers applied:\n" +
+                $"Filters configured: {filtersApplied}\n" +
+                (schemesApplied > 0 ? $"VG scheme overrides: {schemesApplied}\n" : "") +
+                $"\nIntelligence layers applied:\n" +
                 "  1. Discipline colour coding (10 colours)\n" +
                 "  2. QA highlighting (red=missing, orange=incomplete)\n" +
                 "  3. Status styling (halftone existing, crosshatch demolished)\n" +
                 "  4. Phase-aware overrides (temporary=dashed yellow)\n" +
-                "  5. Workset visibility (hide linked models)");
+                "  5. Workset visibility (hide linked models)\n" +
+                (schemesApplied > 0 ? "  6. CSV-driven VG schemes (per-category overrides)\n" : ""));
 
             return Result.Succeeded;
         }
@@ -2190,7 +2538,7 @@ namespace StingTools.Temp
                                 .NewTypeBinding(catSet);
 
                         bool success = bmap.Insert(extDef, binding,
-                            BuiltInParameterGroup.PG_DATA);
+                            GroupTypeId.General);
 
                         if (success)
                         {
@@ -2430,69 +2778,69 @@ namespace StingTools.Temp
                 // Step 1: Fill Patterns
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Fill Patterns (12 ISO)",
-                    () => new CreateFillPatternsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateFillPatternsCommand(), commandData, elements));
 
                 // Step 2: Line Patterns
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Line Patterns (10 ISO 128)",
-                    () => new CreateLinePatternsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateLinePatternsCommand(), commandData, elements));
 
                 // Step 3: Line Styles
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Line Styles (16 discipline+status)",
-                    () => new CreateLineStylesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateLineStylesCommand(), commandData, elements));
 
                 // Step 4: Object Styles
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Object Styles (40 categories)",
-                    () => new CreateObjectStylesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateObjectStylesCommand(), commandData, elements));
 
                 // Step 5: Text Styles
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Text Styles (12 ISO 3098)",
-                    () => new CreateTextStylesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateTextStylesCommand(), commandData, elements));
 
                 // Step 6: Dimension Styles
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Dimension Styles (7 types)",
-                    () => new CreateDimensionStylesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateDimensionStylesCommand(), commandData, elements));
 
                 // Step 7: View Filters
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "View Filters (28+ with param rules)",
-                    () => new CreateFiltersCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateFiltersCommand(), commandData, elements));
 
                 // Step 8: View Templates
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "View Templates (23 with VG)",
-                    () => new ViewTemplatesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new ViewTemplatesCommand(), commandData, elements));
 
                 // Step 9: Apply Filters
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Apply Filters to Templates",
-                    () => new ApplyFiltersToViewsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new ApplyFiltersToViewsCommand(), commandData, elements));
 
                 // Step 10: VG Overrides
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "VG Overrides (5-layer intelligence)",
-                    () => new CreateVGOverridesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateVGOverridesCommand(), commandData, elements));
 
                 // Step 11: Batch Family Parameters
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Batch Family Parameters (CSV-driven)",
-                    () => new BatchAddFamilyParamsCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new BatchAddFamilyParamsCommand(), commandData, elements));
 
                 // Step 12: Template Metadata Schedules
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Template Metadata Schedules",
-                    () => new CreateTemplateSchedulesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new CreateTemplateSchedulesCommand(), commandData, elements));
 
                 // Step 13: Worksets
                 if (doc.IsWorkshared)
                 {
                     passed += TemplateManager.RunWizardStep(ref stepNum, report,
                         "Worksets (35 ISO 19650)",
-                        () => new CreateWorksetsCommand().Execute(commandData, ref message, elements));
+                        () => RunCommand(new CreateWorksetsCommand(), commandData, elements));
                 }
                 else
                 {
@@ -2503,12 +2851,12 @@ namespace StingTools.Temp
                 // Step 14: Auto-Assign Templates
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Auto-Assign Templates (5-layer)",
-                    () => new AutoAssignTemplatesCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
 
                 // Step 15: Auto-Fix
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Auto-Fix Template Health",
-                    () => new AutoFixTemplateCommand().Execute(commandData, ref message, elements));
+                    () => RunCommand(new AutoFixTemplateCommand(), commandData, elements));
 
                 int failed = stepNum - passed;
                 totalSw.Stop();
@@ -2553,6 +2901,14 @@ namespace StingTools.Temp
                 $"elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
 
             return passed > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>Execute an IExternalCommand without capturing ref message in a lambda.</summary>
+        private static Result RunCommand(IExternalCommand cmd,
+            ExternalCommandData data, ElementSet elems)
+        {
+            string msg = "";
+            return cmd.Execute(data, ref msg, elems);
         }
     }
 
@@ -2992,7 +3348,7 @@ namespace StingTools.Temp
                                     // Check if element has any non-default overrides
                                     bool hasOverride =
                                         currentOgs.ProjectionLineColor.IsValid ||
-                                        currentOgs.IsHalftone ||
+                                        currentOgs.Halftone ||
                                         currentOgs.Transparency > 0 ||
                                         currentOgs.ProjectionLineWeight > 0;
 

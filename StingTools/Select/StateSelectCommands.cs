@@ -28,7 +28,7 @@ namespace StingTools.Select
                 {
                     string cat = ParameterHelpers.GetCategoryName(e);
                     if (!known.Contains(cat)) return false;
-                    string tag = ParameterHelpers.GetString(e, "ASS_TAG_1_TXT");
+                    string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
                     return string.IsNullOrEmpty(tag);
                 })
                 .Select(e => e.Id).ToList();
@@ -54,7 +54,7 @@ namespace StingTools.Select
                 {
                     string cat = ParameterHelpers.GetCategoryName(e);
                     if (!known.Contains(cat)) return false;
-                    string tag = ParameterHelpers.GetString(e, "ASS_TAG_1_TXT");
+                    string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
                     return TagConfig.TagIsComplete(tag);
                 })
                 .Select(e => e.Id).ToList();
@@ -129,7 +129,11 @@ namespace StingTools.Select
         }
     }
 
-    /// <summary>Select elements by level in active view.</summary>
+    /// <summary>
+    /// Select elements by level. Works in ALL view types (not just plan views):
+    /// - Plan views: uses associated level directly
+    /// - Section/3D/other: shows a level picker with element counts per level
+    /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class SelectByLevelCommand : IExternalCommand
     {
@@ -137,31 +141,103 @@ namespace StingTools.Select
         {
             UIDocument uidoc = cmd.Application.ActiveUIDocument;
             Document doc = uidoc.Document;
-
-            // Use the active view's associated level if it's a plan view
             View view = doc.ActiveView;
-            ElementId levelId = ElementId.InvalidElementId;
-            if (view is ViewPlan vp && vp.GenLevel != null)
-                levelId = vp.GenLevel.Id;
 
-            if (levelId == ElementId.InvalidElementId)
+            // Try to get level from plan view directly
+            ElementId levelId = null;
+            if (view is ViewPlan vp)
+                levelId = vp.GenLevel?.Id;
+
+            if (levelId != null && levelId != ElementId.InvalidElementId)
             {
-                TaskDialog.Show("Select by Level", "Active view has no associated level.");
+                // Direct plan view: select elements on this level
+                var ids = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.LevelId == levelId)
+                    .Select(e => e.Id).ToList();
+
+                Level lvl = doc.GetElement(levelId) as Level;
+                uidoc.Selection.SetElementIds(ids);
+                TaskDialog.Show("Select by Level",
+                    $"Selected {ids.Count} elements on '{lvl?.Name ?? "level"}'.");
                 return Result.Succeeded;
             }
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
-                .WhereElementIsNotElementType()
-                .WherePasses(new ElementLevelFilter(levelId))
-                .ToElementIds();
+            // Non-plan view: show level picker with counts
+            var levels = new FilteredElementCollector(doc)
+                .OfClass(typeof(Level))
+                .Cast<Level>()
+                .OrderBy(l => l.Elevation)
+                .ToList();
 
-            uidoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select by Level", $"Selected {ids.Count} elements on this level.");
+            if (levels.Count == 0)
+            {
+                TaskDialog.Show("Select by Level", "No levels found in project.");
+                return Result.Succeeded;
+            }
+
+            // Count elements per level in active view
+            var elemsByLevel = new Dictionary<ElementId, List<ElementId>>();
+            foreach (Level l in levels)
+                elemsByLevel[l.Id] = new List<ElementId>();
+
+            foreach (Element e in new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType())
+            {
+                if (e.LevelId != null && elemsByLevel.ContainsKey(e.LevelId))
+                    elemsByLevel[e.LevelId].Add(e.Id);
+            }
+
+            // Page through levels (4 at a time)
+            var nonEmpty = levels.Where(l => elemsByLevel[l.Id].Count > 0).ToList();
+            if (nonEmpty.Count == 0)
+            {
+                TaskDialog.Show("Select by Level", "No elements with assigned levels in this view.");
+                return Result.Succeeded;
+            }
+
+            // Show top 4 levels by element count
+            var top = nonEmpty.OrderByDescending(l => elemsByLevel[l.Id].Count).Take(4).ToList();
+            TaskDialog dlg = new TaskDialog("Select by Level");
+            dlg.MainInstruction = $"Pick a level ({nonEmpty.Count} levels with elements in view)";
+            for (int i = 0; i < top.Count; i++)
+            {
+                dlg.AddCommandLink(
+                    (TaskDialogCommandLinkId)(i + 1001),
+                    $"{top[i].Name} — {elemsByLevel[top[i].Id].Count} elements",
+                    $"Elevation: {top[i].Elevation:F2}");
+            }
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int idx = -1;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: idx = 0; break;
+                case TaskDialogResult.CommandLink2: idx = 1; break;
+                case TaskDialogResult.CommandLink3: idx = 2; break;
+                case TaskDialogResult.CommandLink4: idx = 3; break;
+                default: return Result.Cancelled;
+            }
+
+            if (idx >= 0 && idx < top.Count)
+            {
+                var selectedIds = elemsByLevel[top[idx].Id];
+                uidoc.Selection.SetElementIds(selectedIds);
+                TaskDialog.Show("Select by Level",
+                    $"Selected {selectedIds.Count} elements on '{top[idx].Name}'.");
+            }
+
             return Result.Succeeded;
         }
     }
 
-    /// <summary>Select elements in the same room as the first selected element.</summary>
+    /// <summary>
+    /// Select elements in the same room as the first selected element.
+    /// Works with ALL element types (not just FamilyInstance) by using:
+    /// 1. FamilyInstance.Room property (direct)
+    /// 2. Spatial lookup via ParameterHelpers.GetRoomAtElement (bounding box point-in-room)
+    /// 3. Room name from STING LOC/ZONE parameters as fallback
+    /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class SelectByRoomCommand : IExternalCommand
     {
@@ -180,34 +256,83 @@ namespace StingTools.Select
             Element seed = doc.GetElement(selected.First());
             if (seed == null) return Result.Succeeded;
 
-            // Get the room of the seed element (try FamilyInstance.Room, then spatial lookup)
+            // Try multiple strategies to find the seed element's room
             Room room = null;
+
+            // Strategy 1: FamilyInstance.Room
             if (seed is FamilyInstance fi)
-            {
-                try { room = fi.Room; } catch { }
-            }
+                room = fi.Room;
+
+            // Strategy 2: spatial lookup via helper
             if (room == null)
                 room = ParameterHelpers.GetRoomAtElement(doc, seed);
+
+            // Strategy 3: if still null, try all rooms to find one containing the element's point
             if (room == null)
             {
-                TaskDialog.Show("Select by Room", "Could not determine room for the selected element.");
+                XYZ point = null;
+                if (seed.Location is LocationPoint lp) point = lp.Point;
+                else if (seed.Location is LocationCurve lc)
+                    point = (lc.Curve.GetEndPoint(0) + lc.Curve.GetEndPoint(1)) / 2.0;
+                else
+                {
+                    var bb = seed.get_BoundingBox(null);
+                    if (bb != null) point = (bb.Min + bb.Max) / 2.0;
+                }
+
+                if (point != null)
+                {
+                    room = doc.GetRoomAtPoint(point);
+                }
+            }
+
+            if (room == null)
+            {
+                TaskDialog.Show("Select by Room",
+                    "Cannot determine room for selected element.\n" +
+                    "The element may not be inside a room boundary.");
                 return Result.Succeeded;
             }
 
-            // Find all elements in the same room within the active view
+            // Find ALL elements in the same room (not just FamilyInstance)
             var roomId = room.Id;
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
-                .WhereElementIsNotElementType()
-                .Where(e =>
+            var ids = new List<ElementId>();
+
+            foreach (Element e in new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .WhereElementIsNotElementType())
+            {
+                try
                 {
-                    if (e is FamilyInstance f2)
+                    // Check FamilyInstance.Room first
+                    if (e is FamilyInstance fInst && fInst.Room?.Id == roomId)
                     {
-                        try { return f2.Room?.Id == roomId; } catch { return false; }
+                        ids.Add(e.Id);
+                        continue;
                     }
-                    var r = ParameterHelpers.GetRoomAtElement(doc, e);
-                    return r?.Id == roomId;
-                })
-                .Select(e => e.Id).ToList();
+
+                    // Check via spatial helper
+                    Room elemRoom = ParameterHelpers.GetRoomAtElement(doc, e);
+                    if (elemRoom?.Id == roomId)
+                    {
+                        ids.Add(e.Id);
+                        continue;
+                    }
+
+                    // Check via point-in-room
+                    XYZ pt = null;
+                    if (e.Location is LocationPoint lp2) pt = lp2.Point;
+                    else if (e.Location is LocationCurve lc2)
+                        pt = (lc2.Curve.GetEndPoint(0) + lc2.Curve.GetEndPoint(1)) / 2.0;
+
+                    if (pt != null)
+                    {
+                        Room r = doc.GetRoomAtPoint(pt);
+                        if (r?.Id == roomId)
+                            ids.Add(e.Id);
+                    }
+                }
+                catch { }
+            }
 
             uidoc.Selection.SetElementIds(ids);
             TaskDialog.Show("Select by Room",
@@ -272,51 +397,21 @@ namespace StingTools.Select
 
         private static Result BulkSetToken(Document doc, ICollection<ElementId> selected)
         {
-            // Page 1: Choose which token to set
             TaskDialog td2 = new TaskDialog("Set Token");
             td2.MainInstruction = $"Set token on {selected.Count} elements";
-            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Set LOC (Location)",
-                "BLD1, BLD2, BLD3, EXT");
-            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Set ZONE",
-                "Z01, Z02, Z03, Z04");
-            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Set STATUS",
-                "NEW, EXISTING, DEMOLISHED, TEMPORARY");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Set LOC to BLD1");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Set ZONE to Z01");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Set STATUS to NEW");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Set STATUS to EXISTING");
             td2.CommonButtons = TaskDialogCommonButtons.Cancel;
 
-            string paramName; string[] options;
+            string paramName; string paramValue;
             switch (td2.Show())
             {
-                case TaskDialogResult.CommandLink1:
-                    paramName = "ASS_LOC_TXT";
-                    options = new[] { "BLD1", "BLD2", "BLD3", "EXT" };
-                    break;
-                case TaskDialogResult.CommandLink2:
-                    paramName = "ASS_ZONE_TXT";
-                    options = new[] { "Z01", "Z02", "Z03", "Z04" };
-                    break;
-                case TaskDialogResult.CommandLink3:
-                    paramName = "ASS_STATUS_TXT";
-                    options = new[] { "NEW", "EXISTING", "DEMOLISHED", "TEMPORARY" };
-                    break;
-                default: return Result.Cancelled;
-            }
-
-            // Page 2: Choose the value
-            TaskDialog td3 = new TaskDialog("Set Value");
-            td3.MainInstruction = $"Set {paramName} on {selected.Count} elements";
-            td3.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, options[0]);
-            td3.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, options[1]);
-            td3.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, options[2]);
-            td3.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, options[3]);
-            td3.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            string paramValue;
-            switch (td3.Show())
-            {
-                case TaskDialogResult.CommandLink1: paramValue = options[0]; break;
-                case TaskDialogResult.CommandLink2: paramValue = options[1]; break;
-                case TaskDialogResult.CommandLink3: paramValue = options[2]; break;
-                case TaskDialogResult.CommandLink4: paramValue = options[3]; break;
+                case TaskDialogResult.CommandLink1: paramName = ParamRegistry.LOC; paramValue = "BLD1"; break;
+                case TaskDialogResult.CommandLink2: paramName = ParamRegistry.ZONE; paramValue = "Z01"; break;
+                case TaskDialogResult.CommandLink3: paramName = ParamRegistry.STATUS; paramValue = "NEW"; break;
+                case TaskDialogResult.CommandLink4: paramName = ParamRegistry.STATUS; paramValue = "EXISTING"; break;
                 default: return Result.Cancelled;
             }
 
@@ -355,25 +450,25 @@ namespace StingTools.Select
 
                     // DISC
                     string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-                    if (ParameterHelpers.SetIfEmpty(elem, "ASS_DISCIPLINE_COD_TXT", disc)) populated++;
+                    if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.DISC, disc)) populated++;
                     // LOC
                     string loc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
-                    if (ParameterHelpers.SetIfEmpty(elem, "ASS_LOC_TXT", loc)) populated++;
+                    if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LOC, loc)) populated++;
                     // ZONE
                     string zone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
-                    if (ParameterHelpers.SetIfEmpty(elem, "ASS_ZONE_TXT", zone)) populated++;
+                    if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.ZONE, zone)) populated++;
                     // LVL
                     string lvl = ParameterHelpers.GetLevelCode(doc, elem);
-                    if (lvl != "XX") if (ParameterHelpers.SetIfEmpty(elem, "ASS_LVL_COD_TXT", lvl)) populated++;
-                    // SYS (MEP system-aware: checks connected systems before category fallback)
+                    if (lvl != "XX") if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl)) populated++;
+                    // SYS (MEP system-aware)
                     string sys = TagConfig.GetMepSystemAwareSysCode(elem, catName);
-                    if (!string.IsNullOrEmpty(sys)) if (ParameterHelpers.SetIfEmpty(elem, "ASS_SYSTEM_TYPE_TXT", sys)) populated++;
-                    // FUNC (smart: differentiates HVAC SUP/RTN/EXH/FRA and HWS HTG/DHW subsystems)
+                    if (!string.IsNullOrEmpty(sys)) if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys)) populated++;
+                    // FUNC (smart subsystem-aware)
                     string func = TagConfig.GetSmartFuncCode(elem, sys);
-                    if (!string.IsNullOrEmpty(func)) if (ParameterHelpers.SetIfEmpty(elem, "ASS_FUNC_TXT", func)) populated++;
+                    if (!string.IsNullOrEmpty(func)) if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func)) populated++;
                     // PROD (family-aware)
                     string prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
-                    if (ParameterHelpers.SetIfEmpty(elem, "ASS_PRODCT_COD_TXT", prod)) populated++;
+                    if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.PROD, prod)) populated++;
                 }
                 tx.Commit();
             }
@@ -389,7 +484,12 @@ namespace StingTools.Select
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
 
-            string[] clearParams = TagConfig.AllTagParams;
+            string[] clearParams = ParamRegistry.AllTokenParams
+                .Concat(new[] {
+                    ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+                    ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
+                    ParamRegistry.STATUS,
+                }).Distinct().ToArray();
 
             int cleared = 0;
             using (Transaction tx = new Transaction(doc, "STING Clear Tags"))

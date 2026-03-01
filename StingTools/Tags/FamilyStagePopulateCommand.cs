@@ -115,7 +115,6 @@ namespace StingTools.Tags
             int discSet = 0, locSet = 0, zoneSet = 0, lvlSet = 0;
             int sysSet = 0, funcSet = 0, prodSet = 0;
             int familyProdUsed = 0;
-            int nativesMapped = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Family-Stage Populate"))
             {
@@ -130,119 +129,118 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
                         continue;
 
+                    processed++;
+
                     try
                     {
-                        processed++;
+                    // DISC — deterministic from category
+                    string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                    if (overwrite)
+                    {
+                        if (ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true))
+                            discSet++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc))
+                            discSet++;
+                    }
 
-                        // DISC — deterministic from category
-                        string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                    // LOC — from spatial context
+                    string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                    if (overwrite)
+                    {
+                        if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true))
+                            locSet++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc))
+                            locSet++;
+                    }
+
+                    // ZONE — from room data
+                    string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                    if (overwrite)
+                    {
+                        if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true))
+                            zoneSet++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone))
+                            zoneSet++;
+                    }
+
+                    // LVL — deterministic from element level
+                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                    if (overwrite)
+                    {
+                        if (ParameterHelpers.SetString(el, ParamRegistry.LVL, lvl, overwrite: true))
+                            lvlSet++;
+                    }
+                    else
+                    {
+                        if (lvl != "XX" && ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl))
+                            lvlSet++;
+                    }
+
+                    // SYS — MEP system-aware (6-layer detection)
+                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                    if (!string.IsNullOrEmpty(sys))
+                    {
                         if (overwrite)
                         {
-                            if (ParameterHelpers.SetString(el, "ASS_DISCIPLINE_COD_TXT", disc, overwrite: true))
-                                discSet++;
+                            if (ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true))
+                                sysSet++;
                         }
                         else
                         {
-                            if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc))
-                                discSet++;
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys))
+                                sysSet++;
                         }
+                    }
 
-                        // LOC — from spatial context
-                        string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                    // DISC correction — system-aware override for pipes
+                    disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
+                    if (overwrite)
+                        ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);
+
+                    // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
+                    string func = TagConfig.GetSmartFuncCode(el, sys);
+                    if (!string.IsNullOrEmpty(func))
+                    {
                         if (overwrite)
                         {
-                            if (ParameterHelpers.SetString(el, "ASS_LOC_TXT", loc, overwrite: true))
-                                locSet++;
+                            if (ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true))
+                                funcSet++;
                         }
                         else
                         {
-                            if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc))
-                                locSet++;
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func))
+                                funcSet++;
                         }
+                    }
 
-                        // ZONE — from room data
-                        string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (overwrite)
-                        {
-                            if (ParameterHelpers.SetString(el, "ASS_ZONE_TXT", zone, overwrite: true))
-                                zoneSet++;
-                        }
-                        else
-                        {
-                            if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone))
-                                zoneSet++;
-                        }
+                    // PROD — family-aware (highest intelligence)
+                    string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+                    string catProd = TagConfig.ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+                    if (prod != catProd) familyProdUsed++;
 
-                        // LVL — deterministic from element level (skip "XX" fallback to avoid clobbering user data)
-                        string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                        if (lvl != "XX")
-                        {
-                            if (overwrite)
-                            {
-                                if (ParameterHelpers.SetString(el, "ASS_LVL_COD_TXT", lvl, overwrite: true))
-                                    lvlSet++;
-                            }
-                            else
-                            {
-                                if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl))
-                                    lvlSet++;
-                            }
-                        }
-
-                        // SYS — MEP system-aware (checks connected systems before category fallback)
-                        string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                        if (!string.IsNullOrEmpty(sys))
-                        {
-                            if (overwrite)
-                            {
-                                if (ParameterHelpers.SetString(el, "ASS_SYSTEM_TYPE_TXT", sys, overwrite: true))
-                                    sysSet++;
-                            }
-                            else
-                            {
-                                if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys))
-                                    sysSet++;
-                            }
-                        }
-
-                        // FUNC — smart derivation (differentiates HVAC SUP/RTN/EXH/FRA and HWS HTG/DHW)
-                        string func = TagConfig.GetSmartFuncCode(el, sys);
-                        if (!string.IsNullOrEmpty(func))
-                        {
-                            if (overwrite)
-                            {
-                                if (ParameterHelpers.SetString(el, "ASS_FUNC_TXT", func, overwrite: true))
-                                    funcSet++;
-                            }
-                            else
-                            {
-                                if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func))
-                                    funcSet++;
-                            }
-                        }
-
-                        // PROD — family-aware (highest intelligence)
-                        string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                        string catProd = TagConfig.ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
-                        if (prod != catProd) familyProdUsed++;
-
-                        if (overwrite)
-                        {
-                            if (ParameterHelpers.SetString(el, "ASS_PRODCT_COD_TXT", prod, overwrite: true))
-                                prodSet++;
-                        }
-                        else
-                        {
-                            if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod))
-                                prodSet++;
-                        }
-
-                        // Map native Revit parameters (dimensions, MEP, identity) to STING shared params
-                        nativesMapped += NativeParamMapper.MapAll(doc, el);
+                    if (overwrite)
+                    {
+                        if (ParameterHelpers.SetString(el, ParamRegistry.PROD, prod, overwrite: true))
+                            prodSet++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod))
+                            prodSet++;
+                    }
                     }
                     catch (Exception ex)
                     {
-                        StingLog.Warn($"Element {id}: {ex.Message}");
+                        StingLog.Error($"FamilyStagePopulate: element {el?.Id}: {ex.Message}", ex);
                     }
                 }
 
@@ -270,12 +268,6 @@ namespace StingTools.Tags
             report.AppendLine($"  PROD:  {prodSet,5}  ({familyProdUsed} family-specific)");
             report.AppendLine($"  ─────────────");
             report.AppendLine($"  Total: {totalPopulated,5} token values set");
-            if (nativesMapped > 0)
-            {
-                report.AppendLine();
-                report.AppendLine("── NATIVE PARAMS MAPPED ──");
-                report.AppendLine($"  {nativesMapped} values (dimensions, MEP, identity)");
-            }
             report.AppendLine();
             report.AppendLine("Next step: Run Auto Tag / Batch Tag / Tag & Combine");
             report.AppendLine("to assign SEQ numbers and assemble final tags.");
@@ -287,7 +279,7 @@ namespace StingTools.Tags
 
             StingLog.Info($"FamilyStagePopulate: scope={scopeLabel}, elements={processed}, " +
                 $"tokens={totalPopulated}, familyProd={familyProdUsed}, " +
-                $"nativesMapped={nativesMapped}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
+                $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;
         }

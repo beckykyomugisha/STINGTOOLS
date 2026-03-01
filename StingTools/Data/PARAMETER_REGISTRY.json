@@ -1,0 +1,420 @@
+{
+  "version": "3.0",
+  "description": "STING Tools master parameter registry — single source of truth for all parameter names, GUIDs, container definitions, and category bindings. Edit this file, then run Sync Parameter Schema to propagate changes to all CSV/TXT files.",
+
+  "tag_format": {
+    "separator": "-",
+    "num_pad": 4,
+    "segment_order": ["DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ"]
+  },
+
+  "source_tokens": [
+    { "slot": 0, "key": "DISC", "param_name": "ASS_DISCIPLINE_COD_TXT", "guid": "8c7dcfd7-f922-52d0-b859-81cae8d17dc0", "description": "Discipline code (M, E, P, A, S, FP, LV, G)", "binding": "universal" },
+    { "slot": 1, "key": "LOC",  "param_name": "ASS_LOC_TXT",             "guid": "b7469c27-c80e-5b59-b999-1a99ba620cd1", "description": "Location/building code",                    "binding": "universal" },
+    { "slot": 2, "key": "ZONE", "param_name": "ASS_ZONE_TXT",            "guid": "dc0d940f-e4ce-5e73-a0a7-fc7094148c84", "description": "Zone code (Z01-Z04, ZZ, XX)",               "binding": "universal" },
+    { "slot": 3, "key": "LVL",  "param_name": "ASS_LVL_COD_TXT",        "guid": "b1e51fab-fa88-50df-8b2f-bcdbe48e7c78", "description": "Level code (L01, GF, B1, RF, XX)",          "binding": "universal" },
+    { "slot": 4, "key": "SYS",  "param_name": "ASS_SYSTEM_TYPE_TXT",     "guid": "2b3658d9-bfc6-56db-9df5-901337fde0f5", "description": "System type (CIBSE/Uniclass)",              "binding": "universal" },
+    { "slot": 5, "key": "FUNC", "param_name": "ASS_FUNC_TXT",            "guid": "1ddff9a8-6e66-4a93-88fe-f3b94fbd5710", "description": "Function code (CIBSE/Uniclass)",            "binding": "universal" },
+    { "slot": 6, "key": "PROD", "param_name": "ASS_PRODCT_COD_TXT",      "guid": "082a2a05-3387-5501-b355-51dd45e23e9f", "description": "Product code",                              "binding": "universal" },
+    { "slot": 7, "key": "SEQ",  "param_name": "ASS_SEQ_NUM_TXT",         "guid": "bbe1cd55-247b-48bd-94ba-a08031f06d5b", "description": "4-digit sequence number",                   "binding": "universal" }
+  ],
+
+  "support_params": [
+    { "param_name": "ASS_STATUS_TXT",          "guid": "b97665a8-5e34-585b-9674-fbdd83d7637f", "description": "Status (EXISTING, NEW, DEMOLISHED, TEMPORARY)", "binding": "universal" },
+    { "param_name": "ASS_INST_DETAIL_NUM_TXT", "guid": "73f74429-76da-4ae8-ae90-66884bad8a06", "description": "Installation detail number",                    "binding": "universal" },
+    { "param_name": "MNT_TYPE_TXT",            "guid": "9358b203-900a-52c5-9e80-3a4d67dc5c51", "description": "Maintenance type",                              "binding": "universal" }
+  ],
+
+  "token_presets": {
+    "all":       [0,1,2,3,4,5,6,7],
+    "short_id":  [0,6,7],
+    "location":  [1,2,3],
+    "system":    [4,5],
+    "sys_ref":   [4,5,6],
+    "line1":     [0,1,2,3],
+    "line2":     [4,5,6,7]
+  },
+
+  "container_groups": [
+    {
+      "group": "Universal",
+      "group_code": "UNIVERSAL",
+      "categories": null,
+      "params": [
+        { "param_name": "ASS_TAG_1_TXT", "guid": "1eeb577d-342d-5039-97f1-f1dd8d80c8c4", "tokens": "all",      "separator": "-", "prefix": "", "suffix": "", "description": "Full 8-segment tag" },
+        { "param_name": "ASS_TAG_2_TXT", "guid": "bf6cb687-478f-459a-8c5d-ece073c24831", "tokens": "short_id",  "separator": "-", "prefix": "", "suffix": "", "description": "Short ID (DISC-PROD-SEQ)" },
+        { "param_name": "ASS_TAG_3_TXT", "guid": "068abd3b-650e-4a7c-ac07-82e556160de0", "tokens": "location",  "separator": "-", "prefix": "", "suffix": "", "description": "Location (LOC-ZONE-LVL)" },
+        { "param_name": "ASS_TAG_4_TXT", "guid": "9432c6e4-8912-4a0b-bf04-2ee1cf3afadf", "tokens": "system",    "separator": "-", "prefix": "", "suffix": "", "description": "System (SYS-FUNC)" },
+        { "param_name": "ASS_TAG_5_TXT", "guid": "c875d795-d764-4a8b-826a-2677635b15b9", "tokens": "line1",     "separator": "-", "prefix": "", "suffix": "", "description": "Multi-line top (DISC-LOC-ZONE-LVL)" },
+        { "param_name": "ASS_TAG_6_TXT", "guid": "6fcfc27b-a42d-4f54-92ad-66c875f9be38", "tokens": "line2",     "separator": "-", "prefix": "", "suffix": "", "description": "Multi-line bottom (SYS-FUNC-PROD-SEQ)" }
+      ]
+    },
+    {
+      "group": "HVAC Equipment",
+      "group_code": "HVC_EQP",
+      "categories": ["Mechanical Equipment"],
+      "params": [
+        { "param_name": "HVC_EQP_TAG_01_TXT", "guid": "62f66802-8bd6-4861-aad0-f23e5b1905d2", "tokens": "all",     "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" },
+        { "param_name": "HVC_EQP_TAG_02_TXT", "guid": "c3974615-09ac-46ee-8c69-589df04a35c0", "tokens": "short_id", "separator": "-", "prefix": "", "suffix": "", "description": "Short ID" },
+        { "param_name": "HVC_EQP_TAG_03_TXT", "guid": "59605dc9-0029-4704-8dff-cf3bd25b749d", "tokens": "sys_ref",  "separator": "-", "prefix": "", "suffix": "", "description": "System ref" }
+      ]
+    },
+    {
+      "group": "HVAC Ductwork",
+      "group_code": "HVC_DCT",
+      "categories": ["Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories"],
+      "params": [
+        { "param_name": "HVC_DCT_TAG_01_TXT", "guid": "9751957e-f2c7-4f9a-8f3a-dd432af861f5", "tokens": "all",      "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" },
+        { "param_name": "HVC_DCT_TAG_02_TXT", "guid": "0a3ab853-91c0-4e01-9c93-68c7fb333a85", "tokens": "short_id",  "separator": "-", "prefix": "", "suffix": "", "description": "Short ID" },
+        { "param_name": "HVC_DCT_TAG_03_TXT", "guid": "7ed52b35-4486-428d-b7ee-8f01c0140763", "tokens": "system",    "separator": "-", "prefix": "", "suffix": "", "description": "System" }
+      ]
+    },
+    {
+      "group": "Flex Ducts",
+      "group_code": "HVC_FLX",
+      "categories": ["Flex Ducts"],
+      "params": [
+        { "param_name": "HVC_FLX_TAG_01_TXT", "guid": "cd984834-8273-4d2c-89c4-dfe33520e2d2", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" }
+      ]
+    },
+    {
+      "group": "Electrical Equipment",
+      "group_code": "ELC_EQP",
+      "categories": ["Electrical Equipment"],
+      "params": [
+        { "param_name": "ELC_EQP_TAG_01_TXT", "guid": "d9441c7a-025c-4034-a7da-dc960df4a57c", "tokens": "all",      "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" },
+        { "param_name": "ELC_EQP_TAG_02_TXT", "guid": "64805f01-8548-44c5-8091-ffcf04d35d7d", "tokens": "short_id",  "separator": "-", "prefix": "", "suffix": "", "description": "Short ID" }
+      ]
+    },
+    {
+      "group": "Electrical Fixtures",
+      "group_code": "ELE_FIX",
+      "categories": ["Electrical Fixtures"],
+      "params": [
+        { "param_name": "ELE_FIX_TAG_1_TXT", "guid": "5b5c4c6c-c420-4f30-a67e-bdeca6944577", "tokens": "all",      "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" },
+        { "param_name": "ELE_FIX_TAG_2_TXT", "guid": "6b727a38-f448-4b8e-81fb-a2570637ee57", "tokens": "short_id",  "separator": "-", "prefix": "", "suffix": "", "description": "Short ID" }
+      ]
+    },
+    {
+      "group": "Lighting",
+      "group_code": "LTG_FIX",
+      "categories": ["Lighting Fixtures", "Lighting Devices"],
+      "params": [
+        { "param_name": "LTG_FIX_TAG_01_TXT", "guid": "647a8916-560f-4c0c-b6ca-f2ee23a97fb0", "tokens": "all",      "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" },
+        { "param_name": "LTG_FIX_TAG_02_TXT", "guid": "7783ce57-766b-4903-8e9f-bde24b706b42", "tokens": "short_id",  "separator": "-", "prefix": "", "suffix": "", "description": "Short ID" }
+      ]
+    },
+    {
+      "group": "Pipework / Plumbing",
+      "group_code": "PLM_EQP",
+      "categories": ["Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures"],
+      "params": [
+        { "param_name": "PLM_EQP_TAG_01_TXT", "guid": "e4f6bae0-bc3b-42f3-a3c9-ef31a23a80d0", "tokens": "all",      "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" },
+        { "param_name": "PLM_EQP_TAG_02_TXT", "guid": "4a31aa91-9511-4fa4-8024-632f64b6a2ae", "tokens": "short_id",  "separator": "-", "prefix": "", "suffix": "", "description": "Short ID" }
+      ]
+    },
+    {
+      "group": "Fire & Life Safety",
+      "group_code": "FLS_DEV",
+      "categories": ["Sprinklers", "Fire Alarm Devices"],
+      "params": [
+        { "param_name": "FLS_DEV_TAG_01_TXT", "guid": "c611d904-3f4f-45c6-81e6-11f3cc64759d", "tokens": "all",      "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" },
+        { "param_name": "FLS_DEV_TAG_02_TXT", "guid": "86a39b3f-6ef2-46d1-a9ab-a0620f1761ac", "tokens": "short_id",  "separator": "-", "prefix": "", "suffix": "", "description": "Short ID" }
+      ]
+    },
+    {
+      "group": "Conduits",
+      "group_code": "ELC_CDT",
+      "categories": ["Conduits", "Conduit Fittings"],
+      "params": [
+        { "param_name": "ELC_CDT_TAG_01_TXT", "guid": "f867c60f-1fda-4f3f-a052-cf81268c0600", "tokens": "all",      "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" },
+        { "param_name": "ELC_CDT_TAG_02_TXT", "guid": "aab93953-601b-4bab-8d52-079193f71524", "tokens": "short_id",  "separator": "-", "prefix": "", "suffix": "", "description": "Short ID" }
+      ]
+    },
+    {
+      "group": "Cable Trays",
+      "group_code": "ELC_CTR",
+      "categories": ["Cable Trays", "Cable Tray Fittings"],
+      "params": [
+        { "param_name": "ELC_CTR_TAG_01_TXT", "guid": "aed9d3de-71ff-4a73-aba3-5bbd16af7526", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" }
+      ]
+    },
+    {
+      "group": "Communications",
+      "group_code": "COM_DEV",
+      "categories": ["Communication Devices", "Telephone Devices"],
+      "params": [
+        { "param_name": "COM_DEV_TAG_01_TXT", "guid": "7775b009-25a6-43b9-b0ec-31ac063a9183", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" }
+      ]
+    },
+    {
+      "group": "Security",
+      "group_code": "SEC_DEV",
+      "categories": ["Security Devices"],
+      "params": [
+        { "param_name": "SEC_DEV_TAG_01_TXT", "guid": "e892601e-68a8-4f68-9618-223326a2cac4", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" }
+      ]
+    },
+    {
+      "group": "Nurse Call",
+      "group_code": "NCL_DEV",
+      "categories": ["Nurse Call Devices"],
+      "params": [
+        { "param_name": "NCL_DEV_TAG_01_TXT", "guid": "34b75836-a597-4bc6-b7ee-6713a5caf6a5", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" }
+      ]
+    },
+    {
+      "group": "ICT / Data",
+      "group_code": "ICT_DEV",
+      "categories": ["Data Devices"],
+      "params": [
+        { "param_name": "ICT_DEV_TAG_01_TXT", "guid": "ec3cc840-731f-47f7-943e-465a027fea74", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" }
+      ]
+    },
+    {
+      "group": "Material Tags",
+      "group_code": "MAT_TAG",
+      "categories": ["Walls", "Floors", "Ceilings", "Roofs", "Doors", "Windows"],
+      "params": [
+        { "param_name": "MAT_TAG_1_TXT", "guid": "6b6c3ada-95bb-4a7b-aa9c-beb47c639928", "tokens": "all",      "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" },
+        { "param_name": "MAT_TAG_2_TXT", "guid": "0d78850d-45b1-4179-9079-3e3ec525a4ef", "tokens": "short_id",  "separator": "-", "prefix": "", "suffix": "", "description": "Short ID" },
+        { "param_name": "MAT_TAG_3_TXT", "guid": "04883c90-411f-4ab5-b937-2909c54fdf65", "tokens": "location",  "separator": "-", "prefix": "", "suffix": "", "description": "Location" },
+        { "param_name": "MAT_TAG_4_TXT", "guid": "1d5e82d6-e988-4e9d-8be1-e195f2782041", "tokens": "system",    "separator": "-", "prefix": "", "suffix": "", "description": "System" },
+        { "param_name": "MAT_TAG_5_TXT", "guid": "c7efed83-bbd2-4a2e-b79a-292a1cfa3a18", "tokens": "line1",     "separator": "-", "prefix": "", "suffix": "", "description": "Line 1" },
+        { "param_name": "MAT_TAG_6_TXT", "guid": "d0d35a3a-abea-4898-9deb-4cdca865e8ee", "tokens": "line2",     "separator": "-", "prefix": "", "suffix": "", "description": "Line 2" }
+      ]
+    },
+    {
+      "group": "Finish Tags",
+      "group_code": "FIN_TAG",
+      "categories": ["Walls", "Floors", "Ceilings"],
+      "params": [
+        { "param_name": "FIN_WALL_TAG_TXT", "guid": "456cd8aa-e875-458c-b778-7abbe2f0563d", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Wall finish tag" },
+        { "param_name": "FIN_FLR_TAG_TXT",  "guid": "a2b19e19-d4ad-44b4-97d4-8e80dc981228", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Floor finish tag" },
+        { "param_name": "FIN_CEIL_TAG_TXT", "guid": "cfbedb01-9783-403d-a273-2f2e4e215907", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Ceiling finish tag" }
+      ]
+    },
+    {
+      "group": "Environmental Tags",
+      "group_code": "ENV_TAG",
+      "categories": ["Walls", "Windows", "Roofs"],
+      "params": [
+        { "param_name": "ENV_FAC_TAG_TXT",  "guid": "3eda6808-aa94-46d4-bd09-71fa6a26c090", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Facade tag" },
+        { "param_name": "ENV_WIN_TAG_TXT",  "guid": "a204d24a-e981-44b4-bf39-afe03ddfa8dc", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Window tag" },
+        { "param_name": "ENV_ROOF_TAG_TXT", "guid": "9a1ef97d-12f7-419d-93f9-60f3773e55ef", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Roof tag" }
+      ]
+    },
+    {
+      "group": "Structural Tags",
+      "group_code": "STR_TAG",
+      "categories": ["Structural Columns", "Structural Framing", "Structural Foundations", "Floors"],
+      "params": [
+        { "param_name": "STR_CONC_TAG_TXT",  "guid": "04a3dc69-9931-4154-809f-896df5584100", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Concrete tag" },
+        { "param_name": "STR_STEEL_TAG_TXT", "guid": "e4f2fcf1-4764-4f8c-9b8d-e8512834e1aa", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Steel tag" }
+      ]
+    },
+    {
+      "group": "Composite Material Tags",
+      "group_code": "COMP_MAT",
+      "categories": ["Walls", "Floors", "Ceilings", "Roofs"],
+      "params": [
+        { "param_name": "COMP_MAT_TAG_1_TXT", "guid": "58757592-bbc4-4cfd-8228-c89c89bb0d4a", "tokens": "all",      "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" },
+        { "param_name": "COMP_MAT_TAG_2_TXT", "guid": "6eef14b4-c51c-4918-bd6c-dd05aca45813", "tokens": "short_id",  "separator": "-", "prefix": "", "suffix": "", "description": "Short ID" }
+      ]
+    },
+    {
+      "group": "Material Performance Tags",
+      "group_code": "MAT_PERF",
+      "categories": ["Walls", "Floors", "Ceilings", "Roofs"],
+      "params": [
+        { "param_name": "MAT_PERF_TAG_1_TXT", "guid": "cc56b572-0538-4c37-b158-db6dbd51d3de", "tokens": "all",      "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" },
+        { "param_name": "MAT_PERF_TAG_2_TXT", "guid": "28487745-251e-4555-bf56-b1d06c933cc5", "tokens": "short_id",  "separator": "-", "prefix": "", "suffix": "", "description": "Short ID" },
+        { "param_name": "MAT_PERF_TAG_3_TXT", "guid": "011ce782-1772-4477-bf4e-4a29a95c507a", "tokens": "location",  "separator": "-", "prefix": "", "suffix": "", "description": "Location" }
+      ]
+    },
+    {
+      "group": "Sustainability Tags",
+      "group_code": "SUST_MAT",
+      "categories": ["Walls", "Floors", "Ceilings", "Roofs"],
+      "params": [
+        { "param_name": "SUST_MAT_TAG_1_TXT", "guid": "5491e7e3-472a-4b7a-9497-2e5170ce870b", "tokens": "all",      "separator": "-", "prefix": "", "suffix": "", "description": "Full tag" },
+        { "param_name": "SUST_MAT_TAG_2_TXT", "guid": "7f2ca957-dd29-4a9a-835a-c39dbdfed8d9", "tokens": "short_id",  "separator": "-", "prefix": "", "suffix": "", "description": "Short ID" }
+      ]
+    },
+    {
+      "group": "Equipment Tag",
+      "group_code": "ASS_EQP",
+      "categories": ["Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Specialty Equipment"],
+      "params": [
+        { "param_name": "ASS_EQUIPMENT_TAG_TXT", "guid": "2cebbb9e-70f2-550a-8a85-80cb1aa550d7", "tokens": "all", "separator": "-", "prefix": "", "suffix": "", "description": "Equipment tag" }
+      ]
+    }
+  ],
+
+  "extended_params": {
+    "identity": [
+      { "key": "ID",              "param_name": "ASS_ID_TXT",                    "description": "Element mark / ID" },
+      { "key": "DESC",            "param_name": "ASS_DESCRIPTION_TXT",           "description": "Element description" },
+      { "key": "MFR",             "param_name": "ASS_MANUFACTURER_TXT",          "description": "Manufacturer" },
+      { "key": "MODEL",           "param_name": "ASS_MODEL_NR_TXT",             "description": "Model number" },
+      { "key": "TYPE_NAME",       "param_name": "ASS_TYPE_NAME_TXT",            "description": "Type/symbol name" },
+      { "key": "FAMILY_NAME",     "param_name": "ASS_FAMILY_NAME_TXT",          "description": "Family name" },
+      { "key": "CAT",             "param_name": "ASS_CAT_TXT",                  "description": "Category name" },
+      { "key": "TYPE_MARK",       "param_name": "ASS_TYPE_MARK_TXT",            "description": "Type mark" },
+      { "key": "TYPE_COMMENTS",   "param_name": "ASS_TYPE_COMMENTS_TXT",        "description": "Type comments" },
+      { "key": "KEYNOTE",         "param_name": "ASS_KEYNOTE_TXT",              "description": "Keynote" },
+      { "key": "UNIFORMAT",       "param_name": "ASS_UNIFORMAT_TXT",            "description": "Uniformat code" },
+      { "key": "UNIFORMAT_DESC",  "param_name": "ASS_UNIFORMAT_DESC_TXT",       "description": "Uniformat description" },
+      { "key": "OMNICLASS",       "param_name": "ASS_OMNICLASS_TXT",            "description": "OmniClass code" },
+      { "key": "SIZE",            "param_name": "ASS_SIZE_TXT",                 "description": "Calculated size" },
+      { "key": "COST",            "param_name": "ASS_CST_UNIT_PRICE_UGX_NR",    "description": "Unit cost" },
+      { "key": "PRJ_COMMENTS",    "param_name": "PRJ_COMMENTS_TXT",             "description": "Project/instance comments" }
+    ],
+    "spatial": [
+      { "key": "ROOM_NAME",       "param_name": "ASS_ROOM_NAME_TXT",            "description": "Room name" },
+      { "key": "ROOM_NUM",        "param_name": "ASS_ROOM_NUM_TXT",             "description": "Room number" },
+      { "key": "ROOM_AREA",       "param_name": "ASS_ROOM_AREA_SQ_M",           "description": "Room area (m²)" },
+      { "key": "ROOM_VOLUME",     "param_name": "ASS_ROOM_VOLUME_CU_M",         "description": "Room volume (m³)" },
+      { "key": "DEPT",            "param_name": "ASS_DEPARTMENT_ASSIGNMENT_TXT", "description": "Department assignment" },
+      { "key": "GRID_REF",        "param_name": "PRJ_GRID_REF_TXT",             "description": "Grid reference" },
+      { "key": "BLE_ROOM_NAME",   "param_name": "BLE_ROOM_NAME_TXT",            "description": "BLE room name (fallback)" },
+      { "key": "BLE_ROOM_NUM",    "param_name": "BLE_ROOM_NUMBER_TXT",          "description": "BLE room number (fallback)" }
+    ],
+    "extended_tokens": [
+      { "key": "ORIGIN",          "param_name": "ASS_ORIGIN_TXT",               "description": "Origin code (NEW, EXISTING, DEMOLISHED)" },
+      { "key": "PROJECT",         "param_name": "ASS_PROJECT_TXT",              "description": "Project code" },
+      { "key": "REV",             "param_name": "ASS_REV_TXT",                  "description": "Revision code" },
+      { "key": "VOLUME",          "param_name": "ASS_VOL_TXT",                  "description": "Volume code" }
+    ],
+    "ble_dimensional": [
+      { "key": "WALL_HEIGHT",     "param_name": "BLE_WALL_HEIGHT_MM",            "description": "Wall height (mm)" },
+      { "key": "WALL_LENGTH",     "param_name": "BLE_WALL_LENGTH_MM",            "description": "Wall length (mm)" },
+      { "key": "WALL_THICKNESS",  "param_name": "BLE_WALL_THICKNESS_MM",         "description": "Wall thickness (mm)" },
+      { "key": "DOOR_WIDTH",      "param_name": "BLE_DOOR_WIDTH_MM",             "description": "Door width (mm)" },
+      { "key": "DOOR_HEIGHT",     "param_name": "BLE_DOOR_HEIGHT_MM",            "description": "Door height (mm)" },
+      { "key": "WINDOW_WIDTH",    "param_name": "BLE_WINDOW_WIDTH_MM",           "description": "Window width (mm)" },
+      { "key": "WINDOW_HEIGHT",   "param_name": "BLE_WINDOW_HEIGHT_MM",          "description": "Window height (mm)" },
+      { "key": "WINDOW_SILL",     "param_name": "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM", "description": "Window sill height (mm)" },
+      { "key": "FLR_THICKNESS",   "param_name": "BLE_FLR_THICKNESS_MM",          "description": "Floor thickness (mm)" },
+      { "key": "ELE_AREA",        "param_name": "BLE_ELE_AREA_SQ_M",             "description": "Element area (m²)" },
+      { "key": "CEILING_HEIGHT",  "param_name": "BLE_CEILING_HEIGHT_MM",          "description": "Ceiling height (mm)" },
+      { "key": "ROOF_SLOPE",      "param_name": "BLE_ROOF_SLOPE_DEG",             "description": "Roof slope (degrees)" },
+      { "key": "STAIR_TREAD",     "param_name": "BLE_STAIR_GOING_MM",             "description": "Stair tread depth (mm)" },
+      { "key": "STAIR_RISE",      "param_name": "BLE_STAIR_RISE_MM",              "description": "Stair riser height (mm)" },
+      { "key": "STAIR_WIDTH",     "param_name": "BLE_STAIR_WIDTH_MM",             "description": "Stair width (mm)" },
+      { "key": "RAMP_SLOPE",      "param_name": "BLE_RAMP_SLOPE_PCT",             "description": "Ramp slope (%)" },
+      { "key": "RAMP_WIDTH",      "param_name": "BLE_RAMP_WIDTH_MM",              "description": "Ramp width (mm)" },
+      { "key": "STRUCT_TYPE",     "param_name": "BLE_STRUCT_ELE_TYPE_TXT",         "description": "Structural element type" },
+      { "key": "FIRE_RATING",     "param_name": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN", "description": "Fire resistance rating (min)" }
+    ],
+    "electrical": [
+      { "key": "ELC_POWER",       "param_name": "ELC_CKT_PWR_KW",               "description": "Circuit power (kW)" },
+      { "key": "ELC_VOLTAGE",     "param_name": "ELC_CKT_VLT_V",                "description": "Circuit voltage (V)" },
+      { "key": "ELC_CIRCUIT_NR",  "param_name": "ELC_CKT_NR",                   "description": "Circuit number" },
+      { "key": "ELC_PNL_NAME",    "param_name": "ELC_PNL_DESIGNATION_NAME_TXT",  "description": "Panel designation name" },
+      { "key": "ELC_PNL_VOLTAGE", "param_name": "ELC_VLT_PRIMARY_RATING_V",     "description": "Panel voltage rating (V)" },
+      { "key": "ELC_PHASES",      "param_name": "ELC_CKT_PHASE_COUNT_NR",       "description": "Phase count" },
+      { "key": "ELC_PNL_LOAD",    "param_name": "ELC_PNL_CONNECTED_LOAD_KW",    "description": "Panel connected load (kW)" },
+      { "key": "ELC_PNL_FED_FROM","param_name": "ELC_PNL_FED_FROM_PNL_TXT",     "description": "Panel fed from" },
+      { "key": "ELC_MAIN_BRK",    "param_name": "ELC_PNL_MAIN_BRK_A",           "description": "Main breaker (A)" },
+      { "key": "ELC_WAYS",        "param_name": "ELC_PNL_NUM_OF_WAYS_NR",       "description": "Number of ways" },
+      { "key": "ELC_IP_RATING",   "param_name": "ELC_IP_RATING_TXT",            "description": "IP rating" }
+    ],
+    "lighting": [
+      { "key": "LTG_WATTAGE",     "param_name": "LTG_FIX_LMP_WATTAGE_W",       "description": "Lamp wattage (W)" },
+      { "key": "LTG_LUMENS",      "param_name": "CST_FIX_LUMEN_OUTPUT_LM",      "description": "Lumen output (lm)" },
+      { "key": "LTG_EFFICACY",    "param_name": "LTG_FIX_EFFICACY_LM_W",        "description": "Luminous efficacy (lm/W)" },
+      { "key": "LTG_LAMP_TYPE",   "param_name": "LTG_FIX_LAMP_TYPE_TXT",        "description": "Lamp type" }
+    ],
+    "hvac": [
+      { "key": "HVC_DUCT_FLOW",   "param_name": "HVC_DCT_FLW_CFM",             "description": "Duct flow (CFM)" },
+      { "key": "HVC_VELOCITY",    "param_name": "HVC_VEL_MPS",                  "description": "Velocity (m/s)" },
+      { "key": "HVC_PRESSURE",    "param_name": "HVC_PRESSURE_DROP_PA",          "description": "Pressure drop (Pa)" },
+      { "key": "HVC_AIRFLOW",     "param_name": "HVC_AIRFLOW_LPS",              "description": "Airflow (L/s)" }
+    ],
+    "plumbing": [
+      { "key": "PLM_PIPE_FLOW",   "param_name": "PLM_PPE_FLW_LPS",             "description": "Pipe flow (L/s)" },
+      { "key": "PLM_PIPE_SIZE",   "param_name": "PLM_PPE_SZ_MM",               "description": "Pipe size (mm)" },
+      { "key": "PLM_VELOCITY",    "param_name": "PLM_VEL_MPS",                  "description": "Pipe velocity (m/s)" },
+      { "key": "PLM_FLOW_RATE",   "param_name": "PLM_FLOW_RATE_LPS",            "description": "Flow rate (L/s)" },
+      { "key": "PLM_PIPE_LENGTH", "param_name": "PLM_PPE_LENGTH_M",             "description": "Pipe length (m)" }
+    ]
+  },
+
+  "category_enum_map": {
+    "Air Terminals": "OST_DuctTerminal",
+    "Cable Tray Fittings": "OST_CableTrayFitting",
+    "Cable Trays": "OST_CableTray",
+    "Casework": "OST_Casework",
+    "Ceilings": "OST_Ceilings",
+    "Columns": "OST_Columns",
+    "Communication Devices": "OST_CommunicationDevices",
+    "Conduit Fittings": "OST_ConduitFitting",
+    "Conduits": "OST_Conduit",
+    "Curtain Panels": "OST_CurtainWallPanels",
+    "Curtain Wall Mullions": "OST_CurtainWallMullions",
+    "Curtain Systems": "OST_Curtain_Systems",
+    "Data Devices": "OST_DataDevices",
+    "Doors": "OST_Doors",
+    "Duct Accessories": "OST_DuctAccessory",
+    "Duct Fittings": "OST_DuctFitting",
+    "Ducts": "OST_DuctCurves",
+    "Electrical Circuits": "OST_ElectricalCircuit",
+    "Electrical Equipment": "OST_ElectricalEquipment",
+    "Electrical Fixtures": "OST_ElectricalFixtures",
+    "Fire Alarm Devices": "OST_FireAlarmDevices",
+    "Flex Ducts": "OST_FlexDuctCurves",
+    "Flex Pipes": "OST_FlexPipeCurves",
+    "Floors": "OST_Floors",
+    "Furniture": "OST_Furniture",
+    "Furniture Systems": "OST_FurnitureSystems",
+    "Generic Models": "OST_GenericModel",
+    "Lighting Devices": "OST_LightingDevices",
+    "Lighting Fixtures": "OST_LightingFixtures",
+    "Mechanical Equipment": "OST_MechanicalEquipment",
+    "Nurse Call Devices": "OST_NurseCallDevices",
+    "Parking": "OST_Parking",
+    "Pipe Accessories": "OST_PipeAccessory",
+    "Pipe Fittings": "OST_PipeFitting",
+    "Pipes": "OST_PipeCurves",
+    "Plumbing Equipment": "OST_PlumbingFixtures",
+    "Plumbing Fixtures": "OST_PlumbingFixtures",
+    "Ramps": "OST_Ramps",
+    "Roofs": "OST_Roofs",
+    "Rooms": "OST_Rooms",
+    "Security Devices": "OST_SecurityDevices",
+    "Site": "OST_Site",
+    "Specialty Equipment": "OST_SpecialityEquipment",
+    "Sprinklers": "OST_Sprinklers",
+    "Stairs": "OST_Stairs",
+    "Structural Columns": "OST_StructuralColumns",
+    "Structural Foundations": "OST_StructuralFoundation",
+    "Structural Framing": "OST_StructuralFraming",
+    "Structural Stiffener": "OST_StructuralStiffener",
+    "Telephone Devices": "OST_TelephoneDevices",
+    "Walls": "OST_Walls",
+    "Windows": "OST_Windows",
+    "Mass": "OST_Mass",
+    "Parts": "OST_Parts",
+    "Assemblies": "OST_Assemblies",
+    "Detail Components": "OST_DetailComponents",
+    "Railings": "OST_Railings"
+  },
+
+  "universal_categories": [
+    "Mechanical Equipment", "Ducts", "Duct Fittings", "Duct Accessories",
+    "Air Terminals", "Flex Ducts", "Pipes", "Pipe Fittings",
+    "Pipe Accessories", "Flex Pipes", "Sprinklers", "Plumbing Fixtures",
+    "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures",
+    "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays",
+    "Cable Tray Fittings", "Fire Alarm Devices", "Communication Devices",
+    "Data Devices", "Nurse Call Devices", "Security Devices",
+    "Telephone Devices", "Doors", "Windows", "Walls", "Floors",
+    "Ceilings", "Roofs", "Rooms", "Furniture", "Furniture Systems",
+    "Casework", "Columns", "Structural Columns", "Structural Framing",
+    "Structural Foundations", "Structural Stiffener", "Railings", "Stairs",
+    "Ramps", "Curtain Panels", "Curtain Wall Mullions", "Curtain Systems",
+    "Generic Models", "Specialty Equipment", "Parking", "Site",
+    "Mass", "Parts", "Assemblies", "Detail Components"
+  ]
+}

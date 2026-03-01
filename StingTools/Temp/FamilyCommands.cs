@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using Autodesk.Revit.Attributes;
@@ -113,7 +112,7 @@ namespace StingTools.Temp
     /// </summary>
     internal static class CompoundTypeCreator
     {
-        public enum ElementKind { Wall, Floor, Ceiling, Roof, Duct, Pipe, CableTray, Conduit }
+        public enum ElementKind { Wall, Floor, Ceiling, Roof, Duct, Pipe }
 
         // CSV column indices (BLE_MATERIALS / MEP_MATERIALS)
         private const int ColElementType = 4;   // MAT_ELEMENT_TYPE
@@ -168,16 +167,14 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
-            // Build material caches (name → ElementId for type creation,
-            // name → Material for base material lookup)
+            // Build material cache (name → ElementId)
             var materialCache = new Dictionary<string, ElementId>(
                 StringComparer.OrdinalIgnoreCase);
-            var baseMaterialCache = MaterialPropertyHelper.BuildBaseMaterialCache(doc);
-            foreach (var kvp in baseMaterialCache)
-                materialCache[kvp.Key] = kvp.Value.Id;
-
-            // Build fill pattern cache for material pattern assignment
-            var fillPatternCache = MaterialPropertyHelper.BuildFillPatternCache(doc);
+            foreach (Material mat in new FilteredElementCollector(doc)
+                .OfClass(typeof(Material)).Cast<Material>())
+            {
+                materialCache[mat.Name] = mat.Id;
+            }
 
             // For compound types (wall/floor/ceiling/roof), collect existing type names
             var existingTypeNames = GetExistingTypeNames(doc, kind);
@@ -208,21 +205,20 @@ namespace StingTools.Temp
                     }
 
                     // Ensure primary material exists in project
-                    // Uses base material duplication from CSV column BLE_APP-REVIT-BASE-MATERIAL
                     if (!materialCache.ContainsKey(matName) &&
                         !string.IsNullOrEmpty(matName))
                     {
                         try
                         {
-                            Material newMat = MaterialPropertyHelper.CreateFromBase(
-                                doc, matName, cols, baseMaterialCache);
-                            if (newMat != null)
+                            ElementId newMatId = Material.Create(doc, matName);
+                            if (newMatId != ElementId.InvalidElementId)
                             {
-                                materialCache[matName] = newMat.Id;
-                                baseMaterialCache[matName] = newMat;
+                                materialCache[matName] = newMatId;
                                 matCreated++;
-                                MaterialPropertyHelper.ApplyMaterialProperties(
-                                    newMat, cols, doc, fillPatternCache);
+                                // Apply material appearance properties from CSV
+                                Material newMat = doc.GetElement(newMatId) as Material;
+                                if (newMat != null)
+                                    MaterialPropertyHelper.ApplyMaterialProperties(newMat, cols);
                             }
                         }
                         catch (Exception ex)
@@ -260,8 +256,6 @@ namespace StingTools.Temp
                                 break;
                             case ElementKind.Duct:
                             case ElementKind.Pipe:
-                            case ElementKind.CableTray:
-                            case ElementKind.Conduit:
                                 success = CreateMEPType(doc, typeName, matId,
                                     thicknessMm, kind);
                                 break;
@@ -314,7 +308,7 @@ namespace StingTools.Temp
             if (cols.Length > ColThicknessMm)
             {
                 string raw = cols[ColThicknessMm].Trim();
-                double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out totalMm);
+                double.TryParse(raw, out totalMm);
             }
 
             // If total is zero, sum actual layer thicknesses
@@ -331,7 +325,7 @@ namespace StingTools.Temp
                     // Skip R-value codes (e.g. "R-3.6") which are thermal resistance, not thickness
                     if (thickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase)) continue;
 
-                    if (double.TryParse(thickStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double lmm) && lmm > 0 && lmm < 1000)
+                    if (double.TryParse(thickStr, out double lmm) && lmm > 0 && lmm < 1000)
                         layerSum += lmm;
                 }
                 if (layerSum > 0)
@@ -443,23 +437,28 @@ namespace StingTools.Temp
         private static bool CreateMEPType(Document doc, string typeName,
             ElementId matId, double thicknessMm, ElementKind kind)
         {
-            Type revitType;
-            switch (kind)
+            if (kind == ElementKind.Duct)
             {
-                case ElementKind.Duct: revitType = typeof(Autodesk.Revit.DB.Mechanical.DuctType); break;
-                case ElementKind.Pipe: revitType = typeof(Autodesk.Revit.DB.Plumbing.PipeType); break;
-                case ElementKind.CableTray: revitType = typeof(Autodesk.Revit.DB.Electrical.CableTrayType); break;
-                case ElementKind.Conduit: revitType = typeof(Autodesk.Revit.DB.Electrical.ConduitType); break;
-                default: return false;
+                var baseType = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
+                    .Cast<Autodesk.Revit.DB.Mechanical.DuctType>()
+                    .FirstOrDefault();
+
+                if (baseType == null) return false;
+                var newType = baseType.Duplicate(typeName);
+                return newType != null;
             }
+            else // Pipe
+            {
+                var baseType = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
+                    .Cast<Autodesk.Revit.DB.Plumbing.PipeType>()
+                    .FirstOrDefault();
 
-            var baseType = new FilteredElementCollector(doc)
-                .OfClass(revitType)
-                .FirstOrDefault();
-
-            if (baseType == null) return false;
-            var newType = baseType.Duplicate(typeName);
-            return newType != null;
+                if (baseType == null) return false;
+                var newType = baseType.Duplicate(typeName);
+                return newType != null;
+            }
         }
 
         /// <summary>
@@ -496,7 +495,7 @@ namespace StingTools.Temp
                     if (!string.IsNullOrEmpty(layerThickStr) &&
                         !layerThickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase))
                     {
-                        double.TryParse(layerThickStr, NumberStyles.Any, CultureInfo.InvariantCulture, out layerThickMm);
+                        double.TryParse(layerThickStr, out layerThickMm);
                     }
 
                     // Skip cable cross-section values (mm² stored as mm, e.g. 300.0 for a 300mm² conductor)
@@ -568,16 +567,15 @@ namespace StingTools.Temp
                 string matName = cols[matIdx].Trim();
                 if (string.IsNullOrEmpty(matName)) continue;
 
-                // Skip R-value codes in material column (consistent with BuildLayers)
-                if (matName.StartsWith("R-", StringComparison.OrdinalIgnoreCase)) continue;
-
                 // Check if thickness column has a valid number
                 if (thickIdx < cols.Length)
                 {
                     string thickStr = cols[thickIdx].Trim();
                     if (!string.IsNullOrEmpty(thickStr))
                     {
-                        if (double.TryParse(thickStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) && v > 0)
+                        // R-value codes count as populated (they indicate a real layer)
+                        if (thickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase) ||
+                            (double.TryParse(thickStr, out double v) && v > 0))
                         {
                             count++;
                         }
@@ -609,9 +607,9 @@ namespace StingTools.Temp
             if (upper.Contains("SUBSTRATE"))
                 return MaterialFunctionAssignment.Substrate;
             if (upper.Contains("THERMAL") || upper.Contains("AIR LAYER") || upper.Contains("INSUL"))
-                return MaterialFunctionAssignment.ThermalOrAir;
+                return MaterialFunctionAssignment.Insulation;
             if (upper.Contains("MEMBRANE") || upper.Contains("BARRIER") || upper.Contains("VAPOR"))
-                return MaterialFunctionAssignment.MembraneLayer;
+                return MaterialFunctionAssignment.Membrane;
 
             return MaterialFunctionAssignment.Structure;
         }
@@ -650,16 +648,6 @@ namespace StingTools.Temp
                 case ElementKind.Pipe:
                     names = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
-                        .Select(e => e.Name);
-                    break;
-                case ElementKind.CableTray:
-                    names = new FilteredElementCollector(doc)
-                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType))
-                        .Select(e => e.Name);
-                    break;
-                case ElementKind.Conduit:
-                    names = new FilteredElementCollector(doc)
-                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType))
                         .Select(e => e.Name);
                     break;
                 default:
