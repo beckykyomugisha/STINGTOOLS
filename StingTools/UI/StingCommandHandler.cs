@@ -118,6 +118,7 @@ namespace StingTools.UI
                     case "ReTag": RunCommand<Organise.ReTagCommand>(app); break;
                     case "FixDuplicates": RunCommand<Organise.FixDuplicateTagsCommand>(app); break;
                     case "FindDuplicates": RunCommand<Organise.FindDuplicateTagsCommand>(app); break;
+                    case "TagNewOnly": RunCommand<Tags.TagNewOnlyCommand>(app); break;
 
                     // ── ORGANISE: Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
@@ -241,6 +242,28 @@ namespace StingTools.UI
                     case "CreateParameters": RunCommand<Temp.CreateParametersCommand>(app); break;
                     case "MaterialSchedules": RunCommand<Temp.CreateMaterialSchedulesCommand>(app); break;
                     case "ApplyFilters": RunCommand<Temp.ApplyFiltersToViewsCommand>(app); break;
+
+                    // ── VIEW: Template Manager ──
+                    case "AutoAssignTemplates": RunCommand<Temp.AutoAssignTemplatesCommand>(app); break;
+                    case "TemplateAudit": RunCommand<Temp.TemplateAuditCommand>(app); break;
+                    case "TemplateDiff": RunCommand<Temp.TemplateDiffCommand>(app); break;
+                    case "TemplateComplianceScore": RunCommand<Temp.TemplateComplianceScoreCommand>(app); break;
+                    case "AutoFixTemplate": RunCommand<Temp.AutoFixTemplateCommand>(app); break;
+                    case "SyncTemplateOverrides": RunCommand<Temp.SyncTemplateOverridesCommand>(app); break;
+                    case "CreateFillPatterns": RunCommand<Temp.CreateFillPatternsCommand>(app); break;
+                    case "CreateLineStyles": RunCommand<Temp.CreateLineStylesCommand>(app); break;
+                    case "CreateObjectStyles": RunCommand<Temp.CreateObjectStylesCommand>(app); break;
+                    case "CreateTextStyles": RunCommand<Temp.CreateTextStylesCommand>(app); break;
+                    case "CreateDimensionStyles": RunCommand<Temp.CreateDimensionStylesCommand>(app); break;
+                    case "CreateVGOverrides": RunCommand<Temp.CreateVGOverridesCommand>(app); break;
+                    case "BatchAddFamilyParams": RunCommand<Temp.BatchAddFamilyParamsCommand>(app); break;
+                    case "CreateTemplateSchedules": RunCommand<Temp.CreateTemplateSchedulesCommand>(app); break;
+                    case "TemplateSetupWizard": RunCommand<Temp.TemplateSetupWizardCommand>(app); break;
+                    case "CloneTemplate": RunCommand<Temp.CloneTemplateCommand>(app); break;
+                    case "BatchVGReset": RunCommand<Temp.BatchVGResetCommand>(app); break;
+
+                    // ── SELECT: Refresh param list (inline) ──
+                    case "RefreshParamList": RefreshParameterList(app); break;
 
                     // ── VIEW: Graphic overrides (inline) ──
                     case "HalftoneOn": SetHalftone(app, true); break;
@@ -651,6 +674,48 @@ namespace StingTools.UI
                 $"Parameter: {paramName}\nNew value: {value}\n\n" +
                 $"{hasParam} of {ids.Count} elements have this parameter.\n" +
                 $"{wouldChange} values would change.");
+        }
+
+        private static void RefreshParameterList(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+
+            var paramNames = new SortedSet<string>();
+
+            // Add common STING parameters
+            string[] stingParams = {
+                "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
+                "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
+                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
+                "Mark", "Comments"
+            };
+            foreach (var p in stingParams) paramNames.Add(p);
+
+            // Add text parameters from selected elements
+            var ids = uidoc.Selection.GetElementIds();
+            foreach (ElementId id in ids)
+            {
+                Element el = uidoc.Document.GetElement(id);
+                if (el == null) continue;
+                foreach (Parameter p in el.Parameters)
+                {
+                    if (p.Definition != null && p.StorageType == StorageType.String)
+                        paramNames.Add(p.Definition.Name);
+                }
+                break; // Only need first element's params
+            }
+
+            // Update the panel combo box (same thread in Revit)
+            var panel = StingDockPanel.Instance;
+            if (panel != null)
+            {
+                panel.PopulateParamList(paramNames);
+                panel.UpdateBulkStatus($"Loaded {paramNames.Count} parameters");
+            }
+            StingLog.Info($"Refreshed parameter list: {paramNames.Count} params");
         }
 
         // ── Graphic overrides ─────────────────────────────────────────

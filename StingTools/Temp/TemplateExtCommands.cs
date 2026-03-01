@@ -217,7 +217,7 @@ namespace StingTools.Temp
             return CompoundTypeCreator.CreateTypes(doc, "Cable Trays",
                 "MEP_MATERIALS.csv",
                 new[] { "E-TRY" },
-                CompoundTypeCreator.ElementKind.Duct);
+                CompoundTypeCreator.ElementKind.CableTray);
         }
     }
 
@@ -232,7 +232,7 @@ namespace StingTools.Temp
             return CompoundTypeCreator.CreateTypes(doc, "Conduits",
                 "MEP_MATERIALS.csv",
                 new[] { "E-CDT" },
-                CompoundTypeCreator.ElementKind.Pipe);
+                CompoundTypeCreator.ElementKind.Conduit);
         }
     }
 

@@ -645,11 +645,11 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 
 | Bug | Location | Problem |
 |-----|----------|---------|
-| AutoNumberSheets deferred LINQ | `DocAutomationCommands.cs:370-426` | `groups` is lazy `IOrderedEnumerable`; Phase 1 mutates sheet numbers to `_TEMP_*`, Phase 2 re-evaluates and groups all under `"_T"`. Fix: materialize with `.ToList()` before Phase 1 |
-| SnapLeaderElbow identical branches | `TagOperationCommands.cs:1691-1706` | `if/else` for horizontal vs vertical elbow produces identical `XYZ` — should differ by using `tagHead.Y` vs `tagHead.X` |
-| CopyTagsCommand creates duplicates | `TagOperationCommands.cs:612-638` | Copies `ASS_TAG_1_TXT` (includes source SEQ) but excludes SEQ from `CopyParams` — assembled tag mismatches individual tokens |
-| CableTrays/Conduits wrong ElementKind | `TemplateExtCommands.cs:220-235` | Uses `ElementKind.Duct`/`Pipe` instead of missing `CableTray`/`Conduit` enum values |
-| ElementId null assignment | `StateSelectCommands.cs:143,147` | `ElementId` is a struct in Revit 2025+; `null` assignment/comparison fails |
+| [DONE] AutoNumberSheets deferred LINQ | `DocAutomationCommands.cs:370-426` | Materialized groups with `.Select(g => new { Key = g.Key, Sheets = g.ToList() }).ToList()` before Phase 1. Also fixed SuggestCompliantNumber truncation bug (`> 4` → `> 3`). |
+| [DONE] SnapLeaderElbow identical branches | `TagOperationCommands.cs:1691-1706` | Fixed: horizontal case now uses `tagHead.Y`, vertical case uses `tagHead.X` for correct 45° elbow geometry |
+| [DONE] CopyTagsCommand creates duplicates | `TagOperationCommands.cs:612-638` | Removed ASS_TAG_1-6 from CopyParams — now only copies individual tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS), preserving unique SEQ. User prompted to run "Build Tags" after. |
+| [DONE] CableTrays/Conduits wrong ElementKind | `TemplateExtCommands.cs:220-235` | Added `CableTray`/`Conduit` to `ElementKind` enum, added cases in `CreateMEPType` and `GetExistingTypeNames`, updated commands to use correct kinds |
+| [DONE] ElementId null assignment | `StateSelectCommands.cs:143,147` | Changed to `ElementId.InvalidElementId` init, null-safe `GenLevel` access, single `InvalidElementId` check |
 
 **Dockable Panel Wiring Gaps (19 of 121 commands missing from panel):**
 

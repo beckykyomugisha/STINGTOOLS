@@ -583,10 +583,11 @@ namespace StingTools.Organise
     [Regeneration(RegenerationOption.Manual)]
     public class CopyTagsCommand : IExternalCommand
     {
+        // Only copy individual tokens — NOT assembled tags (ASS_TAG_1-6) which
+        // contain the source's SEQ number and would create guaranteed duplicates.
+        // User should run "Build Tags" after copying to reassemble from tokens.
         private static readonly string[] CopyParams = new[]
         {
-            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
             "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
             "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
             "ASS_PRODCT_COD_TXT", "ASS_STATUS_TXT",
@@ -619,7 +620,9 @@ namespace StingTools.Organise
             confirm.MainContent =
                 $"Source tag: {sourceTag}\n" +
                 $"Target: {selected.Count - 1} elements\n\n" +
-                "Copies all tag values except SEQ (sequence stays unique).";
+                "Copies token values (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS).\n" +
+                "SEQ numbers are NOT copied — each element keeps unique SEQ.\n" +
+                "Run 'Build Tags' afterwards to reassemble tags from tokens.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
@@ -1693,14 +1696,14 @@ namespace StingTools.Organise
                                 // Diagonal from host, then horizontal to tag
                                 elbowPos = new XYZ(
                                     hostCenter.X + diag * signX,
-                                    hostCenter.Y + diag * signY,
+                                    tagHead.Y,
                                     hostCenter.Z);
                             }
                             else
                             {
                                 // Diagonal from host, then vertical to tag
                                 elbowPos = new XYZ(
-                                    hostCenter.X + diag * signX,
+                                    tagHead.X,
                                     hostCenter.Y + diag * signY,
                                     hostCenter.Z);
                             }

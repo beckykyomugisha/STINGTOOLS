@@ -17,15 +17,14 @@ namespace StingTools.UI
     {
         private static ExternalEvent _externalEvent;
         private static StingCommandHandler _handler;
-        private static UIApplication _uiApp;
 
-        // Selection memory slots
-        private static readonly Dictionary<string, List<int>> SelectionMemory =
-            new Dictionary<string, List<int>>();
+        /// <summary>Singleton instance for cross-thread access from IExternalEventHandler.</summary>
+        public static StingDockPanel Instance { get; private set; }
 
         public StingDockPanel()
         {
             InitializeComponent();
+            Instance = this;
             BuildColorSwatches();
         }
 
@@ -34,12 +33,6 @@ namespace StingTools.UI
         {
             _handler = new StingCommandHandler();
             _externalEvent = ExternalEvent.Create(_handler);
-        }
-
-        /// <summary>Store UIApplication reference when available.</summary>
-        public static void SetUIApplication(UIApplication uiApp)
-        {
-            _uiApp = uiApp;
         }
 
         // ── Unified button click dispatcher ──────────────────────────────
@@ -163,6 +156,63 @@ namespace StingTools.UI
                 };
                 pnlOutlineSwatches?.Children.Add(swatch);
             }
+        }
+
+        // ── Colouriser button handlers ──────────────────────────────
+
+        private void BtnColorApply_Click(object sender, RoutedEventArgs e)
+        {
+            string paramName = (cmbColorBy?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+            string palette = (cmbPalette?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+            // Map display text to actual parameter names
+            paramName = paramName switch
+            {
+                "By Category" => "Category",
+                "By Discipline" => "ASS_DISCIPLINE_COD_TXT",
+                "By System" => "ASS_SYSTEM_TYPE_TXT",
+                "By Level" => "Level",
+                "By Workset" => "Workset",
+                "By Phase" => "Phase Created",
+                _ => paramName
+            };
+            // Map palette display text to internal names
+            palette = palette switch
+            {
+                "STING Discipline" => "discipline",
+                "RAG Status" => "rag",
+                "Monochrome" => "monochrome",
+                _ => ""
+            };
+            _handler?.SetCommand("ColorApply", paramName, palette);
+            _externalEvent?.Raise();
+            UpdateStatus("Applying colour scheme...");
+        }
+
+        private void BtnColorApplyHex_Click(object sender, RoutedEventArgs e)
+        {
+            string hex = txtHexColor?.Text ?? "";
+            _handler?.SetCommand("ColorApplyHex", hex);
+            _externalEvent?.Raise();
+            UpdateStatus("Applying hex colour...");
+        }
+
+        private void BtnColorApplyTransparency_Click(object sender, RoutedEventArgs e)
+        {
+            string transparency = ((int)(sldTransparency?.Value ?? 0)).ToString();
+            _handler?.SetCommand("ColorApplyTransparency", transparency);
+            _externalEvent?.Raise();
+            UpdateStatus($"Applying {transparency}% transparency...");
+        }
+
+        // ── Panel data helpers ──────────────────────────────────────
+
+        /// <summary>Populate the bulk parameter combo box from handler thread.</summary>
+        public void PopulateParamList(IEnumerable<string> paramNames)
+        {
+            if (cmbBulkParam == null) return;
+            cmbBulkParam.Items.Clear();
+            foreach (var name in paramNames)
+                cmbBulkParam.Items.Add(name);
         }
 
         // ── Status bar helper ──────────────────────────────────────

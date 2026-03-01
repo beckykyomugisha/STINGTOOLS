@@ -140,11 +140,11 @@ namespace StingTools.Select
 
             // Use the active view's associated level if it's a plan view
             View view = doc.ActiveView;
-            ElementId levelId = null;
-            if (view is ViewPlan vp)
-                levelId = vp.GenLevel?.Id;
+            ElementId levelId = ElementId.InvalidElementId;
+            if (view is ViewPlan vp && vp.GenLevel != null)
+                levelId = vp.GenLevel.Id;
 
-            if (levelId == null || levelId == ElementId.InvalidElementId)
+            if (levelId == ElementId.InvalidElementId)
             {
                 TaskDialog.Show("Select by Level", "Active view has no associated level.");
                 return Result.Succeeded;
