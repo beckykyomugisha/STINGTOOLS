@@ -545,76 +545,18 @@ namespace StingTools.Tags
                 .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
                 .ToList();
 
+            // Delegate shared groupings (Discipline, Category, System, Status)
+            if (colorBy == "Discipline" || colorBy == "Category" ||
+                colorBy == "System" || colorBy == "Status")
+            {
+                return BuildEntriesFromElements(doc, elems, colorBy);
+            }
+
+            // Level and Type are project-only groupings (not used in sheet-context)
             var entries = new List<LegendEntry>();
 
             switch (colorBy)
             {
-                case "Discipline":
-                    var discGroups = elems
-                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.DISC))
-                        .Where(d => !string.IsNullOrEmpty(d))
-                        .GroupBy(d => d)
-                        .OrderByDescending(g => g.Count());
-
-                    foreach (var g in discGroups)
-                    {
-                        if (Organise.AnnotationColorHelper.DisciplineColors.TryGetValue(g.Key, out Color c))
-                        {
-                            var discNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                            {
-                                {"M","Mechanical"},{"E","Electrical"},{"P","Plumbing"},
-                                {"A","Architectural"},{"S","Structural"},{"FP","Fire Protection"},
-                                {"LV","Low Voltage"},{"G","General"}
-                            };
-                            string name = discNames.TryGetValue(g.Key, out string n) ? n : g.Key;
-                            entries.Add(new LegendEntry
-                            {
-                                Color = c, Label = $"{g.Key} - {name}",
-                                Description = $"{g.Count()} elements", Bold = true
-                            });
-                        }
-                    }
-                    break;
-
-                case "Category":
-                    var catGroups = elems
-                        .Where(e => e.Category != null)
-                        .GroupBy(e => e.Category.Name)
-                        .OrderByDescending(g => g.Count());
-
-                    var catPalette = Select.ColorHelper.Palettes["Spectral"];
-                    int ci = 0;
-                    foreach (var g in catGroups.Take(20))
-                    {
-                        entries.Add(new LegendEntry
-                        {
-                            Color = catPalette[ci++ % catPalette.Length],
-                            Label = g.Key,
-                            Description = $"{g.Count()} elements",
-                        });
-                    }
-                    break;
-
-                case "System":
-                    var sysGroups = elems
-                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.SYS))
-                        .Where(s => !string.IsNullOrEmpty(s))
-                        .GroupBy(s => s)
-                        .OrderByDescending(g => g.Count());
-
-                    var sysPalette = Select.ColorHelper.Palettes["High Contrast"];
-                    int si = 0;
-                    foreach (var g in sysGroups)
-                    {
-                        entries.Add(new LegendEntry
-                        {
-                            Color = sysPalette[si++ % sysPalette.Length],
-                            Label = g.Key,
-                            Description = $"{g.Count()} elements", Bold = true
-                        });
-                    }
-                    break;
-
                 case "Level":
                     var lvlGroups = elems
                         .Select(e => ParameterHelpers.GetString(e, ParamRegistry.LVL))
@@ -655,32 +597,6 @@ namespace StingTools.Tags
                             Color = typePalette[ti++ % typePalette.Length],
                             Label = g.Key,
                             Description = $"{g.Count()} elements",
-                        });
-                    }
-                    break;
-
-                case "Status":
-                    var statusGroups = elems
-                        .Select(e => ParameterHelpers.GetString(e, "ASS_STATUS_TXT"))
-                        .Where(s => !string.IsNullOrEmpty(s))
-                        .GroupBy(s => s)
-                        .OrderByDescending(g => g.Count());
-
-                    var statusColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        { "NEW", new Color(0, 153, 51) },
-                        { "EXISTING", new Color(0, 102, 204) },
-                        { "DEMOLISHED", new Color(204, 0, 0) },
-                        { "TEMPORARY", new Color(255, 165, 0) },
-                    };
-
-                    foreach (var g in statusGroups)
-                    {
-                        Color statusC = statusColors.TryGetValue(g.Key, out Color sc) ? sc : new Color(128, 128, 128);
-                        entries.Add(new LegendEntry
-                        {
-                            Color = statusC, Label = g.Key,
-                            Description = $"{g.Count()} elements", Bold = true
                         });
                     }
                     break;
@@ -824,6 +740,252 @@ namespace StingTools.Tags
                 return new Color(r, g, b);
             }
             catch { return new Color(128, 128, 128); }
+        }
+
+        // ── Sheet-Aware Legend Builders ─────────────────────────────
+
+        /// <summary>
+        /// Build legend entries from elements visible on a specific sheet.
+        /// Scans all views placed on the sheet, collects elements, and groups
+        /// by the specified colorBy parameter. Only includes values actually
+        /// present on the sheet — not the entire project.
+        /// </summary>
+        public static List<LegendEntry> FromSheetElements(Document doc, ViewSheet sheet, string colorBy = "Discipline")
+        {
+            if (sheet == null) return new List<LegendEntry>();
+
+            // Collect all elements from all views placed on this sheet
+            var sheetElements = new List<Element>();
+            foreach (ElementId viewId in sheet.GetAllPlacedViews())
+            {
+                View v = doc.GetElement(viewId) as View;
+                if (v == null || v.IsTemplate) continue;
+                // Skip legend and drafting views — they don't contain model elements
+                if (v.ViewType == ViewType.Legend || v.ViewType == ViewType.DraftingView) continue;
+
+                try
+                {
+                    var viewElems = new FilteredElementCollector(doc, v.Id)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
+                        .ToList();
+                    sheetElements.AddRange(viewElems);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"LegendBuilder.FromSheetElements: view '{v.Name}' scan failed: {ex.Message}");
+                }
+            }
+
+            // Deduplicate by ElementId (same element may appear in multiple views)
+            var uniqueElements = sheetElements
+                .GroupBy(e => e.Id)
+                .Select(g => g.First())
+                .ToList();
+
+            if (uniqueElements.Count == 0) return new List<LegendEntry>();
+
+            // Delegate to AutoFromProject-style grouping but with our filtered element set
+            return BuildEntriesFromElements(doc, uniqueElements, colorBy);
+        }
+
+        /// <summary>
+        /// Build legend entries from a specific set of elements (shared logic).
+        /// Used by both AutoFromProject and FromSheetElements.
+        /// </summary>
+        private static List<LegendEntry> BuildEntriesFromElements(
+            Document doc, List<Element> elems, string colorBy)
+        {
+            var entries = new List<LegendEntry>();
+            if (elems.Count == 0) return entries;
+
+            switch (colorBy)
+            {
+                case "Discipline":
+                    var discGroups = elems
+                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.DISC))
+                        .Where(d => !string.IsNullOrEmpty(d))
+                        .GroupBy(d => d)
+                        .OrderByDescending(g => g.Count());
+
+                    foreach (var g in discGroups)
+                    {
+                        if (Organise.AnnotationColorHelper.DisciplineColors.TryGetValue(g.Key, out Color c))
+                        {
+                            var discNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                {"M","Mechanical"},{"E","Electrical"},{"P","Plumbing"},
+                                {"A","Architectural"},{"S","Structural"},{"FP","Fire Protection"},
+                                {"LV","Low Voltage"},{"G","General"}
+                            };
+                            string name = discNames.TryGetValue(g.Key, out string n) ? n : g.Key;
+                            entries.Add(new LegendEntry
+                            {
+                                Color = c, Label = $"{g.Key} - {name}",
+                                Description = $"{g.Count()} elements", Bold = true
+                            });
+                        }
+                    }
+                    break;
+
+                case "Category":
+                    var catGroups = elems
+                        .Where(e => e.Category != null)
+                        .GroupBy(e => e.Category.Name)
+                        .OrderByDescending(g => g.Count());
+
+                    var catPalette = Select.ColorHelper.Palettes["Spectral"];
+                    int ci = 0;
+                    foreach (var g in catGroups.Take(20))
+                    {
+                        entries.Add(new LegendEntry
+                        {
+                            Color = catPalette[ci++ % catPalette.Length],
+                            Label = g.Key,
+                            Description = $"{g.Count()} elements",
+                        });
+                    }
+                    break;
+
+                case "System":
+                    var sysGroups = elems
+                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.SYS))
+                        .Where(s => !string.IsNullOrEmpty(s))
+                        .GroupBy(s => s)
+                        .OrderByDescending(g => g.Count());
+
+                    var sysPalette = Select.ColorHelper.Palettes["High Contrast"];
+                    int si = 0;
+                    foreach (var g in sysGroups)
+                    {
+                        entries.Add(new LegendEntry
+                        {
+                            Color = sysPalette[si++ % sysPalette.Length],
+                            Label = g.Key,
+                            Description = $"{g.Count()} elements", Bold = true
+                        });
+                    }
+                    break;
+
+                case "Status":
+                    var statusGroups = elems
+                        .Select(e => ParameterHelpers.GetString(e, "ASS_STATUS_TXT"))
+                        .Where(s => !string.IsNullOrEmpty(s))
+                        .GroupBy(s => s)
+                        .OrderByDescending(g => g.Count());
+
+                    var statusColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "NEW", new Color(0, 153, 51) },
+                        { "EXISTING", new Color(0, 102, 204) },
+                        { "DEMOLISHED", new Color(204, 0, 0) },
+                        { "TEMPORARY", new Color(255, 165, 0) },
+                    };
+
+                    foreach (var g in statusGroups)
+                    {
+                        Color statusC = statusColors.TryGetValue(g.Key, out Color sc) ? sc : new Color(128, 128, 128);
+                        entries.Add(new LegendEntry
+                        {
+                            Color = statusC, Label = g.Key,
+                            Description = $"{g.Count()} elements", Bold = true
+                        });
+                    }
+                    break;
+            }
+
+            return entries;
+        }
+
+        // ── Sheet Placement Helpers ────────────────────────────────
+
+        /// <summary>
+        /// Get sheet dimensions from the title block. Falls back to A1 size.
+        /// Returns (width, height) in feet.
+        /// </summary>
+        public static (double width, double height) GetSheetDimensions(Document doc, ViewSheet sheet)
+        {
+            double w = 2.76;  // A1 default (841mm)
+            double h = 1.95;  // A1 default (594mm)
+
+            try
+            {
+                var titleBlocks = new FilteredElementCollector(doc, sheet.Id)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+
+                if (titleBlocks.Count > 0)
+                {
+                    BoundingBoxXYZ bb = titleBlocks[0].get_BoundingBox(null);
+                    if (bb != null)
+                    {
+                        w = bb.Max.X - bb.Min.X;
+                        h = bb.Max.Y - bb.Min.Y;
+                    }
+                }
+            }
+            catch { }
+
+            return (w, h);
+        }
+
+        /// <summary>
+        /// Place a legend view on a sheet at an auto-calculated position.
+        /// Prefers the bottom-right corner. Must be called within a Transaction.
+        /// Returns the Viewport, or null on failure.
+        /// </summary>
+        public static Viewport PlaceLegendOnSheet(Document doc, ViewSheet sheet,
+            View legendView, string position = "BottomRight")
+        {
+            if (sheet == null || legendView == null) return null;
+
+            // Check if this view can be added to the sheet
+            if (!Viewport.CanAddViewToSheet(doc, sheet.Id, legendView.Id))
+            {
+                StingLog.Warn($"LegendBuilder: Cannot place '{legendView.Name}' on sheet '{sheet.SheetNumber}' — already placed or incompatible.");
+                return null;
+            }
+
+            var (sheetWidth, sheetHeight) = GetSheetDimensions(doc, sheet);
+            double margin = 0.15; // feet (~46mm)
+            // Legend viewport size estimate: ~0.4ft wide × 0.3ft tall for typical legend
+            double legendW = 0.4;
+            double legendH = 0.3;
+
+            double x, y;
+            switch (position)
+            {
+                case "TopRight":
+                    x = sheetWidth - margin - legendW / 2;
+                    y = sheetHeight - margin - legendH / 2;
+                    break;
+                case "TopLeft":
+                    x = margin + legendW / 2;
+                    y = sheetHeight - margin - legendH / 2;
+                    break;
+                case "BottomLeft":
+                    x = margin + legendW / 2;
+                    y = margin + legendH / 2;
+                    break;
+                case "BottomRight":
+                default:
+                    x = sheetWidth - margin - legendW / 2;
+                    y = margin + legendH / 2;
+                    break;
+            }
+
+            try
+            {
+                Viewport vp = Viewport.Create(doc, sheet.Id, legendView.Id, new XYZ(x, y, 0));
+                StingLog.Info($"LegendBuilder: placed '{legendView.Name}' on sheet '{sheet.SheetNumber}' at {position}");
+                return vp;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LegendBuilder: failed to place on sheet: {ex.Message}");
+                return null;
+            }
         }
     }
 
@@ -1419,6 +1581,464 @@ namespace StingTools.Tags
             return Math.Abs(a.Red - b.Red) <= 5 &&
                    Math.Abs(a.Green - b.Green) <= 5 &&
                    Math.Abs(a.Blue - b.Blue) <= 5;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Place Legend on Sheet — Auto-place legend views on sheets
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Pick an existing legend/drafting view and place it on the active sheet
+    /// (or a selected sheet). Uses smart positioning to avoid overlapping
+    /// existing viewports. Legend views can be placed on multiple sheets.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PlaceLegendOnSheetCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View activeView = doc.ActiveView;
+
+            // Must be on a sheet
+            if (!(activeView is ViewSheet sheet))
+            {
+                TaskDialog.Show("Place Legend on Sheet",
+                    "The active view must be a sheet.\nOpen a sheet first, then run this command.");
+                return Result.Succeeded;
+            }
+
+            // Find all STING legend views (legends + drafting views with "STING Legend" prefix)
+            var legendViews = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v => !v.IsTemplate &&
+                    (v.Name.StartsWith("STING Legend") ||
+                     (v.ViewType == ViewType.Legend && v.Name.Contains("Legend"))))
+                .OrderBy(v => v.Name)
+                .ToList();
+
+            if (legendViews.Count == 0)
+            {
+                TaskDialog.Show("Place Legend on Sheet",
+                    "No STING legend views found.\n\nCreate legends first using:\n" +
+                    "  - Create Legend (pick a color scheme)\n" +
+                    "  - Auto All (batch create all legends)\n" +
+                    "  - From View (detect from active coloring)");
+                return Result.Succeeded;
+            }
+
+            // Let user pick which legend to place
+            var dlg = new TaskDialog("Place Legend on Sheet");
+            dlg.MainInstruction = $"Place a legend on '{sheet.SheetNumber} - {sheet.Name}'";
+            dlg.MainContent = $"Found {legendViews.Count} legend views.\n" +
+                "Legend views can be placed on multiple sheets.\n" +
+                "Drafting views can only go on one sheet.";
+
+            // Show up to 4 most recent legends
+            var commands = new[] {
+                TaskDialogCommandLinkId.CommandLink1,
+                TaskDialogCommandLinkId.CommandLink2,
+                TaskDialogCommandLinkId.CommandLink3,
+                TaskDialogCommandLinkId.CommandLink4
+            };
+            int shown = Math.Min(legendViews.Count, 4);
+            for (int i = 0; i < shown; i++)
+            {
+                var lv = legendViews[i];
+                bool canPlace = Viewport.CanAddViewToSheet(doc, sheet.Id, lv.Id);
+                string status = canPlace ? "" : " [already placed]";
+                dlg.AddCommandLink(commands[i],
+                    $"{lv.Name}{status}",
+                    $"Type: {lv.ViewType}");
+            }
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            if (legendViews.Count > 4)
+                dlg.FooterText = $"Showing 4 of {legendViews.Count} legends. Create more with 'Auto All'.";
+
+            var pick = dlg.Show();
+            int idx = pick switch
+            {
+                TaskDialogResult.CommandLink1 => 0,
+                TaskDialogResult.CommandLink2 => 1,
+                TaskDialogResult.CommandLink3 => 2,
+                TaskDialogResult.CommandLink4 => 3,
+                _ => -1,
+            };
+            if (idx < 0) return Result.Cancelled;
+
+            View selected = legendViews[idx];
+
+            // Pick position
+            var posDlg = new TaskDialog("Legend Position");
+            posDlg.MainInstruction = "Where should the legend be placed?";
+            posDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Bottom-Right (Recommended)", "Standard position near title block");
+            posDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Top-Right", "Upper right corner");
+            posDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Bottom-Left", "Lower left corner");
+            posDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Top-Left", "Upper left corner");
+            posDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string position = posDlg.Show() switch
+            {
+                TaskDialogResult.CommandLink1 => "BottomRight",
+                TaskDialogResult.CommandLink2 => "TopRight",
+                TaskDialogResult.CommandLink3 => "BottomLeft",
+                TaskDialogResult.CommandLink4 => "TopLeft",
+                _ => null,
+            };
+            if (position == null) return Result.Cancelled;
+
+            using (Transaction tx = new Transaction(doc, "STING Place Legend on Sheet"))
+            {
+                tx.Start();
+                Viewport vp = LegendBuilder.PlaceLegendOnSheet(doc, sheet, selected, position);
+                tx.Commit();
+
+                if (vp != null)
+                {
+                    TaskDialog.Show("Place Legend on Sheet",
+                        $"Placed '{selected.Name}' on sheet '{sheet.SheetNumber}'.\n" +
+                        $"Position: {position}\n\n" +
+                        "Drag the viewport to adjust position if needed.");
+                }
+                else
+                {
+                    TaskDialog.Show("Place Legend on Sheet",
+                        $"Could not place '{selected.Name}' on this sheet.\n" +
+                        "It may already be placed (drafting views allow only one sheet).");
+                }
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Sheet Context Legend — Legend showing only what's on each sheet
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create a legend that shows ONLY the categories/disciplines/systems
+    /// present on the active sheet. Scans all views placed on the sheet,
+    /// collects elements, and builds a context-specific legend.
+    /// Optionally auto-places the legend on the sheet.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SheetContextLegendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View activeView = doc.ActiveView;
+
+            if (!(activeView is ViewSheet sheet))
+            {
+                TaskDialog.Show("Sheet Context Legend",
+                    "The active view must be a sheet.\nOpen a sheet and run this command to create\n" +
+                    "a legend showing only what's on this sheet.");
+                return Result.Succeeded;
+            }
+
+            // Pick what to show in the legend
+            var dlg = new TaskDialog("Sheet Context Legend");
+            dlg.MainInstruction = $"Create legend for '{sheet.SheetNumber} - {sheet.Name}'";
+            dlg.MainContent = "The legend will show ONLY the values present on this sheet\n" +
+                "(not the entire project). Pick the grouping:";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Discipline (Recommended)", "M, E, P, A — only those on this sheet");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Category", "Lighting, Mechanical Equipment, etc.");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "System", "HVAC, DCW, SAN, etc.");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Status", "NEW, EXISTING, DEMOLISHED, TEMPORARY");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string colorBy = dlg.Show() switch
+            {
+                TaskDialogResult.CommandLink1 => "Discipline",
+                TaskDialogResult.CommandLink2 => "Category",
+                TaskDialogResult.CommandLink3 => "System",
+                TaskDialogResult.CommandLink4 => "Status",
+                _ => null,
+            };
+            if (colorBy == null) return Result.Cancelled;
+
+            // Build entries from sheet elements only
+            var entries = LegendBuilder.FromSheetElements(doc, sheet, colorBy);
+
+            if (entries.Count == 0)
+            {
+                TaskDialog.Show("Sheet Context Legend",
+                    $"No {colorBy.ToLower()} data found on this sheet.\n" +
+                    "Ensure views placed on this sheet contain tagged elements.");
+                return Result.Succeeded;
+            }
+
+            var config = new LegendBuilder.LegendConfig
+            {
+                Title = $"{colorBy} Legend - {sheet.SheetNumber}",
+                Subtitle = $"Sheet: {sheet.Name}",
+                Footer = $"Shows only {colorBy.ToLower()} values present on this sheet",
+                Columns = entries.Count > 10 ? 2 : 1,
+            };
+
+            View legendView;
+            using (Transaction tx = new Transaction(doc, "STING Sheet Context Legend"))
+            {
+                tx.Start();
+                legendView = LegendBuilder.CreateLegendView(doc, entries, config);
+
+                // Auto-place on the sheet
+                if (legendView != null)
+                {
+                    LegendBuilder.PlaceLegendOnSheet(doc, sheet, legendView, "BottomRight");
+                }
+
+                tx.Commit();
+            }
+
+            if (legendView != null)
+            {
+                TaskDialog.Show("Sheet Context Legend",
+                    $"Created and placed legend on sheet '{sheet.SheetNumber}'.\n\n" +
+                    $"  Grouping: {colorBy}\n" +
+                    $"  Entries: {entries.Count}\n" +
+                    $"  Position: Bottom-Right\n\n" +
+                    "The legend shows ONLY values present on this sheet.\n" +
+                    "Drag the viewport to reposition if needed.");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Place Legend on All Sheets — Batch placement across sheets
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Place a Legend view (not Drafting — only Legend views can go on multiple sheets)
+    /// on all sheets, or selected discipline sheets. Auto-positions at the same location
+    /// on every sheet for consistent documentation.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PlaceLegendOnAllSheetsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            // Find Legend views (NOT drafting — only legends can go on multiple sheets)
+            var legendViews = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v => !v.IsTemplate && v.ViewType == ViewType.Legend &&
+                    v.Name.StartsWith("STING Legend"))
+                .OrderBy(v => v.Name)
+                .ToList();
+
+            if (legendViews.Count == 0)
+            {
+                TaskDialog.Show("Place Legend on All Sheets",
+                    "No STING Legend views found.\n\n" +
+                    "Only native Legend views can be placed on multiple sheets.\n" +
+                    "Create legends first — the system will try to create native\n" +
+                    "Legend views when an existing one is available in the project.\n\n" +
+                    "Drafting views can only be placed on one sheet.");
+                return Result.Succeeded;
+            }
+
+            // Pick which legend
+            var dlg = new TaskDialog("Place Legend on All Sheets");
+            dlg.MainInstruction = "Which legend to place on all sheets?";
+
+            var commands = new[] {
+                TaskDialogCommandLinkId.CommandLink1,
+                TaskDialogCommandLinkId.CommandLink2,
+                TaskDialogCommandLinkId.CommandLink3,
+                TaskDialogCommandLinkId.CommandLink4
+            };
+            int shown = Math.Min(legendViews.Count, 4);
+            for (int i = 0; i < shown; i++)
+                dlg.AddCommandLink(commands[i], legendViews[i].Name);
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var pick = dlg.Show();
+            int idx = pick switch
+            {
+                TaskDialogResult.CommandLink1 => 0,
+                TaskDialogResult.CommandLink2 => 1,
+                TaskDialogResult.CommandLink3 => 2,
+                TaskDialogResult.CommandLink4 => 3,
+                _ => -1,
+            };
+            if (idx < 0) return Result.Cancelled;
+
+            View selectedLegend = legendViews[idx];
+
+            // Get all sheets
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder)
+                .OrderBy(s => s.SheetNumber)
+                .ToList();
+
+            if (sheets.Count == 0)
+            {
+                TaskDialog.Show("Place Legend on All Sheets", "No sheets found in the project.");
+                return Result.Succeeded;
+            }
+
+            int placed = 0;
+            int skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Place Legend on All Sheets"))
+            {
+                tx.Start();
+
+                foreach (var s in sheets)
+                {
+                    if (!Viewport.CanAddViewToSheet(doc, s.Id, selectedLegend.Id))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    var vp = LegendBuilder.PlaceLegendOnSheet(doc, s, selectedLegend, "BottomRight");
+                    if (vp != null) placed++;
+                    else skipped++;
+                }
+
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Place Legend on All Sheets",
+                $"Placed '{selectedLegend.Name}' on {placed} sheets.\n" +
+                (skipped > 0 ? $"Skipped {skipped} sheets (already placed or incompatible).\n" : "") +
+                $"\nPosition: Bottom-Right on all sheets.\n" +
+                "Adjust individual positions by dragging viewports.");
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Batch Sheet Context Legends — Create + place per-sheet legends
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// For EVERY sheet in the project, create a sheet-specific legend showing
+    /// only the disciplines/categories present on that sheet, then auto-place
+    /// the legend on the sheet. Full automation: no manual steps required.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BatchSheetContextLegendsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder && s.GetAllPlacedViews().Count > 0)
+                .OrderBy(s => s.SheetNumber)
+                .ToList();
+
+            if (sheets.Count == 0)
+            {
+                TaskDialog.Show("Batch Sheet Context Legends",
+                    "No sheets with placed views found.");
+                return Result.Succeeded;
+            }
+
+            // Pick grouping
+            var dlg = new TaskDialog("Batch Sheet Context Legends");
+            dlg.MainInstruction = $"Create per-sheet legends for {sheets.Count} sheets";
+            dlg.MainContent = "Each sheet gets its own legend showing ONLY the values\n" +
+                "present on that specific sheet. Legends are auto-placed\n" +
+                "at the bottom-right corner.";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Discipline (Recommended)", "M, E, P, A — per-sheet discipline breakdown");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Category", "Element categories present on each sheet");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "System", "MEP systems per sheet");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string colorBy = dlg.Show() switch
+            {
+                TaskDialogResult.CommandLink1 => "Discipline",
+                TaskDialogResult.CommandLink2 => "Category",
+                TaskDialogResult.CommandLink3 => "System",
+                _ => null,
+            };
+            if (colorBy == null) return Result.Cancelled;
+
+            int created = 0;
+            int skipped = 0;
+            var report = new StringBuilder();
+
+            using (Transaction tx = new Transaction(doc, "STING Batch Sheet Context Legends"))
+            {
+                tx.Start();
+
+                foreach (var s in sheets)
+                {
+                    var entries = LegendBuilder.FromSheetElements(doc, s, colorBy);
+                    if (entries.Count == 0)
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    var config = new LegendBuilder.LegendConfig
+                    {
+                        Title = $"{colorBy} - {s.SheetNumber}",
+                        Subtitle = s.Name,
+                        Footer = $"Sheet-specific {colorBy.ToLower()} legend",
+                        Columns = entries.Count > 8 ? 2 : 1,
+                    };
+
+                    View legendView = LegendBuilder.CreateLegendView(doc, entries, config);
+                    if (legendView != null)
+                    {
+                        LegendBuilder.PlaceLegendOnSheet(doc, s, legendView, "BottomRight");
+                        created++;
+                        report.AppendLine($"  {s.SheetNumber}: {entries.Count} {colorBy.ToLower()} entries");
+                    }
+                    else
+                    {
+                        skipped++;
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Batch Sheet Context Legends",
+                $"Created {created} sheet-specific legends.\n" +
+                (skipped > 0 ? $"Skipped {skipped} sheets (empty or no data).\n" : "") +
+                $"\nGrouping: {colorBy}\n" +
+                $"Position: Bottom-Right\n\n" +
+                (created > 0 ? "Per-sheet breakdown:\n" + report.ToString() : ""));
+
+            return Result.Succeeded;
         }
     }
 }

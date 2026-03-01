@@ -165,6 +165,10 @@ namespace StingTools.UI
                     case "ExportColorLegendHtml": RunCommand<Tags.ExportColorLegendHtmlCommand>(app); break;
                     case "AutoCreateLegends": RunCommand<Tags.AutoCreateLegendsCommand>(app); break;
                     case "LegendFromView": RunCommand<Tags.LegendFromViewCommand>(app); break;
+                    case "PlaceLegendOnSheet": RunCommand<Tags.PlaceLegendOnSheetCommand>(app); break;
+                    case "SheetContextLegend": RunCommand<Tags.SheetContextLegendCommand>(app); break;
+                    case "PlaceLegendOnAllSheets": RunCommand<Tags.PlaceLegendOnAllSheetsCommand>(app); break;
+                    case "BatchSheetContextLegends": RunCommand<Tags.BatchSheetContextLegendsCommand>(app); break;
 
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;

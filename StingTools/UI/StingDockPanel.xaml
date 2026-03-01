@@ -446,6 +446,10 @@
                                 <Button Style="{StaticResource PurpleBtn}" Content="Auto All" Tag="AutoCreateLegends" Click="Cmd_Click" ToolTip="Auto-create legends for all categories, types, disciplines, systems, levels, and status — batch creates 6 drafting views"/>
                                 <Button Style="{StaticResource OrangeBtn}" Content="From View" Tag="LegendFromView" Click="Cmd_Click" ToolTip="Detect active colorization in current view and create a matching legend automatically"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="HTML Legend" Tag="ExportColorLegendHtml" Click="Cmd_Click" ToolTip="Export all color schemes as a comprehensive HTML legend guide"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="To Sheet" Tag="PlaceLegendOnSheet" Click="Cmd_Click" ToolTip="Place a legend view on the active sheet (legend views can go on multiple sheets)"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Sheet Legend" Tag="SheetContextLegend" Click="Cmd_Click" ToolTip="Create legend showing ONLY disciplines/categories present on this sheet, auto-placed"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="All Sheets" Tag="PlaceLegendOnAllSheets" Click="Cmd_Click" ToolTip="Place a legend on ALL sheets at the same position"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Batch Per-Sheet" Tag="BatchSheetContextLegends" Click="Cmd_Click" ToolTip="Create per-sheet context legends for every sheet — each shows only its own content"/>
                             </WrapPanel>
                         </Border>
 
