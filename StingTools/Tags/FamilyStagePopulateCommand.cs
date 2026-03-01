@@ -201,8 +201,8 @@ namespace StingTools.Tags
                             }
                         }
 
-                        // FUNC — from system mapping
-                        string func = TagConfig.GetFuncCode(sys);
+                        // FUNC — smart derivation (differentiates HVAC SUP/RTN/EXH/FRA and HWS HTG/DHW)
+                        string func = TagConfig.GetSmartFuncCode(el, sys);
                         if (!string.IsNullOrEmpty(func))
                         {
                             if (overwrite)

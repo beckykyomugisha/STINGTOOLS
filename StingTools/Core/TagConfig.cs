@@ -55,10 +55,13 @@ namespace StingTools.Core
             Increment(SkippedByCategory, category);
         }
 
-        public void RecordOverwritten(string category)
+        public void RecordOverwritten(string category, string disc = null, string sys = null, string lvl = null)
         {
             TotalOverwritten++;
             Increment(TaggedByCategory, category);
+            if (!string.IsNullOrEmpty(disc)) Increment(TaggedByDisc, disc);
+            if (!string.IsNullOrEmpty(sys)) Increment(TaggedBySys, sys);
+            if (!string.IsNullOrEmpty(lvl)) Increment(TaggedByLevel, lvl);
         }
 
         public void RecordCollision(string tag, int depth)
@@ -170,7 +173,9 @@ namespace StingTools.Core
         /// </summary>
         public static readonly HashSet<string> ValidFuncCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "SUP", "HTG", "DCW", "SAN", "RWD", "GAS", "FP", "PWR", "FLS",
+            "SUP", "RTN", "EXH", "FRA", // HVAC sub-functions (supply, return, exhaust, fresh air)
+            "HTG", "DHW",               // HWS sub-functions (heating, domestic hot water)
+            "DCW", "SAN", "RWD", "GAS", "FP", "PWR", "LTG", "FLS",
             "COM", "ICT", "NCL", "SEC",
             "FIT", "STR", "GEN", ""
         };
@@ -256,13 +261,25 @@ namespace StingTools.Core
                     errors.Add($"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'");
             }
 
-            // Cross-validate: SYS should match category
+            // Cross-validate: SYS should be valid for the element's DISC
+            // (MEP system-aware detection may set SYS different from category default,
+            // e.g., a pipe connected to HWS system gets SYS=HWS instead of category default DCW)
             string sys = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
-            if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(sys))
+            if (!string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(sys))
             {
-                string expectedSys = TagConfig.GetSysCode(catName);
-                if (!string.IsNullOrEmpty(expectedSys) && expectedSys != sys)
-                    errors.Add($"SYS mismatch: category '{catName}' expects '{expectedSys}' but has '{sys}'");
+                var validSysForDisc = new Dictionary<string, HashSet<string>>
+                {
+                    { "M", new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN" } },
+                    { "E", new HashSet<string> { "LV", "FLS", "SEC", "ICT", "COM", "NCL" } },
+                    { "P", new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS" } },
+                    { "FP", new HashSet<string> { "FP", "FLS" } },
+                    { "A", new HashSet<string> { "ARC" } },
+                    { "S", new HashSet<string> { "STR" } },
+                    { "LV", new HashSet<string> { "LV", "ICT", "COM", "SEC", "NCL" } },
+                    { "G", new HashSet<string> { "GEN" } },
+                };
+                if (validSysForDisc.TryGetValue(disc, out var validSys) && !validSys.Contains(sys))
+                    errors.Add($"SYS '{sys}' not valid for DISC '{disc}' (expected: {string.Join("/", validSys)})");
             }
 
             return errors;
@@ -277,7 +294,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(tag))
                 return "Tag is empty";
 
-            string[] parts = tag.Split('-');
+            string[] parts = tag.Split(new[] { TagConfig.Separator }, StringSplitOptions.None);
             if (parts.Length != 8)
                 return $"Tag has {parts.Length} segments (expected 8): {tag}";
 
@@ -707,6 +724,13 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(catName) || !DiscMap.ContainsKey(catName))
                 return false;
 
+            // Skip elements in non-primary design options to avoid double-tagging
+            if (ParameterHelpers.IsInNonPrimaryDesignOption(el))
+            {
+                stats?.RecordSkipped(catName);
+                return false;
+            }
+
             // Handle already-tagged elements based on collision mode
             string existingTag = ParameterHelpers.GetString(el, "ASS_TAG_1_TXT");
             bool hasCompleteTag = TagIsComplete(existingTag);
@@ -726,31 +750,54 @@ namespace StingTools.Core
                         }
                         break;
                     case TagCollisionMode.Overwrite:
-                        stats?.RecordOverwritten(catName);
+                        // RecordOverwritten deferred until after disc/sys/lvl are derived
                         break; // Proceed to overwrite
                 }
             }
 
             bool overwriteTokens = (collisionMode == TagCollisionMode.Overwrite);
 
-            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+            // Derive fresh values from intelligence layers
+            string derivedDisc = DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+            string derivedSys = GetMepSystemAwareSysCode(el, catName);
+            string derivedFunc = GetSmartFuncCode(el, derivedSys);
+            string derivedProd = GetFamilyAwareProdCode(el, catName);
+            string derivedLvl = ParameterHelpers.GetLevelCode(doc, el);
+
+            // When not overwriting, prefer existing token values on the element
+            // so the assembled tag matches what FamilyStagePopulate or the user set.
+            // Only fall back to derived values when the element parameter is empty.
+            string disc, loc, zone, lvl, sys, func, prod;
+            if (overwriteTokens)
+            {
+                disc = derivedDisc;
+                sys = derivedSys;
+                func = derivedFunc;
+                prod = derivedProd;
+                lvl = derivedLvl;
+            }
+            else
+            {
+                string existDisc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
+                disc = !string.IsNullOrEmpty(existDisc) ? existDisc : derivedDisc;
+                string existSys = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
+                sys = !string.IsNullOrEmpty(existSys) ? existSys : derivedSys;
+                string existFunc = ParameterHelpers.GetString(el, "ASS_FUNC_TXT");
+                func = !string.IsNullOrEmpty(existFunc) ? existFunc : derivedFunc;
+                string existProd = ParameterHelpers.GetString(el, "ASS_PRODCT_COD_TXT");
+                prod = !string.IsNullOrEmpty(existProd) ? existProd : derivedProd;
+                string existLvl = ParameterHelpers.GetString(el, "ASS_LVL_COD_TXT");
+                lvl = !string.IsNullOrEmpty(existLvl) ? existLvl : derivedLvl;
+            }
+
+            loc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
+            if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+            zone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
+            if (string.IsNullOrEmpty(zone)) zone = "Z01";
 
             // Intelligence Layer: cross-validate DISC against element category
             if (stats != null && disc == "XX")
                 stats.RecordWarning($"Element {el.Id}: category '{catName}' has no DISC mapping");
-
-            string loc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
-            if (string.IsNullOrEmpty(loc)) loc = "BLD1";
-            string zone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
-            if (string.IsNullOrEmpty(zone)) zone = "Z01";
-            string lvl = ParameterHelpers.GetLevelCode(doc, el);
-
-            // Intelligence Layer: MEP system-aware SYS/FUNC derivation
-            // 6-layer system detection: connector → sys param → circuit → family → room → category
-            string sys = GetMepSystemAwareSysCode(el, catName);
-            // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
-            string func = GetSmartFuncCode(el, sys);
-            string prod = GetFamilyAwareProdCode(el, catName);
 
             string seqKey = $"{disc}_{sys}_{lvl}";
             if (!sequenceCounters.ContainsKey(seqKey))
@@ -803,7 +850,11 @@ namespace StingTools.Core
                 ParameterHelpers.SetIfEmpty(el, "ASS_SEQ_NUM_TXT", seq);
             }
             ParameterHelpers.SetString(el, "ASS_TAG_1_TXT", tag, overwrite: true);
-            stats?.RecordTagged(catName, disc, sys, lvl);
+            // Record stats: overwrite or new tag
+            if (hasCompleteTag && collisionMode == TagCollisionMode.Overwrite)
+                stats?.RecordOverwritten(catName, disc, sys, lvl);
+            else
+                stats?.RecordTagged(catName, disc, sys, lvl);
             return true;
         }
 
@@ -1352,7 +1403,10 @@ namespace StingTools.Core
                 // Pipes default to DCW (Domestic Cold Water per CIBSE/CAWS S10); runtime MEP
                 // system detection in GetMepSystemAwareSysCode overrides to HWS/SAN/GAS as needed
                 { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories" } },
-                { "DHW", new List<string> { "Plumbing Fixtures", "Flex Pipes" } },
+                // Plumbing Fixtures default to SAN (most fixtures are drainage/cold water);
+                // MEP system-aware detection overrides to DHW/DCW as needed
+                { "SAN", new List<string> { "Plumbing Fixtures" } },
+                { "DHW", new List<string> { "Flex Pipes" } },
                 { "FP", new List<string> { "Sprinklers" } },
                 { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings" } },
                 { "FLS", new List<string> { "Fire Alarm Devices" } },

@@ -180,27 +180,34 @@ namespace StingTools.Select
             Element seed = doc.GetElement(selected.First());
             if (seed == null) return Result.Succeeded;
 
-            // Get the room of the seed element
-            var fi = seed as FamilyInstance;
-            if (fi == null)
+            // Get the room of the seed element (try FamilyInstance.Room, then spatial lookup)
+            Room room = null;
+            if (seed is FamilyInstance fi)
             {
-                TaskDialog.Show("Select by Room", "Selected element is not a family instance.");
-                return Result.Succeeded;
+                try { room = fi.Room; } catch { }
             }
-
-            Room room = fi.Room;
+            if (room == null)
+                room = ParameterHelpers.GetRoomAtElement(doc, seed);
             if (room == null)
             {
-                TaskDialog.Show("Select by Room", "Selected element is not in a room.");
+                TaskDialog.Show("Select by Room", "Could not determine room for the selected element.");
                 return Result.Succeeded;
             }
 
-            // Find all family instances in the same room
-            var ids = new FilteredElementCollector(doc)
-                .OfClass(typeof(FamilyInstance))
-                .Cast<FamilyInstance>()
-                .Where(f => f.Room?.Id == room.Id)
-                .Select(f => f.Id).ToList();
+            // Find all elements in the same room within the active view
+            var roomId = room.Id;
+            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .WhereElementIsNotElementType()
+                .Where(e =>
+                {
+                    if (e is FamilyInstance f2)
+                    {
+                        try { return f2.Room?.Id == roomId; } catch { return false; }
+                    }
+                    var r = ParameterHelpers.GetRoomAtElement(doc, e);
+                    return r?.Id == roomId;
+                })
+                .Select(e => e.Id).ToList();
 
             uidoc.Selection.SetElementIds(ids);
             TaskDialog.Show("Select by Room",
@@ -358,11 +365,11 @@ namespace StingTools.Select
                     // LVL
                     string lvl = ParameterHelpers.GetLevelCode(doc, elem);
                     if (lvl != "XX") if (ParameterHelpers.SetIfEmpty(elem, "ASS_LVL_COD_TXT", lvl)) populated++;
-                    // SYS
-                    string sys = TagConfig.GetSysCode(catName);
+                    // SYS (MEP system-aware: checks connected systems before category fallback)
+                    string sys = TagConfig.GetMepSystemAwareSysCode(elem, catName);
                     if (!string.IsNullOrEmpty(sys)) if (ParameterHelpers.SetIfEmpty(elem, "ASS_SYSTEM_TYPE_TXT", sys)) populated++;
-                    // FUNC
-                    string func = TagConfig.GetFuncCode(sys);
+                    // FUNC (smart: differentiates HVAC SUP/RTN/EXH/FRA and HWS HTG/DHW subsystems)
+                    string func = TagConfig.GetSmartFuncCode(elem, sys);
                     if (!string.IsNullOrEmpty(func)) if (ParameterHelpers.SetIfEmpty(elem, "ASS_FUNC_TXT", func)) populated++;
                     // PROD (family-aware)
                     string prod = TagConfig.GetFamilyAwareProdCode(elem, catName);

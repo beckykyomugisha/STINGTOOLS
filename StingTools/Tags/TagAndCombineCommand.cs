@@ -227,7 +227,7 @@ namespace StingTools.Tags
                         string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
                         if (!string.IsNullOrEmpty(sys))
                             if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys)) populated++;
-                        string func = TagConfig.GetFuncCode(sys);
+                        string func = TagConfig.GetSmartFuncCode(el, sys);
                         if (!string.IsNullOrEmpty(func))
                             if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func)) populated++;
                         string lvl = ParameterHelpers.GetLevelCode(doc, el);

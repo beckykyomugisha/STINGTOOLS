@@ -69,6 +69,10 @@ namespace StingTools.Organise
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var stats = new TaggingStats();
 
+            // Pre-build spatial index for LOC/ZONE auto-detection
+            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+
             using (Transaction tx = new Transaction(doc, "STING Tag Selected"))
             {
                 tx.Start();
@@ -76,6 +80,21 @@ namespace StingTools.Organise
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
+
+                    // Spatial pre-population (so BuildAndWriteTag uses detected values)
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, "ASS_LOC_TXT")))
+                    {
+                        string loc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
+                        if (!string.IsNullOrEmpty(loc))
+                            ParameterHelpers.SetIfEmpty(elem, "ASS_LOC_TXT", loc);
+                    }
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, "ASS_ZONE_TXT")))
+                    {
+                        string zone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
+                        if (!string.IsNullOrEmpty(zone))
+                            ParameterHelpers.SetIfEmpty(elem, "ASS_ZONE_TXT", zone);
+                    }
+
                     bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
                     TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
                         skipComplete: skipComplete,
@@ -127,6 +146,10 @@ namespace StingTools.Organise
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             int retagged = 0;
 
+            // Pre-build spatial index for LOC/ZONE auto-detection
+            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+
             using (Transaction tx = new Transaction(doc, "STING Re-Tag"))
             {
                 tx.Start();
@@ -134,6 +157,15 @@ namespace StingTools.Organise
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
+
+                    // Spatial pre-population before overwrite
+                    string locVal = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
+                    if (!string.IsNullOrEmpty(locVal))
+                        ParameterHelpers.SetString(elem, "ASS_LOC_TXT", locVal, overwrite: true);
+                    string zoneVal = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
+                    if (!string.IsNullOrEmpty(zoneVal))
+                        ParameterHelpers.SetString(elem, "ASS_ZONE_TXT", zoneVal, overwrite: true);
+
                     if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
                         skipComplete: false,
                         existingTags: tagIndex,
@@ -608,7 +640,8 @@ namespace StingTools.Organise
             foreach (string p in TagConfig.CopyableTokenParams)
                 values[p] = ParameterHelpers.GetString(source, p);
 
-            string sourceTag = values.TryGetValue("ASS_TAG_1_TXT", out string t) ? t : "(empty)";
+            string sourceTag = ParameterHelpers.GetString(source, "ASS_TAG_1_TXT");
+            if (string.IsNullOrEmpty(sourceTag)) sourceTag = "(empty)";
 
             TaskDialog confirm = new TaskDialog("Copy Tags");
             confirm.MainInstruction = $"Copy tags from Element {source.Id}?";

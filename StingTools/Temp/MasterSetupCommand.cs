@@ -117,11 +117,15 @@ namespace StingTools.Temp
                 passed += RunStep(ref stepNum, report, "Create Roof Types",
                     () => new CreateRoofsCommand().Execute(commandData, ref message, elements));
 
-                // Step 5: Create MEP types (Ducts, Pipes)
+                // Step 5: Create MEP types (Ducts, Pipes, Cable Trays, Conduits)
                 passed += RunStep(ref stepNum, report, "Create Duct Types",
                     () => new CreateDuctsCommand().Execute(commandData, ref message, elements));
                 passed += RunStep(ref stepNum, report, "Create Pipe Types",
                     () => new CreatePipesCommand().Execute(commandData, ref message, elements));
+                passed += RunStep(ref stepNum, report, "Create Cable Tray Types",
+                    () => new CreateCableTraysCommand().Execute(commandData, ref message, elements));
+                passed += RunStep(ref stepNum, report, "Create Conduit Types",
+                    () => new CreateConduitsCommand().Execute(commandData, ref message, elements));
 
                 // Step 6: Batch create schedules
                 passed += RunStep(ref stepNum, report, "Batch Create Schedules",

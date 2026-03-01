@@ -51,6 +51,22 @@ namespace StingTools.Core
             try
             {
                 ElementId lvlId = el.LevelId;
+
+                // Fallback: MEP elements often use RBS_START_LEVEL_PARAM instead of LevelId
+                if (lvlId == null || lvlId == ElementId.InvalidElementId)
+                {
+                    var startLvl = el.get_Parameter(BuiltInParameter.RBS_START_LEVEL_PARAM);
+                    if (startLvl != null && startLvl.HasValue)
+                        lvlId = startLvl.AsElementId();
+                }
+                // Fallback: face-based families use FAMILY_LEVEL_PARAM
+                if (lvlId == null || lvlId == ElementId.InvalidElementId)
+                {
+                    var famLvl = el.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
+                    if (famLvl != null && famLvl.HasValue)
+                        lvlId = famLvl.AsElementId();
+                }
+
                 if (lvlId == null || lvlId == ElementId.InvalidElementId)
                     return "XX";
 
@@ -73,9 +89,9 @@ namespace StingTools.Core
                 if (lower.StartsWith("roof"))
                     return "RF";
 
-                return name.ToUpperInvariant()
-                    .Replace(" ", "")
-                    .Substring(0, Math.Min(4, name.Length));
+                // Use length of cleaned string to avoid substring overflow
+                var cleaned = name.ToUpperInvariant().Replace(" ", "");
+                return cleaned.Substring(0, Math.Min(4, cleaned.Length));
             }
             catch (Exception ex)
             {
@@ -96,6 +112,22 @@ namespace StingTools.Core
                 StingLog.Warn($"GetCategoryName failed for element {el?.Id}: {ex.Message}");
                 return string.Empty;
             }
+        }
+
+        /// <summary>
+        /// Check if an element is in a non-primary design option.
+        /// Returns true if the element should be skipped (is in a non-primary option).
+        /// Elements with no design option or in the primary option return false.
+        /// </summary>
+        public static bool IsInNonPrimaryDesignOption(Element el)
+        {
+            try
+            {
+                DesignOption opt = el.DesignOption;
+                if (opt == null) return false;
+                return !opt.IsPrimary;
+            }
+            catch { return false; }
         }
 
         /// <summary>

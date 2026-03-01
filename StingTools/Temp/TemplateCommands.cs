@@ -782,7 +782,7 @@ namespace StingTools.Temp
                 }
 
                 // Elevation templates: working = standard, presentation = fine + colours
-                if (discipline == "ELEV_W" || discipline == "ELEV_P" || discipline == "SEC_D")
+                if (discipline == "ELEV_W" || discipline == "ELEV_P" || discipline == "SEC_D" || discipline == "SEC_W")
                 {
                     if (discipline == "ELEV_P")
                         template.DetailLevel = ViewDetailLevel.Fine;

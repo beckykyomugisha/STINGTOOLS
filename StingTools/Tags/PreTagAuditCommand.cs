@@ -217,7 +217,7 @@ namespace StingTools.Tags
                     // Simulate tag generation
                     string lvl = ParameterHelpers.GetLevelCode(doc, el);
                     string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                    string func = TagConfig.GetFuncCode(sys);
+                    string func = TagConfig.GetSmartFuncCode(el, sys);
 
                     string seqKey = $"{disc}_{sys}_{lvl}";
                     if (!simCounters.ContainsKey(seqKey)) simCounters[seqKey] = 0;
