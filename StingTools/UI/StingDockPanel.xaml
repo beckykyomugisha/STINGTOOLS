@@ -464,6 +464,19 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- MEP & ARCHITECTURAL LEGENDS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="MEP &amp; ARCH LEGENDS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource BlueBtn}" Content="MEP Systems" Tag="MepSystemLegend" Click="Cmd_Click" ToolTip="MEP system color legend: HVAC, DCW, SAN, HWS, FP, LV — CIBSE/Uniclass colors"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Equipment" Tag="EquipmentLegend" Click="Cmd_Click" ToolTip="MEP equipment families by category with unit counts and sizing data"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Materials" Tag="MaterialLegend" Click="Cmd_Click" ToolTip="Material legend grouped by type: Concrete, Metal, Timber, Gypsum, Insulation, etc."/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Types" Tag="CompoundTypeLegend" Click="Cmd_Click" ToolTip="Wall/Floor/Ceiling/Roof compound types with layer count and thickness"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Fire Rating" Tag="FireRatingLegend" Click="Cmd_Click" ToolTip="Fire rating legend with severity color-coding (green→yellow→orange→red)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="★ Master" Tag="MasterLegendPipeline" Click="Cmd_Click" ToolTip="5-Layer intelligent pipeline: detect content → create ALL legends → place on discipline-matched sheets automatically"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- ORIENTATION & TEXT ALIGNMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ORIENTATION &amp; TEXT ALIGNMENT"/>
                         <Border Style="{StaticResource GroupBorder}">

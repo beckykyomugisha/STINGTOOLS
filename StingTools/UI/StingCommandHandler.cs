@@ -175,6 +175,12 @@ namespace StingTools.UI
                     case "UpdateLegend": RunCommand<Tags.UpdateLegendCommand>(app); break;
                     case "DeleteStaleLegend": RunCommand<Tags.DeleteStaleLegendCommand>(app); break;
                     case "OneClickLegendPipeline": RunCommand<Tags.OneClickLegendPipelineCommand>(app); break;
+                    case "MepSystemLegend": RunCommand<Tags.MepSystemLegendCommand>(app); break;
+                    case "MaterialLegend": RunCommand<Tags.MaterialLegendCommand>(app); break;
+                    case "CompoundTypeLegend": RunCommand<Tags.CompoundTypeLegendCommand>(app); break;
+                    case "EquipmentLegend": RunCommand<Tags.EquipmentLegendCommand>(app); break;
+                    case "FireRatingLegend": RunCommand<Tags.FireRatingLegendCommand>(app); break;
+                    case "MasterLegendPipeline": RunCommand<Tags.MasterLegendPipelineCommand>(app); break;
 
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
