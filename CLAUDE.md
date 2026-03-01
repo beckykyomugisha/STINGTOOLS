@@ -639,6 +639,71 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | Batch command chaining / workflow presets | Queue: AutoTag, Validate, Export | Low |
 | Dynamic category bindings from BINDING_COVERAGE_MATRIX.csv | Replace hardcoded `SharedParamGuids.AllCategoryEnums` | Medium |
 
+#### C. Code Quality Issues Found (Full Codebase Review)
+
+**Critical Bugs:**
+
+| Bug | Location | Problem |
+|-----|----------|---------|
+| AutoNumberSheets deferred LINQ | `DocAutomationCommands.cs:370-426` | `groups` is lazy `IOrderedEnumerable`; Phase 1 mutates sheet numbers to `_TEMP_*`, Phase 2 re-evaluates and groups all under `"_T"`. Fix: materialize with `.ToList()` before Phase 1 |
+| SnapLeaderElbow identical branches | `TagOperationCommands.cs:1691-1706` | `if/else` for horizontal vs vertical elbow produces identical `XYZ` — should differ by using `tagHead.Y` vs `tagHead.X` |
+| CopyTagsCommand creates duplicates | `TagOperationCommands.cs:612-638` | Copies `ASS_TAG_1_TXT` (includes source SEQ) but excludes SEQ from `CopyParams` — assembled tag mismatches individual tokens |
+| CableTrays/Conduits wrong ElementKind | `TemplateExtCommands.cs:220-235` | Uses `ElementKind.Duct`/`Pipe` instead of missing `CableTray`/`Conduit` enum values |
+| ElementId null assignment | `StateSelectCommands.cs:143,147` | `ElementId` is a struct in Revit 2025+; `null` assignment/comparison fails |
+
+**Dockable Panel Wiring Gaps (19 of 121 commands missing from panel):**
+
+| Missing Commands | Count | Notes |
+|-----------------|-------|-------|
+| All 17 TemplateManager commands | 17 | No handler case AND no XAML button — ribbon-only |
+| `TagNewOnlyCommand` | 1 | Important incremental tagging — no button at all |
+| `SwapTagsCommand` | 1 | Handler exists but no XAML button |
+
+Dead/stub UI elements: `RefreshParamList` (no handler), `ColorApply`/`ColorApplyHex`/`ColorApplyTransparency` (pass empty params), Save/Load/Delete preset buttons (no Click), Parameter Lookup section (complete stub), ISO Dashboard DataGrid (no binding), Health Score (hardcoded "—/100"), slider labels (static "0%")
+
+**Inconsistent SYS Code Derivation:**
+
+| Command | Method | Accuracy |
+|---------|--------|----------|
+| AutoTag, BatchTag, TagAndCombine, TagNewOnly | `GetMepSystemAwareSysCode` | Correct (6-layer) |
+| FamilyStagePopulateCommand, PreTagAuditCommand | `GetSysCode` | Wrong (simple category lookup — predictions differ from actual tagging) |
+
+**Performance Bottlenecks:**
+
+| Location | Issue | Fix |
+|----------|-------|-----|
+| `TagConfig.BuildExistingTagIndex` + `GetExistingSequenceCounters` | Two full-project scans of ALL non-type elements | Merge into single pass with `ElementMulticategoryFilter` |
+| `FormulaEvaluatorCommand:52-54` | Collects ALL non-type elements (views, sheets, annotations) | Filter by relevant categories |
+| `BatchTagCommand:39-98` | 4 separate full-project scans before tagging | Consolidate scans |
+| `StateSelectCommands:153-156` | LINQ post-filter instead of `ElementLevelFilter` | Use Revit API quick filter |
+| `StingLog:50-54` | `File.AppendAllText` opens/closes file per log call | Use buffered `StreamWriter` |
+| `TagConfig.GetSysCode` | O(n*m) linear scan on every call | Pre-build reverse lookup dictionary |
+
+**Code Duplication (6 major clusters):**
+
+| What | Copies | Files |
+|------|--------|-------|
+| Token parameter name arrays | 5 | AutoTag, CombineParams, PreTagAudit, ValidateTags, TagAndCombine |
+| Container definitions (36 discipline containers) | 2 | TagAndCombineCommand, CombineParametersCommand |
+| Tag parameter arrays (15 clear params) | 4 | DeleteTags, CopyTags, SwapTags, BulkClearTags |
+| LOC/ZONE auto-populate pattern | 4 | AutoTag, BatchTag, TagNewOnly, TagAndCombine |
+| Category-to-BuiltInCategory mappings | 5+ | SharedParamGuids, ScheduleHelper, TemplateCommands, TemplateExtCommands |
+| Solid fill pattern collector | 6+ | TemplateCommands, TemplateManagerCommands (×3), StingCommandHandler (×2) |
+
+**Silent Exception Swallowing:** 60+ empty `catch { }` blocks across all files violate project convention. Worst: TagConfig.cs (7), ParameterHelpers.cs (8), TemplateManagerCommands.cs (dozens), StingCommandHandler.cs (6)
+
+**Missing Error Handling:** 9 of 11 Tags/ files have no `try/catch` inside transaction loops — one bad element kills entire batch
+
+**Missing Features:**
+- `LoadSharedParamsCommand` — No re-bind; second run does nothing (should use `ReInsert`)
+- `SetDiscCommand` — Only 4 of 8 disciplines (missing S, FP, LV, G)
+- `BulkSetToken` — Only 4 preset values (missing BLD2/BLD3/EXT/Z02-Z04)
+- `SheetIndexCommand` — Hardcoded English field names fail in localized Revit
+- `RenumberTagsCommand` — No collision check against unselected elements
+- `HighlightInvalidCommand` — Only line color, no surface fill (barely visible)
+- `CombineParametersCommand` — Group picker infinite loop on cancel
+- `SpatialAutoDetect.DetectLoc/DetectZone` — Accept `roomIndex` param but never use it (defeats batch optimization)
+
 ---
 
 ### New Feature: Color By Parameter (Graitec Lookup Style)
