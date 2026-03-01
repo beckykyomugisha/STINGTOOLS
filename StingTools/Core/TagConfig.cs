@@ -236,14 +236,8 @@ namespace StingTools.Core
         public static List<string> ValidateElement(Element el)
         {
             var errors = new List<string>();
-            string[] tokenParams = new[]
-            {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-            };
 
-            foreach (string param in tokenParams)
+            foreach (string param in TagConfig.TokenParamNames)
             {
                 string val = ParameterHelpers.GetString(el, param);
                 string error = ValidateToken(param, val);
@@ -304,7 +298,7 @@ namespace StingTools.Core
                     return $"Segment {i + 1} is empty in tag: {tag}";
             }
 
-            // Validate individual segments
+            // Validate all 8 segments against their respective token rules
             string discError = ValidateToken("ASS_DISCIPLINE_COD_TXT", parts[0]);
             if (discError != null) return discError;
 
@@ -313,6 +307,12 @@ namespace StingTools.Core
 
             string zoneError = ValidateToken("ASS_ZONE_TXT", parts[2]);
             if (zoneError != null) return zoneError;
+
+            string sysError = ValidateToken("ASS_SYSTEM_TYPE_TXT", parts[4]);
+            if (sysError != null) return sysError;
+
+            string funcError = ValidateToken("ASS_FUNC_TXT", parts[5]);
+            if (funcError != null) return funcError;
 
             string seqError = ValidateToken("ASS_SEQ_NUM_TXT", parts[7]);
             if (seqError != null) return seqError;
@@ -847,7 +847,8 @@ namespace StingTools.Core
                 ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys);
                 ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func);
                 ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod);
-                ParameterHelpers.SetIfEmpty(el, "ASS_SEQ_NUM_TXT", seq);
+                // SEQ must always match the assembled tag — force overwrite
+                ParameterHelpers.SetString(el, "ASS_SEQ_NUM_TXT", seq, overwrite: true);
             }
             ParameterHelpers.SetString(el, "ASS_TAG_1_TXT", tag, overwrite: true);
             // Record stats: overwrite or new tag
@@ -975,9 +976,16 @@ namespace StingTools.Core
                         return "COM";
                     if (panel.Contains("UPS"))
                         return "LV";
-                    // Default electrical panels → LV
+                    // Default electrical panels → LV only for electrical/lighting categories
+                    // (avoid classifying HVAC equipment with a panel connection as LV)
                     if (panel.Length > 0)
-                        return "LV";
+                    {
+                        string catForCircuit = ParameterHelpers.GetCategoryName(el);
+                        string catUpper2 = (catForCircuit ?? "").ToUpperInvariant();
+                        if (catUpper2.Contains("ELECTRICAL") || catUpper2.Contains("LIGHTING") ||
+                            catUpper2.Contains("CONDUIT") || catUpper2.Contains("CABLE"))
+                            return "LV";
+                    }
                 }
             }
             catch (Exception ex) { StingLog.Warn("Electrical circuit panel lookup failed: " + ex.Message); }
@@ -1255,7 +1263,7 @@ namespace StingTools.Core
                 if (cat == null) return false;
                 return view.GetCategoryHidden(cat.Id) == false;
             }
-            catch (Exception ex) { StingLog.Warn("Category visibility check failed: " + ex.Message); return true; }
+            catch (Exception ex) { StingLog.Warn("Category visibility check failed: " + ex.Message); return false; }
         }
 
         /// <summary>
@@ -1732,6 +1740,7 @@ namespace StingTools.Core
                 { "A", new HashSet<string> { "ARC" } },
                 { "S", new HashSet<string> { "STR" } },
                 { "LV", new HashSet<string> { "LV", "ICT", "COM", "SEC", "NCL" } },
+                { "G", new HashSet<string> { "GEN" } },
             };
 
             if (!string.IsNullOrEmpty(sys) && validSysForDisc.TryGetValue(disc, out var validSys))

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using Autodesk.Revit.Attributes;
@@ -313,7 +314,7 @@ namespace StingTools.Temp
             if (cols.Length > ColThicknessMm)
             {
                 string raw = cols[ColThicknessMm].Trim();
-                double.TryParse(raw, out totalMm);
+                double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out totalMm);
             }
 
             // If total is zero, sum actual layer thicknesses
@@ -330,7 +331,7 @@ namespace StingTools.Temp
                     // Skip R-value codes (e.g. "R-3.6") which are thermal resistance, not thickness
                     if (thickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase)) continue;
 
-                    if (double.TryParse(thickStr, out double lmm) && lmm > 0 && lmm < 1000)
+                    if (double.TryParse(thickStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double lmm) && lmm > 0 && lmm < 1000)
                         layerSum += lmm;
                 }
                 if (layerSum > 0)
@@ -495,7 +496,7 @@ namespace StingTools.Temp
                     if (!string.IsNullOrEmpty(layerThickStr) &&
                         !layerThickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase))
                     {
-                        double.TryParse(layerThickStr, out layerThickMm);
+                        double.TryParse(layerThickStr, NumberStyles.Any, CultureInfo.InvariantCulture, out layerThickMm);
                     }
 
                     // Skip cable cross-section values (mm² stored as mm, e.g. 300.0 for a 300mm² conductor)
@@ -575,7 +576,7 @@ namespace StingTools.Temp
                     {
                         // R-value codes count as populated (they indicate a real layer)
                         if (thickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase) ||
-                            (double.TryParse(thickStr, out double v) && v > 0))
+                            (double.TryParse(thickStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) && v > 0))
                         {
                             count++;
                         }

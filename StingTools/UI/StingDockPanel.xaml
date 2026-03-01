@@ -330,18 +330,20 @@
                         <!-- ORIENTATION & TEXT ALIGNMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⟳ ORIENTATION &amp; TEXT ALIGNMENT"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource CatBtn}" Content="⊘H↔V" Tag="ToggleTagOrientation" Click="Cmd_Click" ToolTip="Toggle horizontal/vertical"/>
-                                <Button Style="{StaticResource CatBtn}" Content="All H" Tag="AlignTagsH" Click="Cmd_Click" ToolTip="All horizontal"/>
-                                <Button Style="{StaticResource CatBtn}" Content="All V" Tag="AlignTagsV" Click="Cmd_Click" ToolTip="All vertical"/>
-                                <Button Style="{StaticResource CatBtn}" Content="→FlipH" Tag="FlipTagsH" Click="Cmd_Click" ToolTip="Flip horizontal"/>
-                                <Button Style="{StaticResource CatBtn}" Content="↑FlipV" Tag="FlipTagsV" Click="Cmd_Click" ToolTip="Flip vertical"/>
-                            </WrapPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <TextBlock Text="Text:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <Button Style="{StaticResource CatBtn}" Content="◀" Tag="AlignTextLeft" Click="Cmd_Click" ToolTip="Align text left"/>
-                                <Button Style="{StaticResource CatBtn}" Content="≡C" Tag="AlignTextCenter" Click="Cmd_Click" ToolTip="Align text center"/>
-                                <Button Style="{StaticResource CatBtn}" Content="R▶" Tag="AlignTextRight" Click="Cmd_Click" ToolTip="Align text right"/>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource CatBtn}" Content="⊘H↔V" Tag="ToggleTagOrientation" Click="Cmd_Click" ToolTip="Toggle horizontal/vertical"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="All H" Tag="AlignTagsH" Click="Cmd_Click" ToolTip="All horizontal"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="All V" Tag="AlignTagsV" Click="Cmd_Click" ToolTip="All vertical"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="→FlipH" Tag="FlipTagsH" Click="Cmd_Click" ToolTip="Flip horizontal"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="↑FlipV" Tag="FlipTagsV" Click="Cmd_Click" ToolTip="Flip vertical"/>
+                                </WrapPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <TextBlock Text="Text:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="◀" Tag="AlignTextLeft" Click="Cmd_Click" ToolTip="Align text left"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="≡C" Tag="AlignTextCenter" Click="Cmd_Click" ToolTip="Align text center"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="R▶" Tag="AlignTextRight" Click="Cmd_Click" ToolTip="Align text right"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 

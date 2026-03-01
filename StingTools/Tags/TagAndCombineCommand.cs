@@ -20,7 +20,7 @@ namespace StingTools.Tags
     ///   2. Auto-detect ZONE from room name patterns (eliminates SetZone)
     ///   3. Auto-populate tokens (DISC, PROD, SYS, FUNC, LVL) with family-aware PROD
     ///   4. Auto-tag all untagged elements (continues from existing sequence)
-    ///   5. Combine parameters into ALL 37 containers (universal + discipline + MAT)
+    ///   5. Combine parameters into ALL 36 containers (universal + discipline + MAT)
     ///
     /// Scope options:
     ///   - Active view only

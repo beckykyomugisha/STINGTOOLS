@@ -359,13 +359,17 @@ namespace StingTools.Organise
                 groups[key].Add(elem);
             }
 
+            // Get existing max SEQ per group to avoid collisions with unselected elements
+            var existingCounters = TagConfig.GetExistingSequenceCounters(doc);
+
             int renumbered = 0;
             using (Transaction tx = new Transaction(doc, "STING Renumber Tags"))
             {
                 tx.Start();
                 foreach (var kvp in groups)
                 {
-                    int seq = 1;
+                    int seq = existingCounters.TryGetValue(kvp.Key, out int maxExisting)
+                        ? maxExisting + 1 : 1;
                     foreach (Element elem in kvp.Value)
                     {
                         string seqStr = seq.ToString().PadLeft(TagConfig.NumPad, '0');
@@ -773,9 +777,16 @@ namespace StingTools.Organise
             var top = discCounts.OrderByDescending(x => x.Value).Take(4).ToList();
             TaskDialog td = new TaskDialog("Select by Discipline");
             td.MainInstruction = "Select elements by discipline code";
+            var linkIds = new[]
+            {
+                TaskDialogCommandLinkId.CommandLink1,
+                TaskDialogCommandLinkId.CommandLink2,
+                TaskDialogCommandLinkId.CommandLink3,
+                TaskDialogCommandLinkId.CommandLink4,
+            };
             for (int i = 0; i < top.Count; i++)
             {
-                td.AddCommandLink((TaskDialogCommandLinkId)(i + 201),
+                td.AddCommandLink(linkIds[i],
                     $"{top[i].Key} — {top[i].Value} elements");
             }
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
