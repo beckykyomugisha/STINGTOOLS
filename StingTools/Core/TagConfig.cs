@@ -202,8 +202,7 @@ namespace StingTools.Core
             "COM", "ICT", "NCL", "SEC",
             "FIT", "STR", "GEN",
             // Subsystem FUNC codes from GetSmartFuncCode HVAC/HWS differentiation
-            "EXH", "RTN", "FRA", "DHW",
-            ""
+            "EXH", "RTN", "FRA", "DHW"
         };
 
         /// <summary>
@@ -238,30 +237,36 @@ namespace StingTools.Core
                         return $"FUNC '{value}' not in valid set ({string.Join(",", ValidFuncCodes)})";
                     break;
                 case ParamRegistry.LVL:
-                    // Valid LVL codes: L01-L99, GF, LG, UG, B1-B9, SB, RF, PH, AT, TR, POD, MZ, PL, XX
-                    if (value.Length > 4 || value.Contains(" "))
+                    // Valid LVL codes: L00-L99, L100+, GF, LG, UG, B1-B9, B10+, SB, RF, PH, AT, TR, POD, MZ, PL
+                    string lvlUpper = value.ToUpperInvariant();
+                    if (lvlUpper.Length > 4 || lvlUpper.Contains(" "))
                         return $"LVL '{value}' exceeds 4-char limit or contains spaces";
-                    // Warn on known placeholder
-                    if (value == "XX")
-                        return null; // XX is valid but a placeholder
-                    // Check against known patterns
-                    bool isKnownLvl = value == "GF" || value == "RF" || value == "LG" ||
-                        value == "UG" || value == "MZ" || value == "PL" || value == "PH" ||
-                        value == "AT" || value == "TR" || value == "POD" ||
-                        (value.StartsWith("L") && value.Length <= 3 && value.Substring(1).All(char.IsDigit)) ||
-                        (value.StartsWith("B") && value.Length <= 2 && value.Substring(1).All(char.IsDigit)) ||
-                        (value.StartsWith("SB") && (value.Length == 2 || value.Substring(2).All(char.IsDigit)));
-                    if (!isKnownLvl && !value.All(c => char.IsLetterOrDigit(c)))
+                    bool isKnownLvl = lvlUpper == "GF" || lvlUpper == "RF" || lvlUpper == "LG" ||
+                        lvlUpper == "UG" || lvlUpper == "MZ" || lvlUpper == "PL" || lvlUpper == "PH" ||
+                        lvlUpper == "AT" || lvlUpper == "TR" || lvlUpper == "POD" ||
+                        (lvlUpper.StartsWith("L") && lvlUpper.Length >= 2 && lvlUpper.Length <= 4 &&
+                            lvlUpper.Substring(1).All(char.IsDigit)) ||
+                        (lvlUpper.StartsWith("B") && lvlUpper.Length >= 2 && lvlUpper.Length <= 3 &&
+                            lvlUpper.Substring(1).All(char.IsDigit)) ||
+                        (lvlUpper.StartsWith("SB") && (lvlUpper.Length == 2 ||
+                            lvlUpper.Substring(2).All(char.IsDigit)));
+                    if (!isKnownLvl && !lvlUpper.All(c => char.IsLetterOrDigit(c)))
                         return $"LVL '{value}' contains invalid characters";
                     break;
                 case ParamRegistry.PROD:
-                    // PROD codes: 2-4 uppercase alphanumeric
+                    // PROD codes: 2-4 uppercase alphanumeric characters
                     if (value.Length < 2 || value.Length > 4)
                         return $"PROD '{value}' should be 2-4 characters";
+                    if (!value.All(c => char.IsLetterOrDigit(c)))
+                        return $"PROD '{value}' must be alphanumeric only";
                     break;
                 case ParamRegistry.SEQ:
-                    if (!int.TryParse(value, out _))
+                    if (!int.TryParse(value, out int seqVal))
                         return $"SEQ '{value}' is not a valid number";
+                    if (seqVal < 0)
+                        return $"SEQ '{value}' must be a positive number";
+                    if (value.Length > NumPad + 1)
+                        return $"SEQ '{value}' exceeds {NumPad}-digit format";
                     break;
             }
             return null; // valid
@@ -290,22 +295,46 @@ namespace StingTools.Core
             }
 
             // Cross-validate: DISC must match element category
+            // Accounts for system-aware DISC correction (pipes can be "P" when system is plumbing)
             string catName = ParameterHelpers.GetCategoryName(el);
             string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
             if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(disc))
             {
                 string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : null;
                 if (expectedDisc != null && expectedDisc != disc)
-                    errors.Add($"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'");
+                {
+                    // Allow system-aware correction: pipes/pipe fittings can be P instead of M
+                    string sysVal = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    string correctedDisc = GetSystemAwareDisc(expectedDisc, sysVal, catName);
+                    if (correctedDisc != disc)
+                        errors.Add($"DISC mismatch: element category '{catName}' expects '{correctedDisc}' but has '{disc}'");
+                }
             }
 
-            // Cross-validate: SYS should match category
+            // Cross-validate: SYS should be valid for this category
+            // Uses SysMap lookup to allow ALL valid SYS codes for ambiguous categories
+            // (e.g., Pipes can be DCW, DHW, SAN, RWD, GAS, HWS, FP)
             string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
             if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(sys))
             {
-                string expectedSys = TagConfig.GetSysCode(catName);
-                if (!string.IsNullOrEmpty(expectedSys) && expectedSys != sys)
-                    errors.Add($"SYS mismatch: category '{catName}' expects '{expectedSys}' but has '{sys}'");
+                bool sysValidForCategory = false;
+                // Check if this SYS code lists this category in SysMap
+                if (SysMap.TryGetValue(sys, out var sysCats) && sysCats.Contains(catName))
+                    sysValidForCategory = true;
+                // Also accept discipline-default SYS codes (ARC, STR, GEN, etc.)
+                string discForCat = DiscMap.TryGetValue(catName, out string dc) ? dc : "A";
+                if (sys == GetDiscDefaultSysCode(discForCat))
+                    sysValidForCategory = true;
+                if (!sysValidForCategory)
+                {
+                    // Find what SYS codes ARE valid for this category
+                    var validSysForCat = SysMap.Where(kvp => kvp.Value.Contains(catName))
+                        .Select(kvp => kvp.Key).ToList();
+                    string validList = validSysForCat.Count > 0
+                        ? string.Join("/", validSysForCat)
+                        : GetDiscDefaultSysCode(discForCat);
+                    errors.Add($"SYS mismatch: category '{catName}' expects '{validList}' but has '{sys}'");
+                }
             }
 
             // Cross-validate: PROD should be consistent with DISC/SYS
@@ -355,7 +384,7 @@ namespace StingTools.Core
                     return $"Segment {i + 1} is empty in tag: {tag}";
             }
 
-            // Validate individual segments
+            // Validate ALL 8 segments against their respective rules
             string discError = ValidateToken(ParamRegistry.DISC, parts[0]);
             if (discError != null) return discError;
 
@@ -364,6 +393,18 @@ namespace StingTools.Core
 
             string zoneError = ValidateToken(ParamRegistry.ZONE, parts[2]);
             if (zoneError != null) return zoneError;
+
+            string lvlError = ValidateToken(ParamRegistry.LVL, parts[3]);
+            if (lvlError != null) return lvlError;
+
+            string sysError = ValidateToken(ParamRegistry.SYS, parts[4]);
+            if (sysError != null) return sysError;
+
+            string funcError = ValidateToken(ParamRegistry.FUNC, parts[5]);
+            if (funcError != null) return funcError;
+
+            string prodError = ValidateToken(ParamRegistry.PROD, parts[6]);
+            if (prodError != null) return prodError;
 
             string seqError = ValidateToken(ParamRegistry.SEQ, parts[7]);
             if (seqError != null) return seqError;

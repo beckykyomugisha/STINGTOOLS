@@ -71,7 +71,7 @@ namespace StingTools.Tags
             // Track tag uniqueness
             var tagCounts = new Dictionary<string, int>(StringComparer.Ordinal);
 
-            csvRows.Add("ElementId,Category,TAG_1_Status,EmptyTokens,EmptyContainers,ISOErrors,STATUS,REV,TAG_1,TAG_2,TAG_3,TAG_4,TAG_5,TAG_6");
+            csvRows.Add("ElementId,Category,TAG_1_Status,FullyResolved,EmptyTokens,EmptyContainers,ISOErrors,CrossValErrors,STATUS,REV,TAG_1,TAG_2,TAG_3,TAG_4,TAG_5,TAG_6");
 
             foreach (Element el in collector)
             {
@@ -147,15 +147,17 @@ namespace StingTools.Tags
                     tagCounts[tag1]++;
                 }
 
-                // Single-pass ISO validation via ValidateElement (avoids double-counting)
+                // Single-pass ISO validation via ValidateElement
                 var elementErrors = ISO19650Validator.ValidateElement(el);
-                int elementIsoErrors = elementErrors.Count;
-                int crossErrors = elementErrors.Count(e =>
+                int elementCrossErrors = elementErrors.Count(e =>
                     e.Contains("mismatch") || e.Contains("typically belongs") || e.Contains("unexpected"));
-                crossValErrors += crossErrors;
+                int elementTokenErrors = elementErrors.Count - elementCrossErrors;
+                // Count token-level and cross-validation errors separately (no double-counting)
+                isoViolations += elementTokenErrors;
+                crossValErrors += elementCrossErrors;
+                int elementIsoErrors = elementErrors.Count;
                 if (elementIsoErrors > 0)
                 {
-                    isoViolations += elementIsoErrors;
                     if (tag1Status == "VALID") tag1Status = "ISO_INVALID";
                     IncrementDict(issuesByCategory, catName);
                     foreach (string err in elementErrors)
@@ -173,12 +175,17 @@ namespace StingTools.Tags
                 }
                 containersEmpty += emptyContainers;
 
-                // Fully valid = TAG_1 complete + all tokens filled + containers populated + ISO valid
-                if (tag1Status == "VALID" && emptyTokenCount == 0 && emptyContainers == 0 && elementIsoErrors == 0)
+                // Check if this element's tag is fully resolved (no XX/ZZ/0000 placeholders)
+                bool elementResolved = !string.IsNullOrEmpty(tag1) && TagConfig.TagIsFullyResolved(tag1);
+
+                // Fully valid = TAG_1 complete + fully resolved + all tokens filled + containers populated + ISO valid
+                if (tag1Status == "VALID" && elementResolved && emptyTokenCount == 0 &&
+                    emptyContainers == 0 && elementIsoErrors == 0)
                     fullyValid++;
 
-                // CSV row (now includes STATUS and REV)
-                csvRows.Add($"{el.Id},\"{CsvEsc(catName)}\",{tag1Status},{emptyTokenCount},{emptyContainers},{elementIsoErrors}," +
+                // CSV row (includes FullyResolved and CrossValErrors columns)
+                csvRows.Add($"{el.Id},\"{CsvEsc(catName)}\",{tag1Status},{elementResolved}," +
+                    $"{emptyTokenCount},{emptyContainers},{elementTokenErrors},{elementCrossErrors}," +
                     $"\"{CsvEsc(statusVal)}\",\"{CsvEsc(revVal)}\"," +
                     $"\"{CsvEsc(tagValues[0])}\",\"{CsvEsc(tagValues[1])}\",\"{CsvEsc(tagValues[2])}\"," +
                     $"\"{CsvEsc(tagValues[3])}\",\"{CsvEsc(tagValues[4])}\",\"{CsvEsc(tagValues[5])}\"");

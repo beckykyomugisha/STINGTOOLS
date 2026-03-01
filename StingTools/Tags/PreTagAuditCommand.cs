@@ -126,7 +126,7 @@ namespace StingTools.Tags
 
                 totalTaggable++;
 
-                string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
                 if (!discStats.ContainsKey(disc))
                     discStats[disc] = (0, 0, 0, 0);
 
@@ -228,13 +228,13 @@ namespace StingTools.Tags
                     statusDistribution[currentStatus] = 0;
                 statusDistribution[currentStatus]++;
 
-                // Predict REV from project revision
+                // Predict REV from project revision (guaranteed default: "P01")
                 string currentRev = ParameterHelpers.GetString(el, ParamRegistry.REV);
                 if (string.IsNullOrEmpty(currentRev))
                 {
                     revMissing++;
-                    if (!string.IsNullOrEmpty(projectRev))
-                        revWillAutoSet++;
+                    currentRev = !string.IsNullOrEmpty(projectRev) ? projectRev : "P01";
+                    revWillAutoSet++;
                 }
 
                 // Predict PROD code (family-aware)
@@ -267,10 +267,14 @@ namespace StingTools.Tags
                 {
                     // Simulate tag generation (MEP-aware, matching BuildAndWriteTag logic)
                     string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                    if (lvl == "XX") lvl = "L00"; // Guaranteed LVL default
                     string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                    string func = TagConfig.GetSmartFuncCode(el, sys);
+                    if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc); // Guaranteed SYS default
                     // Apply system-aware DISC correction for pipes
                     disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
+                    string func = TagConfig.GetSmartFuncCode(el, sys);
+                    if (string.IsNullOrEmpty(func))
+                        func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN"; // Guaranteed FUNC default
 
                     string seqKey = $"{disc}_{sys}_{lvl}";
                     if (!simCounters.ContainsKey(seqKey)) simCounters[seqKey] = 0;
@@ -311,7 +315,9 @@ namespace StingTools.Tags
                     }
                 }
 
-                csvRows.Add($"{el.Id},\"{catName}\",\"{familyName}\",\"{existingTag}\",\"{predictedTag}\",{action},{locSource},{zoneSource},{prodSource},{currentStatus},{statusSource},{currentRev},{elementIsoErrors}");
+                csvRows.Add($"{el.Id},\"{catName}\",\"{familyName}\",\"{existingTag}\",\"{predictedTag}\"," +
+                    $"\"{action}\",\"{locSource}\",\"{zoneSource}\",\"{prodSource}\"," +
+                    $"\"{currentStatus}\",\"{statusSource}\",\"{currentRev}\",{elementIsoErrors}");
             }
 
             willBeSkipped = totalTaggable - willBeTagged - alreadyTagged;

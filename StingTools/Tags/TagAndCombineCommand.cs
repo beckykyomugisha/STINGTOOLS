@@ -161,26 +161,32 @@ namespace StingTools.Tags
                         }
 
                         // Step 3: Auto-populate tokens from category + family lookup
-                        string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                        // (guaranteed defaults: DISC→"A", SYS→discipline, FUNC→FuncMap, LVL→"L00")
+                        string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
                         if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) populated++;
 
                         // Family-aware PROD code: check family name before falling back to category
                         string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                        if (!string.IsNullOrEmpty(prod))
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) populated++;
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) populated++;
 
-                        // MEP system-aware SYS derivation (uses connected system name when available)
+                        // MEP system-aware SYS derivation (guaranteed default from discipline)
                         string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                        if (!string.IsNullOrEmpty(sys))
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) populated++;
-                        string func = TagConfig.GetSmartFuncCode(el, sys);
-                        if (!string.IsNullOrEmpty(func))
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) populated++;
-                        string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                        if (lvl != "XX")
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) populated++;
+                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) populated++;
+                        // System-aware DISC correction for pipes
+                        disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
+                        ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);
 
-                        // Step 4: Auto-detect STATUS from Revit phases/worksets
+                        string func = TagConfig.GetSmartFuncCode(el, sys);
+                        if (string.IsNullOrEmpty(func))
+                            func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) populated++;
+
+                        string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                        if (lvl == "XX") lvl = "L00";
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) populated++;
+
+                        // Step 4: Auto-detect STATUS from Revit phases/worksets (guaranteed: "NEW")
                         string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
                         if (string.IsNullOrEmpty(existingStatus))
                         {
@@ -193,14 +199,12 @@ namespace StingTools.Tags
                             }
                         }
 
-                        // Step 5: Auto-detect REV from project revision
-                        if (!string.IsNullOrEmpty(projectRev))
+                        // Step 5: Auto-detect REV from project revision (guaranteed: "P01")
+                        string rev = !string.IsNullOrEmpty(projectRev) ? projectRev : "P01";
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, rev))
                         {
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, projectRev))
-                            {
-                                revSet++;
-                                populated++;
-                            }
+                            revSet++;
+                            populated++;
                         }
 
                         // Step 6: Tag if not already complete (with collision detection)

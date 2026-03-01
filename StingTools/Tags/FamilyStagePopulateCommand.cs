@@ -139,8 +139,8 @@ namespace StingTools.Tags
 
                     try
                     {
-                    // DISC — deterministic from category
-                    string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                    // DISC — deterministic from category (default "A" for unmapped)
+                    string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
                     if (overwrite)
                     {
                         if (ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true))
@@ -178,8 +178,9 @@ namespace StingTools.Tags
                             zoneSet++;
                     }
 
-                    // LVL — deterministic from element level
+                    // LVL — deterministic from element level (guaranteed default: "L00" for levelless)
                     string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                    if (lvl == "XX") lvl = "L00";
                     if (overwrite)
                     {
                         if (ParameterHelpers.SetString(el, ParamRegistry.LVL, lvl, overwrite: true))
@@ -187,24 +188,22 @@ namespace StingTools.Tags
                     }
                     else
                     {
-                        if (lvl != "XX" && ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl))
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl))
                             lvlSet++;
                     }
 
-                    // SYS — MEP system-aware (6-layer detection)
+                    // SYS — MEP system-aware (6-layer detection, guaranteed default from DISC)
                     string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                    if (!string.IsNullOrEmpty(sys))
+                    if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                    if (overwrite)
                     {
-                        if (overwrite)
-                        {
-                            if (ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true))
-                                sysSet++;
-                        }
-                        else
-                        {
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys))
-                                sysSet++;
-                        }
+                        if (ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true))
+                            sysSet++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys))
+                            sysSet++;
                     }
 
                     // DISC correction — system-aware override for pipes
@@ -212,20 +211,19 @@ namespace StingTools.Tags
                     if (overwrite)
                         ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);
 
-                    // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
+                    // FUNC — smart subsystem differentiation (guaranteed default via FuncMap or "GEN")
                     string func = TagConfig.GetSmartFuncCode(el, sys);
-                    if (!string.IsNullOrEmpty(func))
+                    if (string.IsNullOrEmpty(func))
+                        func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                    if (overwrite)
                     {
-                        if (overwrite)
-                        {
-                            if (ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true))
-                                funcSet++;
-                        }
-                        else
-                        {
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func))
-                                funcSet++;
-                        }
+                        if (ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true))
+                            funcSet++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func))
+                            funcSet++;
                     }
 
                     // PROD — family-aware (highest intelligence)
@@ -275,19 +273,17 @@ namespace StingTools.Tags
                         }
                     }
 
-                    // REV — from project revision sequence
-                    if (!string.IsNullOrEmpty(projectRev))
+                    // REV — from project revision sequence (guaranteed default: "P01")
+                    string rev = !string.IsNullOrEmpty(projectRev) ? projectRev : "P01";
+                    if (overwrite)
                     {
-                        if (overwrite)
-                        {
-                            if (ParameterHelpers.SetString(el, ParamRegistry.REV, projectRev, overwrite: true))
-                                revSet++;
-                        }
-                        else
-                        {
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, projectRev))
-                                revSet++;
-                        }
+                        if (ParameterHelpers.SetString(el, ParamRegistry.REV, rev, overwrite: true))
+                            revSet++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, rev))
+                            revSet++;
                     }
                     }
                     catch (Exception ex)

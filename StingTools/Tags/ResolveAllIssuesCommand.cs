@@ -185,8 +185,33 @@ namespace StingTools.Tags
             }
 
             int postTotalIssues = postNoTag + postIncomplete + postUnresolved + postEmptyStatus + postEmptyRev + postEmptyTokens;
-            double complianceRate = totalTaggable > 0 ? (1.0 - (double)postTotalIssues / (totalTaggable * 10)) * 100.0 : 100.0;
-            if (complianceRate > 100) complianceRate = 100;
+            // Compliance = percentage of elements with zero issues
+            // An element is compliant if: has tag + tag complete + tag resolved + STATUS set + REV set + all 7 tokens filled
+            int compliantElements = totalTaggable - postNoTag - postIncomplete - postUnresolved;
+            // Also subtract elements with empty STATUS/REV/tokens (but avoid double-counting with tag issues)
+            // Simple metric: element-level compliance = (elements with no issues) / total
+            int elementsWithIssues = 0;
+            foreach (Element e in taggableElements)
+            {
+                string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
+                bool hasIssue = string.IsNullOrEmpty(tag) || !TagConfig.TagIsComplete(tag) ||
+                    !TagConfig.TagIsFullyResolved(tag) ||
+                    string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.STATUS)) ||
+                    string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.REV));
+                if (!hasIssue)
+                {
+                    string[] tokenParams = { ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                        ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD };
+                    foreach (string p in tokenParams)
+                    {
+                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(e, p)))
+                        { hasIssue = true; break; }
+                    }
+                }
+                if (hasIssue) elementsWithIssues++;
+            }
+            double complianceRate = totalTaggable > 0
+                ? (totalTaggable - elementsWithIssues) * 100.0 / totalTaggable : 100.0;
 
             // Phase 5: Rich report
             var report = new StringBuilder();
