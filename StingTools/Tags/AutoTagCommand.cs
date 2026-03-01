@@ -128,24 +128,31 @@ namespace StingTools.Tags
 
                 foreach (Element el in sorted)
                 {
-                    // Pre-populate LOC/ZONE from spatial data before tagging
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                    try
                     {
-                        string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc)) populated++;
-                    }
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
-                    {
-                        string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone)) populated++;
-                    }
+                        // Pre-populate LOC/ZONE from spatial data before tagging
+                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                        {
+                            string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc)) populated++;
+                        }
+                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
+                        {
+                            string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone)) populated++;
+                        }
 
-                    bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                    TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                        skipComplete: skipComplete,
-                        existingTags: tagIndex,
-                        collisionMode: collisionMode,
-                        stats: stats);
+                        bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
+                        TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
+                            skipComplete: skipComplete,
+                            existingTags: tagIndex,
+                            collisionMode: collisionMode,
+                            stats: stats);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Element {el.Id}: {ex.Message}");
+                    }
                 }
 
                 tx.Commit();
@@ -233,46 +240,53 @@ namespace StingTools.Tags
 
                 foreach (Element el in sorted)
                 {
-                    string catName = ParameterHelpers.GetCategoryName(el);
-
-                    // Auto-populate LOC from spatial data
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                    try
                     {
-                        string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc)) populated++;
-                    }
+                        string catName = ParameterHelpers.GetCategoryName(el);
 
-                    // Auto-populate ZONE from room data
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
+                        // Auto-populate LOC from spatial data
+                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                        {
+                            string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc)) populated++;
+                        }
+
+                        // Auto-populate ZONE from room data
+                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
+                        {
+                            string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone)) populated++;
+                        }
+
+                        // Auto-populate DISC
+                        string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                        if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc)) populated++;
+
+                        // Family-aware PROD code
+                        string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+                        if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod)) populated++;
+
+                        // SYS and FUNC (MEP system-aware)
+                        string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                        if (!string.IsNullOrEmpty(sys))
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys)) populated++;
+                        string func = TagConfig.GetFuncCode(sys);
+                        if (!string.IsNullOrEmpty(func))
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func)) populated++;
+
+                        // LVL
+                        string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                        if (lvl != "XX")
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl)) populated++;
+
+                        // Tag with collision detection and stats tracking
+                        TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                            existingTags: tagIndex, stats: stats);
+                    }
+                    catch (Exception ex)
                     {
-                        string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone)) populated++;
+                        StingLog.Warn($"Element {el.Id}: {ex.Message}");
                     }
-
-                    // Auto-populate DISC
-                    string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-                    if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc)) populated++;
-
-                    // Family-aware PROD code
-                    string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                    if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod)) populated++;
-
-                    // SYS and FUNC (MEP system-aware)
-                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                    if (!string.IsNullOrEmpty(sys))
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys)) populated++;
-                    string func = TagConfig.GetFuncCode(sys);
-                    if (!string.IsNullOrEmpty(func))
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func)) populated++;
-
-                    // LVL
-                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                    if (lvl != "XX")
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl)) populated++;
-
-                    // Tag with collision detection and stats tracking
-                    TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                        existingTags: tagIndex, stats: stats);
                 }
 
                 tx.Commit();

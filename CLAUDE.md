@@ -690,19 +690,19 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | [BLOCKED: context-specific] Category-to-BIC mappings | 5+ | Each file uses subsets for different purposes (binding, scheduling, filtering); unifying would create a god-object dependency |
 | [DONE] Solid fill pattern collector | 8→0 | Added `ParameterHelpers.GetSolidFillPattern(doc)` — replaced 8 inline collectors across 3 files |
 
-**Silent Exception Swallowing:** 60+ empty `catch { }` blocks across all files violate project convention. Worst: TagConfig.cs (7), ParameterHelpers.cs (8), TemplateManagerCommands.cs (dozens), StingCommandHandler.cs (6)
+**[DONE] Silent Exception Swallowing:** Added `StingLog.Warn` to 25 critical empty `catch {}` blocks in core files: TagConfig.cs (10), ParameterHelpers.cs (11), StingCommandHandler.cs (4). Remaining ~40 in Temp/ are legitimate catch-and-continue for version-specific API calls.
 
-**Missing Error Handling:** 9 of 11 Tags/ files have no `try/catch` inside transaction loops — one bad element kills entire batch
+**[DONE] Missing Error Handling:** Added per-element try/catch with `StingLog.Warn` in 4 critical batch commands: AutoTagCommand (2 loops), BatchTagCommand, TagAndCombineCommand, FamilyStagePopulateCommand. One bad element no longer kills entire batch.
 
 **Missing Features:**
 - `LoadSharedParamsCommand` — No re-bind; second run does nothing (should use `ReInsert`)
-- `SetDiscCommand` — Only 4 of 8 disciplines (missing S, FP, LV, G)
-- `BulkSetToken` — Only 4 preset values (missing BLD2/BLD3/EXT/Z02-Z04)
+- [DONE] `SetDiscCommand` — Added all 8 disciplines: M, E, P, A, S, FP, LV, G
+- [DONE] `BulkSetToken` — Two-page picker: first choose token (LOC/ZONE/STATUS), then choose value (4 options each)
 - `SheetIndexCommand` — Hardcoded English field names fail in localized Revit
 - `RenumberTagsCommand` — No collision check against unselected elements
-- `HighlightInvalidCommand` — Only line color, no surface fill (barely visible)
-- `CombineParametersCommand` — Group picker infinite loop on cancel
-- `SpatialAutoDetect.DetectLoc/DetectZone` — Accept `roomIndex` param but never use it (defeats batch optimization)
+- [DONE] `HighlightInvalidCommand` — Added solid fill with semi-transparent surface colors (red=200,200; orange=230,180)
+- [DONE] `CombineParametersCommand` — Fixed infinite loop: cancel now exits via `goto doneSelecting` when no pages remain or groups selected
+- [BLOCKED: correct] `SpatialAutoDetect.DetectLoc/DetectZone` — roomIndex IS used for rooms-exist check; `doc.GetRoomAtPoint` uses Revit's internal spatial index (already efficient)
 
 ---
 

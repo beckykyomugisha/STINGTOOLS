@@ -129,106 +129,113 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
                         continue;
 
-                    processed++;
+                    try
+                    {
+                        processed++;
 
-                    // DISC — deterministic from category
-                    string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, "ASS_DISCIPLINE_COD_TXT", disc, overwrite: true))
-                            discSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc))
-                            discSet++;
-                    }
-
-                    // LOC — from spatial context
-                    string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, "ASS_LOC_TXT", loc, overwrite: true))
-                            locSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc))
-                            locSet++;
-                    }
-
-                    // ZONE — from room data
-                    string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, "ASS_ZONE_TXT", zone, overwrite: true))
-                            zoneSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone))
-                            zoneSet++;
-                    }
-
-                    // LVL — deterministic from element level
-                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, "ASS_LVL_COD_TXT", lvl, overwrite: true))
-                            lvlSet++;
-                    }
-                    else
-                    {
-                        if (lvl != "XX" && ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl))
-                            lvlSet++;
-                    }
-
-                    // SYS — MEP system-aware (checks connected systems before category fallback)
-                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                    if (!string.IsNullOrEmpty(sys))
-                    {
+                        // DISC — deterministic from category
+                        string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
                         if (overwrite)
                         {
-                            if (ParameterHelpers.SetString(el, "ASS_SYSTEM_TYPE_TXT", sys, overwrite: true))
-                                sysSet++;
+                            if (ParameterHelpers.SetString(el, "ASS_DISCIPLINE_COD_TXT", disc, overwrite: true))
+                                discSet++;
                         }
                         else
                         {
-                            if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys))
-                                sysSet++;
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc))
+                                discSet++;
                         }
-                    }
 
-                    // FUNC — from system mapping
-                    string func = TagConfig.GetFuncCode(sys);
-                    if (!string.IsNullOrEmpty(func))
-                    {
+                        // LOC — from spatial context
+                        string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
                         if (overwrite)
                         {
-                            if (ParameterHelpers.SetString(el, "ASS_FUNC_TXT", func, overwrite: true))
-                                funcSet++;
+                            if (ParameterHelpers.SetString(el, "ASS_LOC_TXT", loc, overwrite: true))
+                                locSet++;
                         }
                         else
                         {
-                            if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func))
-                                funcSet++;
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc))
+                                locSet++;
+                        }
+
+                        // ZONE — from room data
+                        string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                        if (overwrite)
+                        {
+                            if (ParameterHelpers.SetString(el, "ASS_ZONE_TXT", zone, overwrite: true))
+                                zoneSet++;
+                        }
+                        else
+                        {
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone))
+                                zoneSet++;
+                        }
+
+                        // LVL — deterministic from element level
+                        string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                        if (overwrite)
+                        {
+                            if (ParameterHelpers.SetString(el, "ASS_LVL_COD_TXT", lvl, overwrite: true))
+                                lvlSet++;
+                        }
+                        else
+                        {
+                            if (lvl != "XX" && ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl))
+                                lvlSet++;
+                        }
+
+                        // SYS — MEP system-aware (checks connected systems before category fallback)
+                        string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                        if (!string.IsNullOrEmpty(sys))
+                        {
+                            if (overwrite)
+                            {
+                                if (ParameterHelpers.SetString(el, "ASS_SYSTEM_TYPE_TXT", sys, overwrite: true))
+                                    sysSet++;
+                            }
+                            else
+                            {
+                                if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys))
+                                    sysSet++;
+                            }
+                        }
+
+                        // FUNC — from system mapping
+                        string func = TagConfig.GetFuncCode(sys);
+                        if (!string.IsNullOrEmpty(func))
+                        {
+                            if (overwrite)
+                            {
+                                if (ParameterHelpers.SetString(el, "ASS_FUNC_TXT", func, overwrite: true))
+                                    funcSet++;
+                            }
+                            else
+                            {
+                                if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func))
+                                    funcSet++;
+                            }
+                        }
+
+                        // PROD — family-aware (highest intelligence)
+                        string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+                        string catProd = TagConfig.ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+                        if (prod != catProd) familyProdUsed++;
+
+                        if (overwrite)
+                        {
+                            if (ParameterHelpers.SetString(el, "ASS_PRODCT_COD_TXT", prod, overwrite: true))
+                                prodSet++;
+                        }
+                        else
+                        {
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod))
+                                prodSet++;
                         }
                     }
-
-                    // PROD — family-aware (highest intelligence)
-                    string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                    string catProd = TagConfig.ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
-                    if (prod != catProd) familyProdUsed++;
-
-                    if (overwrite)
+                    catch (Exception ex)
                     {
-                        if (ParameterHelpers.SetString(el, "ASS_PRODCT_COD_TXT", prod, overwrite: true))
-                            prodSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod))
-                            prodSet++;
+                        StingLog.Warn($"Element {id}: {ex.Message}");
                     }
                 }
 

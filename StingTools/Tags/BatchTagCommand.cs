@@ -112,26 +112,33 @@ namespace StingTools.Tags
                 int processed = 0;
                 foreach (Element el in sorted)
                 {
-                    string catName = ParameterHelpers.GetCategoryName(el);
-
-                    // Pre-populate LOC/ZONE from spatial data before tagging
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                    try
                     {
-                        string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc)) populated++;
-                    }
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
-                    {
-                        string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone)) populated++;
-                    }
+                        string catName = ParameterHelpers.GetCategoryName(el);
 
-                    bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                    TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                        skipComplete: skipComplete,
-                        existingTags: tagIndex,
-                        collisionMode: collisionMode,
-                        stats: stats);
+                        // Pre-populate LOC/ZONE from spatial data before tagging
+                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_LOC_TXT")))
+                        {
+                            string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", loc)) populated++;
+                        }
+                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_ZONE_TXT")))
+                        {
+                            string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", zone)) populated++;
+                        }
+
+                        bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
+                        TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
+                            skipComplete: skipComplete,
+                            existingTags: tagIndex,
+                            collisionMode: collisionMode,
+                            stats: stats);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Element {el.Id}: {ex.Message}");
+                    }
 
                     processed++;
                     if (processed % 500 == 0)

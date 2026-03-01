@@ -455,7 +455,7 @@ namespace StingTools.Core
                         written += SetIfEmptyInt(el, "ASS_DEPARTMENT_ASSIGNMENT_TXT",
                             dept.AsString() ?? "");
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn("Reading Room Department parameter failed: " + ex.Message); }
             }
 
             // ── Dimensional parameters (BLE_ schedule fields) ──────────────────
@@ -606,7 +606,7 @@ namespace StingTools.Core
 
                 return SetIfEmptyInt(el, targetParam, formatted);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn("MapDimension failed for " + bip + " → " + targetParam + ": " + ex.Message); return 0; }
         }
 
         /// <summary>Map a named lookup parameter with unit conversion.</summary>
@@ -625,7 +625,7 @@ namespace StingTools.Core
                     System.Globalization.CultureInfo.InvariantCulture);
                 return SetIfEmptyInt(el, targetParam, formatted);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn("MapLookup failed for " + paramName + " → " + targetParam + ": " + ex.Message); return 0; }
         }
 
         /// <summary>Map a named parameter string value (e.g., Fire Rating).</summary>
@@ -643,7 +643,7 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(val)) return 0;
                 return SetIfEmptyInt(el, targetParam, val);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn("MapStringParam failed for " + sourceName + " → " + targetParam + ": " + ex.Message); return 0; }
         }
 
         /// <summary>Get floor thickness from compound structure or parameter.</summary>
@@ -664,7 +664,7 @@ namespace StingTools.Core
                 // Fallback: try "Thickness" named parameter
                 return MapLookup(el, "Thickness", targetParam, 304.8);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn("MapFloorThickness failed for element " + el?.Id + ": " + ex.Message); return 0; }
         }
 
         /// <summary>Get roof slope in degrees.</summary>
@@ -684,7 +684,7 @@ namespace StingTools.Core
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn("MapRoofSlope failed for element " + el?.Id + ": " + ex.Message); }
             return 0;
         }
 
@@ -706,7 +706,7 @@ namespace StingTools.Core
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn("MapStairWidth failed for element " + el?.Id + ": " + ex.Message); }
             return 0;
         }
 
@@ -725,7 +725,7 @@ namespace StingTools.Core
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn("MapRampSlope failed for element " + el?.Id + ": " + ex.Message); }
             return 0;
         }
 
@@ -738,7 +738,7 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(typeName))
                     return SetIfEmptyInt(el, targetParam, typeName);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn("MapStructuralType failed for element " + el?.Id + ": " + ex.Message); }
             return 0;
         }
 
@@ -761,7 +761,7 @@ namespace StingTools.Core
                     written += SetIfEmptyInt(el, "ASS_DEPARTMENT_ASSIGNMENT_TXT",
                         dept.AsString() ?? "");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn("MapRoomNameNumber failed for element " + el?.Id + ": " + ex.Message); }
             return written;
         }
 
@@ -969,8 +969,9 @@ namespace StingTools.Core
                 Element writeTarget = target ?? source;
                 return SetIfEmptyInt(writeTarget, targetParamName, val);
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn("MapBuiltIn failed for " + bip + " → " + targetParamName + ": " + ex.Message);
                 return 0;
             }
         }

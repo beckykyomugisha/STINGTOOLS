@@ -536,7 +536,7 @@ namespace StingTools.Core
                 if (familyName.Contains("RETURN") || familyName.Contains("RETURN GRILLE")) return "RTN";
                 if (familyName.Contains("EXHAUST") || familyName.Contains("EXTRACT FAN")) return "EXH";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn("HVAC sub-function detection failed: " + ex.Message); }
             return null;
         }
 
@@ -569,7 +569,7 @@ namespace StingTools.Core
                 if (familyName.Contains("RADIATOR") || familyName.Contains("UNDERFLOOR")) return "HTG";
                 if (familyName.Contains("CALORIFIER") || familyName.Contains("WATER HEATER")) return "DHW";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn("HWS sub-function detection failed: " + ex.Message); }
             return null;
         }
 
@@ -865,7 +865,7 @@ namespace StingTools.Core
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn("MEP system connector lookup failed: " + ex.Message); }
             return null;
         }
 
@@ -893,7 +893,7 @@ namespace StingTools.Core
                     if (!string.IsNullOrEmpty(mapped)) return mapped;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn("System type parameter lookup failed: " + ex.Message); }
             return null;
         }
 
@@ -929,7 +929,7 @@ namespace StingTools.Core
                         return "LV";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn("Electrical circuit panel lookup failed: " + ex.Message); }
             return null;
         }
 
@@ -1012,7 +1012,7 @@ namespace StingTools.Core
                     Parameter deptParam = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT);
                     if (deptParam != null) dept = (deptParam.AsString() ?? "").ToUpperInvariant();
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn("Room department parameter read failed: " + ex.Message); }
 
                 string combined = $"{roomName} {dept}";
 
@@ -1043,7 +1043,7 @@ namespace StingTools.Core
                         return "LV";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn("Room-type SYS inference failed: " + ex.Message); }
             return null;
         }
 
@@ -1125,7 +1125,7 @@ namespace StingTools.Core
                         templateName = (template.Name ?? "").ToUpperInvariant();
                 }
             }
-            catch { /* template lookup failed — proceed with view name */ }
+            catch (Exception ex) { StingLog.Warn("Template lookup failed: " + ex.Message); }
 
             string combined = $"{viewName} {templateName}";
 
@@ -1188,7 +1188,7 @@ namespace StingTools.Core
                         IsCategoryVisible(view, BuiltInCategory.OST_FireAlarmDevices))
                         detected.Add("FP");
                 }
-                catch { /* Visibility check failed — return all */ }
+                catch (Exception ex) { StingLog.Warn("Visibility check failed: " + ex.Message); }
             }
 
             // If still no disciplines detected, tag everything
@@ -1204,7 +1204,7 @@ namespace StingTools.Core
                 if (cat == null) return false;
                 return view.GetCategoryHidden(cat.Id) == false;
             }
-            catch { return true; } // Assume visible if check fails
+            catch (Exception ex) { StingLog.Warn("Category visibility check failed: " + ex.Message); return true; }
         }
 
         /// <summary>

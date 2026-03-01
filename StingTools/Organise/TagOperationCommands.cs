@@ -493,14 +493,28 @@ namespace StingTools.Organise
             View view = doc.ActiveView;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            // Red = missing, Orange = incomplete
+            // Red = missing, Orange = incomplete (line color + surface fill)
+            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(doc);
+
             var red = new OverrideGraphicSettings();
             red.SetProjectionLineColor(new Color(255, 0, 0));
             red.SetProjectionLineWeight(5);
+            if (solidFill != null)
+            {
+                red.SetSurfaceForegroundPatternId(solidFill.Id);
+                red.SetSurfaceForegroundPatternColor(new Color(255, 200, 200));
+                red.SetSurfaceTransparency(50);
+            }
 
             var orange = new OverrideGraphicSettings();
             orange.SetProjectionLineColor(new Color(255, 165, 0));
             orange.SetProjectionLineWeight(4);
+            if (solidFill != null)
+            {
+                orange.SetSurfaceForegroundPatternId(solidFill.Id);
+                orange.SetSurfaceForegroundPatternColor(new Color(255, 230, 180));
+                orange.SetSurfaceTransparency(50);
+            }
 
             int missing = 0, incomplete = 0;
 

@@ -485,7 +485,7 @@ namespace StingTools.UI
                     if (selected.Contains(tag.TaggedLocalElementId))
                         tagIds.Add(tag.Id);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn("Tag lookup failed: " + ex.Message); }
             }
             if (tagIds.Count > 0)
                 uidoc.Selection.SetElementIds(tagIds);
@@ -505,7 +505,7 @@ namespace StingTools.UI
                 if (el is IndependentTag tag)
                 {
                     try { hostIds.Add(tag.TaggedLocalElementId); }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn("Host element lookup failed: " + ex.Message); }
                 }
             }
             if (hostIds.Count > 0)
@@ -780,7 +780,7 @@ namespace StingTools.UI
                         if (cat.get_Visible(uidoc.ActiveView) == false)
                             cat.set_Visible(uidoc.ActiveView, true);
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn("Category visibility toggle failed: " + ex.Message); }
                 }
                 tx.Commit();
             }
@@ -889,7 +889,7 @@ namespace StingTools.UI
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn("Connected element lookup failed: " + ex.Message); }
             }
 
             uidoc.Selection.SetElementIds(connected.ToList());

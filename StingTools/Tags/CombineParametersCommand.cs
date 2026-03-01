@@ -297,10 +297,12 @@ namespace StingTools.Tags
                     case TaskDialogResult.CommandLink3: linkIndex = 2; break;
                     case TaskDialogResult.CommandLink4: linkIndex = 3; break;
                     default:
-                        // Cancel or close → advance page, finish if already past end
+                        // Cancel or close → if any groups selected, proceed; otherwise advance page
+                        if (selected.Count > 0)
+                            goto doneSelecting;
                         page++;
                         if (page * pageSize >= AllGroups.Length)
-                            break;
+                            goto doneSelecting; // No more pages — exit picker
                         continue;
                 }
 
@@ -314,6 +316,7 @@ namespace StingTools.Tags
                     continue; // Stay on same page for more toggles
                 }
             }
+            doneSelecting:
 
             return selected.Count > 0 ? selected : null;
         }

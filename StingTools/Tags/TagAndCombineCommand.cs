@@ -184,84 +184,91 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
                         continue;
 
-                    totalProcessed++;
-
-                    // Step 1: Auto-detect LOC from spatial data
-                    string existingLoc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
-                    if (string.IsNullOrEmpty(existingLoc))
+                    try
                     {
-                        string detectedLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (!string.IsNullOrEmpty(detectedLoc))
+                        totalProcessed++;
+
+                        // Step 1: Auto-detect LOC from spatial data
+                        string existingLoc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
+                        if (string.IsNullOrEmpty(existingLoc))
                         {
-                            ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", detectedLoc);
-                            locDetected++;
-                            populated++;
+                            string detectedLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                            if (!string.IsNullOrEmpty(detectedLoc))
+                            {
+                                ParameterHelpers.SetIfEmpty(el, "ASS_LOC_TXT", detectedLoc);
+                                locDetected++;
+                                populated++;
+                            }
+                        }
+
+                        // Step 2: Auto-detect ZONE from room data
+                        string existingZone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
+                        if (string.IsNullOrEmpty(existingZone))
+                        {
+                            string detectedZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                            if (!string.IsNullOrEmpty(detectedZone))
+                            {
+                                ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", detectedZone);
+                                zoneDetected++;
+                                populated++;
+                            }
+                        }
+
+                        // Step 3: Auto-populate tokens from category + family lookup
+                        string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                        if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc)) populated++;
+
+                        // Family-aware PROD code: check family name before falling back to category
+                        string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+                        if (!string.IsNullOrEmpty(prod))
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod)) populated++;
+
+                        // MEP system-aware SYS derivation (uses connected system name when available)
+                        string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                        if (!string.IsNullOrEmpty(sys))
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys)) populated++;
+                        string func = TagConfig.GetFuncCode(sys);
+                        if (!string.IsNullOrEmpty(func))
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func)) populated++;
+                        string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                        if (lvl != "XX")
+                            if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl)) populated++;
+
+                        // Step 4: Tag if not already complete (with collision detection)
+                        if (TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                            existingTags: tagIndex))
+                            tagged++;
+
+                        // Step 5: Combine into ALL containers (universal + discipline + material)
+                        var tokenValues = new Dictionary<string, string>();
+                        foreach (string param in allTokenParams)
+                            tokenValues[param] = ParameterHelpers.GetString(el, param);
+
+                        if (tokenValues.Values.Any(v => !string.IsNullOrEmpty(v)))
+                        {
+                            // Universal containers
+                            foreach (var (param, tokens) in universalContainers)
+                            {
+                                var parts = tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
+                                string assembled = string.Join(TagConfig.Separator, parts);
+                                if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
+                                    combined++;
+                            }
+
+                            // Discipline-specific containers (category-filtered)
+                            foreach (var (param, tokens, categories) in disciplineContainers)
+                            {
+                                if (!categories.Contains(catName)) continue;
+                                var parts = tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
+                                string assembled = string.Join(TagConfig.Separator, parts);
+                                if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
+                                    combined++;
+                            }
                         }
                     }
-
-                    // Step 2: Auto-detect ZONE from room data
-                    string existingZone = ParameterHelpers.GetString(el, "ASS_ZONE_TXT");
-                    if (string.IsNullOrEmpty(existingZone))
+                    catch (Exception ex)
                     {
-                        string detectedZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (!string.IsNullOrEmpty(detectedZone))
-                        {
-                            ParameterHelpers.SetIfEmpty(el, "ASS_ZONE_TXT", detectedZone);
-                            zoneDetected++;
-                            populated++;
-                        }
-                    }
-
-                    // Step 3: Auto-populate tokens from category + family lookup
-                    string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-                    if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", disc)) populated++;
-
-                    // Family-aware PROD code: check family name before falling back to category
-                    string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                    if (!string.IsNullOrEmpty(prod))
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod)) populated++;
-
-                    // MEP system-aware SYS derivation (uses connected system name when available)
-                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                    if (!string.IsNullOrEmpty(sys))
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys)) populated++;
-                    string func = TagConfig.GetFuncCode(sys);
-                    if (!string.IsNullOrEmpty(func))
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func)) populated++;
-                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                    if (lvl != "XX")
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl)) populated++;
-
-                    // Step 4: Tag if not already complete (with collision detection)
-                    if (TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                        existingTags: tagIndex))
-                        tagged++;
-
-                    // Step 5: Combine into ALL containers (universal + discipline + material)
-                    var tokenValues = new Dictionary<string, string>();
-                    foreach (string param in allTokenParams)
-                        tokenValues[param] = ParameterHelpers.GetString(el, param);
-
-                    if (tokenValues.Values.Any(v => !string.IsNullOrEmpty(v)))
-                    {
-                        // Universal containers
-                        foreach (var (param, tokens) in universalContainers)
-                        {
-                            var parts = tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
-                            string assembled = string.Join(TagConfig.Separator, parts);
-                            if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
-                                combined++;
-                        }
-
-                        // Discipline-specific containers (category-filtered)
-                        foreach (var (param, tokens, categories) in disciplineContainers)
-                        {
-                            if (!categories.Contains(catName)) continue;
-                            var parts = tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "").ToList();
-                            string assembled = string.Join(TagConfig.Separator, parts);
-                            if (ParameterHelpers.SetString(el, param, assembled, overwrite: true))
-                                combined++;
-                        }
+                        StingLog.Warn($"Element {id}: {ex.Message}");
                     }
                 }
 

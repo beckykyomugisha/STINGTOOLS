@@ -265,21 +265,51 @@ namespace StingTools.Select
 
         private static Result BulkSetToken(Document doc, ICollection<ElementId> selected)
         {
+            // Page 1: Choose which token to set
             TaskDialog td2 = new TaskDialog("Set Token");
             td2.MainInstruction = $"Set token on {selected.Count} elements";
-            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Set LOC to BLD1");
-            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Set ZONE to Z01");
-            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Set STATUS to NEW");
-            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Set STATUS to EXISTING");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Set LOC (Location)",
+                "BLD1, BLD2, BLD3, EXT");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Set ZONE",
+                "Z01, Z02, Z03, Z04");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Set STATUS",
+                "NEW, EXISTING, DEMOLISHED, TEMPORARY");
             td2.CommonButtons = TaskDialogCommonButtons.Cancel;
 
-            string paramName; string paramValue;
+            string paramName; string[] options;
             switch (td2.Show())
             {
-                case TaskDialogResult.CommandLink1: paramName = "ASS_LOC_TXT"; paramValue = "BLD1"; break;
-                case TaskDialogResult.CommandLink2: paramName = "ASS_ZONE_TXT"; paramValue = "Z01"; break;
-                case TaskDialogResult.CommandLink3: paramName = "ASS_STATUS_TXT"; paramValue = "NEW"; break;
-                case TaskDialogResult.CommandLink4: paramName = "ASS_STATUS_TXT"; paramValue = "EXISTING"; break;
+                case TaskDialogResult.CommandLink1:
+                    paramName = "ASS_LOC_TXT";
+                    options = new[] { "BLD1", "BLD2", "BLD3", "EXT" };
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    paramName = "ASS_ZONE_TXT";
+                    options = new[] { "Z01", "Z02", "Z03", "Z04" };
+                    break;
+                case TaskDialogResult.CommandLink3:
+                    paramName = "ASS_STATUS_TXT";
+                    options = new[] { "NEW", "EXISTING", "DEMOLISHED", "TEMPORARY" };
+                    break;
+                default: return Result.Cancelled;
+            }
+
+            // Page 2: Choose the value
+            TaskDialog td3 = new TaskDialog("Set Value");
+            td3.MainInstruction = $"Set {paramName} on {selected.Count} elements";
+            td3.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, options[0]);
+            td3.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, options[1]);
+            td3.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, options[2]);
+            td3.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, options[3]);
+            td3.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string paramValue;
+            switch (td3.Show())
+            {
+                case TaskDialogResult.CommandLink1: paramValue = options[0]; break;
+                case TaskDialogResult.CommandLink2: paramValue = options[1]; break;
+                case TaskDialogResult.CommandLink3: paramValue = options[2]; break;
+                case TaskDialogResult.CommandLink4: paramValue = options[3]; break;
                 default: return Result.Cancelled;
             }
 

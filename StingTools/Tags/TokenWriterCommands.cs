@@ -94,7 +94,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
             => TokenWriter.WriteToken(cmd, "ASS_DISCIPLINE_COD_TXT", "Discipline (DISC)",
-                new[] { "M", "E", "P", "A" });
+                new[] { "M", "E", "P", "A", "S", "FP", "LV", "G" });
     }
 
     [Transaction(TransactionMode.Manual)]
