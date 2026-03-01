@@ -243,13 +243,16 @@ namespace StingTools.UI
 
         // ── Panel data helpers ──────────────────────────────────────
 
-        /// <summary>Populate the bulk parameter combo box from handler thread.</summary>
+        /// <summary>Populate the bulk parameter combo box (thread-safe via Dispatcher).</summary>
         public void PopulateParamList(IEnumerable<string> paramNames)
         {
             if (cmbBulkParam == null) return;
-            cmbBulkParam.Items.Clear();
-            foreach (var name in paramNames)
-                cmbBulkParam.Items.Add(name);
+            Dispatcher.Invoke(() =>
+            {
+                cmbBulkParam.Items.Clear();
+                foreach (var name in paramNames)
+                    cmbBulkParam.Items.Add(name);
+            });
         }
 
         // ── Status bar helper ──────────────────────────────────────
@@ -257,13 +260,13 @@ namespace StingTools.UI
         public void UpdateStatus(string message)
         {
             if (txtStatus != null)
-                txtStatus.Text = message;
+                Dispatcher.Invoke(() => txtStatus.Text = message);
         }
 
         public void UpdateBulkStatus(string message)
         {
             if (txtBulkStatus != null)
-                txtBulkStatus.Text = message;
+                Dispatcher.Invoke(() => txtBulkStatus.Text = message);
         }
     }
 }

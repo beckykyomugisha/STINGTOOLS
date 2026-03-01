@@ -150,7 +150,7 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            var ids = new FilteredElementCollector(doc)
+            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
                 .WhereElementIsNotElementType()
                 .WherePasses(new ElementLevelFilter(levelId))
                 .ToElementIds();

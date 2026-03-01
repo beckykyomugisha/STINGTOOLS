@@ -1303,7 +1303,10 @@ namespace StingTools.Core
             var maxSeq = new Dictionary<string, int>();
             var known = new HashSet<string>(DiscMap.Keys);
 
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            foreach (Element elem in new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .WherePasses(new ElementMulticategoryFilter(
+                    SharedParamGuids.AllCategoryEnums.ToList())))
             {
                 string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
                 if (!string.IsNullOrEmpty(tag))

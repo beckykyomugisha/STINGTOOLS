@@ -730,46 +730,25 @@ namespace StingTools.Temp
                 .Cast<Grid>()
                 .ToList();
 
-            // Collect all elements
+            // Collect all taggable elements (category-filtered for performance)
             var allElements = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
+                .WherePasses(new ElementMulticategoryFilter(
+                    SharedParamGuids.AllCategoryEnums.ToList()))
                 .ToList();
 
             int tokensFilled = 0, nativesMapped = 0, formulasWritten = 0;
             int tagged = 0, combined = 0, gridRefSet = 0;
             int totalElements = 0;
 
-            // Token arrays for combine step (reuse TagAndCombine layout)
-            string[] allTokenParams = new[]
-            {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-            };
-            string[] shortIdTokens = new[]
-            {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-            };
-            string[] sysRefTokens = new[]
-            {
-                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT",
-            };
-            string[] locationTokens = new[]
-            {
-                "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
-            };
-            string[] systemTokens = new[]
-            {
-                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            };
-            string[] line1Tokens = new[]
-            {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
-            };
-            string[] line2Tokens = new[]
-            {
-                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-            };
+            // Token arrays for combine step (shared from TagConfig)
+            string[] allTokenParams = TagConfig.TokenParamNames;
+            string[] shortIdTokens = TagConfig.ShortIdTokens;
+            string[] sysRefTokens = TagConfig.SysRefTokens;
+            string[] locationTokens = TagConfig.LocationTokens;
+            string[] systemTokens = TagConfig.SystemTokens;
+            string[] line1Tokens = TagConfig.Line1Tokens;
+            string[] line2Tokens = TagConfig.Line2Tokens;
 
             var universalContainers = new (string param, string[] tokens)[]
             {
@@ -1071,7 +1050,9 @@ namespace StingTools.Temp
             Document doc = commandData.Application.ActiveUIDocument.Document;
 
             var collector = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType();
+                .WhereElementIsNotElementType()
+                .WherePasses(new ElementMulticategoryFilter(
+                    SharedParamGuids.AllCategoryEnums.ToList()));
 
             // Build spatial index for LOC/ZONE auto-detection
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);

@@ -568,15 +568,16 @@ namespace StingTools.Temp
                 string matName = cols[matIdx].Trim();
                 if (string.IsNullOrEmpty(matName)) continue;
 
+                // Skip R-value codes in material column (consistent with BuildLayers)
+                if (matName.StartsWith("R-", StringComparison.OrdinalIgnoreCase)) continue;
+
                 // Check if thickness column has a valid number
                 if (thickIdx < cols.Length)
                 {
                     string thickStr = cols[thickIdx].Trim();
                     if (!string.IsNullOrEmpty(thickStr))
                     {
-                        // R-value codes count as populated (they indicate a real layer)
-                        if (thickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase) ||
-                            (double.TryParse(thickStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) && v > 0))
+                        if (double.TryParse(thickStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) && v > 0)
                         {
                             count++;
                         }

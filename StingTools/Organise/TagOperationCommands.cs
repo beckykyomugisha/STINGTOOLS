@@ -265,6 +265,22 @@ namespace StingTools.Organise
                         tagIndex.Add(newTag);
                         ParameterHelpers.SetString(elem, "ASS_SEQ_NUM_TXT", newSeq, overwrite: true);
                         ParameterHelpers.SetString(elem, "ASS_TAG_1_TXT", newTag, overwrite: true);
+
+                        // Rebuild secondary containers to stay in sync with new tag
+                        var tokenValues = new Dictionary<string, string>();
+                        foreach (string tp in TagConfig.TokenParamNames)
+                            tokenValues[tp] = ParameterHelpers.GetString(elem, tp);
+                        ParameterHelpers.SetString(elem, "ASS_TAG_2_TXT",
+                            string.Join(TagConfig.Separator, TagConfig.ShortIdTokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
+                        ParameterHelpers.SetString(elem, "ASS_TAG_3_TXT",
+                            string.Join(TagConfig.Separator, TagConfig.LocationTokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
+                        ParameterHelpers.SetString(elem, "ASS_TAG_4_TXT",
+                            string.Join(TagConfig.Separator, TagConfig.SystemTokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
+                        ParameterHelpers.SetString(elem, "ASS_TAG_5_TXT",
+                            string.Join(TagConfig.Separator, TagConfig.Line1Tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
+                        ParameterHelpers.SetString(elem, "ASS_TAG_6_TXT",
+                            string.Join(TagConfig.Separator, TagConfig.Line2Tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
+
                         fixed_++;
                     }
                 }
@@ -1745,12 +1761,20 @@ namespace StingTools.Organise
                             elbowPos = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
                         }
 
-                        // Set elbow position via leader end + head position
+                        // Set elbow position — try to preserve leader attachment
                         var refs = tag.GetTaggedReferences();
                         if (refs != null && refs.Count > 0)
                         {
-                            tag.LeaderEndCondition = LeaderEndCondition.Free;
-                            tag.SetLeaderElbow(refs.First(), elbowPos);
+                            try
+                            {
+                                tag.SetLeaderElbow(refs.First(), elbowPos);
+                            }
+                            catch
+                            {
+                                // Some leader states require Free mode for elbow manipulation
+                                tag.LeaderEndCondition = LeaderEndCondition.Free;
+                                tag.SetLeaderElbow(refs.First(), elbowPos);
+                            }
                             snapped++;
                         }
                     }
