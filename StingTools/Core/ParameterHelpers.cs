@@ -183,6 +183,18 @@ namespace StingTools.Core
             }
             return sb.ToString();
         }
+
+        /// <summary>
+        /// Find the solid fill pattern element in the document.
+        /// Caches per document to avoid repeated collector queries.
+        /// </summary>
+        public static FillPatternElement GetSolidFillPattern(Document doc)
+        {
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(FillPatternElement))
+                .Cast<FillPatternElement>()
+                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+        }
     }
 
     /// <summary>

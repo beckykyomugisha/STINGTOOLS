@@ -932,19 +932,7 @@ namespace StingTools.UI
 
             // Find solid fill pattern
             FillPatternElement solidFill = null;
-            foreach (FillPatternElement fpe in new FilteredElementCollector(uidoc.Document)
-                .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
-            {
-                try
-                {
-                    if (fpe.GetFillPattern().IsSolidFill)
-                    {
-                        solidFill = fpe;
-                        break;
-                    }
-                }
-                catch { }
-            }
+            solidFill = ParameterHelpers.GetSolidFillPattern(uidoc.Document);
 
             using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Parameter"))
             {
@@ -991,13 +979,7 @@ namespace StingTools.UI
 
             Color color = new Color(r, g, b);
 
-            FillPatternElement solidFill = null;
-            foreach (FillPatternElement fpe in new FilteredElementCollector(uidoc.Document)
-                .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
-            {
-                try { if (fpe.GetFillPattern().IsSolidFill) { solidFill = fpe; break; } }
-                catch { }
-            }
+            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(uidoc.Document);
 
             using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Hex"))
             {

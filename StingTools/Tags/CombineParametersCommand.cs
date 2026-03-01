@@ -34,48 +34,14 @@ namespace StingTools.Tags
     [Regeneration(RegenerationOption.Manual)]
     public class CombineParametersCommand : IExternalCommand
     {
-        // ── Source token parameter names ──────────────────────────────
-        private static readonly string[] AllTokenParams = new[]
-        {
-            "ASS_DISCIPLINE_COD_TXT",  // 0: DISC
-            "ASS_LOC_TXT",             // 1: LOC
-            "ASS_ZONE_TXT",            // 2: ZONE
-            "ASS_LVL_COD_TXT",         // 3: LVL
-            "ASS_SYSTEM_TYPE_TXT",     // 4: SYS
-            "ASS_FUNC_TXT",            // 5: FUNC
-            "ASS_PRODCT_COD_TXT",      // 6: PROD
-            "ASS_SEQ_NUM_TXT",         // 7: SEQ
-        };
-
-        private static readonly string[] ShortIdTokens = new[]
-        {
-            "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT"
-        };
-
-        private static readonly string[] LocationTokens = new[]
-        {
-            "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT"
-        };
-
-        private static readonly string[] SystemTokens = new[]
-        {
-            "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT"
-        };
-
-        private static readonly string[] Line1Tokens = new[]
-        {
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT"
-        };
-
-        private static readonly string[] Line2Tokens = new[]
-        {
-            "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT"
-        };
-
-        private static readonly string[] SysRefTokens = new[]
-        {
-            "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT"
-        };
+        // ── Source token parameter names (all from TagConfig) ──────────
+        private static readonly string[] AllTokenParams = TagConfig.TokenParamNames;
+        private static readonly string[] ShortIdTokens = TagConfig.ShortIdTokens;
+        private static readonly string[] LocationTokens = TagConfig.LocationTokens;
+        private static readonly string[] SystemTokens = TagConfig.SystemTokens;
+        private static readonly string[] Line1Tokens = TagConfig.Line1Tokens;
+        private static readonly string[] Line2Tokens = TagConfig.Line2Tokens;
+        private static readonly string[] SysRefTokens = TagConfig.SysRefTokens;
 
         // ── Container group definitions ──────────────────────────────
 

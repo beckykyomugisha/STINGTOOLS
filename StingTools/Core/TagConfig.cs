@@ -332,6 +332,39 @@ namespace StingTools.Core
             "ASS_PRODCT_COD_TXT", "ASS_STATUS_TXT",
         };
 
+        /// <summary>The 8 tag-building token parameters (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ) in tag segment order.</summary>
+        public static readonly string[] TokenParamNames = new[]
+        {
+            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+        };
+
+        // ── Token sub-arrays for container combine operations ──────────────
+        /// <summary>Short ID tokens: DISC-PROD-SEQ.</summary>
+        public static readonly string[] ShortIdTokens = new[]
+        { "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" };
+
+        /// <summary>Location tokens: LOC-ZONE-LVL.</summary>
+        public static readonly string[] LocationTokens = new[]
+        { "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT" };
+
+        /// <summary>System tokens: SYS-FUNC.</summary>
+        public static readonly string[] SystemTokens = new[]
+        { "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT" };
+
+        /// <summary>Multi-line top: DISC-LOC-ZONE-LVL.</summary>
+        public static readonly string[] Line1Tokens = new[]
+        { "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT" };
+
+        /// <summary>Multi-line bottom: SYS-FUNC-PROD-SEQ.</summary>
+        public static readonly string[] Line2Tokens = new[]
+        { "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT" };
+
+        /// <summary>System reference tokens: SYS-FUNC-PROD.</summary>
+        public static readonly string[] SysRefTokens = new[]
+        { "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT" };
+
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
         public static Dictionary<string, string> DiscMap { get; private set; }
 

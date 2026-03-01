@@ -104,37 +104,14 @@ namespace StingTools.Tags
             int locDetected = 0;
             int zoneDetected = 0;
 
-            // Token parameter names for combine step
-            string[] allTokenParams = new[]
-            {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-            };
-            string[] shortIdTokens = new[]
-            {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-            };
-            string[] sysRefTokens = new[]
-            {
-                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT",
-            };
-            string[] locationTokens = new[]
-            {
-                "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
-            };
-            string[] systemTokens = new[]
-            {
-                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            };
-            string[] line1Tokens = new[]
-            {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
-            };
-            string[] line2Tokens = new[]
-            {
-                "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-            };
+            // Token parameter names for combine step (from TagConfig)
+            string[] allTokenParams = TagConfig.TokenParamNames;
+            string[] shortIdTokens = TagConfig.ShortIdTokens;
+            string[] sysRefTokens = TagConfig.SysRefTokens;
+            string[] locationTokens = TagConfig.LocationTokens;
+            string[] systemTokens = TagConfig.SystemTokens;
+            string[] line1Tokens = TagConfig.Line1Tokens;
+            string[] line2Tokens = TagConfig.Line2Tokens;
 
             // Universal containers (apply to all tagged elements)
             var universalContainers = new (string param, string[] tokens)[]

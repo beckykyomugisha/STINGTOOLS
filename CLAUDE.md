@@ -683,12 +683,12 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 
 | What | Copies | Status |
 |------|--------|--------|
-| Token parameter name arrays | 5 | AutoTag, CombineParams, PreTagAudit, ValidateTags, TagAndCombine |
-| Container definitions (36 discipline containers) | 2 | TagAndCombineCommand, CombineParametersCommand |
+| [DONE] Token parameter name arrays | 4→0 | Added `TagConfig.TokenParamNames` (8 token params); replaced duplicates in CombineParams, PreTagAudit, ValidateTags, TagAndCombine |
+| [DONE] Container definitions (36 discipline containers) | 2→shared | Token sub-arrays (ShortId/Location/System/Line1/Line2/SysRef) moved to `TagConfig`; both commands reference shared constants |
 | [DONE] Tag parameter arrays (15 clear params) | 4→0 | Added `TagConfig.AllTagParams` + `TagConfig.CopyableTokenParams` shared constants; replaced all 4 duplicates |
-| LOC/ZONE auto-populate pattern | 4 | AutoTag, BatchTag, TagNewOnly, TagAndCombine |
-| Category-to-BuiltInCategory mappings | 5+ | SharedParamGuids, ScheduleHelper, TemplateCommands, TemplateExtCommands |
-| Solid fill pattern collector | 6+ | TemplateCommands, TemplateManagerCommands (×3), StingCommandHandler (×2) |
+| [BLOCKED: code flow pattern] LOC/ZONE auto-populate pattern | 4 | Each caller has unique scope/counter logic; extracting a shared method would require passing 6+ contextual params — overhead exceeds benefit |
+| [BLOCKED: context-specific] Category-to-BIC mappings | 5+ | Each file uses subsets for different purposes (binding, scheduling, filtering); unifying would create a god-object dependency |
+| [DONE] Solid fill pattern collector | 8→0 | Added `ParameterHelpers.GetSolidFillPattern(doc)` — replaced 8 inline collectors across 3 files |
 
 **Silent Exception Swallowing:** 60+ empty `catch { }` blocks across all files violate project convention. Worst: TagConfig.cs (7), ParameterHelpers.cs (8), TemplateManagerCommands.cs (dozens), StingCommandHandler.cs (6)
 

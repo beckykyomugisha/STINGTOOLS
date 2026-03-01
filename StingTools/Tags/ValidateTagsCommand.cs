@@ -24,12 +24,7 @@ namespace StingTools.Tags
     [Regeneration(RegenerationOption.Manual)]
     public class ValidateTagsCommand : IExternalCommand
     {
-        private static readonly string[] TokenParams = new[]
-        {
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-        };
+        private static readonly string[] TokenParams = TagConfig.TokenParamNames;
 
         private static readonly string[] UniversalContainers = new[]
         {

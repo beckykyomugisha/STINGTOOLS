@@ -92,11 +92,7 @@ namespace StingTools.Tags
 
             // Token coverage
             var emptyTokenCounts = new Dictionary<string, int>();
-            string[] tokenParams = {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT"
-            };
+            string[] tokenParams = TagConfig.TokenParamNames;
             foreach (string t in tokenParams) emptyTokenCounts[t] = 0;
 
             // Family PROD intelligence
