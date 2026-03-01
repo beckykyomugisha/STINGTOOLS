@@ -453,6 +453,16 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- TAG LEGENDS — Workaround for Revit's missing Tag Legend API -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG LEGENDS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource BlueBtn}" Content="Tag Legend" Tag="CreateTagLegend" Click="Cmd_Click" ToolTip="Create tag legend showing loaded tag families per category with sample ISO 19650 tags — workaround for Revit's Legend Component limitation"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Sheet Tags" Tag="SheetTagLegend" Click="Cmd_Click" ToolTip="Create tag legend for active sheet only — shows tag families for categories on this sheet, auto-placed"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Batch Tags" Tag="BatchTagLegends" Click="Cmd_Click" ToolTip="Create per-sheet tag legends for ALL sheets — each shows only tag families for its own categories"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- ORIENTATION & TEXT ALIGNMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ORIENTATION &amp; TEXT ALIGNMENT"/>
                         <Border Style="{StaticResource GroupBorder}">

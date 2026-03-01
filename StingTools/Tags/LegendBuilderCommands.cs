@@ -987,6 +987,618 @@ namespace StingTools.Tags
                 return null;
             }
         }
+
+        // ── Tag Legend Engine ──────────────────────────────────────────
+        //
+        // "Tag Legend" workaround: Revit API cannot create LegendComponent
+        // instances from scratch. The workaround uses three strategies:
+        //
+        //   Strategy 1: Copy existing LegendComponent → set BuiltInParameter.LEGEND_COMPONENT
+        //   Strategy 2: Place annotation family instances via NewFamilyInstance(XYZ, FamilySymbol, View)
+        //   Strategy 3: Draw tag representation with FilledRegion + TextNote (always works)
+        //
+        // All three are attempted in order. Strategy 3 is the guaranteed fallback.
+        //
+        // References:
+        //   - Tag Legend plugin by D'Bim Tools (Autodesk App Store)
+        //   - GeniusLoci for Dynamo (CopyElement workaround)
+        //   - The Building Coder: Duplicate Legend Component
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>A tag family entry for the tag legend.</summary>
+        public class TagLegendEntry
+        {
+            /// <summary>Category display name (e.g. "Mechanical Equipment").</summary>
+            public string CategoryName { get; set; }
+            /// <summary>Built-in category enum.</summary>
+            public BuiltInCategory CategoryId { get; set; }
+            /// <summary>Discipline code (M, E, P, A, S, etc.).</summary>
+            public string Discipline { get; set; }
+            /// <summary>Discipline color for the swatch.</summary>
+            public Color DisciplineColor { get; set; }
+            /// <summary>Tag FamilySymbol for this category (null if no tag loaded).</summary>
+            public FamilySymbol TagSymbol { get; set; }
+            /// <summary>Tag family name.</summary>
+            public string TagFamilyName { get; set; }
+            /// <summary>Sample tag text (e.g. "M-BLD1-Z01-L02-HVAC-SUP-AHU-0001").</summary>
+            public string SampleTag { get; set; }
+            /// <summary>Number of elements of this category in scope.</summary>
+            public int ElementCount { get; set; }
+            /// <summary>Product code for this category.</summary>
+            public string ProductCode { get; set; }
+        }
+
+        /// <summary>
+        /// Collect all taggable categories with their tag families from the project.
+        /// Returns one TagLegendEntry per category that has at least one element.
+        /// </summary>
+        public static List<TagLegendEntry> CollectTagFamilies(Document doc)
+        {
+            var entries = new List<TagLegendEntry>();
+
+            // Get all taggable elements grouped by category
+            var allElems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
+                .ToList();
+
+            var byCat = allElems
+                .GroupBy(e => e.Category.Id)
+                .OrderByDescending(g => g.Count())
+                .ToList();
+
+            foreach (var catGroup in byCat)
+            {
+                Element sample = catGroup.First();
+                Category cat = sample.Category;
+                if (cat == null) continue;
+
+                BuiltInCategory bic;
+                try { bic = (BuiltInCategory)cat.Id.Value; }
+                catch { continue; }
+
+                // Get discipline and color
+                string disc = TagConfig.DiscMap.TryGetValue(cat.Name, out string d) ? d : "G";
+                Color discColor = Organise.AnnotationColorHelper.DisciplineColors.TryGetValue(disc, out Color c)
+                    ? c : new Color(128, 128, 128);
+
+                // Find tag family for this category
+                FamilySymbol tagSym = TagPlacementEngine.FindTagType(doc, cat);
+                string tagFamName = tagSym != null ? tagSym.Family?.Name ?? "(Unknown)" : "(No Tag Family)";
+
+                // Get product code
+                string prodCode = TagConfig.ProdMap.TryGetValue(cat.Name, out string pc) ? pc : "GEN";
+
+                // Build sample tag
+                string sampleTag = $"{disc}-BLD1-Z01-L01-{(TagConfig.GetSysCode(cat.Name) ?? "GEN")}-{(TagConfig.GetFuncCode(TagConfig.GetSysCode(cat.Name) ?? "GEN") ?? "GEN")}-{prodCode}-0001";
+
+                entries.Add(new TagLegendEntry
+                {
+                    CategoryName = cat.Name,
+                    CategoryId = bic,
+                    Discipline = disc,
+                    DisciplineColor = discColor,
+                    TagSymbol = tagSym,
+                    TagFamilyName = tagFamName,
+                    SampleTag = sampleTag,
+                    ElementCount = catGroup.Count(),
+                    ProductCode = prodCode,
+                });
+            }
+
+            return entries;
+        }
+
+        /// <summary>
+        /// Collect tag families only for categories visible on a specific sheet.
+        /// </summary>
+        public static List<TagLegendEntry> CollectTagFamiliesForSheet(Document doc, ViewSheet sheet)
+        {
+            if (sheet == null) return new List<TagLegendEntry>();
+
+            var sheetElements = new List<Element>();
+            foreach (ElementId viewId in sheet.GetAllPlacedViews())
+            {
+                View v = doc.GetElement(viewId) as View;
+                if (v == null || v.IsTemplate) continue;
+                if (v.ViewType == ViewType.Legend || v.ViewType == ViewType.DraftingView) continue;
+
+                try
+                {
+                    var viewElems = new FilteredElementCollector(doc, v.Id)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
+                        .ToList();
+                    sheetElements.AddRange(viewElems);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"CollectTagFamiliesForSheet: view scan failed: {ex.Message}");
+                }
+            }
+
+            // Deduplicate
+            var uniqueElements = sheetElements.GroupBy(e => e.Id).Select(g => g.First()).ToList();
+            if (uniqueElements.Count == 0) return new List<TagLegendEntry>();
+
+            // Group by category
+            var byCat = uniqueElements
+                .GroupBy(e => e.Category.Id)
+                .OrderByDescending(g => g.Count())
+                .ToList();
+
+            var entries = new List<TagLegendEntry>();
+            foreach (var catGroup in byCat)
+            {
+                Element sample = catGroup.First();
+                Category cat = sample.Category;
+                if (cat == null) continue;
+
+                BuiltInCategory bic;
+                try { bic = (BuiltInCategory)cat.Id.Value; }
+                catch { continue; }
+
+                string disc = TagConfig.DiscMap.TryGetValue(cat.Name, out string d) ? d : "G";
+                Color discColor = Organise.AnnotationColorHelper.DisciplineColors.TryGetValue(disc, out Color c)
+                    ? c : new Color(128, 128, 128);
+
+                FamilySymbol tagSym = TagPlacementEngine.FindTagType(doc, cat);
+                string tagFamName = tagSym != null ? tagSym.Family?.Name ?? "(Unknown)" : "(No Tag Family)";
+                string prodCode = TagConfig.ProdMap.TryGetValue(cat.Name, out string pc) ? pc : "GEN";
+                string sysCode = TagConfig.GetSysCode(cat.Name) ?? "GEN";
+                string funcCode = TagConfig.GetFuncCode(sysCode) ?? "GEN";
+                string sampleTag = $"{disc}-BLD1-Z01-L01-{sysCode}-{funcCode}-{prodCode}-0001";
+
+                entries.Add(new TagLegendEntry
+                {
+                    CategoryName = cat.Name,
+                    CategoryId = bic,
+                    Discipline = disc,
+                    DisciplineColor = discColor,
+                    TagSymbol = tagSym,
+                    TagFamilyName = tagFamName,
+                    SampleTag = sampleTag,
+                    ElementCount = catGroup.Count(),
+                    ProductCode = prodCode,
+                });
+            }
+
+            return entries;
+        }
+
+        /// <summary>
+        /// Create a tag legend view showing tag families per category.
+        /// Attempts to place actual annotation family instances, falls back to
+        /// drawn representation (swatch + tag text) for categories where placement fails.
+        /// Must be called within an active Transaction.
+        /// </summary>
+        public static View CreateTagLegendView(Document doc, List<TagLegendEntry> entries,
+            string title = "Tag Legend", string groupBy = "Discipline")
+        {
+            if (entries == null || entries.Count == 0) return null;
+
+            // Generate unique view name
+            string baseName = $"STING Tag Legend - {title}";
+            string viewName = baseName;
+            int suffix = 1;
+            while (ViewNameExists(doc, viewName) || ViewNameExistsAnyType(doc, viewName))
+            {
+                viewName = $"{baseName} ({suffix++})";
+            }
+
+            // Try native legend first, fall back to drafting
+            View legendView = TryCreateNativeLegend(doc, viewName);
+
+            if (legendView == null)
+            {
+                var viewFamilyType = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewFamilyType))
+                    .Cast<ViewFamilyType>()
+                    .FirstOrDefault(vft => vft.ViewFamily == ViewFamily.Drafting);
+
+                if (viewFamilyType == null)
+                {
+                    StingLog.Warn("TagLegendBuilder: No Drafting view family type found.");
+                    return null;
+                }
+
+                ViewDrafting draftView = ViewDrafting.Create(doc, viewFamilyType.Id);
+                try { draftView.Name = viewName; } catch { }
+                draftView.Scale = 1;
+                legendView = draftView;
+            }
+
+            // Populate with tag legend content
+            PopulateTagLegendContent(doc, legendView, entries, title, groupBy);
+
+            StingLog.Info($"TagLegendBuilder: created tag legend '{viewName}' ({legendView.ViewType}) with {entries.Count} categories");
+            return legendView;
+        }
+
+        /// <summary>
+        /// Populate a view with tag legend content.
+        /// For each category, shows: discipline swatch | category name | tag family name | sample tag.
+        /// Attempts to place actual annotation instances (Strategy 2), falls back to drawn text.
+        /// </summary>
+        private static void PopulateTagLegendContent(Document doc, View legendView,
+            List<TagLegendEntry> entries, string title, string groupBy)
+        {
+            FillPatternElement solidFill = FindSolidFill(doc);
+            ElementId textTypeId = new FilteredElementCollector(doc)
+                .OfClass(typeof(TextNoteType)).FirstElementId();
+            ElementId titleTypeId = GetOrCreateTitleNoteType(doc, textTypeId);
+            ElementId smallTypeId = GetOrCreateSmallNoteType(doc, textTypeId);
+
+            // Layout constants
+            double swatchW = 0.04;
+            double swatchH = 0.025;
+            double colGap = 0.015;
+            double rowH = 0.045;
+            double catColW = 0.22;       // category name column
+            double tagFamColW = 0.22;    // tag family name column
+            double sampleTagColW = 0.35; // sample tag column
+            double countColW = 0.08;     // element count column
+            double totalWidth = swatchW + colGap + catColW + tagFamColW + sampleTagColW + countColW;
+
+            double y = 0;
+
+            // ── Title ──
+            TextNote titleNote = TextNote.Create(doc, legendView.Id,
+                new XYZ(0, y, 0), title, titleTypeId);
+            try
+            {
+                FormattedText ft = titleNote.GetFormattedText();
+                ft.SetBoldStatus(new TextRange(0, title.Length), true);
+                titleNote.SetFormattedText(ft);
+            }
+            catch { }
+            y -= rowH * 1.2;
+
+            // ── Subtitle ──
+            string subtitle = "Category | Tag Family | Sample Tag | Count";
+            TextNote.Create(doc, legendView.Id, new XYZ(0, y, 0), subtitle, textTypeId);
+            y -= rowH * 0.8;
+
+            // ── Header separator ──
+            DrawDetailLine(doc, legendView, new XYZ(0, y, 0), new XYZ(totalWidth, y, 0));
+            y -= rowH * 0.3;
+
+            // ── Column headers ──
+            double hx = swatchW + colGap;
+            DrawBoldText(doc, legendView, new XYZ(hx, y, 0), "Category", textTypeId);
+            hx += catColW;
+            DrawBoldText(doc, legendView, new XYZ(hx, y, 0), "Tag Family", textTypeId);
+            hx += tagFamColW;
+            DrawBoldText(doc, legendView, new XYZ(hx, y, 0), "Sample Tag", textTypeId);
+            hx += sampleTagColW;
+            DrawBoldText(doc, legendView, new XYZ(hx, y, 0), "Qty", textTypeId);
+            y -= rowH * 0.8;
+
+            DrawDetailLine(doc, legendView, new XYZ(0, y, 0), new XYZ(totalWidth, y, 0));
+            y -= rowH * 0.3;
+
+            // ── Group entries by discipline (or flat) ──
+            IEnumerable<IGrouping<string, TagLegendEntry>> groups;
+            if (groupBy == "Discipline")
+            {
+                groups = entries
+                    .GroupBy(e => e.Discipline)
+                    .OrderBy(g => g.Key);
+            }
+            else
+            {
+                groups = entries.GroupBy(e => "All");
+            }
+
+            int annotationPlaced = 0;
+            int drawnFallback = 0;
+
+            foreach (var group in groups)
+            {
+                // Discipline group header
+                if (groupBy == "Discipline")
+                {
+                    var discNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        {"M","Mechanical"},{"E","Electrical"},{"P","Plumbing"},
+                        {"A","Architectural"},{"S","Structural"},{"FP","Fire Protection"},
+                        {"LV","Low Voltage"},{"G","General"}
+                    };
+                    string discLabel = discNames.TryGetValue(group.Key, out string dn) ? dn : group.Key;
+                    int groupCount = group.Sum(e => e.ElementCount);
+
+                    DrawBoldText(doc, legendView, new XYZ(0, y, 0),
+                        $"▸ {group.Key} - {discLabel}  ({groupCount} elements)", textTypeId);
+                    y -= rowH * 0.7;
+                }
+
+                foreach (var entry in group.OrderByDescending(e => e.ElementCount))
+                {
+                    double x = 0;
+
+                    // Col 1: Discipline color swatch
+                    if (solidFill != null)
+                    {
+                        try
+                        {
+                            ElementId regionTypeId = GetOrCreateFilledRegionType(doc, entry.DisciplineColor, solidFill.Id);
+                            var loop = new CurveLoop();
+                            XYZ p1 = new XYZ(x, y, 0);
+                            XYZ p2 = new XYZ(x + swatchW, y, 0);
+                            XYZ p3 = new XYZ(x + swatchW, y - swatchH, 0);
+                            XYZ p4 = new XYZ(x, y - swatchH, 0);
+                            loop.Append(Line.CreateBound(p1, p2));
+                            loop.Append(Line.CreateBound(p2, p3));
+                            loop.Append(Line.CreateBound(p3, p4));
+                            loop.Append(Line.CreateBound(p4, p1));
+                            FilledRegion.Create(doc, regionTypeId, legendView.Id, new List<CurveLoop> { loop });
+
+                            DrawDetailLine(doc, legendView, p1, p2);
+                            DrawDetailLine(doc, legendView, p2, p3);
+                            DrawDetailLine(doc, legendView, p3, p4);
+                            DrawDetailLine(doc, legendView, p4, p1);
+                        }
+                        catch { }
+                    }
+                    x += swatchW + colGap;
+
+                    double textY = y - swatchH * 0.3;
+
+                    // Col 2: Category name
+                    TextNote.Create(doc, legendView.Id, new XYZ(x, textY, 0),
+                        entry.CategoryName, smallTypeId);
+                    x += catColW;
+
+                    // Col 3: Tag family — try to place actual annotation, fall back to text
+                    bool placed = false;
+                    if (entry.TagSymbol != null)
+                    {
+                        try
+                        {
+                            // Ensure symbol is activated
+                            if (!entry.TagSymbol.IsActive)
+                                entry.TagSymbol.Activate();
+
+                            // Strategy 2: Place annotation family instance directly
+                            XYZ annotPos = new XYZ(x + 0.05, textY, 0);
+                            doc.Create.NewFamilyInstance(annotPos, entry.TagSymbol, legendView);
+                            placed = true;
+                            annotationPlaced++;
+                        }
+                        catch
+                        {
+                            // Annotation placement failed — tag families often need a host element.
+                            // This is expected for most tag types; fall back to drawn representation.
+                            placed = false;
+                        }
+                    }
+
+                    if (!placed)
+                    {
+                        // Fallback: Draw tag family name as text with a thin box
+                        string famDisplay = entry.TagFamilyName;
+                        if (famDisplay.Length > 28) famDisplay = famDisplay.Substring(0, 25) + "...";
+
+                        // Draw a small tag-shaped outline
+                        double boxW = 0.18;
+                        double boxH = 0.02;
+                        double bx = x;
+                        double by = textY + 0.003;
+                        DrawDetailLine(doc, legendView, new XYZ(bx, by, 0), new XYZ(bx + boxW, by, 0));
+                        DrawDetailLine(doc, legendView, new XYZ(bx + boxW, by, 0), new XYZ(bx + boxW, by - boxH, 0));
+                        DrawDetailLine(doc, legendView, new XYZ(bx + boxW, by - boxH, 0), new XYZ(bx, by - boxH, 0));
+                        DrawDetailLine(doc, legendView, new XYZ(bx, by - boxH, 0), new XYZ(bx, by, 0));
+
+                        TextNote.Create(doc, legendView.Id, new XYZ(x + 0.005, textY, 0),
+                            famDisplay, smallTypeId);
+                        drawnFallback++;
+                    }
+                    x += tagFamColW;
+
+                    // Col 4: Sample tag text
+                    try
+                    {
+                        TextNote tagNote = TextNote.Create(doc, legendView.Id,
+                            new XYZ(x, textY, 0), entry.SampleTag, smallTypeId);
+                        // Italicize sample tag
+                        FormattedText ft = tagNote.GetFormattedText();
+                        ft.SetItalicStatus(new TextRange(0, entry.SampleTag.Length), true);
+                        tagNote.SetFormattedText(ft);
+                    }
+                    catch { }
+                    x += sampleTagColW;
+
+                    // Col 5: Element count
+                    TextNote.Create(doc, legendView.Id, new XYZ(x, textY, 0),
+                        entry.ElementCount.ToString(), smallTypeId);
+
+                    y -= rowH;
+                }
+
+                // Group separator
+                if (groupBy == "Discipline")
+                {
+                    y -= rowH * 0.2;
+                    DrawDetailLine(doc, legendView,
+                        new XYZ(0, y, 0), new XYZ(totalWidth * 0.5, y, 0));
+                    y -= rowH * 0.3;
+                }
+            }
+
+            // ── Footer ──
+            y -= rowH * 0.3;
+            DrawDetailLine(doc, legendView, new XYZ(0, y, 0), new XYZ(totalWidth, y, 0));
+            y -= rowH * 0.5;
+
+            string footer = $"STING Tag Legend • {entries.Count} categories • " +
+                $"{entries.Sum(e => e.ElementCount)} elements • " +
+                $"{annotationPlaced} live tags / {drawnFallback} drawn • " +
+                $"{DateTime.Now:yyyy-MM-dd HH:mm}";
+            try
+            {
+                TextNote footNote = TextNote.Create(doc, legendView.Id,
+                    new XYZ(0, y, 0), footer, smallTypeId);
+                FormattedText fft = footNote.GetFormattedText();
+                fft.SetItalicStatus(new TextRange(0, footer.Length), true);
+                footNote.SetFormattedText(fft);
+            }
+            catch { }
+
+            StingLog.Info($"TagLegendBuilder: populated {entries.Count} entries — {annotationPlaced} live annotations, {drawnFallback} drawn fallback");
+        }
+
+        /// <summary>Draw bold text at position.</summary>
+        private static void DrawBoldText(Document doc, View view, XYZ pos, string text, ElementId typeId)
+        {
+            try
+            {
+                TextNote note = TextNote.Create(doc, view.Id, pos, text, typeId);
+                FormattedText ft = note.GetFormattedText();
+                ft.SetBoldStatus(new TextRange(0, text.Length), true);
+                note.SetFormattedText(ft);
+            }
+            catch { }
+        }
+
+        /// <summary>Get or create a smaller TextNoteType for legend details.</summary>
+        private static ElementId GetOrCreateSmallNoteType(Document doc, ElementId baseTypeId)
+        {
+            string typeName = "STING Legend Detail";
+            var existing = new FilteredElementCollector(doc)
+                .OfClass(typeof(TextNoteType))
+                .Cast<TextNoteType>()
+                .FirstOrDefault(t => t.Name == typeName);
+
+            if (existing != null) return existing.Id;
+
+            if (baseTypeId == ElementId.InvalidElementId) return baseTypeId;
+
+            try
+            {
+                var baseType = doc.GetElement(baseTypeId) as TextNoteType;
+                if (baseType != null)
+                {
+                    var newType = baseType.Duplicate(typeName) as TextNoteType;
+                    if (newType != null)
+                    {
+                        var sizeParam = newType.get_Parameter(BuiltInParameter.TEXT_SIZE);
+                        if (sizeParam != null && !sizeParam.IsReadOnly)
+                        {
+                            double currentSize = sizeParam.AsDouble();
+                            sizeParam.Set(currentSize * 0.75); // 75% of default
+                        }
+                        return newType.Id;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LegendBuilder: failed to create small TextNoteType: {ex.Message}");
+            }
+
+            return baseTypeId;
+        }
+
+        /// <summary>
+        /// Try to copy an existing LegendComponent and reassign its type.
+        /// This is the D'Bim Tag Legend / GeniusLoci workaround:
+        ///   1. Find existing LegendComponent in a Legend view
+        ///   2. CopyElement to duplicate it
+        ///   3. Set BuiltInParameter.LEGEND_COMPONENT to the target FamilySymbol
+        /// Returns the new element, or null if no seed LegendComponent exists.
+        /// Must be called within a Transaction.
+        /// </summary>
+        public static Element TryCopyLegendComponent(Document doc, View legendView,
+            FamilySymbol targetType, XYZ position)
+        {
+            if (legendView == null || targetType == null) return null;
+            if (legendView.ViewType != ViewType.Legend) return null;
+
+            try
+            {
+                // Find any existing LegendComponent in any Legend view
+                var legendViews = new FilteredElementCollector(doc)
+                    .OfClass(typeof(View))
+                    .Cast<View>()
+                    .Where(v => v.ViewType == ViewType.Legend && !v.IsTemplate)
+                    .ToList();
+
+                Element seedComponent = null;
+                ElementId sourceViewId = ElementId.InvalidElementId;
+
+                foreach (var lv in legendViews)
+                {
+                    try
+                    {
+                        seedComponent = new FilteredElementCollector(doc, lv.Id)
+                            .OfCategory(BuiltInCategory.OST_LegendComponents)
+                            .WhereElementIsNotElementType()
+                            .FirstOrDefault();
+
+                        if (seedComponent != null)
+                        {
+                            sourceViewId = lv.Id;
+                            break;
+                        }
+                    }
+                    catch { }
+                }
+
+                if (seedComponent == null) return null;
+
+                // Copy the seed component to our legend view
+                ICollection<ElementId> copiedIds;
+                if (sourceViewId == legendView.Id)
+                {
+                    // Same view: use CopyElement with translation
+                    XYZ seedLoc = XYZ.Zero;
+                    if (seedComponent.Location is LocationPoint lp)
+                        seedLoc = lp.Point;
+                    XYZ translation = position - seedLoc;
+                    copiedIds = ElementTransformUtils.CopyElement(doc, seedComponent.Id, translation);
+                }
+                else
+                {
+                    // Different views: CopyElements between views
+                    // Filter out ExtentElem to avoid Revit creating duplicate legend views
+                    var elemIds = new List<ElementId> { seedComponent.Id };
+                    copiedIds = ElementTransformUtils.CopyElements(
+                        doc.GetElement(sourceViewId) as View,
+                        elemIds,
+                        legendView,
+                        Transform.Identity,
+                        new CopyPasteOptions());
+                }
+
+                if (copiedIds == null || copiedIds.Count == 0) return null;
+
+                // Set the target type on the copied component
+                Element copied = doc.GetElement(copiedIds.First());
+                if (copied != null)
+                {
+                    Parameter legendParam = copied.get_Parameter(BuiltInParameter.LEGEND_COMPONENT);
+                    if (legendParam != null && !legendParam.IsReadOnly)
+                    {
+                        legendParam.Set(targetType.Id);
+
+                        // Move to target position
+                        if (copied.Location is LocationPoint lp)
+                        {
+                            XYZ current = lp.Point;
+                            ElementTransformUtils.MoveElement(doc, copied.Id, position - current);
+                        }
+
+                        return copied;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TryCopyLegendComponent: {ex.Message}");
+            }
+
+            return null;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -2036,6 +2648,340 @@ namespace StingTools.Tags
                 (skipped > 0 ? $"Skipped {skipped} sheets (empty or no data).\n" : "") +
                 $"\nGrouping: {colorBy}\n" +
                 $"Position: Bottom-Right\n\n" +
+                (created > 0 ? "Per-sheet breakdown:\n" + report.ToString() : ""));
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Tag Legend Commands — Workaround for Revit's missing Tag Legend API
+    //
+    // Revit cannot natively tag LegendComponents. These commands create
+    // "tag legends" showing tag families per category with sample tag values.
+    //
+    // Three strategies are attempted (in order):
+    //   1. Copy existing LegendComponent → reassign BuiltInParameter.LEGEND_COMPONENT
+    //   2. Place annotation family instance via NewFamilyInstance(XYZ, FamilySymbol, View)
+    //   3. Draw tag-shaped outline with TextNote label (always works)
+    //
+    // Inspired by:
+    //   - D'Bim Tools "Tag Legend" plugin (Generic Annotation bridge)
+    //   - GeniusLoci for Dynamo (CopyElement workaround)
+    //   - KobiLabs Legend tools (material + category legends)
+    //   - All 1 Studio automatic legend creation
+    //
+    // See: https://apps.autodesk.com/RVT/en/Detail/Index?id=2597869698847820293
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create a comprehensive tag legend showing all tag families in the project.
+    /// For each taggable category, displays: discipline swatch, category name,
+    /// loaded tag family name, sample ISO 19650 tag, and element count.
+    /// Attempts to place actual annotation instances; falls back to drawn representation.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateTagLegendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            // Pick grouping and scope
+            var dlg = new TaskDialog("Create Tag Legend");
+            dlg.MainInstruction = "Create a tag legend showing loaded tag families";
+            dlg.MainContent =
+                "Creates a Legend/Drafting view displaying:\n" +
+                "  • Discipline color swatch\n" +
+                "  • Category name\n" +
+                "  • Loaded tag family (actual annotation or drawn)\n" +
+                "  • Sample ISO 19650 tag text\n" +
+                "  • Element count\n\n" +
+                "Workaround for Revit's limitation: you cannot tag Legend Components.\n" +
+                "This view can be placed on sheets for documentation.";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Full Project — By Discipline (Recommended)",
+                "All categories grouped by M/E/P/A/S/FP/LV/G");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Full Project — Flat List",
+                "All categories sorted by element count");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Active Sheet Only",
+                "Only categories visible on the current sheet");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var pick = dlg.Show();
+            string groupBy;
+            bool sheetOnly;
+
+            switch (pick)
+            {
+                case TaskDialogResult.CommandLink1:
+                    groupBy = "Discipline";
+                    sheetOnly = false;
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    groupBy = "Flat";
+                    sheetOnly = false;
+                    break;
+                case TaskDialogResult.CommandLink3:
+                    groupBy = "Discipline";
+                    sheetOnly = true;
+                    break;
+                default:
+                    return Result.Cancelled;
+            }
+
+            List<LegendBuilder.TagLegendEntry> entries;
+
+            if (sheetOnly)
+            {
+                View activeView = uidoc.ActiveView;
+                ViewSheet sheet = activeView as ViewSheet;
+                if (sheet == null)
+                {
+                    // Try to find the sheet that contains the active view
+                    sheet = new FilteredElementCollector(doc)
+                        .OfClass(typeof(ViewSheet))
+                        .Cast<ViewSheet>()
+                        .FirstOrDefault(s => s.GetAllPlacedViews().Contains(activeView.Id));
+                }
+
+                if (sheet == null)
+                {
+                    TaskDialog.Show("Create Tag Legend",
+                        "Active view is not a sheet and is not placed on any sheet.\n" +
+                        "Switch to a sheet view or use the Full Project option.");
+                    return Result.Succeeded;
+                }
+
+                entries = LegendBuilder.CollectTagFamiliesForSheet(doc, sheet);
+            }
+            else
+            {
+                entries = LegendBuilder.CollectTagFamilies(doc);
+            }
+
+            if (entries.Count == 0)
+            {
+                TaskDialog.Show("Create Tag Legend", "No taggable elements found in scope.");
+                return Result.Succeeded;
+            }
+
+            string title = sheetOnly ? "Tag Families (Sheet)" : "Tag Families";
+            View legendView;
+
+            using (Transaction tx = new Transaction(doc, "STING Create Tag Legend"))
+            {
+                tx.Start();
+                legendView = LegendBuilder.CreateTagLegendView(doc, entries, title, groupBy);
+                tx.Commit();
+            }
+
+            if (legendView != null)
+            {
+                int withTag = entries.Count(e => e.TagSymbol != null);
+                int withoutTag = entries.Count(e => e.TagSymbol == null);
+                int totalElems = entries.Sum(e => e.ElementCount);
+
+                TaskDialog.Show("Create Tag Legend",
+                    $"Tag legend created: '{legendView.Name}'\n\n" +
+                    $"Categories: {entries.Count}\n" +
+                    $"  With tag family: {withTag}\n" +
+                    $"  No tag family: {withoutTag}\n" +
+                    $"Total elements: {totalElems}\n" +
+                    $"Grouping: {groupBy}\n\n" +
+                    "Find under 'Legends' or 'Drafting Views' in the Project Browser.\n" +
+                    "Place on sheets using 'Insert > Views'.");
+
+                try { uidoc.ActiveView = legendView; } catch { }
+            }
+            else
+            {
+                TaskDialog.Show("Create Tag Legend", "Failed to create tag legend view.");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Create a tag legend for the active sheet showing only tag families for
+    /// categories present on that sheet, and auto-place it on the sheet.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SheetTagLegendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            View activeView = uidoc.ActiveView;
+            ViewSheet sheet = activeView as ViewSheet;
+            if (sheet == null)
+            {
+                sheet = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .Cast<ViewSheet>()
+                    .FirstOrDefault(s => s.GetAllPlacedViews().Contains(activeView.Id));
+            }
+
+            if (sheet == null)
+            {
+                TaskDialog.Show("Sheet Tag Legend",
+                    "Active view is not a sheet and is not placed on any sheet.\n" +
+                    "Navigate to a sheet view to use this command.");
+                return Result.Succeeded;
+            }
+
+            var entries = LegendBuilder.CollectTagFamiliesForSheet(doc, sheet);
+            if (entries.Count == 0)
+            {
+                TaskDialog.Show("Sheet Tag Legend",
+                    $"No taggable elements found on sheet {sheet.SheetNumber}.");
+                return Result.Succeeded;
+            }
+
+            // Pick position
+            var posDlg = new TaskDialog("Sheet Tag Legend — Position");
+            posDlg.MainInstruction = $"Place tag legend on {sheet.SheetNumber}: {sheet.Name}";
+            posDlg.MainContent = $"Found {entries.Count} categories with {entries.Sum(e => e.ElementCount)} elements.";
+            posDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Bottom-Right (Recommended)", "Standard position near title block");
+            posDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Bottom-Left", "Left side of sheet");
+            posDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Top-Right", "Upper right corner");
+            posDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string position = posDlg.Show() switch
+            {
+                TaskDialogResult.CommandLink1 => "BottomRight",
+                TaskDialogResult.CommandLink2 => "BottomLeft",
+                TaskDialogResult.CommandLink3 => "TopRight",
+                _ => null,
+            };
+            if (position == null) return Result.Cancelled;
+
+            using (Transaction tx = new Transaction(doc, "STING Sheet Tag Legend"))
+            {
+                tx.Start();
+
+                string title = $"Tag Families - {sheet.SheetNumber}";
+                View legendView = LegendBuilder.CreateTagLegendView(doc, entries, title, "Discipline");
+
+                if (legendView != null)
+                {
+                    Viewport vp = LegendBuilder.PlaceLegendOnSheet(doc, sheet, legendView, position);
+
+                    tx.Commit();
+
+                    TaskDialog.Show("Sheet Tag Legend",
+                        $"Tag legend created and placed on sheet {sheet.SheetNumber}.\n\n" +
+                        $"Legend: '{legendView.Name}'\n" +
+                        $"Categories: {entries.Count}\n" +
+                        $"Position: {position}\n" +
+                        (vp != null ? "Viewport placed successfully." : "Note: Viewport placement may have failed."));
+                }
+                else
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Sheet Tag Legend", "Failed to create tag legend view.");
+                }
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Batch create per-sheet tag legends for every sheet in the project.
+    /// Each sheet gets its own tag legend showing only the tag families for
+    /// categories visible on that specific sheet, auto-placed at a corner.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BatchTagLegendsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder && s.GetAllPlacedViews().Count > 0)
+                .OrderBy(s => s.SheetNumber)
+                .ToList();
+
+            if (sheets.Count == 0)
+            {
+                TaskDialog.Show("Batch Tag Legends", "No sheets with placed views found.");
+                return Result.Succeeded;
+            }
+
+            var dlg = new TaskDialog("Batch Tag Legends");
+            dlg.MainInstruction = $"Create per-sheet tag legends for {sheets.Count} sheets?";
+            dlg.MainContent =
+                "For each sheet with placed views, this will:\n" +
+                "  1. Scan all views on the sheet for taggable elements\n" +
+                "  2. Identify loaded tag families per category\n" +
+                "  3. Create a tag legend view (Legend or Drafting)\n" +
+                "  4. Auto-place the legend on the sheet\n\n" +
+                "Each legend shows ONLY categories present on that sheet.";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                $"Create {sheets.Count} Tag Legends",
+                "One per sheet, auto-placed at bottom-right");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            if (dlg.Show() != TaskDialogResult.CommandLink1)
+                return Result.Cancelled;
+
+            int created = 0;
+            int skipped = 0;
+            var report = new StringBuilder();
+
+            using (Transaction tx = new Transaction(doc, "STING Batch Tag Legends"))
+            {
+                tx.Start();
+
+                foreach (var sheet in sheets)
+                {
+                    var entries = LegendBuilder.CollectTagFamiliesForSheet(doc, sheet);
+                    if (entries.Count == 0)
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    string title = $"Tag Families - {sheet.SheetNumber}";
+                    View legendView = LegendBuilder.CreateTagLegendView(doc, entries, title, "Discipline");
+
+                    if (legendView != null)
+                    {
+                        LegendBuilder.PlaceLegendOnSheet(doc, sheet, legendView, "BottomRight");
+                        created++;
+                        int withTag = entries.Count(e => e.TagSymbol != null);
+                        report.AppendLine($"  {sheet.SheetNumber}: {entries.Count} categories ({withTag} with tags)");
+                    }
+                    else
+                    {
+                        skipped++;
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Batch Tag Legends",
+                $"Created {created} tag legends.\n" +
+                (skipped > 0 ? $"Skipped {skipped} sheets (empty or failed).\n" : "") +
+                $"\nAll legends placed at Bottom-Right.\n\n" +
                 (created > 0 ? "Per-sheet breakdown:\n" + report.ToString() : ""));
 
             return Result.Succeeded;

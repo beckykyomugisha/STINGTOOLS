@@ -169,6 +169,9 @@ namespace StingTools.UI
                     case "SheetContextLegend": RunCommand<Tags.SheetContextLegendCommand>(app); break;
                     case "PlaceLegendOnAllSheets": RunCommand<Tags.PlaceLegendOnAllSheetsCommand>(app); break;
                     case "BatchSheetContextLegends": RunCommand<Tags.BatchSheetContextLegendsCommand>(app); break;
+                    case "CreateTagLegend": RunCommand<Tags.CreateTagLegendCommand>(app); break;
+                    case "SheetTagLegend": RunCommand<Tags.SheetTagLegendCommand>(app); break;
+                    case "BatchTagLegends": RunCommand<Tags.BatchTagLegendsCommand>(app); break;
 
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
