@@ -193,6 +193,11 @@ namespace StingTools.UI
                     case "StatusLegend": RunCommand<Tags.StatusLegendCommand>(app); break;
                     case "WorksetLegend": RunCommand<Tags.WorksetLegendCommand>(app); break;
 
+                    // ── System Parameter Push ──
+                    case "SystemParamPush": RunCommand<Tags.SystemParamPushCommand>(app); break;
+                    case "BatchSystemPush": RunCommand<Tags.BatchSystemPushCommand>(app); break;
+                    case "SelectSystemElements": RunCommand<Tags.SelectSystemElementsCommand>(app); break;
+
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
                     case "FlipTags":

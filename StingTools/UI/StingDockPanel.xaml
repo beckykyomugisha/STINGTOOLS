@@ -502,6 +502,16 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- SYSTEM PARAMETER PUSH -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SYSTEM PARAM PUSH"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="★ Push Sys" Tag="SystemParamPush" Click="Cmd_Click" ToolTip="Push STING parameters to all untagged elements in a selected MEP system (Hybrid/Inherit/Derive/FullAuto modes)"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Batch All" Tag="BatchSystemPush" Click="Cmd_Click" ToolTip="Scan entire project for MEP systems with untagged elements and batch-push parameters across all systems"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Select Sys" Tag="SelectSystemElements" Click="Cmd_Click" ToolTip="Select all elements connected to current selection's MEP system (visual feedback for push scope)"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- ORIENTATION & TEXT ALIGNMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ORIENTATION &amp; TEXT ALIGNMENT"/>
                         <Border Style="{StaticResource GroupBorder}">
