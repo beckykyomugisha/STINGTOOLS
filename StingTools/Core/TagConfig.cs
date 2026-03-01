@@ -962,6 +962,16 @@ namespace StingTools.Core
             }
             ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
 
+            // Auto-populate STATUS from Revit phase/workset if not already set
+            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.STATUS)))
+            {
+                string status = PhaseAutoDetect.DetectStatus(doc, el);
+                if (!string.IsNullOrEmpty(status))
+                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, status);
+                else
+                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, "NEW");
+            }
+
             // Auto-write containers: populate discipline-specific and universal containers
             // from the token values just written. This eliminates the need for a separate
             // "Combine" step after tagging — tags are immediately available in all containers.

@@ -16,12 +16,14 @@ namespace StingTools.Tags
     /// The highest-logic approach to tagging is to ensure ALL token values are
     /// correct BEFORE tag generation. This command pre-populates:
     ///   - DISC from element category (deterministic — never wrong)
-    ///   - LOC from spatial context (room, project info)
-    ///   - ZONE from room department/name
+    ///   - LOC from spatial context (room, project info, workset)
+    ///   - ZONE from room department/name/workset
     ///   - LVL from element level (deterministic)
-    ///   - SYS from category → system mapping
-    ///   - FUNC from system → function mapping
+    ///   - SYS from category → system mapping (6-layer MEP-aware)
+    ///   - FUNC from system → function mapping (smart subsystem differentiation)
     ///   - PROD from family name (specific) or category (generic)
+    ///   - STATUS from Revit phase/workset (EXISTING, NEW, DEMOLISHED, TEMPORARY)
+    ///   - REV from project revision sequence
     ///
     /// After this runs, tagging is purely mechanical: just concatenate tokens + assign SEQ.
     /// No collisions from wrong tokens, no ISO violations from invalid codes.
@@ -45,7 +47,7 @@ namespace StingTools.Tags
             scopeDlg.MainContent =
                 "This ensures every token is correct BEFORE tagging.\n" +
                 "After this, tag generation is pure concatenation — no guessing.\n\n" +
-                "Tokens populated: DISC, LOC, ZONE, LVL, SYS, FUNC, PROD\n" +
+                "Tokens populated: DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS, REV\n" +
                 "(SEQ is NOT assigned — that happens during tagging)";
             scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 "Selected elements only",
@@ -111,10 +113,14 @@ namespace StingTools.Tags
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
             var sw = Stopwatch.StartNew();
 
+            // Pre-detect project-level values once (not per-element)
+            string projectRev = PhaseAutoDetect.DetectProjectRevision(doc);
+
             int processed = 0;
             int discSet = 0, locSet = 0, zoneSet = 0, lvlSet = 0;
-            int sysSet = 0, funcSet = 0, prodSet = 0;
+            int sysSet = 0, funcSet = 0, prodSet = 0, statusSet = 0, revSet = 0;
             int familyProdUsed = 0;
+            int phaseDetected = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Family-Stage Populate"))
             {
@@ -237,6 +243,52 @@ namespace StingTools.Tags
                         if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod))
                             prodSet++;
                     }
+
+                    // STATUS — from Revit phase/workset (EXISTING, NEW, DEMOLISHED, TEMPORARY)
+                    string status = PhaseAutoDetect.DetectStatus(doc, el);
+                    if (!string.IsNullOrEmpty(status))
+                    {
+                        phaseDetected++;
+                        if (overwrite)
+                        {
+                            if (ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true))
+                                statusSet++;
+                        }
+                        else
+                        {
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, status))
+                                statusSet++;
+                        }
+                    }
+                    else
+                    {
+                        // Fallback: default to NEW if no phase data available
+                        if (overwrite)
+                        {
+                            if (ParameterHelpers.SetString(el, ParamRegistry.STATUS, "NEW", overwrite: true))
+                                statusSet++;
+                        }
+                        else
+                        {
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, "NEW"))
+                                statusSet++;
+                        }
+                    }
+
+                    // REV — from project revision sequence
+                    if (!string.IsNullOrEmpty(projectRev))
+                    {
+                        if (overwrite)
+                        {
+                            if (ParameterHelpers.SetString(el, ParamRegistry.REV, projectRev, overwrite: true))
+                                revSet++;
+                        }
+                        else
+                        {
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, projectRev))
+                                revSet++;
+                        }
+                    }
                     }
                     catch (Exception ex)
                     {
@@ -248,7 +300,7 @@ namespace StingTools.Tags
             }
 
             sw.Stop();
-            int totalPopulated = discSet + locSet + zoneSet + lvlSet + sysSet + funcSet + prodSet;
+            int totalPopulated = discSet + locSet + zoneSet + lvlSet + sysSet + funcSet + prodSet + statusSet + revSet;
 
             var report = new StringBuilder();
             report.AppendLine("Family-Stage Pre-Population Complete");
@@ -258,16 +310,20 @@ namespace StingTools.Tags
             report.AppendLine($"  Elements: {processed}");
             report.AppendLine($"  Duration: {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
-            report.AppendLine("── TOKENS POPULATED ──");
-            report.AppendLine($"  DISC:  {discSet,5}");
-            report.AppendLine($"  LOC:   {locSet,5}  (spatial auto-detect)");
-            report.AppendLine($"  ZONE:  {zoneSet,5}  (room auto-detect)");
-            report.AppendLine($"  LVL:   {lvlSet,5}  (from element level)");
-            report.AppendLine($"  SYS:   {sysSet,5}");
-            report.AppendLine($"  FUNC:  {funcSet,5}");
-            report.AppendLine($"  PROD:  {prodSet,5}  ({familyProdUsed} family-specific)");
+            report.AppendLine("── TAG TOKENS ──");
+            report.AppendLine($"  DISC:    {discSet,5}");
+            report.AppendLine($"  LOC:     {locSet,5}  (spatial + workset auto-detect)");
+            report.AppendLine($"  ZONE:    {zoneSet,5}  (room + workset auto-detect)");
+            report.AppendLine($"  LVL:     {lvlSet,5}  (from element level)");
+            report.AppendLine($"  SYS:     {sysSet,5}  (6-layer MEP-aware)");
+            report.AppendLine($"  FUNC:    {funcSet,5}  (smart subsystem)");
+            report.AppendLine($"  PROD:    {prodSet,5}  ({familyProdUsed} family-specific)");
+            report.AppendLine();
+            report.AppendLine("── CONSTRUCTION & REVISION ──");
+            report.AppendLine($"  STATUS:  {statusSet,5}  ({phaseDetected} from Revit phases)");
+            report.AppendLine($"  REV:     {revSet,5}  {(string.IsNullOrEmpty(projectRev) ? "(no revisions)" : $"('{projectRev}')")}");
             report.AppendLine($"  ─────────────");
-            report.AppendLine($"  Total: {totalPopulated,5} token values set");
+            report.AppendLine($"  Total:   {totalPopulated,5} token values set");
             report.AppendLine();
             report.AppendLine("Next step: Run Auto Tag / Batch Tag / Tag & Combine");
             report.AppendLine("to assign SEQ numbers and assemble final tags.");
@@ -279,6 +335,7 @@ namespace StingTools.Tags
 
             StingLog.Info($"FamilyStagePopulate: scope={scopeLabel}, elements={processed}, " +
                 $"tokens={totalPopulated}, familyProd={familyProdUsed}, " +
+                $"status={statusSet}, phaseDetected={phaseDetected}, rev={revSet}, " +
                 $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;

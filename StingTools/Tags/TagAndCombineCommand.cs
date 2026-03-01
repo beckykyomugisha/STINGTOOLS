@@ -16,11 +16,13 @@ namespace StingTools.Tags
     /// in a single click. This is the max-automation counterpart to MasterSetup.
     ///
     /// Workflow:
-    ///   1. Auto-detect LOC from project info / room data (eliminates SetLoc)
-    ///   2. Auto-detect ZONE from room name patterns (eliminates SetZone)
+    ///   1. Auto-detect LOC from project info / room data / workset (eliminates SetLoc)
+    ///   2. Auto-detect ZONE from room name patterns / workset (eliminates SetZone)
     ///   3. Auto-populate tokens (DISC, PROD, SYS, FUNC, LVL) with family-aware PROD
-    ///   4. Auto-tag all untagged elements (continues from existing sequence)
-    ///   5. Combine parameters into ALL 53 containers (universal + discipline + MAT + FIN + ENV + STR + COMP + PERF + SUST + EQP)
+    ///   4. Auto-detect STATUS from Revit phases / workset (eliminates SetStatus)
+    ///   5. Auto-detect REV from project revision sequence
+    ///   6. Auto-tag all untagged elements (continues from existing sequence)
+    ///   7. Combine parameters into ALL 53 containers (universal + discipline + MAT + FIN + ENV + STR + COMP + PERF + SUST + EQP)
     ///
     /// Scope options:
     ///   - Active view only
@@ -42,10 +44,12 @@ namespace StingTools.Tags
             scopeDlg.MainInstruction = "Tag and populate all containers";
             scopeDlg.MainContent =
                 "This will:\n" +
-                "  1. Auto-detect LOC/ZONE from spatial data\n" +
+                "  1. Auto-detect LOC/ZONE from spatial data + worksets\n" +
                 "  2. Auto-populate all tokens (DISC, PROD, SYS, FUNC, LVL)\n" +
-                "  3. Tag all untagged elements (continuing from existing numbers)\n" +
-                "  4. Combine tokens into ALL 53 tag containers\n\n" +
+                "  3. Auto-detect STATUS from Revit phases + worksets\n" +
+                "  4. Auto-detect REV from project revision sequence\n" +
+                "  5. Tag all untagged elements (continuing from existing numbers)\n" +
+                "  6. Combine tokens into ALL 53 tag containers\n\n" +
                 "Choose scope:";
             scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 "Active View",
@@ -98,12 +102,17 @@ namespace StingTools.Tags
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
 
+            // Pre-detect project-level values once
+            string projectRev = PhaseAutoDetect.DetectProjectRevision(doc);
+
             int populated = 0;
             int tagged = 0;
             int combined = 0;
             int totalProcessed = 0;
             int locDetected = 0;
             int zoneDetected = 0;
+            int statusDetected = 0;
+            int revSet = 0;
             int errors = 0;
 
             // Container definitions now loaded from PARAMETER_REGISTRY.json via ParamRegistry
@@ -171,12 +180,35 @@ namespace StingTools.Tags
                         if (lvl != "XX")
                             if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) populated++;
 
-                        // Step 4: Tag if not already complete (with collision detection)
+                        // Step 4: Auto-detect STATUS from Revit phases/worksets
+                        string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                        if (string.IsNullOrEmpty(existingStatus))
+                        {
+                            string status = PhaseAutoDetect.DetectStatus(doc, el);
+                            if (string.IsNullOrEmpty(status)) status = "NEW";
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, status))
+                            {
+                                statusDetected++;
+                                populated++;
+                            }
+                        }
+
+                        // Step 5: Auto-detect REV from project revision
+                        if (!string.IsNullOrEmpty(projectRev))
+                        {
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, projectRev))
+                            {
+                                revSet++;
+                                populated++;
+                            }
+                        }
+
+                        // Step 6: Tag if not already complete (with collision detection)
                         if (TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                             existingTags: tagIndex))
                             tagged++;
 
-                        // Step 5: Combine into ALL containers via ParamRegistry (single source of truth)
+                        // Step 7: Combine into ALL containers via ParamRegistry (single source of truth)
                         string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                         if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
                         {
@@ -204,9 +236,13 @@ namespace StingTools.Tags
             report.AppendLine($"  Tagged:           {tagged} new tags");
             report.AppendLine($"  Combined:         {combined} container values");
             if (locDetected > 0)
-                report.AppendLine($"  LOC auto-detect:  {locDetected} (from rooms/project)");
+                report.AppendLine($"  LOC auto-detect:  {locDetected} (rooms/project/workset)");
             if (zoneDetected > 0)
-                report.AppendLine($"  ZONE auto-detect: {zoneDetected} (from rooms)");
+                report.AppendLine($"  ZONE auto-detect: {zoneDetected} (rooms/workset)");
+            if (statusDetected > 0)
+                report.AppendLine($"  STATUS detect:    {statusDetected} (from Revit phases/worksets)");
+            if (revSet > 0)
+                report.AppendLine($"  REV auto-set:     {revSet} (revision '{projectRev}')");
             if (errors > 0)
                 report.AppendLine($"  Errors:           {errors} (see log for details)");
             report.AppendLine($"  Duration:         {sw.Elapsed.TotalSeconds:F1}s");
@@ -219,6 +255,7 @@ namespace StingTools.Tags
             StingLog.Info($"TagAndCombine: scope={scopeLabel}, processed={totalProcessed}, " +
                 $"populated={populated}, tagged={tagged}, combined={combined}, " +
                 $"locDetect={locDetected}, zoneDetect={zoneDetected}, " +
+                $"statusDetect={statusDetected}, revSet={revSet}, " +
                 $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;
