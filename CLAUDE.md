@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **44 source files** (43 C# + 1 XAML, ~25,400 lines of code) across 8 directories
-- **144 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider`
+- **50 source files** (49 C# + 1 XAML, ~34,400 lines of code) across 8 directories
+- **153 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider`
 - **15 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel
 
@@ -89,6 +89,7 @@ STINGTOOLS/
     │   ├── MaterialCommands.cs         # BLE + MEP material creation + MaterialPropertyHelper
     │   ├── FamilyCommands.cs           # Wall/Floor/Ceiling/Roof/Duct/Pipe types + CompoundTypeCreator
     │   ├── ScheduleCommands.cs         # FullAutoPopulate, BatchSchedules, AutoPopulate, ExportCSV + ScheduleHelper
+    │   ├── ScheduleEnhancementCommands.cs # Audit, Compare, Duplicate, Refresh, FieldMgr, Color, Stats, Delete, Report + ScheduleAuditHelper
     │   ├── FormulaEvaluatorCommand.cs  # Formula engine (199 formulas) + FormulaEngine + ExpressionParser
     │   ├── TemplateCommands.cs         # Filters, worksets, view templates (23 template defs + VG configuration)
     │   ├── TemplateExtCommands.cs      # Line patterns, phases, apply filters,
@@ -264,13 +265,14 @@ STINGTOOLS/
 | Split Tag/Leader Color | `Organise.SplitTagLeaderColorCommand` | Manual | Apply different colors to leader vs tag text |
 | Clear Annotation Colors | `Organise.ClearAnnotationColorsCommand` | Manual | Clear all annotation color overrides in view |
 
-### Temp Panel (8 pulldown groups, 45 commands)
+### Temp Panel (9 pulldown groups, 54 commands)
 | Group | Commands | Description |
 |-------|----------|-------------|
 | Setup | Create Parameters, Check Data Files, **Master Setup** | Project setup + one-click automation (15-step workflow) |
 | Materials | Create BLE Materials, Create MEP Materials | Material creation from CSV (815 + 464) |
 | Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes (FamilyCommands.cs), Cable Trays, Conduits (TemplateExtCommands.cs) | Type creation from CSV data (8 commands) |
-| Schedules | **Full Auto-Populate**, Batch Create, Material Takeoffs, Auto-Populate (Tokens Only), Evaluate Formulas, Export CSV | Schedule management + zero-input automation (6 commands) |
+| Schedules | **Full Auto-Populate**, Batch Create, Material Takeoffs, Auto-Populate (Tokens Only), Evaluate Formulas, Export CSV | Schedule creation + zero-input automation (6 commands) |
+| **Schedule Mgr** | Audit, Compare, Duplicate, Refresh, Field Manager, Colors, Stats, Delete, Report | Deep schedule management + formatting (9 commands — NEW) |
 | Templates | **★ Template Setup Wizard**, Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases | One-click template pipeline + 28 filters, 35 worksets, 23 templates, 10 line patterns, 6 phases (7 commands) |
 | **Template Mgr** | Auto-Assign Templates, Template Audit, Template Diff, Compliance Scores, Auto-Fix Templates, Sync VG Overrides, Apply VG Overrides, Clone Template, Batch VG Reset, Batch Family Params, Template Schedules | 5-layer intelligence template management (11 commands) |
 | **Styles** | Fill Patterns, Line Styles, Object Styles, Text Styles, Dimension Styles | ISO-standard style creation (5 commands) |
@@ -315,6 +317,7 @@ STINGTOOLS/
 | `Temp/MaterialCommands.cs` | 2 (BLE, MEP) | 239 |
 | `Temp/FamilyCommands.cs` | 6 (Walls, Floors, Ceilings, Roofs, Ducts, Pipes) | 660 |
 | `Temp/ScheduleCommands.cs` | 4 (FullAutoPopulate, BatchSchedules, AutoPopulate, ExportCSV) | 1,266 |
+| `Temp/ScheduleEnhancementCommands.cs` | 9 (Audit, Compare, Duplicate, Refresh, FieldMgr, Color, Stats, Delete, Report) + ScheduleAuditHelper | ~900 |
 | `Temp/FormulaEvaluatorCommand.cs` | 1 (+ FormulaEngine + ExpressionParser) | 765 |
 | `Temp/TemplateCommands.cs` | 3 (Filters, Worksets, ViewTemplates) | 1,117 |
 | `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 304 |
@@ -324,7 +327,7 @@ STINGTOOLS/
 | `UI/StingDockPanel.xaml.cs` | 0 (WPF code-behind) | 178 |
 | `UI/StingDockPanelProvider.cs` | 0 (IDockablePaneProvider) | 37 |
 | `UI/StingDockPanel.xaml` | — (WPF markup) | 1,357 |
-| **Total** | **144 commands** | **~25,400** |
+| **Total** | **153 commands** | **~34,400** |
 
 ## Core Classes
 
@@ -429,6 +432,7 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `NativeParamMapper` | `Core/ParameterHelpers.cs` | Maps Revit built-in parameters to STING shared parameters (30+ mappings) |
 | `LeaderHelper` | `Organise/TagOperationCommands.cs` | Shared logic for annotation tag leader operations (toggle, align, snap) |
 | `ScheduleHelper` | `Temp/ScheduleCommands.cs` | Schedule creation utilities and field remap loading from SCHEDULE_FIELD_REMAP.csv |
+| `ScheduleAuditHelper` | `Temp/ScheduleEnhancementCommands.cs` | CSV definition loader, ScheduleDefinition model, shared infrastructure for schedule management commands |
 | `FormulaEngine` | `Temp/FormulaEvaluatorCommand.cs` | Formula parsing, context building, text/numeric evaluation, includes `ExpressionParser` recursive descent parser |
 | `TemplateManager` | `Temp/TemplateManagerCommands.cs` | Deep template intelligence engine: 5-layer auto-assignment, compliance scoring, VG diff, style definitions |
 | `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 100+ dockable panel button clicks to command classes on the Revit API thread |
@@ -693,6 +697,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | ~~View automation commands~~ | **DONE** — `ViewAutomationCommands.cs` with 6 commands: DuplicateView, BatchRename, CopyViewSettings, AutoPlaceViewports, CropToContent, BatchAlignViewports. | Done |
 | ~~Annotation color management~~ | **DONE** — 5 commands in `TagOperationCommands.cs`: ColorTagsByDiscipline, SetTagTextColor, SetLeaderColor, SplitTagLeaderColor, ClearAnnotationColors. | Done |
 | ~~Schema validation~~ | **DONE** — `SchemaValidateCommand` validates BLE/MEP CSV columns match MATERIAL_SCHEMA.json (77-column schema). | Done |
+| ~~Schedule management system~~ | **DONE** — `ScheduleEnhancementCommands.cs` (1,579 lines) with 9 commands: Audit, Compare, Duplicate, Refresh, FieldManager, Color, Stats, Delete, Report. Plus ScheduleAutoFit, MatchWidest (functional), ToggleHidden inline operations. `ScheduleAuditHelper` engine loads CSV definitions for cross-reference. | Done |
 | Configurable tag format in project_config.json (separator, padding, segments) | Flexibility for different standards | Medium |
 | Batch command chaining / workflow presets | Queue: AutoTag, Validate, Export | Low |
 
@@ -914,13 +919,17 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 25. **Annotation color management** — 5 new commands in `TagOperationCommands.cs` (ColorTagsByDiscipline, SetTagTextColor, SetLeaderColor, SplitTagLeaderColor, ClearAnnotationColors)
 26. **Schema validation** — `SchemaValidateCommand` validates MATERIAL_SCHEMA.json against CSV data
 
+#### Completed (Phase 5)
+
+27. **Schedule management system** — `ScheduleEnhancementCommands.cs` with 9 commands (Audit, Compare, Duplicate, Refresh, FieldManager, Color, Stats, Delete, Report) + `ScheduleAuditHelper` engine + enhanced MatchWidest, AutoFit, ToggleHidden inline operations
+
 #### Next Priorities
 
-27. **Configurable tag format** — Separator, padding, segments via project_config.json
-28. **Cancellation support** — Background worker with abort for batch operations
-29. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (10,661 entries) to replace hardcoded `DisciplineBindings`
-30. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,686 entries) for family-level validation
-31. **Batch command chaining / workflow presets** — Queue: AutoTag, Validate, Export
+28. **Configurable tag format** — Separator, padding, segments via project_config.json
+29. **Cancellation support** — Background worker with abort for batch operations
+30. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (10,661 entries) to replace hardcoded `DisciplineBindings`
+31. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,686 entries) for family-level validation
+32. **Batch command chaining / workflow presets** — Queue: AutoTag, Validate, Export
 
 ### External Tool References
 

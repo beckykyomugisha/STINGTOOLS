@@ -304,6 +304,17 @@ namespace StingTools.UI
                     case "FormulaEvaluator": RunCommand<Temp.FormulaEvaluatorCommand>(app); break;
                     case "ExportCSV": RunCommand<Temp.ExportCSVCommand>(app); break;
 
+                    // ── Schedule Enhancements ──
+                    case "ScheduleAudit": RunCommand<Temp.ScheduleAuditCommand>(app); break;
+                    case "ScheduleCompare": RunCommand<Temp.ScheduleCompareCommand>(app); break;
+                    case "ScheduleDuplicate": RunCommand<Temp.ScheduleDuplicateCommand>(app); break;
+                    case "ScheduleRefresh": RunCommand<Temp.ScheduleRefreshCommand>(app); break;
+                    case "ScheduleFieldMgr": RunCommand<Temp.ScheduleFieldManagerCommand>(app); break;
+                    case "ScheduleColor": RunCommand<Temp.ScheduleColorCommand>(app); break;
+                    case "ScheduleStats": RunCommand<Temp.ScheduleStatsCommand>(app); break;
+                    case "ScheduleDelete": RunCommand<Temp.ScheduleDeleteCommand>(app); break;
+                    case "ScheduleReport": RunCommand<Temp.ScheduleReportCommand>(app); break;
+
                     // ── Templates / Views ──
                     case "CreateFilters": RunCommand<Temp.CreateFiltersCommand>(app); break;
                     case "ApplyFilters": RunCommand<Temp.ApplyFiltersToViewsCommand>(app); break;
@@ -534,6 +545,8 @@ namespace StingTools.UI
                     case "SchedMatchWidest": ScheduleMatchWidest(app); break;
                     case "SchedSetWidth": ScheduleSetColumnWidth(app); break;
                     case "SchedEqualise": ScheduleEqualiseColumns(app); break;
+                    case "SchedAutoFit": ScheduleAutoFit(app); break;
+                    case "SchedToggleHidden": ScheduleToggleHidden(app); break;
 
                     case "TextLower":
                     case "TextUpper": RunCommand<Docs.TextCaseCommand>(app); break;
@@ -1402,15 +1415,55 @@ namespace StingTools.UI
 
         private static void ScheduleMatchWidest(UIApplication app)
         {
-            // Schedule column widths are controlled through SetColumnWidth API
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) return;
             if (!(doc.ActiveView is ViewSchedule sched))
             { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
 
-            TaskDialog.Show("Schedule Widths", "Use Revit's schedule column resize in the schedule view header.\n" +
-                "Column widths are controlled via the ScheduleField.GridColumnWidth property.");
-            StingLog.Info("ScheduleMatchWidest: informational — column widths via ScheduleField");
+            var def = sched.Definition;
+            int fieldCount = def.GetFieldCount();
+            if (fieldCount == 0) return;
+
+            // Find the widest column
+            double maxWidth = 0;
+            for (int i = 0; i < fieldCount; i++)
+            {
+                try
+                {
+                    double w = def.GetField(i).GridColumnWidth;
+                    if (w > maxWidth) maxWidth = w;
+                }
+                catch { }
+            }
+
+            if (maxWidth <= 0)
+            {
+                TaskDialog.Show("Match Widest", "No valid column widths found.");
+                return;
+            }
+
+            // Set all columns to match the widest
+            int updated = 0;
+            using (Transaction tx = new Transaction(doc, "STING Match Widest Column"))
+            {
+                tx.Start();
+                for (int i = 0; i < fieldCount; i++)
+                {
+                    try
+                    {
+                        var field = def.GetField(i);
+                        if (Math.Abs(field.GridColumnWidth - maxWidth) > 0.001)
+                        {
+                            field.GridColumnWidth = maxWidth;
+                            updated++;
+                        }
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Match Widest",
+                $"Set {updated} columns to widest width ({maxWidth * 304.8:F1}mm).");
         }
 
         private static void ScheduleSetColumnWidth(UIApplication app)
@@ -1499,6 +1552,117 @@ namespace StingTools.UI
             }
             TaskDialog.Show("Equalise Columns",
                 $"Set {updated} columns to width {maxWidth * 304.8:F1}mm.");
+        }
+
+        private static void ScheduleAutoFit(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            if (!(doc.ActiveView is ViewSchedule sched))
+            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
+
+            var def = sched.Definition;
+            int fieldCount = def.GetFieldCount();
+            if (fieldCount == 0) return;
+
+            // Estimate column width based on data content length
+            var body = sched.GetTableData()?.GetSectionData(SectionType.Body);
+            if (body == null || body.NumberOfRows == 0)
+            {
+                TaskDialog.Show("Auto-Fit", "Schedule has no data rows to measure.");
+                return;
+            }
+
+            int sampleRows = Math.Min(body.NumberOfRows, 50);
+            int updated = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Schedule Auto-Fit"))
+            {
+                tx.Start();
+
+                for (int col = 0; col < fieldCount; col++)
+                {
+                    try
+                    {
+                        var field = def.GetField(col);
+                        if (field.IsHidden) continue;
+
+                        // Measure max text length in this column
+                        int maxLen = field.ColumnHeading?.Length ?? 5;
+                        for (int row = 0; row < sampleRows; row++)
+                        {
+                            try
+                            {
+                                string val = sched.GetCellText(SectionType.Body, row, col);
+                                if (val != null && val.Length > maxLen)
+                                    maxLen = val.Length;
+                            }
+                            catch { break; }
+                        }
+
+                        // Convert character count to approximate width
+                        // ~2.0mm per character at 8pt font, min 15mm, max 80mm
+                        double widthMm = Math.Max(15, Math.Min(80, maxLen * 2.0 + 6));
+                        double widthFt = widthMm / 304.8;
+
+                        field.GridColumnWidth = widthFt;
+                        updated++;
+                    }
+                    catch { }
+                }
+
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Auto-Fit",
+                $"Auto-fitted {updated} column widths based on data content.");
+        }
+
+        private static void ScheduleToggleHidden(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            if (!(doc.ActiveView is ViewSchedule sched))
+            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
+
+            var def = sched.Definition;
+            int fieldCount = def.GetFieldCount();
+            int hiddenCount = 0;
+
+            for (int i = 0; i < fieldCount; i++)
+            {
+                try { if (def.GetField(i).IsHidden) hiddenCount++; } catch { }
+            }
+
+            if (hiddenCount == 0)
+            {
+                TaskDialog.Show("Toggle Hidden", "No hidden fields in this schedule.");
+                return;
+            }
+
+            // Unhide all hidden fields
+            int revealed = 0;
+            using (Transaction tx = new Transaction(doc, "STING Unhide Schedule Fields"))
+            {
+                tx.Start();
+                for (int i = 0; i < fieldCount; i++)
+                {
+                    try
+                    {
+                        var field = def.GetField(i);
+                        if (field.IsHidden)
+                        {
+                            field.IsHidden = false;
+                            revealed++;
+                        }
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Toggle Hidden",
+                $"Revealed {revealed} hidden field(s) in '{sched.Name}'.");
         }
 
         // ── Text note operations ────────────────────────────────────
