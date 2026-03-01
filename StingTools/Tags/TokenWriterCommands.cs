@@ -43,27 +43,53 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            // Show options dialog
-            TaskDialog td = new TaskDialog(label);
-            td.MainInstruction = $"Set {label} on {targetIds.Count} elements";
-            td.MainContent = usingSelection ? "(Selected elements)" : "(All taggable in view)";
-
-            for (int i = 0; i < Math.Min(options.Length, 4); i++)
-            {
-                td.AddCommandLink((TaskDialogCommandLinkId)(i + 201), options[i]);
-            }
-            td.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var result = td.Show();
+            // Show options dialog (paged for >4 options since TaskDialog supports max 4 links)
             string value = null;
-
-            switch (result)
+            int page = 0;
+            int pageSize = 4;
+            var linkIds = new[]
             {
-                case TaskDialogResult.CommandLink1: value = options.Length > 0 ? options[0] : null; break;
-                case TaskDialogResult.CommandLink2: value = options.Length > 1 ? options[1] : null; break;
-                case TaskDialogResult.CommandLink3: value = options.Length > 2 ? options[2] : null; break;
-                case TaskDialogResult.CommandLink4: value = options.Length > 3 ? options[3] : null; break;
-                default: return Result.Cancelled;
+                TaskDialogCommandLinkId.CommandLink1,
+                TaskDialogCommandLinkId.CommandLink2,
+                TaskDialogCommandLinkId.CommandLink3,
+                TaskDialogCommandLinkId.CommandLink4,
+            };
+
+            while (value == null)
+            {
+                int start = page * pageSize;
+                if (start >= options.Length) break;
+                int count = Math.Min(pageSize, options.Length - start);
+                int totalPages = (int)Math.Ceiling((double)options.Length / pageSize);
+
+                TaskDialog td = new TaskDialog(label);
+                td.MainInstruction = $"Set {label} on {targetIds.Count} elements";
+                td.MainContent = usingSelection ? "(Selected elements)" : "(All taggable in view)";
+                if (totalPages > 1)
+                    td.MainContent += $"\n(Page {page + 1}/{totalPages})";
+
+                for (int i = 0; i < count; i++)
+                    td.AddCommandLink(linkIds[i], options[start + i]);
+
+                td.CommonButtons = TaskDialogCommonButtons.Cancel;
+                if (totalPages > 1 && page < totalPages - 1)
+                    td.FooterText = "Cancel to see more options...";
+
+                var result = td.Show();
+
+                switch (result)
+                {
+                    case TaskDialogResult.CommandLink1: value = options[start]; break;
+                    case TaskDialogResult.CommandLink2: value = start + 1 < options.Length ? options[start + 1] : null; break;
+                    case TaskDialogResult.CommandLink3: value = start + 2 < options.Length ? options[start + 2] : null; break;
+                    case TaskDialogResult.CommandLink4: value = start + 3 < options.Length ? options[start + 3] : null; break;
+                    default:
+                        // Cancel — advance to next page if available, else abort
+                        page++;
+                        if (page * pageSize >= options.Length)
+                            return Result.Cancelled;
+                        continue;
+                }
             }
 
             if (value == null) return Result.Cancelled;
@@ -176,7 +202,7 @@ namespace StingTools.Tags
                     }
                     if (string.IsNullOrEmpty(sys))
                     {
-                        sys = TagConfig.GetSysCode(cat);
+                        sys = TagConfig.GetMepSystemAwareSysCode(elem, cat);
                         ParameterHelpers.SetIfEmpty(elem, "ASS_SYSTEM_TYPE_TXT", sys);
                     }
                     if (string.IsNullOrEmpty(lvl))

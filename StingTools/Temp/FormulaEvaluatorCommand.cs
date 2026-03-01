@@ -537,7 +537,8 @@ namespace StingTools.Temp
                     (_pos + 1 >= _expr.Length || _expr[_pos + 1] != '='))
                 {
                     // Single = is equality in Revit formulas (not ==)
-                    // But only if not inside an if() string comparison — skip here
+                    _pos++;
+                    return left == ParseAddition() ? 1 : 0;
                 }
 
                 return left;

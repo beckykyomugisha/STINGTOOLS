@@ -173,17 +173,20 @@ namespace StingTools.Tags
                                 zoneSet++;
                         }
 
-                        // LVL — deterministic from element level
+                        // LVL — deterministic from element level (skip "XX" fallback to avoid clobbering user data)
                         string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                        if (overwrite)
+                        if (lvl != "XX")
                         {
-                            if (ParameterHelpers.SetString(el, "ASS_LVL_COD_TXT", lvl, overwrite: true))
-                                lvlSet++;
-                        }
-                        else
-                        {
-                            if (lvl != "XX" && ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl))
-                                lvlSet++;
+                            if (overwrite)
+                            {
+                                if (ParameterHelpers.SetString(el, "ASS_LVL_COD_TXT", lvl, overwrite: true))
+                                    lvlSet++;
+                            }
+                            else
+                            {
+                                if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl))
+                                    lvlSet++;
+                            }
                         }
 
                         // SYS — MEP system-aware (checks connected systems before category fallback)

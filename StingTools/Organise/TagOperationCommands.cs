@@ -265,6 +265,22 @@ namespace StingTools.Organise
                         tagIndex.Add(newTag);
                         ParameterHelpers.SetString(elem, "ASS_SEQ_NUM_TXT", newSeq, overwrite: true);
                         ParameterHelpers.SetString(elem, "ASS_TAG_1_TXT", newTag, overwrite: true);
+
+                        // Rebuild secondary containers to stay in sync with new tag
+                        var tokenValues = new Dictionary<string, string>();
+                        foreach (string tp in TagConfig.TokenParamNames)
+                            tokenValues[tp] = ParameterHelpers.GetString(elem, tp);
+                        ParameterHelpers.SetString(elem, "ASS_TAG_2_TXT",
+                            string.Join(TagConfig.Separator, TagConfig.ShortIdTokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
+                        ParameterHelpers.SetString(elem, "ASS_TAG_3_TXT",
+                            string.Join(TagConfig.Separator, TagConfig.LocationTokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
+                        ParameterHelpers.SetString(elem, "ASS_TAG_4_TXT",
+                            string.Join(TagConfig.Separator, TagConfig.SystemTokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
+                        ParameterHelpers.SetString(elem, "ASS_TAG_5_TXT",
+                            string.Join(TagConfig.Separator, TagConfig.Line1Tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
+                        ParameterHelpers.SetString(elem, "ASS_TAG_6_TXT",
+                            string.Join(TagConfig.Separator, TagConfig.Line2Tokens.Select(t => tokenValues.TryGetValue(t, out string v) ? v : "")), overwrite: true);
+
                         fixed_++;
                     }
                 }
@@ -359,13 +375,17 @@ namespace StingTools.Organise
                 groups[key].Add(elem);
             }
 
+            // Get existing max SEQ per group to avoid collisions with unselected elements
+            var existingCounters = TagConfig.GetExistingSequenceCounters(doc);
+
             int renumbered = 0;
             using (Transaction tx = new Transaction(doc, "STING Renumber Tags"))
             {
                 tx.Start();
                 foreach (var kvp in groups)
                 {
-                    int seq = 1;
+                    int seq = existingCounters.TryGetValue(kvp.Key, out int maxExisting)
+                        ? maxExisting + 1 : 1;
                     foreach (Element elem in kvp.Value)
                     {
                         string seqStr = seq.ToString().PadLeft(TagConfig.NumPad, '0');
@@ -773,9 +793,16 @@ namespace StingTools.Organise
             var top = discCounts.OrderByDescending(x => x.Value).Take(4).ToList();
             TaskDialog td = new TaskDialog("Select by Discipline");
             td.MainInstruction = "Select elements by discipline code";
+            var linkIds = new[]
+            {
+                TaskDialogCommandLinkId.CommandLink1,
+                TaskDialogCommandLinkId.CommandLink2,
+                TaskDialogCommandLinkId.CommandLink3,
+                TaskDialogCommandLinkId.CommandLink4,
+            };
             for (int i = 0; i < top.Count; i++)
             {
-                td.AddCommandLink((TaskDialogCommandLinkId)(i + 201),
+                td.AddCommandLink(linkIds[i],
                     $"{top[i].Key} — {top[i].Value} elements");
             }
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
@@ -1734,12 +1761,20 @@ namespace StingTools.Organise
                             elbowPos = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
                         }
 
-                        // Set elbow position via leader end + head position
+                        // Set elbow position — try to preserve leader attachment
                         var refs = tag.GetTaggedReferences();
                         if (refs != null && refs.Count > 0)
                         {
-                            tag.LeaderEndCondition = LeaderEndCondition.Free;
-                            tag.SetLeaderElbow(refs.First(), elbowPos);
+                            try
+                            {
+                                tag.SetLeaderElbow(refs.First(), elbowPos);
+                            }
+                            catch
+                            {
+                                // Some leader states require Free mode for elbow manipulation
+                                tag.LeaderEndCondition = LeaderEndCondition.Free;
+                                tag.SetLeaderElbow(refs.First(), elbowPos);
+                            }
                             snapped++;
                         }
                     }

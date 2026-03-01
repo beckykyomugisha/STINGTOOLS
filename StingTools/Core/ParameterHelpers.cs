@@ -78,10 +78,14 @@ namespace StingTools.Core
                 string lower = name.ToLowerInvariant();
 
                 if (lower.StartsWith("level "))
-                    return "L" + name.Substring(6).Trim().PadLeft(2, '0');
+                {
+                    string numPart = ExtractDigits(name.Substring(6));
+                    return "L" + (numPart.Length > 0 ? numPart.PadLeft(2, '0') : name.Substring(6).Trim().ToUpperInvariant().Substring(0, Math.Min(3, name.Length - 6)));
+                }
                 if (lower == "ground" || lower == "ground floor" || lower == "ground level")
                     return "GF";
-                if (lower.StartsWith("basement") || lower.StartsWith("b"))
+                if (lower.StartsWith("basement") ||
+                    (lower.Length <= 3 && lower.StartsWith("b") && lower.Length > 1 && char.IsDigit(lower[1])))
                 {
                     string digits = ExtractDigits(name);
                     return "B" + (digits.Length > 0 ? digits : "1");
@@ -220,12 +224,23 @@ namespace StingTools.Core
         /// Find the solid fill pattern element in the document.
         /// Caches per document to avoid repeated collector queries.
         /// </summary>
+        private static readonly Dictionary<int, FillPatternElement> _solidFillCache
+            = new Dictionary<int, FillPatternElement>();
+
         public static FillPatternElement GetSolidFillPattern(Document doc)
         {
-            return new FilteredElementCollector(doc)
+            int docHash = doc.GetHashCode();
+            if (_solidFillCache.TryGetValue(docHash, out var cached) && cached.IsValidObject)
+                return cached;
+
+            var result = new FilteredElementCollector(doc)
                 .OfClass(typeof(FillPatternElement))
                 .Cast<FillPatternElement>()
                 .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+
+            if (result != null)
+                _solidFillCache[docHash] = result;
+            return result;
         }
     }
 
@@ -337,7 +352,8 @@ namespace StingTools.Core
             }
 
             string fallback = !string.IsNullOrEmpty(projectLoc) ? projectLoc : "BLD1";
-            StingLog.Warn($"DetectLoc: Element {el?.Id} — no spatial LOC detected, using fallback '{fallback}'");
+            // Info level to avoid log spam in batch operations (thousands of elements may lack rooms)
+            StingLog.Info($"DetectLoc: Element {el?.Id} — using fallback '{fallback}'");
             return fallback;
         }
 
@@ -378,7 +394,7 @@ namespace StingTools.Core
                 StingLog.Warn($"DetectZone: {ex.Message}");
             }
 
-            StingLog.Warn($"DetectZone: Element {el?.Id} — no spatial ZONE detected, using fallback 'Z01'");
+            StingLog.Info($"DetectZone: Element {el?.Id} — using fallback 'Z01'");
             return "Z01"; // Safe default
         }
 
@@ -398,7 +414,8 @@ namespace StingTools.Core
                 return "BLD2";
             if (upper.Contains("BLD3") || upper.Contains("BUILDING 3") || upper.Contains("BLOCK C"))
                 return "BLD3";
-            if (upper.Contains("EXT") || upper.Contains("EXTERNAL") || upper.Contains("EXTERIOR"))
+            if (upper == "EXT" || upper.Contains("EXTERNAL") || upper.Contains("EXTERIOR") ||
+                upper.Contains(" EXT ") || upper.StartsWith("EXT ") || upper.EndsWith(" EXT"))
                 return "EXT";
 
             return null;
@@ -413,14 +430,14 @@ namespace StingTools.Core
             if (string.IsNullOrWhiteSpace(text)) return null;
             string upper = text.ToUpperInvariant();
 
-            // Direct zone codes
-            if (upper.Contains("Z01") || upper.Contains("ZONE 1") || upper.Contains("ZONE A") || upper.Contains("WING A") || upper.Contains("NORTH"))
+            // Direct zone codes (require specific patterns; avoid false positives on cardinal directions in room names)
+            if (upper.Contains("Z01") || upper.Contains("ZONE 1") || upper.Contains("ZONE A") || upper.Contains("WING A") || upper.Contains("NORTH ZONE") || upper.Contains("NORTH WING"))
                 return "Z01";
-            if (upper.Contains("Z02") || upper.Contains("ZONE 2") || upper.Contains("ZONE B") || upper.Contains("WING B") || upper.Contains("SOUTH"))
+            if (upper.Contains("Z02") || upper.Contains("ZONE 2") || upper.Contains("ZONE B") || upper.Contains("WING B") || upper.Contains("SOUTH ZONE") || upper.Contains("SOUTH WING"))
                 return "Z02";
-            if (upper.Contains("Z03") || upper.Contains("ZONE 3") || upper.Contains("ZONE C") || upper.Contains("WING C") || upper.Contains("EAST"))
+            if (upper.Contains("Z03") || upper.Contains("ZONE 3") || upper.Contains("ZONE C") || upper.Contains("WING C") || upper.Contains("EAST ZONE") || upper.Contains("EAST WING"))
                 return "Z03";
-            if (upper.Contains("Z04") || upper.Contains("ZONE 4") || upper.Contains("ZONE D") || upper.Contains("WING D") || upper.Contains("WEST"))
+            if (upper.Contains("Z04") || upper.Contains("ZONE 4") || upper.Contains("ZONE D") || upper.Contains("WING D") || upper.Contains("WEST ZONE") || upper.Contains("WEST WING"))
                 return "Z04";
 
             return null;
@@ -866,16 +883,16 @@ namespace StingTools.Core
                 written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, "HVC_VEL_MPS");
                 written += MapBuiltIn(el, BuiltInParameter.RBS_LOSS_COEFFICIENT, "HVC_PRESSURE_DROP_PA");
                 written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, "HVC_AIRFLOW_LPS");
-                // System type name for schedule grouping
+                // Native system name for reference (NOT ASS_SYSTEM_TYPE_TXT which expects STING SYS codes)
                 written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    "ASS_SYSTEM_TYPE_TXT");
+                    "ASS_REVIT_SYSTEM_NAME_TXT");
             }
 
             // ── Mechanical Equipment ───────────────────────────────────────────
             if (catName == "Mechanical Equipment")
             {
                 written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    "ASS_SYSTEM_TYPE_TXT");
+                    "ASS_REVIT_SYSTEM_NAME_TXT");
             }
 
             // ── Pipe parameters ────────────────────────────────────────────────
@@ -889,16 +906,16 @@ namespace StingTools.Core
                 // Pipe length
                 written += MapDimension(el, BuiltInParameter.CURVE_ELEM_LENGTH,
                     "PLM_PPE_LENGTH_M", 0.3048); // ft → m
-                // System type
+                // Native system name for reference
                 written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    "ASS_SYSTEM_TYPE_TXT");
+                    "ASS_REVIT_SYSTEM_NAME_TXT");
             }
 
             // ── Fire Alarm Devices ─────────────────────────────────────────────
             if (catName == "Fire Alarm Devices")
             {
                 written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    "ASS_SYSTEM_TYPE_TXT");
+                    "ASS_REVIT_SYSTEM_NAME_TXT");
             }
 
             // ── Size parameters (generic MEP) ──────────────────────────────────

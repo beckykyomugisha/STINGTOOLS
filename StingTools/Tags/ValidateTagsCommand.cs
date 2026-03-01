@@ -97,6 +97,7 @@ namespace StingTools.Tags
 
                 // Check individual tokens
                 int emptyTokenCount = 0;
+                int elementIsoErrors = 0;
                 foreach (string token in TokenParams)
                 {
                     string val = ParameterHelpers.GetString(el, token);
@@ -113,6 +114,7 @@ namespace StingTools.Tags
                         if (tokenError != null)
                         {
                             isoViolations++;
+                            elementIsoErrors++;
                             IncrementDict(isoIssueTypes, tokenError);
                         }
                     }
@@ -126,6 +128,7 @@ namespace StingTools.Tags
                     if (expectedDisc != null && expectedDisc != disc)
                     {
                         isoViolations++;
+                        elementIsoErrors++;
                         IncrementDict(isoIssueTypes, $"DISC mismatch: {catName} expects {expectedDisc}");
                     }
                 }
@@ -142,7 +145,6 @@ namespace StingTools.Tags
                 containersEmpty += emptyContainers;
 
                 // Fully valid = TAG_1 complete + all tokens filled + containers populated + ISO valid
-                int elementIsoErrors = ISO19650Validator.ValidateElement(el).Count;
                 if (tag1Status == "VALID" && emptyTokenCount == 0 && emptyContainers == 0 && elementIsoErrors == 0)
                     fullyValid++;
 
