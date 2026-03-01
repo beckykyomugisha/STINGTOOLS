@@ -234,6 +234,7 @@ namespace StingTools.Organise
                     for (int i = 1; i < kvp.Value.Count; i++)
                     {
                         Element elem = kvp.Value[i];
+                        string catName = ParameterHelpers.GetCategoryName(elem);
                         string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                         string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
                         string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
@@ -241,6 +242,22 @@ namespace StingTools.Organise
                         string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
                         string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
                         string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+
+                        // Guaranteed defaults for empty tokens
+                        if (string.IsNullOrEmpty(disc))
+                            disc = TagConfig.DiscMap.TryGetValue(catName, out string dd) ? dd : "A";
+                        if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                        if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                        if (string.IsNullOrEmpty(lvl)) lvl = "L00";
+                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                        if (string.IsNullOrEmpty(func))
+                        {
+                            func = TagConfig.GetSmartFuncCode(elem, sys);
+                            if (string.IsNullOrEmpty(func))
+                                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                        }
+                        if (string.IsNullOrEmpty(prod))
+                            prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
 
                         if (string.IsNullOrEmpty(disc)) continue;
 
@@ -405,7 +422,8 @@ namespace StingTools.Organise
                         string seqStr = seq.ToString().PadLeft(ParamRegistry.NumPad, '0');
                         ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seqStr, overwrite: true);
 
-                        // Rebuild assembled tag
+                        // Rebuild assembled tag with guaranteed defaults for empty tokens
+                        string catName = ParameterHelpers.GetCategoryName(elem);
                         string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                         string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
                         string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
@@ -413,6 +431,22 @@ namespace StingTools.Organise
                         string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
                         string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
                         string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+
+                        if (string.IsNullOrEmpty(disc))
+                            disc = TagConfig.DiscMap.TryGetValue(catName, out string dd) ? dd : "A";
+                        if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                        if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                        if (string.IsNullOrEmpty(lvl)) lvl = "L00";
+                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                        if (string.IsNullOrEmpty(func))
+                        {
+                            func = TagConfig.GetSmartFuncCode(elem, sys);
+                            if (string.IsNullOrEmpty(func))
+                                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                        }
+                        if (string.IsNullOrEmpty(prod))
+                            prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
+
                         string tag = string.Join(ParamRegistry.Separator,
                             disc, loc, zone, lvl, sys, func, prod, seqStr);
                         ParameterHelpers.SetString(elem, ParamRegistry.TAG1, tag, overwrite: true);
@@ -452,7 +486,7 @@ namespace StingTools.Organise
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             var sb = new StringBuilder();
-            sb.AppendLine("ElementId,Category,Tag,DISC,LOC,ZONE,LVL,SYS,FUNC,PROD,SEQ,STATUS,Valid");
+            sb.AppendLine("ElementId,Category,Tag,DISC,LOC,ZONE,LVL,SYS,FUNC,PROD,SEQ,STATUS,REV,Valid,FullyResolved");
 
             int total = 0;
             foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
@@ -471,9 +505,11 @@ namespace StingTools.Organise
                 string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
                 string seq = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
                 string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
+                string rev = ParameterHelpers.GetString(elem, ParamRegistry.REV);
                 bool valid = TagConfig.TagIsComplete(tag);
+                bool resolved = TagConfig.TagIsFullyResolved(tag);
 
-                sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{valid}");
+                sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{rev},{valid},{resolved}");
             }
 
             // Write to file
@@ -718,7 +754,7 @@ namespace StingTools.Organise
                 Element target = doc.GetElement(selected[i]);
                 if (target == null) continue;
                 string targetCat = ParameterHelpers.GetCategoryName(target);
-                string expectedDisc = TagConfig.DiscMap.TryGetValue(targetCat, out string td2) ? td2 : "XX";
+                string expectedDisc = TagConfig.DiscMap.TryGetValue(targetCat, out string td2) ? td2 : "A";
                 if (!string.IsNullOrEmpty(sourceDisc) && sourceDisc != expectedDisc)
                     discMismatches++;
             }
@@ -2412,7 +2448,7 @@ namespace StingTools.Organise
                 // Validation
                 "TagValid", "TagResolved", "TagComplete", "ValidationIssues",
                 // Status & Classification
-                "STATUS", "Mark", "Description", "Manufacturer", "Model",
+                "STATUS", "REV", "Mark", "Description", "Manufacturer", "Model",
                 // Spatial
                 "Level", "RoomName", "RoomNumber", "Department", "GridRef",
                 // Dimensional
@@ -2485,6 +2521,7 @@ namespace StingTools.Organise
                 string familyName = ParameterHelpers.GetFamilyName(el);
                 string typeName = ParameterHelpers.GetFamilySymbolName(el);
                 string status = Gs(el, ParamRegistry.STATUS);
+                string rev = Gs(el, ParamRegistry.REV);
                 string mark = Gp(el, BuiltInParameter.ALL_MODEL_MARK);
                 string desc = Gs(el, ParamRegistry.DESC);
                 if (string.IsNullOrEmpty(desc)) desc = Gp(el, BuiltInParameter.ALL_MODEL_DESCRIPTION);
@@ -2559,6 +2596,7 @@ namespace StingTools.Organise
                 sb.Append(isComplete).Append(',');
                 sb.Append(Esc(issueStr)).Append(',');
                 sb.Append(status).Append(',');
+                sb.Append(rev).Append(',');
                 sb.Append(Esc(mark)).Append(',');
                 sb.Append(Esc(desc)).Append(',');
                 sb.Append(Esc(mfr)).Append(',');

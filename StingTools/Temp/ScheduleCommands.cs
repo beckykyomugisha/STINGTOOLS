@@ -810,10 +810,7 @@ namespace StingTools.Temp
 
                     // ── STEP 5: Combine into all containers via ParamRegistry ───
                     string[] tokenValues = ParamRegistry.ReadTokenValues(el);
-                    if (tokenValues.Any(v => !string.IsNullOrEmpty(v)))
-                    {
-                        combined += ParamRegistry.WriteContainers(el, tokenValues, catName);
-                    }
+                    combined += ParamRegistry.WriteContainers(el, tokenValues, catName);
 
                     // ── STEP 6: Grid Reference ─────────────────────────────────
                     if (gridLines.Count > 0 &&

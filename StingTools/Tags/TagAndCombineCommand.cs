@@ -214,10 +214,7 @@ namespace StingTools.Tags
 
                         // Step 7: Combine into ALL containers via ParamRegistry (single source of truth)
                         string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                        if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
-                        {
-                            combined += ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
-                        }
+                        combined += ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
                     }
                     catch (Exception ex)
                     {

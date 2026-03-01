@@ -963,6 +963,9 @@ namespace StingTools.Core
                 func = FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
 
             string prod = GetFamilyAwareProdCode(el, catName);
+            // Guaranteed PROD default: category map or GEN
+            if (string.IsNullOrEmpty(prod))
+                prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
 
             // Log when defaults are applied for LOC/ZONE
             if (stats != null)

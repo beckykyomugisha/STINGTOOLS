@@ -202,15 +202,16 @@ namespace StingTools.Tags
                 .ThenBy(e =>
                 {
                     string cat = ParameterHelpers.GetCategoryName(e);
-                    return TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "ZZ";
+                    return TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
                 })
                 .ThenBy(e =>
                 {
                     // SYS sort key: groups elements by ACTUAL system within discipline
                     // Uses MEP-aware detection so pipes group by DCW/HWS/SAN/GAS
                     string cat = ParameterHelpers.GetCategoryName(e);
+                    string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
                     string sys = TagConfig.GetMepSystemAwareSysCode(e, cat);
-                    return !string.IsNullOrEmpty(sys) ? sys : "ZZZ";
+                    return !string.IsNullOrEmpty(sys) ? sys : TagConfig.GetDiscDefaultSysCode(disc);
                 })
                 .ThenBy(e => ParameterHelpers.GetCategoryName(e))
                 .ThenBy(e => e.Id.Value) // Stable sort: consistent ordering across runs

@@ -276,7 +276,8 @@ namespace StingTools.Tags
             var missingByToken = new Dictionary<string, int>
             {
                 { "DISC", 0 }, { "LOC", 0 }, { "ZONE", 0 }, { "LVL", 0 },
-                { "SYS", 0 }, { "FUNC", 0 }, { "PROD", 0 }, { "SEQ", 0 }
+                { "SYS", 0 }, { "FUNC", 0 }, { "PROD", 0 }, { "SEQ", 0 },
+                { "STATUS", 0 }, { "REV", 0 }
             };
             var readyByDisc = new Dictionary<string, int>();
             var incompleteByDisc = new Dictionary<string, int>();
@@ -284,11 +285,11 @@ namespace StingTools.Tags
             var emptyTagCount = 0;
             var existingTagCount = 0;
 
-            string[] tokenNames = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+            string[] tokenNames = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ", "STATUS", "REV" };
             string[] tokenParams = {
                 ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
                 ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
-                ParamRegistry.PROD, ParamRegistry.SEQ
+                ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS, ParamRegistry.REV
             };
 
             foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
@@ -328,7 +329,7 @@ namespace StingTools.Tags
 
                 if (hasPlaceholder) placeholderCount++;
 
-                if (filledCount == 8)
+                if (filledCount == tokenParams.Length)
                 {
                     fullyReady++;
                     if (!string.IsNullOrEmpty(disc))

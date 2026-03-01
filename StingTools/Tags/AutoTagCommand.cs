@@ -63,7 +63,7 @@ namespace StingTools.Tags
                 // Discipline-aware filtering: skip categories not relevant to this view
                 if (relevantDiscs != null)
                 {
-                    string disc = TagConfig.DiscMap.TryGetValue(cat, out string dd) ? dd : "XX";
+                    string disc = TagConfig.DiscMap.TryGetValue(cat, out string dd) ? dd : "A";
                     if (!relevantDiscs.Contains(disc))
                     {
                         filteredOut++;
