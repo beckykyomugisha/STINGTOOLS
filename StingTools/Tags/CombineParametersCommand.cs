@@ -225,17 +225,11 @@ namespace StingTools.Tags
                         }
                     }
 
-                    // Write TAG7 — comprehensive descriptive narrative from all parameters
-                    string narrative = TagConfig.BuildTag7Narrative(doc, el, catName, tokenValues);
-                    if (!string.IsNullOrEmpty(narrative))
-                    {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, narrative, overwrite: true))
-                        {
-                            totalWrites++;
-                            if (writesPerGroup.ContainsKey("UNIVERSAL"))
-                                writesPerGroup["UNIVERSAL"]++;
-                        }
-                    }
+                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                    int tag7Writes = TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
+                    totalWrites += tag7Writes;
+                    if (tag7Writes > 0 && writesPerGroup.ContainsKey("UNIVERSAL"))
+                        writesPerGroup["UNIVERSAL"] += tag7Writes;
                 }
 
                 tx.Commit();

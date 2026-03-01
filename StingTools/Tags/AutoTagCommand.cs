@@ -147,13 +147,11 @@ namespace StingTools.Tags
                             collisionMode: collisionMode,
                             stats: stats);
 
-                        // Write TAG7 — comprehensive descriptive narrative
+                        // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                         string catNameTag7 = ParameterHelpers.GetCategoryName(el);
                         string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
-                        string narrativeTag7 = TagConfig.BuildTag7Narrative(doc, el, catNameTag7, tokenValsTag7);
-                        if (!string.IsNullOrEmpty(narrativeTag7))
-                            ParameterHelpers.SetString(el, ParamRegistry.TAG7, narrativeTag7,
-                                overwrite: collisionMode == TagCollisionMode.Overwrite);
+                        TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7,
+                            overwrite: collisionMode == TagCollisionMode.Overwrite);
                     }
                     catch (Exception ex)
                     {
@@ -270,12 +268,10 @@ namespace StingTools.Tags
                         TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                             existingTags: tagIndex, stats: stats);
 
-                        // Write TAG7 — comprehensive descriptive narrative
+                        // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                         string catNameTag7 = ParameterHelpers.GetCategoryName(el);
                         string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
-                        string narrativeTag7 = TagConfig.BuildTag7Narrative(doc, el, catNameTag7, tokenValsTag7);
-                        if (!string.IsNullOrEmpty(narrativeTag7))
-                            ParameterHelpers.SetString(el, ParamRegistry.TAG7, narrativeTag7, overwrite: false);
+                        TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7, overwrite: false);
                     }
                     catch (Exception ex)
                     {

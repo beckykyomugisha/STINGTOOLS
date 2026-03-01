@@ -174,8 +174,35 @@ namespace StingTools.Core
         public static string TAG5 { get; private set; } = "ASS_TAG_5_TXT";
         /// <summary>Multi-line bottom: SYS-FUNC-PROD-SEQ</summary>
         public static string TAG6 { get; private set; } = "ASS_TAG_6_TXT";
-        /// <summary>Comprehensive descriptive narrative — AI-assembled asset profile from all available parameters.</summary>
+        /// <summary>Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup.</summary>
         public static string TAG7 { get; private set; } = "ASS_TAG_7_TXT";
+
+        // ── TAG7 Sub-Section Parameters ──────────────────────────────────
+        // Split TAG7 into independently stylable sections for multi-label tag families.
+        // Each sub-param can have its own font/size/color/bold in annotation family labels.
+        /// <summary>TAG7 Section A: Identity Header — asset name, product, manufacturer (BOLD in tag families).</summary>
+        public static string TAG7A { get; private set; } = "ASS_TAG_7A_TXT";
+        /// <summary>TAG7 Section B: System &amp; Function Context — full descriptions (ITALIC in tag families).</summary>
+        public static string TAG7B { get; private set; } = "ASS_TAG_7B_TXT";
+        /// <summary>TAG7 Section C: Spatial Context — room, department, grid reference.</summary>
+        public static string TAG7C { get; private set; } = "ASS_TAG_7C_TXT";
+        /// <summary>TAG7 Section D: Lifecycle &amp; Status — status, revision, origin, maintenance.</summary>
+        public static string TAG7D { get; private set; } = "ASS_TAG_7D_TXT";
+        /// <summary>TAG7 Section E: Technical Specifications — discipline-specific performance data.</summary>
+        public static string TAG7E { get; private set; } = "ASS_TAG_7E_TXT";
+        /// <summary>TAG7 Section F: Classification &amp; Reference — codes, cost, ISO tag.</summary>
+        public static string TAG7F { get; private set; } = "ASS_TAG_7F_TXT";
+
+        /// <summary>All TAG7 sub-section parameter names in order (A-F).</summary>
+        public static string[] TAG7Sections => new[] { TAG7A, TAG7B, TAG7C, TAG7D, TAG7E, TAG7F };
+
+        /// <summary>Check if a parameter is any TAG7 variant (main or sub-section).</summary>
+        public static bool IsTag7Param(string paramName)
+        {
+            return paramName == TAG7 || paramName == TAG7A || paramName == TAG7B ||
+                   paramName == TAG7C || paramName == TAG7D || paramName == TAG7E ||
+                   paramName == TAG7F;
+        }
 
         // ── Token presets (named token index arrays) ────────────────────
         public static Dictionary<string, int[]> TokenPresets { get; private set; } = new Dictionary<string, int[]>();
@@ -507,6 +534,18 @@ namespace StingTools.Core
                     TAG6 = ContainerGroups[0].Params[5].ParamName;
                     if (ContainerGroups[0].Params.Length >= 7)
                         TAG7 = ContainerGroups[0].Params[6].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 8)
+                        TAG7A = ContainerGroups[0].Params[7].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 9)
+                        TAG7B = ContainerGroups[0].Params[8].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 10)
+                        TAG7C = ContainerGroups[0].Params[9].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 11)
+                        TAG7D = ContainerGroups[0].Params[10].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 12)
+                        TAG7E = ContainerGroups[0].Params[11].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 13)
+                        TAG7F = ContainerGroups[0].Params[12].ParamName;
                 }
 
                 // Category enum map
@@ -690,6 +729,8 @@ namespace StingTools.Core
             TAG1 = "ASS_TAG_1_TXT"; TAG2 = "ASS_TAG_2_TXT"; TAG3 = "ASS_TAG_3_TXT";
             TAG4 = "ASS_TAG_4_TXT"; TAG5 = "ASS_TAG_5_TXT"; TAG6 = "ASS_TAG_6_TXT";
             TAG7 = "ASS_TAG_7_TXT";
+            TAG7A = "ASS_TAG_7A_TXT"; TAG7B = "ASS_TAG_7B_TXT"; TAG7C = "ASS_TAG_7C_TXT";
+            TAG7D = "ASS_TAG_7D_TXT"; TAG7E = "ASS_TAG_7E_TXT"; TAG7F = "ASS_TAG_7F_TXT";
             STATUS = "ASS_STATUS_TXT"; DETAIL_NUM = "ASS_INST_DETAIL_NUM_TXT"; MNT_TYPE = "MNT_TYPE_TXT";
 
             TokenPresets = new Dictionary<string, int[]>
@@ -820,8 +861,8 @@ namespace StingTools.Core
             foreach (var c in containers)
             {
                 if (c.ParamName == skipParam) continue;
-                // TAG7 uses the narrative builder, not token concatenation
-                if (c.ParamName == TAG7) continue;
+                // TAG7 + sub-sections use the narrative builder, not token concatenation
+                if (IsTag7Param(c.ParamName)) continue;
                 string assembled = AssembleContainer(c, tokenValues);
                 if (!string.IsNullOrEmpty(assembled))
                 {

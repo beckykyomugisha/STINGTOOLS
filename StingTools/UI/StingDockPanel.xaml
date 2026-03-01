@@ -418,6 +418,17 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- TAG7 RICH DISPLAY -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG7 RICH DISPLAY"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Rich Note" Tag="RichTagNote" Click="Cmd_Click" ToolTip="Place styled TextNote annotations with Bold/Italic/Underline"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="HTML Report" Tag="ExportRichTagReport" Click="Cmd_Click" ToolTip="Export TAG7 as color-coded HTML report"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="View Sections" Tag="ViewTag7Sections" Click="Cmd_Click" ToolTip="View TAG7 A-F section breakdown"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Presets" Tag="SwitchTag7Preset" Click="Cmd_Click" ToolTip="Switch TAG7 color/style preset (Discipline, Status, System, Completeness, Monochrome, Accessible, Technical)"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- ORIENTATION & TEXT ALIGNMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ORIENTATION &amp; TEXT ALIGNMENT"/>
                         <Border Style="{StaticResource GroupBorder}">

@@ -130,12 +130,10 @@ namespace StingTools.Tags
                             collisionMode: collisionMode,
                             stats: stats);
 
-                        // Write TAG7 — comprehensive descriptive narrative
+                        // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                         string catName = ParameterHelpers.GetCategoryName(el);
                         string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                        string narrative = TagConfig.BuildTag7Narrative(doc, el, catName, tokenVals);
-                        if (!string.IsNullOrEmpty(narrative))
-                            ParameterHelpers.SetString(el, ParamRegistry.TAG7, narrative, overwrite: overwriteMode);
+                        TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
                     }
                     catch (Exception ex)
                     {

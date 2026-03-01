@@ -364,14 +364,8 @@ namespace StingTools.Tags
                         elem, tokenValues, catName, overwrite: true,
                         skipParam: ParamRegistry.TAG1);
 
-                    // Write TAG7 — comprehensive descriptive narrative from all parameters
-                    // Skip TAG7 in normal container flow since it needs the narrative builder
-                    string narrative = TagConfig.BuildTag7Narrative(doc, elem, catName, tokenValues);
-                    if (!string.IsNullOrEmpty(narrative))
-                    {
-                        if (ParameterHelpers.SetString(elem, ParamRegistry.TAG7, narrative, overwrite: true))
-                            containerWrites++;
-                    }
+                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                    containerWrites += TagConfig.WriteTag7All(doc, elem, catName, tokenValues, overwrite: true);
                 }
                 tx.Commit();
             }

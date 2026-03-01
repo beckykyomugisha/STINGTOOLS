@@ -150,6 +150,12 @@ namespace StingTools.UI
                     case "BatchTagTextSize": RunCommand<Tags.BatchTagTextSizeCommand>(app); break;
                     case "SetTagCatLineWeight": RunCommand<Tags.SetTagCategoryLineWeightCommand>(app); break;
 
+                    // ── Rich TAG7 display ──
+                    case "RichTagNote": RunCommand<Tags.RichTagNoteCommand>(app); break;
+                    case "ExportRichTagReport": RunCommand<Tags.ExportRichTagReportCommand>(app); break;
+                    case "ViewTag7Sections": RunCommand<Tags.ViewTag7SectionsCommand>(app); break;
+                    case "SwitchTag7Preset": RunCommand<Tags.SwitchTag7PresetCommand>(app); break;
+
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
                     case "FlipTags":

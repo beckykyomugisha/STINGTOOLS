@@ -217,13 +217,8 @@ namespace StingTools.Tags
                         combined += ParamRegistry.WriteContainers(el, tokenVals, catName,
                             overwrite: true, skipParam: ParamRegistry.TAG7);
 
-                        // Step 7b: Write TAG7 — comprehensive descriptive narrative from all parameters
-                        string narrative = TagConfig.BuildTag7Narrative(doc, el, catName, tokenVals);
-                        if (!string.IsNullOrEmpty(narrative))
-                        {
-                            if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, narrative, overwrite: true))
-                                combined++;
-                        }
+                        // Step 7b: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                        combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
                     }
                     catch (Exception ex)
                     {
