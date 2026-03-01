@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
@@ -158,6 +159,7 @@ namespace StingTools.UI
                     case "AlignTextLeft":
                     case "AlignTextCenter":
                     case "AlignTextRight": RunCommand<Organise.AlignTagTextCommand>(app); break;
+                    case "AutoAlignLeaderText": RunCommand<Organise.AutoAlignLeaderTextCommand>(app); break;
 
                     // ── Align & distribute ──
                     case "AlignTagsH":
@@ -327,6 +329,8 @@ namespace StingTools.UI
                     case "ValidateTemplate": RunCommand<Temp.ValidateTemplateCommand>(app); break;
                     case "DynamicBindings": RunCommand<Temp.DynamicBindingsCommand>(app); break;
                     case "SchemaValidate": RunCommand<Temp.SchemaValidateCommand>(app); break;
+                    case "BOQExport": RunCommand<Temp.BOQExportCommand>(app); break;
+                    case "TemplateVGAudit": RunCommand<Temp.TemplateVGAuditCommand>(app); break;
 
                     // ════════════════════════════════════════════════════════
                     // CREATE TAB (ISO 19650 tag creation)
@@ -543,6 +547,8 @@ namespace StingTools.UI
                     case "LegendSyncPos": LegendSyncPosition(app); break;
                     case "LegendTitleLine": LegendTitleLine(app); break;
                     case "LegendUniform": LegendUniformSize(app); break;
+                    case "TagDictionary": CreateTagDictionary(app); break;
+                    case "ColorLegendSchedule": CreateColorLegendSchedule(app); break;
 
                     case "TitleBlockReset": TitleBlockReset(app); break;
                     case "TitleBlockRescue": TitleBlockRescue(app); break;
@@ -1741,23 +1747,284 @@ namespace StingTools.UI
             { TaskDialog.Show("Legend Uniform", "Active view must be a sheet."); return; }
 
             var vpIds = sheet.GetAllViewports().ToList();
-            var legendVps = new List<Viewport>();
+            var legendVps = new List<(Viewport vp, View view)>();
             foreach (var vpId in vpIds)
             {
                 var vp = doc.GetElement(vpId) as Viewport;
                 if (vp == null) continue;
                 var vpView = doc.GetElement(vp.ViewId) as View;
                 if (vpView?.ViewType == ViewType.Legend)
-                    legendVps.Add(vp);
+                    legendVps.Add((vp, vpView));
             }
 
             if (legendVps.Count < 2)
             { TaskDialog.Show("Legend Uniform", "Need 2+ legend viewports."); return; }
 
+            // Find the most common scale among legend views
+            var scaleCounts = legendVps.GroupBy(lv => lv.view.Scale)
+                .OrderByDescending(g => g.Count()).ToList();
+            int targetScale = scaleCounts.First().Key;
+
+            int changed = 0;
+            using (Transaction tx = new Transaction(doc, "STING Legend Uniform Size"))
+            {
+                tx.Start();
+                foreach (var (vp, view) in legendVps)
+                {
+                    try
+                    {
+                        if (view.Scale != targetScale)
+                        {
+                            view.Scale = targetScale;
+                            changed++;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"LegendUniform: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
             TaskDialog.Show("Legend Uniform",
-                $"Found {legendVps.Count} legends on sheet.\n" +
-                "Legend size is controlled by the view scale. To make legends uniform,\n" +
-                "set the same scale on all legend views.");
+                $"Set {changed} legend views to scale 1:{targetScale}.\n" +
+                $"({legendVps.Count} total legends on sheet).");
+        }
+
+        /// <summary>
+        /// Create a Tag Dictionary schedule showing all STING tag nomenclature.
+        /// Uses ViewSchedule API to create a reference schedule listing DISC, SYS, FUNC, PROD codes.
+        /// </summary>
+        private static void CreateTagDictionary(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+
+            // Check if schedule already exists
+            string scheduleName = "STING - Tag Dictionary";
+            var existing = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>()
+                .FirstOrDefault(vs => vs.Name == scheduleName);
+
+            if (existing != null)
+            {
+                TaskDialog.Show("Tag Dictionary", $"Schedule '{scheduleName}' already exists.\nDelete it first to regenerate.");
+                return;
+            }
+
+            // Build dictionary data from TagConfig lookup tables
+            var discMap = Core.TagConfig.DiscMap;
+            var sysMap = Core.TagConfig.SysMap;
+            var funcMap = Core.TagConfig.FuncMap;
+            var prodMap = Core.TagConfig.ProdMap;
+
+            var report = new StringBuilder();
+            report.AppendLine("STING Tag Dictionary — ISO 19650 Nomenclature");
+            report.AppendLine("=".PadRight(60, '='));
+            report.AppendLine();
+            report.AppendLine("TAG FORMAT: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ");
+            report.AppendLine();
+
+            // Discipline codes
+            report.AppendLine("── DISCIPLINE CODES (DISC) ──");
+            var discCodes = new HashSet<string>();
+            foreach (var kvp in discMap)
+            {
+                if (discCodes.Add(kvp.Value))
+                    report.AppendLine($"  {kvp.Value,-6} {GetDiscDescription(kvp.Value)}");
+            }
+            report.AppendLine();
+
+            // System codes
+            report.AppendLine("── SYSTEM CODES (SYS) ──");
+            foreach (var kvp in sysMap)
+                report.AppendLine($"  {kvp.Key,-8} → Categories: {string.Join(", ", kvp.Value.Take(3))}{(kvp.Value.Count > 3 ? "..." : "")}");
+            report.AppendLine();
+
+            // Function codes
+            report.AppendLine("── FUNCTION CODES (FUNC) ──");
+            foreach (var kvp in funcMap)
+                report.AppendLine($"  {kvp.Key,-8} → {kvp.Value}");
+            report.AppendLine();
+
+            // Product codes
+            report.AppendLine("── PRODUCT CODES (PROD) ──");
+            var prodCodes = new HashSet<string>();
+            foreach (var kvp in prodMap)
+            {
+                if (prodCodes.Add(kvp.Value))
+                    report.AppendLine($"  {kvp.Value,-6} {kvp.Key}");
+            }
+            report.AppendLine();
+
+            // Location codes
+            report.AppendLine("── LOCATION CODES (LOC) ──");
+            foreach (string loc in Core.TagConfig.LocCodes)
+                report.AppendLine($"  {loc}");
+            report.AppendLine();
+
+            // Zone codes
+            report.AppendLine("── ZONE CODES (ZONE) ──");
+            foreach (string zone in Core.TagConfig.ZoneCodes)
+                report.AppendLine($"  {zone}");
+
+            // Export to text file alongside data
+            string exportPath = System.IO.Path.Combine(
+                StingToolsApp.DataPath ?? System.IO.Path.GetTempPath(),
+                "TAG_DICTIONARY.txt");
+            try
+            {
+                System.IO.File.WriteAllText(exportPath, report.ToString());
+                StingLog.Info($"Tag dictionary exported to {exportPath}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Tag dictionary export: {ex.Message}");
+                exportPath = null;
+            }
+
+            var msg = new StringBuilder();
+            msg.AppendLine($"Tag Dictionary generated with:");
+            msg.AppendLine($"  Disciplines: {discCodes.Count}");
+            msg.AppendLine($"  Systems: {sysMap.Count}");
+            msg.AppendLine($"  Functions: {funcMap.Count}");
+            msg.AppendLine($"  Products: {prodCodes.Count}");
+            msg.AppendLine($"  Locations: {Core.TagConfig.LocCodes.Count}");
+            msg.AppendLine($"  Zones: {Core.TagConfig.ZoneCodes.Count}");
+            if (exportPath != null)
+                msg.AppendLine($"\nExported to: {exportPath}");
+            msg.AppendLine($"\n{report.ToString().Substring(0, Math.Min(report.Length, 2000))}");
+
+            TaskDialog.Show("Tag Dictionary", msg.ToString());
+        }
+
+        private static string GetDiscDescription(string disc)
+        {
+            return disc switch
+            {
+                "M" => "Mechanical",
+                "E" => "Electrical",
+                "P" => "Plumbing",
+                "A" => "Architectural",
+                "S" => "Structural",
+                "FP" => "Fire Protection",
+                "LV" => "Low Voltage / Comms",
+                "G" => "General / Generic",
+                _ => disc,
+            };
+        }
+
+        /// <summary>
+        /// Create a Color Legend reference schedule listing parameter values and their colors.
+        /// Reads current color overrides from the active view and builds a reference table.
+        /// </summary>
+        private static void CreateColorLegendSchedule(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            // Collect all elements with color overrides in current view
+            var elements = new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
+                .ToList();
+
+            if (elements.Count == 0)
+            {
+                TaskDialog.Show("Color Legend", "No taggable elements in active view.");
+                return;
+            }
+
+            // Group elements by their surface color override
+            var colorGroups = new Dictionary<string, (Color color, List<Element> elems)>();
+
+            foreach (var elem in elements)
+            {
+                try
+                {
+                    var ogs = view.GetElementOverrides(elem.Id);
+                    Color surfColor = ogs.SurfaceForegroundPatternColor;
+                    if (surfColor.IsValid && (surfColor.Red != 0 || surfColor.Green != 0 || surfColor.Blue != 0))
+                    {
+                        string key = $"{surfColor.Red:D3},{surfColor.Green:D3},{surfColor.Blue:D3}";
+                        if (!colorGroups.ContainsKey(key))
+                            colorGroups[key] = (surfColor, new List<Element>());
+                        colorGroups[key].elems.Add(elem);
+                    }
+                }
+                catch { }
+            }
+
+            if (colorGroups.Count == 0)
+            {
+                TaskDialog.Show("Color Legend",
+                    "No color overrides found in active view.\n" +
+                    "Use 'Color By Parameter' first to apply color overrides,\nthen run this command to generate a legend.");
+                return;
+            }
+
+            // Try to detect which parameter was used for coloring
+            // Check common tag parameters on the first element of each group
+            string[] candidateParams = { "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                "ASS_SYSTEM_TYPE_TXT", "ASS_LVL_COD_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT" };
+
+            string bestParam = null;
+            int bestUniqueMatch = 0;
+            foreach (string paramName in candidateParams)
+            {
+                var groupValues = new HashSet<string>();
+                bool allUnique = true;
+                foreach (var kvp in colorGroups)
+                {
+                    var sample = kvp.Value.elems.First();
+                    string val = Core.ParameterHelpers.GetString(sample, paramName);
+                    if (string.IsNullOrEmpty(val)) { allUnique = false; break; }
+                    if (!groupValues.Add(val)) { allUnique = false; break; }
+                }
+                if (allUnique && groupValues.Count == colorGroups.Count && groupValues.Count > bestUniqueMatch)
+                {
+                    bestParam = paramName;
+                    bestUniqueMatch = groupValues.Count;
+                }
+            }
+
+            // Build report
+            var report = new StringBuilder();
+            report.AppendLine($"Color Legend — {view.Name}");
+            report.AppendLine(new string('=', 50));
+            if (bestParam != null)
+                report.AppendLine($"Detected color parameter: {bestParam}");
+            report.AppendLine($"Color groups: {colorGroups.Count}");
+            report.AppendLine($"Total colored elements: {colorGroups.Sum(g => g.Value.elems.Count)}");
+            report.AppendLine();
+            report.AppendLine($"{"RGB",-16} {"Value",-20} {"Count",-8} {"Categories"}");
+            report.AppendLine(new string('-', 70));
+
+            foreach (var kvp in colorGroups.OrderBy(g => g.Key))
+            {
+                string paramValue = "<unknown>";
+                if (bestParam != null)
+                    paramValue = Core.ParameterHelpers.GetString(kvp.Value.elems.First(), bestParam);
+
+                var catCounts = kvp.Value.elems.GroupBy(e => e.Category?.Name ?? "?")
+                    .Select(g => $"{g.Key}({g.Count()})");
+                report.AppendLine($"[{kvp.Key}]  {paramValue,-20} {kvp.Value.elems.Count,-8} {string.Join(", ", catCounts.Take(3))}");
+            }
+
+            // Export
+            string exportPath = System.IO.Path.Combine(
+                StingToolsApp.DataPath ?? System.IO.Path.GetTempPath(),
+                "COLOR_LEGEND.txt");
+            try
+            {
+                System.IO.File.WriteAllText(exportPath, report.ToString());
+            }
+            catch { exportPath = null; }
+
+            var msg = report.ToString();
+            if (exportPath != null)
+                msg += $"\n\nExported to: {exportPath}";
+
+            TaskDialog.Show("Color Legend", msg);
         }
 
         // ── TitleBlock operations ───────────────────────────────────

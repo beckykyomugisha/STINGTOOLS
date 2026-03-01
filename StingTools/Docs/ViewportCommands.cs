@@ -34,27 +34,79 @@ namespace StingTools.Docs
                 return Result.Succeeded;
             }
 
+            // Page 1: Alignment direction
             TaskDialog td = new TaskDialog("Align Viewports");
             td.MainInstruction = $"Align {vpIds.Count} viewports on '{sheet.Name}'";
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Align Top");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Align Left");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Center Vertically");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Center Horizontally");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Horizontal alignment", "Align Top, Bottom, or Center Y");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Vertical alignment", "Align Left, Right, or Center X");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Distribute evenly", "Space viewports equally (horizontal or vertical)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Smart alignment (auto-detect)", "Detect layout direction and align accordingly");
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
 
-            var result = td.Show();
-            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+            var page1 = td.Show();
+            if (page1 == TaskDialogResult.Cancel) return Result.Cancelled;
 
             var viewports = vpIds.Select(id => doc.GetElement(id) as Viewport)
                 .Where(v => v != null).ToList();
 
-            using (Transaction tx = new Transaction(doc, "Align Viewports"))
+            int mode = 0; // determined by page 2
+
+            if (page1 == TaskDialogResult.CommandLink4)
+            {
+                // Smart auto-detect: analyze viewport positions
+                double xSpread = viewports.Max(v => v.GetBoxCenter().X) - viewports.Min(v => v.GetBoxCenter().X);
+                double ySpread = viewports.Max(v => v.GetBoxCenter().Y) - viewports.Min(v => v.GetBoxCenter().Y);
+                // If wider than tall, viewports are horizontal -> align Y (top)
+                // If taller than wide, viewports are vertical -> align X (left)
+                mode = xSpread >= ySpread ? 1 : 4; // top or left
+            }
+            else if (page1 == TaskDialogResult.CommandLink1) // Horizontal alignment
+            {
+                TaskDialog td2 = new TaskDialog("Align Viewports — Horizontal");
+                td2.MainInstruction = "Select horizontal alignment mode";
+                td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Align Top", "Align to highest viewport");
+                td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Align Bottom", "Align to lowest viewport");
+                td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Center Y", "Average Y position");
+                td2.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var h = td2.Show();
+                if (h == TaskDialogResult.Cancel) return Result.Cancelled;
+                mode = h == TaskDialogResult.CommandLink1 ? 1 : h == TaskDialogResult.CommandLink2 ? 2 : 3;
+            }
+            else if (page1 == TaskDialogResult.CommandLink2) // Vertical alignment
+            {
+                TaskDialog td2 = new TaskDialog("Align Viewports — Vertical");
+                td2.MainInstruction = "Select vertical alignment mode";
+                td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Align Left", "Align to leftmost viewport");
+                td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Align Right", "Align to rightmost viewport");
+                td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Center X", "Average X position");
+                td2.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var v = td2.Show();
+                if (v == TaskDialogResult.Cancel) return Result.Cancelled;
+                mode = v == TaskDialogResult.CommandLink1 ? 4 : v == TaskDialogResult.CommandLink2 ? 5 : 6;
+            }
+            else // Distribute
+            {
+                TaskDialog td2 = new TaskDialog("Distribute Viewports");
+                td2.MainInstruction = "Distribution direction";
+                td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Distribute Horizontally", "Equal horizontal spacing");
+                td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Distribute Vertically", "Equal vertical spacing");
+                td2.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var d = td2.Show();
+                if (d == TaskDialogResult.Cancel) return Result.Cancelled;
+                mode = d == TaskDialogResult.CommandLink1 ? 7 : 8;
+            }
+
+            using (Transaction tx = new Transaction(doc, "STING Align Viewports"))
             {
                 tx.Start();
 
-                switch (result)
+                switch (mode)
                 {
-                    case TaskDialogResult.CommandLink1: // Align Top
+                    case 1: // Align Top
                         double maxY = viewports.Max(v => v.GetBoxCenter().Y);
                         foreach (var vp in viewports)
                         {
@@ -63,16 +115,16 @@ namespace StingTools.Docs
                         }
                         break;
 
-                    case TaskDialogResult.CommandLink2: // Align Left
-                        double minX = viewports.Min(v => v.GetBoxCenter().X);
+                    case 2: // Align Bottom
+                        double minY = viewports.Min(v => v.GetBoxCenter().Y);
                         foreach (var vp in viewports)
                         {
                             XYZ center = vp.GetBoxCenter();
-                            vp.SetBoxCenter(new XYZ(minX, center.Y, center.Z));
+                            vp.SetBoxCenter(new XYZ(center.X, minY, center.Z));
                         }
                         break;
 
-                    case TaskDialogResult.CommandLink3: // Center Vertically
+                    case 3: // Center Y
                         double avgY = viewports.Average(v => v.GetBoxCenter().Y);
                         foreach (var vp in viewports)
                         {
@@ -81,7 +133,25 @@ namespace StingTools.Docs
                         }
                         break;
 
-                    case TaskDialogResult.CommandLink4: // Center Horizontally
+                    case 4: // Align Left
+                        double minX = viewports.Min(v => v.GetBoxCenter().X);
+                        foreach (var vp in viewports)
+                        {
+                            XYZ center = vp.GetBoxCenter();
+                            vp.SetBoxCenter(new XYZ(minX, center.Y, center.Z));
+                        }
+                        break;
+
+                    case 5: // Align Right
+                        double maxX = viewports.Max(v => v.GetBoxCenter().X);
+                        foreach (var vp in viewports)
+                        {
+                            XYZ center = vp.GetBoxCenter();
+                            vp.SetBoxCenter(new XYZ(maxX, center.Y, center.Z));
+                        }
+                        break;
+
+                    case 6: // Center X
                         double avgX = viewports.Average(v => v.GetBoxCenter().X);
                         foreach (var vp in viewports)
                         {
@@ -89,12 +159,43 @@ namespace StingTools.Docs
                             vp.SetBoxCenter(new XYZ(avgX, center.Y, center.Z));
                         }
                         break;
+
+                    case 7: // Distribute Horizontally
+                        var sortedH = viewports.OrderBy(v => v.GetBoxCenter().X).ToList();
+                        if (sortedH.Count >= 3)
+                        {
+                            double startX = sortedH.First().GetBoxCenter().X;
+                            double endX = sortedH.Last().GetBoxCenter().X;
+                            double spacing = (endX - startX) / (sortedH.Count - 1);
+                            for (int i = 1; i < sortedH.Count - 1; i++)
+                            {
+                                XYZ center = sortedH[i].GetBoxCenter();
+                                sortedH[i].SetBoxCenter(new XYZ(startX + spacing * i, center.Y, center.Z));
+                            }
+                        }
+                        break;
+
+                    case 8: // Distribute Vertically
+                        var sortedV = viewports.OrderBy(v => v.GetBoxCenter().Y).ToList();
+                        if (sortedV.Count >= 3)
+                        {
+                            double startY = sortedV.First().GetBoxCenter().Y;
+                            double endY = sortedV.Last().GetBoxCenter().Y;
+                            double spacing = (endY - startY) / (sortedV.Count - 1);
+                            for (int i = 1; i < sortedV.Count - 1; i++)
+                            {
+                                XYZ center = sortedV[i].GetBoxCenter();
+                                sortedV[i].SetBoxCenter(new XYZ(center.X, startY + spacing * i, center.Z));
+                            }
+                        }
+                        break;
                 }
 
                 tx.Commit();
             }
 
-            TaskDialog.Show("Align Viewports", $"Aligned {viewports.Count} viewports.");
+            string[] modeNames = { "", "Top", "Bottom", "Center Y", "Left", "Right", "Center X", "Distribute H", "Distribute V" };
+            TaskDialog.Show("Align Viewports", $"Aligned {viewports.Count} viewports — {modeNames[mode]}.");
             return Result.Succeeded;
         }
     }
