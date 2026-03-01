@@ -152,8 +152,8 @@ namespace StingTools.Select
 
             var ids = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.LevelId == levelId)
-                .Select(e => e.Id).ToList();
+                .WherePasses(new ElementLevelFilter(levelId))
+                .ToElementIds();
 
             uidoc.Selection.SetElementIds(ids);
             TaskDialog.Show("Select by Level", $"Selected {ids.Count} elements on this level.");
@@ -352,13 +352,7 @@ namespace StingTools.Select
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
 
-            string[] clearParams = {
-                "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-                "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
-            };
+            string[] clearParams = TagConfig.AllTagParams;
 
             int cleared = 0;
             using (Transaction tx = new Transaction(doc, "STING Clear Tags"))

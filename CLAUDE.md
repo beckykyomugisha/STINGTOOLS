@@ -661,31 +661,31 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 
 [DONE] Dead/stub UI elements: `RefreshParamList` handler added (populates combo from Revit), `ColorApply`/`ColorApplyHex`/`ColorApplyTransparency` now use dedicated click handlers passing actual control values, Save/Load/Delete preset buttons wired with Tag+Click, Parameter Lookup ▼/⊙ buttons wired, [Brain] button wired to FamilyStagePopulate, Anomaly Refresh button wired. Also added: ReTag, PinTags, ResetTagPositions, SelectByDiscipline, SelectTagsWithLeaders, TagRegisterExport, MaterialSchedules, ApplyFilters buttons to panel.
 
-**Inconsistent SYS Code Derivation:**
+**[DONE] Inconsistent SYS Code Derivation:**
 
-| Command | Method | Accuracy |
-|---------|--------|----------|
+| Command | Method | Status |
+|---------|--------|--------|
 | AutoTag, BatchTag, TagAndCombine, TagNewOnly | `GetMepSystemAwareSysCode` | Correct (6-layer) |
-| FamilyStagePopulateCommand, PreTagAuditCommand | `GetSysCode` | Wrong (simple category lookup — predictions differ from actual tagging) |
+| [DONE] FamilyStagePopulateCommand, PreTagAuditCommand | `GetMepSystemAwareSysCode` | Fixed — now uses same 6-layer MEP-aware lookup as tagging commands |
 
 **Performance Bottlenecks:**
 
-| Location | Issue | Fix |
-|----------|-------|-----|
+| Location | Issue | Status |
+|----------|-------|--------|
 | `TagConfig.BuildExistingTagIndex` + `GetExistingSequenceCounters` | Two full-project scans of ALL non-type elements | Merge into single pass with `ElementMulticategoryFilter` |
 | `FormulaEvaluatorCommand:52-54` | Collects ALL non-type elements (views, sheets, annotations) | Filter by relevant categories |
 | `BatchTagCommand:39-98` | 4 separate full-project scans before tagging | Consolidate scans |
-| `StateSelectCommands:153-156` | LINQ post-filter instead of `ElementLevelFilter` | Use Revit API quick filter |
+| [DONE] `StateSelectCommands:153-156` | LINQ post-filter replaced with `ElementLevelFilter` quick filter | Fixed |
 | `StingLog:50-54` | `File.AppendAllText` opens/closes file per log call | Use buffered `StreamWriter` |
-| `TagConfig.GetSysCode` | O(n*m) linear scan on every call | Pre-build reverse lookup dictionary |
+| [DONE] `TagConfig.GetSysCode` | O(n*m) replaced with O(1) cached reverse lookup dictionary (`_sysReverseLookup`) | Fixed — cache invalidated on config reload |
 
 **Code Duplication (6 major clusters):**
 
-| What | Copies | Files |
-|------|--------|-------|
+| What | Copies | Status |
+|------|--------|--------|
 | Token parameter name arrays | 5 | AutoTag, CombineParams, PreTagAudit, ValidateTags, TagAndCombine |
 | Container definitions (36 discipline containers) | 2 | TagAndCombineCommand, CombineParametersCommand |
-| Tag parameter arrays (15 clear params) | 4 | DeleteTags, CopyTags, SwapTags, BulkClearTags |
+| [DONE] Tag parameter arrays (15 clear params) | 4→0 | Added `TagConfig.AllTagParams` + `TagConfig.CopyableTokenParams` shared constants; replaced all 4 duplicates |
 | LOC/ZONE auto-populate pattern | 4 | AutoTag, BatchTag, TagNewOnly, TagAndCombine |
 | Category-to-BuiltInCategory mappings | 5+ | SharedParamGuids, ScheduleHelper, TemplateCommands, TemplateExtCommands |
 | Solid fill pattern collector | 6+ | TemplateCommands, TemplateManagerCommands (×3), StingCommandHandler (×2) |

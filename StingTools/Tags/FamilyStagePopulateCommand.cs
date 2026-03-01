@@ -183,8 +183,8 @@ namespace StingTools.Tags
                             lvlSet++;
                     }
 
-                    // SYS — from category mapping
-                    string sys = TagConfig.GetSysCode(catName);
+                    // SYS — MEP system-aware (checks connected systems before category fallback)
+                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
                     if (!string.IsNullOrEmpty(sys))
                     {
                         if (overwrite)

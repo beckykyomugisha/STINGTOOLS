@@ -314,6 +314,24 @@ namespace StingTools.Core
         public const int NumPad = 4;
         public const string Separator = "-";
 
+        /// <summary>All 15 tag-related parameters (6 containers + 8 tokens + 1 status). Used for clear/delete/swap.</summary>
+        public static readonly string[] AllTagParams = new[]
+        {
+            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
+            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
+            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
+        };
+
+        /// <summary>Copyable token parameters (excludes SEQ and assembled tags to prevent duplicates).</summary>
+        public static readonly string[] CopyableTokenParams = new[]
+        {
+            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+            "ASS_PRODCT_COD_TXT", "ASS_STATUS_TXT",
+        };
+
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
         public static Dictionary<string, string> DiscMap { get; private set; }
 
@@ -365,6 +383,7 @@ namespace StingTools.Core
                 LocCodes = TryDeserialize<List<string>>(data, "LOC_CODES") ?? DefaultLocCodes();
                 ZoneCodes = TryDeserialize<List<string>>(data, "ZONE_CODES") ?? DefaultZoneCodes();
                 ConfigSource = "project_config.json";
+                _sysReverseLookup = null; // Invalidate reverse lookup cache
             }
             catch (Exception ex)
             {
@@ -382,17 +401,31 @@ namespace StingTools.Core
             LocCodes = DefaultLocCodes();
             ZoneCodes = DefaultZoneCodes();
             ConfigSource = "built-in defaults";
+            _sysReverseLookup = null; // Invalidate reverse lookup cache
         }
 
-        /// <summary>Get the SYS code for a category name.</summary>
+        // Reverse lookup cache: category name → SYS code (rebuilt when SysMap changes)
+        private static Dictionary<string, string> _sysReverseLookup;
+
+        private static void RebuildSysReverseLookup()
+        {
+            var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (SysMap != null)
+            {
+                foreach (var kvp in SysMap)
+                    foreach (string cat in kvp.Value)
+                        if (!lookup.ContainsKey(cat))
+                            lookup[cat] = kvp.Key;
+            }
+            _sysReverseLookup = lookup;
+        }
+
+        /// <summary>Get the SYS code for a category name. Uses O(1) cached reverse lookup.</summary>
         public static string GetSysCode(string categoryName)
         {
-            foreach (var kvp in SysMap)
-            {
-                if (kvp.Value.Contains(categoryName))
-                    return kvp.Key;
-            }
-            return string.Empty;
+            if (_sysReverseLookup == null)
+                RebuildSysReverseLookup();
+            return _sysReverseLookup.TryGetValue(categoryName, out string code) ? code : string.Empty;
         }
 
         /// <summary>Get the FUNC code for a SYS code (basic lookup).</summary>

@@ -253,14 +253,6 @@ namespace StingTools.Organise
     [Regeneration(RegenerationOption.Manual)]
     public class DeleteTagsCommand : IExternalCommand
     {
-        private static readonly string[] TagParams = new[]
-        {
-            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
-        };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
@@ -289,7 +281,7 @@ namespace StingTools.Organise
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
                     bool any = false;
-                    foreach (string param in TagParams)
+                    foreach (string param in TagConfig.AllTagParams)
                     {
                         if (ParameterHelpers.SetString(elem, param, "", overwrite: true))
                             any = true;
@@ -583,15 +575,6 @@ namespace StingTools.Organise
     [Regeneration(RegenerationOption.Manual)]
     public class CopyTagsCommand : IExternalCommand
     {
-        // Only copy individual tokens — NOT assembled tags (ASS_TAG_1-6) which
-        // contain the source's SEQ number and would create guaranteed duplicates.
-        // User should run "Build Tags" after copying to reassemble from tokens.
-        private static readonly string[] CopyParams = new[]
-        {
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_STATUS_TXT",
-        };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
@@ -610,7 +593,7 @@ namespace StingTools.Organise
 
             Element source = doc.GetElement(selected[0]);
             var values = new Dictionary<string, string>();
-            foreach (string p in CopyParams)
+            foreach (string p in TagConfig.CopyableTokenParams)
                 values[p] = ParameterHelpers.GetString(source, p);
 
             string sourceTag = values.TryGetValue("ASS_TAG_1_TXT", out string t) ? t : "(empty)";
@@ -657,14 +640,6 @@ namespace StingTools.Organise
     [Regeneration(RegenerationOption.Manual)]
     public class SwapTagsCommand : IExternalCommand
     {
-        private static readonly string[] SwapParams = new[]
-        {
-            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
-        };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
@@ -696,7 +671,7 @@ namespace StingTools.Organise
             using (Transaction tx = new Transaction(doc, "STING Swap Tags"))
             {
                 tx.Start();
-                foreach (string param in SwapParams)
+                foreach (string param in TagConfig.AllTagParams)
                 {
                     string valA = ParameterHelpers.GetString(a, param);
                     string valB = ParameterHelpers.GetString(b, param);
