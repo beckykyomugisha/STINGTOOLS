@@ -477,6 +477,17 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- VG / FILTER LINKED LEGENDS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="VG / FILTER LEGENDS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource BlueBtn}" Content="Filter Legend" Tag="FilterLegend" Click="Cmd_Click" ToolTip="Legend from ACTUAL filter overrides in active view/template — reads real colors, not hardcoded maps"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Template Doc" Tag="TemplateLegend" Click="Cmd_Click" ToolTip="Document a view template's full VG state: all filter overrides + category VG overrides"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="VG Categories" Tag="VGCategoryLegend" Click="Cmd_Click" ToolTip="Legend from per-category VG overrides in active view — shows what each category looks like"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="All Templates" Tag="BatchTemplateLegend" Click="Cmd_Click" ToolTip="Batch create legends for every STING view template — full VG documentation"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- ORIENTATION & TEXT ALIGNMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ORIENTATION &amp; TEXT ALIGNMENT"/>
                         <Border Style="{StaticResource GroupBorder}">

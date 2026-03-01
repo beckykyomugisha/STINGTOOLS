@@ -4923,4 +4923,647 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // VG / VT / Filter–Linked Legend System
+    //
+    // The core architectural fix: legends read FROM the Revit VG chain
+    // at runtime instead of using hardcoded color maps. This means:
+    //
+    //   1. If a filter color changes, refreshing the legend picks it up
+    //   2. If a view template is updated, the legend matches instantly
+    //   3. No more color discrepancies between filter, template, and legend
+    //   4. Category VG overrides are captured for the first time
+    //   5. Legends document EXACTLY what the user sees
+    //
+    // Three modes:
+    //   A. Filter Legend  — from view.GetFilters() + GetFilterOverrides()
+    //   B. Category Legend — from view.GetCategoryOverrides(catId)
+    //   C. Template Legend — combines A + B from a view template
+    //
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// VG-linked legend builders that read actual applied graphic overrides
+    /// from the Revit view/template system instead of hardcoded color maps.
+    /// </summary>
+    internal static class VGLinkedLegendBuilder
+    {
+        /// <summary>
+        /// Extract override info as a human-readable description.
+        /// Shows line color, fill color, transparency, halftone, line weight.
+        /// </summary>
+        private static string DescribeOverride(OverrideGraphicSettings ogs)
+        {
+            var parts = new List<string>();
+
+            if (ogs.ProjectionLineColor.IsValid)
+            {
+                Color c = ogs.ProjectionLineColor;
+                parts.Add($"Line: RGB({c.Red},{c.Green},{c.Blue})");
+            }
+            if (ogs.ProjectionLineWeight > 0)
+                parts.Add($"Wt: {ogs.ProjectionLineWeight}");
+            if (ogs.SurfaceForegroundPatternColor.IsValid)
+            {
+                Color c = ogs.SurfaceForegroundPatternColor;
+                parts.Add($"Fill: RGB({c.Red},{c.Green},{c.Blue})");
+            }
+            if (ogs.SurfaceTransparency > 0)
+                parts.Add($"Trans: {ogs.SurfaceTransparency}%");
+            if (ogs.Halftone)
+                parts.Add("Halftone");
+
+            return parts.Count > 0 ? string.Join(" | ", parts) : "No overrides";
+        }
+
+        /// <summary>
+        /// Get the "best" display color from an OverrideGraphicSettings.
+        /// Priority: surface foreground color → projection line color → grey.
+        /// </summary>
+        private static Color GetDisplayColor(OverrideGraphicSettings ogs)
+        {
+            if (ogs.SurfaceForegroundPatternColor.IsValid)
+                return ogs.SurfaceForegroundPatternColor;
+            if (ogs.ProjectionLineColor.IsValid)
+                return ogs.ProjectionLineColor;
+            return new Color(180, 180, 180); // no override
+        }
+
+        /// <summary>
+        /// Check whether an OverrideGraphicSettings has any meaningful override.
+        /// </summary>
+        private static bool HasMeaningfulOverride(OverrideGraphicSettings ogs)
+        {
+            return ogs.ProjectionLineColor.IsValid
+                || ogs.SurfaceForegroundPatternColor.IsValid
+                || ogs.ProjectionLineWeight > 0
+                || ogs.SurfaceTransparency > 0
+                || ogs.Halftone;
+        }
+
+        // ── Mode A: Filter Legend ──────────────────────────────────
+
+        /// <summary>
+        /// Build legend entries by reading actual filter overrides from a view.
+        /// Each entry represents one applied filter with its REAL graphic override colors.
+        ///
+        /// This is the core of the VG-linked approach: instead of using hardcoded
+        /// color maps, we read what the view actually displays.
+        /// </summary>
+        /// <param name="doc">The Revit document.</param>
+        /// <param name="view">The view (or view template) to read filters from.</param>
+        /// <param name="stingOnly">If true, only include "STING" prefix filters.</param>
+        /// <returns>Legend entries with actual applied colors.</returns>
+        public static List<LegendBuilder.LegendEntry> FromViewFilters(
+            Document doc, View view, bool stingOnly = false)
+        {
+            var entries = new List<LegendBuilder.LegendEntry>();
+            if (view == null) return entries;
+
+            ICollection<ElementId> filterIds;
+            try { filterIds = view.GetFilters(); }
+            catch { return entries; }
+
+            foreach (ElementId fid in filterIds)
+            {
+                ParameterFilterElement filter = doc.GetElement(fid) as ParameterFilterElement;
+                if (filter == null) continue;
+
+                string name = filter.Name ?? "(Unknown)";
+                if (stingOnly && !name.StartsWith("STING")) continue;
+
+                // Check visibility
+                bool visible;
+                try { visible = view.GetFilterVisibility(fid); }
+                catch { visible = true; }
+
+                if (!visible) continue; // skip hidden filters
+
+                // Read the ACTUAL graphic overrides
+                OverrideGraphicSettings ogs;
+                try { ogs = view.GetFilterOverrides(fid); }
+                catch { continue; }
+
+                if (!HasMeaningfulOverride(ogs)) continue;
+
+                Color displayColor = GetDisplayColor(ogs);
+                string desc = DescribeOverride(ogs);
+
+                // Clean up filter name for display
+                string label = name;
+                if (label.StartsWith("STING - "))
+                    label = label.Substring(8); // Remove "STING - " prefix
+                else if (label.StartsWith("STING "))
+                    label = label.Substring(6);
+
+                entries.Add(new LegendBuilder.LegendEntry
+                {
+                    Color = displayColor,
+                    Label = label,
+                    Description = desc,
+                    Bold = ogs.Halftone || ogs.SurfaceTransparency >= 40,
+                    Italic = ogs.Halftone,
+                });
+            }
+
+            return entries;
+        }
+
+        // ── Mode B: Category VG Legend ─────────────────────────────
+
+        /// <summary>
+        /// Build legend entries by reading per-category VG overrides from a view.
+        /// Only includes categories that have non-default overrides applied.
+        /// </summary>
+        public static List<LegendBuilder.LegendEntry> FromCategoryOverrides(
+            Document doc, View view)
+        {
+            var entries = new List<LegendBuilder.LegendEntry>();
+            if (view == null) return entries;
+
+            // Check all known taggable categories
+            foreach (var bic in SharedParamGuids.AllCategoryEnums)
+            {
+                try
+                {
+                    Category cat = doc.Settings.Categories.get_Item(bic);
+                    if (cat == null) continue;
+
+                    OverrideGraphicSettings ogs = view.GetCategoryOverrides(new ElementId(bic));
+                    if (!HasMeaningfulOverride(ogs)) continue;
+
+                    Color displayColor = GetDisplayColor(ogs);
+                    string desc = DescribeOverride(ogs);
+
+                    entries.Add(new LegendBuilder.LegendEntry
+                    {
+                        Color = displayColor,
+                        Label = cat.Name,
+                        Description = desc,
+                        Italic = ogs.Halftone,
+                    });
+                }
+                catch { }
+            }
+
+            return entries;
+        }
+
+        // ── Mode C: Template Legend (Filters + Categories) ─────────
+
+        /// <summary>
+        /// Build a comprehensive legend from a view template showing:
+        ///   Section 1: Applied filters with their graphic overrides
+        ///   Section 2: Category VG overrides
+        /// This documents EVERYTHING about what a template displays.
+        /// </summary>
+        public static (List<LegendBuilder.LegendEntry> filterEntries,
+                        List<LegendBuilder.LegendEntry> categoryEntries)
+            FromViewTemplate(Document doc, View template)
+        {
+            var filterEntries = FromViewFilters(doc, template, stingOnly: false);
+            var categoryEntries = FromCategoryOverrides(doc, template);
+            return (filterEntries, categoryEntries);
+        }
+
+        /// <summary>
+        /// Find all STING view templates in the project.
+        /// </summary>
+        public static List<View> GetStingTemplates(Document doc)
+        {
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v => v.IsTemplate && v.Name.StartsWith("STING"))
+                .OrderBy(v => v.Name)
+                .ToList();
+        }
+
+        /// <summary>
+        /// Get the template applied to a view (if any).
+        /// </summary>
+        public static View GetAppliedTemplate(Document doc, View view)
+        {
+            if (view == null || view.ViewTemplateId == ElementId.InvalidElementId)
+                return null;
+            return doc.GetElement(view.ViewTemplateId) as View;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Filter Legend Command — Legend from actual applied filter overrides
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create a legend by reading the ACTUAL filter overrides from the active view
+    /// (or its template). Shows exactly what the user sees — not hardcoded colors.
+    /// If filter colors change later, refreshing the legend picks up the new colors.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class FilterLegendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            if (view == null)
+            {
+                TaskDialog.Show("Filter Legend", "No active view.");
+                return Result.Failed;
+            }
+
+            // Determine source: active view or its template
+            View sourceView = view;
+            string sourceName = view.Name;
+
+            View template = VGLinkedLegendBuilder.GetAppliedTemplate(doc, view);
+            if (template != null)
+            {
+                var dlg = new TaskDialog("Filter Legend");
+                dlg.MainInstruction = "Read filter overrides from which source?";
+                dlg.MainContent =
+                    $"Active view: {view.Name}\n" +
+                    $"Applied template: {template.Name}\n\n" +
+                    "The template defines the base VG state;\n" +
+                    "the view may have additional per-element overrides.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    $"Template: {template.Name} (Recommended)",
+                    "Read filter overrides from the view template — the source of truth");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    $"Active View: {view.Name}",
+                    "Read filter overrides from the view itself (may differ from template)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var pick = dlg.Show();
+                if (pick == TaskDialogResult.CommandLink1)
+                {
+                    sourceView = template;
+                    sourceName = template.Name;
+                }
+                else if (pick != TaskDialogResult.CommandLink2)
+                {
+                    return Result.Cancelled;
+                }
+            }
+
+            // Read actual filter overrides
+            var entries = VGLinkedLegendBuilder.FromViewFilters(doc, sourceView, stingOnly: false);
+            if (entries.Count == 0)
+            {
+                TaskDialog.Show("Filter Legend",
+                    "No filters with graphic overrides found.\n\n" +
+                    "Apply filters to the view or template first:\n" +
+                    "  1. Create Filters (Temp panel)\n" +
+                    "  2. Apply Filters to Views\n" +
+                    "  3. Create VG Overrides");
+                return Result.Succeeded;
+            }
+
+            var config = new LegendBuilder.LegendConfig
+            {
+                Title = $"Filter Overrides — {sourceName}",
+                Subtitle = $"Read from: {(sourceView.IsTemplate ? "View Template" : "View")} | {entries.Count} active filters",
+                Footer = "Colors read from actual VG filter overrides — updates when filters change",
+                ShowCounts = false,
+            };
+
+            View legendView;
+            using (Transaction tx = new Transaction(doc, "STING Filter Legend"))
+            {
+                tx.Start();
+                legendView = LegendBuilder.CreateLegendView(doc, entries, config);
+                tx.Commit();
+            }
+
+            if (legendView != null)
+            {
+                uidoc.ActiveView = legendView;
+                TaskDialog.Show("Filter Legend",
+                    $"Created: '{legendView.Name}'\n" +
+                    $"Source: {sourceName}\n" +
+                    $"Filters: {entries.Count}\n\n" +
+                    "This legend shows ACTUAL applied colors.\n" +
+                    "If you change filter colors, use 'Update Legend' to refresh.");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Template Legend Command — Full VG documentation for a view template
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create a comprehensive legend documenting a view template's full VG state:
+    /// all applied filters with their override colors, plus all category VG overrides.
+    /// This is the "what does this template show?" documentation command.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TemplateLegendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            // Find STING templates
+            var templates = VGLinkedLegendBuilder.GetStingTemplates(doc);
+            if (templates.Count == 0)
+            {
+                // Try active view's template
+                View activeTemplate = VGLinkedLegendBuilder.GetAppliedTemplate(doc, doc.ActiveView);
+                if (activeTemplate != null)
+                    templates = new List<View> { activeTemplate };
+            }
+
+            if (templates.Count == 0)
+            {
+                TaskDialog.Show("Template Legend",
+                    "No view templates found.\n" +
+                    "Create templates first (Temp > View Templates).");
+                return Result.Succeeded;
+            }
+
+            // Pick template
+            var dlg = new TaskDialog("Template Legend");
+            dlg.MainInstruction = "Which template to document?";
+            dlg.MainContent = "Creates a legend showing ALL filter overrides and\n" +
+                "category VG overrides from the selected template.";
+
+            var commands = new[] {
+                TaskDialogCommandLinkId.CommandLink1,
+                TaskDialogCommandLinkId.CommandLink2,
+                TaskDialogCommandLinkId.CommandLink3,
+                TaskDialogCommandLinkId.CommandLink4,
+            };
+            int shown = Math.Min(templates.Count, 4);
+            for (int i = 0; i < shown; i++)
+            {
+                int filterCount = 0;
+                try { filterCount = templates[i].GetFilters().Count; } catch { }
+                dlg.AddCommandLink(commands[i],
+                    templates[i].Name,
+                    $"{filterCount} filters applied");
+            }
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            if (templates.Count > 4)
+                dlg.FooterText = $"Showing 4 of {templates.Count} templates.";
+
+            var pick = dlg.Show();
+            int idx = pick switch
+            {
+                TaskDialogResult.CommandLink1 => 0,
+                TaskDialogResult.CommandLink2 => 1,
+                TaskDialogResult.CommandLink3 => 2,
+                TaskDialogResult.CommandLink4 => 3,
+                _ => -1,
+            };
+            if (idx < 0) return Result.Cancelled;
+
+            View selected = templates[idx];
+
+            // Read FULL VG state
+            var (filterEntries, categoryEntries) = VGLinkedLegendBuilder.FromViewTemplate(doc, selected);
+
+            // Combine into a single legend with section headers
+            var allEntries = new List<LegendBuilder.LegendEntry>();
+
+            if (filterEntries.Count > 0)
+            {
+                allEntries.Add(new LegendBuilder.LegendEntry
+                {
+                    Color = new Color(40, 40, 40),
+                    Label = $"── FILTERS ({filterEntries.Count}) ──",
+                    Description = "",
+                    Bold = true,
+                });
+                allEntries.AddRange(filterEntries);
+            }
+
+            if (categoryEntries.Count > 0)
+            {
+                allEntries.Add(new LegendBuilder.LegendEntry
+                {
+                    Color = new Color(40, 40, 40),
+                    Label = $"── CATEGORY VG ({categoryEntries.Count}) ──",
+                    Description = "",
+                    Bold = true,
+                });
+                allEntries.AddRange(categoryEntries);
+            }
+
+            if (allEntries.Count == 0)
+            {
+                TaskDialog.Show("Template Legend",
+                    $"Template '{selected.Name}' has no graphic overrides.\n" +
+                    "Run 'Create VG Overrides' to apply discipline colors.");
+                return Result.Succeeded;
+            }
+
+            var config = new LegendBuilder.LegendConfig
+            {
+                Title = $"Template: {selected.Name}",
+                Subtitle = $"Filters: {filterEntries.Count} | Category overrides: {categoryEntries.Count}",
+                Footer = "Complete VG documentation — read from actual template overrides",
+                Columns = allEntries.Count > 18 ? 2 : 1,
+                ShowCounts = false,
+            };
+
+            View legendView;
+            using (Transaction tx = new Transaction(doc, "STING Template Legend"))
+            {
+                tx.Start();
+                legendView = LegendBuilder.CreateLegendView(doc, allEntries, config);
+                tx.Commit();
+            }
+
+            if (legendView != null)
+            {
+                uidoc.ActiveView = legendView;
+                TaskDialog.Show("Template Legend",
+                    $"Created: '{legendView.Name}'\n" +
+                    $"Template: {selected.Name}\n" +
+                    $"  Filters documented: {filterEntries.Count}\n" +
+                    $"  Category overrides: {categoryEntries.Count}\n\n" +
+                    "This legend reflects the template's ACTUAL VG state.\n" +
+                    "Use 'Update Legend' to refresh after template changes.");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // VG Category Legend Command — Per-category overrides from active view
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create a legend from per-category VG overrides in the active view.
+    /// Shows only categories that have non-default graphic overrides applied.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class VGCategoryLegendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            if (view == null)
+            {
+                TaskDialog.Show("VG Category Legend", "No active view.");
+                return Result.Failed;
+            }
+
+            var entries = VGLinkedLegendBuilder.FromCategoryOverrides(doc, view);
+            if (entries.Count == 0)
+            {
+                TaskDialog.Show("VG Category Legend",
+                    "No category VG overrides found in the active view.\n" +
+                    "Apply category overrides first (VG Overrides, Color by Parameter, etc.).");
+                return Result.Succeeded;
+            }
+
+            var config = new LegendBuilder.LegendConfig
+            {
+                Title = $"Category VG — {view.Name}",
+                Subtitle = $"{entries.Count} categories with overrides",
+                Footer = "Read from actual category VG overrides — updates when VG changes",
+                ShowCounts = false,
+            };
+
+            View legendView;
+            using (Transaction tx = new Transaction(doc, "STING VG Category Legend"))
+            {
+                tx.Start();
+                legendView = LegendBuilder.CreateLegendView(doc, entries, config);
+                tx.Commit();
+            }
+
+            if (legendView != null)
+            {
+                uidoc.ActiveView = legendView;
+                TaskDialog.Show("VG Category Legend",
+                    $"Created: '{legendView.Name}'\n" +
+                    $"Categories: {entries.Count}\n" +
+                    $"Source: {view.Name}\n\n" +
+                    "Shows actual per-category graphic overrides.");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Batch Template Legends — Document ALL templates at once
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create legends for every STING view template in the project.
+    /// Each template gets its own legend view documenting its full VG state
+    /// (filters + category overrides). Full documentation automation.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BatchTemplateLegendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            var templates = VGLinkedLegendBuilder.GetStingTemplates(doc);
+            if (templates.Count == 0)
+            {
+                TaskDialog.Show("Batch Template Legends", "No STING view templates found.");
+                return Result.Succeeded;
+            }
+
+            var dlg = new TaskDialog("Batch Template Legends");
+            dlg.MainInstruction = $"Document {templates.Count} STING view templates?";
+            dlg.MainContent =
+                "Creates one legend per template showing all filter overrides\n" +
+                "and category VG overrides read from the actual template.\n\n" +
+                "Templates found:\n" +
+                string.Join("\n", templates.Take(10).Select(t => $"  - {t.Name}")) +
+                (templates.Count > 10 ? $"\n  ... and {templates.Count - 10} more" : "");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                $"Create {templates.Count} Template Legends",
+                "One legend per template, all VG documented");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            if (dlg.Show() != TaskDialogResult.CommandLink1)
+                return Result.Cancelled;
+
+            int created = 0;
+            int skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Batch Template Legends"))
+            {
+                tx.Start();
+
+                foreach (var template in templates)
+                {
+                    var (filterEntries, categoryEntries) =
+                        VGLinkedLegendBuilder.FromViewTemplate(doc, template);
+
+                    var allEntries = new List<LegendBuilder.LegendEntry>();
+                    if (filterEntries.Count > 0)
+                    {
+                        allEntries.Add(new LegendBuilder.LegendEntry
+                        {
+                            Color = new Color(40, 40, 40),
+                            Label = $"── FILTERS ({filterEntries.Count}) ──",
+                            Bold = true,
+                        });
+                        allEntries.AddRange(filterEntries);
+                    }
+                    if (categoryEntries.Count > 0)
+                    {
+                        allEntries.Add(new LegendBuilder.LegendEntry
+                        {
+                            Color = new Color(40, 40, 40),
+                            Label = $"── CATEGORIES ({categoryEntries.Count}) ──",
+                            Bold = true,
+                        });
+                        allEntries.AddRange(categoryEntries);
+                    }
+
+                    if (allEntries.Count == 0) { skipped++; continue; }
+
+                    string shortName = template.Name.Replace("STING - ", "");
+                    var config = new LegendBuilder.LegendConfig
+                    {
+                        Title = $"VT: {shortName}",
+                        Subtitle = $"F:{filterEntries.Count} | C:{categoryEntries.Count}",
+                        Footer = "VG-linked — read from template overrides",
+                        Columns = allEntries.Count > 18 ? 2 : 1,
+                        ShowCounts = false,
+                    };
+
+                    var view = LegendBuilder.CreateLegendView(doc, allEntries, config);
+                    if (view != null) created++;
+                    else skipped++;
+                }
+
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Batch Template Legends",
+                $"Created {created} template legends.\n" +
+                (skipped > 0 ? $"Skipped {skipped} (no overrides).\n" : "") +
+                "\nEach legend documents the template's actual VG state.\n" +
+                "Find them in the Project Browser.");
+
+            return Result.Succeeded;
+        }
+    }
 }

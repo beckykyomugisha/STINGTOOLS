@@ -181,6 +181,10 @@ namespace StingTools.UI
                     case "EquipmentLegend": RunCommand<Tags.EquipmentLegendCommand>(app); break;
                     case "FireRatingLegend": RunCommand<Tags.FireRatingLegendCommand>(app); break;
                     case "MasterLegendPipeline": RunCommand<Tags.MasterLegendPipelineCommand>(app); break;
+                    case "FilterLegend": RunCommand<Tags.FilterLegendCommand>(app); break;
+                    case "TemplateLegend": RunCommand<Tags.TemplateLegendCommand>(app); break;
+                    case "VGCategoryLegend": RunCommand<Tags.VGCategoryLegendCommand>(app); break;
+                    case "BatchTemplateLegend": RunCommand<Tags.BatchTemplateLegendCommand>(app); break;
 
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
