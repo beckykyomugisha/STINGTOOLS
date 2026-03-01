@@ -387,7 +387,71 @@ namespace StingTools.Tags
             TaskDialog td = new TaskDialog("Validate Tags (ISO 19650)");
             td.MainInstruction = $"TAG_1: {tag1Pct:F1}% | Full: {fullPct:F1}% | STATUS: {statusPct:F0}% | Violations: {isoViolations} | Dupes: {duplicateTags}";
             td.MainContent = report.ToString();
-            td.Show();
+            td.FooterText = "Click 'Yes' below to create a validation status legend.";
+            td.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+            td.DefaultButton = TaskDialogResult.No;
+
+            if (td.Show() == TaskDialogResult.Yes)
+            {
+                // Build validation legend entries from actual counts
+                var legendEntries = new List<LegendBuilder.LegendEntry>();
+                if (tag1Valid > 0)
+                    legendEntries.Add(new LegendBuilder.LegendEntry
+                    {
+                        Color = StingColorRegistry.ValidationStatus["VALID"],
+                        Label = "Valid",
+                        Description = $"{tag1Valid} elements",
+                        Bold = true,
+                    });
+                if (tag1Incomplete > 0)
+                    legendEntries.Add(new LegendBuilder.LegendEntry
+                    {
+                        Color = StingColorRegistry.ValidationStatus["INCOMPLETE"],
+                        Label = "Incomplete",
+                        Description = $"{tag1Incomplete} elements",
+                        Bold = true,
+                    });
+                if (tag1Missing > 0)
+                    legendEntries.Add(new LegendBuilder.LegendEntry
+                    {
+                        Color = StingColorRegistry.ValidationStatus["MISSING"],
+                        Label = "Missing",
+                        Description = $"{tag1Missing} elements",
+                        Bold = true,
+                    });
+                if (isoViolations > 0)
+                    legendEntries.Add(new LegendBuilder.LegendEntry
+                    {
+                        Color = StingColorRegistry.ValidationStatus["INVALID"],
+                        Label = "ISO Violations",
+                        Description = $"{isoViolations} violations",
+                        Bold = true,
+                    });
+                if (duplicateTags > 0)
+                    legendEntries.Add(new LegendBuilder.LegendEntry
+                    {
+                        Color = StingColorRegistry.ValidationStatus["DUPLICATE"],
+                        Label = "Duplicates",
+                        Description = $"{duplicateTags} duplicate tags",
+                        Bold = true,
+                    });
+
+                if (legendEntries.Count > 0)
+                {
+                    using (Transaction ltx = new Transaction(doc, "STING Validation Legend"))
+                    {
+                        ltx.Start();
+                        var legendConfig = new LegendBuilder.LegendConfig
+                        {
+                            Title = "Tag Validation Status",
+                            Subtitle = $"TAG_1: {tag1Pct:F1}% | Full: {fullPct:F1}%",
+                            Footer = "STING Tools — ISO 19650 Validation",
+                        };
+                        LegendBuilder.CreateLegendView(doc, legendEntries, legendConfig);
+                        ltx.Commit();
+                    }
+                }
+            }
 
             return Result.Succeeded;
         }

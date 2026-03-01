@@ -389,7 +389,8 @@ namespace StingTools.Tags
     /// Shows both standard compliance (tag has 8 non-empty segments) and strict
     /// compliance (no XX/ZZ placeholder segments = fully resolved tags).
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class CompletenessDashboardCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -459,7 +460,42 @@ namespace StingTools.Tags
             TaskDialog td = new TaskDialog("ISO Completeness Dashboard");
             td.MainInstruction = $"Compliance: {grandPct:F1}% | Strict: {grandStrictPct:F1}% ({grandResolved}/{grandTotal})";
             td.MainContent = report.ToString();
-            td.Show();
+            td.FooterText = "Click 'Yes' to create a discipline compliance legend.";
+            td.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+            td.DefaultButton = TaskDialogResult.No;
+
+            if (td.Show() == TaskDialogResult.Yes)
+            {
+                var legendEntries = new List<LegendBuilder.LegendEntry>();
+                foreach (var kvp in stats.OrderBy(x => x.Key))
+                {
+                    var s = kvp.Value;
+                    double pct2 = s.total > 0 ? s.valid * 100.0 / s.total : 0;
+                    legendEntries.Add(new LegendBuilder.LegendEntry
+                    {
+                        Color = StingColorRegistry.GetDisciplineColor(kvp.Key),
+                        Label = $"{kvp.Key} — {pct2:F0}%",
+                        Description = $"{s.valid}/{s.total} valid ({s.missing} missing)",
+                        Bold = pct2 >= 90,
+                    });
+                }
+
+                if (legendEntries.Count > 0)
+                {
+                    using (Transaction ltx = new Transaction(doc, "STING Compliance Legend"))
+                    {
+                        ltx.Start();
+                        var legendConfig = new LegendBuilder.LegendConfig
+                        {
+                            Title = "Discipline Compliance",
+                            Subtitle = $"Overall: {grandPct:F1}% | Strict: {grandStrictPct:F1}%",
+                            Footer = "STING Tools — ISO 19650 Completeness Dashboard",
+                        };
+                        LegendBuilder.CreateLegendView(doc, legendEntries, legendConfig);
+                        ltx.Commit();
+                    }
+                }
+            }
 
             return Result.Succeeded;
         }

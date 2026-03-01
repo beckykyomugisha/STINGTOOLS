@@ -488,6 +488,20 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- LEGEND INTELLIGENCE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LEGEND INTELLIGENCE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="★ Flexible" Tag="FlexibleLegend" Click="Cmd_Click" ToolTip="Create legend with user-selectable color mode: Discipline, System, VG-Linked, Tag Segment, RAG, Monochrome, Fire Rating"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="From Preset" Tag="LegendFromPreset" Click="Cmd_Click" ToolTip="Generate legend from saved COLOR_PRESETS.json color scheme"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Components" Tag="ComponentTypeLegend" Click="Cmd_Click" ToolTip="Create legend with real LegendComponent instances (auto-seed with fallback to drawn representation)"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Color Ref" Tag="ColorReferenceLegend" Click="Cmd_Click" ToolTip="Comprehensive color reference: all STING colors (disciplines, systems, status, validation, tag segments)"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Sync Audit" Tag="LegendSyncAudit" Click="Cmd_Click" ToolTip="Audit legends for staleness — detect missing disciplines, systems, or filter changes"/>
+                                <Button Style="{StaticResource RedBtn}" Content="Status" Tag="StatusLegend" Click="Cmd_Click" ToolTip="Element status legend (EXISTING/NEW/DEMOLISHED/TEMPORARY) with lifecycle colors"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Worksets" Tag="WorksetLegend" Click="Cmd_Click" ToolTip="Workset legend color-coded by discipline group prefix"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- ORIENTATION & TEXT ALIGNMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ORIENTATION &amp; TEXT ALIGNMENT"/>
                         <Border Style="{StaticResource GroupBorder}">

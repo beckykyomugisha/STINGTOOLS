@@ -3559,6 +3559,1522 @@ namespace StingTools.Tags
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // Unified Color Registry — Single Source of Truth
+    //
+    // ALL colorization in STING Tools should reference StingColorRegistry
+    // instead of maintaining separate hardcoded color dictionaries.
+    // This ensures legends, filters, VG overrides, annotations, and
+    // ColorByParameter all use identical RGB values.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Single source of truth for all STING color definitions.
+    /// Referenced by: TemplateManager VG overrides, AnnotationColorHelper,
+    /// LegendIntelligence, ColorHelper palettes, filter creation.
+    /// </summary>
+    internal static class StingColorRegistry
+    {
+        // ── Discipline Colors (ISO 19650 / BS 1192) ─────────────────────
+
+        /// <summary>
+        /// Discipline code to color mapping. THE definitive reference.
+        /// All other discipline color dictionaries should delegate here.
+        /// </summary>
+        public static readonly Dictionary<string, Color> Disciplines =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "M",  new Color(0, 128, 255) },       // Mechanical — Blue
+                { "E",  new Color(255, 200, 0) },        // Electrical — Gold
+                { "P",  new Color(0, 180, 0) },           // Plumbing — Green
+                { "A",  new Color(160, 160, 160) },       // Architectural — Grey
+                { "S",  new Color(200, 0, 0) },           // Structural — Red
+                { "FP", new Color(255, 100, 0) },         // Fire Protection — Orange
+                { "LV", new Color(160, 0, 200) },         // Low Voltage — Purple
+                { "G",  new Color(128, 80, 0) },          // General — Brown
+            };
+
+        /// <summary>
+        /// Filter-level discipline colors (include filter name prefix).
+        /// Maps STING filter names to their color overrides.
+        /// </summary>
+        public static readonly Dictionary<string, Color> FilterDisciplines =
+            new Dictionary<string, Color>
+            {
+                { "STING - Mechanical",              new Color(0, 128, 255) },
+                { "STING - Electrical",              new Color(255, 200, 0) },
+                { "STING - Plumbing",                new Color(0, 180, 0) },
+                { "STING - Architectural",           new Color(160, 160, 160) },
+                { "STING - Structural",              new Color(200, 0, 0) },
+                { "STING - Fire Protection",         new Color(255, 100, 0) },
+                { "STING - Low Voltage",             new Color(160, 0, 200) },
+                { "STING - Conduits & Cable Trays",  new Color(180, 180, 0) },
+                { "STING - Rooms & Spaces",          new Color(100, 200, 255) },
+                { "STING - Generic & Specialty",     new Color(128, 128, 128) },
+            };
+
+        // ── MEP System Colors (CIBSE / Uniclass / BS 1710) ──────────────
+
+        /// <summary>
+        /// MEP system code to color + name. CIBSE-standard scheme.
+        /// Used by: LegendIntelligence, TemplateManager VG overrides, system legends.
+        /// </summary>
+        public static readonly Dictionary<string, (Color Color, string Name)> Systems =
+            new Dictionary<string, (Color, string)>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "HVAC",  (new Color(0, 102, 204),    "Heating, Ventilation & AC") },
+                { "HWS",   (new Color(204, 0, 0),      "Hot Water Supply") },
+                { "DCW",   (new Color(0, 153, 255),     "Domestic Cold Water") },
+                { "DHW",   (new Color(255, 102, 0),     "Domestic Hot Water") },
+                { "SAN",   (new Color(102, 51, 0),      "Sanitary / Drainage") },
+                { "RWD",   (new Color(0, 128, 128),     "Rainwater Drainage") },
+                { "GAS",   (new Color(255, 255, 0),     "Gas Supply") },
+                { "FP",    (new Color(255, 0, 0),       "Fire Protection") },
+                { "LV",    (new Color(255, 204, 0),     "Low Voltage / Power") },
+                { "FLS",   (new Color(255, 69, 0),      "Fire & Life Safety") },
+                { "COM",   (new Color(0, 153, 51),      "Communications") },
+                { "ICT",   (new Color(102, 0, 204),     "ICT / Data") },
+                { "NCL",   (new Color(255, 153, 204),   "Nurse Call") },
+                { "SEC",   (new Color(153, 0, 0),       "Security") },
+                { "ARC",   (new Color(192, 192, 192),   "Architectural") },
+                { "STR",   (new Color(128, 128, 128),   "Structural") },
+                { "GEN",   (new Color(160, 160, 160),   "General") },
+                // Extended system colors for piping subsystems (BS 1710)
+                { "CHW-S", (new Color(50, 50, 255),     "Chilled Water Supply") },
+                { "CHW-R", (new Color(100, 100, 255),   "Chilled Water Return") },
+                { "HHW",   (new Color(255, 50, 50),     "Heating Hot Water") },
+                { "CW",    (new Color(0, 180, 180),     "Condenser Water") },
+                { "CON",   (new Color(128, 192, 192),   "Condensate") },
+                { "SMK",   (new Color(255, 69, 0),      "Smoke Extract") },
+                { "KIT",   (new Color(139, 69, 19),     "Kitchen Extract") },
+                { "FRS",   (new Color(100, 255, 100),   "Fresh Air") },
+            };
+
+        /// <summary>
+        /// Pipeline system name to color — used by TemplateManager VG overrides.
+        /// Maps Revit system names (not STING codes) to colors.
+        /// </summary>
+        public static readonly Dictionary<string, Color> PipelineSystemColors =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Supply Air",           new Color(0, 100, 255) },
+                { "Return Air",           new Color(0, 200, 200) },
+                { "Exhaust Air",          new Color(150, 150, 255) },
+                { "Fresh Air",            new Color(100, 255, 100) },
+                { "Domestic Hot Water",   new Color(255, 80, 80) },
+                { "Domestic Cold Water",  new Color(80, 80, 255) },
+                { "Sanitary",             new Color(139, 90, 43) },
+                { "Storm",                new Color(0, 128, 128) },
+                { "Fire Protection",      new Color(255, 100, 0) },
+                { "Heating Hot Water",    new Color(255, 50, 50) },
+                { "Chilled Water Supply", new Color(50, 50, 255) },
+                { "Chilled Water Return", new Color(100, 100, 255) },
+                { "Condenser Water",      new Color(0, 180, 180) },
+                { "Gas",                  new Color(255, 255, 0) },
+                { "Smoke Extract",        new Color(255, 69, 0) },
+                { "Kitchen Extract",      new Color(139, 69, 19) },
+                { "Condensate",           new Color(128, 192, 192) },
+                { "Rainwater",            new Color(0, 128, 128) },
+            };
+
+        // ── Material Category Colors ─────────────────────────────────────
+
+        /// <summary>Material group to color for architectural material legends.</summary>
+        public static readonly Dictionary<string, Color> MaterialCategories =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "CEILINGS",       new Color(200, 220, 240) },
+                { "FLOORS",         new Color(210, 180, 140) },
+                { "WALLS",          new Color(220, 200, 180) },
+                { "ROOFS",          new Color(180, 120, 80) },
+                { "HVAC-DUCTS",     new Color(100, 150, 220) },
+                { "HVAC-EQUIP",     new Color(60, 120, 200) },
+                { "DRAINAGE-PIPES", new Color(140, 90, 50) },
+                { "WATER-SUPPLY",   new Color(80, 160, 220) },
+                { "CABLE-TRAYS",    new Color(200, 200, 60) },
+                { "CONDUITS",       new Color(220, 180, 60) },
+                { "LIGHTING-FIX",   new Color(255, 220, 100) },
+                { "FIRE-PROTECT",   new Color(255, 80, 80) },
+                { "PLUMB-FIX",      new Color(100, 200, 160) },
+                { "PLUMB-EQUIP",    new Color(80, 180, 140) },
+                { "INSULATION",     new Color(255, 200, 220) },
+                { "VALVES",         new Color(160, 160, 180) },
+                { "ELEC-PANELS",    new Color(240, 200, 80) },
+            };
+
+        // ── Validation / QA Colors ───────────────────────────────────────
+
+        /// <summary>QA status colors for highlight/validation legends.</summary>
+        public static readonly Dictionary<string, Color> ValidationStatus =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "VALID",      new Color(0, 180, 0) },       // Green
+                { "INCOMPLETE", new Color(255, 165, 0) },      // Orange
+                { "MISSING",    new Color(255, 0, 0) },        // Red
+                { "INVALID",    new Color(160, 32, 240) },     // Purple
+                { "DUPLICATE",  new Color(255, 255, 0) },      // Yellow
+            };
+
+        // ── Fire Rating Severity Colors ──────────────────────────────────
+
+        /// <summary>Fire rating to severity color (minutes → color gradient).</summary>
+        public static Color GetFireRatingColor(int minutes)
+        {
+            if (minutes >= 120) return new Color(139, 0, 0);       // Dark red
+            if (minutes >= 90)  return new Color(204, 0, 0);       // Red
+            if (minutes >= 60)  return new Color(255, 69, 0);      // Orange-Red
+            if (minutes >= 30)  return new Color(255, 140, 0);     // Orange
+            return new Color(255, 200, 0);                          // Gold
+        }
+
+        // ── Utility: Get discipline color from code ──────────────────────
+
+        // ── Element Status / Phase Colors ─────────────────────────────
+
+        /// <summary>Element lifecycle status to color (NEW/EXISTING/DEMOLISHED/TEMPORARY).</summary>
+        public static readonly Dictionary<string, Color> ElementStatus =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "EXISTING",   new Color(0, 128, 0) },       // Green — retained
+                { "NEW",        new Color(0, 0, 200) },        // Blue — new construction
+                { "DEMOLISHED", new Color(200, 0, 0) },        // Red — to be removed
+                { "TEMPORARY",  new Color(255, 165, 0) },      // Orange — temporary works
+            };
+
+        /// <summary>Revit phase to color (aligned to standard phase filter colors).</summary>
+        public static readonly Dictionary<string, Color> Phases =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Existing",             new Color(0, 128, 0) },
+                { "New Construction",     new Color(0, 0, 200) },
+                { "Demolition",           new Color(200, 0, 0) },
+                { "Temporary",            new Color(255, 165, 0) },
+                { "Future",               new Color(128, 0, 255) },
+                { "As-Built",             new Color(0, 180, 180) },
+            };
+
+        // ── Workset Colors ───────────────────────────────────────────────
+
+        /// <summary>
+        /// Workset discipline prefix to color — used for workset visibility legends.
+        /// Prefixes match the 35 ISO 19650 worksets created by CreateWorksetsCommand.
+        /// </summary>
+        public static readonly Dictionary<string, Color> WorksetGroups =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "A-",   new Color(160, 160, 160) },  // Architectural
+                { "S-",   new Color(200, 0, 0) },      // Structural
+                { "M-",   new Color(0, 128, 255) },    // Mechanical
+                { "E-",   new Color(255, 200, 0) },    // Electrical
+                { "P-",   new Color(0, 180, 0) },      // Plumbing
+                { "FP-",  new Color(255, 100, 0) },    // Fire Protection
+                { "LV-",  new Color(160, 0, 200) },    // Low Voltage
+                { "Z-",   new Color(100, 100, 100) },  // Shared/General
+                { "LINK", new Color(180, 180, 180) },   // Linked models
+            };
+
+        // ── Line Pattern / Style Colors ──────────────────────────────────
+
+        /// <summary>
+        /// Line style purpose to color — for line style legends.
+        /// Aligned to ISO 128 / BS 1192 line conventions.
+        /// </summary>
+        public static readonly Dictionary<string, Color> LineStylePurpose =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Visible Outline",     new Color(0, 0, 0) },         // Black solid
+                { "Hidden Line",         new Color(128, 128, 128) },    // Grey dashed
+                { "Centre Line",         new Color(200, 0, 0) },        // Red chain
+                { "Section Line",        new Color(0, 0, 200) },        // Blue heavy
+                { "Grid Line",           new Color(128, 128, 128) },    // Grey light
+                { "Property Boundary",   new Color(0, 128, 0) },        // Green
+                { "Fire Compartment",    new Color(255, 0, 0) },        // Red heavy
+                { "Acoustic Barrier",    new Color(128, 0, 255) },      // Purple
+                { "Insulation",          new Color(255, 128, 0) },      // Orange
+                { "Demolition",          new Color(200, 0, 0) },        // Red dashed
+            };
+
+        // ── Tag Segment Colors (ISO 19650 tag token colors) ─────────
+
+        /// <summary>
+        /// Tag segment to color — for tag structure legends.
+        /// Each of the 8 segments of the ISO 19650 tag gets a unique color.
+        /// </summary>
+        public static readonly Dictionary<string, Color> TagSegments =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "DISC", new Color(0, 51, 153) },      // Navy — Discipline
+                { "LOC",  new Color(0, 128, 0) },        // Green — Location
+                { "ZONE", new Color(0, 128, 128) },      // Teal — Zone
+                { "LVL",  new Color(153, 102, 0) },      // Brown — Level
+                { "SYS",  new Color(0, 102, 204) },      // Blue — System
+                { "FUNC", new Color(128, 0, 128) },      // Purple — Function
+                { "PROD", new Color(204, 102, 0) },      // Orange — Product
+                { "SEQ",  new Color(100, 100, 100) },    // Grey — Sequence
+            };
+
+        // ── COBie / FM Status Colors ─────────────────────────────────
+
+        /// <summary>FM asset status to color for facilities management legends.</summary>
+        public static readonly Dictionary<string, Color> FMStatus =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "OPERATIONAL",     new Color(0, 180, 0) },       // Green
+                { "MAINTENANCE_DUE", new Color(255, 165, 0) },     // Orange
+                { "FAULTY",          new Color(255, 0, 0) },       // Red
+                { "DECOMMISSIONED",  new Color(128, 128, 128) },   // Grey
+                { "WARRANTY_ACTIVE", new Color(0, 100, 220) },     // Blue
+                { "WARRANTY_EXPIRED",new Color(200, 200, 0) },     // Yellow
+                { "UNDER_REVIEW",    new Color(160, 0, 200) },     // Purple
+            };
+
+        // ── Utility Methods ──────────────────────────────────────────
+
+        /// <summary>Get the color for a discipline code, with grey fallback.</summary>
+        public static Color GetDisciplineColor(string disc)
+        {
+            if (string.IsNullOrEmpty(disc)) return new Color(160, 160, 160);
+            return Disciplines.TryGetValue(disc, out Color c) ? c : new Color(160, 160, 160);
+        }
+
+        /// <summary>Get the color for a system code, with grey fallback.</summary>
+        public static Color GetSystemColor(string sys)
+        {
+            if (string.IsNullOrEmpty(sys)) return new Color(160, 160, 160);
+            return Systems.TryGetValue(sys, out var sc) ? sc.Color : new Color(160, 160, 160);
+        }
+
+        /// <summary>Get color for element status (NEW/EXISTING/DEMOLISHED/TEMPORARY).</summary>
+        public static Color GetStatusColor(string status)
+        {
+            if (string.IsNullOrEmpty(status)) return new Color(160, 160, 160);
+            return ElementStatus.TryGetValue(status, out Color c) ? c : new Color(160, 160, 160);
+        }
+
+        /// <summary>Get color for a workset by matching its name prefix.</summary>
+        public static Color GetWorksetColor(string worksetName)
+        {
+            if (string.IsNullOrEmpty(worksetName)) return new Color(160, 160, 160);
+            foreach (var kvp in WorksetGroups)
+            {
+                if (worksetName.StartsWith(kvp.Key, StringComparison.OrdinalIgnoreCase))
+                    return kvp.Value;
+            }
+            return new Color(160, 160, 160);
+        }
+
+        /// <summary>Get color for a tag segment token name.</summary>
+        public static Color GetSegmentColor(string segmentName)
+        {
+            if (string.IsNullOrEmpty(segmentName)) return new Color(100, 100, 100);
+            return TagSegments.TryGetValue(segmentName, out Color c) ? c : new Color(100, 100, 100);
+        }
+
+        /// <summary>
+        /// Resolve a color from ANY domain — tries discipline, system, status, validation, FM in order.
+        /// Used by flexible legends that need to auto-determine color from any code.
+        /// </summary>
+        public static Color ResolveAny(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return new Color(160, 160, 160);
+            if (Disciplines.TryGetValue(code, out Color dc)) return dc;
+            if (Systems.TryGetValue(code, out var sc)) return sc.Color;
+            if (ElementStatus.TryGetValue(code, out Color ec)) return ec;
+            if (ValidationStatus.TryGetValue(code, out Color vc)) return vc;
+            if (FMStatus.TryGetValue(code, out Color fc)) return fc;
+            if (TagSegments.TryGetValue(code, out Color tc)) return tc;
+            return new Color(160, 160, 160);
+        }
+
+        /// <summary>
+        /// Get all color definitions as entries for a comprehensive reference legend.
+        /// Groups: Disciplines, Systems, Status, Validation, FM, Tag Segments.
+        /// </summary>
+        public static List<LegendBuilder.LegendEntry> GetAllAsLegendEntries()
+        {
+            var entries = new List<LegendBuilder.LegendEntry>();
+
+            // Group header: Disciplines
+            entries.Add(new LegendBuilder.LegendEntry
+            {
+                Color = new Color(40, 40, 40),
+                Label = "── DISCIPLINES ──",
+                Bold = true,
+            });
+            foreach (var kvp in Disciplines)
+                entries.Add(new LegendBuilder.LegendEntry
+                {
+                    Color = kvp.Value,
+                    Label = kvp.Key,
+                    Description = LegendBuilder.DisciplineNames.TryGetValue(kvp.Key, out string n)
+                        ? n : kvp.Key,
+                });
+
+            // Group header: Systems (top 10)
+            entries.Add(new LegendBuilder.LegendEntry
+            {
+                Color = new Color(40, 40, 40),
+                Label = "── MEP SYSTEMS ──",
+                Bold = true,
+            });
+            foreach (var kvp in Systems.Take(14))
+                entries.Add(new LegendBuilder.LegendEntry
+                {
+                    Color = kvp.Value.Color,
+                    Label = kvp.Key,
+                    Description = kvp.Value.Name,
+                });
+
+            // Group header: Element Status
+            entries.Add(new LegendBuilder.LegendEntry
+            {
+                Color = new Color(40, 40, 40),
+                Label = "── ELEMENT STATUS ──",
+                Bold = true,
+            });
+            foreach (var kvp in ElementStatus)
+                entries.Add(new LegendBuilder.LegendEntry
+                {
+                    Color = kvp.Value,
+                    Label = kvp.Key,
+                    Description = $"Phase: {kvp.Key}",
+                });
+
+            // Group header: Validation
+            entries.Add(new LegendBuilder.LegendEntry
+            {
+                Color = new Color(40, 40, 40),
+                Label = "── VALIDATION STATUS ──",
+                Bold = true,
+            });
+            foreach (var kvp in ValidationStatus)
+                entries.Add(new LegendBuilder.LegendEntry
+                {
+                    Color = kvp.Value,
+                    Label = kvp.Key,
+                    Description = "QA status",
+                });
+
+            // Group header: Tag Segments
+            entries.Add(new LegendBuilder.LegendEntry
+            {
+                Color = new Color(40, 40, 40),
+                Label = "── TAG SEGMENTS ──",
+                Bold = true,
+            });
+            foreach (var kvp in TagSegments)
+                entries.Add(new LegendBuilder.LegendEntry
+                {
+                    Color = kvp.Value,
+                    Label = kvp.Key,
+                    Description = $"ISO 19650 token",
+                });
+
+            return entries;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Legend Color Mode Presets
+    //
+    // Flexible user-selectable color modes for legend generation.
+    // Supports: Discipline, System, VG-Linked, Tag Segment, RAG Status,
+    //           Monochrome, Custom Preset.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Legend color mode presets — lets users choose how legends are colored.
+    /// Each mode provides a different way to derive colors for legend entries.
+    /// </summary>
+    internal static class LegendColorModes
+    {
+        /// <summary>Available legend color modes.</summary>
+        public enum ColorMode
+        {
+            /// <summary>Color by discipline code (M=Blue, E=Gold, etc.)</summary>
+            Discipline,
+            /// <summary>Color by MEP system code (HVAC=Blue, HWS=Red, etc.)</summary>
+            System,
+            /// <summary>Color from actual VG/filter overrides in the view.</summary>
+            VGLinked,
+            /// <summary>Color by tag segment (DISC=navy, LOC=green, etc.)</summary>
+            TagSegment,
+            /// <summary>RAG status (Red/Amber/Green).</summary>
+            RAGStatus,
+            /// <summary>Monochrome (greyscale).</summary>
+            Monochrome,
+            /// <summary>Fire rating severity gradient.</summary>
+            FireRating,
+            /// <summary>User-saved preset from COLOR_PRESETS.json.</summary>
+            CustomPreset,
+        }
+
+        /// <summary>
+        /// Present a dialog for the user to choose a legend color mode.
+        /// Returns the selected mode or null if cancelled.
+        /// </summary>
+        public static ColorMode? PromptColorMode(string context = "Legend")
+        {
+            var dlg = new TaskDialog($"{context} — Color Mode");
+            dlg.MainInstruction = "Select color scheme for the legend";
+            dlg.MainContent =
+                "Choose how legend entries are colored:\n\n" +
+                "Each mode maps elements to colors using a different strategy.";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Discipline Colors (Recommended)",
+                "M=Blue, E=Gold, P=Green, A=Grey — ISO 19650 discipline coding");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "MEP System Colors",
+                "HVAC=Blue, HWS=Red, DCW=Cyan — CIBSE/BS 1710 system coding");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "VG-Linked (Read from View)",
+                "Read actual applied filter + category overrides from view/template");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Tag Segment Colors",
+                "DISC=Navy, LOC=Green, ZONE=Teal — ISO 19650 tag segments");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return ColorMode.Discipline;
+                case TaskDialogResult.CommandLink2: return ColorMode.System;
+                case TaskDialogResult.CommandLink3: return ColorMode.VGLinked;
+                case TaskDialogResult.CommandLink4: return ColorMode.TagSegment;
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// Build legend entries for the selected color mode.
+        /// </summary>
+        public static List<LegendBuilder.LegendEntry> BuildEntries(
+            Document doc, ColorMode mode, View sourceView = null)
+        {
+            switch (mode)
+            {
+                case ColorMode.Discipline:
+                    return BuildDisciplineEntries(doc);
+
+                case ColorMode.System:
+                    return BuildSystemEntries(doc);
+
+                case ColorMode.VGLinked:
+                    if (sourceView != null)
+                    {
+                        var entries = VGLinkedLegendBuilder.FromViewFilters(doc, sourceView, true);
+                        entries.AddRange(VGLinkedLegendBuilder.FromCategoryOverrides(doc, sourceView));
+                        return entries;
+                    }
+                    return new List<LegendBuilder.LegendEntry>();
+
+                case ColorMode.TagSegment:
+                    return LegendBuilder.FromSegmentStyles();
+
+                case ColorMode.RAGStatus:
+                    return BuildRAGEntries();
+
+                case ColorMode.Monochrome:
+                    return BuildMonochromeEntries();
+
+                case ColorMode.FireRating:
+                    return BuildFireRatingEntries(doc);
+
+                default:
+                    return new List<LegendBuilder.LegendEntry>();
+            }
+        }
+
+        /// <summary>Build entries from project discipline distribution.</summary>
+        private static List<LegendBuilder.LegendEntry> BuildDisciplineEntries(Document doc)
+        {
+            var discCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var elems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
+                .ToList();
+
+            foreach (var el in elems)
+            {
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                if (string.IsNullOrEmpty(disc))
+                {
+                    string catName = ParameterHelpers.GetCategoryName(el);
+                    disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "";
+                }
+                if (string.IsNullOrEmpty(disc)) continue;
+                if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
+                discCounts[disc]++;
+            }
+
+            return LegendBuilder.FromDisciplineColors(
+                StingColorRegistry.Disciplines, discCounts);
+        }
+
+        /// <summary>Build entries from project MEP system distribution.</summary>
+        private static List<LegendBuilder.LegendEntry> BuildSystemEntries(Document doc)
+        {
+            return LegendIntelligence.BuildMepSystemEntries(doc);
+        }
+
+        /// <summary>Build RAG status entries (Red/Amber/Green).</summary>
+        private static List<LegendBuilder.LegendEntry> BuildRAGEntries()
+        {
+            return new List<LegendBuilder.LegendEntry>
+            {
+                new LegendBuilder.LegendEntry
+                {
+                    Color = StingColorRegistry.ValidationStatus["MISSING"],
+                    Label = "Non-Compliant (Red)",
+                    Description = "Missing required data",
+                    Bold = true,
+                },
+                new LegendBuilder.LegendEntry
+                {
+                    Color = StingColorRegistry.ValidationStatus["INCOMPLETE"],
+                    Label = "Warning (Amber)",
+                    Description = "Partially complete",
+                    Bold = true,
+                },
+                new LegendBuilder.LegendEntry
+                {
+                    Color = StingColorRegistry.ValidationStatus["VALID"],
+                    Label = "Compliant (Green)",
+                    Description = "All data complete",
+                    Bold = true,
+                },
+            };
+        }
+
+        /// <summary>Build monochrome entries for print-friendly output.</summary>
+        private static List<LegendBuilder.LegendEntry> BuildMonochromeEntries()
+        {
+            return new List<LegendBuilder.LegendEntry>
+            {
+                new LegendBuilder.LegendEntry { Color = new Color(0, 0, 0), Label = "Primary", Description = "Black — main elements" },
+                new LegendBuilder.LegendEntry { Color = new Color(64, 64, 64), Label = "Secondary", Description = "Dark grey — supporting" },
+                new LegendBuilder.LegendEntry { Color = new Color(128, 128, 128), Label = "Tertiary", Description = "Medium grey — context" },
+                new LegendBuilder.LegendEntry { Color = new Color(192, 192, 192), Label = "Background", Description = "Light grey — reference" },
+                new LegendBuilder.LegendEntry { Color = new Color(255, 255, 255), Label = "Hidden", Description = "White — suppressed" },
+            };
+        }
+
+        /// <summary>Build fire rating entries from project data.</summary>
+        private static List<LegendBuilder.LegendEntry> BuildFireRatingEntries(Document doc)
+        {
+            return LegendIntelligence.BuildFireRatingEntries(doc);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Legend Component Bridge — Enhanced auto-seed with fallback chain
+    //
+    // Automates LegendComponent creation using a 3-tier strategy:
+    //   1. Copy existing LegendComponent (if seed exists in project)
+    //   2. Place annotation family instances (Generic Annotation bridge)
+    //   3. Draw representation with FilledRegion + TextNote (always works)
+    //
+    // The bridge auto-detects which strategy is available and uses the best
+    // one. If no seed exists, it falls back gracefully.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Enhanced legend component automation with auto-seed detection,
+    /// annotation family bridge, and drawn fallback.
+    /// </summary>
+    internal static class LegendComponentBridge
+    {
+        /// <summary>
+        /// Attempt to populate a legend view with actual LegendComponent instances
+        /// for each family type in the entries list. Uses 3-tier fallback:
+        /// 1. Copy existing LegendComponent + reassign type
+        /// 2. Place Generic Annotation instance
+        /// 3. Skip (caller falls back to FilledRegion swatches)
+        /// Returns count of successfully placed components.
+        /// Must be called within an active Transaction.
+        /// </summary>
+        public static int PopulateWithComponents(
+            Document doc, View legendView,
+            List<(ElementId TypeId, string Label, XYZ Position)> componentRequests)
+        {
+            if (componentRequests == null || componentRequests.Count == 0) return 0;
+
+            // Tier 1: Find seed LegendComponent
+            Element seedComponent = null;
+            ElementId seedViewId = ElementId.InvalidElementId;
+
+            var legendViews = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v => v.ViewType == ViewType.Legend && !v.IsTemplate);
+
+            foreach (var lv in legendViews)
+            {
+                seedComponent = new FilteredElementCollector(doc, lv.Id)
+                    .OfCategory(BuiltInCategory.OST_LegendComponents)
+                    .WhereElementIsNotElementType()
+                    .FirstOrDefault();
+
+                if (seedComponent != null)
+                {
+                    seedViewId = lv.Id;
+                    break;
+                }
+            }
+
+            int placed = 0;
+            foreach (var req in componentRequests)
+            {
+                try
+                {
+                    // Tier 1: Copy seed LegendComponent + set type
+                    if (seedComponent != null && legendView.ViewType == ViewType.Legend)
+                    {
+                        ICollection<ElementId> copiedIds;
+                        if (seedViewId == legendView.Id)
+                        {
+                            var seedLoc = (seedComponent.Location as LocationPoint)?.Point ?? XYZ.Zero;
+                            copiedIds = ElementTransformUtils.CopyElement(
+                                doc, seedComponent.Id, req.Position - seedLoc);
+                        }
+                        else
+                        {
+                            copiedIds = ElementTransformUtils.CopyElements(
+                                doc.GetElement(seedViewId) as View,
+                                new List<ElementId> { seedComponent.Id },
+                                legendView,
+                                Transform.Identity,
+                                new CopyPasteOptions());
+                        }
+
+                        if (copiedIds != null && copiedIds.Count > 0)
+                        {
+                            Element copied = doc.GetElement(copiedIds.First());
+                            if (copied != null)
+                            {
+                                // Reassign to desired type
+                                var legendParam = copied.get_Parameter(
+                                    BuiltInParameter.LEGEND_COMPONENT);
+                                if (legendParam != null && !legendParam.IsReadOnly)
+                                {
+                                    legendParam.Set(req.TypeId);
+                                }
+
+                                // Move to position
+                                if (copied.Location is LocationPoint lp)
+                                {
+                                    ElementTransformUtils.MoveElement(
+                                        doc, copied.Id, req.Position - lp.Point);
+                                }
+                                placed++;
+                                continue;
+                            }
+                        }
+                    }
+
+                    // Tier 2: Place Generic Annotation instance
+                    FamilySymbol typeSymbol = doc.GetElement(req.TypeId) as FamilySymbol;
+                    if (typeSymbol != null)
+                    {
+                        if (!typeSymbol.IsActive)
+                        {
+                            try { typeSymbol.Activate(); } catch { /* not activatable */ }
+                        }
+
+                        try
+                        {
+                            doc.Create.NewFamilyInstance(req.Position, typeSymbol, legendView);
+                            placed++;
+                        }
+                        catch
+                        {
+                            // Family doesn't support placement in this view type — skip
+                            StingLog.Warn($"LegendComponentBridge: cannot place '{req.Label}' " +
+                                $"in {legendView.ViewType} view — not supported by family");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"LegendComponentBridge: failed for '{req.Label}': {ex.Message}");
+                }
+            }
+
+            return placed;
+        }
+
+        /// <summary>
+        /// Check if any LegendComponent seed exists in the project.
+        /// If not, return false so caller knows to use drawn fallback.
+        /// </summary>
+        public static bool HasSeedComponent(Document doc)
+        {
+            return new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_LegendComponents)
+                .WhereElementIsNotElementType()
+                .GetElementCount() > 0;
+        }
+
+        /// <summary>
+        /// Get all family types currently in the project that could be placed
+        /// as legend components (model families with plan representation).
+        /// Grouped by category for organized legend layout.
+        /// </summary>
+        public static Dictionary<string, List<FamilySymbol>> GetPlaceableTypes(Document doc)
+        {
+            var result = new Dictionary<string, List<FamilySymbol>>(
+                StringComparer.OrdinalIgnoreCase);
+
+            var symbols = new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .Where(fs => fs.Category != null &&
+                    fs.Category.CategoryType == CategoryType.Model)
+                .ToList();
+
+            foreach (var fs in symbols)
+            {
+                string catName = fs.Category.Name;
+                if (!result.ContainsKey(catName))
+                    result[catName] = new List<FamilySymbol>();
+                result[catName].Add(fs);
+            }
+
+            return result;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Flexible Legend Command — User picks color mode, then generates
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create a legend with user-selectable color mode (discipline, system,
+    /// VG-linked, tag segment, RAG, monochrome, fire rating).
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class FlexibleLegendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            // Step 1: Pick color mode
+            var mode = LegendColorModes.PromptColorMode("Create Legend");
+            if (mode == null) return Result.Cancelled;
+
+            // Step 2: Build entries
+            var entries = LegendColorModes.BuildEntries(doc, mode.Value, view);
+            if (entries.Count == 0)
+            {
+                TaskDialog.Show("Create Legend",
+                    $"No data found for color mode '{mode.Value}'.\n" +
+                    "Ensure elements exist with the relevant parameters populated.");
+                return Result.Succeeded;
+            }
+
+            // Step 3: Create legend
+            var config = new LegendBuilder.LegendConfig
+            {
+                Title = $"{mode.Value} Legend",
+                Subtitle = $"Color mode: {mode.Value} — {entries.Count} entries",
+                Footer = $"STING Tools — {mode.Value} color scheme",
+                Columns = entries.Count > 15 ? 2 : 1,
+            };
+
+            using (Transaction tx = new Transaction(doc, $"STING {mode.Value} Legend"))
+            {
+                tx.Start();
+                var legendView = LegendBuilder.CreateLegendView(doc, entries, config);
+                tx.Commit();
+
+                if (legendView != null)
+                {
+                    TaskDialog.Show("Legend Created",
+                        $"Created '{legendView.Name}' with {entries.Count} entries.\n" +
+                        $"Color mode: {mode.Value}\n\n" +
+                        "Find it in the Project Browser under Legends/Drafting Views.");
+                }
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Legend from Color Preset — Generate legend from saved COLOR_PRESETS.json
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create a legend from a saved color preset in COLOR_PRESETS.json.
+    /// Bridges the gap between ColorHelper presets and the legend system.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class LegendFromPresetCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            // Load presets from JSON
+            string presetPath = System.IO.Path.Combine(
+                StingToolsApp.DataPath ?? "", "COLOR_PRESETS.json");
+
+            if (!System.IO.File.Exists(presetPath))
+            {
+                TaskDialog.Show("Legend from Preset",
+                    "No saved color presets found.\n\n" +
+                    "Use 'Save Color Preset' after 'Color By Parameter' to create presets,\n" +
+                    "then this command will generate legends from them.");
+                return Result.Succeeded;
+            }
+
+            try
+            {
+                string json = System.IO.File.ReadAllText(presetPath);
+                var presetData = Newtonsoft.Json.JsonConvert.DeserializeObject<
+                    Dictionary<string, Dictionary<string, int[]>>>(json);
+
+                if (presetData == null || presetData.Count == 0)
+                {
+                    TaskDialog.Show("Legend from Preset", "No presets found in file.");
+                    return Result.Succeeded;
+                }
+
+                // Let user pick a preset
+                var names = presetData.Keys.Take(4).ToList();
+                var dlg = new TaskDialog("Legend from Preset");
+                dlg.MainInstruction = $"Select a preset ({presetData.Count} available)";
+                if (names.Count >= 1)
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, names[0]);
+                if (names.Count >= 2)
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, names[1]);
+                if (names.Count >= 3)
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, names[2]);
+                if (names.Count >= 4)
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, names[3]);
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                string selectedName;
+                switch (dlg.Show())
+                {
+                    case TaskDialogResult.CommandLink1: selectedName = names[0]; break;
+                    case TaskDialogResult.CommandLink2: selectedName = names[1]; break;
+                    case TaskDialogResult.CommandLink3: selectedName = names[2]; break;
+                    case TaskDialogResult.CommandLink4: selectedName = names[3]; break;
+                    default: return Result.Cancelled;
+                }
+
+                // Build entries from preset
+                var preset = presetData[selectedName];
+                var entries = new List<LegendBuilder.LegendEntry>();
+                foreach (var kvp in preset)
+                {
+                    int[] rgb = kvp.Value;
+                    if (rgb == null || rgb.Length < 3) continue;
+                    entries.Add(new LegendBuilder.LegendEntry
+                    {
+                        Color = new Color((byte)rgb[0], (byte)rgb[1], (byte)rgb[2]),
+                        Label = kvp.Key,
+                        Description = $"RGB({rgb[0]},{rgb[1]},{rgb[2]})",
+                    });
+                }
+
+                if (entries.Count == 0)
+                {
+                    TaskDialog.Show("Legend from Preset", "Preset has no color entries.");
+                    return Result.Succeeded;
+                }
+
+                var config = new LegendBuilder.LegendConfig
+                {
+                    Title = $"Color Preset: {selectedName}",
+                    Subtitle = $"{entries.Count} colors from saved preset",
+                    Footer = "Generated from COLOR_PRESETS.json",
+                    Columns = entries.Count > 12 ? 2 : 1,
+                };
+
+                using (Transaction tx = new Transaction(doc, "STING Legend from Preset"))
+                {
+                    tx.Start();
+                    var legendView = LegendBuilder.CreateLegendView(doc, entries, config);
+                    tx.Commit();
+
+                    if (legendView != null)
+                    {
+                        TaskDialog.Show("Legend Created",
+                            $"Created '{legendView.Name}' from preset '{selectedName}'.\n" +
+                            $"{entries.Count} color entries.\n\n" +
+                            "Find it in the Project Browser.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Legend from Preset", ex);
+                TaskDialog.Show("Legend from Preset",
+                    $"Error reading presets: {ex.Message}");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // LegendComponent Type Legend — Uses the component bridge to attempt
+    // placing real LegendComponent instances for family types in the project.
+    // Falls back to drawn representation if no seed component exists.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create a legend using actual LegendComponent instances where possible,
+    /// with automatic fallback to drawn swatches for unsupported types.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ComponentTypeLegendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            // Check for seed component
+            bool hasSeed = LegendComponentBridge.HasSeedComponent(doc);
+
+            // Get placeable types grouped by category
+            var typesByCategory = LegendComponentBridge.GetPlaceableTypes(doc);
+            if (typesByCategory.Count == 0)
+            {
+                TaskDialog.Show("Component Legend", "No model family types found in project.");
+                return Result.Succeeded;
+            }
+
+            // Let user pick categories
+            var categories = typesByCategory.Keys.OrderBy(k => k).Take(4).ToList();
+            var dlg = new TaskDialog("Component Legend");
+            dlg.MainInstruction = $"Create legend for which category? ({typesByCategory.Count} available)";
+            if (!hasSeed)
+                dlg.MainContent = "Note: No existing LegendComponent found — will use drawn representation.";
+            for (int i = 0; i < categories.Count; i++)
+            {
+                var linkId = (TaskDialogCommandLinkId)(i + 201);
+                int typeCount = typesByCategory[categories[i]].Count;
+                dlg.AddCommandLink(linkId, categories[i], $"{typeCount} types");
+            }
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string selectedCat;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: selectedCat = categories[0]; break;
+                case TaskDialogResult.CommandLink2: selectedCat = categories[1]; break;
+                case TaskDialogResult.CommandLink3: selectedCat = categories[2]; break;
+                case TaskDialogResult.CommandLink4: selectedCat = categories[3]; break;
+                default: return Result.Cancelled;
+            }
+
+            var types = typesByCategory[selectedCat].Take(30).ToList(); // Limit to 30
+
+            using (Transaction tx = new Transaction(doc, "STING Component Legend"))
+            {
+                tx.Start();
+
+                // Create legend view
+                View legendView = LegendBuilder.TryCreateNativeLegend(doc,
+                    $"STING Legend - {selectedCat}");
+
+                if (legendView == null)
+                {
+                    // Fall back to drafting view
+                    var vft = new FilteredElementCollector(doc)
+                        .OfClass(typeof(ViewFamilyType))
+                        .Cast<ViewFamilyType>()
+                        .FirstOrDefault(v => v.ViewFamily == ViewFamily.Drafting);
+
+                    if (vft == null)
+                    {
+                        tx.RollBack();
+                        TaskDialog.Show("Component Legend", "Cannot create legend view.");
+                        return Result.Failed;
+                    }
+                    legendView = ViewDrafting.Create(doc, vft.Id);
+                    legendView.Name = $"STING Legend - {selectedCat}";
+                    legendView.Scale = 1;
+                }
+
+                // Build component requests
+                double y = 0.5;
+                double spacing = 0.08;
+                var requests = new List<(ElementId TypeId, string Label, XYZ Position)>();
+
+                foreach (var fs in types)
+                {
+                    requests.Add((fs.Id, $"{fs.Family.Name}: {fs.Name}", new XYZ(0.05, y, 0)));
+                    y -= spacing;
+                }
+
+                // Attempt to place components
+                int placed = LegendComponentBridge.PopulateWithComponents(doc, legendView, requests);
+
+                // For any that weren't placed, add drawn entries
+                if (placed < types.Count)
+                {
+                    var drawnEntries = types.Skip(placed).Select(fs =>
+                        new LegendBuilder.LegendEntry
+                        {
+                            Color = StingColorRegistry.GetDisciplineColor(
+                                TagConfig.DiscMap.TryGetValue(selectedCat, out string d) ? d : "G"),
+                            Label = $"{fs.Family.Name}: {fs.Name}",
+                            Description = selectedCat,
+                        }).ToList();
+
+                    LegendBuilder.PopulateLegendContent(doc, legendView, drawnEntries,
+                        new LegendBuilder.LegendConfig
+                        {
+                            Title = $"{selectedCat} Types",
+                            Subtitle = $"{types.Count} types ({placed} components + {drawnEntries.Count} drawn)",
+                            Footer = "STING Tools — Component Legend",
+                        });
+                }
+
+                tx.Commit();
+
+                TaskDialog.Show("Component Legend",
+                    $"Created legend for {selectedCat}:\n" +
+                    $"  {placed} real LegendComponent instances\n" +
+                    $"  {types.Count - placed} drawn representations\n\n" +
+                    (hasSeed ? "" : "Tip: Place one LegendComponent manually to enable auto-copy.\n") +
+                    "Find it in the Project Browser.");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Color Reference Legend — Complete color scheme reference from registry
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Generate a comprehensive color reference legend showing ALL STING color
+    /// definitions: disciplines, MEP systems, element status, validation, tag segments.
+    /// This is the definitive visual reference for the project's color scheme.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ColorReferenceLegendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            var entries = StingColorRegistry.GetAllAsLegendEntries();
+            if (entries.Count == 0)
+            {
+                TaskDialog.Show("Color Reference", "No color definitions found.");
+                return Result.Failed;
+            }
+
+            var config = new LegendBuilder.LegendConfig
+            {
+                Title = "STING Color Reference",
+                Subtitle = $"Complete color scheme — {entries.Count} definitions",
+                Footer = "StingColorRegistry — Single source of truth for all STING colorization",
+                Columns = 2,
+                ShowCounts = false,
+            };
+
+            using (Transaction tx = new Transaction(doc, "STING Color Reference Legend"))
+            {
+                tx.Start();
+                var view = LegendBuilder.CreateLegendView(doc, entries, config);
+                tx.Commit();
+
+                if (view != null)
+                {
+                    TaskDialog.Show("Color Reference Legend",
+                        $"Created '{view.Name}' with {entries.Count} color definitions.\n\n" +
+                        "Groups: Disciplines, MEP Systems, Element Status,\n" +
+                        "Validation Status, Tag Segments.\n\n" +
+                        "Find it in the Project Browser.");
+                }
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Legend Sync Engine — Auto-detect stale legends and refresh
+    //
+    // Monitors legend views for staleness by comparing their stored metadata
+    // against current project state. Provides refresh, audit, and auto-sync.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Legend synchronization engine: detects stale legends and refreshes
+    /// them from current project data (VG overrides, element counts, etc.).
+    /// </summary>
+    internal static class LegendSyncEngine
+    {
+        /// <summary>
+        /// Scan all STING legend views and check if they are stale.
+        /// Returns list of (legendName, reason) for stale legends.
+        /// </summary>
+        public static List<(string Name, string Reason)> AuditStaleLegends(Document doc)
+        {
+            var stale = new List<(string, string)>();
+
+            var stingLegends = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v => !v.IsTemplate &&
+                    (v.ViewType == ViewType.Legend || v.ViewType == ViewType.DraftingView) &&
+                    v.Name.StartsWith("STING"))
+                .ToList();
+
+            foreach (var legend in stingLegends)
+            {
+                string name = legend.Name;
+
+                // Check: Discipline legend — compare discipline counts
+                if (name.Contains("Discipline"))
+                {
+                    var currentDiscs = CountDisciplines(doc);
+                    var legendTexts = GetLegendTextContent(doc, legend);
+                    foreach (var disc in currentDiscs.Keys)
+                    {
+                        if (!legendTexts.Any(t => t.Contains(disc)))
+                        {
+                            stale.Add((name, $"Missing discipline '{disc}' ({currentDiscs[disc]} elements)"));
+                            break;
+                        }
+                    }
+                }
+
+                // Check: Filter legend — compare filter count
+                if (name.Contains("Filter"))
+                {
+                    var view = doc.ActiveView;
+                    if (view != null)
+                    {
+                        var filterCount = view.GetFilters().Count;
+                        var legendTexts = GetLegendTextContent(doc, legend);
+                        if (legendTexts.Count > 0 && legendTexts.Count < filterCount / 2)
+                        {
+                            stale.Add((name, $"View has {filterCount} filters but legend shows fewer"));
+                        }
+                    }
+                }
+
+                // Check: System legend — compare system codes in project
+                if (name.Contains("System") || name.Contains("MEP"))
+                {
+                    var currentSys = CountSystems(doc);
+                    var legendTexts = GetLegendTextContent(doc, legend);
+                    foreach (var sys in currentSys.Keys)
+                    {
+                        if (!legendTexts.Any(t => t.Contains(sys)))
+                        {
+                            stale.Add((name, $"Missing system '{sys}' ({currentSys[sys]} elements)"));
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return stale;
+        }
+
+        /// <summary>
+        /// Get all text content from a legend/drafting view (TextNote elements).
+        /// </summary>
+        private static List<string> GetLegendTextContent(Document doc, View view)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(TextNote))
+                    .Cast<TextNote>()
+                    .Select(tn => tn.Text ?? "")
+                    .ToList();
+            }
+            catch { return new List<string>(); }
+        }
+
+        /// <summary>Count elements by discipline code in the project.</summary>
+        private static Dictionary<string, int> CountDisciplines(Document doc)
+        {
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var elems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
+                .ToList();
+
+            foreach (var el in elems)
+            {
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                if (string.IsNullOrEmpty(disc)) continue;
+                if (!counts.ContainsKey(disc)) counts[disc] = 0;
+                counts[disc]++;
+            }
+            return counts;
+        }
+
+        /// <summary>Count elements by system code in the project.</summary>
+        private static Dictionary<string, int> CountSystems(Document doc)
+        {
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var elems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
+                .ToList();
+
+            foreach (var el in elems)
+            {
+                string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                if (string.IsNullOrEmpty(sys)) continue;
+                if (!counts.ContainsKey(sys)) counts[sys] = 0;
+                counts[sys]++;
+            }
+            return counts;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Legend Sync / Audit Command
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Audit all STING legends for staleness and offer to refresh.
+    /// Compares legend content against current project data.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class LegendSyncAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            var staleItems = LegendSyncEngine.AuditStaleLegends(doc);
+
+            if (staleItems.Count == 0)
+            {
+                TaskDialog.Show("Legend Sync Audit",
+                    "All STING legends are up to date.\n\n" +
+                    "No stale or missing data detected.");
+                return Result.Succeeded;
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Found {staleItems.Count} stale legend issue(s):\n");
+            foreach (var (name, reason) in staleItems)
+                report.AppendLine($"  {name}: {reason}");
+
+            report.AppendLine("\nRefresh legends to update them with current project data?");
+
+            var dlg = new TaskDialog("Legend Sync Audit");
+            dlg.MainInstruction = $"{staleItems.Count} stale legend(s) detected";
+            dlg.MainContent = report.ToString();
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Refresh All Stale Legends",
+                "Delete stale legends and recreate from current project data");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "View Report Only",
+                "Just show the audit results without changes");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            if (dlg.Show() == TaskDialogResult.CommandLink1)
+            {
+                // Delete stale legends and trigger auto-create
+                int deleted = 0;
+                using (Transaction tx = new Transaction(doc, "STING Refresh Stale Legends"))
+                {
+                    tx.Start();
+                    var stingLegends = new FilteredElementCollector(doc)
+                        .OfClass(typeof(View))
+                        .Cast<View>()
+                        .Where(v => !v.IsTemplate && v.Name.StartsWith("STING") &&
+                            staleItems.Any(s => v.Name.Contains(s.Name.Replace("STING Legend - ", ""))))
+                        .ToList();
+
+                    foreach (var legend in stingLegends)
+                    {
+                        try
+                        {
+                            doc.Delete(legend.Id);
+                            deleted++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Cannot delete legend '{legend.Name}': {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+
+                TaskDialog.Show("Legend Sync",
+                    $"Deleted {deleted} stale legends.\n\n" +
+                    "Run 'Auto-Create Legends' or '★ Master Legend' to regenerate.");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Element Status Legend — Phase/lifecycle visualization
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create a legend showing element status distribution (EXISTING/NEW/DEMOLISHED/TEMPORARY)
+    /// using the unified StingColorRegistry.ElementStatus colors.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StatusLegendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            // Count elements by status
+            var statusCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var elems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
+                .ToList();
+
+            foreach (var el in elems)
+            {
+                string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                if (string.IsNullOrEmpty(status)) status = "UNSET";
+                if (!statusCounts.ContainsKey(status)) statusCounts[status] = 0;
+                statusCounts[status]++;
+            }
+
+            if (statusCounts.Count == 0)
+            {
+                TaskDialog.Show("Status Legend", "No elements with STATUS parameter found.");
+                return Result.Succeeded;
+            }
+
+            var entries = new List<LegendBuilder.LegendEntry>();
+            foreach (var kvp in statusCounts.OrderByDescending(x => x.Value))
+            {
+                Color color = StingColorRegistry.ElementStatus.TryGetValue(kvp.Key, out Color c)
+                    ? c : new Color(160, 160, 160);
+
+                entries.Add(new LegendBuilder.LegendEntry
+                {
+                    Color = color,
+                    Label = kvp.Key,
+                    Description = $"{kvp.Value} elements",
+                    Bold = true,
+                });
+            }
+
+            var config = new LegendBuilder.LegendConfig
+            {
+                Title = "Element Status",
+                Subtitle = "Lifecycle phase distribution",
+                Footer = "STING Tools — StingColorRegistry.ElementStatus",
+            };
+
+            using (Transaction tx = new Transaction(doc, "STING Status Legend"))
+            {
+                tx.Start();
+                var view = LegendBuilder.CreateLegendView(doc, entries, config);
+                tx.Commit();
+
+                if (view != null)
+                    TaskDialog.Show("Status Legend",
+                        $"Created '{view.Name}' with {entries.Count} status categories.\n\n" +
+                        "Shows EXISTING/NEW/DEMOLISHED/TEMPORARY distribution.");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Workset Legend — Color-coded workset distribution
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create a legend showing worksets color-coded by discipline group.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class WorksetLegendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            if (!doc.IsWorkshared)
+            {
+                TaskDialog.Show("Workset Legend", "Project is not workshared. Enable worksharing first.");
+                return Result.Succeeded;
+            }
+
+            var worksets = new FilteredWorksetCollector(doc)
+                .OfKind(WorksetKind.UserWorkset)
+                .ToWorksets()
+                .OrderBy(w => w.Name)
+                .ToList();
+
+            if (worksets.Count == 0)
+            {
+                TaskDialog.Show("Workset Legend", "No user worksets found.");
+                return Result.Succeeded;
+            }
+
+            var entries = worksets.Select(w => new LegendBuilder.LegendEntry
+            {
+                Color = StingColorRegistry.GetWorksetColor(w.Name),
+                Label = w.Name,
+                Description = w.IsOpen ? "Open" : "Closed",
+            }).ToList();
+
+            var config = new LegendBuilder.LegendConfig
+            {
+                Title = "Workset Legend",
+                Subtitle = $"{worksets.Count} worksets — color by discipline group",
+                Footer = "STING Tools — ISO 19650 workset scheme",
+                Columns = entries.Count > 18 ? 2 : 1,
+                ShowCounts = false,
+            };
+
+            using (Transaction tx = new Transaction(doc, "STING Workset Legend"))
+            {
+                tx.Start();
+                var view = LegendBuilder.CreateLegendView(doc, entries, config);
+                tx.Commit();
+
+                if (view != null)
+                    TaskDialog.Show("Workset Legend",
+                        $"Created '{view.Name}' with {entries.Count} worksets.\n" +
+                        "Color-coded by discipline group prefix.");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // MEP & Architectural Legend Intelligence Engine
     //
     // Multi-layer automation for discipline-specific legends:
@@ -3582,55 +5098,15 @@ namespace StingTools.Tags
     /// </summary>
     internal static class LegendIntelligence
     {
-        // ── MEP System Colors — CIBSE/Uniclass standard scheme ────────
+        // ── Colors delegate to StingColorRegistry (single source of truth) ──
 
-        public static readonly Dictionary<string, (Color Color, string Name)> SystemColors =
-            new Dictionary<string, (Color, string)>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "HVAC", (new Color(0, 102, 204), "Heating, Ventilation & AC") },
-                { "HWS",  (new Color(204, 0, 0),   "Hot Water Supply") },
-                { "DCW",  (new Color(0, 153, 255),  "Domestic Cold Water") },
-                { "DHW",  (new Color(255, 102, 0),  "Domestic Hot Water") },
-                { "SAN",  (new Color(102, 51, 0),   "Sanitary / Drainage") },
-                { "RWD",  (new Color(0, 128, 128),  "Rainwater Drainage") },
-                { "GAS",  (new Color(255, 255, 0),  "Gas Supply") },
-                { "FP",   (new Color(255, 0, 0),    "Fire Protection") },
-                { "LV",   (new Color(255, 204, 0),  "Low Voltage / Power") },
-                { "FLS",  (new Color(255, 69, 0),   "Fire & Life Safety") },
-                { "COM",  (new Color(0, 153, 51),   "Communications") },
-                { "ICT",  (new Color(102, 0, 204),  "ICT / Data") },
-                { "NCL",  (new Color(255, 153, 204),"Nurse Call") },
-                { "SEC",  (new Color(153, 0, 0),    "Security") },
-                { "ARC",  (new Color(192, 192, 192),"Architectural") },
-                { "STR",  (new Color(128, 128, 128),"Structural") },
-                { "GEN",  (new Color(160, 160, 160),"General") },
-            };
+        /// <summary>MEP system colors — delegates to StingColorRegistry.Systems.</summary>
+        public static Dictionary<string, (Color Color, string Name)> SystemColors =>
+            StingColorRegistry.Systems;
 
-        // ── Material Category Colors ──────────────────────────────────
-
-        public static readonly Dictionary<string, Color> MaterialCategoryColors =
-            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
-            {
-                // BLE (Building Life-Cycle Elements)
-                { "CEILINGS",     new Color(200, 220, 240) },
-                { "FLOORS",       new Color(210, 180, 140) },
-                { "WALLS",        new Color(220, 200, 180) },
-                { "ROOFS",        new Color(180, 120, 80)  },
-                // MEP
-                { "HVAC-DUCTS",   new Color(100, 150, 220) },
-                { "HVAC-EQUIP",   new Color(60, 120, 200)  },
-                { "DRAINAGE-PIPES", new Color(140, 90, 50) },
-                { "WATER-SUPPLY", new Color(80, 160, 220)  },
-                { "CABLE-TRAYS",  new Color(200, 200, 60)  },
-                { "CONDUITS",     new Color(220, 180, 60)  },
-                { "LIGHTING-FIX", new Color(255, 220, 100) },
-                { "FIRE-PROTECT", new Color(255, 80, 80)   },
-                { "PLUMB-FIX",    new Color(100, 200, 160) },
-                { "PLUMB-EQUIP",  new Color(80, 180, 140)  },
-                { "INSULATION",   new Color(255, 200, 220) },
-                { "VALVES",       new Color(160, 160, 180) },
-                { "ELEC-PANELS",  new Color(240, 200, 80)  },
-            };
+        /// <summary>Material category colors — delegates to StingColorRegistry.MaterialCategories.</summary>
+        public static Dictionary<string, Color> MaterialCategoryColors =>
+            StingColorRegistry.MaterialCategories;
 
         // ── Layer 1: Content Detection ─────────────────────────────────
 

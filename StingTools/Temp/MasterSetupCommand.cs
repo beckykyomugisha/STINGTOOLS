@@ -27,6 +27,7 @@ namespace StingTools.Temp
     ///  14.  Apply filters + VG overrides (5-layer intelligence)
     ///  15.  Batch family parameters (4,686 from CSV)
     ///  16.  Auto-assign templates + auto-fix health
+    ///  17.  Auto-create legends (discipline + system + filter)
     ///
     /// Wrapped in a TransactionGroup for atomic rollback: if any critical step
     /// fails, the user can choose to rollback all changes or keep partial results.
@@ -58,7 +59,8 @@ namespace StingTools.Temp
                 " 13.  Text styles, dimension styles\n" +
                 " 14.  Apply filters + VG overrides (5-layer intelligence)\n" +
                 " 15.  Batch family parameters (4,686 from CSV)\n" +
-                " 16.  Auto-assign templates + auto-fix health\n\n" +
+                " 16.  Auto-assign templates + auto-fix health\n" +
+                " 17.  Auto-create legends (discipline + system)\n\n" +
                 "All steps are grouped atomically — if critical steps fail,\n" +
                 "you can rollback all changes.\n\n" +
                 "This may take several minutes for a new project.";
@@ -191,6 +193,10 @@ namespace StingTools.Temp
                     () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Auto-Fix Template Health",
                     () => RunCommand(new AutoFixTemplateCommand(), commandData, elements));
+
+                // Step 17: Auto-create legends (discipline, system, filter)
+                passed += RunStep(ref stepNum, report, "Auto-Create Legends (discipline + system)",
+                    () => RunCommand(new Tags.AutoCreateLegendsCommand(), commandData, elements));
 
                 failed = stepNum - passed;
                 totalSw.Stop();

@@ -128,6 +128,25 @@ namespace StingTools.Temp
             ("STING - Status: New", ParamRegistry.STATUS, "Equals", "NEW"),
             ("STING - Status: Demolished", ParamRegistry.STATUS, "Equals", "DEMOLISHED"),
             ("STING - Status: Temporary", ParamRegistry.STATUS, "Equals", "TEMPORARY"),
+            // Extended QA filters (missing tokens)
+            ("STING - QA: Missing Zone", ParamRegistry.ZONE, "HasNoValue", ""),
+            ("STING - QA: Missing Function", ParamRegistry.FUNC, "HasNoValue", ""),
+            ("STING - QA: Missing Product", ParamRegistry.PROD, "HasNoValue", ""),
+            ("STING - QA: No Level", ParamRegistry.LVL, "HasNoValue", ""),
+            // System-specific filters (parameter-based for MEP subsystem isolation)
+            ("STING - Sys: HVAC", ParamRegistry.SYS, "Equals", "HVAC"),
+            ("STING - Sys: DCW", ParamRegistry.SYS, "Equals", "DCW"),
+            ("STING - Sys: HWS", ParamRegistry.SYS, "Equals", "HWS"),
+            ("STING - Sys: SAN", ParamRegistry.SYS, "Equals", "SAN"),
+            ("STING - Sys: RWD", ParamRegistry.SYS, "Equals", "RWD"),
+            ("STING - Sys: GAS", ParamRegistry.SYS, "Equals", "GAS"),
+            ("STING - Sys: FP", ParamRegistry.SYS, "Equals", "FP"),
+            ("STING - Sys: FLS", ParamRegistry.SYS, "Equals", "FLS"),
+            ("STING - Sys: COM", ParamRegistry.SYS, "Equals", "COM"),
+            ("STING - Sys: ICT", ParamRegistry.SYS, "Equals", "ICT"),
+            ("STING - Sys: NCL", ParamRegistry.SYS, "Equals", "NCL"),
+            ("STING - Sys: SEC", ParamRegistry.SYS, "Equals", "SEC"),
+            ("STING - Sys: LV", ParamRegistry.SYS, "Equals", "LV"),
         };
 
         public Result Execute(ExternalCommandData commandData,

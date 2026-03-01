@@ -185,6 +185,13 @@ namespace StingTools.UI
                     case "TemplateLegend": RunCommand<Tags.TemplateLegendCommand>(app); break;
                     case "VGCategoryLegend": RunCommand<Tags.VGCategoryLegendCommand>(app); break;
                     case "BatchTemplateLegend": RunCommand<Tags.BatchTemplateLegendCommand>(app); break;
+                    case "FlexibleLegend": RunCommand<Tags.FlexibleLegendCommand>(app); break;
+                    case "LegendFromPreset": RunCommand<Tags.LegendFromPresetCommand>(app); break;
+                    case "ComponentTypeLegend": RunCommand<Tags.ComponentTypeLegendCommand>(app); break;
+                    case "ColorReferenceLegend": RunCommand<Tags.ColorReferenceLegendCommand>(app); break;
+                    case "LegendSyncAudit": RunCommand<Tags.LegendSyncAuditCommand>(app); break;
+                    case "StatusLegend": RunCommand<Tags.StatusLegendCommand>(app); break;
+                    case "WorksetLegend": RunCommand<Tags.WorksetLegendCommand>(app); break;
 
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
