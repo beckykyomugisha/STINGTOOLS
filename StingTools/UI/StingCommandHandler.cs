@@ -219,6 +219,7 @@ namespace StingTools.UI
                     case "ClearOverrides": RunCommand<Organise.ClearOverridesCommand>(app); break;
                     case "CompletenessDashboard": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
                     case "PreTagAudit": RunCommand<Tags.PreTagAuditCommand>(app); break;
+                    case "ResolveAllIssues": RunCommand<Tags.ResolveAllIssuesCommand>(app); break;
 
                     // ── Color By Parameter commands ──
                     case "ColorByParameter": RunCommand<Select.ColorByParameterCommand>(app); break;

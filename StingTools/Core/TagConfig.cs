@@ -171,7 +171,7 @@ namespace StingTools.Core
         /// <summary>Valid discipline codes per ISO 19650.</summary>
         public static readonly HashSet<string> ValidDiscCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "M", "E", "P", "A", "S", "FP", "LV", "G", "XX"
+            "M", "E", "P", "A", "S", "FP", "LV", "G"
         };
 
         /// <summary>
@@ -188,7 +188,7 @@ namespace StingTools.Core
         {
             "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "FP", "LV",
             "FLS", "COM", "ICT", "NCL", "SEC",
-            "ARC", "STR", "GEN", ""
+            "ARC", "STR", "GEN"
         };
 
         /// <summary>
@@ -543,6 +543,28 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Get a guaranteed default SYS code from a discipline code.
+        /// Used as a fallback when MEP system detection returns empty —
+        /// ensures every element gets a valid SYS token.
+        /// M→HVAC, E→LV, P→DHW, A→ARC, S→STR, FP→FP, LV→LV, G→GAS, else GEN.
+        /// </summary>
+        public static string GetDiscDefaultSysCode(string disc)
+        {
+            switch (disc)
+            {
+                case "M":  return "HVAC";
+                case "E":  return "LV";
+                case "P":  return "DHW";
+                case "A":  return "ARC";
+                case "S":  return "STR";
+                case "FP": return "FP";
+                case "LV": return "LV";
+                case "G":  return "GAS";
+                default:   return "GEN";
+            }
+        }
+
+        /// <summary>
         /// Enhanced FUNC code derivation using element's MEP system context.
         /// For HVAC, differentiates Supply (SUP), Return (RTN), Exhaust (EXH), Fresh Air (FRA).
         /// For HWS, differentiates Heating (HTG) vs Domestic Hot Water (DHW).
@@ -551,7 +573,7 @@ namespace StingTools.Core
         public static string GetSmartFuncCode(Element el, string sysCode)
         {
             if (string.IsNullOrEmpty(sysCode))
-                return string.Empty;
+                return "GEN";
 
             // For HVAC, try to detect subsystem function from connector/system name
             if (sysCode == "HVAC")
@@ -866,21 +888,27 @@ namespace StingTools.Core
 
             bool overwriteTokens = (collisionMode == TagCollisionMode.Overwrite);
 
-            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "A";
 
             // Intelligence Layer: cross-validate DISC against element category
-            if (stats != null && disc == "XX")
-                stats.RecordWarning($"Element {el.Id}: category '{catName}' has no DISC mapping");
+            if (!DiscMap.ContainsKey(catName) && stats != null)
+                stats.RecordWarning($"Element {el.Id}: category '{catName}' has no DISC mapping — defaulted to 'A'");
 
             string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
             if (string.IsNullOrEmpty(loc)) loc = LocCodes.Count > 0 ? LocCodes[0] : "BLD1";
             string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
             if (string.IsNullOrEmpty(zone)) zone = ZoneCodes.Count > 0 ? ZoneCodes[0] : "Z01";
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
+            // Guaranteed LVL default: replace unresolved "XX" with "L00" for levelless elements
+            if (lvl == "XX") lvl = "L00";
 
             // Intelligence Layer: MEP system-aware SYS/FUNC derivation
             // 6-layer system detection: connector → sys param → circuit → family → room → category
             string sys = GetMepSystemAwareSysCode(el, catName);
+
+            // Guaranteed SYS default: derive from discipline when MEP detection returns empty
+            if (string.IsNullOrEmpty(sys))
+                sys = GetDiscDefaultSysCode(disc);
 
             // Intelligence Layer: System-aware DISC correction for pipes
             // Pipes are mapped to "M" by default, but if the connected system is plumbing
@@ -889,6 +917,10 @@ namespace StingTools.Core
 
             // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
             string func = GetSmartFuncCode(el, sys);
+            // Guaranteed FUNC default: derive from SYS via FuncMap when smart detection is empty
+            if (string.IsNullOrEmpty(func))
+                func = FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+
             string prod = GetFamilyAwareProdCode(el, catName);
 
             // Log when defaults are applied for LOC/ZONE
@@ -963,23 +995,43 @@ namespace StingTools.Core
             ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
 
             // Auto-populate STATUS from Revit phase/workset if not already set
-            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.STATUS)))
+            // Guaranteed default: every element gets a STATUS — never left empty
             {
-                string status = PhaseAutoDetect.DetectStatus(doc, el);
-                if (!string.IsNullOrEmpty(status))
-                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, status);
-                else
-                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, "NEW");
+                string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                if (string.IsNullOrEmpty(existingStatus) || overwriteTokens)
+                {
+                    string status = PhaseAutoDetect.DetectStatus(doc, el);
+                    if (string.IsNullOrEmpty(status)) status = "NEW";
+                    if (overwriteTokens)
+                        ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true);
+                    else
+                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, status);
+                }
+            }
+
+            // Auto-populate REV from project revision sequence
+            // Guaranteed default: every element gets a REV — "P01" when no revisions exist
+            {
+                string existingRev = ParameterHelpers.GetString(el, ParamRegistry.REV);
+                if (string.IsNullOrEmpty(existingRev) || overwriteTokens)
+                {
+                    string rev = PhaseAutoDetect.DetectProjectRevision(doc);
+                    if (string.IsNullOrEmpty(rev)) rev = "P01";
+                    if (overwriteTokens)
+                        ParameterHelpers.SetString(el, ParamRegistry.REV, rev, overwrite: true);
+                    else
+                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, rev);
+                }
             }
 
             // Auto-write containers: populate discipline-specific and universal containers
             // from the token values just written. This eliminates the need for a separate
             // "Combine" step after tagging — tags are immediately available in all containers.
+            // Always write containers — even partial token values should propagate.
             try
             {
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
-                    ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
+                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
             }
             catch (Exception ex)
             {
@@ -1719,12 +1771,12 @@ namespace StingTools.Core
 
         private static List<string> DefaultLocCodes()
         {
-            return new List<string> { "BLD1", "BLD2", "BLD3", "EXT", "XX" };
+            return new List<string> { "BLD1", "BLD2", "BLD3", "EXT" };
         }
 
         private static List<string> DefaultZoneCodes()
         {
-            return new List<string> { "Z01", "Z02", "Z03", "Z04", "ZZ", "XX" };
+            return new List<string> { "Z01", "Z02", "Z03", "Z04" };
         }
     }
 

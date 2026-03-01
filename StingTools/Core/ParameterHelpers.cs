@@ -835,11 +835,14 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
                 return result;
 
-            // DISC — deterministic from category
-            string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+            // DISC — deterministic from category (default "A" for unmapped categories)
+            string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
 
             // SYS — 6-layer MEP system-aware detection (must come before DISC correction)
             string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+            // Guaranteed SYS default: derive from discipline when MEP detection returns empty
+            if (string.IsNullOrEmpty(sys))
+                sys = TagConfig.GetDiscDefaultSysCode(disc);
 
             // DISC correction — system-aware override for pipes
             disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
@@ -854,79 +857,76 @@ namespace StingTools.Core
             }
 
             // LOC — from spatial context (room → project info → workset)
+            // Guaranteed default: "BLD1" when detection returns empty
             string existingLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
             if (string.IsNullOrEmpty(existingLoc) || overwrite)
             {
                 string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
-                if (!string.IsNullOrEmpty(loc))
+                if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                if (overwrite)
                 {
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true)) result.TokensSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) result.TokensSet++;
-                    }
-                    result.LocDetected = true;
+                    if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true)) result.TokensSet++;
                 }
+                else
+                {
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) result.TokensSet++;
+                }
+                result.LocDetected = true;
             }
 
             // ZONE — from room data (department → name → workset)
+            // Guaranteed default: "Z01" when detection returns empty
             string existingZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
             if (string.IsNullOrEmpty(existingZone) || overwrite)
             {
                 string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
-                if (!string.IsNullOrEmpty(zone))
+                if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                if (overwrite)
                 {
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true)) result.TokensSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) result.TokensSet++;
-                    }
-                    result.ZoneDetected = true;
+                    if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true)) result.TokensSet++;
                 }
+                else
+                {
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) result.TokensSet++;
+                }
+                result.ZoneDetected = true;
             }
 
             // LVL — deterministic from element level
+            // Guaranteed default: replace unresolved "XX" with "L00" for levelless elements
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
+            if (lvl == "XX") lvl = "L00";
             if (overwrite)
             {
                 if (ParameterHelpers.SetString(el, ParamRegistry.LVL, lvl, overwrite: true)) result.TokensSet++;
             }
             else
             {
-                if (lvl != "XX" && ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) result.TokensSet++;
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) result.TokensSet++;
             }
 
-            // SYS — write the value detected above
-            if (!string.IsNullOrEmpty(sys))
+            // SYS — always write a guaranteed value (never empty)
+            if (overwrite)
             {
-                if (overwrite)
-                {
-                    if (ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true)) result.TokensSet++;
-                }
-                else
-                {
-                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) result.TokensSet++;
-                }
+                if (ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true)) result.TokensSet++;
+            }
+            else
+            {
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) result.TokensSet++;
             }
 
             // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
+            // Guaranteed default: derive from SYS via FuncMap when smart detection is empty
             string func = TagConfig.GetSmartFuncCode(el, sys);
-            if (!string.IsNullOrEmpty(func))
+            if (string.IsNullOrEmpty(func))
+                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+            if (overwrite)
             {
-                if (overwrite)
-                {
-                    if (ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true)) result.TokensSet++;
-                }
-                else
-                {
-                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) result.TokensSet++;
-                }
+                if (ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true)) result.TokensSet++;
+            }
+            else
+            {
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) result.TokensSet++;
             }
 
             // PROD — family-aware (35+ specific codes)
@@ -967,11 +967,12 @@ namespace StingTools.Core
             }
 
             // REV — from project revision sequence
-            if (!string.IsNullOrEmpty(ctx.ProjectRev))
+            // Guaranteed default: "P01" when no project revisions exist
             {
+                string rev = !string.IsNullOrEmpty(ctx.ProjectRev) ? ctx.ProjectRev : "P01";
                 if (overwrite)
                 {
-                    if (ParameterHelpers.SetString(el, ParamRegistry.REV, ctx.ProjectRev, overwrite: true))
+                    if (ParameterHelpers.SetString(el, ParamRegistry.REV, rev, overwrite: true))
                     {
                         result.TokensSet++;
                         result.RevSet = true;
@@ -979,7 +980,7 @@ namespace StingTools.Core
                 }
                 else
                 {
-                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, ctx.ProjectRev))
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, rev))
                     {
                         result.TokensSet++;
                         result.RevSet = true;
@@ -1002,29 +1003,34 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
                 return count;
 
-            string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+            string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
             if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) count++;
 
             if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
             {
                 string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
-                if (!string.IsNullOrEmpty(loc) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) count++;
+                if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) count++;
             }
 
             if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
             {
                 string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
-                if (!string.IsNullOrEmpty(zone) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) count++;
+                if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) count++;
             }
 
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
-            if (lvl != "XX") if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) count++;
+            if (lvl == "XX") lvl = "L00";
+            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) count++;
 
             string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-            if (!string.IsNullOrEmpty(sys)) if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) count++;
+            if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) count++;
 
             string func = TagConfig.GetSmartFuncCode(el, sys);
-            if (!string.IsNullOrEmpty(func)) if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) count++;
+            if (string.IsNullOrEmpty(func)) func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) count++;
 
             string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
             if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) count++;

@@ -349,6 +349,18 @@ namespace StingTools.Tags
                     report.AppendLine($"  {kvp.Key,-25} {kvp.Value} issues");
             }
 
+            // Recommendation when issues exist
+            if (fullPct < 100)
+            {
+                report.AppendLine();
+                report.AppendLine("── Recommendation ──");
+                report.Append("Run the \"Resolve All Issues\" command from the ORGANISE tab to automatically " +
+                    "force-populate all empty tokens, rebuild incomplete tags, fix duplicates, set STATUS " +
+                    "and REV on every element, and fill all containers. This single operation targets " +
+                    "100% compliance by applying guaranteed defaults to every taggable element in the project.");
+                report.AppendLine();
+            }
+
             // Export CSV
             string csvPath = null;
             try

@@ -1069,6 +1069,15 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Resolve All Issues -->
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="One-click 100% compliance :" FontSize="9" Foreground="#888"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Resolve All Issues" Tag="ResolveAllIssues" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,4,0,0"
+                                        ToolTip="Force-populate all tokens, rebuild all tags, fix duplicates, fill containers — achieve 100% compliance"/>
+                            </StackPanel>
+                        </Border>
+
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
