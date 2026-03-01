@@ -375,8 +375,7 @@ namespace StingTools.Select
 
         private static Result BulkRetag(Document doc, ICollection<ElementId> selected)
         {
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
-            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             int retagged = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Bulk Re-Tag"))

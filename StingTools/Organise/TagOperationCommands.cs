@@ -66,8 +66,7 @@ namespace StingTools.Organise
                 }
             }
 
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
-            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var stats = new TaggingStats();
 
             using (Transaction tx = new Transaction(doc, "STING Tag Selected"))
@@ -125,8 +124,7 @@ namespace StingTools.Organise
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
-            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             int retagged = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Re-Tag"))

@@ -48,9 +48,11 @@ namespace StingTools.Temp
             // Sort by dependency level (level 0 first, then 1, 2, ... 6)
             formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
 
-            // Collect all taggable elements
+            // Collect taggable elements only (skip views, sheets, annotations, etc.)
             var collector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
+                .WherePasses(new ElementMulticategoryFilter(
+                    SharedParamGuids.AllCategoryEnums.ToList()))
                 .ToList();
 
             int totalEvaluated = 0;

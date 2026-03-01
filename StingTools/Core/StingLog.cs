@@ -7,11 +7,13 @@ namespace StingTools.Core
     /// Lightweight logger for STING Tools. Writes to a log file alongside the DLL
     /// and optionally to the Revit journal. Replaces silent catch blocks throughout
     /// the codebase so errors are traceable.
+    /// Uses a buffered StreamWriter with auto-flush for performance during batch operations.
     /// </summary>
     public static class StingLog
     {
         private static readonly object Lock = new object();
         private static string _logPath;
+        private static StreamWriter _writer;
 
         private static string LogPath
         {
@@ -50,12 +52,41 @@ namespace StingTools.Core
                 string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{level}] {message}";
                 lock (Lock)
                 {
-                    File.AppendAllText(LogPath, line + Environment.NewLine);
+                    EnsureWriter();
+                    _writer.WriteLine(line);
+                    _writer.Flush();
                 }
             }
             catch
             {
-                // Last-resort: cannot log, do nothing
+                // Last-resort: cannot log — dispose bad writer so next call retries
+                DisposeWriter();
+            }
+        }
+
+        private static void EnsureWriter()
+        {
+            if (_writer == null)
+            {
+                var stream = new FileStream(LogPath, FileMode.Append, FileAccess.Write, FileShare.Read);
+                _writer = new StreamWriter(stream) { AutoFlush = false };
+            }
+        }
+
+        private static void DisposeWriter()
+        {
+            try { _writer?.Dispose(); } catch { }
+            _writer = null;
+        }
+
+        /// <summary>
+        /// Flush and close the log file. Call on plugin shutdown (OnShutdown).
+        /// </summary>
+        public static void Shutdown()
+        {
+            lock (Lock)
+            {
+                DisposeWriter();
             }
         }
     }

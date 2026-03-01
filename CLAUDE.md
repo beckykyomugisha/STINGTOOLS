@@ -672,11 +672,11 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 
 | Location | Issue | Status |
 |----------|-------|--------|
-| `TagConfig.BuildExistingTagIndex` + `GetExistingSequenceCounters` | Two full-project scans of ALL non-type elements | Merge into single pass with `ElementMulticategoryFilter` |
-| `FormulaEvaluatorCommand:52-54` | Collects ALL non-type elements (views, sheets, annotations) | Filter by relevant categories |
-| `BatchTagCommand:39-98` | 4 separate full-project scans before tagging | Consolidate scans |
+| [DONE] `TagConfig.BuildExistingTagIndex` + `GetExistingSequenceCounters` | Two full-project scans merged into `BuildTagIndexAndCounters()` returning tuple; 9 call sites updated | Fixed — single pass, original methods delegate to combined |
+| [DONE] `FormulaEvaluatorCommand:52-54` | Filtered with `ElementMulticategoryFilter` using `SharedParamGuids.AllCategoryEnums` | Fixed — skips views, sheets, annotations |
+| [DONE] `BatchTagCommand:39-98` | Pre-flight scan now uses `ElementMulticategoryFilter`; `BuildTagIndexAndCounters` already merged | Fixed — 2 scans reduced from 4, category-filtered |
 | [DONE] `StateSelectCommands:153-156` | LINQ post-filter replaced with `ElementLevelFilter` quick filter | Fixed |
-| `StingLog:50-54` | `File.AppendAllText` opens/closes file per log call | Use buffered `StreamWriter` |
+| [DONE] `StingLog:50-54` | Replaced `File.AppendAllText` with persistent `StreamWriter` + `Flush()` per write | Fixed — `Shutdown()` wired in `OnShutdown` |
 | [DONE] `TagConfig.GetSysCode` | O(n*m) replaced with O(1) cached reverse lookup dictionary (`_sysReverseLookup`) | Fixed — cache invalidated on config reload |
 
 **Code Duplication (6 major clusters):**

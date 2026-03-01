@@ -35,9 +35,11 @@ namespace StingTools.Tags
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            // Step 1: Pre-flight scan — collect and classify all elements
+            // Step 1: Pre-flight scan — collect and classify taggable elements only
             var allElements = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
+                .WherePasses(new ElementMulticategoryFilter(
+                    SharedParamGuids.AllCategoryEnums.ToList()))
                 .ToList();
 
             int totalTaggable = 0, alreadyTagged = 0, untagged = 0;
@@ -94,8 +96,7 @@ namespace StingTools.Tags
             // This ensures contiguous SEQ numbers per group (all HVAC on L01 together)
             var sorted = SmartSortElements(doc, taggableElements);
 
-            var sequenceCounters = TagConfig.GetExistingSequenceCounters(doc);
-            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
             var stats = new TaggingStats();

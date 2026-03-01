@@ -1199,43 +1199,33 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Build a HashSet of all existing ASS_TAG_1_TXT values in the project.
-        /// Call once before a batch tagging loop and pass to BuildAndWriteTag
-        /// for collision detection. O(n) scan, O(1) per lookup thereafter.
+        /// Build both the tag index (HashSet of existing tags) and sequence counters
+        /// (max SEQ per DISC_SYS_LVL group) in a single pass over all project elements.
+        /// This replaces calling BuildExistingTagIndex + GetExistingSequenceCounters
+        /// separately, which performed two full-project scans.
         /// </summary>
-        public static HashSet<string> BuildExistingTagIndex(Document doc)
+        public static (HashSet<string> tagIndex, Dictionary<string, int> seqCounters)
+            BuildTagIndexAndCounters(Document doc)
         {
-            var index = new HashSet<string>(StringComparer.Ordinal);
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
-            {
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
-                if (!string.IsNullOrEmpty(tag))
-                    index.Add(tag);
-            }
-            StingLog.Info($"Tag index built: {index.Count} existing tags");
-            return index;
-        }
-
-        /// <summary>
-        /// Scan the entire project and find the highest existing sequence number
-        /// for each (DISC, SYS, LVL) group. Returns a dictionary that can be passed
-        /// to BuildAndWriteTag so new tags continue from existing numbering.
-        /// </summary>
-        public static Dictionary<string, int> GetExistingSequenceCounters(Document doc)
-        {
+            var tagIndex = new HashSet<string>(StringComparer.Ordinal);
             var maxSeq = new Dictionary<string, int>();
             var known = new HashSet<string>(DiscMap.Keys);
 
             foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
+                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                if (!string.IsNullOrEmpty(tag))
+                    tagIndex.Add(tag);
+
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
 
                 string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
+                if (string.IsNullOrEmpty(disc)) continue;
+
                 string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
                 string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
                 string seqStr = ParameterHelpers.GetString(elem, "ASS_SEQ_NUM_TXT");
-                if (string.IsNullOrEmpty(disc)) continue;
 
                 string key = $"{disc}_{sys}_{lvl}";
                 if (int.TryParse(seqStr, out int seqNum))
@@ -1245,7 +1235,30 @@ namespace StingTools.Core
                 }
             }
 
-            return maxSeq;
+            StingLog.Info($"Tag index built: {tagIndex.Count} existing tags, {maxSeq.Count} sequence groups");
+            return (tagIndex, maxSeq);
+        }
+
+        /// <summary>
+        /// Build a HashSet of all existing ASS_TAG_1_TXT values in the project.
+        /// Delegates to <see cref="BuildTagIndexAndCounters"/> for single-pass efficiency
+        /// when called alone. Prefer calling BuildTagIndexAndCounters directly when
+        /// both tag index and sequence counters are needed.
+        /// </summary>
+        public static HashSet<string> BuildExistingTagIndex(Document doc)
+        {
+            return BuildTagIndexAndCounters(doc).tagIndex;
+        }
+
+        /// <summary>
+        /// Scan the entire project and find the highest existing sequence number
+        /// for each (DISC, SYS, LVL) group. Delegates to <see cref="BuildTagIndexAndCounters"/>
+        /// for single-pass efficiency when called alone. Prefer calling
+        /// BuildTagIndexAndCounters directly when both are needed.
+        /// </summary>
+        public static Dictionary<string, int> GetExistingSequenceCounters(Document doc)
+        {
+            return BuildTagIndexAndCounters(doc).seqCounters;
         }
 
         private static T TryDeserialize<T>(Dictionary<string, object> data, string key)
