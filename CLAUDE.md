@@ -651,15 +651,15 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | [DONE] CableTrays/Conduits wrong ElementKind | `TemplateExtCommands.cs:220-235` | Added `CableTray`/`Conduit` to `ElementKind` enum, added cases in `CreateMEPType` and `GetExistingTypeNames`, updated commands to use correct kinds |
 | [DONE] ElementId null assignment | `StateSelectCommands.cs:143,147` | Changed to `ElementId.InvalidElementId` init, null-safe `GenLevel` access, single `InvalidElementId` check |
 
-**Dockable Panel Wiring Gaps (19 of 121 commands missing from panel):**
+**[DONE] Dockable Panel Wiring Gaps (19 of 121 commands missing from panel):**
 
-| Missing Commands | Count | Notes |
-|-----------------|-------|-------|
-| All 17 TemplateManager commands | 17 | No handler case AND no XAML button — ribbon-only |
-| `TagNewOnlyCommand` | 1 | Important incremental tagging — no button at all |
-| `SwapTagsCommand` | 1 | Handler exists but no XAML button |
+| Missing Commands | Count | Status |
+|-----------------|-------|--------|
+| [DONE] All 17 TemplateManager commands | 17 | Handler cases + XAML Template Manager section added (Intelligence/Create Styles/Batch Ops) |
+| [DONE] `TagNewOnlyCommand` | 1 | Handler case + XAML button added in ORGANISE TAG OPERATIONS |
+| [DONE] `SwapTagsCommand` | 1 | XAML button added in ORGANISE TAG OPERATIONS |
 
-Dead/stub UI elements: `RefreshParamList` (no handler), `ColorApply`/`ColorApplyHex`/`ColorApplyTransparency` (pass empty params), Save/Load/Delete preset buttons (no Click), Parameter Lookup section (complete stub), ISO Dashboard DataGrid (no binding), Health Score (hardcoded "—/100"), slider labels (static "0%")
+[DONE] Dead/stub UI elements: `RefreshParamList` handler added (populates combo from Revit), `ColorApply`/`ColorApplyHex`/`ColorApplyTransparency` now use dedicated click handlers passing actual control values, Save/Load/Delete preset buttons wired with Tag+Click, Parameter Lookup ▼/⊙ buttons wired, [Brain] button wired to FamilyStagePopulate, Anomaly Refresh button wired. Also added: ReTag, PinTags, ResetTagPositions, SelectByDiscipline, SelectTagsWithLeaders, TagRegisterExport, MaterialSchedules, ApplyFilters buttons to panel.
 
 **Inconsistent SYS Code Derivation:**
 
