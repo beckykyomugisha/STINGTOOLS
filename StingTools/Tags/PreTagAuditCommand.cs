@@ -24,6 +24,9 @@ namespace StingTools.Tags
     ///   - Per-discipline breakdown
     ///   - Elements that will receive family-aware PROD codes
     ///   - LOC/ZONE values that will be auto-detected from spatial data
+    ///   - STATUS predictions from Revit phase/workset analysis
+    ///   - REV coverage from project revision sequence
+    ///   - Phase mismatch warnings (detected vs existing STATUS)
     ///
     /// This is the "measure twice, cut once" approach — eliminates surprises.
     /// </summary>
@@ -73,6 +76,7 @@ namespace StingTools.Tags
             var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            string projectRev = PhaseAutoDetect.DetectProjectRevision(doc);
 
             // Counters
             int totalTaggable = 0;
@@ -88,6 +92,12 @@ namespace StingTools.Tags
             int isoViolations = 0;
             int missingTokenElements = 0;
             int crossValWarnings = 0;
+
+            // STATUS/REV prediction counters
+            int statusMissing = 0, statusWillAutoDetect = 0;
+            int revMissing = 0, revWillAutoSet = 0;
+            int phaseMismatches = 0;
+            var statusDistribution = new Dictionary<string, int>();
 
             // Per-discipline stats
             var discStats = new Dictionary<string, (int total, int tagged, int untagged, int violations)>();
@@ -106,7 +116,7 @@ namespace StingTools.Tags
 
             // CSV audit rows
             var csvRows = new List<string>();
-            csvRows.Add("ElementId,Category,Family,CurrentTag,PredictedTag,Action,LOC_Source,ZONE_Source,PROD_Source,ISOErrors");
+            csvRows.Add("ElementId,Category,Family,CurrentTag,PredictedTag,Action,LOC_Source,ZONE_Source,PROD_Source,STATUS,STATUS_Source,REV,ISOErrors");
 
             foreach (Element el in targetElements)
             {
@@ -188,6 +198,45 @@ namespace StingTools.Tags
                     }
                 }
 
+                // Predict STATUS from Revit phases/worksets
+                string statusSource = "existing";
+                string currentStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                if (string.IsNullOrEmpty(currentStatus))
+                {
+                    statusMissing++;
+                    string detectedStatus = PhaseAutoDetect.DetectStatus(doc, el);
+                    if (!string.IsNullOrEmpty(detectedStatus))
+                    {
+                        statusWillAutoDetect++;
+                        statusSource = "phase-auto";
+                        currentStatus = detectedStatus;
+                    }
+                    else
+                    {
+                        statusSource = "DEFAULT(NEW)";
+                        currentStatus = "NEW";
+                    }
+                }
+                else
+                {
+                    // Cross-validate: check if existing STATUS matches what phase detection would give
+                    string phaseStatus = PhaseAutoDetect.DetectStatus(doc, el);
+                    if (!string.IsNullOrEmpty(phaseStatus) && phaseStatus != currentStatus)
+                        phaseMismatches++;
+                }
+                if (!statusDistribution.ContainsKey(currentStatus))
+                    statusDistribution[currentStatus] = 0;
+                statusDistribution[currentStatus]++;
+
+                // Predict REV from project revision
+                string currentRev = ParameterHelpers.GetString(el, ParamRegistry.REV);
+                if (string.IsNullOrEmpty(currentRev))
+                {
+                    revMissing++;
+                    if (!string.IsNullOrEmpty(projectRev))
+                        revWillAutoSet++;
+                }
+
                 // Predict PROD code (family-aware)
                 string prodSource = "category";
                 string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
@@ -262,7 +311,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                csvRows.Add($"{el.Id},\"{catName}\",\"{familyName}\",\"{existingTag}\",\"{predictedTag}\",{action},{locSource},{zoneSource},{prodSource},{elementIsoErrors}");
+                csvRows.Add($"{el.Id},\"{catName}\",\"{familyName}\",\"{existingTag}\",\"{predictedTag}\",{action},{locSource},{zoneSource},{prodSource},{currentStatus},{statusSource},{currentRev},{elementIsoErrors}");
             }
 
             willBeSkipped = totalTaggable - willBeTagged - alreadyTagged;
@@ -292,6 +341,28 @@ namespace StingTools.Tags
             report2.AppendLine($"  LOC auto-detectable: {locWillAutoDetect} (from rooms/project info)");
             report2.AppendLine($"  ZONE missing:       {missingZoneCount}");
             report2.AppendLine($"  ZONE auto-detectable: {zoneWillAutoDetect} (from rooms)");
+            report2.AppendLine();
+
+            // STATUS prediction
+            report2.AppendLine("── STATUS PREDICTION ──");
+            report2.AppendLine($"  STATUS missing:     {statusMissing}");
+            report2.AppendLine($"  Will auto-detect:   {statusWillAutoDetect} (from Revit phases/worksets)");
+            if (phaseMismatches > 0)
+                report2.AppendLine($"  Phase mismatches:   {phaseMismatches} (existing STATUS differs from detected)");
+            if (statusDistribution.Count > 0)
+            {
+                report2.Append("  Distribution:       ");
+                report2.AppendLine(string.Join(", ",
+                    statusDistribution.OrderByDescending(x => x.Value)
+                        .Select(x => $"{x.Key}={x.Value}")));
+            }
+            report2.AppendLine();
+
+            // REV prediction
+            report2.AppendLine("── REVISION PREDICTION ──");
+            report2.AppendLine($"  REV missing:        {revMissing}");
+            report2.AppendLine($"  Will auto-set:      {revWillAutoSet}" +
+                (string.IsNullOrEmpty(projectRev) ? " (no project revisions)" : $" (revision '{projectRev}')"));
             report2.AppendLine();
 
             // Family PROD intelligence

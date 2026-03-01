@@ -764,6 +764,276 @@ namespace StingTools.Core
     }
 
     /// <summary>
+    /// Shared token auto-population logic used by all tagging commands.
+    /// Eliminates code duplication across AutoTag, BatchTag, TagNewOnly,
+    /// TagAndCombine, FullAutoPopulate, and BulkParamWrite.
+    ///
+    /// Populates all 9 tokens: DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS, REV.
+    /// Each token uses the highest-intelligence detection available:
+    ///   - DISC: category-based with system-aware correction for pipes
+    ///   - LOC: spatial auto-detect (room → project info → workset)
+    ///   - ZONE: spatial auto-detect (room department → room name → workset)
+    ///   - LVL: deterministic from element level
+    ///   - SYS: 6-layer MEP system-aware detection
+    ///   - FUNC: smart subsystem differentiation (SUP/RTN/EXH, HTG/DHW)
+    ///   - PROD: family-aware (35+ specific codes)
+    ///   - STATUS: phase-aware (4-layer: demolished → phase name → workset → ordinal)
+    ///   - REV: project revision sequence
+    /// </summary>
+    public static class TokenAutoPopulator
+    {
+        /// <summary>
+        /// Pre-built context for batch operations. Build once, reuse for all elements.
+        /// Wraps all the indexes and project-level values needed for token population.
+        /// </summary>
+        public class PopulationContext
+        {
+            public Dictionary<ElementId, Room> RoomIndex { get; set; }
+            public string ProjectLoc { get; set; }
+            public string ProjectRev { get; set; }
+            public HashSet<string> KnownCategories { get; set; }
+
+            /// <summary>
+            /// Build a PopulationContext once for a batch operation.
+            /// </summary>
+            public static PopulationContext Build(Document doc)
+            {
+                return new PopulationContext
+                {
+                    RoomIndex = SpatialAutoDetect.BuildRoomIndex(doc),
+                    ProjectLoc = SpatialAutoDetect.DetectProjectLoc(doc),
+                    ProjectRev = PhaseAutoDetect.DetectProjectRevision(doc),
+                    KnownCategories = new HashSet<string>(TagConfig.DiscMap.Keys),
+                };
+            }
+        }
+
+        /// <summary>
+        /// Result of populating tokens on a single element.
+        /// Provides granular counts for reporting.
+        /// </summary>
+        public class PopulationResult
+        {
+            public int TokensSet { get; set; }
+            public bool LocDetected { get; set; }
+            public bool ZoneDetected { get; set; }
+            public bool StatusDetected { get; set; }
+            public bool RevSet { get; set; }
+            public bool FamilyProdUsed { get; set; }
+        }
+
+        /// <summary>
+        /// Populate all 9 tokens on a single element using the highest-intelligence
+        /// detection available. Only fills empty values (non-destructive) unless
+        /// overwrite is true.
+        /// </summary>
+        public static PopulationResult PopulateAll(Document doc, Element el,
+            PopulationContext ctx, bool overwrite = false)
+        {
+            var result = new PopulationResult();
+            string catName = ParameterHelpers.GetCategoryName(el);
+            if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
+                return result;
+
+            // DISC — deterministic from category
+            string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+
+            // SYS — 6-layer MEP system-aware detection (must come before DISC correction)
+            string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+
+            // DISC correction — system-aware override for pipes
+            disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
+
+            if (overwrite)
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true)) result.TokensSet++;
+            }
+            else
+            {
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) result.TokensSet++;
+            }
+
+            // LOC — from spatial context (room → project info → workset)
+            string existingLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+            if (string.IsNullOrEmpty(existingLoc) || overwrite)
+            {
+                string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
+                if (!string.IsNullOrEmpty(loc))
+                {
+                    if (overwrite)
+                    {
+                        if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true)) result.TokensSet++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) result.TokensSet++;
+                    }
+                    result.LocDetected = true;
+                }
+            }
+
+            // ZONE — from room data (department → name → workset)
+            string existingZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+            if (string.IsNullOrEmpty(existingZone) || overwrite)
+            {
+                string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
+                if (!string.IsNullOrEmpty(zone))
+                {
+                    if (overwrite)
+                    {
+                        if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true)) result.TokensSet++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) result.TokensSet++;
+                    }
+                    result.ZoneDetected = true;
+                }
+            }
+
+            // LVL — deterministic from element level
+            string lvl = ParameterHelpers.GetLevelCode(doc, el);
+            if (overwrite)
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.LVL, lvl, overwrite: true)) result.TokensSet++;
+            }
+            else
+            {
+                if (lvl != "XX" && ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) result.TokensSet++;
+            }
+
+            // SYS — write the value detected above
+            if (!string.IsNullOrEmpty(sys))
+            {
+                if (overwrite)
+                {
+                    if (ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true)) result.TokensSet++;
+                }
+                else
+                {
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) result.TokensSet++;
+                }
+            }
+
+            // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
+            string func = TagConfig.GetSmartFuncCode(el, sys);
+            if (!string.IsNullOrEmpty(func))
+            {
+                if (overwrite)
+                {
+                    if (ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true)) result.TokensSet++;
+                }
+                else
+                {
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) result.TokensSet++;
+                }
+            }
+
+            // PROD — family-aware (35+ specific codes)
+            string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+            string catProd = TagConfig.ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+            if (prod != catProd) result.FamilyProdUsed = true;
+            if (overwrite)
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.PROD, prod, overwrite: true)) result.TokensSet++;
+            }
+            else
+            {
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) result.TokensSet++;
+            }
+
+            // STATUS — phase-aware (4-layer detection from Revit phases/worksets)
+            string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+            if (string.IsNullOrEmpty(existingStatus) || overwrite)
+            {
+                string status = PhaseAutoDetect.DetectStatus(doc, el);
+                if (string.IsNullOrEmpty(status)) status = "NEW";
+                if (overwrite)
+                {
+                    if (ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true))
+                    {
+                        result.TokensSet++;
+                        result.StatusDetected = true;
+                    }
+                }
+                else
+                {
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, status))
+                    {
+                        result.TokensSet++;
+                        result.StatusDetected = true;
+                    }
+                }
+            }
+
+            // REV — from project revision sequence
+            if (!string.IsNullOrEmpty(ctx.ProjectRev))
+            {
+                if (overwrite)
+                {
+                    if (ParameterHelpers.SetString(el, ParamRegistry.REV, ctx.ProjectRev, overwrite: true))
+                    {
+                        result.TokensSet++;
+                        result.RevSet = true;
+                    }
+                }
+                else
+                {
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, ctx.ProjectRev))
+                    {
+                        result.TokensSet++;
+                        result.RevSet = true;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Populate only the core 7 tag tokens (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD)
+        /// without STATUS and REV. Used when only tag-building tokens are needed.
+        /// </summary>
+        public static int PopulateTagTokens(Document doc, Element el,
+            PopulationContext ctx)
+        {
+            int count = 0;
+            string catName = ParameterHelpers.GetCategoryName(el);
+            if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
+                return count;
+
+            string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) count++;
+
+            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
+            {
+                string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
+                if (!string.IsNullOrEmpty(loc) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) count++;
+            }
+
+            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
+            {
+                string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
+                if (!string.IsNullOrEmpty(zone) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) count++;
+            }
+
+            string lvl = ParameterHelpers.GetLevelCode(doc, el);
+            if (lvl != "XX") if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) count++;
+
+            string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+            if (!string.IsNullOrEmpty(sys)) if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) count++;
+
+            string func = TagConfig.GetSmartFuncCode(el, sys);
+            if (!string.IsNullOrEmpty(func)) if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) count++;
+
+            string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) count++;
+
+            return count;
+        }
+    }
+
+    /// <summary>
     /// Maps Revit native/built-in parameters to STING shared parameters.
     /// Reads values that Revit populates automatically (Mark, Comments, Description,
     /// Room Name, Room Number, Area, Volume, etc.) and writes them to corresponding

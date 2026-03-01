@@ -17,10 +17,12 @@ namespace StingTools.Tags
     /// Intelligence layers:
     ///   1. Smart element ordering by Level -> Discipline -> Category
     ///   2. Pre-flight taggable/tagged/untagged counts shown in collision mode dialog
-    ///   3. Spatial auto-detection for LOC/ZONE
+    ///   3. Full 9-token auto-population via TokenAutoPopulator (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS, REV)
     ///   4. MEP system-aware SYS derivation
-    ///   5. O(1) collision detection with mode selection
-    ///   6. Rich per-discipline/level/system reporting via TaggingStats
+    ///   5. Phase-aware STATUS auto-detection from Revit phases/worksets
+    ///   6. REV auto-population from project revision sequence
+    ///   7. O(1) collision detection with mode selection
+    ///   8. Rich per-discipline/level/system reporting via TaggingStats
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -117,10 +119,10 @@ namespace StingTools.Tags
             var sorted = BatchTagCommand.SmartSortElements(doc, taggableElements);
 
             int populated = 0;
+            int statusDetected = 0, revSet = 0;
             var sequenceCounters = TagConfig.GetExistingSequenceCounters(doc);
             var tagIndex = TagConfig.BuildExistingTagIndex(doc);
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             var stats = new TaggingStats();
 
             using (Transaction tx = new Transaction(doc, "STING Auto Tag"))
@@ -131,17 +133,12 @@ namespace StingTools.Tags
                 {
                     try
                     {
-                        // Pre-populate LOC/ZONE from spatial data before tagging
-                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
-                        {
-                            string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) populated++;
-                        }
-                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
-                        {
-                            string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) populated++;
-                        }
+                        // Full 9-token auto-population via shared helper
+                        var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx,
+                            overwrite: collisionMode == TagCollisionMode.Overwrite);
+                        populated += popResult.TokensSet;
+                        if (popResult.StatusDetected) statusDetected++;
+                        if (popResult.RevSet) revSet++;
 
                         bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
                         TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
@@ -167,7 +164,11 @@ namespace StingTools.Tags
             report.AppendLine($"  Disciplines: {discFilterLabel}");
             if (filteredOut > 0)
                 report.AppendLine($"  Filtered:   {filteredOut} (wrong discipline for view)");
-            report.AppendLine($"  LOC/ZONE:   {populated} auto-populated");
+            report.AppendLine($"  Tokens:     {populated} auto-populated");
+            if (statusDetected > 0)
+                report.AppendLine($"  STATUS:     {statusDetected} (from Revit phases/worksets)");
+            if (revSet > 0)
+                report.AppendLine($"  REV:        {revSet} (revision '{popCtx.ProjectRev}')");
             report.AppendLine();
             report.Append(stats.BuildReport());
 
@@ -178,7 +179,8 @@ namespace StingTools.Tags
 
             StingLog.Info($"AutoTag: view='{activeView.Name}', tagged={stats.TotalTagged}, " +
                 $"skipped={stats.TotalSkipped}, collisions={stats.TotalCollisions}, " +
-                $"populated={populated}, mode={collisionMode}");
+                $"populated={populated}, statusDetect={statusDetected}, revSet={revSet}, " +
+                $"mode={collisionMode}");
 
             return Result.Succeeded;
         }
@@ -188,7 +190,8 @@ namespace StingTools.Tags
     /// Tag only NEW (untagged) elements in the project. Unlike BatchTag which processes
     /// all elements, this command pre-filters to only elements with empty ASS_TAG_1_TXT,
     /// making it much faster for incremental tagging after adding new elements.
-    /// Also auto-populates LOC/ZONE from spatial data and uses family-aware PROD codes.
+    /// Auto-populates all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
+    /// via TokenAutoPopulator, then assigns SEQ and builds tags.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -235,11 +238,11 @@ namespace StingTools.Tags
 
             var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
             var tagIndex = TagConfig.BuildExistingTagIndex(doc);
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             var stats = new TaggingStats();
             var sw = Stopwatch.StartNew();
             int populated = 0;
+            int statusDetected = 0, revSet = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Tag New Only"))
             {
@@ -249,42 +252,11 @@ namespace StingTools.Tags
                 {
                     try
                     {
-                        string catName = ParameterHelpers.GetCategoryName(el);
-
-                        // Auto-populate LOC from spatial data
-                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
-                        {
-                            string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) populated++;
-                        }
-
-                        // Auto-populate ZONE from room data
-                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
-                        {
-                            string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) populated++;
-                        }
-
-                        // Auto-populate DISC
-                        string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) populated++;
-
-                        // Family-aware PROD code
-                        string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) populated++;
-
-                        // SYS and FUNC (MEP system-aware + smart sub-function)
-                        string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                        if (!string.IsNullOrEmpty(sys))
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) populated++;
-                        string func = TagConfig.GetSmartFuncCode(el, sys);
-                        if (!string.IsNullOrEmpty(func))
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) populated++;
-
-                        // LVL
-                        string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                        if (lvl != "XX")
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) populated++;
+                        // Full 9-token auto-population via shared helper
+                        var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx);
+                        populated += popResult.TokensSet;
+                        if (popResult.StatusDetected) statusDetected++;
+                        if (popResult.RevSet) revSet++;
 
                         // Tag with collision detection and stats tracking
                         TagConfig.BuildAndWriteTag(doc, el, seqCounters,
@@ -305,7 +277,11 @@ namespace StingTools.Tags
             var report = new StringBuilder();
             report.AppendLine($"Tag New Only — {untagged.Count} elements");
             report.AppendLine(new string('=', 50));
-            report.AppendLine($"  Populated: {populated} token values");
+            report.AppendLine($"  Tokens:    {populated} auto-populated");
+            if (statusDetected > 0)
+                report.AppendLine($"  STATUS:    {statusDetected} (from Revit phases/worksets)");
+            if (revSet > 0)
+                report.AppendLine($"  REV:       {revSet} (revision '{popCtx.ProjectRev}')");
             report.AppendLine($"  Duration:  {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
             report.Append(stats.BuildReport());
@@ -316,6 +292,7 @@ namespace StingTools.Tags
             td.Show();
 
             StingLog.Info($"TagNewOnly: tagged={stats.TotalTagged}, populated={populated}, " +
+                $"statusDetect={statusDetected}, revSet={revSet}, " +
                 $"collisions={stats.TotalCollisions}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;

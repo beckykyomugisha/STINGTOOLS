@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
@@ -397,22 +398,91 @@ namespace StingTools.Select
 
         private static Result BulkSetToken(Document doc, ICollection<ElementId> selected)
         {
-            TaskDialog td2 = new TaskDialog("Set Token");
-            td2.MainInstruction = $"Set token on {selected.Count} elements";
-            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Set LOC to BLD1");
-            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Set ZONE to Z01");
-            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Set STATUS to NEW");
-            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Set STATUS to EXISTING");
-            td2.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // Page 1: Choose token category
+            TaskDialog catDlg = new TaskDialog("Set Token");
+            catDlg.MainInstruction = $"Set token on {selected.Count} elements";
+            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Set LOC (Location)");
+            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Set ZONE");
+            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Set STATUS");
+            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Auto-detect STATUS from phases");
+            catDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
-            string paramName; string paramValue;
-            switch (td2.Show())
+            var catResult = catDlg.Show();
+
+            string paramName = null;
+            string paramValue = null;
+            bool autoDetectStatus = false;
+
+            switch (catResult)
             {
-                case TaskDialogResult.CommandLink1: paramName = ParamRegistry.LOC; paramValue = "BLD1"; break;
-                case TaskDialogResult.CommandLink2: paramName = ParamRegistry.ZONE; paramValue = "Z01"; break;
-                case TaskDialogResult.CommandLink3: paramName = ParamRegistry.STATUS; paramValue = "NEW"; break;
-                case TaskDialogResult.CommandLink4: paramName = ParamRegistry.STATUS; paramValue = "EXISTING"; break;
-                default: return Result.Cancelled;
+                case TaskDialogResult.CommandLink1:
+                {
+                    // LOC picker with all location codes
+                    TaskDialog locDlg = new TaskDialog("Set LOC");
+                    locDlg.MainInstruction = "Choose location code";
+                    locDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "BLD1", "Building 1 (primary)");
+                    locDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "BLD2", "Building 2");
+                    locDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "BLD3", "Building 3");
+                    locDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "EXT", "External / Site");
+                    locDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    paramName = ParamRegistry.LOC;
+                    switch (locDlg.Show())
+                    {
+                        case TaskDialogResult.CommandLink1: paramValue = "BLD1"; break;
+                        case TaskDialogResult.CommandLink2: paramValue = "BLD2"; break;
+                        case TaskDialogResult.CommandLink3: paramValue = "BLD3"; break;
+                        case TaskDialogResult.CommandLink4: paramValue = "EXT"; break;
+                        default: return Result.Cancelled;
+                    }
+                    break;
+                }
+                case TaskDialogResult.CommandLink2:
+                {
+                    // ZONE picker
+                    TaskDialog zoneDlg = new TaskDialog("Set ZONE");
+                    zoneDlg.MainInstruction = "Choose zone code";
+                    zoneDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Z01", "Zone 01");
+                    zoneDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Z02", "Zone 02");
+                    zoneDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Z03", "Zone 03");
+                    zoneDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Z04", "Zone 04");
+                    zoneDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    paramName = ParamRegistry.ZONE;
+                    switch (zoneDlg.Show())
+                    {
+                        case TaskDialogResult.CommandLink1: paramValue = "Z01"; break;
+                        case TaskDialogResult.CommandLink2: paramValue = "Z02"; break;
+                        case TaskDialogResult.CommandLink3: paramValue = "Z03"; break;
+                        case TaskDialogResult.CommandLink4: paramValue = "Z04"; break;
+                        default: return Result.Cancelled;
+                    }
+                    break;
+                }
+                case TaskDialogResult.CommandLink3:
+                {
+                    // All 4 valid ISO 19650 construction statuses
+                    TaskDialog stsDlg = new TaskDialog("Set STATUS");
+                    stsDlg.MainInstruction = "Choose construction status (ISO 19650)";
+                    stsDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "NEW", "New construction — element to be built");
+                    stsDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "EXISTING", "Existing — element already in place");
+                    stsDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "DEMOLISHED", "Demolished — element to be removed");
+                    stsDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "TEMPORARY", "Temporary — temporary element (hoarding, propping)");
+                    stsDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    paramName = ParamRegistry.STATUS;
+                    switch (stsDlg.Show())
+                    {
+                        case TaskDialogResult.CommandLink1: paramValue = "NEW"; break;
+                        case TaskDialogResult.CommandLink2: paramValue = "EXISTING"; break;
+                        case TaskDialogResult.CommandLink3: paramValue = "DEMOLISHED"; break;
+                        case TaskDialogResult.CommandLink4: paramValue = "TEMPORARY"; break;
+                        default: return Result.Cancelled;
+                    }
+                    break;
+                }
+                case TaskDialogResult.CommandLink4:
+                    autoDetectStatus = true;
+                    break;
+                default:
+                    return Result.Cancelled;
             }
 
             int written = 0;
@@ -422,21 +492,37 @@ namespace StingTools.Select
                 foreach (ElementId id in selected)
                 {
                     Element elem = doc.GetElement(id);
-                    if (elem != null && ParameterHelpers.SetString(elem, paramName, paramValue, overwrite: true))
-                        written++;
+                    if (elem == null) continue;
+
+                    if (autoDetectStatus)
+                    {
+                        // Per-element phase-aware STATUS detection
+                        string status = PhaseAutoDetect.DetectStatus(doc, elem);
+                        if (string.IsNullOrEmpty(status)) status = "NEW";
+                        if (ParameterHelpers.SetString(elem, ParamRegistry.STATUS, status, overwrite: true))
+                            written++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetString(elem, paramName, paramValue, overwrite: true))
+                            written++;
+                    }
                 }
                 tx.Commit();
             }
-            TaskDialog.Show("Bulk Set Token", $"Set '{paramName}' = '{paramValue}' on {written} elements.");
+
+            string msg = autoDetectStatus
+                ? $"Auto-detected STATUS from Revit phases on {written} elements."
+                : $"Set '{paramName}' = '{paramValue}' on {written} elements.";
+            TaskDialog.Show("Bulk Set Token", msg);
             return Result.Succeeded;
         }
 
         private static Result BulkAutoPopulate(Document doc, ICollection<ElementId> selected)
         {
-            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             int populated = 0;
+            int statusDetected = 0, revSet = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Bulk Auto-Populate"))
             {
@@ -445,34 +531,24 @@ namespace StingTools.Select
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
-                    string catName = ParameterHelpers.GetCategoryName(elem);
-                    if (!known.Contains(catName)) continue;
 
-                    // DISC
-                    string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-                    if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.DISC, disc)) populated++;
-                    // LOC
-                    string loc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
-                    if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LOC, loc)) populated++;
-                    // ZONE
-                    string zone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
-                    if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.ZONE, zone)) populated++;
-                    // LVL
-                    string lvl = ParameterHelpers.GetLevelCode(doc, elem);
-                    if (lvl != "XX") if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl)) populated++;
-                    // SYS (MEP system-aware)
-                    string sys = TagConfig.GetMepSystemAwareSysCode(elem, catName);
-                    if (!string.IsNullOrEmpty(sys)) if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys)) populated++;
-                    // FUNC (smart subsystem-aware)
-                    string func = TagConfig.GetSmartFuncCode(elem, sys);
-                    if (!string.IsNullOrEmpty(func)) if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func)) populated++;
-                    // PROD (family-aware)
-                    string prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
-                    if (ParameterHelpers.SetIfEmpty(elem, ParamRegistry.PROD, prod)) populated++;
+                    // Full 9-token auto-population via shared helper
+                    var result = TokenAutoPopulator.PopulateAll(doc, elem, popCtx);
+                    populated += result.TokensSet;
+                    if (result.StatusDetected) statusDetected++;
+                    if (result.RevSet) revSet++;
                 }
                 tx.Commit();
             }
-            TaskDialog.Show("Bulk Auto-Populate", $"Auto-populated {populated} token values on {selected.Count} elements.");
+
+            var msg = new System.Text.StringBuilder();
+            msg.AppendLine($"Auto-populated {populated} token values on {selected.Count} elements.");
+            msg.AppendLine($"Tokens: DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS, REV");
+            if (statusDetected > 0)
+                msg.AppendLine($"STATUS auto-detected: {statusDetected} (from Revit phases/worksets)");
+            if (revSet > 0)
+                msg.AppendLine($"REV auto-set: {revSet} (revision '{popCtx.ProjectRev}')");
+            TaskDialog.Show("Bulk Auto-Populate", msg.ToString());
             return Result.Succeeded;
         }
 

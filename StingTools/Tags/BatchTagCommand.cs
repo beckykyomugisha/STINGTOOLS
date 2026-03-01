@@ -17,12 +17,14 @@ namespace StingTools.Tags
     ///   1. Smart element ordering: groups by Level → Discipline → Category for contiguous
     ///      sequence numbers (all HVAC on L01 get consecutive SEQ before moving to L02)
     ///   2. Pre-flight validation: counts taggable/tagged/untagged before starting
-    ///   3. Spatial auto-detect for LOC/ZONE from room/project data
-    ///   4. Family-aware PROD codes (35+ specific identifiers)
-    ///   5. MEP system-aware SYS derivation from connected systems
-    ///   6. O(1) collision detection with configurable resolution (Skip/Overwrite/AutoIncrement)
-    ///   7. Rich post-batch reporting: per-discipline, per-level, collision depth stats
-    ///   8. Progress logging every 500 elements for monitoring
+    ///   3. Full 9-token auto-population via TokenAutoPopulator (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS, REV)
+    ///   4. Phase-aware STATUS auto-detection from Revit phases/worksets
+    ///   5. REV auto-population from project revision sequence
+    ///   6. Family-aware PROD codes (35+ specific identifiers)
+    ///   7. MEP system-aware SYS derivation from connected systems
+    ///   8. O(1) collision detection with configurable resolution (Skip/Overwrite/AutoIncrement)
+    ///   9. Rich post-batch reporting: per-discipline, per-level, collision depth stats
+    ///  10. Progress logging every 500 elements for monitoring
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -96,11 +98,11 @@ namespace StingTools.Tags
 
             var sequenceCounters = TagConfig.GetExistingSequenceCounters(doc);
             var tagIndex = TagConfig.BuildExistingTagIndex(doc);
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             var stats = new TaggingStats();
             var sw = Stopwatch.StartNew();
             int populated = 0;
+            int statusDetected = 0, revSet = 0;
 
             StingLog.Info($"Batch Tag: starting — {totalTaggable} taggable, {alreadyTagged} tagged, mode={collisionMode}");
 
@@ -113,19 +115,13 @@ namespace StingTools.Tags
                 {
                     try
                     {
-                        string catName = ParameterHelpers.GetCategoryName(el);
-
-                        // Pre-populate LOC/ZONE from spatial data before tagging
-                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
-                        {
-                            string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) populated++;
-                        }
-                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
-                        {
-                            string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) populated++;
-                        }
+                        // Full 9-token auto-population via shared helper
+                        bool overwriteMode = (collisionMode == TagCollisionMode.Overwrite);
+                        var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx,
+                            overwrite: overwriteMode);
+                        populated += popResult.TokensSet;
+                        if (popResult.StatusDetected) statusDetected++;
+                        if (popResult.RevSet) revSet++;
 
                         bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
                         TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
@@ -156,13 +152,19 @@ namespace StingTools.Tags
             report.AppendLine("Batch Tagging Complete");
             report.AppendLine(new string('=', 50));
             report.AppendLine($"  Mode:         {collisionMode}");
-            report.AppendLine($"  LOC/ZONE:     {populated} auto-populated");
+            report.AppendLine($"  Tokens:       {populated} auto-populated");
+            if (statusDetected > 0)
+                report.AppendLine($"  STATUS:       {statusDetected} (from Revit phases/worksets)");
+            if (revSet > 0)
+                report.AppendLine($"  REV:          {revSet} (revision '{popCtx.ProjectRev}')");
             report.AppendLine($"  Duration:     {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
             report.Append(stats.BuildReport());
 
             StingLog.Info($"Batch Tag: tagged={stats.TotalTagged}, skipped={stats.TotalSkipped}, " +
-                $"collisions={stats.TotalCollisions}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
+                $"collisions={stats.TotalCollisions}, populated={populated}, " +
+                $"statusDetect={statusDetected}, revSet={revSet}, " +
+                $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             TaskDialog td = new TaskDialog("Batch Tag");
             td.MainInstruction = $"Tagged {stats.TotalTagged:N0} of {totalTaggable:N0} elements";
