@@ -3188,6 +3188,115 @@ namespace StingTools.Organise
 
             return null;
         }
+
+        /// <summary>
+        /// Determine which side of the host element the tag head is on.
+        /// Returns: "right", "left", "above", or "below".
+        /// </summary>
+        public static string GetLeaderSide(Document doc, IndependentTag tag)
+        {
+            try
+            {
+                var hostIds = tag.GetTaggedLocalElementIds();
+                if (hostIds.Count == 0) return "right";
+                Element host = doc.GetElement(hostIds.First());
+                if (host == null) return "right";
+
+                XYZ hostCenter = GetElementCenter(host);
+                if (hostCenter == null) return "right";
+
+                XYZ tagHead = tag.TagHeadPosition;
+                double dx = tagHead.X - hostCenter.X;
+                double dy = tagHead.Y - hostCenter.Y;
+
+                if (Math.Abs(dx) > Math.Abs(dy))
+                    return dx > 0 ? "right" : "left";
+                else
+                    return dy > 0 ? "above" : "below";
+            }
+            catch { return "right"; }
+        }
+
+        /// <summary>
+        /// Auto-align tag head position opposite to leader direction.
+        /// When leader comes from the right, shift tag text left (and vice versa).
+        /// When leader comes from below, shift tag text up (and vice versa).
+        /// This creates cleaner annotation where the tag text reads away from the leader.
+        /// </summary>
+        public static int AutoAlignTagsToLeaders(Document doc, List<IndependentTag> tags, View view)
+        {
+            int aligned = 0;
+            foreach (IndependentTag tag in tags)
+            {
+                try
+                {
+                    if (!tag.HasLeader) continue;
+
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    if (hostIds.Count == 0) continue;
+                    Element host = doc.GetElement(hostIds.First());
+                    if (host == null) continue;
+
+                    XYZ hostCenter = GetElementCenter(host);
+                    if (hostCenter == null) continue;
+
+                    XYZ tagHead = tag.TagHeadPosition;
+                    double dx = tagHead.X - hostCenter.X;
+                    double dy = tagHead.Y - hostCenter.Y;
+
+                    // Get tag bounding box for width/height estimate
+                    BoundingBoxXYZ bb = tag.get_BoundingBox(view);
+                    double tagW = bb != null ? (bb.Max.X - bb.Min.X) : view.Scale * 0.008;
+                    double tagH = bb != null ? (bb.Max.Y - bb.Min.Y) : view.Scale * 0.003;
+                    double halfW = tagW * 0.5;
+                    double halfH = tagH * 0.5;
+
+                    // Calculate the offset to shift tag text opposite to leader
+                    // If leader comes from right (element is right of tag), shift tag left
+                    XYZ newPos = tagHead;
+                    if (Math.Abs(dx) > Math.Abs(dy))
+                    {
+                        // Primarily horizontal leader
+                        if (dx > 0)
+                        {
+                            // Tag is to the right of element → keep tag right, but ensure
+                            // tag head is offset rightward so text reads away from leader
+                            newPos = new XYZ(hostCenter.X + Math.Abs(dx) + halfW * 0.1, tagHead.Y, tagHead.Z);
+                        }
+                        else
+                        {
+                            // Tag is to the left → offset leftward
+                            newPos = new XYZ(hostCenter.X - Math.Abs(dx) - halfW * 0.1, tagHead.Y, tagHead.Z);
+                        }
+                    }
+                    else
+                    {
+                        // Primarily vertical leader
+                        if (dy > 0)
+                        {
+                            // Tag above → nudge up slightly
+                            newPos = new XYZ(tagHead.X, hostCenter.Y + Math.Abs(dy) + halfH * 0.1, tagHead.Z);
+                        }
+                        else
+                        {
+                            // Tag below → nudge down slightly
+                            newPos = new XYZ(tagHead.X, hostCenter.Y - Math.Abs(dy) - halfH * 0.1, tagHead.Z);
+                        }
+                    }
+
+                    if (newPos.DistanceTo(tagHead) > 0.001)
+                    {
+                        tag.TagHeadPosition = newPos;
+                        aligned++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"AutoAlignTag {tag.Id}: {ex.Message}");
+                }
+            }
+            return aligned;
+        }
     }
 
     /// <summary>
@@ -3313,6 +3422,46 @@ namespace StingTools.Organise
             string angle = useStraight ? "Straight" : use45 ? "45°" : "90°";
             TaskDialog.Show("Snap Elbows",
                 $"Snapped {snapped} of {tags.Count} leader elbows to {angle}.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Auto-align tag text opposite to leader direction.
+    /// When leader points right → tag text offsets left. When leader points left → tag offsets right.
+    /// Automatically repositions all tags with leaders so text reads away from the leader line.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AutoAlignLeaderTextCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc)
+                .Where(t => t.HasLeader).ToList();
+
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Auto-Align Leader Text",
+                    "No tags with leaders found.\nSelect tags or run on all tags in view.");
+                return Result.Succeeded;
+            }
+
+            int aligned = 0;
+            using (Transaction tx = new Transaction(doc, "STING Auto-Align Leader Text"))
+            {
+                tx.Start();
+                aligned = LeaderHelper.AutoAlignTagsToLeaders(doc, tags, view);
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Auto-Align Leader Text",
+                $"Auto-aligned {aligned} of {tags.Count} tagged leaders.\n" +
+                "Tags repositioned so text reads away from leader direction.");
             return Result.Succeeded;
         }
     }

@@ -546,6 +546,8 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource CatBtn}" Content="Tag→45°" Tag="TagSnap45" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource CatBtn}" Content="Tag→90°" Tag="TagSnap90" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Auto-Align" Tag="AutoAlignLeaderText" Click="Cmd_Click"
+                                            ToolTip="Auto-align tag text opposite to leader direction"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="LENGTH"/>
                                 <WrapPanel>
@@ -938,6 +940,8 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="AutoPop Tok" Tag="AutoPopulate" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Formulas" Tag="FormulaEvaluator" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportCSV" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Export BOQ" Tag="BOQExport" Click="Cmd_Click"
+                                        ToolTip="Export grouped Bill of Quantities (NRM2 structure)"/>
                             </WrapPanel>
                         </Border>
 
@@ -961,6 +965,8 @@
                                 <Button Style="{StaticResource TealBtn}" Content="Wizard" Tag="TemplateSetupWizard" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Auto-Assign" Tag="AutoAssignTemplates" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="TemplateAudit" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="VG Audit" Tag="TemplateVGAudit" Click="Cmd_Click"
+                                        ToolTip="Audit VG colour/transparency/filter consistency"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Diff" Tag="TemplateDiff" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Comply" Tag="TemplateComplianceScore" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="AutoFix" Tag="AutoFixTemplate" Click="Cmd_Click"/>

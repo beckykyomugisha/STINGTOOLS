@@ -159,6 +159,7 @@ namespace StingTools.UI
                     case "AlignTextLeft":
                     case "AlignTextCenter":
                     case "AlignTextRight": RunCommand<Organise.AlignTagTextCommand>(app); break;
+                    case "AutoAlignLeaderText": RunCommand<Organise.AutoAlignLeaderTextCommand>(app); break;
 
                     // ── Align & distribute ──
                     case "AlignTagsH":
@@ -328,6 +329,8 @@ namespace StingTools.UI
                     case "ValidateTemplate": RunCommand<Temp.ValidateTemplateCommand>(app); break;
                     case "DynamicBindings": RunCommand<Temp.DynamicBindingsCommand>(app); break;
                     case "SchemaValidate": RunCommand<Temp.SchemaValidateCommand>(app); break;
+                    case "BOQExport": RunCommand<Temp.BOQExportCommand>(app); break;
+                    case "TemplateVGAudit": RunCommand<Temp.TemplateVGAuditCommand>(app); break;
 
                     // ════════════════════════════════════════════════════════
                     // CREATE TAB (ISO 19650 tag creation)

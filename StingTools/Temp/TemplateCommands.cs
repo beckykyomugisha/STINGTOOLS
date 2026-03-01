@@ -521,6 +521,15 @@ namespace StingTools.Temp
             // Presentation — clean client-facing views
             ("STING - Presentation Classic", "PRES_C", ViewDetailLevel.Fine, ViewType.FloorPlan),
             ("STING - Presentation Enhanced", "PRES_E", ViewDetailLevel.Fine, ViewType.FloorPlan),
+            // Presentation — per-discipline accent views (matching reference renders)
+            ("STING - Presentation Architectural", "PRES_A", ViewDetailLevel.Fine, ViewType.FloorPlan),
+            ("STING - Presentation Structural", "PRES_S", ViewDetailLevel.Fine, ViewType.FloorPlan),
+            ("STING - Presentation Electrical", "PRES_E_DISC", ViewDetailLevel.Fine, ViewType.FloorPlan),
+            ("STING - Presentation Plumbing", "PRES_P", ViewDetailLevel.Fine, ViewType.FloorPlan),
+            ("STING - Presentation MEP", "PRES_MEP", ViewDetailLevel.Fine, ViewType.FloorPlan),
+            ("STING - Presentation Monochrome", "PRES_MONO", ViewDetailLevel.Fine, ViewType.FloorPlan),
+            ("STING - Presentation Dark", "PRES_DARK", ViewDetailLevel.Fine, ViewType.FloorPlan),
+            ("STING - Presentation Landscape", "PRES_LAND", ViewDetailLevel.Fine, ViewType.FloorPlan),
             // Section templates
             ("STING - Working Section", "SEC_W", ViewDetailLevel.Medium, ViewType.Section),
             ("STING - Presentation Section", "SEC_P", ViewDetailLevel.Fine, ViewType.Section),
@@ -528,6 +537,13 @@ namespace StingTools.Temp
             // 3D templates
             ("STING - Coordination 3D", "MEP_3D", ViewDetailLevel.Medium, ViewType.ThreeD),
             ("STING - Presentation 3D", "PRES_3D", ViewDetailLevel.Fine, ViewType.ThreeD),
+            // Per-discipline presentation 3D
+            ("STING - 3D Architectural", "3D_A", ViewDetailLevel.Fine, ViewType.ThreeD),
+            ("STING - 3D Structural", "3D_S", ViewDetailLevel.Fine, ViewType.ThreeD),
+            ("STING - 3D Electrical", "3D_E", ViewDetailLevel.Fine, ViewType.ThreeD),
+            ("STING - 3D Plumbing", "3D_P", ViewDetailLevel.Fine, ViewType.ThreeD),
+            ("STING - 3D Monochrome", "3D_MONO", ViewDetailLevel.Fine, ViewType.ThreeD),
+            ("STING - 3D Dark", "3D_DARK", ViewDetailLevel.Fine, ViewType.ThreeD),
             // Elevation templates
             ("STING - Working Elevation", "ELEV_W", ViewDetailLevel.Medium, ViewType.Elevation),
             ("STING - Presentation Elevation", "ELEV_P", ViewDetailLevel.Fine, ViewType.Elevation),
@@ -1017,6 +1033,103 @@ namespace StingTools.Temp
                             }
                         }
                         catch { /* filter might not be compatible */ }
+                    }
+                    return;
+                }
+
+                // ── Per-discipline presentation templates ──
+                // Each has a single accent colour with everything else in light grey/white.
+                // Ground plane / topography uses the accent colour. Matching reference renders.
+                var presentationAccentMap = new Dictionary<string, Color>
+                {
+                    { "PRES_A", new Color(170, 195, 170) },       // Sage green (ss3-4)
+                    { "PRES_S", new Color(180, 50, 50) },         // Deep red (ss7-8)
+                    { "PRES_E_DISC", new Color(240, 200, 0) },    // Bright yellow (ss10-11)
+                    { "PRES_P", new Color(40, 100, 200) },        // Blue (ss20-22)
+                    { "PRES_MEP", new Color(80, 140, 200) },      // Steel blue
+                    { "PRES_MONO", new Color(90, 90, 90) },       // Dark grey (ss16)
+                    { "PRES_DARK", new Color(255, 255, 255) },    // White on black (ss14-15)
+                    { "PRES_LAND", new Color(140, 160, 130) },    // Muted green/brown (ss28)
+                    { "3D_A", new Color(170, 195, 170) },         // Sage green
+                    { "3D_S", new Color(180, 50, 50) },           // Deep red
+                    { "3D_E", new Color(240, 200, 0) },           // Yellow
+                    { "3D_P", new Color(40, 100, 200) },          // Blue
+                    { "3D_MONO", new Color(90, 90, 90) },         // Dark grey
+                    { "3D_DARK", new Color(255, 255, 255) },      // White on black
+                };
+                if (presentationAccentMap.TryGetValue(discipline, out Color accent))
+                {
+                    // Accent-tinted presentation: discipline elements in accent colour,
+                    // everything else light grey with transparency
+                    var accentOgs = new OverrideGraphicSettings();
+                    accentOgs.SetProjectionLineColor(accent);
+                    accentOgs.SetProjectionLineWeight(2);
+                    if (solidFill != null)
+                    {
+                        accentOgs.SetSurfaceForegroundPatternId(solidFill.Id);
+                        accentOgs.SetSurfaceForegroundPatternColor(accent);
+                    }
+                    accentOgs.SetSurfaceTransparency(15);
+
+                    // Light grey for non-focus elements
+                    var greyOgs = new OverrideGraphicSettings();
+                    Color lightGrey = discipline == "PRES_DARK" || discipline == "3D_DARK"
+                        ? new Color(60, 60, 60) : new Color(200, 200, 200);
+                    greyOgs.SetProjectionLineColor(lightGrey);
+                    greyOgs.SetProjectionLineWeight(1);
+                    if (solidFill != null)
+                    {
+                        greyOgs.SetSurfaceForegroundPatternId(solidFill.Id);
+                        greyOgs.SetSurfaceForegroundPatternColor(
+                            discipline == "PRES_DARK" || discipline == "3D_DARK"
+                            ? new Color(40, 40, 40) : new Color(240, 240, 240));
+                    }
+                    greyOgs.SetSurfaceTransparency(
+                        discipline == "PRES_DARK" || discipline == "3D_DARK" ? 10 : 40);
+
+                    // Map discipline code → focus filter names
+                    string focusDisc = discipline.Replace("PRES_", "").Replace("3D_", "")
+                        .Replace("_DISC", "");
+                    var presAccentFilters = focusDisc switch
+                    {
+                        "A" or "LAND" => new[] { "Architectural" },
+                        "S" => new[] { "Structural" },
+                        "E" => new[] { "Electrical", "Conduits" },
+                        "P" => new[] { "Plumbing" },
+                        "MEP" => new[] { "Mechanical", "Electrical", "Plumbing", "Fire", "Low Voltage" },
+                        _ => Array.Empty<string>(),
+                    };
+                    var focusSet = new HashSet<string>(presAccentFilters);
+
+                    foreach (var kvp in filterLookup)
+                    {
+                        if (!kvp.Key.StartsWith("STING - ")) continue;
+                        try
+                        {
+                            template.AddFilter(kvp.Value.Id);
+                            bool isFocus = focusSet.Any(f => kvp.Key.Contains(f));
+
+                            if (discipline == "PRES_MONO" || discipline == "3D_MONO")
+                            {
+                                // Monochrome: all elements in single grey tone
+                                template.SetFilterOverrides(kvp.Value.Id, greyOgs);
+                            }
+                            else if (discipline == "PRES_DARK" || discipline == "3D_DARK")
+                            {
+                                // Dark mode: white lines on dark background
+                                template.SetFilterOverrides(kvp.Value.Id,
+                                    isFocus ? accentOgs : greyOgs);
+                            }
+                            else if (isFocus)
+                            {
+                                template.SetFilterOverrides(kvp.Value.Id, accentOgs);
+                            }
+                            else
+                            {
+                                template.SetFilterOverrides(kvp.Value.Id, greyOgs);
+                            }
+                        }
+                        catch { }
                     }
                     return;
                 }
