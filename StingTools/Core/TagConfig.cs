@@ -1299,7 +1299,13 @@ namespace StingTools.Core
             {
                 string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
                 if (!string.IsNullOrEmpty(tag))
+                {
                     tagIndex.Add(tag);
+                    // Warn about malformed tags (expected 8 segments)
+                    int segCount = tag.Split(Separator[0]).Length;
+                    if (segCount != 8 && segCount > 1)
+                        StingLog.Warn($"Malformed tag on element {elem.Id}: '{tag}' has {segCount} segments (expected 8)");
+                }
 
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;

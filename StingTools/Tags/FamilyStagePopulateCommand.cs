@@ -115,6 +115,7 @@ namespace StingTools.Tags
             int discSet = 0, locSet = 0, zoneSet = 0, lvlSet = 0;
             int sysSet = 0, funcSet = 0, prodSet = 0;
             int familyProdUsed = 0;
+            int nativesMapped = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Family-Stage Populate"))
             {
@@ -232,6 +233,9 @@ namespace StingTools.Tags
                             if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod))
                                 prodSet++;
                         }
+
+                        // Map native Revit parameters (dimensions, MEP, identity) to STING shared params
+                        nativesMapped += NativeParamMapper.MapAll(doc, el);
                     }
                     catch (Exception ex)
                     {
@@ -263,6 +267,12 @@ namespace StingTools.Tags
             report.AppendLine($"  PROD:  {prodSet,5}  ({familyProdUsed} family-specific)");
             report.AppendLine($"  ─────────────");
             report.AppendLine($"  Total: {totalPopulated,5} token values set");
+            if (nativesMapped > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("── NATIVE PARAMS MAPPED ──");
+                report.AppendLine($"  {nativesMapped} values (dimensions, MEP, identity)");
+            }
             report.AppendLine();
             report.AppendLine("Next step: Run Auto Tag / Batch Tag / Tag & Combine");
             report.AppendLine("to assign SEQ numbers and assemble final tags.");
@@ -274,7 +284,7 @@ namespace StingTools.Tags
 
             StingLog.Info($"FamilyStagePopulate: scope={scopeLabel}, elements={processed}, " +
                 $"tokens={totalPopulated}, familyProd={familyProdUsed}, " +
-                $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
+                $"nativesMapped={nativesMapped}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;
         }

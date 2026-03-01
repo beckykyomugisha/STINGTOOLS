@@ -336,7 +336,9 @@ namespace StingTools.Core
                 StingLog.Warn($"DetectLoc: {ex.Message}");
             }
 
-            return !string.IsNullOrEmpty(projectLoc) ? projectLoc : "BLD1";
+            string fallback = !string.IsNullOrEmpty(projectLoc) ? projectLoc : "BLD1";
+            StingLog.Warn($"DetectLoc: Element {el?.Id} — no spatial LOC detected, using fallback '{fallback}'");
+            return fallback;
         }
 
         /// <summary>
@@ -376,6 +378,7 @@ namespace StingTools.Core
                 StingLog.Warn($"DetectZone: {ex.Message}");
             }
 
+            StingLog.Warn($"DetectZone: Element {el?.Id} — no spatial ZONE detected, using fallback 'Z01'");
             return "Z01"; // Safe default
         }
 
