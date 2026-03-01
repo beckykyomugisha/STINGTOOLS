@@ -156,6 +156,16 @@ namespace StingTools.UI
                     case "ViewTag7Sections": RunCommand<Tags.ViewTag7SectionsCommand>(app); break;
                     case "SwitchTag7Preset": RunCommand<Tags.SwitchTag7PresetCommand>(app); break;
 
+                    // ── TAG1-TAG6 segment display ──
+                    case "RichSegmentNote": RunCommand<Tags.RichSegmentNoteCommand>(app); break;
+                    case "ViewSegments": RunCommand<Tags.ViewSegmentsCommand>(app); break;
+
+                    // ── Legend builder ──
+                    case "CreateColorLegend": RunCommand<Tags.CreateColorLegendCommand>(app); break;
+                    case "ExportColorLegendHtml": RunCommand<Tags.ExportColorLegendHtmlCommand>(app); break;
+                    case "AutoCreateLegends": RunCommand<Tags.AutoCreateLegendsCommand>(app); break;
+                    case "LegendFromView": RunCommand<Tags.LegendFromViewCommand>(app); break;
+
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
                     case "FlipTags":

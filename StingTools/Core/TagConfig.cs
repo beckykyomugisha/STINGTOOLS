@@ -1847,6 +1847,162 @@ namespace StingTools.Core
         // tag family labels. TAG7 holds the MARKED-UP full narrative.
         // ═══════════════════════════════════════════════════════════════════════
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // TAG1-TAG6 Segment Styling — Per-Segment Color and Style Definitions
+        //
+        // The 8-segment tag format (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ) can
+        // be styled per segment for rich rendering via TextNote, HTML export,
+        // and WPF panel. Each segment gets a distinct color and font style
+        // enabling instant visual parsing of the tag structure.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        /// <summary>Style definition for a single tag segment (DISC, LOC, ZONE, etc.).</summary>
+        public class TagSegmentStyle
+        {
+            /// <summary>Segment position index (0-7).</summary>
+            public int Index { get; set; }
+            /// <summary>Short segment name (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ).</summary>
+            public string Name { get; set; }
+            /// <summary>Full human-readable description.</summary>
+            public string Description { get; set; }
+            /// <summary>Hex color for rich rendering.</summary>
+            public string Color { get; set; }
+            /// <summary>Bold rendering hint.</summary>
+            public bool Bold { get; set; }
+            /// <summary>Italic rendering hint.</summary>
+            public bool Italic { get; set; }
+        }
+
+        /// <summary>
+        /// Default styles for each of the 8 tag segments.
+        /// Used by RichTagNote, HTML export, and WPF panel for segment-aware coloring.
+        /// </summary>
+        public static readonly TagSegmentStyle[] SegmentStyles = new[]
+        {
+            new TagSegmentStyle { Index = 0, Name = "DISC", Description = "Discipline",      Color = "#1565C0", Bold = true,  Italic = false },
+            new TagSegmentStyle { Index = 1, Name = "LOC",  Description = "Location",         Color = "#2E7D32", Bold = false, Italic = false },
+            new TagSegmentStyle { Index = 2, Name = "ZONE", Description = "Zone",              Color = "#E65100", Bold = false, Italic = false },
+            new TagSegmentStyle { Index = 3, Name = "LVL",  Description = "Level",             Color = "#6A1B9A", Bold = false, Italic = false },
+            new TagSegmentStyle { Index = 4, Name = "SYS",  Description = "System Type",       Color = "#C62828", Bold = true,  Italic = false },
+            new TagSegmentStyle { Index = 5, Name = "FUNC", Description = "Function",          Color = "#00838F", Bold = false, Italic = true  },
+            new TagSegmentStyle { Index = 6, Name = "PROD", Description = "Product Code",      Color = "#4527A0", Bold = true,  Italic = false },
+            new TagSegmentStyle { Index = 7, Name = "SEQ",  Description = "Sequence Number",   Color = "#37474F", Bold = false, Italic = false },
+        };
+
+        /// <summary>
+        /// Result of parsing a TAG1-TAG6 value into styled segments.
+        /// Each segment has text, style, and whether it was populated.
+        /// </summary>
+        public class TagSegmentResult
+        {
+            /// <summary>The full tag string (e.g. "M-BLD1-Z01-L02-HVAC-SUP-AHU-0003").</summary>
+            public string FullTag { get; set; } = "";
+            /// <summary>Individual segment values in order (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ).</summary>
+            public string[] Segments { get; set; } = new string[8];
+            /// <summary>Whether each segment is populated (non-empty and not a placeholder).</summary>
+            public bool[] Populated { get; set; } = new bool[8];
+            /// <summary>Marked-up tag with segment color tokens: «D0»DISC«/D0» «S»-«/S» «D1»LOC«/D1» ...</summary>
+            public string MarkedUpTag { get; set; } = "";
+        }
+
+        /// <summary>
+        /// Parse a tag string (TAG1-TAG6) into styled segments.
+        /// Returns segment data for rich rendering.
+        /// </summary>
+        public static TagSegmentResult ParseTagSegments(string tagValue)
+        {
+            var result = new TagSegmentResult { FullTag = tagValue ?? "" };
+            if (string.IsNullOrEmpty(tagValue)) return result;
+
+            string[] parts = tagValue.Split(new[] { Separator }, StringSplitOptions.None);
+            var marked = new System.Text.StringBuilder();
+
+            for (int i = 0; i < 8; i++)
+            {
+                string val = i < parts.Length ? parts[i] : "";
+                result.Segments[i] = val;
+                result.Populated[i] = !string.IsNullOrEmpty(val) && val != "XX" && val != "ZZ" && val != "0000";
+
+                if (i > 0) marked.Append($"\u00ABS\u00BB{Separator}\u00AB/S\u00BB");
+                marked.Append($"\u00ABD{i}\u00BB{val}\u00AB/D{i}\u00BB");
+            }
+
+            result.MarkedUpTag = marked.ToString();
+            return result;
+        }
+
+        /// <summary>
+        /// Parse segment markup tokens from a marked-up tag string.
+        /// Returns list of (text, segmentIndex) tuples where segmentIndex is 0-7 for segments,
+        /// -1 for separators, -2 for plain text.
+        /// </summary>
+        public static List<(string text, int segmentIndex)> ParseSegmentMarkup(string marked)
+        {
+            var result = new List<(string text, int segmentIndex)>();
+            if (string.IsNullOrEmpty(marked)) return result;
+
+            int pos = 0;
+            var plain = new System.Text.StringBuilder();
+
+            while (pos < marked.Length)
+            {
+                if (pos + 3 < marked.Length && marked[pos] == '\u00AB')
+                {
+                    // Flush plain text
+                    if (plain.Length > 0)
+                    {
+                        result.Add((plain.ToString(), -2));
+                        plain.Clear();
+                    }
+
+                    int tagEnd = marked.IndexOf('\u00BB', pos);
+                    if (tagEnd > pos)
+                    {
+                        string tag = marked.Substring(pos + 1, tagEnd - pos - 1);
+
+                        if (tag == "S")
+                        {
+                            // Separator
+                            string closeTag = "\u00AB/S\u00BB";
+                            int closeIdx = marked.IndexOf(closeTag, tagEnd + 1);
+                            if (closeIdx > tagEnd)
+                            {
+                                string content = marked.Substring(tagEnd + 1, closeIdx - tagEnd - 1);
+                                result.Add((content, -1));
+                                pos = closeIdx + closeTag.Length;
+                                continue;
+                            }
+                        }
+                        else if (tag.Length == 2 && tag[0] == 'D' && char.IsDigit(tag[1]))
+                        {
+                            int segIdx = tag[1] - '0';
+                            string closeTag = $"\u00AB/D{segIdx}\u00BB";
+                            int closeIdx = marked.IndexOf(closeTag, tagEnd + 1);
+                            if (closeIdx > tagEnd)
+                            {
+                                string content = marked.Substring(tagEnd + 1, closeIdx - tagEnd - 1);
+                                result.Add((content, segIdx));
+                                pos = closeIdx + closeTag.Length;
+                                continue;
+                            }
+                        }
+
+                        // Fallback: skip the opening tag
+                        pos = tagEnd + 1;
+                        continue;
+                    }
+                }
+
+                plain.Append(marked[pos]);
+                pos++;
+            }
+
+            if (plain.Length > 0)
+                result.Add((plain.ToString(), -2));
+
+            return result;
+        }
+
         /// <summary>
         /// Result of building TAG7 narrative — contains the full marked-up narrative
         /// plus individual plain-text sections for TAG7A-TAG7F sub-parameters.

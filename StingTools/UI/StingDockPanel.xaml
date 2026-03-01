@@ -429,6 +429,26 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- TAG1-TAG6 SEGMENT DISPLAY -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG SEGMENT DISPLAY"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Seg Note" Tag="RichSegmentNote" Click="Cmd_Click" ToolTip="Place segment-colored TextNote annotations for TAG1-TAG6 (DISC=Blue, LOC=Green, ZONE=Orange, etc.)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="View Segs" Tag="ViewSegments" Click="Cmd_Click" ToolTip="View TAG1-TAG6 segment breakdown with style hints"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- COLOR LEGENDS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="COLOR LEGENDS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource BlueBtn}" Content="Create Legend" Tag="CreateColorLegend" Click="Cmd_Click" ToolTip="Create persistent color legend (drafting view) for any colorization scheme — place on sheets for clients"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Auto All" Tag="AutoCreateLegends" Click="Cmd_Click" ToolTip="Auto-create legends for all categories, types, disciplines, systems, levels, and status — batch creates 6 drafting views"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="From View" Tag="LegendFromView" Click="Cmd_Click" ToolTip="Detect active colorization in current view and create a matching legend automatically"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="HTML Legend" Tag="ExportColorLegendHtml" Click="Cmd_Click" ToolTip="Export all color schemes as a comprehensive HTML legend guide"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- ORIENTATION & TEXT ALIGNMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ORIENTATION &amp; TEXT ALIGNMENT"/>
                         <Border Style="{StaticResource GroupBorder}">

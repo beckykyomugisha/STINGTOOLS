@@ -458,7 +458,10 @@ namespace StingTools.Tags
             sb.AppendLine(".label {{ font-style: italic; color: #666; }}");
             sb.AppendLine(".value {{ font-weight: 600; color: #222; }}");
             sb.AppendLine(".header {{ font-weight: bold; text-decoration: underline; }}");
-            sb.AppendLine(".tag-ref { font-family: 'Consolas', monospace; background: #e8eaf6; padding: 2px 6px; border-radius: 3px; font-weight: bold; }");
+            sb.AppendLine(".tag-ref { font-family: 'Consolas', monospace; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px; }");
+            sb.AppendLine(".seg-legend { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; padding: 12px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }");
+            sb.AppendLine(".seg-item { display: flex; align-items: center; gap: 4px; font-size: 12px; }");
+            sb.AppendLine(".seg-dot { width: 12px; height: 12px; border-radius: 50%; }");
             sb.AppendLine("@media print { body { background: white; padding: 10px; } .card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; } }");
             sb.AppendLine("</style>");
             sb.AppendLine("</head>");
@@ -481,6 +484,18 @@ namespace StingTools.Tags
             sb.AppendLine($"<div class=\"stat\"><div class=\"stat-num\">{withTag7}</div><div class=\"stat-label\">With TAG7</div></div>");
             sb.AppendLine("</div>");
 
+            // Tag segment color legend
+            sb.AppendLine("<div class=\"seg-legend\">");
+            sb.AppendLine("<strong style=\"margin-right:8px\">Tag Segments:</strong>");
+            foreach (var segStyle in TagConfig.SegmentStyles)
+            {
+                sb.Append($"<div class=\"seg-item\">");
+                sb.Append($"<div class=\"seg-dot\" style=\"background:{segStyle.Color}\"></div>");
+                sb.Append($"<span>{segStyle.Name}</span>");
+                sb.Append("</div>");
+            }
+            sb.AppendLine("</div>");
+
             // Element cards
             foreach (var el in tagged.OrderBy(e => ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
             {
@@ -497,7 +512,29 @@ namespace StingTools.Tags
 
                 sb.AppendLine("<div class=\"card\">");
                 sb.AppendLine($"<div class=\"card-header\" style=\"background:{headerColor}\">");
-                sb.AppendLine($"<span>{HtmlEncode(tag1)}</span>");
+
+                // Render TAG1 with per-segment coloring
+                if (!string.IsNullOrEmpty(tag1))
+                {
+                    var parsed = TagConfig.ParseTagSegments(tag1);
+                    sb.Append("<span class=\"tag-ref\">");
+                    for (int si = 0; si < parsed.Segments.Length; si++)
+                    {
+                        if (si > 0) sb.Append("<span style=\"color:rgba(255,255,255,0.6)\">-</span>");
+                        string segColor = si < TagConfig.SegmentStyles.Length ? TagConfig.SegmentStyles[si].Color : "#fff";
+                        string segBold = (si < TagConfig.SegmentStyles.Length && TagConfig.SegmentStyles[si].Bold) ? "font-weight:bold;" : "";
+                        string segVal = HtmlEncode(parsed.Segments[si]);
+                        bool empty = !parsed.Populated[si];
+                        string opacity = empty ? "opacity:0.4;" : "";
+                        sb.Append($"<span style=\"color:{segColor};{segBold}{opacity}\" title=\"{HtmlEncode(TagConfig.SegmentStyles[si < TagConfig.SegmentStyles.Length ? si : 0].Description)}\">{segVal}</span>");
+                    }
+                    sb.Append("</span>");
+                }
+                else
+                {
+                    sb.Append($"<span>{HtmlEncode(tag1)}</span>");
+                }
+
                 sb.AppendLine($"<span>{HtmlEncode(presetLabel)} — {HtmlEncode(catName)}</span>");
                 sb.AppendLine("</div>");
                 sb.AppendLine($"<div class=\"card-body\" style=\"background:{bgTint}\">");
@@ -757,6 +794,296 @@ namespace StingTools.Tags
                         $"Activated '{selectedName}' preset.\n\n{TagConfig.ActivePreset?.Description}\n\n" +
                         "Run 'Rich Note', 'HTML Report', or 'View Sections' to see the new styling.");
                 }
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // TAG1-TAG6 Rich Segment Display Command
+    //
+    // Provides segment-aware styled TextNote annotations for the 8-segment
+    // tag format (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ). Each segment gets
+    // its own color and font style, enabling instant visual parsing.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create segment-colored TextNote annotations for TAG1-TAG6 values.
+    /// Each of the 8 segments (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ)
+    /// is rendered with a distinct color and bold/italic style in a TextNote.
+    /// Uses FormattedText for per-character bold/italic, and multiple
+    /// TextNoteTypes for segment colors.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RichSegmentNoteCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            if (view == null || view is ViewSheet)
+            {
+                TaskDialog.Show("Rich Segment Note", "Please open a model view (not a sheet).");
+                return Result.Failed;
+            }
+
+            var selected = uidoc.Selection.GetElementIds()
+                .Select(id => doc.GetElement(id))
+                .Where(e => e != null)
+                .ToList();
+
+            if (selected.Count == 0)
+            {
+                selected = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
+                    .Take(50)
+                    .ToList();
+            }
+
+            if (selected.Count == 0)
+            {
+                TaskDialog.Show("Rich Segment Note", "No tagged elements found. Run a tagging command first.");
+                return Result.Failed;
+            }
+
+            // Show segment color legend in confirmation
+            var segStyles = TagConfig.SegmentStyles;
+            var legendText = string.Join("\n",
+                segStyles.Select(s => $"  {s.Name,-5} ({s.Description}) = {s.Color}"));
+
+            var confirm = new TaskDialog("Rich Segment Note");
+            confirm.MainContent = $"Place segment-colored annotations for {selected.Count} element(s)?\n\n" +
+                "Each tag segment gets a distinct color:\n" + legendText;
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() != TaskDialogResult.Ok)
+                return Result.Cancelled;
+
+            int placed = 0;
+            using (Transaction tx = new Transaction(doc, "STING Rich Segment Notes"))
+            {
+                tx.Start();
+
+                // Get or create segment-colored TextNoteTypes
+                var segmentTypes = GetOrCreateSegmentNoteTypes(doc);
+                ElementId baseTypeId = new FilteredElementCollector(doc)
+                    .OfClass(typeof(TextNoteType)).FirstElementId();
+
+                foreach (var el in selected)
+                {
+                    try
+                    {
+                        string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                        if (string.IsNullOrEmpty(tag1)) continue;
+
+                        var parsed = TagConfig.ParseTagSegments(tag1);
+
+                        // Get element location
+                        XYZ location = GetElementCenter(el, view);
+                        if (location == null) continue;
+
+                        double scale = view.Scale > 0 ? view.Scale : 100;
+                        XYZ notePos = new XYZ(location.X + 2.0 / scale, location.Y + 1.5 / scale, location.Z);
+
+                        // Build the note text: "TAG1: M-BLD1-Z01-L02-HVAC-SUP-AHU-0003"
+                        string noteText = $"TAG1: {tag1}";
+
+                        // Use the primary segment type (DISC color)
+                        ElementId typeId = segmentTypes.Count > 0 ? segmentTypes[0] : baseTypeId;
+                        TextNote note = TextNote.Create(doc, view.Id, notePos, noteText, typeId);
+
+                        // Apply segment-level formatting
+                        ApplySegmentFormatting(note, parsed, "TAG1: ".Length);
+
+                        placed++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"RichSegmentNote: failed for element {el?.Id}: {ex.Message}");
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Rich Segment Note", $"Placed {placed} segment-colored annotations in '{view.Name}'.");
+            return Result.Succeeded;
+        }
+
+        private void ApplySegmentFormatting(TextNote note, TagConfig.TagSegmentResult parsed, int offset)
+        {
+            try
+            {
+                FormattedText ft = note.GetFormattedText();
+                string fullText = ft.GetPlainText();
+                if (string.IsNullOrEmpty(fullText)) return;
+
+                var segStyles = TagConfig.SegmentStyles;
+                int pos = offset;
+
+                for (int i = 0; i < 8 && i < parsed.Segments.Length; i++)
+                {
+                    string seg = parsed.Segments[i];
+                    if (string.IsNullOrEmpty(seg)) { pos += 1; continue; } // skip separator
+
+                    if (pos + seg.Length > fullText.Length) break;
+
+                    var range = new TextRange(pos, seg.Length);
+
+                    if (i < segStyles.Length)
+                    {
+                        if (segStyles[i].Bold)
+                            ft.SetBoldStatus(range, true);
+                        if (segStyles[i].Italic)
+                            ft.SetItalicStatus(range, true);
+                    }
+
+                    // Move past segment + separator
+                    pos += seg.Length;
+                    if (i < 7) pos += TagConfig.Separator.Length;
+                }
+
+                note.SetFormattedText(ft);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"RichSegmentNote: formatting failed: {ex.Message}");
+            }
+        }
+
+        private List<ElementId> GetOrCreateSegmentNoteTypes(Document doc)
+        {
+            var result = new List<ElementId>();
+            var baseType = new FilteredElementCollector(doc)
+                .OfClass(typeof(TextNoteType))
+                .Cast<TextNoteType>()
+                .FirstOrDefault();
+            if (baseType == null) return result;
+
+            foreach (var style in TagConfig.SegmentStyles)
+            {
+                string typeName = $"STING SEG {style.Name}";
+                var existing = new FilteredElementCollector(doc)
+                    .OfClass(typeof(TextNoteType))
+                    .Cast<TextNoteType>()
+                    .FirstOrDefault(t => t.Name == typeName);
+
+                if (existing != null) { result.Add(existing.Id); continue; }
+
+                try
+                {
+                    var newType = baseType.Duplicate(typeName) as TextNoteType;
+                    if (newType != null)
+                    {
+                        int colorInt = HexToRevitColor(style.Color);
+                        var colorParam = newType.get_Parameter(BuiltInParameter.LINE_COLOR);
+                        if (colorParam != null && !colorParam.IsReadOnly)
+                            colorParam.Set(colorInt);
+                        result.Add(newType.Id);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"RichSegmentNote: failed to create type '{typeName}': {ex.Message}");
+                    result.Add(baseType.Id);
+                }
+            }
+            return result;
+        }
+
+        private XYZ GetElementCenter(Element el, View view)
+        {
+            BoundingBoxXYZ bb = el.get_BoundingBox(view);
+            if (bb != null)
+                return new XYZ((bb.Min.X + bb.Max.X) / 2.0, (bb.Min.Y + bb.Max.Y) / 2.0, (bb.Min.Z + bb.Max.Z) / 2.0);
+            if (el.Location is LocationPoint lp) return lp.Point;
+            if (el.Location is LocationCurve lc) return lc.Curve.Evaluate(0.5, true);
+            return null;
+        }
+
+        private int HexToRevitColor(string hex)
+        {
+            hex = hex.TrimStart('#');
+            if (hex.Length < 6) return 0;
+            int r = Convert.ToInt32(hex.Substring(0, 2), 16);
+            int g = Convert.ToInt32(hex.Substring(2, 2), 16);
+            int b = Convert.ToInt32(hex.Substring(4, 2), 16);
+            return r + (g << 8) + (b << 16);
+        }
+    }
+
+    /// <summary>
+    /// View TAG1-TAG6 segment breakdown with color hints in a TaskDialog.
+    /// Parses the 8-segment tag and shows each segment with its style definition.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ViewSegmentsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+
+            var selected = uidoc.Selection.GetElementIds()
+                .Select(id => doc.GetElement(id))
+                .Where(e => e != null)
+                .ToList();
+
+            if (selected.Count == 0)
+            {
+                TaskDialog.Show("View Segments", "Select one or more elements to view their tag segments.");
+                return Result.Failed;
+            }
+
+            var segStyles = TagConfig.SegmentStyles;
+
+            foreach (var el in selected.Take(5))
+            {
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag1))
+                {
+                    TaskDialog.Show("View Segments", $"Element {el.Id} has no TAG1 value.");
+                    continue;
+                }
+
+                var parsed = TagConfig.ParseTagSegments(tag1);
+                var report = new System.Text.StringBuilder();
+                string catName = ParameterHelpers.GetCategoryName(el);
+
+                report.AppendLine($"Element: {el.Id} | Category: {catName}");
+                report.AppendLine($"TAG1: {tag1}");
+                report.AppendLine(new string('=', 60));
+
+                for (int i = 0; i < 8 && i < segStyles.Length; i++)
+                {
+                    string val = parsed.Segments[i];
+                    bool pop = parsed.Populated[i];
+                    string status = pop ? "OK" : "EMPTY";
+                    string styleHints = "";
+                    if (segStyles[i].Bold) styleHints += " [BOLD]";
+                    if (segStyles[i].Italic) styleHints += " [ITALIC]";
+
+                    report.AppendLine($"\n  Seg {i}: {segStyles[i].Name,-5} = \"{val}\" ({status}){styleHints}");
+                    report.AppendLine($"         {segStyles[i].Description} | Color: {segStyles[i].Color}");
+                }
+
+                // Show other tags
+                report.AppendLine($"\n{'=', 0}{new string('=', 60)}");
+                string[] tagParams = { ParamRegistry.TAG2, ParamRegistry.TAG3, ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6 };
+                string[] tagLabels = { "TAG2", "TAG3", "TAG4", "TAG5", "TAG6" };
+                for (int t = 0; t < tagParams.Length; t++)
+                {
+                    string val = ParameterHelpers.GetString(el, tagParams[t]);
+                    if (!string.IsNullOrEmpty(val))
+                        report.AppendLine($"  {tagLabels[t]}: {val}");
+                }
+
+                TaskDialog.Show($"Tag Segments - {tag1}", report.ToString());
             }
 
             return Result.Succeeded;
