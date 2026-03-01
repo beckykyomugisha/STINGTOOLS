@@ -85,44 +85,112 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Create a persistent color legend as a Revit drafting view.
+        /// Try to create a Legend view by duplicating an existing one.
+        /// Legend views can be placed on multiple sheets (unlike drafting views).
+        /// Returns null if no existing Legend view is available (caller should
+        /// fall back to CreateLegendView which uses drafting views).
+        /// Must be called within an active Transaction.
+        /// </summary>
+        public static View TryCreateNativeLegend(Document doc, string name)
+        {
+            try
+            {
+                // Find an existing Legend view to duplicate
+                var existingLegend = new FilteredElementCollector(doc)
+                    .OfClass(typeof(View))
+                    .Cast<View>()
+                    .FirstOrDefault(v => v.ViewType == ViewType.Legend && !v.IsTemplate);
+
+                if (existingLegend == null) return null;
+
+                ElementId newId = existingLegend.Duplicate(ViewDuplicateOption.Duplicate);
+                View newLegend = doc.GetElement(newId) as View;
+                if (newLegend != null)
+                {
+                    try { newLegend.Name = name; } catch { }
+
+                    // Delete all existing elements from the duplicated legend
+                    var existingElements = new FilteredElementCollector(doc, newLegend.Id)
+                        .WhereElementIsNotElementType()
+                        .ToElementIds()
+                        .ToList();
+                    foreach (var eid in existingElements)
+                    {
+                        try { doc.Delete(eid); } catch { }
+                    }
+                }
+                return newLegend;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LegendBuilder: TryCreateNativeLegend failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Create a persistent color legend as a Revit view.
+        /// Tries to create a native Legend view first (can be placed on multiple sheets),
+        /// falls back to a Drafting view if no Legend view exists in the project.
         /// Must be called within an active Transaction.
         /// </summary>
         /// <param name="doc">The Revit document.</param>
         /// <param name="entries">Legend entries (color + label pairs).</param>
         /// <param name="config">Layout configuration.</param>
-        /// <returns>The created ViewDrafting, or null on failure.</returns>
-        public static ViewDrafting CreateLegendView(Document doc, List<LegendEntry> entries, LegendConfig config)
+        /// <returns>The created View (Legend or Drafting), or null on failure.</returns>
+        public static View CreateLegendView(Document doc, List<LegendEntry> entries, LegendConfig config)
         {
             if (entries == null || entries.Count == 0) return null;
-
-            // Create a new drafting view
-            var viewFamilyType = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewFamilyType))
-                .Cast<ViewFamilyType>()
-                .FirstOrDefault(vft => vft.ViewFamily == ViewFamily.Drafting);
-
-            if (viewFamilyType == null)
-            {
-                StingLog.Warn("LegendBuilder: No Drafting view family type found.");
-                return null;
-            }
 
             // Generate unique view name
             string baseName = $"STING Legend - {config.Title}";
             string viewName = baseName;
             int suffix = 1;
-            while (ViewNameExists(doc, viewName))
+            while (ViewNameExists(doc, viewName) || ViewNameExistsAnyType(doc, viewName))
             {
                 viewName = $"{baseName} ({suffix++})";
             }
 
-            ViewDrafting legendView = ViewDrafting.Create(doc, viewFamilyType.Id);
-            try { legendView.Name = viewName; }
-            catch { /* Name conflict handled above, ignore race */ }
+            // Try to create a native Legend view first (placeable on multiple sheets)
+            View legendView = TryCreateNativeLegend(doc, viewName);
 
-            legendView.Scale = 1; // 1:1 for drafting view
+            // Fall back to a Drafting view (always works, no prerequisites)
+            if (legendView == null)
+            {
+                var viewFamilyType = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewFamilyType))
+                    .Cast<ViewFamilyType>()
+                    .FirstOrDefault(vft => vft.ViewFamily == ViewFamily.Drafting);
 
+                if (viewFamilyType == null)
+                {
+                    StingLog.Warn("LegendBuilder: No Drafting view family type found.");
+                    return null;
+                }
+
+                ViewDrafting draftView = ViewDrafting.Create(doc, viewFamilyType.Id);
+                try { draftView.Name = viewName; }
+                catch { /* Name conflict handled above, ignore race */ }
+                draftView.Scale = 1; // 1:1 for drafting view
+                legendView = draftView;
+            }
+
+            // Populate the view with legend content (swatches, labels, separators)
+            PopulateLegendContent(doc, legendView, entries, config);
+
+            StingLog.Info($"LegendBuilder: created legend view '{viewName}' ({legendView.ViewType}) with {entries.Count} entries");
+            return legendView;
+        }
+
+        /// <summary>
+        /// Populate a view with legend content: color swatches (FilledRegion),
+        /// text labels (TextNote), separator lines (DetailLine), and footer.
+        /// Works with both Legend views and Drafting views.
+        /// Must be called within an active Transaction.
+        /// </summary>
+        private static void PopulateLegendContent(Document doc, View legendView,
+            List<LegendEntry> entries, LegendConfig config)
+        {
             // Find solid fill pattern for filled regions
             FillPatternElement solidFill = FindSolidFill(doc);
 
@@ -179,7 +247,6 @@ namespace StingTools.Tags
 
             // ── Legend entries (with multi-column support) ──
             int col = 0;
-            double rowStartY = y;
             double maxRowHeight = 0;
 
             for (int ei = 0; ei < entries.Count; ei++)
@@ -305,9 +372,6 @@ namespace StingTools.Tags
                 }
                 catch { }
             }
-
-            StingLog.Info($"LegendBuilder: created legend view '{viewName}' with {entries.Count} entries");
-            return legendView;
         }
 
         /// <summary>
@@ -647,6 +711,15 @@ namespace StingTools.Tags
                 .Any(v => v.Name == name);
         }
 
+        /// <summary>Check if a view name exists across ANY view type (not just Drafting).</summary>
+        private static bool ViewNameExistsAnyType(Document doc, string name)
+        {
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Any(v => !v.IsTemplate && v.Name == name);
+        }
+
         private static FillPatternElement FindSolidFill(Document doc)
         {
             try
@@ -896,7 +969,7 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            ViewDrafting legendView;
+            View legendView;
             using (Transaction tx = new Transaction(doc, "STING Create Color Legend"))
             {
                 tx.Start();
@@ -911,7 +984,7 @@ namespace StingTools.Tags
                 TaskDialog.Show("Create Legend",
                     $"Created legend: '{legendView.Name}'\n\n" +
                     $"  Entries: {entries.Count}\n" +
-                    $"  Type: Drafting View\n\n" +
+                    $"  Type: {legendView.ViewType}\n\n" +
                     "Place this view on a sheet for client documentation.\n" +
                     "Use 'Viewport > Add View' on any sheet.");
             }
@@ -1189,8 +1262,8 @@ namespace StingTools.Tags
                 foreach (string name in viewNames)
                     report.AppendLine($"  - {name}");
                 report.AppendLine();
-                report.AppendLine("Find them under 'Drafting Views' in the Project Browser.");
-                report.AppendLine("Place on sheets using 'Insert > Views > Drafting Views'.");
+                report.AppendLine("Find them under 'Drafting Views' or 'Legends' in the Project Browser.");
+                report.AppendLine("Place on sheets using 'Insert > Views'.");
                 TaskDialog.Show("Auto Create Legends", report.ToString());
             }
             else
@@ -1292,7 +1365,7 @@ namespace StingTools.Tags
                 Columns = entries.Count > 10 ? 2 : 1,
             };
 
-            ViewDrafting legendView;
+            View legendView;
             using (Transaction tx = new Transaction(doc, "STING Legend from View"))
             {
                 tx.Start();
