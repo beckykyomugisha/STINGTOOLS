@@ -400,6 +400,46 @@
                         </Grid>
                         <TextBlock Text="Click ☰ to load by discipline" FontSize="9" Foreground="#888" Margin="0,1,0,4"/>
 
+                        <!-- DATA TAGGING (ISO 19650) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DATA TAGGING (ISO 19650)"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Auto Tag" Tag="AutoTag" Click="Cmd_Click" ToolTip="Tag elements in active view with collision handling"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Batch Tag" Tag="BatchTag" Click="Cmd_Click" ToolTip="Tag all elements in entire project"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Tag+Combine" Tag="TagAndCombine" Click="Cmd_Click" ToolTip="One-click: populate + tag + combine all 36 containers"/>
+                                    <Button Style="{StaticResource TealBtn}" Content="Tag New" Tag="TagNewOnly" Click="Cmd_Click" ToolTip="Tag only new/untagged elements"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Pre-Audit" Tag="PreTagAudit" Click="Cmd_Click" ToolTip="Dry-run audit before committing"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Re-Tag" Tag="ReTag" Click="Cmd_Click" ToolTip="Force re-derive selected tags"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Copy Tags" Tag="CopyTags" Click="Cmd_Click" ToolTip="Copy tags from first to all selected"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Swap Tags" Tag="SwapTags" Click="Cmd_Click" ToolTip="Swap tag values between 2 elements"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Fix Dupes" Tag="FixDuplicates" Click="Cmd_Click" ToolTip="Auto-resolve duplicate tags"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- VISUAL TAG PLACEMENT -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="VISUAL TAG PLACEMENT"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#009688">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource TealBtn}" Content="Smart Place" Tag="SmartPlaceTags" Click="Cmd_Click" ToolTip="8-position collision-free tag placement"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Arrange" Tag="ArrangeTags" Click="Cmd_Click" ToolTip="Auto-arrange tags to resolve overlaps"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Views" Tag="BatchPlaceTags" Click="Cmd_Click" ToolTip="Place tags across multiple views"/>
+                                    <Button Style="{StaticResource RedBtn}" Content="Remove All" Tag="RemoveAnnotationTags" Click="Cmd_Click" ToolTip="Remove annotation tags from view"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource TealBtn}" Content="Learn" Tag="LearnTagPlacement" Click="Cmd_Click" ToolTip="Learn tag positions from current view"/>
+                                    <Button Style="{StaticResource TealBtn}" Content="Apply Template" Tag="ApplyTagTemplate" Click="Cmd_Click" ToolTip="Apply learned placement template"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Overlap Audit" Tag="TagOverlapAnalysis" Click="Cmd_Click" ToolTip="Detect overlapping tag pairs"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Text Size" Tag="BatchTagTextSize" Click="Cmd_Click" ToolTip="Batch change tag text size"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Line Wt" Tag="SetTagCatLineWeight" Click="Cmd_Click" ToolTip="Set tag category line weight"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- TAG OPERATIONS -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="TAG OPERATIONS"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -414,7 +454,7 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="AuditTags" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="AuditCSV" Tag="AuditTagsCSV" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="MultiView" Tag="MultiView" Click="Cmd_Click" ToolTip="Tag across views"/>
-                                <Button Style="{StaticResource OrangeBtn}" Content="Clashing▶" Tag="ClashingDetect" Click="Cmd_Click" ToolTip="Detect clashing tags"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Clashing" Tag="ClashingDetect" Click="Cmd_Click" ToolTip="Detect clashing tags"/>
                             </WrapPanel>
                         </Border>
 
@@ -485,10 +525,13 @@
                             <StackPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="ADD/REMOVE"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="+Leader" Tag="AddLeaders" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource RedBtn}" Content="-Leader" Tag="RemoveLeaders" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="+Leader" Tag="AddLeaders" Click="Cmd_Click" ToolTip="Add leaders to selected tags"/>
+                                    <Button Style="{StaticResource RedBtn}" Content="-Leader" Tag="RemoveLeaders" Click="Cmd_Click" ToolTip="Remove leaders from selected tags"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Toggle" Tag="ToggleLeaders" Click="Cmd_Click" ToolTip="Toggle leaders on/off"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="+Multi" Tag="LeaderMulti" Click="Cmd_Click" ToolTip="Add multi leaders"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Combine" Tag="LeaderCombine" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Attach" Tag="AttachLeader" Click="Cmd_Click" ToolTip="Attach leader end to host"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sel w/Ldr" Tag="SelectTagsWithLeaders" Click="Cmd_Click" ToolTip="Select tags with leaders"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="ELBOW"/>
                                 <WrapPanel>
@@ -525,16 +568,46 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- TAG APPEARANCE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG APPEARANCE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="By Disc" Tag="ColorTagsByDiscipline" Click="Cmd_Click" ToolTip="Color tags by discipline"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Text Color" Tag="SetTagTextColor" Click="Cmd_Click" ToolTip="Set tag text color"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Leader Color" Tag="SetLeaderColor" Click="Cmd_Click" ToolTip="Set leader line color"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Split Color" Tag="SplitTagLeaderColor" Click="Cmd_Click" ToolTip="Different colors for leader vs text"/>
+                                    <Button Style="{StaticResource RedBtn}" Content="Clear Colors" Tag="ClearAnnotationColors" Click="Cmd_Click" ToolTip="Clear annotation color overrides"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Appearance" Tag="TagAppearance" Click="Cmd_Click" ToolTip="Tag appearance settings"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Box Style" Tag="SetTagBox" Click="Cmd_Click" ToolTip="Set tag box style"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Quick Style" Tag="QuickTagStyle" Click="Cmd_Click" ToolTip="Quick tag style preset"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Line Wt" Tag="SetTagLineWeight" Click="Cmd_Click" ToolTip="Set tag line weight"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="By Param" Tag="ColorTagsByParam" Click="Cmd_Click" ToolTip="Color tags by parameter value"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Swap Type" Tag="SwapTagType" Click="Cmd_Click" ToolTip="Swap tag family type"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- ANALYSE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ANALYSE"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Score" Tag="AnalyseScore" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clashes" Tag="AnalyseClashes" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Crossings" Tag="AnalyseCrossings" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Density" Tag="AnalyseDensity" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Clusters" Tag="AnalyseClusters" Click="Cmd_Click"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Score" Tag="AnalyseScore" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clashes" Tag="AnalyseClashes" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Crossings" Tag="AnalyseCrossings" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Density" Tag="AnalyseDensity" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clusters" Tag="AnalyseClusters" Click="Cmd_Click"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stats" Tag="TagStats" Click="Cmd_Click" ToolTip="Tag counts by discipline/system/level"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="By Discipline" Tag="SelectByDiscipline" Click="Cmd_Click" ToolTip="Select elements by discipline code"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Pin" Tag="PinTags" Click="Cmd_Click" ToolTip="Pin/unpin tags in place"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Reset Pos" Tag="ResetTagPositions" Click="Cmd_Click" ToolTip="Reset tags to element centers"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                         <!-- PATTERN LEARNING -->
@@ -744,11 +817,17 @@
                         <!-- LEGEND TOOLS -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="📑 LEGEND TOOLS"/>
                         <Border Style="{StaticResource GroupBorder}">
-                            <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Sync Pos" Tag="LegendSyncPos" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Title Line" Tag="LegendTitleLine" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Uniform" Tag="LegendUniform" Click="Cmd_Click"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Pos" Tag="LegendSyncPos" Click="Cmd_Click" ToolTip="Align legend viewports on sheet"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Title Line" Tag="LegendTitleLine" Click="Cmd_Click" ToolTip="Add title line to legend"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Uniform" Tag="LegendUniform" Click="Cmd_Click" ToolTip="Uniform legend sizing"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource GreenBtn}" Content="Tag Dictionary" Tag="TagDictionary" Click="Cmd_Click" ToolTip="Create tag nomenclature schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Color Legend" Tag="ColorLegendSchedule" Click="Cmd_Click" ToolTip="Create color scheme reference schedule"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                         <!-- TITLE BLOCK TOOLS -->
@@ -944,6 +1023,10 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Load Shared Params" Tag="LoadSharedParams" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Project Config" Tag="ConfigEditor" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Config" Tag="TagConfig" Click="Cmd_Click" ToolTip="View/configure tag lookup tables"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Schema" Tag="SyncParamSchema" Click="Cmd_Click" ToolTip="Sync parameter schema"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Audit Schema" Tag="AuditParamSchema" Click="Cmd_Click" ToolTip="Audit parameter schema"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Add Remap" Tag="AddParamRemap" Click="Cmd_Click" ToolTip="Add parameter remap"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource BlueBtn}" Content="Create Tag Families" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Create STING tag families for all 50 categories"/>
@@ -993,9 +1076,10 @@
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#2196F3">
                             <StackPanel>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="✔ Validate" Tag="ValidateTags" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="[R] Highlight" Tag="HighlightInvalid" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Clear [Art]" Tag="ClearOverrides" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Validate" Tag="ValidateTags" Click="Cmd_Click" ToolTip="ISO 19650 tag validation"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Highlight" Tag="HighlightInvalid" Click="Cmd_Click" ToolTip="Color-code missing/incomplete tags"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clear Art" Tag="ClearOverrides" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Pre-Flight" Tag="CombinePreFlight" Click="Cmd_Click" ToolTip="Combine parameters pre-flight check"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource BlueBtn}" Content="Completeness %" Tag="CompletenessDashboard" Click="Cmd_Click"/>
@@ -1292,8 +1376,16 @@
                                     <Button Style="{StaticResource CatBtn}" Content="Wt" Tag="ApplyLineWeight" Click="Cmd_Click"/>
                                     <RadioButton x:Name="rbFill" Content="● Fill" FontSize="10" IsChecked="True" VerticalAlignment="Center" Margin="4,0,0,0"/>
                                 </WrapPanel>
+                                <!-- Parameter Color -->
+                                <TextBlock Text="PARAMETER COLOUR" FontSize="9" FontWeight="Bold" Foreground="#888" Margin="0,6,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Color By Param" Tag="ColorByParameter" Click="Cmd_Click" ToolTip="Color elements by any parameter value"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Save Preset" Tag="SaveColorPreset" Click="Cmd_Click" ToolTip="Save color scheme as preset"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Preset" Tag="LoadColorPreset" Click="Cmd_Click" ToolTip="Load saved color preset"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="To Filters" Tag="CreateFiltersFromColors" Click="Cmd_Click" ToolTip="Convert colors to persistent filters"/>
+                                </WrapPanel>
                                 <!-- Clear ALL -->
-                                <Button Style="{StaticResource RedBtn}" Content="[Clean] Clear ALL Colour Overrides in View" Tag="ClearOverrides" Click="Cmd_Click"
+                                <Button Style="{StaticResource RedBtn}" Content="Clear ALL Colour Overrides in View" Tag="ClearColorOverrides" Click="Cmd_Click"
                                         HorizontalAlignment="Stretch" Margin="0,6,0,0"/>
                             </StackPanel>
                         </Border>

@@ -2845,6 +2845,28 @@ namespace StingTools.Organise
                 return Result.Succeeded;
             }
 
+            View view = doc.ActiveView;
+
+            // Calculate actual tag widths for smart spacing
+            double maxTagWidth = 0;
+            foreach (var tag in tags)
+            {
+                try
+                {
+                    BoundingBoxXYZ bb = tag.get_BoundingBox(view);
+                    if (bb != null)
+                    {
+                        double w = bb.Max.X - bb.Min.X;
+                        if (w > maxTagWidth) maxTagWidth = w;
+                    }
+                }
+                catch { }
+            }
+            // Fallback: use view scale-based estimate
+            if (maxTagWidth < 0.001)
+                maxTagWidth = view.Scale * 0.01;
+            double autoSpacing = maxTagWidth * 1.2; // 20% gap between tags
+
             // Ask alignment direction
             TaskDialog dlg = new TaskDialog("Align Tags");
             dlg.MainInstruction = $"Align {tags.Count} tags";
@@ -2854,7 +2876,9 @@ namespace StingTools.Organise
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                 "Align Vertically", "Align all tag heads to same X as first selected tag");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Align to Row", "Distribute tags in a neat horizontal row");
+                "Row (auto-spaced)", $"Distribute in row with auto-calculated spacing ({autoSpacing * 304.8:F0}mm)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Column (auto-spaced)", "Distribute in vertical column with auto-calculated spacing");
             dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             var result = dlg.Show();
@@ -2862,6 +2886,28 @@ namespace StingTools.Organise
 
             XYZ refPoint = tags[0].TagHeadPosition;
             int aligned = 0;
+
+            // For vertical column, calculate max tag height
+            double maxTagHeight = 0;
+            if (result == TaskDialogResult.CommandLink4)
+            {
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        BoundingBoxXYZ bb = tag.get_BoundingBox(view);
+                        if (bb != null)
+                        {
+                            double h = bb.Max.Y - bb.Min.Y;
+                            if (h > maxTagHeight) maxTagHeight = h;
+                        }
+                    }
+                    catch { }
+                }
+                if (maxTagHeight < 0.001)
+                    maxTagHeight = view.Scale * 0.003;
+            }
+            double vSpacing = maxTagHeight * 1.3; // 30% gap for readability
 
             using (Transaction tx = new Transaction(doc, "STING Align Tags"))
             {
@@ -2884,10 +2930,14 @@ namespace StingTools.Organise
                                 newPos = new XYZ(refPoint.X, current.Y, current.Z);
                                 break;
                             case TaskDialogResult.CommandLink3:
-                                // Row: same Y, evenly spaced X
-                                double spacing = 3.0; // ~914mm in model units (feet)
-                                newPos = new XYZ(refPoint.X + (i * spacing),
+                                // Row: same Y, auto-spaced X
+                                newPos = new XYZ(refPoint.X + (i * autoSpacing),
                                     refPoint.Y, current.Z);
+                                break;
+                            case TaskDialogResult.CommandLink4:
+                                // Column: same X, auto-spaced Y (descending)
+                                newPos = new XYZ(refPoint.X,
+                                    refPoint.Y - (i * vSpacing), current.Z);
                                 break;
                             default:
                                 continue;

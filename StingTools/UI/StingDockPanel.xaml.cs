@@ -165,14 +165,24 @@ namespace StingTools.UI
 
         public void UpdateStatus(string message)
         {
-            if (txtStatus != null)
-                txtStatus.Text = message;
+            if (txtStatus == null) return;
+            if (!txtStatus.Dispatcher.CheckAccess())
+            {
+                txtStatus.Dispatcher.Invoke(() => txtStatus.Text = message);
+                return;
+            }
+            txtStatus.Text = message;
         }
 
         public void UpdateBulkStatus(string message)
         {
-            if (txtBulkStatus != null)
-                txtBulkStatus.Text = message;
+            if (txtBulkStatus == null) return;
+            if (!txtBulkStatus.Dispatcher.CheckAccess())
+            {
+                txtBulkStatus.Dispatcher.Invoke(() => txtBulkStatus.Text = message);
+                return;
+            }
+            txtBulkStatus.Text = message;
         }
     }
 }

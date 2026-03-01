@@ -321,23 +321,71 @@ namespace StingTools.Tags
             return score;
         }
 
-        /// <summary>Get preferred placement side for a category (0=above, 1=right, 2=below, 3=left).</summary>
+        /// <summary>
+        /// Get preferred placement side for a category (0=above, 1=right, 2=below, 3=left).
+        /// Enhanced with MEP flow direction awareness and element orientation detection.
+        /// </summary>
         public static int GetPreferredSide(string categoryName)
         {
             if (categoryName == null) return 0;
             string upper = categoryName.ToUpperInvariant();
-            if (upper.Contains("DUCT")) return 0;
-            if (upper.Contains("PIPE")) return 3;
-            if (upper.Contains("EQUIPMENT")) return 1;
-            if (upper.Contains("FIXTURE")) return 0;
-            if (upper.Contains("TERMINAL")) return 0;
-            if (upper.Contains("LIGHT")) return 0;
-            if (upper.Contains("SPRINKLER")) return 0;
-            if (upper.Contains("CABLE")) return 2;
-            if (upper.Contains("CONDUIT")) return 2;
-            if (upper.Contains("DOOR")) return 1;
-            if (upper.Contains("WINDOW")) return 0;
+            // Linear elements: tag perpendicular to typical run direction
+            if (upper.Contains("DUCT")) return 0;       // Ducts run horizontal → tag above
+            if (upper.Contains("PIPE")) return 3;        // Pipes run horizontal → tag left (avoid duct tags)
+            if (upper.Contains("CABLE TRAY")) return 2;  // Cable trays → tag below (avoid duct/pipe tags above)
+            if (upper.Contains("CONDUIT")) return 2;     // Conduits → tag below
+            // Equipment: tag to the side (larger bounding box → more room on sides)
+            if (upper.Contains("EQUIPMENT")) return 1;   // Right side for equipment
+            if (upper.Contains("FIXTURE") && upper.Contains("PLUMBING")) return 3; // Plumbing fixtures → left
+            if (upper.Contains("FIXTURE") && upper.Contains("ELECTRICAL")) return 1; // Electrical → right
+            if (upper.Contains("FIXTURE")) return 0;     // Generic fixtures → above
+            // Ceiling-mounted: tag below (tag is visible below element in RCP)
+            if (upper.Contains("TERMINAL")) return 2;    // Air terminals on ceiling → tag below
+            if (upper.Contains("LIGHT")) return 2;       // Lights on ceiling → tag below
+            if (upper.Contains("SPRINKLER")) return 2;   // Sprinklers on ceiling → tag below
+            // Architectural: conventional placement
+            if (upper.Contains("DOOR")) return 1;        // Doors → right (reading direction)
+            if (upper.Contains("WINDOW")) return 0;      // Windows → above
+            if (upper.Contains("ROOM")) return 0;        // Rooms → center (above)
+            if (upper.Contains("FURNITURE")) return 0;   // Furniture → above
+            if (upper.Contains("GENERIC")) return 1;     // Generic models → right
             return 0;
+        }
+
+        /// <summary>
+        /// Get preferred side based on element orientation in view.
+        /// If element is primarily horizontal, place tag above/below.
+        /// If element is primarily vertical, place tag left/right.
+        /// Falls back to category-based preferred side.
+        /// </summary>
+        public static int GetSmartPreferredSide(Element elem, View view)
+        {
+            string catName = elem?.Category?.Name ?? "";
+            int categoryDefault = GetPreferredSide(catName);
+
+            try
+            {
+                BoundingBoxXYZ bb = elem.get_BoundingBox(view);
+                if (bb == null) return categoryDefault;
+
+                double width = bb.Max.X - bb.Min.X;
+                double height = bb.Max.Y - bb.Min.Y;
+
+                // For linear elements, detect orientation
+                if (width > height * 3.0)
+                {
+                    // Clearly horizontal element → tag above (0) or below (2)
+                    return (categoryDefault == 2 || categoryDefault == 0) ? categoryDefault : 0;
+                }
+                if (height > width * 3.0)
+                {
+                    // Clearly vertical element → tag right (1) or left (3)
+                    return (categoryDefault == 1 || categoryDefault == 3) ? categoryDefault : 1;
+                }
+            }
+            catch { }
+
+            return categoryDefault;
         }
 
         // ── Tag type finder ──────────────────────────────────────────
@@ -563,7 +611,8 @@ namespace StingTools.Tags
                 if (tagTypeId == ElementId.InvalidElementId) { skipped++; continue; }
 
                 string catName = elem.Category?.Name ?? "";
-                int preferred = GetPreferredSide(catName);
+                // Use smart preferred side that considers element orientation
+                int preferred = GetSmartPreferredSide(elem, view);
                 var offsets = GetCandidateOffsets(offset);
 
                 XYZ bestPos = null;
@@ -1124,19 +1173,23 @@ namespace StingTools.Tags
                         continue;
                     }
 
+                    Element hostElem = null;
                     string catName = "";
                     try
                     {
                         var hIds = tag.GetTaggedLocalElementIds();
                         if (hIds.Count > 0)
                         {
-                            var h = doc.GetElement(hIds.First());
-                            catName = h?.Category?.Name ?? "";
+                            hostElem = doc.GetElement(hIds.First());
+                            catName = hostElem?.Category?.Name ?? "";
                         }
                     }
                     catch { }
 
-                    int preferred = TagPlacementEngine.GetPreferredSide(catName);
+                    // Use smart preferred side with element orientation awareness
+                    int preferred = hostElem != null
+                        ? TagPlacementEngine.GetSmartPreferredSide(hostElem, view)
+                        : TagPlacementEngine.GetPreferredSide(catName);
                     var offsets = TagPlacementEngine.GetCandidateOffsets(offset);
 
                     XYZ bestPos = null;
