@@ -288,6 +288,9 @@ namespace StingTools.UI
                     case "ColorApply": ColorByParameter(app, _param1, _param2); break;
                     case "ColorApplyHex": ColorByHex(app, _param1); break;
                     case "ColorApplyTransparency": SetTransparencyOverride(app, _param1); break;
+                    case "SaveColorPreset": SaveColorPreset(app, _param1); break;
+                    case "LoadColorPreset": LoadColorPreset(app, _param1); break;
+                    case "DeleteColorPreset": DeleteColorPreset(app, _param1); break;
 
                     // ── Unsupported / placeholder ──
                     default:
@@ -1016,6 +1019,265 @@ namespace StingTools.UI
                 foreach (ElementId id in ids)
                     uidoc.ActiveView.SetElementOverrides(id, ogs);
                 tx.Commit();
+            }
+        }
+
+        // ── Colour preset persistence ─────────────────────────────
+
+        private static string GetPresetsFilePath()
+        {
+            string dataDir = Core.StingToolsApp.DataPath;
+            if (string.IsNullOrEmpty(dataDir))
+                dataDir = System.IO.Path.GetDirectoryName(
+                    System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "";
+            return System.IO.Path.Combine(dataDir, "COLOR_PRESETS.json");
+        }
+
+        private static Dictionary<string, object> LoadPresets()
+        {
+            string path = GetPresetsFilePath();
+            if (!System.IO.File.Exists(path))
+                return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string json = System.IO.File.ReadAllText(path);
+                return Newtonsoft.Json.JsonConvert.DeserializeObject<
+                    Dictionary<string, object>>(json)
+                    ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                Core.StingLog.Warn($"Load color presets: {ex.Message}");
+                return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        private static void PersistPresets(Dictionary<string, object> presets)
+        {
+            try
+            {
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(presets,
+                    Newtonsoft.Json.Formatting.Indented);
+                System.IO.File.WriteAllText(GetPresetsFilePath(), json);
+            }
+            catch (Exception ex)
+            {
+                Core.StingLog.Warn($"Save color presets: {ex.Message}");
+            }
+        }
+
+        private static void SaveColorPreset(UIApplication app, string presetName)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var view = uidoc.ActiveView;
+
+            // Ask for preset name if not provided
+            if (string.IsNullOrWhiteSpace(presetName) ||
+                presetName.StartsWith("—"))
+            {
+                var dlg = new TaskDialog("Save Colour Preset");
+                dlg.MainInstruction = "Enter a name for this colour preset:";
+                dlg.MainContent = "The current view's element colour overrides will be saved.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Discipline Colours");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Status Colours");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Custom Scheme");
+                var result = dlg.Show();
+                presetName = result switch
+                {
+                    TaskDialogResult.CommandLink1 => "Discipline Colours",
+                    TaskDialogResult.CommandLink2 => "Status Colours",
+                    TaskDialogResult.CommandLink3 => "Custom Scheme",
+                    _ => null
+                };
+                if (presetName == null) return;
+            }
+
+            // Collect overrides from active view
+            var overrides = new Dictionary<string, object>();
+            var collector = new Autodesk.Revit.DB.FilteredElementCollector(
+                uidoc.Document, view.Id);
+            collector.WhereElementIsNotElementType();
+            int saved = 0;
+            foreach (var el in collector)
+            {
+                var ogs = view.GetElementOverrides(el.Id);
+                if (ogs == null) continue;
+                var lineColor = ogs.ProjectionLineColor;
+                if (!lineColor.IsValid) continue;
+
+                string catName = el.Category?.Name ?? "Unknown";
+                if (!overrides.ContainsKey(catName))
+                {
+                    overrides[catName] = new Dictionary<string, int>
+                    {
+                        { "R", lineColor.Red },
+                        { "G", lineColor.Green },
+                        { "B", lineColor.Blue }
+                    };
+                    saved++;
+                }
+            }
+
+            var allPresets = LoadPresets();
+            allPresets[presetName] = overrides;
+            PersistPresets(allPresets);
+
+            // Update combo box on UI thread
+            try
+            {
+                StingDockPanel.Instance?.Dispatcher.Invoke(() =>
+                    StingDockPanel.Instance.PopulateColorPresets(allPresets.Keys));
+            }
+            catch { }
+
+            TaskDialog.Show("Save Colour Preset",
+                $"Saved preset \"{presetName}\" with {saved} category colours.\n" +
+                $"File: {GetPresetsFilePath()}");
+        }
+
+        private static void LoadColorPreset(UIApplication app, string presetName)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+
+            var allPresets = LoadPresets();
+            if (allPresets.Count == 0)
+            {
+                TaskDialog.Show("Load Colour Preset", "No saved presets found.");
+                return;
+            }
+
+            // If no name selected, show available presets
+            if (string.IsNullOrWhiteSpace(presetName) || presetName.StartsWith("—"))
+            {
+                var dlg = new TaskDialog("Load Colour Preset");
+                dlg.MainInstruction = "Select a preset to load:";
+                var keys = new List<string>(allPresets.Keys);
+                if (keys.Count >= 1)
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, keys[0]);
+                if (keys.Count >= 2)
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, keys[1]);
+                if (keys.Count >= 3)
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, keys[2]);
+                var result = dlg.Show();
+                presetName = result switch
+                {
+                    TaskDialogResult.CommandLink1 => keys.Count >= 1 ? keys[0] : null,
+                    TaskDialogResult.CommandLink2 => keys.Count >= 2 ? keys[1] : null,
+                    TaskDialogResult.CommandLink3 => keys.Count >= 3 ? keys[2] : null,
+                    _ => null
+                };
+                if (presetName == null) return;
+            }
+
+            if (!allPresets.ContainsKey(presetName))
+            {
+                TaskDialog.Show("Load Colour Preset", $"Preset \"{presetName}\" not found.");
+                return;
+            }
+
+            // Parse the preset data and apply overrides
+            try
+            {
+                var presetObj = allPresets[presetName];
+                var presetJson = Newtonsoft.Json.JsonConvert.SerializeObject(presetObj);
+                var colorMap = Newtonsoft.Json.JsonConvert.DeserializeObject<
+                    Dictionary<string, Dictionary<string, int>>>(presetJson);
+                if (colorMap == null || colorMap.Count == 0) return;
+
+                var doc = uidoc.Document;
+                var view = uidoc.ActiveView;
+                var solidFill = Core.ParameterHelpers.GetSolidFillPattern(doc);
+                int applied = 0;
+
+                using (var tx = new Autodesk.Revit.DB.Transaction(doc, "STING Load Color Preset"))
+                {
+                    tx.Start();
+                    var collector = new Autodesk.Revit.DB.FilteredElementCollector(doc, view.Id);
+                    collector.WhereElementIsNotElementType();
+                    foreach (var el in collector)
+                    {
+                        string catName = el.Category?.Name ?? "";
+                        if (!colorMap.TryGetValue(catName, out var rgb)) continue;
+
+                        byte r = (byte)Math.Max(0, Math.Min(255, rgb.GetValueOrDefault("R", 128)));
+                        byte g = (byte)Math.Max(0, Math.Min(255, rgb.GetValueOrDefault("G", 128)));
+                        byte b = (byte)Math.Max(0, Math.Min(255, rgb.GetValueOrDefault("B", 128)));
+                        var color = new Autodesk.Revit.DB.Color(r, g, b);
+
+                        var ogs = new Autodesk.Revit.DB.OverrideGraphicSettings();
+                        ogs.SetProjectionLineColor(color);
+                        if (solidFill != null)
+                        {
+                            ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                            ogs.SetSurfaceForegroundPatternColor(color);
+                        }
+                        view.SetElementOverrides(el.Id, ogs);
+                        applied++;
+                    }
+                    tx.Commit();
+                }
+
+                TaskDialog.Show("Load Colour Preset",
+                    $"Applied preset \"{presetName}\" to {applied} elements.");
+            }
+            catch (Exception ex)
+            {
+                Core.StingLog.Warn($"Load preset '{presetName}': {ex.Message}");
+                TaskDialog.Show("Load Colour Preset", $"Error: {ex.Message}");
+            }
+        }
+
+        private static void DeleteColorPreset(UIApplication app, string presetName)
+        {
+            var allPresets = LoadPresets();
+            if (allPresets.Count == 0)
+            {
+                TaskDialog.Show("Delete Colour Preset", "No saved presets found.");
+                return;
+            }
+
+            // If no name selected, show available presets
+            if (string.IsNullOrWhiteSpace(presetName) || presetName.StartsWith("—"))
+            {
+                var dlg = new TaskDialog("Delete Colour Preset");
+                dlg.MainInstruction = "Select a preset to delete:";
+                var keys = new List<string>(allPresets.Keys);
+                if (keys.Count >= 1)
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, keys[0]);
+                if (keys.Count >= 2)
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, keys[1]);
+                if (keys.Count >= 3)
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, keys[2]);
+                var result = dlg.Show();
+                presetName = result switch
+                {
+                    TaskDialogResult.CommandLink1 => keys.Count >= 1 ? keys[0] : null,
+                    TaskDialogResult.CommandLink2 => keys.Count >= 2 ? keys[1] : null,
+                    TaskDialogResult.CommandLink3 => keys.Count >= 3 ? keys[2] : null,
+                    _ => null
+                };
+                if (presetName == null) return;
+            }
+
+            if (allPresets.Remove(presetName))
+            {
+                PersistPresets(allPresets);
+                // Update combo box on UI thread
+                try
+                {
+                    StingDockPanel.Instance?.Dispatcher.Invoke(() =>
+                        StingDockPanel.Instance.PopulateColorPresets(allPresets.Keys));
+                }
+                catch { }
+                TaskDialog.Show("Delete Colour Preset",
+                    $"Deleted preset \"{presetName}\".");
+            }
+            else
+            {
+                TaskDialog.Show("Delete Colour Preset",
+                    $"Preset \"{presetName}\" not found.");
             }
         }
 

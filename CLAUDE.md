@@ -622,7 +622,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | ~~Family-aware PROD codes~~ | **DONE** — `TagConfig.GetFamilyAwareProdCode()` inspects family name for 35+ specific PROD codes (Mechanical, Electrical, Lighting, Plumbing, Fire Alarm). | Done |
 | ~~TagAndCombine writes only 6 containers~~ | **DONE** — Now writes ALL 36 containers (6 universal + 30 discipline-specific). | Done |
 | ~~No incremental tagging~~ | **DONE** — `TagNewOnlyCommand` pre-filters to untagged elements. Much faster for adding new elements. | Done |
-| ~~CompoundTypeCreator material properties~~ | **DONE** — Applies color, transparency, smoothness, shininess from CSV. | Done |
+| ~~CompoundTypeCreator material properties~~ | **DONE** — Full base-material duplication: finds native Revit material from CSV `BLE_APP-REVIT-BASE-MATERIAL` column, duplicates appearance/structural/thermal assets, then applies all CSV properties (color, transparency, smoothness, shininess, identity class, surface/cut patterns with colors, shading RGB). Both BLE/MEP commands and CompoundTypeCreator use shared `MaterialPropertyHelper.CreateFromBase()`. Case-insensitive dedup. Progress logging. | Done |
 | ~~**No template automation**~~ | **DONE** — `TemplateManagerCommands.cs` with 17 commands and `TemplateManager` intelligence engine: 5-layer auto-assignment, compliance scoring, VG diff, style definitions. `ViewTemplatesCommand` expanded to 23 template definitions with VG configuration. | Done |
 | ~~**No dockable panel UI**~~ | **DONE** — WPF dockable panel (`UI/` directory, 4 files) with 4-tab interface (SELECT/ORGANISE/CREATE/VIEW), `IExternalEventHandler` dispatch for thread safety, colour swatches, bulk parameter controls. | Done |
 | ~~Cross-parameter validation~~ | **DONE** — `ISO19650Validator` validates all tokens, cross-validates DISC/SYS against category, validates tag format. `FixDuplicateTagsCommand` auto-resolves duplicates. | Done |
@@ -659,7 +659,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | [DONE] `TagNewOnlyCommand` | 1 | Handler case + XAML button added in ORGANISE TAG OPERATIONS |
 | [DONE] `SwapTagsCommand` | 1 | XAML button added in ORGANISE TAG OPERATIONS |
 
-[DONE] Dead/stub UI elements: `RefreshParamList` handler added (populates combo from Revit), `ColorApply`/`ColorApplyHex`/`ColorApplyTransparency` now use dedicated click handlers passing actual control values, Save/Load/Delete preset buttons wired with Tag+Click, Parameter Lookup ▼/⊙ buttons wired, [Brain] button wired to FamilyStagePopulate, Anomaly Refresh button wired. Also added: ReTag, PinTags, ResetTagPositions, SelectByDiscipline, SelectTagsWithLeaders, TagRegisterExport, MaterialSchedules, ApplyFilters buttons to panel.
+[DONE] Dead/stub UI elements: `RefreshParamList` handler added (populates combo from Revit), `ColorApply`/`ColorApplyHex`/`ColorApplyTransparency` now use dedicated click handlers passing actual control values, Save/Load/Delete preset buttons wired with dedicated click handlers + full handler implementation (JSON file persistence, TaskDialog preset selection, view override capture/restore, combo box population), Parameter Lookup ▼/⊙ buttons wired, [Brain] button wired to FamilyStagePopulate, Anomaly Refresh button wired. Also added: ReTag, PinTags, ResetTagPositions, SelectByDiscipline, SelectTagsWithLeaders, TagRegisterExport, MaterialSchedules, ApplyFilters buttons to panel.
 
 **[DONE] Inconsistent SYS Code Derivation:**
 

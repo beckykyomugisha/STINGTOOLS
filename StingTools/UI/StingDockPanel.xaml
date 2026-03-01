@@ -625,9 +625,9 @@
                                     <ComboBox x:Name="cmbColorScheme" FontSize="10" Height="22" ToolTip="Saved colour schemes">
                                         <ComboBoxItem Content="— saved schemes —"/>
                                     </ComboBox>
-                                    <Button Grid.Column="1" Content="Save" Style="{StaticResource ActionBtn}" FontSize="9" Tag="SaveColorPreset" Click="Cmd_Click" ToolTip="Save colour preset"/>
-                                    <Button Grid.Column="2" Content="Load" Style="{StaticResource ActionBtn}" FontSize="9" Tag="LoadColorPreset" Click="Cmd_Click" ToolTip="Load colour preset"/>
-                                    <Button Grid.Column="3" Content="✕Del" Style="{StaticResource RedBtn}" FontSize="9" Tag="DeleteColorPreset" Click="Cmd_Click" ToolTip="Delete colour preset"/>
+                                    <Button Grid.Column="1" Content="Save" Style="{StaticResource ActionBtn}" FontSize="9" Click="BtnColorPresetSave_Click" ToolTip="Save colour preset"/>
+                                    <Button Grid.Column="2" Content="Load" Style="{StaticResource ActionBtn}" FontSize="9" Click="BtnColorPresetLoad_Click" ToolTip="Load colour preset"/>
+                                    <Button Grid.Column="3" Content="✕Del" Style="{StaticResource RedBtn}" FontSize="9" Click="BtnColorPresetDelete_Click" ToolTip="Delete colour preset"/>
                                 </Grid>
 
                                 <Grid Margin="0,4,0,0">

@@ -204,6 +204,43 @@ namespace StingTools.UI
             UpdateStatus($"Applying {transparency}% transparency...");
         }
 
+        // ── Colour preset button handlers ──────────────────────────
+
+        private void BtnColorPresetSave_Click(object sender, RoutedEventArgs e)
+        {
+            string schemeName = (cmbColorScheme?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+            _handler?.SetCommand("SaveColorPreset", schemeName);
+            _externalEvent?.Raise();
+            UpdateStatus("Saving colour preset...");
+        }
+
+        private void BtnColorPresetLoad_Click(object sender, RoutedEventArgs e)
+        {
+            string schemeName = (cmbColorScheme?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+            _handler?.SetCommand("LoadColorPreset", schemeName);
+            _externalEvent?.Raise();
+            UpdateStatus("Loading colour preset...");
+        }
+
+        private void BtnColorPresetDelete_Click(object sender, RoutedEventArgs e)
+        {
+            string schemeName = (cmbColorScheme?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+            _handler?.SetCommand("DeleteColorPreset", schemeName);
+            _externalEvent?.Raise();
+            UpdateStatus("Deleting colour preset...");
+        }
+
+        /// <summary>Populate the colour scheme combo box with saved preset names.</summary>
+        public void PopulateColorPresets(IEnumerable<string> presetNames)
+        {
+            if (cmbColorScheme == null) return;
+            cmbColorScheme.Items.Clear();
+            cmbColorScheme.Items.Add(new ComboBoxItem { Content = "— saved schemes —" });
+            foreach (var name in presetNames)
+                cmbColorScheme.Items.Add(new ComboBoxItem { Content = name });
+            cmbColorScheme.SelectedIndex = 0;
+        }
+
         // ── Panel data helpers ──────────────────────────────────────
 
         /// <summary>Populate the bulk parameter combo box from handler thread.</summary>

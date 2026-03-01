@@ -167,14 +167,16 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
-            // Build material cache (name → ElementId)
+            // Build material caches (name → ElementId for type creation,
+            // name → Material for base material lookup)
             var materialCache = new Dictionary<string, ElementId>(
                 StringComparer.OrdinalIgnoreCase);
-            foreach (Material mat in new FilteredElementCollector(doc)
-                .OfClass(typeof(Material)).Cast<Material>())
-            {
-                materialCache[mat.Name] = mat.Id;
-            }
+            var baseMaterialCache = MaterialPropertyHelper.BuildBaseMaterialCache(doc);
+            foreach (var kvp in baseMaterialCache)
+                materialCache[kvp.Key] = kvp.Value.Id;
+
+            // Build fill pattern cache for material pattern assignment
+            var fillPatternCache = MaterialPropertyHelper.BuildFillPatternCache(doc);
 
             // For compound types (wall/floor/ceiling/roof), collect existing type names
             var existingTypeNames = GetExistingTypeNames(doc, kind);
@@ -205,20 +207,21 @@ namespace StingTools.Temp
                     }
 
                     // Ensure primary material exists in project
+                    // Uses base material duplication from CSV column BLE_APP-REVIT-BASE-MATERIAL
                     if (!materialCache.ContainsKey(matName) &&
                         !string.IsNullOrEmpty(matName))
                     {
                         try
                         {
-                            ElementId newMatId = Material.Create(doc, matName);
-                            if (newMatId != ElementId.InvalidElementId)
+                            Material newMat = MaterialPropertyHelper.CreateFromBase(
+                                doc, matName, cols, baseMaterialCache);
+                            if (newMat != null)
                             {
-                                materialCache[matName] = newMatId;
+                                materialCache[matName] = newMat.Id;
+                                baseMaterialCache[matName] = newMat;
                                 matCreated++;
-                                // Apply material appearance properties from CSV
-                                Material newMat = doc.GetElement(newMatId) as Material;
-                                if (newMat != null)
-                                    MaterialPropertyHelper.ApplyMaterialProperties(newMat, cols);
+                                MaterialPropertyHelper.ApplyMaterialProperties(
+                                    newMat, cols, doc, fillPatternCache);
                             }
                         }
                         catch (Exception ex)
