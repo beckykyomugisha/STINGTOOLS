@@ -174,6 +174,8 @@ namespace StingTools.Core
         public static string TAG5 { get; private set; } = "ASS_TAG_5_TXT";
         /// <summary>Multi-line bottom: SYS-FUNC-PROD-SEQ</summary>
         public static string TAG6 { get; private set; } = "ASS_TAG_6_TXT";
+        /// <summary>Comprehensive descriptive narrative — AI-assembled asset profile from all available parameters.</summary>
+        public static string TAG7 { get; private set; } = "ASS_TAG_7_TXT";
 
         // ── Token presets (named token index arrays) ────────────────────
         public static Dictionary<string, int[]> TokenPresets { get; private set; } = new Dictionary<string, int[]>();
@@ -503,6 +505,8 @@ namespace StingTools.Core
                     TAG4 = ContainerGroups[0].Params[3].ParamName;
                     TAG5 = ContainerGroups[0].Params[4].ParamName;
                     TAG6 = ContainerGroups[0].Params[5].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 7)
+                        TAG7 = ContainerGroups[0].Params[6].ParamName;
                 }
 
                 // Category enum map
@@ -685,6 +689,7 @@ namespace StingTools.Core
 
             TAG1 = "ASS_TAG_1_TXT"; TAG2 = "ASS_TAG_2_TXT"; TAG3 = "ASS_TAG_3_TXT";
             TAG4 = "ASS_TAG_4_TXT"; TAG5 = "ASS_TAG_5_TXT"; TAG6 = "ASS_TAG_6_TXT";
+            TAG7 = "ASS_TAG_7_TXT";
             STATUS = "ASS_STATUS_TXT"; DETAIL_NUM = "ASS_INST_DETAIL_NUM_TXT"; MNT_TYPE = "MNT_TYPE_TXT";
 
             TokenPresets = new Dictionary<string, int[]>
@@ -804,6 +809,8 @@ namespace StingTools.Core
         /// <summary>
         /// Write all applicable containers for an element based on its category.
         /// Returns count of containers written.
+        /// TAG7 is always skipped here — it requires the narrative builder
+        /// (TagConfig.BuildTag7Narrative) rather than simple token concatenation.
         /// </summary>
         public static int WriteContainers(Element el, string[] tokenValues, string categoryName,
             bool overwrite = true, string skipParam = null)
@@ -813,6 +820,8 @@ namespace StingTools.Core
             foreach (var c in containers)
             {
                 if (c.ParamName == skipParam) continue;
+                // TAG7 uses the narrative builder, not token concatenation
+                if (c.ParamName == TAG7) continue;
                 string assembled = AssembleContainer(c, tokenValues);
                 if (!string.IsNullOrEmpty(assembled))
                 {

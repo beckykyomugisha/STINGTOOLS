@@ -810,7 +810,16 @@ namespace StingTools.Temp
 
                     // ── STEP 5: Combine into all containers via ParamRegistry ───
                     string[] tokenValues = ParamRegistry.ReadTokenValues(el);
-                    combined += ParamRegistry.WriteContainers(el, tokenValues, catName);
+                    combined += ParamRegistry.WriteContainers(el, tokenValues, catName,
+                        skipParam: ParamRegistry.TAG7);
+
+                    // Write TAG7 — comprehensive descriptive narrative
+                    string narrative = TagConfig.BuildTag7Narrative(doc, el, catName, tokenValues);
+                    if (!string.IsNullOrEmpty(narrative))
+                    {
+                        if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, narrative, overwrite: true))
+                            combined++;
+                    }
 
                     // ── STEP 6: Grid Reference ─────────────────────────────────
                     if (gridLines.Count > 0 &&

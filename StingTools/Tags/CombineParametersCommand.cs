@@ -207,6 +207,10 @@ namespace StingTools.Tags
 
                         foreach (var container in group.Params)
                         {
+                            // Skip TAG7 in normal assembly — it uses the narrative builder
+                            if (container.ParamName == ParamRegistry.TAG7)
+                                continue;
+
                             string assembled = ParamRegistry.AssembleContainer(container, tokenValues);
 
                             if (!string.IsNullOrEmpty(assembled))
@@ -218,6 +222,18 @@ namespace StingTools.Tags
                                     writesPerGroup[group.GroupCode]++;
                                 }
                             }
+                        }
+                    }
+
+                    // Write TAG7 — comprehensive descriptive narrative from all parameters
+                    string narrative = TagConfig.BuildTag7Narrative(doc, el, catName, tokenValues);
+                    if (!string.IsNullOrEmpty(narrative))
+                    {
+                        if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, narrative, overwrite: true))
+                        {
+                            totalWrites++;
+                            if (writesPerGroup.ContainsKey("UNIVERSAL"))
+                                writesPerGroup["UNIVERSAL"]++;
                         }
                     }
                 }

@@ -1822,6 +1822,443 @@ namespace StingTools.Core
         {
             return new List<string> { "Z01", "Z02", "Z03", "Z04" };
         }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // TAG7: Comprehensive Descriptive Narrative Builder
+        // ═══════════════════════════════════════════════════════════════════════
+
+        /// <summary>Full discipline name for human-readable narrative.</summary>
+        private static readonly Dictionary<string, string> DisciplineDescriptions = new Dictionary<string, string>
+        {
+            { "M", "Mechanical" }, { "E", "Electrical" }, { "P", "Plumbing" },
+            { "A", "Architectural" }, { "S", "Structural" }, { "FP", "Fire Protection" },
+            { "LV", "Low Voltage" }, { "G", "Gas" }, { "GEN", "General" },
+        };
+
+        /// <summary>Full system name for human-readable narrative.</summary>
+        private static readonly Dictionary<string, string> SystemDescriptions = new Dictionary<string, string>
+        {
+            { "HVAC", "Heating Ventilation and Air Conditioning" },
+            { "HWS", "Hot Water Supply" }, { "DHW", "Domestic Hot Water" },
+            { "DCW", "Domestic Cold Water" }, { "SAN", "Sanitary Drainage" },
+            { "RWD", "Rainwater Drainage" }, { "GAS", "Gas Supply" },
+            { "FP", "Fire Protection" }, { "FLS", "Fire Life Safety" },
+            { "LV", "Low Voltage Distribution" }, { "SEC", "Security Systems" },
+            { "ICT", "Information and Communications Technology" },
+            { "COM", "Communications" }, { "NCL", "Nurse Call Systems" },
+            { "ARC", "Architectural Fabric" }, { "STR", "Structural Elements" },
+            { "GEN", "General Services" },
+        };
+
+        /// <summary>Full function description for human-readable narrative.</summary>
+        private static readonly Dictionary<string, string> FunctionDescriptions = new Dictionary<string, string>
+        {
+            { "SUP", "Supply" }, { "RTN", "Return" }, { "EXH", "Exhaust" },
+            { "FRA", "Fresh Air Intake" }, { "HTG", "Heating" },
+            { "DHW", "Domestic Hot Water Distribution" },
+            { "DCW", "Domestic Cold Water Distribution" },
+            { "SAN", "Sanitary Waste Disposal" }, { "RWD", "Rainwater Disposal" },
+            { "GAS", "Gas Distribution" }, { "FP", "Fire Protection Suppression" },
+            { "FLS", "Fire Detection and Alarm" },
+            { "PWR", "Power Distribution" }, { "LTG", "Lighting" },
+            { "COM", "Voice and Data Communications" },
+            { "ICT", "Data Network and Infrastructure" },
+            { "NCL", "Patient Nurse Call" }, { "SEC", "Security and Access Control" },
+            { "FIT", "Finishes and Fitout" }, { "STR", "Primary Structure" },
+            { "GEN", "General Purpose" },
+        };
+
+        /// <summary>Full product type description for human-readable narrative.</summary>
+        private static readonly Dictionary<string, string> ProductDescriptions = new Dictionary<string, string>
+        {
+            // Mechanical
+            { "AHU", "Air Handling Unit" }, { "FCU", "Fan Coil Unit" },
+            { "VAV", "Variable Air Volume Box" }, { "CHR", "Chiller" },
+            { "BLR", "Boiler" }, { "PMP", "Pump" }, { "FAN", "Fan" },
+            { "HRU", "Heat Recovery Unit" }, { "SPL", "Split System Unit" },
+            { "IND", "Induction Unit" }, { "RAD", "Radiant Panel" },
+            { "DAM", "Damper" }, { "CLT", "Cooling Tower" },
+            { "VFD", "Variable Frequency Drive" },
+            // Electrical
+            { "DB", "Distribution Board" }, { "MCC", "Motor Control Centre" },
+            { "MSB", "Main Switchboard" }, { "SWB", "Switchboard" },
+            { "UPS", "Uninterruptible Power Supply" }, { "TRF", "Transformer" },
+            { "GEN", "Generator" }, { "ATS", "Automatic Transfer Switch" },
+            { "SPD", "Surge Protection Device" }, { "RCD", "Residual Current Device" },
+            { "ISO", "Isolator" }, { "SFS", "Soft Starter" }, { "BKP", "Battery Backup" },
+            // Lighting
+            { "LUM", "Luminaire" }, { "EML", "Emergency Luminaire" },
+            { "TRK", "Track Luminaire" }, { "DEC", "Decorative Luminaire" },
+            { "DWN", "Downlight" }, { "LIN", "Linear Luminaire" },
+            { "SPT", "Spotlight" }, { "WSH", "Wall Washer" },
+            { "BOL", "Bollard Light" }, { "UPL", "Uplighter" }, { "FLD", "Floodlight" },
+            // Plumbing
+            { "WC", "Water Closet" }, { "WHB", "Wash Hand Basin" },
+            { "URN", "Urinal" }, { "SNK", "Sink" }, { "SHW", "Shower" },
+            { "BTH", "Bath" }, { "DRK", "Drinking Fountain" },
+            { "CWL", "Water Cooler" }, { "TRP", "Grease Trap" },
+            { "BID", "Bidet" }, { "EWS", "Eyewash Station" }, { "MOP", "Mop Sink" },
+            // Fire
+            { "SML", "Smoke Detector" }, { "MCP", "Manual Call Point" },
+            { "BLL", "Fire Bell or Sounder" }, { "STB", "Strobe Beacon" },
+            { "HTD", "Heat Detector" }, { "FIM", "Fire Interface Module" },
+            { "SPR", "Sprinkler Head" }, { "FAD", "Fire Alarm Device" },
+            // Valves
+            { "BLV", "Balancing Valve" }, { "TRV", "Thermostatic Radiator Valve" },
+            { "IVL", "Isolation Valve" }, { "NRV", "Non-Return Valve" },
+            { "PRV", "Pressure Reducing Valve" }, { "STN", "Strainer" },
+            // Building Elements
+            { "WL", "Wall" }, { "FL", "Floor" }, { "CLG", "Ceiling" },
+            { "RF", "Roof" }, { "DR", "Door" }, { "WN", "Window" },
+            { "COL", "Column" }, { "BMG", "Beam" }, { "FND", "Foundation" },
+            { "STR", "Staircase" }, { "RMP", "Ramp" }, { "RLG", "Railing" },
+            { "FUR", "Furniture" }, { "CSW", "Casework" },
+            // MEP Elements
+            { "DCT", "Ductwork" }, { "PPE", "Pipework" },
+            { "CDT", "Conduit" }, { "CTR", "Cable Tray" },
+            { "ATR", "Air Terminal" }, { "ACC", "Accessory" },
+        };
+
+        /// <summary>
+        /// Build TAG7: a comprehensive, richly descriptive asset narrative that reads
+        /// like an intelligently composed profile of the building element. Synthesises
+        /// information from ALL available parameters — identity, spatial, dimensional,
+        /// MEP technical data, classification codes, lifecycle status, and the ISO 19650
+        /// tag reference — into a single coherent, human-readable description.
+        ///
+        /// TAG7 differs from TAG1-TAG6 by including parameters that are NOT part of
+        /// the standard 8-segment tag format: STATUS, REV, ORIGIN, PROJECT, VOLUME,
+        /// DESC, MFR, MODEL, ROOM_NAME, GRID_REF, FIRE_RATING, electrical ratings,
+        /// HVAC airflow data, plumbing flow rates, lighting performance, and more.
+        ///
+        /// The output is structured as a pipe-delimited narrative with descriptive
+        /// sections, designed to provide complete asset context at a glance.
+        /// </summary>
+        public static string BuildTag7Narrative(Document doc, Element el, string categoryName, string[] tokenValues)
+        {
+            var sections = new List<string>();
+
+            string disc = tokenValues.Length > 0 ? tokenValues[0] : "";
+            string loc  = tokenValues.Length > 1 ? tokenValues[1] : "";
+            string zone = tokenValues.Length > 2 ? tokenValues[2] : "";
+            string lvl  = tokenValues.Length > 3 ? tokenValues[3] : "";
+            string sys  = tokenValues.Length > 4 ? tokenValues[4] : "";
+            string func = tokenValues.Length > 5 ? tokenValues[5] : "";
+            string prod = tokenValues.Length > 6 ? tokenValues[6] : "";
+            string seq  = tokenValues.Length > 7 ? tokenValues[7] : "";
+
+            // ── Section 1: Asset Identity and Classification ──────────────────
+            // e.g. "Mechanical Air Handling Unit (AHU) — Carrier Model 39M-250"
+            string discDesc = DisciplineDescriptions.TryGetValue(disc, out string dd) ? dd : disc;
+            string prodDesc = ProductDescriptions.TryGetValue(prod, out string pd) ? pd : "";
+            string familyName = ParameterHelpers.GetString(el, ParamRegistry.FAMILY_NAME);
+            string typeName   = ParameterHelpers.GetString(el, ParamRegistry.TYPE_NAME);
+            string description = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+            string mfr    = ParameterHelpers.GetString(el, ParamRegistry.MFR);
+            string model  = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
+            string size   = ParameterHelpers.GetString(el, ParamRegistry.SIZE);
+
+            var identity = new System.Text.StringBuilder();
+            identity.Append(discDesc);
+            if (!string.IsNullOrEmpty(prodDesc))
+                identity.Append($" {prodDesc}");
+            else if (!string.IsNullOrEmpty(categoryName))
+                identity.Append($" {categoryName}");
+            if (!string.IsNullOrEmpty(prod))
+                identity.Append($" ({prod})");
+            if (!string.IsNullOrEmpty(mfr) || !string.IsNullOrEmpty(model))
+            {
+                identity.Append(" manufactured by ");
+                if (!string.IsNullOrEmpty(mfr))
+                    identity.Append(mfr);
+                if (!string.IsNullOrEmpty(model))
+                {
+                    if (!string.IsNullOrEmpty(mfr)) identity.Append(" ");
+                    identity.Append($"Model {model}");
+                }
+            }
+            if (!string.IsNullOrEmpty(familyName) && string.IsNullOrEmpty(mfr) && string.IsNullOrEmpty(model))
+            {
+                identity.Append($", family: {familyName}");
+                if (!string.IsNullOrEmpty(typeName))
+                    identity.Append($", type: {typeName}");
+            }
+            if (!string.IsNullOrEmpty(description))
+                identity.Append($" — {description}");
+            if (!string.IsNullOrEmpty(size))
+                identity.Append($" [{size}]");
+            sections.Add(identity.ToString().Trim());
+
+            // ── Section 2: System and Function Context ────────────────────────
+            // e.g. "Heating Ventilation and Air Conditioning Supply serving Zone Z01, Level L02 of Building BLD1"
+            string sysDesc  = SystemDescriptions.TryGetValue(sys, out string sd) ? sd : sys;
+            string funcDesc = FunctionDescriptions.TryGetValue(func, out string fd) ? fd : func;
+            var sysSection = new System.Text.StringBuilder();
+            if (!string.IsNullOrEmpty(sysDesc))
+            {
+                sysSection.Append(sysDesc);
+                if (!string.IsNullOrEmpty(funcDesc) && funcDesc != sysDesc)
+                    sysSection.Append($" {funcDesc}");
+                sysSection.Append($" serving Zone {zone}, Level {lvl} of Building {loc}");
+                sections.Add(sysSection.ToString());
+            }
+
+            // ── Section 3: Spatial Context and Room Information ────────────────
+            // e.g. "Located in Mechanical Plant Room (Room 101), Department: Engineering, Grid Reference C-5"
+            string roomName = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
+            string roomNum  = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NUM);
+            string dept     = ParameterHelpers.GetString(el, ParamRegistry.DEPT);
+            string gridRef  = ParameterHelpers.GetString(el, ParamRegistry.GRID_REF);
+            string bleRoom  = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
+            string bleNum   = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NUM);
+            // Use BLE room as fallback
+            if (string.IsNullOrEmpty(roomName) && !string.IsNullOrEmpty(bleRoom)) roomName = bleRoom;
+            if (string.IsNullOrEmpty(roomNum) && !string.IsNullOrEmpty(bleNum)) roomNum = bleNum;
+
+            if (!string.IsNullOrEmpty(roomName) || !string.IsNullOrEmpty(gridRef))
+            {
+                var spatial = new System.Text.StringBuilder("Located in ");
+                if (!string.IsNullOrEmpty(roomName))
+                {
+                    spatial.Append(roomName);
+                    if (!string.IsNullOrEmpty(roomNum))
+                        spatial.Append($" (Room {roomNum})");
+                }
+                if (!string.IsNullOrEmpty(dept))
+                    spatial.Append($", Department: {dept}");
+                if (!string.IsNullOrEmpty(gridRef))
+                    spatial.Append($", Grid Reference {gridRef}");
+                sections.Add(spatial.ToString());
+            }
+
+            // ── Section 4: Lifecycle Status, Revision, and Origin ─────────────
+            // e.g. "Status: NEW, Revision P01, Origin: NEW, Project: PRJ-001, Volume: V01"
+            string status  = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+            string rev     = ParameterHelpers.GetString(el, ParamRegistry.REV);
+            string origin  = ParameterHelpers.GetString(el, ParamRegistry.ORIGIN);
+            string project = ParameterHelpers.GetString(el, ParamRegistry.PROJECT);
+            string volume  = ParameterHelpers.GetString(el, ParamRegistry.VOLUME);
+            string mntType = ParameterHelpers.GetString(el, ParamRegistry.MNT_TYPE);
+            string detailNum = ParameterHelpers.GetString(el, ParamRegistry.DETAIL_NUM);
+
+            var lifecycle = new System.Text.StringBuilder();
+            if (!string.IsNullOrEmpty(status))
+                lifecycle.Append($"Status: {status}");
+            if (!string.IsNullOrEmpty(rev))
+            {
+                if (lifecycle.Length > 0) lifecycle.Append(", ");
+                lifecycle.Append($"Revision {rev}");
+            }
+            if (!string.IsNullOrEmpty(origin))
+            {
+                if (lifecycle.Length > 0) lifecycle.Append(", ");
+                lifecycle.Append($"Origin: {origin}");
+            }
+            if (!string.IsNullOrEmpty(project))
+            {
+                if (lifecycle.Length > 0) lifecycle.Append(", ");
+                lifecycle.Append($"Project: {project}");
+            }
+            if (!string.IsNullOrEmpty(volume))
+            {
+                if (lifecycle.Length > 0) lifecycle.Append(", ");
+                lifecycle.Append($"Volume: {volume}");
+            }
+            if (!string.IsNullOrEmpty(mntType))
+            {
+                if (lifecycle.Length > 0) lifecycle.Append(", ");
+                lifecycle.Append($"Maintenance: {mntType}");
+            }
+            if (!string.IsNullOrEmpty(detailNum))
+            {
+                if (lifecycle.Length > 0) lifecycle.Append(", ");
+                lifecycle.Append($"Detail: {detailNum}");
+            }
+            if (lifecycle.Length > 0)
+                sections.Add(lifecycle.ToString());
+
+            // ── Section 5: Discipline-Specific Technical Data ─────────────────
+            // Reads MEP performance parameters based on discipline
+            string techData = BuildDisciplineTechSection(el, disc, categoryName);
+            if (!string.IsNullOrEmpty(techData))
+                sections.Add(techData);
+
+            // ── Section 6: Dimensional Properties ────────────────────────────
+            string dimData = BuildDimensionalSection(el, categoryName);
+            if (!string.IsNullOrEmpty(dimData))
+                sections.Add(dimData);
+
+            // ── Section 7: Classification Codes ──────────────────────────────
+            // e.g. "Uniformat D3010, OmniClass 23-33 11 11, Keynote 23010"
+            string uniformat     = ParameterHelpers.GetString(el, ParamRegistry.UNIFORMAT);
+            string uniformatDesc = ParameterHelpers.GetString(el, ParamRegistry.UNIFORMAT_DESC);
+            string omniclass     = ParameterHelpers.GetString(el, ParamRegistry.OMNICLASS);
+            string keynote       = ParameterHelpers.GetString(el, ParamRegistry.KEYNOTE);
+            string typeMark      = ParameterHelpers.GetString(el, ParamRegistry.TYPE_MARK);
+
+            var classification = new System.Text.StringBuilder();
+            if (!string.IsNullOrEmpty(uniformat))
+            {
+                classification.Append($"Uniformat {uniformat}");
+                if (!string.IsNullOrEmpty(uniformatDesc))
+                    classification.Append($" ({uniformatDesc})");
+            }
+            if (!string.IsNullOrEmpty(omniclass))
+            {
+                if (classification.Length > 0) classification.Append(", ");
+                classification.Append($"OmniClass {omniclass}");
+            }
+            if (!string.IsNullOrEmpty(keynote))
+            {
+                if (classification.Length > 0) classification.Append(", ");
+                classification.Append($"Keynote {keynote}");
+            }
+            if (!string.IsNullOrEmpty(typeMark))
+            {
+                if (classification.Length > 0) classification.Append(", ");
+                classification.Append($"Type Mark {typeMark}");
+            }
+            if (classification.Length > 0)
+                sections.Add(classification.ToString());
+
+            // ── Section 8: Cost Data ─────────────────────────────────────────
+            string cost = ParameterHelpers.GetString(el, ParamRegistry.COST);
+            if (!string.IsNullOrEmpty(cost))
+                sections.Add($"Unit Cost: {cost}");
+
+            // ── Section 9: ISO 19650 Tag Reference ────────────────────────────
+            string fullTag = string.Join(Separator, tokenValues);
+            sections.Add($"ISO 19650 Tag: {fullTag}");
+
+            return string.Join(" | ", sections);
+        }
+
+        /// <summary>
+        /// Build discipline-specific technical data section for TAG7 narrative.
+        /// Reads electrical ratings, HVAC airflow, plumbing flow rates, and lighting
+        /// performance data based on the element's discipline code.
+        /// </summary>
+        private static string BuildDisciplineTechSection(Element el, string disc, string categoryName)
+        {
+            var tech = new System.Text.StringBuilder();
+
+            if (disc == "E" || categoryName == "Electrical Equipment" || categoryName == "Electrical Fixtures")
+            {
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_POWER), "Power: {0} kW");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_VOLTAGE), "Voltage: {0} V");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_CIRCUIT_NR), "Circuit: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_NAME), "Panel: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PHASES), "Phases: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_FED_FROM), "Fed from: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_MAIN_BRK), "Main Breaker: {0} A");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_WAYS), "Ways: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_IP_RATING), "IP Rating: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_LOAD), "Connected Load: {0} kW");
+            }
+            else if (categoryName == "Lighting Fixtures" || categoryName == "Lighting Devices")
+            {
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_WATTAGE), "Wattage: {0} W");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_LUMENS), "Luminous Output: {0} lm");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_EFFICACY), "Efficacy: {0} lm/W");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_LAMP_TYPE), "Lamp Type: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_CIRCUIT_NR), "Circuit: {0}");
+            }
+            else if (disc == "M" || categoryName == "Mechanical Equipment" || categoryName == "Ducts" ||
+                     categoryName == "Air Terminals" || categoryName == "Duct Fittings")
+            {
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_AIRFLOW), "Airflow: {0} L/s");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_DUCT_FLOW), "Duct Flow: {0} CFM");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_VELOCITY), "Velocity: {0} m/s");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_PRESSURE), "Pressure Drop: {0} Pa");
+            }
+            else if (disc == "P" || categoryName == "Pipes" || categoryName == "Plumbing Fixtures" ||
+                     categoryName == "Pipe Fittings")
+            {
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_FLOW), "Pipe Flow: {0} L/s");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_SIZE), "Pipe Size: {0} mm");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_VELOCITY), "Velocity: {0} m/s");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_FLOW_RATE), "Flow Rate: {0} L/s");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_LENGTH), "Pipe Length: {0} m");
+            }
+            else if (disc == "FP" || categoryName == "Sprinklers" || categoryName == "Fire Alarm Devices")
+            {
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "Fire Resistance Rating: {0} minutes");
+            }
+
+            return tech.Length > 0 ? tech.ToString() : "";
+        }
+
+        /// <summary>
+        /// Build dimensional properties section for TAG7 narrative.
+        /// Reads category-specific BLE dimensional parameters (height, width, thickness,
+        /// area, slope, fire rating) for building elements.
+        /// </summary>
+        private static string BuildDimensionalSection(Element el, string categoryName)
+        {
+            var dim = new System.Text.StringBuilder();
+
+            if (categoryName == "Walls")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_HEIGHT), "Wall Height: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_LENGTH), "Wall Length: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_THICKNESS), "Wall Thickness: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "Area: {0} m²");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "Fire Resistance: {0} min");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STRUCT_TYPE), "Structural Type: {0}");
+            }
+            else if (categoryName == "Doors")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.DOOR_WIDTH), "Door Width: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.DOOR_HEIGHT), "Door Height: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "Fire Resistance: {0} min");
+            }
+            else if (categoryName == "Windows")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_WIDTH), "Window Width: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_HEIGHT), "Window Height: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_SILL), "Sill Height: {0} mm");
+            }
+            else if (categoryName == "Floors")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.FLR_THICKNESS), "Floor Thickness: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "Area: {0} m²");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STRUCT_TYPE), "Structural Type: {0}");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "Fire Resistance: {0} min");
+            }
+            else if (categoryName == "Ceilings")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.CEILING_HEIGHT), "Ceiling Height: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "Area: {0} m²");
+            }
+            else if (categoryName == "Roofs")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ROOF_SLOPE), "Roof Slope: {0}°");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "Area: {0} m²");
+            }
+            else if (categoryName == "Stairs")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_TREAD), "Tread Depth: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_RISE), "Riser Height: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_WIDTH), "Stair Width: {0} mm");
+            }
+            else if (categoryName == "Ramps")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.RAMP_SLOPE), "Ramp Slope: {0}%");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.RAMP_WIDTH), "Ramp Width: {0} mm");
+            }
+
+            return dim.Length > 0 ? dim.ToString() : "";
+        }
+
+        /// <summary>Append a formatted value to a StringBuilder if the value is not empty.</summary>
+        private static void AppendIfNotEmpty(System.Text.StringBuilder sb, string value, string format)
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                if (sb.Length > 0) sb.Append(", ");
+                sb.Append(string.Format(format, value));
+            }
+        }
     }
 
     /// <summary>

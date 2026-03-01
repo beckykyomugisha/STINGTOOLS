@@ -146,6 +146,14 @@ namespace StingTools.Tags
                             existingTags: tagIndex,
                             collisionMode: collisionMode,
                             stats: stats);
+
+                        // Write TAG7 — comprehensive descriptive narrative
+                        string catNameTag7 = ParameterHelpers.GetCategoryName(el);
+                        string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
+                        string narrativeTag7 = TagConfig.BuildTag7Narrative(doc, el, catNameTag7, tokenValsTag7);
+                        if (!string.IsNullOrEmpty(narrativeTag7))
+                            ParameterHelpers.SetString(el, ParamRegistry.TAG7, narrativeTag7,
+                                overwrite: collisionMode == TagCollisionMode.Overwrite);
                     }
                     catch (Exception ex)
                     {
@@ -261,6 +269,13 @@ namespace StingTools.Tags
                         // Tag with collision detection and stats tracking
                         TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                             existingTags: tagIndex, stats: stats);
+
+                        // Write TAG7 — comprehensive descriptive narrative
+                        string catNameTag7 = ParameterHelpers.GetCategoryName(el);
+                        string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
+                        string narrativeTag7 = TagConfig.BuildTag7Narrative(doc, el, catNameTag7, tokenValsTag7);
+                        if (!string.IsNullOrEmpty(narrativeTag7))
+                            ParameterHelpers.SetString(el, ParamRegistry.TAG7, narrativeTag7, overwrite: false);
                     }
                     catch (Exception ex)
                     {

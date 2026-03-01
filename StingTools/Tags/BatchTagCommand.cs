@@ -129,6 +129,13 @@ namespace StingTools.Tags
                             existingTags: tagIndex,
                             collisionMode: collisionMode,
                             stats: stats);
+
+                        // Write TAG7 — comprehensive descriptive narrative
+                        string catName = ParameterHelpers.GetCategoryName(el);
+                        string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                        string narrative = TagConfig.BuildTag7Narrative(doc, el, catName, tokenVals);
+                        if (!string.IsNullOrEmpty(narrative))
+                            ParameterHelpers.SetString(el, ParamRegistry.TAG7, narrative, overwrite: overwriteMode);
                     }
                     catch (Exception ex)
                     {

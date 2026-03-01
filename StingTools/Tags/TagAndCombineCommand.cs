@@ -214,7 +214,16 @@ namespace StingTools.Tags
 
                         // Step 7: Combine into ALL containers via ParamRegistry (single source of truth)
                         string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                        combined += ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
+                        combined += ParamRegistry.WriteContainers(el, tokenVals, catName,
+                            overwrite: true, skipParam: ParamRegistry.TAG7);
+
+                        // Step 7b: Write TAG7 — comprehensive descriptive narrative from all parameters
+                        string narrative = TagConfig.BuildTag7Narrative(doc, el, catName, tokenVals);
+                        if (!string.IsNullOrEmpty(narrative))
+                        {
+                            if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, narrative, overwrite: true))
+                                combined++;
+                        }
                     }
                     catch (Exception ex)
                     {

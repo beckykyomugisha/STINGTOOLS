@@ -98,6 +98,13 @@ namespace StingTools.Organise
                         existingTags: tagIndex,
                         collisionMode: collisionMode,
                         stats: stats);
+
+                    // Write TAG7 narrative
+                    string catTag7 = ParameterHelpers.GetCategoryName(elem);
+                    string[] tVals = ParamRegistry.ReadTokenValues(elem);
+                    string narr = TagConfig.BuildTag7Narrative(doc, elem, catTag7, tVals);
+                    if (!string.IsNullOrEmpty(narr))
+                        ParameterHelpers.SetString(elem, ParamRegistry.TAG7, narr, overwrite: true);
                 }
                 tx.Commit();
             }
@@ -167,6 +174,13 @@ namespace StingTools.Organise
                         existingTags: tagIndex,
                         collisionMode: TagCollisionMode.Overwrite))
                         retagged++;
+
+                    // Rebuild TAG7 narrative with updated tokens
+                    string catRT = ParameterHelpers.GetCategoryName(elem);
+                    string[] tvRT = ParamRegistry.ReadTokenValues(elem);
+                    string narrRT = TagConfig.BuildTag7Narrative(doc, elem, catRT, tvRT);
+                    if (!string.IsNullOrEmpty(narrRT))
+                        ParameterHelpers.SetString(elem, ParamRegistry.TAG7, narrRT, overwrite: true);
                 }
                 tx.Commit();
             }
@@ -279,13 +293,18 @@ namespace StingTools.Organise
                         ParameterHelpers.SetString(elem, ParamRegistry.SEQ, newSeq, overwrite: true);
                         ParameterHelpers.SetString(elem, ParamRegistry.TAG1, newTag, overwrite: true);
 
-                        // Update containers with the new tag
+                        // Update containers and TAG7 with the new tag
                         try
                         {
                             string catName = ParameterHelpers.GetCategoryName(elem);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
                             if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                            {
                                 ParamRegistry.WriteContainers(elem, tokenVals, catName, overwrite: true);
+                                string narr = TagConfig.BuildTag7Narrative(doc, elem, catName, tokenVals);
+                                if (!string.IsNullOrEmpty(narr))
+                                    ParameterHelpers.SetString(elem, ParamRegistry.TAG7, narr, overwrite: true);
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -451,13 +470,18 @@ namespace StingTools.Organise
                             disc, loc, zone, lvl, sys, func, prod, seqStr);
                         ParameterHelpers.SetString(elem, ParamRegistry.TAG1, tag, overwrite: true);
 
-                        // Update containers with the new tag
+                        // Update containers and TAG7 with the new tag
                         try
                         {
                             string catName = ParameterHelpers.GetCategoryName(elem);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
                             if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                            {
                                 ParamRegistry.WriteContainers(elem, tokenVals, catName, overwrite: true);
+                                string narr = TagConfig.BuildTag7Narrative(doc, elem, catName, tokenVals);
+                                if (!string.IsNullOrEmpty(narr))
+                                    ParameterHelpers.SetString(elem, ParamRegistry.TAG7, narr, overwrite: true);
+                            }
                         }
                         catch (Exception ex)
                         {
