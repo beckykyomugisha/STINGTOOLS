@@ -1,30 +1,43 @@
 {
   "version": "1.0",
   "description": "Master label specification for STING seed tag families. Maps directly to Revit Edit Label dialog columns (Prefix, Suffix, Spaces, Break). The 'scheduled text words' — static natural language text that wraps around parameter values to produce corporate-standard presentation.",
-
   "presentation_modes": {
     "Compact": {
-      "state_1": true, "state_2": false, "state_3": false, "warnings": false,
+      "state_1": true,
+      "state_2": false,
+      "state_3": false,
+      "warnings": false,
       "description": "Basic identification — tag code + type name only"
     },
     "Technical": {
-      "state_1": true, "state_2": true, "state_3": false, "warnings": true,
+      "state_1": true,
+      "state_2": true,
+      "state_3": false,
+      "warnings": true,
       "description": "Engineering documentation — key properties + threshold warnings"
     },
     "Full_Specification": {
-      "state_1": true, "state_2": true, "state_3": true, "warnings": true,
+      "state_1": true,
+      "state_2": true,
+      "state_3": true,
+      "warnings": true,
       "description": "Complete specification — all tiers + paragraph + warnings"
     },
     "Presentation": {
-      "state_1": true, "state_2": true, "state_3": false, "warnings": false,
+      "state_1": true,
+      "state_2": true,
+      "state_3": false,
+      "warnings": false,
       "description": "Client presentation — clean tags without warning text"
     },
     "BOQ": {
-      "state_1": true, "state_2": true, "state_3": false, "warnings": false,
+      "state_1": true,
+      "state_2": true,
+      "state_3": false,
+      "warnings": false,
       "description": "Bill of Quantities — identity + quantities for cost schedules"
     }
   },
-
   "calculated_value_templates": {
     "cv_show_tier2": {
       "name": "Show Tier 2",
@@ -42,767 +55,3570 @@
       "description": "Gates warning text — visible when warnings enabled"
     }
   },
-
   "parameter_text": {
     "_comment": "Global prefix/suffix definitions. These are the 'scheduled text words' for Edit Label.",
-
-    "ASS_TAG_1_TXT":        { "prefix": "",              "suffix": "",          "label": "Full Tag (8-segment)" },
-    "ASS_TAG_2_TXT":        { "prefix": "",              "suffix": "",          "label": "Short Tag (DISC-PROD-SEQ)" },
-    "ASS_TAG_4_TXT":        { "prefix": "",              "suffix": "",          "label": "System Tag (SYS-FUNC)" },
-    "ASS_TAG_5_TXT":        { "prefix": "",              "suffix": "",          "label": "Line 1 (DISC-LOC-ZONE-LVL)" },
-    "ASS_TAG_6_TXT":        { "prefix": "",              "suffix": "",          "label": "Line 2 (SYS-FUNC-PROD-SEQ)" },
-    "ASS_DESCRIPTION_TXT":  { "prefix": "",              "suffix": "",          "label": "Description" },
-
-    "BLE_WALL_FUNCTION_TXT":              { "prefix": "",          "suffix": "",          "label": "Wall Function" },
-    "BLE_WALL_THICKNESS_MM":              { "prefix": "",          "suffix": " mm",       "label": "Wall Thickness" },
-    "BLE_WALL_PRIMARY_WALL_MAT_TXT":      { "prefix": "Material: ","suffix": "",          "label": "Primary Material" },
-    "BLE_WALL_TYPE_CLASSIFICATION_TXT":   { "prefix": "Type: ",    "suffix": "",          "label": "Wall Type" },
-    "BLE_WALL_CST_METHOD_TXT":            { "prefix": "",          "suffix": "",          "label": "Construction Method" },
-    "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR": { "prefix": "STC: ", "suffix": " dB",  "label": "Sound Transmission" },
-
-    "BLE_FLR_THICKNESS_MM":             { "prefix": "",          "suffix": " mm",       "label": "Floor Thickness" },
-    "BLE_FLR_FINISH_TXT":               { "prefix": "Finish: ",  "suffix": "",          "label": "Floor Finish" },
-    "BLE_FLR_LD_CAP_KPA":        { "prefix": "Load: ",    "suffix": " kPa",      "label": "Load Capacity" },
-
-    "BLE_CEILING_HEIGHT_MM":                 { "prefix": "",          "suffix": " mm",       "label": "Ceiling Height" },
-    "BLE_CEILING_SYSTEM_TXT":                  { "prefix": "",          "suffix": "",          "label": "Ceiling Type" },
-
-    "BLE_ROOF_SLOPE_DEG":                 { "prefix": "Slope: ",   "suffix": "°",         "label": "Roof Slope" },
-    "BLE_ROOF_COVERING_MAT_TXT":              { "prefix": "",          "suffix": "",          "label": "Roof Covering" },
-
-    "BLE_DOOR_WIDTH_MM":                  { "prefix": "",          "suffix": "",          "label": "Door Width" },
-    "BLE_DOOR_HEIGHT_MM":                 { "prefix": " x ",       "suffix": " mm",       "label": "Door Height" },
-    "BLE_DOOR_MAT_TXT":              { "prefix": "Material: ","suffix": "",          "label": "Door Material" },
-    "BLE_DOOR_FIRE_RATING_TXT":           { "prefix": "FRR: ",     "suffix": "",          "label": "Door Fire Rating" },
-    "BLE_DOOR_HARDWARE_SPECIFICATION_TXT":{ "prefix": "Hardware: ","suffix": "",          "label": "Door Hardware" },
-
-    "BLE_WINDOW_WIDTH_MM":                { "prefix": "",          "suffix": "",          "label": "Window Width" },
-    "BLE_WINDOW_HEIGHT_MM":               { "prefix": " x ",       "suffix": " mm",       "label": "Window Height" },
-    "BLE_WINDOW_U_VALUE_W_M_2K_NR":       { "prefix": "U=",        "suffix": " W/m²K",   "label": "Window U-Value" },
-    "BLE_WINDOW_FRAME_MAT_TXT":               { "prefix": "Frame: ",   "suffix": "",          "label": "Window Frame" },
-    "BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT":             { "prefix": "Glazing: ", "suffix": "",          "label": "Window Glazing" },
-
-    "BLE_STAIR_RISE_MM":                  { "prefix": "Rise: ",    "suffix": " mm",       "label": "Stair Rise" },
-    "BLE_STAIR_GOING_MM":                 { "prefix": "Going: ",   "suffix": " mm",       "label": "Stair Going" },
-    "BLE_STAIR_WIDTH_MM":                 { "prefix": "Width: ",   "suffix": " mm",       "label": "Stair Width" },
-
-    "BLE_RAMP_SLOPE_PCT":           { "prefix": "Slope: ",   "suffix": "",          "label": "Ramp Slope" },
-    "BLE_RAMP_WIDTH_MM":                  { "prefix": "Width: ",   "suffix": " mm",       "label": "Ramp Width" },
-
-    "BLE_STRUCT_CONCRETE_GRADE_TXT":      { "prefix": "Grade: ",   "suffix": "",          "label": "Concrete Grade" },
-    "BLE_STRUCT_STEEL_SECTION_TXT":       { "prefix": "",          "suffix": "",          "label": "Steel Section" },
-    "BLE_STRUCT_SPAN_M":                  { "prefix": "Span: ",    "suffix": " m",        "label": "Structural Span" },
-    "BLE_STRUCT_DEPTH_MM":                { "prefix": "Depth: ",   "suffix": " mm",       "label": "Member Depth" },
-    "BLE_STRUCT_CAPACITY_KN":             { "prefix": "Capacity: ","suffix": " kN",       "label": "Load Capacity" },
-
-    "PER_THERM_U_VALUE_W_M2K_NR":         { "prefix": "U=",        "suffix": " W/m²K",   "label": "Thermal U-Value" },
-    "PER_THERM_R_VALUE_M2K_W":             { "prefix": "R=",        "suffix": " m²K/W",   "label": "Thermal R-Value" },
-    "PER_THERM_CONDENSATION_RISK_TXT":     { "prefix": "Condensation: ", "suffix": "",     "label": "Condensation Risk" },
-    "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN": { "prefix": "FRR: ", "suffix": " min",  "label": "Fire Resistance" },
-
-    "ELC_PWR_KW":                         { "prefix": "Power: ",   "suffix": " kW",       "label": "Electrical Power" },
-    "ELC_VLT_PRIMARY_RATING_V":           { "prefix": "",          "suffix": " V",        "label": "Rated Voltage" },
-    "ELC_CKT_CUR_A":                      { "prefix": "",          "suffix": " A",        "label": "Current" },
-    "ELC_CKT_NR":                         { "prefix": "Ckt: ",     "suffix": "",          "label": "Circuit Number" },
-    "ELC_PNL_DESIGNATION_NAME_TXT":       { "prefix": "Panel: ",   "suffix": "",          "label": "Panel Name" },
-    "ELC_PNL_RATED_KW":                   { "prefix": "Rated: ",   "suffix": " kW",       "label": "Panel Rating" },
-    "ELC_CDT_SZ_MM":                      { "prefix": "Conduit: ", "suffix": " mm",       "label": "Conduit Size" },
-    "ELC_VLT_DROP_PCT":                   { "prefix": "VD: ",      "suffix": "%",         "label": "Voltage Drop" },
-
-    "LTG_FIX_LMP_WATTAGE_W":             { "prefix": "",          "suffix": " W",        "label": "Lamp Wattage" },
-    "CST_FIX_LUMEN_OUTPUT_LM":            { "prefix": "",          "suffix": " lm",       "label": "Luminous Flux" },
-    "LTG_EFFICACY_LM_W":                  { "prefix": "",          "suffix": " lm/W",     "label": "Luminous Efficacy" },
-    "LTG_FIX_TYPE_CLASSIFICATION_TXT":    { "prefix": "",          "suffix": "",          "label": "Fixture Type" },
-    "LTG_CLR_TEMP_K":                     { "prefix": "",          "suffix": " K",        "label": "Colour Temperature" },
-
-    "HVC_DCT_FLW_CFM":                    { "prefix": "Flow: ",    "suffix": " CFM",      "label": "Airflow" },
-    "HVC_VEL_MPS":                        { "prefix": "Vel: ",     "suffix": " m/s",      "label": "Velocity" },
-    "HVC_PIPE_PRESSURE_KPA":              { "prefix": "",          "suffix": " kPa",      "label": "Pressure" },
-    "HVC_DCT_PROPERTY_TXT":               { "prefix": "",          "suffix": "",          "label": "Duct Size" },
-    "HVC_CAP_KW":                         { "prefix": "Cooling: ", "suffix": " kW",       "label": "Cooling Capacity" },
-    "HVC_PWR_KW":                         { "prefix": "Heating: ", "suffix": " kW",       "label": "Heating/Motor Power" },
-
-    "PLM_PPE_SZ_MM":                      { "prefix": "DN",        "suffix": "",          "label": "Pipe Size" },
-    "PLM_PPE_FLW_LPS":                    { "prefix": "Flow: ",    "suffix": " L/s",      "label": "Flow Rate" },
-    "PLM_VEL_MPS":                        { "prefix": "Vel: ",     "suffix": " m/s",      "label": "Pipe Velocity" },
-    "PLM_PSR_KPA":                        { "prefix": "",          "suffix": " kPa",      "label": "Pressure" },
-
-    "FLS_SFTY_DEV_TYPE_TXT":              { "prefix": "",          "suffix": "",          "label": "Device Type" },
-    "FLS_SFTY_DEV_ZONE_TXT":              { "prefix": "Zone: ",    "suffix": "",          "label": "Fire Zone" },
-    "FLS_SFTY_COVERAGE_AREA_SQ_M":        { "prefix": "Coverage: ","suffix": " m²",       "label": "Sprinkler Coverage" },
-    "FLS_SFTY_K_FACTOR_NR":               { "prefix": "K=",        "suffix": "",          "label": "K-Factor" },
-
-    "COM_C_PROTOCOL_TXT":                 { "prefix": "",          "suffix": "",          "label": "Protocol" },
-    "COM_C_NETWORK_ADDRESS_TXT":          { "prefix": "IP: ",      "suffix": "",          "label": "Network Address" },
-    "ICT_OUTLET_TYPE_TXT":                { "prefix": "",          "suffix": "",          "label": "Outlet Type" },
-    "SEC_DEV_ZONE_TXT":                   { "prefix": "Zone: ",    "suffix": "",          "label": "Security Zone" },
-    "NCL_ZONE_TXT":                       { "prefix": "Zone: ",    "suffix": "",          "label": "Nurse Call Zone" },
-
-    "ASS_MANUFACTURER_TXT":               { "prefix": "Mfr: ",     "suffix": "",          "label": "Manufacturer" },
-    "ASS_MODEL_NR_TXT":                   { "prefix": "Model: ",   "suffix": "",          "label": "Model Number" },
-    "ASS_CST_UNIT_PRICE_UGX_NR":          { "prefix": "Rate: ",    "suffix": " UGX",      "label": "Unit Price" },
-
-    "PER_SUST_RECYCLED_CONTENT_PCT":      { "prefix": "Recycled: ","suffix": "%",         "label": "Recycled Content" },
-    "PER_SUST_EMBODIED_CARBON_KG":        { "prefix": "",          "suffix": " kgCO₂e",   "label": "Embodied Carbon" }
+    "ASS_TAG_1_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Full Tag (8-segment)"
+    },
+    "ASS_TAG_2_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Short Tag (FUNC-PROD-SEQ)",
+      "format": {
+        "tier_2": "underline",
+        "tier_3": "bold underline"
+      },
+      "note": "Heading line in TAG7 — underlined in State 2, bold+underlined in State 3. Style controlled via batch command."
+    },
+    "ASS_TAG_4_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "System Tag (SYS-FUNC)"
+    },
+    "ASS_TAG_5_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Line 1 (DISC-LOC-ZONE-LVL)"
+    },
+    "ASS_TAG_6_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Line 2 (SYS-FUNC-PROD-SEQ)"
+    },
+    "ASS_DESCRIPTION_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Description"
+    },
+    "BLE_WALL_FUNCTION_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Wall Function"
+    },
+    "BLE_WALL_THICKNESS_MM": {
+      "prefix": "",
+      "suffix": " mm",
+      "label": "Wall Thickness"
+    },
+    "BLE_WALL_PRIMARY_WALL_MAT_TXT": {
+      "prefix": "Material: ",
+      "suffix": "",
+      "label": "Primary Material"
+    },
+    "BLE_WALL_TYPE_CLASSIFICATION_TXT": {
+      "prefix": "Type: ",
+      "suffix": "",
+      "label": "Wall Type"
+    },
+    "BLE_WALL_CST_METHOD_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Construction Method"
+    },
+    "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR": {
+      "prefix": "STC: ",
+      "suffix": " dB",
+      "label": "Sound Transmission"
+    },
+    "BLE_FLR_THICKNESS_MM": {
+      "prefix": "",
+      "suffix": " mm",
+      "label": "Floor Thickness"
+    },
+    "BLE_FLR_FINISH_TXT": {
+      "prefix": "Finish: ",
+      "suffix": "",
+      "label": "Floor Finish"
+    },
+    "BLE_FLR_LD_CAP_KPA": {
+      "prefix": "Load: ",
+      "suffix": " kPa",
+      "label": "Load Capacity"
+    },
+    "BLE_CEILING_HEIGHT_MM": {
+      "prefix": "",
+      "suffix": " mm",
+      "label": "Ceiling Height"
+    },
+    "BLE_CEILING_SYSTEM_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Ceiling Type"
+    },
+    "BLE_ROOF_SLOPE_DEG": {
+      "prefix": "Slope: ",
+      "suffix": "°",
+      "label": "Roof Slope"
+    },
+    "BLE_ROOF_COVERING_MAT_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Roof Covering"
+    },
+    "BLE_DOOR_WIDTH_MM": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Door Width"
+    },
+    "BLE_DOOR_HEIGHT_MM": {
+      "prefix": " x ",
+      "suffix": " mm",
+      "label": "Door Height"
+    },
+    "BLE_DOOR_MAT_TXT": {
+      "prefix": "Material: ",
+      "suffix": "",
+      "label": "Door Material"
+    },
+    "BLE_DOOR_HARDWARE_SPECIFICATION_TXT": {
+      "prefix": "Hardware: ",
+      "suffix": "",
+      "label": "Door Hardware"
+    },
+    "BLE_WINDOW_WIDTH_MM": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Window Width"
+    },
+    "BLE_WINDOW_HEIGHT_MM": {
+      "prefix": " x ",
+      "suffix": " mm",
+      "label": "Window Height"
+    },
+    "BLE_WINDOW_U_VALUE_W_M_2K_NR": {
+      "prefix": "U=",
+      "suffix": " W/m²K",
+      "label": "Window U-Value"
+    },
+    "BLE_WINDOW_FRAME_MAT_TXT": {
+      "prefix": "Frame: ",
+      "suffix": "",
+      "label": "Window Frame"
+    },
+    "BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT": {
+      "prefix": "Glazing: ",
+      "suffix": "",
+      "label": "Window Glazing"
+    },
+    "BLE_STAIR_RISE_MM": {
+      "prefix": "Rise: ",
+      "suffix": " mm",
+      "label": "Stair Rise"
+    },
+    "BLE_STAIR_GOING_MM": {
+      "prefix": "Going: ",
+      "suffix": " mm",
+      "label": "Stair Going"
+    },
+    "BLE_STAIR_WIDTH_MM": {
+      "prefix": "Width: ",
+      "suffix": " mm",
+      "label": "Stair Width"
+    },
+    "BLE_RAMP_SLOPE_PCT": {
+      "prefix": "Slope: ",
+      "suffix": "",
+      "label": "Ramp Slope"
+    },
+    "BLE_RAMP_WIDTH_MM": {
+      "prefix": "Width: ",
+      "suffix": " mm",
+      "label": "Ramp Width"
+    },
+    "BLE_STRUCT_CONCRETE_GRADE_TXT": {
+      "prefix": "Grade: ",
+      "suffix": "",
+      "label": "Concrete Grade"
+    },
+    "BLE_STRUCT_COLUMN_SZ_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Column Size"
+    },
+    "BLE_STRUCT_BEAM_SZ_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Beam Size"
+    },
+    "BLE_STRUCT_MAT_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Structural Material"
+    },
+    "BLE_STRUCT_REINFORCEMENT_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Reinforcement"
+    },
+    "BLE_STRUCT_LD_CAP_KN_NR": {
+      "prefix": "Capacity: ",
+      "suffix": " kN",
+      "label": "Load Capacity"
+    },
+    "PER_THERM_U_VALUE_W_M2K_NR": {
+      "prefix": "U=",
+      "suffix": " W/m²K",
+      "label": "Thermal U-Value"
+    },
+    "PER_THERM_R_VALUE_M2K_W": {
+      "prefix": "R=",
+      "suffix": " m²K/W",
+      "label": "Thermal R-Value"
+    },
+    "PER_THERM_CONDENSATION_RISK_TXT": {
+      "prefix": "Condensation: ",
+      "suffix": "",
+      "label": "Condensation Risk"
+    },
+    "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN": {
+      "prefix": "FRR: ",
+      "suffix": " min",
+      "label": "Fire Resistance"
+    },
+    "ELC_PWR_KW": {
+      "prefix": "Power: ",
+      "suffix": " kW",
+      "label": "Electrical Power"
+    },
+    "ELC_VLT_PRIMARY_RATING_V": {
+      "prefix": "",
+      "suffix": " V",
+      "label": "Rated Voltage"
+    },
+    "ELC_CKT_CUR_A": {
+      "prefix": "",
+      "suffix": " A",
+      "label": "Current"
+    },
+    "ELC_CKT_NR": {
+      "prefix": "Ckt: ",
+      "suffix": "",
+      "label": "Circuit Number"
+    },
+    "ELC_PNL_DESIGNATION_NAME_TXT": {
+      "prefix": "Panel: ",
+      "suffix": "",
+      "label": "Panel Name"
+    },
+    "ELC_PNL_RATED_KW": {
+      "prefix": "Rated: ",
+      "suffix": " kW",
+      "label": "Panel Rating"
+    },
+    "ELC_CDT_SZ_MM": {
+      "prefix": "Conduit: ",
+      "suffix": " mm",
+      "label": "Conduit Size"
+    },
+    "ELC_VLT_DROP_PCT": {
+      "prefix": "VD: ",
+      "suffix": "%",
+      "label": "Voltage Drop"
+    },
+    "LTG_FIX_LMP_WATTAGE_W": {
+      "prefix": "",
+      "suffix": " W",
+      "label": "Lamp Wattage"
+    },
+    "CST_FIX_LUMEN_OUTPUT_LM": {
+      "prefix": "",
+      "suffix": " lm",
+      "label": "Luminous Flux"
+    },
+    "LTG_EFFICACY_LM_W": {
+      "prefix": "",
+      "suffix": " lm/W",
+      "label": "Luminous Efficacy"
+    },
+    "LTG_FIX_TYPE_CLASSIFICATION_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Fixture Type"
+    },
+    "LTG_CLR_TEMP_K": {
+      "prefix": "",
+      "suffix": " K",
+      "label": "Colour Temperature"
+    },
+    "HVC_DCT_FLW_CFM": {
+      "prefix": "Flow: ",
+      "suffix": " CFM",
+      "label": "Airflow"
+    },
+    "HVC_VEL_MPS": {
+      "prefix": "Vel: ",
+      "suffix": " m/s",
+      "label": "Velocity"
+    },
+    "HVC_PIPE_PRESSURE_KPA": {
+      "prefix": "",
+      "suffix": " kPa",
+      "label": "Pressure"
+    },
+    "HVC_DCT_PROPERTY_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Duct Size"
+    },
+    "HVC_CAP_KW": {
+      "prefix": "Cooling: ",
+      "suffix": " kW",
+      "label": "Cooling Capacity"
+    },
+    "HVC_PWR_KW": {
+      "prefix": "Heating: ",
+      "suffix": " kW",
+      "label": "Heating/Motor Power"
+    },
+    "PLM_PPE_SZ_MM": {
+      "prefix": "DN",
+      "suffix": "",
+      "label": "Pipe Size"
+    },
+    "PLM_PPE_FLW_LPS": {
+      "prefix": "Flow: ",
+      "suffix": " L/s",
+      "label": "Flow Rate"
+    },
+    "PLM_VEL_MPS": {
+      "prefix": "Vel: ",
+      "suffix": " m/s",
+      "label": "Pipe Velocity"
+    },
+    "PLM_PSR_KPA": {
+      "prefix": "",
+      "suffix": " kPa",
+      "label": "Pressure"
+    },
+    "FLS_SFTY_DEV_TYPE_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Device Type"
+    },
+    "FLS_SFTY_DEV_ZONE_TXT": {
+      "prefix": "Zone: ",
+      "suffix": "",
+      "label": "Fire Zone"
+    },
+    "FLS_SFTY_COVERAGE_AREA_SQ_M": {
+      "prefix": "Coverage: ",
+      "suffix": " m²",
+      "label": "Sprinkler Coverage"
+    },
+    "FLS_SFTY_K_FACTOR_NR": {
+      "prefix": "K=",
+      "suffix": "",
+      "label": "K-Factor"
+    },
+    "COM_C_PROTOCOL_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Protocol"
+    },
+    "COM_C_NETWORK_ADDRESS_TXT": {
+      "prefix": "IP: ",
+      "suffix": "",
+      "label": "Network Address"
+    },
+    "ICT_OUTLET_TYPE_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Outlet Type"
+    },
+    "SEC_DEV_ZONE_TXT": {
+      "prefix": "Zone: ",
+      "suffix": "",
+      "label": "Security Zone"
+    },
+    "NCL_ZONE_TXT": {
+      "prefix": "Zone: ",
+      "suffix": "",
+      "label": "Nurse Call Zone"
+    },
+    "ASS_MANUFACTURER_TXT": {
+      "prefix": "Mfr: ",
+      "suffix": "",
+      "label": "Manufacturer"
+    },
+    "ASS_MODEL_NR_TXT": {
+      "prefix": "Model: ",
+      "suffix": "",
+      "label": "Model Number"
+    },
+    "ASS_CST_UNIT_PRICE_UGX_NR": {
+      "prefix": "Rate: ",
+      "suffix": " UGX",
+      "label": "Unit Price"
+    },
+    "PER_SUST_RECYCLED_CONTENT_PCT": {
+      "prefix": "Recycled: ",
+      "suffix": "%",
+      "label": "Recycled Content"
+    },
+    "PER_SUST_EMBODIED_CARBON_KG": {
+      "prefix": "",
+      "suffix": " kgCO₂e",
+      "label": "Embodied Carbon"
+    },
+    "_paragraph_comment": "TAG7 paragraph containers — tier_3 natural-language specification paragraphs. No prefix/suffix needed as content is a pre-assembled descriptive statement from the formula engine.",
+    "ARCH_TAG_7_PARA_WALL_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Wall Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_FLOOR_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Floor Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_CEIL_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Ceiling Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_ROOF_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Roof Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_DOOR_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Door Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_WIN_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Window Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_STAIR_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Stair Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_RAMP_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Ramp Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_ROOM_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Room Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_FACADE_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Facade Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_CASEWORK_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Casework Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_FURNITURE_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Furniture Specification Paragraph"
+    },
+    "STR_TAG_7_PARA_COL_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Column Specification Paragraph"
+    },
+    "STR_TAG_7_PARA_BEAM_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Beam Specification Paragraph"
+    },
+    "STR_TAG_7_PARA_FDN_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Foundation Specification Paragraph"
+    },
+    "HVC_TAG_7_PARA_SPEC_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "HVAC Equipment Specification Paragraph"
+    },
+    "HVC_TAG_7_PARA_DUCT_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Duct Specification Paragraph"
+    },
+    "HVC_TAG_7_PARA_DCTACC_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Duct Accessory Specification Paragraph"
+    },
+    "HVC_TAG_7_PARA_AT_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Air Terminal Specification Paragraph"
+    },
+    "HVC_TAG_7_PARA_FLEXDUCT_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Flex Duct Specification Paragraph"
+    },
+    "ELC_TAG_7_PARA_PANEL_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Distribution Board Specification Paragraph"
+    },
+    "ELC_TAG_7_PARA_CIRCUIT_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Circuit Specification Paragraph"
+    },
+    "ELC_TAG_7_PARA_CONDUIT_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Conduit Specification Paragraph"
+    },
+    "ELC_TAG_7_PARA_TRAY_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Cable Tray Specification Paragraph"
+    },
+    "LTG_TAG_7_PARA_SPEC_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Lighting Specification Paragraph"
+    },
+    "PLM_TAG_7_PARA_PIPE_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Pipe Specification Paragraph"
+    },
+    "PLM_TAG_7_PARA_FIXTURE_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Plumbing Fixture Specification Paragraph"
+    },
+    "PLM_TAG_7_PARA_EQUIPMENT_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Plumbing Equipment Specification Paragraph"
+    },
+    "PLM_TAG_7_PARA_PIPEACC_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Pipe Accessory Specification Paragraph"
+    },
+    "FLS_TAG_7_PARA_FA_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Fire Alarm Specification Paragraph"
+    },
+    "FLS_TAG_7_PARA_SPR_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Sprinkler Specification Paragraph"
+    },
+    "COM_TAG_7_PARA_BMS_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "BMS Device Specification Paragraph"
+    },
+    "ICT_TAG_7_PARA_DATA_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Data Device Specification Paragraph"
+    },
+    "NCL_TAG_7_PARA_NURSECALL_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Nurse Call Specification Paragraph"
+    },
+    "SEC_TAG_7_PARA_SECURITY_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Security Device Specification Paragraph"
+    },
+    "ASS_TAG_7_PARA_EQUIPMENT_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Equipment Specification Paragraph"
+    }
   },
-
   "category_labels": {
     "_comment": "Per-category label definitions. tier_1 = always visible (Compact+), tier_2 = Standard+ (gated by TAG_PARA_STATE_2_BOOL), tier_3 = Comprehensive (gated by TAG_PARA_STATE_3_BOOL). Each entry maps directly to one row in Revit Edit Label. 'cv' prefix means use a calculated value for visibility gating.",
-
     "Walls": {
       "family_name": "STING - Wall Tag",
       "paragraph_container": "ARCH_TAG_7_PARA_WALL_TXT",
+      "paragraph_template": "This {function} wall is {thickness} mm thick, constructed using {method} with {material} as the primary material. The wall is classified as {type} and achieves a thermal transmittance of {U-value} with a thermal resistance of {R-value}, assessed as {condensation} condensation risk. It provides {FRR} minutes of fire resistance with an acoustic rating of {STC} decibels. The assembly incorporates {recycled}% recycled content with an embodied carbon of {carbon} per unit. Internal finish is {int_finish} and external finish is {ext_finish}, with {moisture} moisture barrier provision. Compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",         "spaces": 0, "break": true,  "note": "Full 8-segment tag" },
-        { "param": "BLE_WALL_FUNCTION_TXT",  "spaces": 0, "break": false, "note": "Wall function" },
-        { "param": "BLE_WALL_THICKNESS_MM",  "spaces": 1, "break": true,  "prefix_override": "[", "suffix_override": " mm]", "note": "Thickness in brackets" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Full 8-segment tag"
+        },
+        {
+          "param": "BLE_WALL_FUNCTION_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Wall function"
+        },
+        {
+          "param": "BLE_WALL_THICKNESS_MM",
+          "spaces": 1,
+          "break": true,
+          "prefix_override": "[",
+          "suffix_override": " mm]",
+          "note": "Thickness in brackets"
+        }
       ],
       "tier_2": [
-        { "param": "BLE_WALL_PRIMARY_WALL_MAT_TXT", "spaces": 0, "break": true,  "note": "Primary material" },
-        { "param": "PER_THERM_U_VALUE_W_M2K_NR",    "spaces": 0, "break": false, "note": "Thermal transmittance" },
-        { "param": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN", "spaces": 0, "break": false, "prefix_override": " | FRR: ", "note": "Fire resistance" },
-        { "param": "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR","spaces": 0, "break": true,  "prefix_override": " | STC: ", "suffix_override": " dB", "note": "Acoustic" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "BLE_WALL_FUNCTION_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Wall function"
+        },
+        {
+          "param": "BLE_WALL_TYPE_CLASSIFICATION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Classification"
+        },
+        {
+          "param": "BLE_WALL_PRIMARY_WALL_MAT_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Primary material"
+        },
+        {
+          "param": "BLE_WALL_CST_METHOD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Construction method"
+        },
+        {
+          "param": "PER_THERM_U_VALUE_W_M2K_NR",
+          "spaces": 0,
+          "break": false,
+          "note": "Thermal transmittance"
+        },
+        {
+          "param": "PER_THERM_R_VALUE_M2K_W",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " | R=",
+          "note": "Thermal resistance"
+        },
+        {
+          "param": "PER_THERM_CONDENSATION_RISK_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Condensation risk"
+        },
+        {
+          "param": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "FRR: ",
+          "note": "Fire resistance"
+        },
+        {
+          "param": "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | STC: ",
+          "suffix_override": " dB",
+          "note": "Acoustic rating"
+        },
+        {
+          "param": "BLE_WALL_INTERIOR_FINISH_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Int: ",
+          "note": "Internal finish"
+        },
+        {
+          "param": "BLE_WALL_EXTERIOR_FINISH_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " | Ext: ",
+          "note": "External finish"
+        },
+        {
+          "param": "BLE_WALL_MOISTURE_BARRIER_INCLUDED_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Moisture: ",
+          "note": "Moisture barrier"
+        },
+        {
+          "param": "PER_SUST_RECYCLED_CONTENT_PCT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Recycled: ",
+          "suffix_override": "%",
+          "note": "Sustainability"
+        },
+        {
+          "param": "PER_SUST_CARBON_FOOTPRINT_KG",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | CO₂: ",
+          "suffix_override": " kg",
+          "note": "Embodied carbon"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ARCH_TAG_7_PARA_WALL_TXT", "spaces": 0, "break": true, "note": "Full paragraph — natural language specification" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_WALL_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
-      "warnings": ["WARN_BLE_WALL_U"]
+      "warnings": [
+        "WARN_BLE_WALL_U"
+      ]
     },
-
     "Floors": {
       "family_name": "STING - Floor Tag",
       "paragraph_container": "ARCH_TAG_7_PARA_FLOOR_TXT",
+      "paragraph_template": "This floor slab is {thickness} mm thick with a {finish} finish, achieving a load capacity of {load} kilopascals. The assembly provides a thermal transmittance of {U-value} and {FRR} minutes of fire resistance. It incorporates {recycled}% recycled content with an embodied carbon of {carbon} per unit, meeting {standard} requirements.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",         "spaces": 0, "break": true },
-        { "param": "BLE_FLR_THICKNESS_MM", "spaces": 0, "break": true, "prefix_override": "[", "suffix_override": " mm]" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        },
+        {
+          "param": "BLE_FLR_THICKNESS_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "[",
+          "suffix_override": " mm]"
+        }
       ],
       "tier_2": [
-        { "param": "BLE_FLR_FINISH_TXT",        "spaces": 0, "break": false },
-        { "param": "PER_THERM_U_VALUE_W_M2K_NR",  "spaces": 0, "break": false, "prefix_override": " | U=" },
-        { "param": "BLE_FLR_LD_CAP_KPA",  "spaces": 0, "break": true,  "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "BLE_FLR_TYPE_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Floor type"
+        },
+        {
+          "param": "BLE_FLR_FINISH_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Finish"
+        },
+        {
+          "param": "BLE_FLR_LD_CAP_KPA",
+          "spaces": 0,
+          "break": false,
+          "note": "Load capacity"
+        },
+        {
+          "param": "PER_THERM_U_VALUE_W_M2K_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Thermal transmittance"
+        },
+        {
+          "param": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "FRR: ",
+          "note": "Fire resistance"
+        },
+        {
+          "param": "PER_SUST_RECYCLED_CONTENT_PCT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " | Recycled: ",
+          "suffix_override": "%",
+          "note": "Sustainability"
+        },
+        {
+          "param": "PER_SUST_CARBON_FOOTPRINT_KG",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | CO₂: ",
+          "suffix_override": " kg",
+          "note": "Embodied carbon"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ARCH_TAG_7_PARA_FLOOR_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_FLOOR_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
-      "warnings": ["WARN_BLE_FLOOR_U"]
+      "warnings": [
+        "WARN_BLE_FLOOR_U"
+      ]
     },
-
     "Ceilings": {
       "family_name": "STING - Ceiling Tag",
       "paragraph_container": "ARCH_TAG_7_PARA_CEIL_TXT",
+      "paragraph_template": "This ceiling is a {system} type installed at {height} mm above finished floor level on a {grid} mm suspension grid. The assembly provides {FRR} minutes of fire resistance and achieves a noise reduction coefficient of {NRC}. Finished in {finish}, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true },
-        { "param": "BLE_CEILING_SYSTEM_TXT",    "spaces": 0, "break": false },
-        { "param": "BLE_CEILING_HEIGHT_MM",   "spaces": 1, "break": true, "prefix_override": "[", "suffix_override": " mm]" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        },
+        {
+          "param": "BLE_CEILING_SYSTEM_TXT",
+          "spaces": 0,
+          "break": false
+        },
+        {
+          "param": "BLE_CEILING_HEIGHT_MM",
+          "spaces": 1,
+          "break": true,
+          "prefix_override": "[",
+          "suffix_override": " mm]"
+        }
       ],
       "tier_2": [
-        { "param": "PER_THERM_U_VALUE_W_M2K_NR",  "spaces": 0, "break": false },
-        { "param": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN", "spaces": 0, "break": true, "prefix_override": " | FRR: " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "BLE_CEILING_SYSTEM_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Ceiling system"
+        },
+        {
+          "param": "BLE_CEIL_GRID_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Grid: ",
+          "suffix_override": " mm",
+          "note": "Grid module"
+        },
+        {
+          "param": "PER_THERM_U_VALUE_W_M2K_NR",
+          "spaces": 0,
+          "break": false,
+          "note": "Thermal transmittance"
+        },
+        {
+          "param": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | FRR: ",
+          "note": "Fire resistance"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ARCH_TAG_7_PARA_CEIL_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_CEIL_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Roofs": {
       "family_name": "STING - Roof Tag",
       "paragraph_container": "ARCH_TAG_7_PARA_ROOF_TXT",
+      "paragraph_template": "This roof assembly is pitched at {slope} degrees with {covering} as the primary covering material. It achieves a thermal transmittance of {U-value} and provides {FRR} minutes of fire resistance. The structure features {drainage} drainage with {insulation} insulation, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",         "spaces": 0, "break": true },
-        { "param": "BLE_ROOF_COVERING_MAT_TXT",  "spaces": 0, "break": false },
-        { "param": "BLE_ROOF_SLOPE_DEG",     "spaces": 1, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        },
+        {
+          "param": "BLE_ROOF_COVERING_MAT_TXT",
+          "spaces": 0,
+          "break": false
+        },
+        {
+          "param": "BLE_ROOF_SLOPE_DEG",
+          "spaces": 1,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "PER_THERM_U_VALUE_W_M2K_NR",  "spaces": 0, "break": false },
-        { "param": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN", "spaces": 0, "break": true, "prefix_override": " | FRR: " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "BLE_ROOF_PRIMARY_MAT_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Covering material"
+        },
+        {
+          "param": "BLE_ROOF_SLOPE_DEG",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Pitch angle"
+        },
+        {
+          "param": "PER_THERM_U_VALUE_W_M2K_NR",
+          "spaces": 0,
+          "break": false,
+          "note": "Thermal transmittance"
+        },
+        {
+          "param": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | FRR: ",
+          "note": "Fire resistance"
+        },
+        {
+          "param": "PER_SUST_RECYCLED_CONTENT_PCT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Recycled: ",
+          "suffix_override": "%",
+          "note": "Sustainability"
+        },
+        {
+          "param": "PER_SUST_CARBON_FOOTPRINT_KG",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | CO₂: ",
+          "suffix_override": " kg",
+          "note": "Embodied carbon"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ARCH_TAG_7_PARA_ROOF_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_ROOF_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
-      "warnings": ["WARN_BLE_ROOF_U"]
+      "warnings": [
+        "WARN_BLE_ROOF_U"
+      ]
     },
-
     "Doors": {
       "family_name": "STING - Door Tag",
       "paragraph_container": "ARCH_TAG_7_PARA_DOOR_TXT",
+      "paragraph_template": "This is a {width} by {height} millimetre {operation} door constructed from {material}. It provides {FRR} minutes of fire resistance and is fitted with {hardware} hardware. The frame is {frame_material} with {glazing} glazing where applicable, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true },
-        { "param": "BLE_DOOR_WIDTH_MM",    "spaces": 0, "break": false, "suffix_override": "" },
-        { "param": "BLE_DOOR_HEIGHT_MM",   "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        },
+        {
+          "param": "BLE_DOOR_WIDTH_MM",
+          "spaces": 0,
+          "break": false,
+          "suffix_override": ""
+        },
+        {
+          "param": "BLE_DOOR_HEIGHT_MM",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "BLE_DOOR_MAT_TXT",     "spaces": 0, "break": false },
-        { "param": "BLE_DOOR_FIRE_RATING_TXT",  "spaces": 0, "break": false, "prefix_override": " | FRR: " },
-        { "param": "BLE_DOOR_HARDWARE_SPECIFICATION_TXT", "spaces": 0, "break": true, "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "BLE_DOOR_OPERATION_TYPE_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Operation type"
+        },
+        {
+          "param": "BLE_DOOR_MAT_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Door material"
+        },
+        {
+          "param": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "FRR: ",
+          "note": "Fire resistance"
+        },
+        {
+          "param": "BLE_DOOR_HARDWARE_SPECIFICATION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Hardware spec"
+        },
+        {
+          "param": "BLE_DOOR_FRAME_MAT_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Frame: ",
+          "note": "Frame material"
+        },
+        {
+          "param": "BLE_DOOR_GLAZING_TYPE_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Glazing: ",
+          "note": "Glazing type"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ARCH_TAG_7_PARA_DOOR_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_DOOR_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
-      "warnings": ["WARN_DOOR_FRR"]
+      "warnings": [
+        "WARN_DOOR_FRR"
+      ]
     },
-
     "Windows": {
       "family_name": "STING - Window Tag",
       "paragraph_container": "ARCH_TAG_7_PARA_WIN_TXT",
+      "paragraph_template": "This window measures {width} by {height} millimetres with a {frame} frame and {glazing} glazing, achieving a thermal transmittance of {U-value} watts per square metre kelvin. The window provides a solar heat gain coefficient of {SHGC} and a visible light transmittance of {VLT} percent, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",         "spaces": 0, "break": true },
-        { "param": "BLE_WINDOW_WIDTH_MM",    "spaces": 0, "break": false, "suffix_override": "" },
-        { "param": "BLE_WINDOW_HEIGHT_MM",   "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        },
+        {
+          "param": "BLE_WINDOW_WIDTH_MM",
+          "spaces": 0,
+          "break": false,
+          "suffix_override": ""
+        },
+        {
+          "param": "BLE_WINDOW_HEIGHT_MM",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "BLE_WINDOW_FRAME_MAT_TXT",              "spaces": 0, "break": false },
-        { "param": "BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT",             "spaces": 0, "break": false, "prefix_override": " | " },
-        { "param": "BLE_WINDOW_U_VALUE_W_M_2K_NR",       "spaces": 0, "break": true,  "prefix_override": " | U=" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "BLE_WINDOW_FRAME_MAT_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Frame material"
+        },
+        {
+          "param": "BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Glazing type"
+        },
+        {
+          "param": "BLE_WINDOW_U_VALUE_W_M_2K_NR",
+          "spaces": 0,
+          "break": true,
+          "note": "Thermal transmittance"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ARCH_TAG_7_PARA_WIN_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_WIN_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
-      "warnings": ["WARN_BLE_WIN_U"]
+      "warnings": [
+        "WARN_BLE_WIN_U"
+      ]
     },
-
     "Stairs": {
       "family_name": "STING - Stair Tag",
       "paragraph_container": "ARCH_TAG_7_PARA_STAIR_TXT",
+      "paragraph_template": "This staircase has a rise of {rise} millimetres and a going of {going} millimetres with an overall width of {width} millimetres. It features {material} treads and {nosing} nosing, with {balustrade} balustrade provision and {handrail} handrails, compliant with {standard} accessibility requirements.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "BLE_STAIR_RISE_MM",   "spaces": 0, "break": false },
-        { "param": "BLE_STAIR_GOING_MM",  "spaces": 0, "break": false, "prefix_override": " / " },
-        { "param": "BLE_STAIR_WIDTH_MM",  "spaces": 0, "break": true,  "prefix_override": " | Width: " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "BLE_STAIR_RISE_MM",
+          "spaces": 0,
+          "break": false,
+          "note": "Riser height"
+        },
+        {
+          "param": "BLE_STAIR_GOING_MM",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " / ",
+          "note": "Going depth"
+        },
+        {
+          "param": "BLE_STAIR_WIDTH_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Width: ",
+          "note": "Clear width"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ARCH_TAG_7_PARA_STAIR_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_STAIR_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
-      "warnings": ["WARN_STAIR_RISE", "WARN_STAIR_GOING"]
+      "warnings": [
+        "WARN_STAIR_RISE",
+        "WARN_STAIR_GOING"
+      ]
     },
-
     "Ramps": {
       "family_name": "STING - Ramp Tag",
       "paragraph_container": "ARCH_TAG_7_PARA_RAMP_TXT",
+      "paragraph_template": "This ramp has a gradient of {slope} percent with an overall width of {width} millimetres and a surface finish of {finish}. It includes {handrail} handrails and {landing} landings at intervals, compliant with {standard} accessibility requirements.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "BLE_RAMP_SLOPE_PCT", "spaces": 0, "break": false },
-        { "param": "BLE_RAMP_WIDTH_MM",         "spaces": 0, "break": true, "prefix_override": " | Width: " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "BLE_RAMP_SLOPE_PCT",
+          "spaces": 0,
+          "break": false,
+          "note": "Gradient"
+        },
+        {
+          "param": "BLE_RAMP_WIDTH_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Width: ",
+          "note": "Clear width"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ARCH_TAG_7_PARA_RAMP_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_RAMP_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
-      "warnings": ["WARN_RAMP_SLOPE"]
+      "warnings": [
+        "WARN_RAMP_SLOPE"
+      ]
     },
-
     "Structural Columns": {
       "family_name": "STING - Structural Column Tag",
       "paragraph_container": "STR_TAG_7_PARA_COL_TXT",
+      "paragraph_template": "This structural column is sized {size} and constructed from {material} with {concrete_grade} concrete grade. It has a load capacity of {capacity} kilonewtons and features {reinforcement} reinforcement. The column is designed for {seismic} seismic conditions, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "BLE_STRUCT_CONCRETE_GRADE_TXT", "spaces": 0, "break": false },
-        { "param": "BLE_STRUCT_STEEL_SECTION_TXT",  "spaces": 0, "break": false, "prefix_override": " | " },
-        { "param": "BLE_STRUCT_CAPACITY_KN",         "spaces": 0, "break": true,  "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "BLE_STRUCT_COLUMN_SZ_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Column size"
+        },
+        {
+          "param": "BLE_STRUCT_MAT_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Material"
+        },
+        {
+          "param": "BLE_STRUCT_CONCRETE_GRADE_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Concrete grade"
+        },
+        {
+          "param": "BLE_STRUCT_LD_CAP_KN_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Load capacity"
+        },
+        {
+          "param": "BLE_STRUCT_REINFORCEMENT_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Rebar: ",
+          "note": "Reinforcement"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "STR_TAG_7_PARA_COL_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_COL_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Structural Framing": {
       "family_name": "STING - Structural Framing Tag",
       "paragraph_container": "STR_TAG_7_PARA_BEAM_TXT",
+      "paragraph_template": "This structural beam is sized {size} and constructed from {material}. It features {reinforcement} reinforcement with {concrete_grade} grade concrete where applicable and a load capacity of {capacity} kilonewtons, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "BLE_STRUCT_STEEL_SECTION_TXT",  "spaces": 0, "break": false },
-        { "param": "BLE_STRUCT_SPAN_M",              "spaces": 0, "break": false, "prefix_override": " | " },
-        { "param": "BLE_STRUCT_DEPTH_MM",            "spaces": 0, "break": true,  "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "BLE_STRUCT_BEAM_SZ_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Beam size"
+        },
+        {
+          "param": "BLE_STRUCT_MAT_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Material"
+        },
+        {
+          "param": "BLE_STRUCT_CONCRETE_GRADE_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Concrete grade"
+        },
+        {
+          "param": "BLE_STRUCT_REINFORCEMENT_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Reinforcement"
+        },
+        {
+          "param": "BLE_STRUCT_LD_CAP_KN_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Capacity: ",
+          "note": "Load capacity"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "STR_TAG_7_PARA_BEAM_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_BEAM_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Structural Foundations": {
       "family_name": "STING - Structural Foundation Tag",
       "paragraph_container": "STR_TAG_7_PARA_FDN_TXT",
+      "paragraph_template": "This foundation is a {type} type sized {size} with a depth of {depth} millimetres, constructed from {concrete_grade} grade concrete. It has a bearing capacity of {capacity} kilonewtons and features {reinforcement} reinforcement, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "BLE_STRUCT_CONCRETE_GRADE_TXT", "spaces": 0, "break": false },
-        { "param": "BLE_STRUCT_CAPACITY_KN",         "spaces": 0, "break": true,  "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "BLE_STRUCT_FOUNDATION_TYPE_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Foundation type"
+        },
+        {
+          "param": "BLE_STRUCT_FOUNDATION_SZ_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Size"
+        },
+        {
+          "param": "BLE_STRUCT_FOUNDATION_DEPTH_MM",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Depth: ",
+          "suffix_override": " mm",
+          "note": "Depth"
+        },
+        {
+          "param": "BLE_STRUCT_CONCRETE_GRADE_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Concrete grade"
+        },
+        {
+          "param": "BLE_STRUCT_LD_CAP_KN_NR",
+          "spaces": 0,
+          "break": false,
+          "note": "Bearing capacity"
+        },
+        {
+          "param": "BLE_STRUCT_REINFORCEMENT_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Rebar: ",
+          "note": "Reinforcement"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "STR_TAG_7_PARA_FDN_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_FDN_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Mechanical Equipment": {
       "family_name": "STING - Mechanical Equipment Tag",
       "paragraph_container": "HVC_TAG_7_PARA_SPEC_TXT",
+      "paragraph_template": "This mechanical equipment unit has a cooling capacity of {capacity} kilowatts and a motor power of {power} kilowatts, using {refrigerant} refrigerant with an energy efficiency ratio of {EER}. It is manufactured by {manufacturer}, model {model}, and is connected to the building management system via {BMS_control} control. The unit is mounted at {mount_height} millimetres above finished floor level, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "HVC_CAP_KW",      "spaces": 0, "break": false },
-        { "param": "HVC_PWR_KW",      "spaces": 0, "break": false, "prefix_override": " / " },
-        { "param": "HVC_DCT_FLW_CFM", "spaces": 0, "break": true,  "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "HVC_CAP_KW",
+          "spaces": 0,
+          "break": false,
+          "note": "Cooling capacity"
+        },
+        {
+          "param": "HVC_PWR_KW",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " / ",
+          "note": "Motor power"
+        },
+        {
+          "param": "HVC_DCT_FLW_CFM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Airflow"
+        },
+        {
+          "param": "HVC_REFRIGERANT_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Ref: ",
+          "note": "Refrigerant"
+        },
+        {
+          "param": "HVC_EFF_RATIO_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | EER: ",
+          "note": "Efficiency ratio"
+        },
+        {
+          "param": "HVC_BMS_CONTROL_TYPE_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "BMS: ",
+          "note": "Control type"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "HVC_TAG_7_PARA_SPEC_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_SPEC_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Ducts": {
       "family_name": "STING - Duct Tag",
       "paragraph_container": "HVC_TAG_7_PARA_DUCT_TXT",
+      "paragraph_template": "This ductwork section is sized {size} and carries an airflow of {flow} cubic feet per minute at a velocity of {velocity} metres per second with a static pressure of {pressure} kilopascals. It is constructed from {material} with {insulation} insulation and serves the {system} system, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",       "spaces": 0, "break": true },
-        { "param": "HVC_DCT_PROPERTY_TXT", "spaces": 0, "break": true, "prefix_override": "[", "suffix_override": "]" }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        },
+        {
+          "param": "HVC_DCT_PROPERTY_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "[",
+          "suffix_override": "]"
+        }
       ],
       "tier_2": [
-        { "param": "HVC_DCT_FLW_CFM",     "spaces": 0, "break": false },
-        { "param": "HVC_VEL_MPS",          "spaces": 0, "break": false, "prefix_override": " | " },
-        { "param": "HVC_PIPE_PRESSURE_KPA","spaces": 0, "break": true,  "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "HVC_DCT_FLW_CFM",
+          "spaces": 0,
+          "break": false,
+          "note": "Airflow"
+        },
+        {
+          "param": "HVC_VEL_MPS",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " | ",
+          "note": "Velocity"
+        },
+        {
+          "param": "HVC_PIPE_PRESSURE_KPA",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Static pressure"
+        },
+        {
+          "param": "HVC_DCT_MAT_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Mat: ",
+          "note": "Material"
+        },
+        {
+          "param": "HVC_INSULATION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Insul: ",
+          "note": "Insulation"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "HVC_TAG_7_PARA_DUCT_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_DUCT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
-      "warnings": ["WARN_HVC_VEL"]
+      "warnings": [
+        "WARN_HVC_VEL"
+      ]
     },
-
     "Duct Fittings": {
       "family_name": "STING - Duct Fitting Tag",
       "paragraph_container": "HVC_TAG_7_PARA_DCTACC_TXT",
+      "paragraph_template": "This duct fitting is a {type} component serving the {system} system. It connects ductwork sections and is constructed from {material}, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "HVC_DCT_PROPERTY_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "HVC_DCT_PROPERTY_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Duct size"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "HVC_TAG_7_PARA_DCTACC_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_DCTACC_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Duct Accessories": {
       "family_name": "STING - Duct Accessory Tag",
       "paragraph_container": "HVC_TAG_7_PARA_DCTACC_TXT",
+      "paragraph_template": "This duct accessory is a {type} component serving the {system} system, constructed from {material} and installed within the ductwork distribution network, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "HVC_DCT_PROPERTY_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Description"
+        },
+        {
+          "param": "HVC_DCT_PROPERTY_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Duct size"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "HVC_TAG_7_PARA_DCTACC_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_DCTACC_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Air Terminals": {
       "family_name": "STING - Air Terminal Tag",
       "paragraph_container": "HVC_TAG_7_PARA_AT_TXT",
+      "paragraph_template": "This air terminal delivers an airflow of {flow} cubic feet per minute at a face velocity of {velocity} metres per second. It is a {type} diffuser serving the {system} system, mounted at {height} millimetres above finished floor level, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "HVC_DCT_FLW_CFM",   "spaces": 0, "break": false },
-        { "param": "HVC_VEL_MPS",       "spaces": 0, "break": true, "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "HVC_DCT_FLW_CFM",
+          "spaces": 0,
+          "break": false,
+          "note": "Airflow"
+        },
+        {
+          "param": "HVC_VEL_MPS",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Face velocity"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "HVC_TAG_7_PARA_AT_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_AT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Flex Ducts": {
       "family_name": "STING - Flex Duct Tag",
       "paragraph_container": "HVC_TAG_7_PARA_FLEXDUCT_TXT",
+      "paragraph_template": "This flexible duct section carries an airflow of {flow} cubic feet per minute and connects the main ductwork to the air terminal. It is constructed from {material} with {insulation} insulation, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "HVC_DCT_FLW_CFM",   "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "HVC_DCT_FLW_CFM",
+          "spaces": 0,
+          "break": true,
+          "note": "Airflow"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "HVC_TAG_7_PARA_FLEXDUCT_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_FLEXDUCT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Electrical Equipment": {
       "family_name": "STING - Electrical Equipment Tag",
       "paragraph_container": "ELC_TAG_7_PARA_PANEL_TXT",
+      "paragraph_template": "This distribution board serves as {designation} and operates at {voltage} volts, {phases} phase, with {ways} ways and a main breaker rated at {main_breaker} amperes. The board has a connected load of {load} kilowatts against a rated capacity of {rated} kilowatts, with {spare} spare ways available. It is fed by a {feeder} square millimetre cable and has a fault rating of {fault} kiloamperes, enclosed to {IP} protection rating, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",     "spaces": 0, "break": true },
-        { "param": "ELC_PNL_DESIGNATION_NAME_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        },
+        {
+          "param": "ELC_PNL_DESIGNATION_NAME_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "ELC_PNL_RATED_KW",            "spaces": 0, "break": false },
-        { "param": "ELC_VLT_PRIMARY_RATING_V",     "spaces": 0, "break": false, "prefix_override": " | " },
-        { "param": "ELC_VLT_DROP_PCT",    "spaces": 0, "break": true,  "prefix_override": " | VD: " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ELC_PNL_VLT_V",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "",
+          "suffix_override": " V",
+          "note": "Voltage"
+        },
+        {
+          "param": "ELC_PNL_PHS_COUNT_NR",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " | ",
+          "suffix_override": " Ph",
+          "note": "Phases"
+        },
+        {
+          "param": "ELC_PNL_NUM_OF_WAYS_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "suffix_override": " Ways",
+          "note": "Ways"
+        },
+        {
+          "param": "ELC_PNL_RATED_KW",
+          "spaces": 0,
+          "break": false,
+          "note": "Rated capacity"
+        },
+        {
+          "param": "ELC_PNL_CONNECTED_LOAD_KW",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Load: ",
+          "suffix_override": " kW",
+          "note": "Connected load"
+        },
+        {
+          "param": "ELC_PNL_MAIN_BRK_A",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "MCB: ",
+          "suffix_override": " A",
+          "note": "Main breaker"
+        },
+        {
+          "param": "ELC_PNL_SPARE_WAYS_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Spare: ",
+          "note": "Spare ways"
+        },
+        {
+          "param": "ELC_VLT_DROP_PCT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "VD: ",
+          "suffix_override": "%",
+          "note": "Voltage drop"
+        },
+        {
+          "param": "ELC_PNL_SHORT_CIRCUIT_KA",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Fault: ",
+          "suffix_override": " kA",
+          "note": "Fault rating"
+        },
+        {
+          "param": "ELC_CBL_FEEDER_SZ_MM2",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Feeder: ",
+          "suffix_override": " mm²",
+          "note": "Feeder cable"
+        },
+        {
+          "param": "ELC_PNL_IP_RATING_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "IP rating"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ELC_TAG_7_PARA_PANEL_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ELC_TAG_7_PARA_PANEL_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
-      "warnings": ["WARN_ELC_VLT_DROP"]
+      "warnings": [
+        "WARN_ELC_VLT_DROP"
+      ]
     },
-
     "Electrical Fixtures": {
       "family_name": "STING - Electrical Fixture Tag",
       "paragraph_container": "ELC_TAG_7_PARA_CIRCUIT_TXT",
+      "paragraph_template": "This electrical fixture consumes {power} kilowatts and is connected to circuit {circuit} on distribution board {panel}. It is mounted at {height} millimetres above finished floor level and enclosed to {IP} protection rating, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "ELC_PWR_KW",    "spaces": 0, "break": false },
-        { "param": "ELC_CKT_NR",    "spaces": 0, "break": true, "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ELC_PWR_KW",
+          "spaces": 0,
+          "break": false,
+          "note": "Power demand"
+        },
+        {
+          "param": "ELC_VLT_PRIMARY_RATING_V",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Rated voltage"
+        },
+        {
+          "param": "ELC_CKT_NR",
+          "spaces": 0,
+          "break": false,
+          "note": "Circuit number"
+        },
+        {
+          "param": "ELC_PNL_DESIGNATION_NAME_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Panel"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ELC_TAG_7_PARA_CIRCUIT_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ELC_TAG_7_PARA_CIRCUIT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Lighting Fixtures": {
       "family_name": "STING - Lighting Fixture Tag",
       "paragraph_container": "ELC_TAG_7_PARA_CIRCUIT_TXT",
+      "paragraph_template": "This lighting fixture is a {type} luminaire consuming {wattage} watts and producing {lumens} lumens at a colour temperature of {CCT} kelvin, achieving an efficacy of {efficacy} lumens per watt. It is connected to circuit {circuit} on panel {panel} and mounted at {height} millimetres above finished floor level, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT",   "spaces": 0, "break": true },
-        { "param": "LTG_FIX_TYPE_CLASSIFICATION_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        },
+        {
+          "param": "LTG_FIX_TYPE_CLASSIFICATION_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "LTG_FIX_LMP_WATTAGE_W",  "spaces": 0, "break": false },
-        { "param": "CST_FIX_LUMEN_OUTPUT_LM", "spaces": 0, "break": false, "prefix_override": " | " },
-        { "param": "LTG_CLR_TEMP_K",          "spaces": 0, "break": true,  "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "LTG_FIX_LMP_WATTAGE_W",
+          "spaces": 0,
+          "break": false,
+          "note": "Wattage"
+        },
+        {
+          "param": "CST_FIX_LUMEN_OUTPUT_LM",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " | ",
+          "note": "Lumens"
+        },
+        {
+          "param": "LTG_CLR_TEMP_K",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "CCT"
+        },
+        {
+          "param": "LTG_EFFICACY_LM_W",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Eff: ",
+          "note": "Efficacy"
+        },
+        {
+          "param": "ELC_CKT_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Ckt: ",
+          "note": "Circuit"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ELC_TAG_7_PARA_CIRCUIT_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ELC_TAG_7_PARA_CIRCUIT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Lighting Devices": {
       "family_name": "STING - Lighting Device Tag",
       "paragraph_container": "ELC_TAG_7_PARA_CIRCUIT_TXT",
+      "paragraph_template": "This lighting control device is connected to circuit {circuit} and manages the lighting zone within the space. It is mounted at {height} millimetres above finished floor level, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "ELC_CKT_NR", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ELC_CKT_NR",
+          "spaces": 0,
+          "break": false,
+          "note": "Circuit number"
+        },
+        {
+          "param": "ELC_PNL_DESIGNATION_NAME_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Panel"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ELC_TAG_7_PARA_CIRCUIT_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ELC_TAG_7_PARA_CIRCUIT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Conduits": {
       "family_name": "STING - Conduit Tag",
       "paragraph_container": "ELC_TAG_7_PARA_CONDUIT_TXT",
+      "paragraph_template": "This conduit is {size} millimetres in diameter and routes cables from {source} to {destination}. It is constructed from {material} and installed by {method} method with a current fill ratio of {fill} percent, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true },
-        { "param": "ELC_CDT_SZ_MM", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        },
+        {
+          "param": "ELC_CDT_SZ_MM",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "ELC_CKT_NR", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ELC_CKT_NR",
+          "spaces": 0,
+          "break": false,
+          "note": "Circuit"
+        },
+        {
+          "param": "ELC_CDT_MAT_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Material"
+        },
+        {
+          "param": "ELC_CBL_SOURCE_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "From: ",
+          "note": "Source"
+        },
+        {
+          "param": "ELC_CBL_DEST_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " → ",
+          "note": "Destination"
+        },
+        {
+          "param": "ELC_CBL_INSTALL_METHOD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Install: ",
+          "note": "Installation method"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ELC_TAG_7_PARA_CONDUIT_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ELC_TAG_7_PARA_CONDUIT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
-      "warnings": ["WARN_CDT_FILL"]
+      "warnings": [
+        "WARN_CDT_FILL"
+      ]
     },
-
     "Conduit Fittings": {
       "family_name": "STING - Conduit Fitting Tag",
       "paragraph_container": "ELC_TAG_7_PARA_CONDUIT_TXT",
+      "paragraph_template": "This conduit fitting connects conduit sections within the electrical containment network and is constructed from {material}, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
-      "tier_2": [],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ELC_CDT_SZ_MM",
+          "spaces": 0,
+          "break": true,
+          "note": "Conduit size"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
       "tier_3": [
-        { "param": "ELC_TAG_7_PARA_CONDUIT_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ELC_TAG_7_PARA_CONDUIT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Cable Trays": {
       "family_name": "STING - Cable Tray Tag",
       "paragraph_container": "ELC_TAG_7_PARA_TRAY_TXT",
+      "paragraph_template": "This cable tray section routes power and data cables and is constructed from {material}. It serves the {system} containment network and is mounted at {height} millimetres above finished floor level, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
-      "tier_2": [],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ELC_CTR_MAT_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Material"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
       "tier_3": [
-        { "param": "ELC_TAG_7_PARA_TRAY_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ELC_TAG_7_PARA_TRAY_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Cable Tray Fittings": {
       "family_name": "STING - Cable Tray Fitting Tag",
       "paragraph_container": "ELC_TAG_7_PARA_TRAY_TXT",
+      "paragraph_template": "This cable tray fitting connects tray sections within the cable containment network and is constructed from {material}, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
-      "tier_2": [],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ELC_CTR_MAT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Material"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
       "tier_3": [
-        { "param": "ELC_TAG_7_PARA_TRAY_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ELC_TAG_7_PARA_TRAY_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Plumbing Fixtures": {
       "family_name": "STING - Plumbing Fixture Tag",
       "paragraph_container": "PLM_TAG_7_PARA_FIXTURE_TXT",
+      "paragraph_template": "This sanitary fixture is connected to {pipe_size} millimetre pipework with a flow rate of {flow} litres per second. It is manufactured by {manufacturer}, model {model}, and features {trap} trap and {waste} waste connection, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "PLM_PPE_SZ_MM",   "spaces": 0, "break": false },
-        { "param": "PLM_PPE_FLW_LPS", "spaces": 0, "break": true, "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "PLM_PPE_SZ_MM",
+          "spaces": 0,
+          "break": false,
+          "note": "Pipe connection"
+        },
+        {
+          "param": "PLM_PPE_FLW_LPS",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Flow rate"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "PLM_TAG_7_PARA_FIXTURE_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "PLM_TAG_7_PARA_FIXTURE_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Pipes": {
       "family_name": "STING - Pipe Tag",
       "paragraph_container": "PLM_TAG_7_PARA_PIPE_TXT",
+      "paragraph_template": "This pipework section is {size} millimetres in diameter and carries a flow of {flow} litres per second at a velocity of {velocity} metres per second with a system pressure of {pressure} kilopascals. It is constructed from {material} and serves the {system} system with {insulation} insulation, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true },
-        { "param": "PLM_PPE_SZ_MM", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        },
+        {
+          "param": "PLM_PPE_SZ_MM",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "PLM_PPE_FLW_LPS",  "spaces": 0, "break": false },
-        { "param": "PLM_VEL_MPS",       "spaces": 0, "break": false, "prefix_override": " | " },
-        { "param": "PLM_PSR_KPA",       "spaces": 0, "break": true,  "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "PLM_PPE_FLW_LPS",
+          "spaces": 0,
+          "break": false,
+          "note": "Flow rate"
+        },
+        {
+          "param": "PLM_VEL_MPS",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " | ",
+          "note": "Velocity"
+        },
+        {
+          "param": "PLM_PSR_KPA",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Pressure"
+        },
+        {
+          "param": "PLM_PPE_MAT_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Mat: ",
+          "note": "Material"
+        },
+        {
+          "param": "PLM_INSULATION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Insul: ",
+          "note": "Insulation"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "PLM_TAG_7_PARA_PIPE_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "PLM_TAG_7_PARA_PIPE_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
-      "warnings": ["WARN_PLM_VEL", "WARN_PLM_PSR"]
+      "warnings": [
+        "WARN_PLM_VEL",
+        "WARN_PLM_PSR"
+      ]
     },
-
     "Pipe Fittings": {
       "family_name": "STING - Pipe Fitting Tag",
       "paragraph_container": "PLM_TAG_7_PARA_PIPEACC_TXT",
+      "paragraph_template": "This pipe fitting is a {type} component connecting {size} millimetre pipework within the {system} distribution network, constructed from {material}, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "PLM_PPE_SZ_MM", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "PLM_PPE_SZ_MM",
+          "spaces": 0,
+          "break": false,
+          "note": "Pipe size"
+        },
+        {
+          "param": "PLM_PPE_MAT_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Material"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "PLM_TAG_7_PARA_PIPEACC_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "PLM_TAG_7_PARA_PIPEACC_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Pipe Accessories": {
       "family_name": "STING - Pipe Accessory Tag",
       "paragraph_container": "PLM_TAG_7_PARA_PIPEACC_TXT",
+      "paragraph_template": "This pipe accessory is installed within the {system} pipework network on {size} millimetre pipework, constructed from {material}, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "PLM_PPE_SZ_MM", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "PLM_PPE_SZ_MM",
+          "spaces": 0,
+          "break": false,
+          "note": "Pipe size"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Description"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "PLM_TAG_7_PARA_PIPEACC_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "PLM_TAG_7_PARA_PIPEACC_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Flex Pipes": {
       "family_name": "STING - Flex Pipe Tag",
       "paragraph_container": "PLM_TAG_7_PARA_PIPE_TXT",
+      "paragraph_template": "This flexible pipe section connects the distribution pipework to the fixture outlet, constructed from {material} and serving the {system} system, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "PLM_PPE_SZ_MM", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "PLM_PPE_SZ_MM",
+          "spaces": 0,
+          "break": false,
+          "note": "Pipe size"
+        },
+        {
+          "param": "PLM_PPE_MAT_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Material"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "PLM_TAG_7_PARA_PIPE_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "PLM_TAG_7_PARA_PIPE_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Sprinklers": {
       "family_name": "STING - Sprinkler Tag",
       "paragraph_container": "FLS_TAG_7_PARA_SPR_TXT",
+      "paragraph_template": "This sprinkler head provides coverage over {coverage} square metres with a discharge coefficient of {K_factor}. It is a {type} response head rated for {temperature} degrees Celsius activation and installed at {height} millimetres above finished floor level, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "FLS_SFTY_COVERAGE_AREA_SQ_M", "spaces": 0, "break": false },
-        { "param": "FLS_SFTY_K_FACTOR_NR",        "spaces": 0, "break": true, "prefix_override": " | K=" }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "FLS_SFTY_COVERAGE_AREA_SQ_M",
+          "spaces": 0,
+          "break": false,
+          "note": "Coverage area"
+        },
+        {
+          "param": "FLS_SFTY_K_FACTOR_NR",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | K=",
+          "note": "K-factor"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "FLS_TAG_7_PARA_SPR_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "FLS_TAG_7_PARA_SPR_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Fire Alarm Devices": {
       "family_name": "STING - Fire Alarm Device Tag",
       "paragraph_container": "FLS_TAG_7_PARA_FA_TXT",
+      "paragraph_template": "This fire alarm device is a {type} detector serving fire zone {zone}. It is connected to the fire alarm panel via {loop} loop and mounted at {height} millimetres above finished floor level, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "FLS_SFTY_DEV_TYPE_TXT", "spaces": 0, "break": false },
-        { "param": "FLS_SFTY_DEV_ZONE_TXT", "spaces": 0, "break": true, "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "FLS_SFTY_DEV_TYPE_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Device type"
+        },
+        {
+          "param": "FLS_SFTY_DEV_ZONE_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Fire zone"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "FLS_TAG_7_PARA_FA_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "FLS_TAG_7_PARA_FA_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Communication Devices": {
       "family_name": "STING - Communication Device Tag",
       "paragraph_container": "COM_TAG_7_PARA_BMS_TXT",
+      "paragraph_template": "This building management system device communicates using {protocol} protocol at network address {address}. It monitors and controls the {system} system and is mounted at {height} millimetres above finished floor level, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "COM_C_PROTOCOL_TXT",        "spaces": 0, "break": false },
-        { "param": "COM_C_NETWORK_ADDRESS_TXT", "spaces": 0, "break": true, "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "COM_C_PROTOCOL_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Protocol"
+        },
+        {
+          "param": "COM_C_NETWORK_ADDRESS_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Network address"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "COM_TAG_7_PARA_BMS_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "COM_TAG_7_PARA_BMS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Data Devices": {
       "family_name": "STING - Data Device Tag",
       "paragraph_container": "ICT_TAG_7_PARA_DATA_TXT",
+      "paragraph_template": "This data outlet is a {type} connection point serving the structured cabling network. It is mounted at {height} millimetres above finished floor level and connected to the communications room via {cable} cabling, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "ICT_OUTLET_TYPE_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ICT_OUTLET_TYPE_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Outlet type"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ICT_TAG_7_PARA_DATA_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ICT_TAG_7_PARA_DATA_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Nurse Call Devices": {
       "family_name": "STING - Nurse Call Device Tag",
       "paragraph_container": "NCL_TAG_7_PARA_NURSECALL_TXT",
+      "paragraph_template": "This nurse call device serves zone {zone} and provides patient communication to the nursing station. It is mounted at {height} millimetres above finished floor level and connected to the nurse call panel, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "NCL_ZONE_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "NCL_ZONE_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Nurse call zone"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "NCL_TAG_7_PARA_NURSECALL_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "NCL_TAG_7_PARA_NURSECALL_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Security Devices": {
       "family_name": "STING - Security Device Tag",
       "paragraph_container": "SEC_TAG_7_PARA_SECURITY_TXT",
+      "paragraph_template": "This security device serves zone {zone} and provides {function} functionality within the security system. It is mounted at {height} millimetres above finished floor level, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "SEC_DEV_ZONE_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "SEC_DEV_ZONE_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Security zone"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Description"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "SEC_TAG_7_PARA_SECURITY_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "SEC_TAG_7_PARA_SECURITY_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Rooms": {
       "family_name": "STING - Room Tag",
       "paragraph_container": null,
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "ASS_DESCRIPTION_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Room name/description"
+        },
+        {
+          "param": "ASS_LVL_COD_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Level: ",
+          "note": "Level code"
+        },
+        {
+          "param": "ASS_LOC_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": " | Loc: ",
+          "note": "Location"
+        },
+        {
+          "param": "ASS_ZONE_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Zone: ",
+          "note": "Zone"
+        },
+        {
+          "param": "AREA_SQ_M",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Area: ",
+          "suffix_override": " m²",
+          "note": "Room area"
+        }
       ],
       "tier_3": [],
       "warnings": []
     },
-
     "Furniture": {
       "family_name": "STING - Furniture Tag",
       "paragraph_container": null,
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "ASS_MANUFACTURER_TXT", "spaces": 0, "break": false },
-        { "param": "ASS_MODEL_NR_TXT",     "spaces": 0, "break": true, "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [],
       "warnings": []
     },
-
     "Casework": {
       "family_name": "STING - Casework Tag",
       "paragraph_container": null,
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "ASS_MANUFACTURER_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [],
       "warnings": []
     },
-
     "Generic Models": {
       "family_name": "STING - Generic Model Tag",
       "paragraph_container": "ASS_TAG_7_PARA_EQUIPMENT_TXT",
+      "paragraph_template": "This equipment item is described as {description} and manufactured by {manufacturer}, model {model}. It is mounted at {height} millimetres above finished floor level, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "ASS_DESCRIPTION_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ASS_TAG_7_PARA_EQUIPMENT_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ASS_TAG_7_PARA_EQUIPMENT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
     },
-
     "Specialty Equipment": {
       "family_name": "STING - Specialty Equipment Tag",
       "paragraph_container": "ASS_TAG_7_PARA_EQUIPMENT_TXT",
+      "paragraph_template": "This specialty equipment is manufactured by {manufacturer}, model {model}. It is installed at {height} millimetres above finished floor level and serves the {system} system, compliant with {standard}.",
       "tier_1": [
-        { "param": "ASS_TAG_1_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
       ],
       "tier_2": [
-        { "param": "ASS_MANUFACTURER_TXT", "spaces": 0, "break": false },
-        { "param": "ASS_MODEL_NR_TXT",     "spaces": 0, "break": true, "prefix_override": " | " }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
       ],
       "tier_3": [
-        { "param": "ASS_TAG_7_PARA_EQUIPMENT_TXT", "spaces": 0, "break": true }
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+        },
+        {
+          "param": "ASS_TAG_7_PARA_EQUIPMENT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph — purely descriptive, no technical codes"
+        }
       ],
       "warnings": []
+    }
+  },
+  "tag7_heading_style": {
+    "_comment": "Controls the visual formatting of the TAG7 short tag heading (ASS_TAG_2_TXT) in both tier_2 and tier_3. These settings are applied at the tag family label level in Revit Family Editor.",
+    "tier_2_heading": {
+      "param": "ASS_TAG_2_TXT",
+      "bold": false,
+      "italic": false,
+      "underline": true,
+      "note": "Underlined in State 2 (Technical) — functional emphasis without visual dominance"
+    },
+    "tier_3_heading": {
+      "param": "ASS_TAG_2_TXT",
+      "bold": true,
+      "italic": false,
+      "underline": true,
+      "note": "Bold + Underlined in State 3 (Full Specification) — primary heading treatment"
+    },
+    "batch_control": {
+      "description": "Use the Set TAG7 Heading Style command to batch-update the heading format across all tag families. Supported styles: bold, italic, underline, bold+underline, bold+italic, all.",
+      "command": "SetTag7HeadingStyleCommand",
+      "applies_to": "ASS_TAG_2_TXT label row in all STING tag families"
     }
   }
 }

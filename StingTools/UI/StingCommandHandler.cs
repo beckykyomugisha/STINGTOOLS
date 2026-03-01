@@ -228,6 +228,7 @@ namespace StingTools.UI
                     case "SetPresentationMode": RunCommand<Tags.SetPresentationModeCommand>(app); break;
                     case "ViewLabelSpec": RunCommand<Tags.ViewLabelSpecCommand>(app); break;
                     case "ExportLabelGuide": RunCommand<Tags.ExportLabelGuideCommand>(app); break;
+                    case "SetTag7HeadingStyle": RunCommand<Tags.SetTag7HeadingStyleCommand>(app); break;
 
                     // ── Color By Parameter commands ──
                     case "ColorByParameter": RunCommand<Select.ColorByParameterCommand>(app); break;

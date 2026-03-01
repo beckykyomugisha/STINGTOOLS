@@ -1016,6 +1016,7 @@
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource ActionBtn}" Content="View Label Spec" Tag="ViewLabelSpec" Click="Cmd_Click" ToolTip="Show Edit Label configuration guide for any category"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export Label Guide" Tag="ExportLabelGuide" Click="Cmd_Click" ToolTip="Export complete label guide to text file"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="TAG7 Heading Style" Tag="SetTag7HeadingStyle" Click="Cmd_Click" ToolTip="Set bold/italic/underline style for TAG7 short tag heading (ASS_TAG_2_TXT)"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

@@ -527,6 +527,241 @@ namespace StingTools.Tags
     }
 
     // ════════════════════════════════════════════════════════════════════
+    //  Set TAG7 Heading Style — batch controls for bold / italic /
+    //  underline on the ASS_TAG_2_TXT heading line in TAG7 paragraph
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Controls the visual formatting of the TAG7 short tag heading (ASS_TAG_2_TXT)
+    /// across all presentation tiers. The heading appears as the first line in both
+    /// State 2 (Technical) and State 3 (Full Specification) views.
+    ///
+    /// The command lets users choose from predefined style combinations:
+    ///   Bold Only, Italic Only, Underline Only, Bold + Underline (default),
+    ///   Bold + Italic, All (Bold + Italic + Underline)
+    ///
+    /// Style settings are persisted to LABEL_DEFINITIONS.json (tag7_heading_style section)
+    /// and applied when tag families are regenerated or exported via the Label Guide.
+    ///
+    /// NOTE: In Revit, text formatting (bold/italic/underline) is a family-level
+    /// setting in Edit Label. This command updates the specification; regenerate
+    /// tag families or apply via Edit Label to see the visual change.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetTag7HeadingStyleCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            // Load current style settings
+            var doc = LabelDefinitionHelper.LoadDocument();
+            string currentT2 = "underline";
+            string currentT3 = "bold underline";
+
+            if (doc != null)
+            {
+                var styleSection = doc["tag7_heading_style"] as JObject;
+                if (styleSection != null)
+                {
+                    var t2h = styleSection["tier_2_heading"] as JObject;
+                    var t3h = styleSection["tier_3_heading"] as JObject;
+                    if (t2h != null) currentT2 = BuildStyleString(t2h);
+                    if (t3h != null) currentT3 = BuildStyleString(t3h);
+                }
+            }
+
+            TaskDialog td = new TaskDialog("TAG7 Heading Style");
+            td.MainInstruction = "Set TAG7 heading style (ASS_TAG_2_TXT)";
+            td.MainContent =
+                $"Current State 2 (Technical): {currentT2}\n" +
+                $"Current State 3 (Full Spec): {currentT3}\n\n" +
+                "The short tag heading (FUNC-PROD-SEQ) appears as line 1\n" +
+                "in TAG7 presentation. Choose a style combination:";
+
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Bold + Underline (Recommended)",
+                "Strong heading: bold text with underline rule — ideal for full specification sheets");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Underline Only",
+                "Subtle heading: underline without bold — professional and minimal");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Bold Only",
+                "Standard heading: bold text without underline — clear visual hierarchy");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "All Styles (Bold + Italic + Underline)",
+                "Maximum emphasis: all formatting applied — for high-impact presentation");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            TaskDialogResult result = td.Show();
+
+            bool bold, italic, underline;
+            string styleName;
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1:
+                    bold = true; italic = false; underline = true;
+                    styleName = "Bold + Underline"; break;
+                case TaskDialogResult.CommandLink2:
+                    bold = false; italic = false; underline = true;
+                    styleName = "Underline Only"; break;
+                case TaskDialogResult.CommandLink3:
+                    bold = true; italic = false; underline = false;
+                    styleName = "Bold Only"; break;
+                case TaskDialogResult.CommandLink4:
+                    bold = true; italic = true; underline = true;
+                    styleName = "All (Bold + Italic + Underline)"; break;
+                default:
+                    return Result.Cancelled;
+            }
+
+            // Ask: apply to both tiers, or tier 3 only?
+            TaskDialog tierPick = new TaskDialog("Apply To");
+            tierPick.MainInstruction = $"Apply '{styleName}' to which tiers?";
+            tierPick.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "State 3 (Full Specification) Only",
+                "Keep State 2 as underline-only for subtle differentiation");
+            tierPick.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Both State 2 + State 3",
+                "Apply the same style to both tiers consistently");
+            tierPick.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            TaskDialogResult tierResult = tierPick.Show();
+
+            bool applyT2, applyT3;
+            switch (tierResult)
+            {
+                case TaskDialogResult.CommandLink1:
+                    applyT2 = false; applyT3 = true; break;
+                case TaskDialogResult.CommandLink2:
+                    applyT2 = true; applyT3 = true; break;
+                default:
+                    return Result.Cancelled;
+            }
+
+            // Update LABEL_DEFINITIONS.json
+            bool saved = SaveHeadingStyle(doc, bold, italic, underline, applyT2, applyT3);
+
+            string appliedTo = applyT2 && applyT3 ? "State 2 + State 3" : "State 3 only";
+            string newT2Style = applyT2 ? BuildStyleName(bold, italic, underline) : currentT2;
+            string newT3Style = BuildStyleName(bold, italic, underline);
+
+            TaskDialog.Show("TAG7 Heading Style",
+                $"Style: {styleName}\n" +
+                $"Applied to: {appliedTo}\n\n" +
+                $"State 2 heading: {newT2Style}\n" +
+                $"State 3 heading: {newT3Style}\n\n" +
+                (saved
+                    ? "Settings saved to LABEL_DEFINITIONS.json.\n\n"
+                    : "WARNING: Could not save to LABEL_DEFINITIONS.json.\n\n") +
+                "To apply visually:\n" +
+                "  1. Open each STING tag family in Family Editor\n" +
+                "  2. Select the Label text element\n" +
+                "  3. Click Edit Label\n" +
+                "  4. Select the ASS_TAG_2_TXT row\n" +
+                $"  5. Set Bold={bold}, Italic={italic}, Underline={underline}\n" +
+                "  6. Load into Project\n\n" +
+                "Or export the Label Guide for the full specification.");
+
+            StingLog.Info($"TAG7 heading style set to {styleName} for {appliedTo}");
+            return Result.Succeeded;
+        }
+
+        private static string BuildStyleString(JObject headingDef)
+        {
+            var parts = new List<string>();
+            if (headingDef["bold"]?.Value<bool>() == true) parts.Add("bold");
+            if (headingDef["italic"]?.Value<bool>() == true) parts.Add("italic");
+            if (headingDef["underline"]?.Value<bool>() == true) parts.Add("underline");
+            return parts.Count > 0 ? string.Join(" + ", parts) : "none";
+        }
+
+        private static string BuildStyleName(bool bold, bool italic, bool underline)
+        {
+            var parts = new List<string>();
+            if (bold) parts.Add("bold");
+            if (italic) parts.Add("italic");
+            if (underline) parts.Add("underline");
+            return parts.Count > 0 ? string.Join(" + ", parts) : "none";
+        }
+
+        private static bool SaveHeadingStyle(JObject doc, bool bold, bool italic, bool underline,
+            bool applyT2, bool applyT3)
+        {
+            if (doc == null) return false;
+
+            try
+            {
+                var styleSection = doc["tag7_heading_style"] as JObject;
+                if (styleSection == null)
+                {
+                    styleSection = new JObject();
+                    doc["tag7_heading_style"] = styleSection;
+                }
+
+                if (applyT3)
+                {
+                    styleSection["tier_3_heading"] = new JObject
+                    {
+                        ["param"] = "ASS_TAG_2_TXT",
+                        ["bold"] = bold,
+                        ["italic"] = italic,
+                        ["underline"] = underline,
+                        ["note"] = $"TAG7 heading in State 3 (Full Specification)"
+                    };
+                }
+
+                if (applyT2)
+                {
+                    styleSection["tier_2_heading"] = new JObject
+                    {
+                        ["param"] = "ASS_TAG_2_TXT",
+                        ["bold"] = bold,
+                        ["italic"] = italic,
+                        ["underline"] = underline,
+                        ["note"] = $"TAG7 heading in State 2 (Technical)"
+                    };
+                }
+
+                // Also update parameter_text format
+                var paramText = doc["parameter_text"] as JObject;
+                if (paramText != null)
+                {
+                    string t2Style = applyT2 ? BuildStyleName(bold, italic, underline) : "underline";
+                    string t3Style = applyT3 ? BuildStyleName(bold, italic, underline) : "bold underline";
+
+                    paramText["ASS_TAG_2_TXT"] = new JObject
+                    {
+                        ["prefix"] = "",
+                        ["suffix"] = "",
+                        ["label"] = "Short Tag (FUNC-PROD-SEQ)",
+                        ["format"] = new JObject
+                        {
+                            ["tier_2"] = t2Style,
+                            ["tier_3"] = t3Style
+                        },
+                        ["note"] = "Heading line in TAG7 — style controlled via Set TAG7 Heading Style command."
+                    };
+                }
+
+                // Write back
+                string path = StingToolsApp.FindDataFile("LABEL_DEFINITIONS.json");
+                if (!string.IsNullOrEmpty(path))
+                {
+                    File.WriteAllText(path, doc.ToString(Newtonsoft.Json.Formatting.Indented));
+                    LabelDefinitionHelper.InvalidateCache();
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to save TAG7 heading style", ex);
+            }
+            return false;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     //  Label Definition Helper — loads LABEL_DEFINITIONS.json
     // ════════════════════════════════════════════════════════════════════
 
@@ -614,6 +849,33 @@ namespace StingTools.Tags
                 result[prop.Name] = prop.Value as JObject;
             }
             return result;
+        }
+
+        /// <summary>Invalidate the cached document so next load reads fresh data.</summary>
+        public static void InvalidateCache()
+        {
+            _cached = null;
+            _cachedPath = null;
+        }
+
+        /// <summary>Load TAG7 heading style settings for a tier.</summary>
+        public static (bool bold, bool italic, bool underline) LoadHeadingStyle(string tier)
+        {
+            var doc = LoadDocument();
+            if (doc == null) return (false, false, true); // default: underline only
+
+            var styleSection = doc["tag7_heading_style"] as JObject;
+            if (styleSection == null) return (tier == "tier_3", false, true); // default: tier3=bold+underline
+
+            string key = tier == "tier_3" ? "tier_3_heading" : "tier_2_heading";
+            var heading = styleSection[key] as JObject;
+            if (heading == null) return (tier == "tier_3", false, true);
+
+            return (
+                heading["bold"]?.Value<bool>() ?? false,
+                heading["italic"]?.Value<bool>() ?? false,
+                heading["underline"]?.Value<bool>() ?? true
+            );
         }
 
         /// <summary>

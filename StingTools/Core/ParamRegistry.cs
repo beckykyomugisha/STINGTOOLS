@@ -217,6 +217,13 @@ namespace StingTools.Core
         public static string PARA_PER_ENV    => Ext("PARA_PER_ENV");
         public static string PARA_CST_CONC   => Ext("PARA_CST_CONC");
 
+        // ── ISO 19650 naming parameters ────────────────────────────────
+        public static string PROJECT_COD    => Ext("PROJECT_COD");
+        public static string ORIGINATOR_COD => Ext("ORIGINATOR_COD");
+        public static string VOLUME_COD     => Ext("VOLUME_COD");
+        public static string STATUS_COD     => Ext("STATUS_COD");
+        public static string REV_COD        => Ext("REV_COD");
+
         // ── Warning threshold parameter ─────────────────────────────────
         public static string ELC_PNL_RATED  => Ext("ELC_PNL_RATED");
 
@@ -665,6 +672,27 @@ namespace StingTools.Core
                     }
                 }
             }
+
+            // Extended params (iso19650_naming, paragraph_containers, warning_thresholds, etc.)
+            var ext = root["extended_params"] as JObject;
+            if (ext != null)
+            {
+                foreach (var group in ext)
+                {
+                    var arr = group.Value as JArray;
+                    if (arr == null) continue;
+                    foreach (JObject item in arr)
+                    {
+                        string name = item["param_name"]?.ToString();
+                        string guidStr = item["guid"]?.ToString();
+                        if (!string.IsNullOrEmpty(name) && Guid.TryParse(guidStr, out Guid g))
+                        {
+                            _guidByName[name] = g;
+                            _nameByGuid[g] = name;
+                        }
+                    }
+                }
+            }
         }
 
         private static void BuildUniversalParams(JObject root)
@@ -811,6 +839,21 @@ namespace StingTools.Core
                 { "PLM_PIPE_FLOW", "PLM_PPE_FLW_LPS" }, { "PLM_PIPE_SIZE", "PLM_PPE_SZ_MM" },
                 { "PLM_VELOCITY", "PLM_VEL_MPS" }, { "PLM_FLOW_RATE", "PLM_FLOW_RATE_LPS" },
                 { "PLM_PIPE_LENGTH", "PLM_PPE_LENGTH_M" },
+                // ISO 19650 naming
+                { "PROJECT_COD", "ASS_PROJECT_COD_TXT" }, { "ORIGINATOR_COD", "ASS_ORIGINATOR_COD_TXT" },
+                { "VOLUME_COD", "ASS_VOLUME_COD_TXT" }, { "STATUS_COD", "ASS_STATUS_COD_TXT" },
+                { "REV_COD", "ASS_REV_COD_TXT" },
+                // Paragraph containers
+                { "PARA_WALL", "ARCH_TAG_7_PARA_WALL_TXT" }, { "PARA_FLOOR", "ARCH_TAG_7_PARA_FLOOR_TXT" },
+                { "PARA_CEIL", "ARCH_TAG_7_PARA_CEIL_TXT" }, { "PARA_ROOF", "ARCH_TAG_7_PARA_ROOF_TXT" },
+                { "PARA_DOOR", "ARCH_TAG_7_PARA_DOOR_TXT" }, { "PARA_WIN", "ARCH_TAG_7_PARA_WIN_TXT" },
+                { "PARA_STAIR", "ARCH_TAG_7_PARA_STAIR_TXT" }, { "PARA_RAMP", "ARCH_TAG_7_PARA_RAMP_TXT" },
+                { "PARA_ROOM", "ARCH_TAG_7_PARA_ROOM_TXT" }, { "PARA_FACADE", "ARCH_TAG_7_PARA_FACADE_TXT" },
+                { "PARA_CASEWORK", "ARCH_TAG_7_PARA_CASEWORK_TXT" }, { "PARA_FURNITURE", "ARCH_TAG_7_PARA_FURNITURE_TXT" },
+                { "PARA_STR_FDN", "STR_TAG_7_PARA_FDN_TXT" }, { "PARA_STR_COL", "STR_TAG_7_PARA_COL_TXT" },
+                { "PARA_STR_BEAM", "STR_TAG_7_PARA_BEAM_TXT" },
+                { "PARA_HVC_SPEC", "HVC_TAG_7_PARA_SPEC_TXT" }, { "PARA_HVC_DUCT", "HVC_TAG_7_PARA_DUCT_TXT" },
+                { "PARA_HVC_AT", "HVC_TAG_7_PARA_AT_TXT" },
             };
 
             ContainerGroups = Array.Empty<ContainerGroupDef>();
