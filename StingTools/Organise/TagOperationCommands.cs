@@ -3300,8 +3300,11 @@ namespace StingTools.Organise
     }
 
     /// <summary>
-    /// Snap leader elbows to 45° or 90° angles for clean annotation layout.
+    /// Snap leader elbows to 45°, 90°, or straight angles for clean annotation layout.
     /// Works on selected tags or all tags in view.
+    /// Supports cycling: each invocation detects the current angle and rotates to the next
+    /// in the sequence 90° → 45° → Straight → 90°.
+    /// Also supports direct angle setting via the static SnapToAngle method.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -3321,27 +3324,74 @@ namespace StingTools.Organise
                 return Result.Succeeded;
             }
 
-            // Choose angle
-            TaskDialog dlg = new TaskDialog("Snap Leader Elbows");
-            dlg.MainInstruction = $"Snap {tags.Count} leader elbows";
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "90° (Orthogonal)",
-                "Snap elbows to horizontal/vertical angles (clean, technical drawings)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "45° (Diagonal)",
-                "Snap elbows to 45° angles (compact, isometric style)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Straight (No Elbow)",
-                "Direct straight line from element to tag head — no elbow bend");
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // Auto-cycle: detect current angle and rotate to next
+            // Cycle order: 90° → 45° → Straight (0°) → 90°
+            string targetAngle = DetectCurrentAngleAndCycle(doc, tags);
 
-            var result = dlg.Show();
-            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+            int snapped = SnapToAngle(doc, tags, targetAngle);
 
-            bool use45 = result == TaskDialogResult.CommandLink2;
-            bool useStraight = result == TaskDialogResult.CommandLink3;
+            string angleLabel = targetAngle == "0" ? "Straight" : $"{targetAngle}°";
+            TaskDialog.Show("Snap Elbows",
+                $"Snapped {snapped} of {tags.Count} leader elbows to {angleLabel}.\n" +
+                "(Click again to cycle to next angle)");
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Detect the predominant current elbow angle and return the next in cycle.
+        /// Cycle: 90° → 45° → Straight (0°) → 90°
+        /// </summary>
+        private static string DetectCurrentAngleAndCycle(Document doc, List<IndependentTag> tags)
+        {
+            int count90 = 0, count45 = 0, count0 = 0;
+
+            foreach (IndependentTag tag in tags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    Element host = hostIds.Count > 0 ? doc.GetElement(hostIds.First()) : null;
+                    if (host == null) continue;
+
+                    XYZ hostCenter = LeaderHelper.GetElementCenter(host);
+                    if (hostCenter == null) continue;
+
+                    XYZ tagHead = tag.TagHeadPosition;
+                    var refs = tag.GetTaggedReferences();
+                    if (refs == null || refs.Count == 0) continue;
+
+                    XYZ elbow = tag.GetLeaderElbow(refs.First());
+                    if (elbow == null) { count90++; continue; }
+
+                    // Classify the elbow position
+                    XYZ mid = (hostCenter + tagHead) / 2.0;
+                    XYZ ortho90 = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+
+                    if (elbow.DistanceTo(mid) < 0.2)
+                        count0++;       // Straight
+                    else if (elbow.DistanceTo(ortho90) < 0.2)
+                        count90++;      // 90°
+                    else
+                        count45++;      // 45° or other
+                }
+                catch { count90++; }
+            }
+
+            // Determine dominant angle and cycle to next
+            if (count90 >= count45 && count90 >= count0)
+                return "45";    // Currently 90° → cycle to 45°
+            if (count45 >= count90 && count45 >= count0)
+                return "0";     // Currently 45° → cycle to Straight
+            return "90";        // Currently Straight → cycle to 90°
+        }
+
+        /// <summary>
+        /// Snap leader elbows to a specific angle. Called by the handler for direct snapping.
+        /// angleMode: "90", "45", or "0" (straight).
+        /// </summary>
+        public static int SnapToAngle(Document doc, List<IndependentTag> tags, string angleMode)
+        {
             int snapped = 0;
-
             using (Transaction tx = new Transaction(doc, "STING Snap Leader Elbows"))
             {
                 tx.Start();
@@ -3349,9 +3399,8 @@ namespace StingTools.Organise
                 {
                     try
                     {
-                        // Get tagged element center and tag head
-                        var _hostIds = tag.GetTaggedLocalElementIds();
-                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
+                        var hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = hostIds.Count > 0 ? doc.GetElement(hostIds.First()) : null;
                         if (host == null) continue;
 
                         XYZ hostCenter = LeaderHelper.GetElementCenter(host);
@@ -3359,52 +3408,10 @@ namespace StingTools.Organise
 
                         XYZ tagHead = tag.TagHeadPosition;
                         XYZ delta = tagHead - hostCenter;
-
                         if (delta.GetLength() < 0.01) continue;
 
-                        // Calculate snapped elbow position
-                        XYZ elbowPos;
-                        if (useStraight)
-                        {
-                            // Straight: place elbow at midpoint of host→tagHead line
-                            // This effectively creates a straight leader (no visible bend)
-                            elbowPos = (hostCenter + tagHead) / 2.0;
-                        }
-                        else if (use45)
-                        {
-                            // 45° elbow: move along diagonal first, then horizontal
-                            double absDx = Math.Abs(delta.X);
-                            double absDy = Math.Abs(delta.Y);
-                            double diag = Math.Min(absDx, absDy);
-                            double signX = delta.X >= 0 ? 1 : -1;
-                            double signY = delta.Y >= 0 ? 1 : -1;
+                        XYZ elbowPos = CalculateElbowPosition(hostCenter, tagHead, delta, angleMode);
 
-                            if (absDx > absDy)
-                            {
-                                // Wider than tall: diagonal from host, then horizontal to tag
-                                // Elbow at diagonal endpoint — same Y as tag head
-                                elbowPos = new XYZ(
-                                    hostCenter.X + diag * signX,
-                                    tagHead.Y,
-                                    hostCenter.Z);
-                            }
-                            else
-                            {
-                                // Taller than wide: diagonal from host, then vertical to tag
-                                // Elbow at diagonal endpoint — same X as tag head
-                                elbowPos = new XYZ(
-                                    tagHead.X,
-                                    hostCenter.Y + diag * signY,
-                                    hostCenter.Z);
-                            }
-                        }
-                        else
-                        {
-                            // 90° elbow: horizontal from host, then vertical to tag head
-                            elbowPos = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
-                        }
-
-                        // Set elbow position via leader end + head position
                         var refs = tag.GetTaggedReferences();
                         if (refs != null && refs.Count > 0)
                         {
@@ -3420,11 +3427,38 @@ namespace StingTools.Organise
                 }
                 tx.Commit();
             }
+            return snapped;
+        }
 
-            string angle = useStraight ? "Straight" : use45 ? "45°" : "90°";
-            TaskDialog.Show("Snap Elbows",
-                $"Snapped {snapped} of {tags.Count} leader elbows to {angle}.");
-            return Result.Succeeded;
+        /// <summary>
+        /// Calculate the elbow position for a given angle mode.
+        /// </summary>
+        private static XYZ CalculateElbowPosition(XYZ hostCenter, XYZ tagHead, XYZ delta, string angleMode)
+        {
+            if (angleMode == "0")
+            {
+                // Straight: elbow at midpoint — creates straight leader
+                return (hostCenter + tagHead) / 2.0;
+            }
+            else if (angleMode == "45")
+            {
+                // 45° elbow: diagonal then horizontal/vertical
+                double absDx = Math.Abs(delta.X);
+                double absDy = Math.Abs(delta.Y);
+                double diag = Math.Min(absDx, absDy);
+                double signX = delta.X >= 0 ? 1 : -1;
+                double signY = delta.Y >= 0 ? 1 : -1;
+
+                if (absDx > absDy)
+                    return new XYZ(hostCenter.X + diag * signX, tagHead.Y, hostCenter.Z);
+                else
+                    return new XYZ(tagHead.X, hostCenter.Y + diag * signY, hostCenter.Z);
+            }
+            else // "90"
+            {
+                // 90° elbow: horizontal from host, then vertical to tag head
+                return new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+            }
         }
     }
 

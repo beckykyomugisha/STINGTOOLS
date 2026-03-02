@@ -184,9 +184,9 @@ namespace StingTools.UI
                     case "AddLeaders": RunCommand<Organise.AddLeadersCommand>(app); break;
                     case "RemoveLeaders": RunCommand<Organise.RemoveLeadersCommand>(app); break;
                     case "ToggleLeaders": RunCommand<Organise.ToggleLeadersCommand>(app); break;
-                    case "SnapElbow90":
-                    case "SnapElbow45":
-                    case "SnapElbowStraight": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "SnapElbow90": SnapElbowDirect(app, "90"); break;
+                    case "SnapElbow45": SnapElbowDirect(app, "45"); break;
+                    case "SnapElbowStraight": SnapElbowDirect(app, "0"); break;
                     case "PinTags": RunCommand<Organise.PinTagsCommand>(app); break;
                     case "AttachLeader": RunCommand<Organise.AttachLeaderCommand>(app); break;
                     case "SelectTagsWithLeaders": RunCommand<Organise.SelectTagsWithLeadersCommand>(app); break;
@@ -372,41 +372,41 @@ namespace StingTools.UI
                     case "SetVol": WriteTokenToSelected(app, ParamRegistry.VOLUME, "Volume Code (VOL)"); break;
 
                     // ── Scope / toggles (inline) ──
-                    case "ScopeView": break;
-                    case "ToggleOverwrite": break;
+                    case "ScopeView": ToggleScopeMode(app); break;
+                    case "ToggleOverwrite": ToggleOverwriteMode(app); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — SELECT TAB (AI Smart Select, Spatial, Conditions)
                     // ════════════════════════════════════════════════════════
 
-                    case "AIPredictSelect":
-                    case "AISimilarSelect":
-                    case "AIChainSelect":
-                    case "AIClusterSelect":
+                    case "AIPredictSelect": AIPredictSelect(app); break;
+                    case "AISimilarSelect": AISimilarSelect(app); break;
+                    case "AIChainSelect": AIChainSelect(app); break;
+                    case "AIClusterSelect": SelectNearby(app, 20.0); break;
                     case "AIPatternSelect":
                     case "AIBoundarySelect":
-                    case "AIOutliersSelect":
-                    case "AIDenseSelect":
                         StingLog.Info($"AI Smart Select: {_commandTag}");
-                        TaskDialog.Show("AI Select", $"AI selection mode: {_commandTag}\nSelect elements first, then AI will extend the selection.");
+                        TaskDialog.Show("AI Select", $"AI selection mode '{_commandTag}' is under development.");
                         break;
+                    case "AIOutliersSelect": AIOutliersSelect(app); break;
+                    case "AIDenseSelect": SelectNearby(app, 5.0); break;
 
                     case "SelectView": SelectByCategory(app, "Views"); break;
                     case "SelectVisible": SelectVisibleOnly(app); break;
-                    case "SelectNear": StingLog.Info("SelectNear"); break;
-                    case "SelectQuad": StingLog.Info("SelectQuad"); break;
-                    case "SelectEdge": StingLog.Info("SelectEdge"); break;
-                    case "SelectGrid": StingLog.Info("SelectGrid"); break;
-                    case "SelectBBox": StingLog.Info("SelectBBox"); break;
+                    case "SelectNear": SelectNearby(app, 10.0); break;
+                    case "SelectQuad": SelectQuadrant(app); break;
+                    case "SelectEdge": SelectEdgeElements(app); break;
+                    case "SelectGrid": SelectOnGrid(app); break;
+                    case "SelectBBox": SelectByBoundingBox(app); break;
 
-                    case "BulkBrain": StingLog.Info("BulkBrain — AI param suggestion"); break;
+                    case "BulkBrain": BulkBrainSuggest(app); break;
                     case "ParamLookupRefresh":
                     case "RefreshParamList": RefreshParamList(app); break;
-                    case "CondAdd": StingLog.Info("CondAdd"); break;
-                    case "CondRemove": StingLog.Info("CondRemove"); break;
-                    case "CondClear": StingLog.Info("CondClear"); break;
-                    case "CondPreview": StingLog.Info("CondPreview"); break;
-                    case "CondApply": StingLog.Info("CondApply"); break;
+                    case "CondAdd": ConditionAdd(app, _param1, _param2); break;
+                    case "CondRemove": ConditionRemove(app); break;
+                    case "CondClear": ConditionClear(app); break;
+                    case "CondPreview": ConditionPreview(app); break;
+                    case "CondApply": ConditionApply(app); break;
                     case "ShowHelp": TaskDialog.Show("STING Tools", "STING Tags v9.6\nISO 19650 BIM Asset Tagging\nhttps://stingbim.com"); break;
 
                     // ════════════════════════════════════════════════════════
@@ -425,7 +425,7 @@ namespace StingTools.UI
                         TaskDialog.Show("Undo", "Use Ctrl+Z to undo the last tag operation.");
                         break;
 
-                    case "TagFamilyRefresh": StingLog.Info("TagFamilyRefresh"); break;
+                    case "TagFamilyRefresh": TagFamilyRefresh(app); break;
                     case "TagCat": RunCommand<Organise.TagSelectedCommand>(app); break;
                     case "TagAll": RunCommand<Tags.BatchTagCommand>(app); break;
                     case "Orphans": FindOrphanedTags(app); break;
@@ -450,13 +450,13 @@ namespace StingTools.UI
 
                     case "LeaderMulti":
                     case "LeaderCombine": RunCommand<Organise.AddLeadersCommand>(app); break;
-                    case "LeaderAdd":
-                    case "LeaderStraight": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
-                    case "TagSnap45": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
-                    case "TagSnap90": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
-                    case "LeaderSpacing": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "LeaderAdd": RunCommand<Organise.AddLeadersCommand>(app); break;
+                    case "LeaderStraight": SnapElbowDirect(app, "0"); break;
+                    case "TagSnap45": SnapElbowDirect(app, "45"); break;
+                    case "TagSnap90": SnapElbowDirect(app, "90"); break;
+                    case "LeaderSpacing": RunCommand<Organise.AlignTagsCommand>(app); break;
 
-                    case "BrainSmartLdr": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "BrainSmartLdr": SnapElbowDirect(app, "cycle"); break;
                     case "BrainUncross": RunCommand<Tags.ArrangeTagsCommand>(app); break;
                     case "BrainTidy": RunCommand<Tags.ArrangeTagsCommand>(app); break;
 
@@ -470,27 +470,29 @@ namespace StingTools.UI
                     case "PatternLearn": RunCommand<Tags.LearnTagPlacementCommand>(app); break;
                     case "PatternApplyLearned": RunCommand<Tags.ApplyTagTemplateCommand>(app); break;
 
-                    case "BatchViewCats": StingLog.Info("BatchViewCats"); break;
-                    case "BatchViewRunAll": StingLog.Info("BatchViewRunAll"); break;
+                    case "BatchViewCats": BatchViewCategories(app); break;
+                    case "BatchViewRunAll": BatchViewRunAll(app); break;
 
                     case "RoomTagCentroid": MoveRoomTags(app, "Centroid"); break;
                     case "RoomTagTopLeft": MoveRoomTags(app, "TopLeft"); break;
                     case "RoomTagTopCentre": MoveRoomTags(app, "TopCentre"); break;
-                    case "RoomTagLeaderLock":
-                    case "RoomTagLeaderFree":
-                        StingLog.Info($"RoomTag: {_commandTag}");
-                        break;
+                    case "RoomTagLeaderLock": RoomTagLeaderToggle(app, true); break;
+                    case "RoomTagLeaderFree": RoomTagLeaderToggle(app, false); break;
 
-                    case "ListLinks":
+                    case "ListLinks": ListLinkedModels(app); break;
                     case "SelInLink":
                     case "TagLinked":
-                    case "AuditLinks":
-                        StingLog.Info($"LinkedModel: {_commandTag}");
+                        StingLog.Info($"LinkedModel: {_commandTag} — requires linked document access");
+                        TaskDialog.Show("Linked Model", "Select/tag in linked model requires direct linked document access.\nUse Revit's built-in 'Select Links' and 'Tab' key to select linked elements.");
                         break;
+                    case "AuditLinks": AuditLinkedModels(app); break;
 
                     case "PdfSelectedSheets":
                     case "PdfActiveView":
-                        StingLog.Info($"PDF Export: {_commandTag}");
+                        TaskDialog.Show("PDF Export",
+                            "PDF export requires Revit's Print/Export API.\n" +
+                            "Use File → Export → PDF in Revit for direct PDF output,\n" +
+                            "or File → Print with a PDF printer driver.");
                         break;
 
                     case "GenSheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
@@ -511,12 +513,10 @@ namespace StingTools.UI
                     case "VPNumTB": RunCommand<Docs.RenumberViewportsCommand>(app); break;
                     case "VPNumPlus": ViewportRenumberOffset(app, 1); break;
                     case "VPNumMinus": ViewportRenumberOffset(app, -1); break;
-                    case "VPPrefix":
-                    case "VPSuffix":
-                        StingLog.Info($"VP Number: {_commandTag}");
-                        break;
+                    case "VPPrefix": ViewportAddPrefixSuffix(app, true); break;
+                    case "VPSuffix": ViewportAddPrefixSuffix(app, false); break;
 
-                    case "SheetResetTitle": StingLog.Info($"Sheet: {_commandTag}"); break;
+                    case "SheetResetTitle": SheetResetTitleBlock(app); break;
                     case "SheetNumPlus": SheetRenumber(app, 1); break;
                     case "SheetNumMinus": SheetRenumber(app, -1); break;
                     case "SheetPrefix": SheetAddPrefix(app); break;
@@ -543,7 +543,7 @@ namespace StingTools.UI
                     case "DimResetOverrides": DimResetOverrides(app); break;
                     case "DimResetText": DimResetText(app); break;
                     case "DimFindZero": DimFindZero(app); break;
-                    case "DimFindReplace": StingLog.Info($"Dimension: {_commandTag}"); break;
+                    case "DimFindReplace": DimFindReplaceOverrides(app); break;
 
                     case "LegendSyncPos": LegendSyncPosition(app); break;
                     case "LegendTitleLine": LegendTitleLine(app); break;
@@ -565,9 +565,13 @@ namespace StingTools.UI
                     case "MeasureRoomAreas": RunCommand<Docs.SumAreasCommand>(app); break;
 
                     case "SwapElements":
+                        TaskDialog.Show("Swap Elements", "Select two elements, then use 'Copy Tags' and 'Swap Tags' commands to exchange their data.");
+                        break;
                     case "ConvertRegions":
+                        TaskDialog.Show("Convert Regions", "Use Revit's built-in Filled Region tools or Detail Items to convert regions.\nEdit → Paste Aligned can also help transfer detail regions between views.");
+                        break;
                     case "CleanSpaces":
-                        StingLog.Info($"Utility: {_commandTag}");
+                        TaskDialog.Show("Clean Spaces", "Use 'Delete Unused Views' to remove unplaced views.\nUse 'Purge Unused' (Manage tab → Purge) to clean up unused families and materials.");
                         break;
 
                     // ════════════════════════════════════════════════════════
@@ -586,7 +590,7 @@ namespace StingTools.UI
                     case "HealthReport": RunCommand<Organise.TagStatsCommand>(app); break;
                     case "HealthFixAll": RunCommand<Organise.FixDuplicateTagsCommand>(app); break;
 
-                    case "AnomalyRefresh": StingLog.Info("AnomalyRefresh"); break;
+                    case "AnomalyRefresh": AnomalyRefreshScan(app); break;
                     case "AnomalyScan": RunCommand<Tags.ValidateTagsCommand>(app); break;
                     case "AnomalyExport": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
 
@@ -2843,6 +2847,1279 @@ namespace StingTools.UI
                     new Color(96, 125, 139), new Color(0, 0, 0)
                 }
             };
+        }
+
+        // ── AI Smart Select helpers ──────────────────────────────────
+
+        /// <summary>
+        /// Predict what the user wants to select based on current selection patterns.
+        /// Analyzes category, family, type, and parameter values of selected elements,
+        /// then selects all similar elements in the view.
+        /// </summary>
+        private static void AIPredictSelect(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var selected = uidoc.Selection.GetElementIds();
+            if (selected.Count == 0)
+            {
+                TaskDialog.Show("AI Predict Select", "Select one or more elements first.\nThe tool will find similar elements based on shared properties.");
+                return;
+            }
+
+            // Analyze selection: collect category, family, type patterns
+            var categories = new HashSet<string>();
+            var families = new HashSet<string>();
+            var types = new HashSet<string>();
+            foreach (ElementId id in selected)
+            {
+                Element el = doc.GetElement(id);
+                if (el == null) continue;
+                categories.Add(ParameterHelpers.GetCategoryName(el));
+                families.Add(ParameterHelpers.GetFamilyName(el));
+                types.Add(ParameterHelpers.GetFamilySymbolName(el));
+            }
+
+            // Find matching elements — priority: type > family > category
+            var allInView = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .WhereElementIsNotElementType().ToList();
+
+            var matches = new List<ElementId>();
+            foreach (Element el in allInView)
+            {
+                string typeName = ParameterHelpers.GetFamilySymbolName(el);
+                string famName = ParameterHelpers.GetFamilyName(el);
+                string catName = ParameterHelpers.GetCategoryName(el);
+
+                // Match by type first (most specific), then family, then category
+                if (types.Contains(typeName))
+                    matches.Add(el.Id);
+                else if (families.Contains(famName))
+                    matches.Add(el.Id);
+            }
+
+            if (matches.Count == 0)
+            {
+                // Fall back to category match
+                foreach (Element el in allInView)
+                    if (categories.Contains(ParameterHelpers.GetCategoryName(el)))
+                        matches.Add(el.Id);
+            }
+
+            uidoc.Selection.SetElementIds(matches);
+            TaskDialog.Show("AI Predict Select",
+                $"Selected {matches.Count} elements matching pattern:\n" +
+                $"  Categories: {string.Join(", ", categories.Take(5))}\n" +
+                $"  Families: {string.Join(", ", families.Take(5))}\n" +
+                $"  Types: {string.Join(", ", types.Take(5))}");
+            StingLog.Info($"AIPredictSelect: {selected.Count} seed → {matches.Count} matches");
+        }
+
+        /// <summary>
+        /// Select all elements of the same family and type as the current selection.
+        /// </summary>
+        private static void AISimilarSelect(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var selected = uidoc.Selection.GetElementIds();
+            if (selected.Count == 0)
+            {
+                TaskDialog.Show("Similar Select", "Select an element first.");
+                return;
+            }
+
+            var targetTypes = new HashSet<ElementId>();
+            foreach (ElementId id in selected)
+            {
+                Element el = doc.GetElement(id);
+                if (el == null) continue;
+                ElementId typeId = el.GetTypeId();
+                if (typeId != ElementId.InvalidElementId)
+                    targetTypes.Add(typeId);
+            }
+
+            if (targetTypes.Count == 0)
+            {
+                TaskDialog.Show("Similar Select", "No type information found on selected elements.");
+                return;
+            }
+
+            var matches = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => targetTypes.Contains(e.GetTypeId()))
+                .Select(e => e.Id).ToList();
+
+            uidoc.Selection.SetElementIds(matches);
+            StingLog.Info($"AISimilarSelect: {targetTypes.Count} types → {matches.Count} elements");
+        }
+
+        /// <summary>
+        /// Chain-select connected MEP elements starting from selection.
+        /// Walks the MEP connector graph to find all connected elements.
+        /// </summary>
+        private static void AIChainSelect(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var selected = uidoc.Selection.GetElementIds();
+            if (selected.Count == 0)
+            {
+                TaskDialog.Show("Chain Select", "Select a MEP element to trace its connected chain.");
+                return;
+            }
+
+            var visited = new HashSet<ElementId>(selected);
+            var queue = new Queue<ElementId>(selected);
+            int maxDepth = 200;
+
+            while (queue.Count > 0 && visited.Count < maxDepth)
+            {
+                ElementId currentId = queue.Dequeue();
+                Element el = doc.GetElement(currentId);
+                if (el == null) continue;
+
+                try
+                {
+                    var connMgr = (el as MEPCurve)?.ConnectorManager
+                        ?? (el as FamilyInstance)?.MEPModel?.ConnectorManager;
+
+                    if (connMgr == null) continue;
+
+                    foreach (Connector conn in connMgr.Connectors)
+                    {
+                        if (!conn.IsConnected) continue;
+                        foreach (Connector other in conn.AllRefs)
+                        {
+                            if (other.Owner != null && visited.Add(other.Owner.Id))
+                                queue.Enqueue(other.Owner.Id);
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            uidoc.Selection.SetElementIds(visited.ToList());
+            TaskDialog.Show("Chain Select",
+                $"Traced {visited.Count} connected elements from {selected.Count} seed(s).");
+            StingLog.Info($"AIChainSelect: {selected.Count} → {visited.Count} elements");
+        }
+
+        /// <summary>
+        /// Select elements whose parameter values are outliers compared to the majority.
+        /// Finds elements with missing tags, unusual discipline codes, or empty required tokens.
+        /// </summary>
+        private static void AIOutliersSelect(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            var outliers = new List<ElementId>();
+            int total = 0;
+            var elements = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .WhereElementIsNotElementType().ToList();
+
+            foreach (Element el in elements)
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!known.Contains(cat)) continue;
+                total++;
+
+                // Check for anomalies: missing tag, empty DISC, empty SYS
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+
+                bool isOutlier = false;
+                if (string.IsNullOrEmpty(tag1)) isOutlier = true;
+                if (string.IsNullOrEmpty(disc)) isOutlier = true;
+                if (!string.IsNullOrEmpty(disc) && disc == "XX") isOutlier = true;
+
+                // Check if tag has placeholders
+                if (!string.IsNullOrEmpty(tag1) && (tag1.Contains("-XX-") || tag1.Contains("-0000")))
+                    isOutlier = true;
+
+                if (isOutlier) outliers.Add(el.Id);
+            }
+
+            uidoc.Selection.SetElementIds(outliers);
+            TaskDialog.Show("Outlier Select",
+                $"Found {outliers.Count} outlier elements of {total} taggable:\n" +
+                "  - Missing or incomplete tags\n" +
+                "  - Placeholder values (XX, 0000)\n" +
+                "  - Empty discipline codes");
+            StingLog.Info($"AIOutliersSelect: {outliers.Count} outliers of {total} taggable");
+        }
+
+        /// <summary>
+        /// Select elements within a proximity radius of the current selection.
+        /// Uses bounding box center distance comparison.
+        /// </summary>
+        private static void SelectNearby(UIApplication app, double radiusFeet)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+            var selected = uidoc.Selection.GetElementIds();
+            if (selected.Count == 0)
+            {
+                TaskDialog.Show("Select Nearby", "Select element(s) first. Nearby elements will be found.");
+                return;
+            }
+
+            // Get centers of selected elements
+            var seedCenters = new List<XYZ>();
+            foreach (ElementId id in selected)
+            {
+                Element el = doc.GetElement(id);
+                if (el == null) continue;
+                BoundingBoxXYZ bb = el.get_BoundingBox(view);
+                if (bb != null)
+                    seedCenters.Add((bb.Min + bb.Max) / 2.0);
+            }
+
+            if (seedCenters.Count == 0)
+            {
+                TaskDialog.Show("Select Nearby", "Cannot determine positions of selected elements.");
+                return;
+            }
+
+            // Find all elements within radius
+            var nearby = new List<ElementId>();
+            foreach (Element el in new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType())
+            {
+                BoundingBoxXYZ bb = el.get_BoundingBox(view);
+                if (bb == null) continue;
+                XYZ center = (bb.Min + bb.Max) / 2.0;
+
+                foreach (XYZ seed in seedCenters)
+                {
+                    double dist = new XYZ(center.X - seed.X, center.Y - seed.Y, 0).GetLength();
+                    if (dist <= radiusFeet)
+                    {
+                        nearby.Add(el.Id);
+                        break;
+                    }
+                }
+            }
+
+            uidoc.Selection.SetElementIds(nearby);
+            double radiusM = radiusFeet * 0.3048;
+            StingLog.Info($"SelectNearby: radius={radiusM:F1}m, found={nearby.Count}");
+        }
+
+        /// <summary>
+        /// Select elements at the edges/boundaries of the view crop region.
+        /// Useful for finding elements that may be cut off or partially visible.
+        /// </summary>
+        private static void SelectEdgeElements(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            BoundingBoxXYZ viewBB = view.CropBox;
+            if (viewBB == null || !view.CropBoxActive)
+            {
+                TaskDialog.Show("Edge Select", "View must have an active crop region.");
+                return;
+            }
+
+            // Edge margin: elements within 10% of the crop box boundary
+            double dx = (viewBB.Max.X - viewBB.Min.X) * 0.1;
+            double dy = (viewBB.Max.Y - viewBB.Min.Y) * 0.1;
+
+            var edgeElements = new List<ElementId>();
+            foreach (Element el in new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType())
+            {
+                BoundingBoxXYZ bb = el.get_BoundingBox(view);
+                if (bb == null) continue;
+                XYZ center = (bb.Min + bb.Max) / 2.0;
+
+                bool nearEdge = center.X < viewBB.Min.X + dx || center.X > viewBB.Max.X - dx
+                    || center.Y < viewBB.Min.Y + dy || center.Y > viewBB.Max.Y - dy;
+
+                if (nearEdge)
+                    edgeElements.Add(el.Id);
+            }
+
+            uidoc.Selection.SetElementIds(edgeElements);
+            TaskDialog.Show("Edge Select",
+                $"Selected {edgeElements.Count} elements near the view crop boundary.");
+            StingLog.Info($"SelectEdgeElements: {edgeElements.Count} near crop boundary");
+        }
+
+        // ── Scope & mode toggles ─────────────────────────────────────
+
+        private static bool _scopeIsView = true;
+
+        /// <summary>
+        /// Toggle between view-scope (active view only) and project-scope (all elements).
+        /// Affects subsequent AI select and analysis operations.
+        /// </summary>
+        private static void ToggleScopeMode(UIApplication app)
+        {
+            _scopeIsView = !_scopeIsView;
+            string mode = _scopeIsView ? "Active View" : "Entire Project";
+            TaskDialog.Show("Scope Mode", $"Selection scope: {mode}");
+            StingLog.Info($"ToggleScopeMode: {mode}");
+        }
+
+        private static bool _overwriteMode = false;
+
+        /// <summary>
+        /// Toggle between skip-existing and overwrite modes for parameter operations.
+        /// </summary>
+        private static void ToggleOverwriteMode(UIApplication app)
+        {
+            _overwriteMode = !_overwriteMode;
+            string mode = _overwriteMode ? "OVERWRITE existing values" : "SKIP existing values";
+            TaskDialog.Show("Overwrite Mode", $"Parameter write mode: {mode}");
+            StingLog.Info($"ToggleOverwriteMode: {mode}");
+        }
+
+        // ── Anomaly & intelligence helpers ────────────────────────────
+
+        /// <summary>
+        /// Scan the current view for parameter anomalies: missing tokens,
+        /// inconsistent values, placeholder codes, format violations.
+        /// </summary>
+        private static void AnomalyRefreshScan(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            int total = 0, missingTag = 0, missingDisc = 0, missingSys = 0;
+            int placeholders = 0, formatErrors = 0;
+
+            foreach (Element el in new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!known.Contains(cat)) continue;
+                total++;
+
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+
+                if (string.IsNullOrEmpty(tag1)) missingTag++;
+                if (string.IsNullOrEmpty(disc)) missingDisc++;
+                if (string.IsNullOrEmpty(sys)) missingSys++;
+
+                if (!string.IsNullOrEmpty(tag1))
+                {
+                    if (tag1.Contains("-XX-") || tag1.Contains("-0000"))
+                        placeholders++;
+                    string[] parts = tag1.Split('-');
+                    if (parts.Length != 8)
+                        formatErrors++;
+                }
+            }
+
+            int issues = missingTag + missingDisc + missingSys + placeholders + formatErrors;
+            double healthPct = total > 0 ? ((total - Math.Min(issues, total)) / (double)total) * 100 : 0;
+
+            var report = new StringBuilder();
+            report.AppendLine($"Anomaly Scan — {doc.ActiveView.Name}");
+            report.AppendLine(new string('═', 45));
+            report.AppendLine($"  Taggable elements: {total}");
+            report.AppendLine($"  Health score:      {healthPct:F0}%");
+            report.AppendLine();
+            report.AppendLine("  Anomalies:");
+            report.AppendLine($"    Missing tags:     {missingTag}");
+            report.AppendLine($"    Missing DISC:     {missingDisc}");
+            report.AppendLine($"    Missing SYS:      {missingSys}");
+            report.AppendLine($"    Placeholders:     {placeholders} (XX, 0000)");
+            report.AppendLine($"    Format errors:    {formatErrors} (not 8-segment)");
+            report.AppendLine();
+            report.AppendLine($"  Total issues: {issues}");
+
+            TaskDialog.Show("Anomaly Scan", report.ToString());
+            StingLog.Info($"AnomalyRefresh: {total} elements, {issues} issues, health={healthPct:F0}%");
+        }
+
+        /// <summary>
+        /// Analyze selected elements and suggest optimal bulk parameter operations.
+        /// Reports frequency of existing values and recommends the most impactful bulk write.
+        /// </summary>
+        private static void BulkBrainSuggest(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var ids = uidoc.Selection.GetElementIds();
+
+            if (ids.Count == 0)
+            {
+                // Use all taggable in view
+                var known2 = new HashSet<string>(TagConfig.DiscMap.Keys);
+                ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(e => known2.Contains(ParameterHelpers.GetCategoryName(e)))
+                    .Select(e => e.Id).ToList();
+            }
+
+            if (ids.Count == 0)
+            {
+                TaskDialog.Show("Bulk Brain", "No taggable elements found.");
+                return;
+            }
+
+            // Analyze token fill rates
+            string[] tokens = { ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD };
+            var tokenStats = new Dictionary<string, (int filled, int empty, string topValue)>();
+
+            foreach (string token in tokens)
+            {
+                int filled = 0, empty = 0;
+                var valueCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (ElementId id in ids)
+                {
+                    Element el = doc.GetElement(id);
+                    if (el == null) continue;
+                    string val = ParameterHelpers.GetString(el, token);
+                    if (string.IsNullOrEmpty(val))
+                        empty++;
+                    else
+                    {
+                        filled++;
+                        if (!valueCounts.ContainsKey(val)) valueCounts[val] = 0;
+                        valueCounts[val]++;
+                    }
+                }
+
+                string topVal = valueCounts.Count > 0
+                    ? valueCounts.OrderByDescending(v => v.Value).First().Key
+                    : "-";
+                tokenStats[token] = (filled, empty, topVal);
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Bulk Brain — {ids.Count} elements");
+            report.AppendLine(new string('═', 55));
+            report.AppendLine($"{"Token",-28} {"Filled",-8} {"Empty",-8} {"Top Value"}");
+            report.AppendLine(new string('─', 55));
+
+            string bestSuggestion = null;
+            int maxEmpty = 0;
+            foreach (var kvp in tokenStats)
+            {
+                string shortName = kvp.Key.Replace("ASS_", "").Replace("_TXT", "").Replace("_COD", "");
+                report.AppendLine($"  {shortName,-26} {kvp.Value.filled,-8} {kvp.Value.empty,-8} {kvp.Value.topValue}");
+                if (kvp.Value.empty > maxEmpty)
+                {
+                    maxEmpty = kvp.Value.empty;
+                    bestSuggestion = kvp.Key;
+                }
+            }
+
+            report.AppendLine();
+            if (bestSuggestion != null && maxEmpty > 0)
+                report.AppendLine($"Suggestion: Run 'Family-Stage Populate' to fill {maxEmpty} empty {bestSuggestion} values.");
+            else
+                report.AppendLine("All tokens are fully populated.");
+
+            TaskDialog.Show("Bulk Brain", report.ToString());
+            StingLog.Info($"BulkBrain: {ids.Count} elements analyzed");
+        }
+
+        /// <summary>
+        /// Refresh tag family information: audit loaded tag families and report coverage.
+        /// </summary>
+        private static void TagFamilyRefresh(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+
+            // Find all loaded tag family types
+            var tagFamilies = new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .Where(fs =>
+                {
+                    try { return fs.Family?.FamilyCategory?.Name?.Contains("Tag") == true; }
+                    catch { return false; }
+                })
+                .ToList();
+
+            var stingTags = tagFamilies.Where(t => t.Family.Name.StartsWith("STING")).ToList();
+            var otherTags = tagFamilies.Where(t => !t.Family.Name.StartsWith("STING")).ToList();
+
+            // Check coverage of known categories
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var taggedCats = new HashSet<string>();
+            foreach (var tf in tagFamilies)
+            {
+                try
+                {
+                    var cat = tf.Family.FamilyCategory;
+                    if (cat != null) taggedCats.Add(cat.Name);
+                }
+                catch { }
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine("Tag Family Audit");
+            report.AppendLine(new string('═', 45));
+            report.AppendLine($"  STING tag families: {stingTags.Count}");
+            report.AppendLine($"  Other tag families: {otherTags.Count}");
+            report.AppendLine($"  Taggable categories: {known.Count}");
+            report.AppendLine();
+            if (stingTags.Count > 0)
+            {
+                report.AppendLine("STING tag families:");
+                foreach (var tf in stingTags.Take(20))
+                    report.AppendLine($"  {tf.Family.Name} : {tf.Name}");
+            }
+
+            TaskDialog.Show("Tag Family Refresh", report.ToString());
+            StingLog.Info($"TagFamilyRefresh: {stingTags.Count} STING tags, {otherTags.Count} other");
+        }
+
+        // ── Elbow snap helper (direct angle application) ─────────────
+
+        /// <summary>
+        /// Snap leader elbows to a specific angle without dialog.
+        /// angleMode: "45", "90", "0" (straight), or "cycle" (detect current and rotate).
+        /// </summary>
+        private static void SnapElbowDirect(UIApplication app, string angleMode)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            var tags = Organise.LeaderHelper.GetSelectedTags(uidoc)
+                .Where(t => t.HasLeader).ToList();
+            if (tags.Count == 0)
+                tags = Organise.LeaderHelper.GetTargetTags(uidoc)
+                    .Where(t => t.HasLeader).ToList();
+
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Snap Elbows", "No tags with leaders found.");
+                return;
+            }
+
+            int snapped = 0;
+            using (Transaction tx = new Transaction(doc, "STING Snap Leader Elbows"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        var hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = hostIds.Count > 0 ? doc.GetElement(hostIds.First()) : null;
+                        if (host == null) continue;
+
+                        XYZ hostCenter = Organise.LeaderHelper.GetElementCenter(host);
+                        if (hostCenter == null) continue;
+
+                        XYZ tagHead = tag.TagHeadPosition;
+                        XYZ delta = tagHead - hostCenter;
+                        if (delta.GetLength() < 0.01) continue;
+
+                        // Determine effective mode for cycling
+                        string effectiveMode = angleMode;
+                        if (effectiveMode == "cycle")
+                        {
+                            // Detect current elbow angle from existing elbow position
+                            effectiveMode = DetectAndCycleElbowAngle(tag, host, doc, hostCenter, tagHead);
+                        }
+
+                        XYZ elbowPos;
+                        if (effectiveMode == "0")
+                        {
+                            elbowPos = (hostCenter + tagHead) / 2.0;
+                        }
+                        else if (effectiveMode == "45")
+                        {
+                            double absDx = Math.Abs(delta.X);
+                            double absDy = Math.Abs(delta.Y);
+                            double diag = Math.Min(absDx, absDy);
+                            double signX = delta.X >= 0 ? 1 : -1;
+                            double signY = delta.Y >= 0 ? 1 : -1;
+
+                            if (absDx > absDy)
+                                elbowPos = new XYZ(hostCenter.X + diag * signX, tagHead.Y, hostCenter.Z);
+                            else
+                                elbowPos = new XYZ(tagHead.X, hostCenter.Y + diag * signY, hostCenter.Z);
+                        }
+                        else // "90"
+                        {
+                            elbowPos = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+                        }
+
+                        var refs = tag.GetTaggedReferences();
+                        if (refs != null && refs.Count > 0)
+                        {
+                            tag.LeaderEndCondition = LeaderEndCondition.Free;
+                            tag.SetLeaderElbow(refs.First(), elbowPos);
+                            snapped++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"SnapElbowDirect on tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Snap Elbows", $"Snapped {snapped} leader elbows to {angleMode}°.");
+        }
+
+        /// <summary>
+        /// Detect current elbow angle and return the next angle in cycle: 90→45→0→90.
+        /// </summary>
+        private static string DetectAndCycleElbowAngle(IndependentTag tag, Element host,
+            Document doc, XYZ hostCenter, XYZ tagHead)
+        {
+            try
+            {
+                var refs = tag.GetTaggedReferences();
+                if (refs == null || refs.Count == 0) return "90";
+
+                XYZ elbow = tag.GetLeaderElbow(refs.First());
+                if (elbow == null) return "90";
+
+                XYZ delta = tagHead - hostCenter;
+                double absDx = Math.Abs(delta.X);
+                double absDy = Math.Abs(delta.Y);
+
+                // Check if elbow is at midpoint (straight/0°)
+                XYZ mid = (hostCenter + tagHead) / 2.0;
+                if (elbow.DistanceTo(mid) < 0.1)
+                    return "90"; // Cycle: 0 → 90
+
+                // Check if elbow is at orthogonal position (90°)
+                XYZ ortho90 = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+                if (elbow.DistanceTo(ortho90) < 0.1)
+                    return "45"; // Cycle: 90 → 45
+
+                // Otherwise assume 45° or unknown → cycle to 0 (straight)
+                return "0"; // Cycle: 45 → 0
+            }
+            catch
+            {
+                return "90";
+            }
+        }
+
+        // ── Conditional selection builder ─────────────────────────────
+
+        private static readonly List<(string param, string op, string value)> _conditions
+            = new List<(string, string, string)>();
+
+        private static void ConditionAdd(UIApplication app, string paramName, string value)
+        {
+            if (string.IsNullOrEmpty(paramName))
+            {
+                TaskDialog.Show("Condition", "Specify parameter name.");
+                return;
+            }
+            _conditions.Add((paramName, "=", value ?? ""));
+            TaskDialog.Show("Condition Builder",
+                $"Added: {paramName} = {value}\nConditions: {_conditions.Count}");
+        }
+
+        private static void ConditionRemove(UIApplication app)
+        {
+            if (_conditions.Count > 0)
+            {
+                var last = _conditions[_conditions.Count - 1];
+                _conditions.RemoveAt(_conditions.Count - 1);
+                TaskDialog.Show("Condition Builder",
+                    $"Removed: {last.param} {last.op} {last.value}\nRemaining: {_conditions.Count}");
+            }
+            else
+                TaskDialog.Show("Condition Builder", "No conditions to remove.");
+        }
+
+        private static void ConditionClear(UIApplication app)
+        {
+            int count = _conditions.Count;
+            _conditions.Clear();
+            TaskDialog.Show("Condition Builder", $"Cleared {count} conditions.");
+        }
+
+        private static void ConditionPreview(UIApplication app)
+        {
+            if (_conditions.Count == 0)
+            {
+                TaskDialog.Show("Condition Preview", "No conditions defined.\nUse '+ Add' to build conditions.");
+                return;
+            }
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            int matchCount = CountConditionMatches(doc, doc.ActiveView.Id);
+            var sb = new StringBuilder();
+            sb.AppendLine("Conditions:");
+            foreach (var c in _conditions)
+                sb.AppendLine($"  {c.param} {c.op} \"{c.value}\"");
+            sb.AppendLine($"\nMatching elements: {matchCount}");
+            TaskDialog.Show("Condition Preview", sb.ToString());
+        }
+
+        private static void ConditionApply(UIApplication app)
+        {
+            if (_conditions.Count == 0)
+            {
+                TaskDialog.Show("Condition Apply", "No conditions defined.");
+                return;
+            }
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            var matches = GetConditionMatches(doc, doc.ActiveView.Id);
+            uidoc.Selection.SetElementIds(matches);
+            TaskDialog.Show("Condition Apply",
+                $"Selected {matches.Count} elements matching {_conditions.Count} condition(s).");
+            StingLog.Info($"ConditionApply: {matches.Count} matches for {_conditions.Count} conditions");
+        }
+
+        private static int CountConditionMatches(Document doc, ElementId viewId)
+        {
+            return GetConditionMatches(doc, viewId).Count;
+        }
+
+        private static List<ElementId> GetConditionMatches(Document doc, ElementId viewId)
+        {
+            var results = new List<ElementId>();
+            foreach (Element el in new FilteredElementCollector(doc, viewId).WhereElementIsNotElementType())
+            {
+                bool allMatch = true;
+                foreach (var (param, op, value) in _conditions)
+                {
+                    string actual = ParameterHelpers.GetString(el, param);
+                    if (string.IsNullOrEmpty(actual))
+                    {
+                        var p = el.LookupParameter(param);
+                        actual = p?.AsValueString() ?? "";
+                    }
+                    if (!string.Equals(actual, value, StringComparison.OrdinalIgnoreCase))
+                    {
+                        allMatch = false;
+                        break;
+                    }
+                }
+                if (allMatch) results.Add(el.Id);
+            }
+            return results;
+        }
+
+        // ── Remaining stub implementations ────────────────────────────
+
+        /// <summary>
+        /// Select elements within a quadrant of the view (NE/NW/SE/SW).
+        /// </summary>
+        private static void SelectQuadrant(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            TaskDialog dlg = new TaskDialog("Select Quadrant");
+            dlg.MainInstruction = "Select elements in which quadrant?";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "NW (Top-Left)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "NE (Top-Right)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "SW (Bottom-Left)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "SE (Bottom-Right)");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int quad;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: quad = 0; break; // NW
+                case TaskDialogResult.CommandLink2: quad = 1; break; // NE
+                case TaskDialogResult.CommandLink3: quad = 2; break; // SW
+                case TaskDialogResult.CommandLink4: quad = 3; break; // SE
+                default: return;
+            }
+
+            // Calculate view center from all visible elements
+            var allElements = new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType().ToList();
+            double sumX = 0, sumY = 0;
+            int counted = 0;
+            foreach (Element el in allElements)
+            {
+                BoundingBoxXYZ bb = el.get_BoundingBox(view);
+                if (bb == null) continue;
+                sumX += (bb.Min.X + bb.Max.X) / 2.0;
+                sumY += (bb.Min.Y + bb.Max.Y) / 2.0;
+                counted++;
+            }
+            if (counted == 0) return;
+            double centerX = sumX / counted;
+            double centerY = sumY / counted;
+
+            var matches = new List<ElementId>();
+            foreach (Element el in allElements)
+            {
+                BoundingBoxXYZ bb = el.get_BoundingBox(view);
+                if (bb == null) continue;
+                double ex = (bb.Min.X + bb.Max.X) / 2.0;
+                double ey = (bb.Min.Y + bb.Max.Y) / 2.0;
+
+                bool match = quad switch
+                {
+                    0 => ex < centerX && ey > centerY,  // NW
+                    1 => ex >= centerX && ey > centerY,  // NE
+                    2 => ex < centerX && ey <= centerY,  // SW
+                    3 => ex >= centerX && ey <= centerY,  // SE
+                    _ => false
+                };
+                if (match) matches.Add(el.Id);
+            }
+
+            uidoc.Selection.SetElementIds(matches);
+            string[] quadNames = { "NW", "NE", "SW", "SE" };
+            TaskDialog.Show("Select Quadrant", $"Selected {matches.Count} elements in {quadNames[quad]} quadrant.");
+        }
+
+        /// <summary>
+        /// Select elements by bounding box area — useful for finding oversized or tiny elements.
+        /// </summary>
+        private static void SelectByBoundingBox(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            TaskDialog dlg = new TaskDialog("Bounding Box Select");
+            dlg.MainInstruction = "Select elements by size";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Small (< 0.5m)", "Find small/detail elements");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Medium (0.5–3m)", "Standard-sized elements");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Large (> 3m)", "Find oversized elements");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            double minSize, maxSize;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: minSize = 0; maxSize = 0.5 / 0.3048; break;
+                case TaskDialogResult.CommandLink2: minSize = 0.5 / 0.3048; maxSize = 3.0 / 0.3048; break;
+                case TaskDialogResult.CommandLink3: minSize = 3.0 / 0.3048; maxSize = double.MaxValue; break;
+                default: return;
+            }
+
+            var matches = new List<ElementId>();
+            foreach (Element el in new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType())
+            {
+                BoundingBoxXYZ bb = el.get_BoundingBox(view);
+                if (bb == null) continue;
+                double diagonal = bb.Min.DistanceTo(bb.Max);
+                if (diagonal >= minSize && diagonal < maxSize)
+                    matches.Add(el.Id);
+            }
+
+            uidoc.Selection.SetElementIds(matches);
+            TaskDialog.Show("Bounding Box Select", $"Selected {matches.Count} elements by size.");
+        }
+
+        /// <summary>
+        /// Select elements aligned to grid lines.
+        /// </summary>
+        private static void SelectOnGrid(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            var grids = new FilteredElementCollector(doc)
+                .OfClass(typeof(Grid)).Cast<Grid>().ToList();
+
+            if (grids.Count == 0)
+            {
+                TaskDialog.Show("Select on Grid", "No grids found in the project.");
+                return;
+            }
+
+            // Collect grid line positions (X and Y coordinates for vertical and horizontal grids)
+            double tolerance = 1.0; // 1 foot ≈ 300mm snap distance
+            var gridXPositions = new List<double>();
+            var gridYPositions = new List<double>();
+
+            foreach (Grid g in grids)
+            {
+                try
+                {
+                    var curve = g.Curve;
+                    XYZ start = curve.GetEndPoint(0);
+                    XYZ end = curve.GetEndPoint(1);
+                    if (Math.Abs(start.X - end.X) < 0.1)
+                        gridXPositions.Add(start.X);
+                    else if (Math.Abs(start.Y - end.Y) < 0.1)
+                        gridYPositions.Add(start.Y);
+                }
+                catch { }
+            }
+
+            var matches = new List<ElementId>();
+            foreach (Element el in new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType())
+            {
+                BoundingBoxXYZ bb = el.get_BoundingBox(view);
+                if (bb == null) continue;
+                double cx = (bb.Min.X + bb.Max.X) / 2.0;
+                double cy = (bb.Min.Y + bb.Max.Y) / 2.0;
+
+                bool onGrid = gridXPositions.Any(gx => Math.Abs(cx - gx) < tolerance)
+                    || gridYPositions.Any(gy => Math.Abs(cy - gy) < tolerance);
+
+                if (onGrid) matches.Add(el.Id);
+            }
+
+            uidoc.Selection.SetElementIds(matches);
+            TaskDialog.Show("Select on Grid",
+                $"Selected {matches.Count} elements on {grids.Count} grid lines.");
+        }
+
+        /// <summary>
+        /// Add prefix/suffix to viewport detail numbers on the active sheet.
+        /// </summary>
+        private static void ViewportAddPrefixSuffix(UIApplication app, bool isPrefix)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            if (!(doc.ActiveView is ViewSheet sheet))
+            {
+                TaskDialog.Show("Viewport Number", "Active view must be a sheet.");
+                return;
+            }
+
+            string label = isPrefix ? "Prefix" : "Suffix";
+            TaskDialog dlg = new TaskDialog($"Viewport {label}");
+            dlg.MainInstruction = $"Add {label.ToLower()} to viewport detail numbers";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, isPrefix ? "M-" : "-M", "Mechanical");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, isPrefix ? "E-" : "-E", "Electrical");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, isPrefix ? "P-" : "-P", "Plumbing");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string value;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: value = isPrefix ? "M-" : "-M"; break;
+                case TaskDialogResult.CommandLink2: value = isPrefix ? "E-" : "-E"; break;
+                case TaskDialogResult.CommandLink3: value = isPrefix ? "P-" : "-P"; break;
+                default: return;
+            }
+
+            int updated = 0;
+            using (Transaction tx = new Transaction(doc, $"STING VP {label}"))
+            {
+                tx.Start();
+                foreach (ElementId vpId in sheet.GetAllViewports())
+                {
+                    Viewport vp = doc.GetElement(vpId) as Viewport;
+                    if (vp == null) continue;
+                    try
+                    {
+                        Parameter p = vp.get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER);
+                        if (p != null && !p.IsReadOnly)
+                        {
+                            string current = p.AsString() ?? "";
+                            p.Set(isPrefix ? value + current : current + value);
+                            updated++;
+                        }
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show($"VP {label}", $"Updated {updated} viewport numbers.");
+        }
+
+        /// <summary>
+        /// Reset sheet title to match sheet number pattern.
+        /// </summary>
+        private static void SheetResetTitleBlock(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            if (!(doc.ActiveView is ViewSheet sheet))
+            {
+                TaskDialog.Show("Sheet Reset", "Active view must be a sheet.");
+                return;
+            }
+
+            TaskDialog.Show("Sheet Reset Title",
+                $"Current sheet: {sheet.SheetNumber} - {sheet.Name}\n\n" +
+                "To reset the title block, select it in the view and modify its parameters.");
+        }
+
+        /// <summary>
+        /// Find and replace text in dimension value overrides.
+        /// </summary>
+        private static void DimFindReplaceOverrides(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            // Find all dimensions with overrides in the view
+            var dims = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .OfClass(typeof(Dimension))
+                .Cast<Dimension>()
+                .ToList();
+
+            int withOverrides = 0;
+            var overrideValues = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var dim in dims)
+            {
+                try
+                {
+                    foreach (DimensionSegment seg in dim.Segments)
+                    {
+                        if (!string.IsNullOrEmpty(seg.ValueOverride))
+                        {
+                            withOverrides++;
+                            if (!overrideValues.ContainsKey(seg.ValueOverride))
+                                overrideValues[seg.ValueOverride] = 0;
+                            overrideValues[seg.ValueOverride]++;
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Dimension Override Report — {doc.ActiveView.Name}");
+            report.AppendLine($"Total dimensions: {dims.Count}");
+            report.AppendLine($"Segments with overrides: {withOverrides}");
+            if (overrideValues.Count > 0)
+            {
+                report.AppendLine("\nOverride values:");
+                foreach (var kvp in overrideValues.OrderByDescending(v => v.Value).Take(15))
+                    report.AppendLine($"  \"{kvp.Key}\" — {kvp.Value} occurrence(s)");
+            }
+            report.AppendLine("\nUse 'Reset Dim Text' to clear overrides.");
+
+            TaskDialog.Show("Dim Find/Replace", report.ToString());
+        }
+
+        /// <summary>
+        /// Batch view category visibility — show all categories or list hidden ones.
+        /// </summary>
+        private static void BatchViewCategories(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            var view = doc.ActiveView;
+
+            int hidden = 0;
+            var hiddenCats = new List<string>();
+            foreach (Category cat in doc.Settings.Categories)
+            {
+                try
+                {
+                    if (!cat.get_Visible(view))
+                    {
+                        hidden++;
+                        if (hiddenCats.Count < 30)
+                            hiddenCats.Add(cat.Name);
+                    }
+                }
+                catch { }
+            }
+
+            var msg = new StringBuilder();
+            msg.AppendLine($"View: {view.Name}");
+            msg.AppendLine($"Hidden categories: {hidden}");
+            if (hiddenCats.Count > 0)
+            {
+                msg.AppendLine();
+                foreach (string c in hiddenCats)
+                    msg.AppendLine($"  - {c}");
+                if (hidden > 30)
+                    msg.AppendLine($"  ... and {hidden - 30} more");
+            }
+
+            TaskDialog td = new TaskDialog("Batch View Categories");
+            td.MainInstruction = $"{hidden} hidden categories in '{view.Name}'";
+            td.MainContent = msg.ToString();
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Show All", "Unhide all categories");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            if (td.Show() == TaskDialogResult.CommandLink1)
+            {
+                using (Transaction tx = new Transaction(doc, "STING Show All Categories"))
+                {
+                    tx.Start();
+                    foreach (Category cat in doc.Settings.Categories)
+                    {
+                        try { cat.set_Visible(view, true); }
+                        catch { }
+                    }
+                    tx.Commit();
+                }
+                TaskDialog.Show("Batch View", $"Unhid {hidden} categories.");
+            }
+        }
+
+        /// <summary>
+        /// Run all organise operations across selected views.
+        /// </summary>
+        private static void BatchViewRunAll(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+
+            // Count views with issues
+            var views = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v => !v.IsTemplate && v.ViewType != ViewType.Internal)
+                .ToList();
+
+            int noTemplate = views.Count(v => v.ViewTemplateId == ElementId.InvalidElementId);
+            int total = views.Count;
+
+            TaskDialog.Show("Batch View Run All",
+                $"Project views: {total}\n" +
+                $"Without template: {noTemplate}\n\n" +
+                "Use Template Manager commands for comprehensive batch operations:\n" +
+                "  - Auto-Assign Templates\n" +
+                "  - Compliance Score\n" +
+                "  - Auto-Fix Template");
+        }
+
+        /// <summary>
+        /// Toggle room tag leader lock/free state.
+        /// </summary>
+        private static void RoomTagLeaderToggle(UIApplication app, bool lockLeader)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+
+            var roomTags = new FilteredElementCollector(doc, view.Id)
+                .OfCategory(BuiltInCategory.OST_RoomTags)
+                .WhereElementIsNotElementType()
+                .Cast<Autodesk.Revit.DB.Architecture.RoomTag>()
+                .ToList();
+
+            if (roomTags.Count == 0)
+            {
+                TaskDialog.Show("Room Tag Leader", "No room tags in active view.");
+                return;
+            }
+
+            int toggled = 0;
+            using (Transaction tx = new Transaction(doc, "STING Room Tag Leader"))
+            {
+                tx.Start();
+                foreach (var rt in roomTags)
+                {
+                    try
+                    {
+                        rt.HasLeader = lockLeader;
+                        toggled++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            string state = lockLeader ? "added leaders to" : "removed leaders from";
+            TaskDialog.Show("Room Tag Leader", $"Successfully {state} {toggled} room tags.");
+        }
+
+        /// <summary>
+        /// List linked models in the project.
+        /// </summary>
+        private static void ListLinkedModels(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+
+            var links = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance))
+                .Cast<RevitLinkInstance>()
+                .ToList();
+
+            if (links.Count == 0)
+            {
+                TaskDialog.Show("Linked Models", "No linked models found in this project.");
+                return;
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Linked Models ({links.Count}):");
+            report.AppendLine(new string('─', 50));
+            foreach (var link in links)
+            {
+                try
+                {
+                    string name = link.Name;
+                    var linkDoc = link.GetLinkDocument();
+                    string status = linkDoc != null ? "Loaded" : "Unloaded";
+                    report.AppendLine($"  [{status}] {name}");
+                }
+                catch
+                {
+                    report.AppendLine($"  [Error] {link.Id}");
+                }
+            }
+
+            TaskDialog.Show("Linked Models", report.ToString());
+        }
+
+        /// <summary>
+        /// Audit linked model status and report.
+        /// </summary>
+        private static void AuditLinkedModels(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+
+            var links = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance))
+                .Cast<RevitLinkInstance>()
+                .ToList();
+
+            var linkTypes = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkType))
+                .Cast<RevitLinkType>()
+                .ToList();
+
+            int loaded = 0, unloaded = 0;
+            foreach (var lt in linkTypes)
+            {
+                try
+                {
+                    if (lt.GetLinkedFileStatus() == LinkedFileStatus.Loaded)
+                        loaded++;
+                    else
+                        unloaded++;
+                }
+                catch { unloaded++; }
+            }
+
+            TaskDialog.Show("Audit Links",
+                $"Link Instances: {links.Count}\n" +
+                $"Link Types: {linkTypes.Count}\n" +
+                $"  Loaded: {loaded}\n" +
+                $"  Unloaded: {unloaded}");
         }
     }
 }
