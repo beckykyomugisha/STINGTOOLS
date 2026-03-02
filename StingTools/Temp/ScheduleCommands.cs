@@ -738,14 +738,13 @@ namespace StingTools.Temp
             int tokensFilled = 0, nativesMapped = 0, formulasWritten = 0;
             int tagged = 0, combined = 0, gridRefSet = 0;
             int totalElements = 0;
+            int errors = 0;
 
             // Container definitions loaded from ParamRegistry.ContainerGroups
 
             using (Transaction tx = new Transaction(doc, "STING Full Auto-Populate"))
             {
                 tx.Start();
-
-                int errors = 0;
                 foreach (Element el in allElements)
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);

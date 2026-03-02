@@ -571,21 +571,47 @@ namespace StingTools.Organise
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Red = missing, Orange = incomplete, Yellow = ISO violation, Purple = placeholder
+            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(doc);
+
             var red = new OverrideGraphicSettings();
             red.SetProjectionLineColor(new Color(255, 0, 0));
             red.SetProjectionLineWeight(5);
+            if (solidFill != null)
+            {
+                red.SetSurfaceForegroundPatternId(solidFill.Id);
+                red.SetSurfaceForegroundPatternColor(new Color(255, 200, 200));
+                red.SetSurfaceTransparency(50);
+            }
 
             var orange = new OverrideGraphicSettings();
             orange.SetProjectionLineColor(new Color(255, 165, 0));
             orange.SetProjectionLineWeight(4);
+            if (solidFill != null)
+            {
+                orange.SetSurfaceForegroundPatternId(solidFill.Id);
+                orange.SetSurfaceForegroundPatternColor(new Color(255, 230, 180));
+                orange.SetSurfaceTransparency(50);
+            }
 
             var yellow = new OverrideGraphicSettings();
             yellow.SetProjectionLineColor(new Color(255, 255, 0));
             yellow.SetProjectionLineWeight(3);
+            if (solidFill != null)
+            {
+                yellow.SetSurfaceForegroundPatternId(solidFill.Id);
+                yellow.SetSurfaceForegroundPatternColor(new Color(255, 255, 200));
+                yellow.SetSurfaceTransparency(50);
+            }
 
             var purple = new OverrideGraphicSettings();
             purple.SetProjectionLineColor(new Color(160, 32, 240));
             purple.SetProjectionLineWeight(3);
+            if (solidFill != null)
+            {
+                purple.SetSurfaceForegroundPatternId(solidFill.Id);
+                purple.SetSurfaceForegroundPatternColor(new Color(220, 200, 240));
+                purple.SetSurfaceTransparency(50);
+            }
 
             int missing = 0, incomplete = 0, isoInvalid = 0, unresolved = 0;
 
@@ -676,10 +702,10 @@ namespace StingTools.Organise
     [Regeneration(RegenerationOption.Manual)]
     public class CopyTagsCommand : IExternalCommand
     {
+        // Only copy individual tokens (not TAG1-TAG6 containers which embed SEQ).
+        // After copying, user should run "Build Tags" to reassemble with unique SEQ.
         private static readonly string[] CopyParams = new[]
         {
-            ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
-            ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
             ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
             ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
             ParamRegistry.PROD, ParamRegistry.STATUS,

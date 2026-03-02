@@ -65,6 +65,7 @@ namespace StingTools.Tags
             switch (scopeResult)
             {
                 case TaskDialogResult.CommandLink1:
+                    if (doc.ActiveView == null) { TaskDialog.Show("Tag & Combine", "No active view."); return Result.Failed; }
                     targetIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
                         .WhereElementIsNotElementType()
                         .Select(e => e.Id).ToList();

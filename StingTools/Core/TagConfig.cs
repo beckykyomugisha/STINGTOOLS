@@ -38,6 +38,7 @@ namespace StingTools.Core
         public readonly Dictionary<string, int> TaggedBySys = new Dictionary<string, int>();
         public readonly Dictionary<string, int> TaggedByLevel = new Dictionary<string, int>();
         public readonly Dictionary<string, int> SkippedByCategory = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> OverwrittenByCategory = new Dictionary<string, int>();
         public readonly Dictionary<string, int> OverwrittenByDisc = new Dictionary<string, int>();
         public readonly Dictionary<string, int> OverwrittenBySys = new Dictionary<string, int>();
         public readonly Dictionary<string, int> OverwrittenByLevel = new Dictionary<string, int>();
@@ -62,7 +63,7 @@ namespace StingTools.Core
         public void RecordOverwritten(string category, string disc = null, string sys = null, string lvl = null)
         {
             TotalOverwritten++;
-            Increment(TaggedByCategory, category);
+            Increment(OverwrittenByCategory, category);
             if (!string.IsNullOrEmpty(disc)) Increment(OverwrittenByDisc, disc);
             if (!string.IsNullOrEmpty(sys)) Increment(OverwrittenBySys, sys);
             if (!string.IsNullOrEmpty(lvl)) Increment(OverwrittenByLevel, lvl);
@@ -252,7 +253,7 @@ namespace StingTools.Core
                     value == "UG" || value == "MZ" || value == "PL" || value == "PH" ||
                     value == "AT" || value == "TR" || value == "POD" ||
                     (value.StartsWith("L") && value.Length >= 2 && value.Length <= 3 && value.Substring(1).All(char.IsDigit)) ||
-                    (value.StartsWith("B") && value.Length <= 2 && value.Substring(1).All(char.IsDigit)) ||
+                    (value.StartsWith("B") && value.Length == 2 && char.IsDigit(value[1])) ||
                     (value.StartsWith("SB") && (value.Length == 2 || value.Substring(2).All(char.IsDigit)));
                 if (!isKnownLvl && !value.All(c => char.IsLetterOrDigit(c)))
                     return $"LVL '{value}' contains invalid characters";
@@ -351,7 +352,8 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(tag))
                 return "Tag is empty";
 
-            string[] parts = tag.Split('-');
+            char sepChar = !string.IsNullOrEmpty(TagConfig.Separator) ? TagConfig.Separator[0] : '-';
+            string[] parts = tag.Split(sepChar);
             if (parts.Length != 8)
                 return $"Tag has {parts.Length} segments (expected 8): {tag}";
 
@@ -361,7 +363,7 @@ namespace StingTools.Core
                     return $"Segment {i + 1} is empty in tag: {tag}";
             }
 
-            // Validate individual segments
+            // Validate all 8 segments against their respective token rules
             string discError = ValidateToken(ParamRegistry.DISC, parts[0]);
             if (discError != null) return discError;
 
@@ -370,6 +372,18 @@ namespace StingTools.Core
 
             string zoneError = ValidateToken(ParamRegistry.ZONE, parts[2]);
             if (zoneError != null) return zoneError;
+
+            string lvlError = ValidateToken(ParamRegistry.LVL, parts[3]);
+            if (lvlError != null) return lvlError;
+
+            string sysError = ValidateToken(ParamRegistry.SYS, parts[4]);
+            if (sysError != null) return sysError;
+
+            string funcError = ValidateToken(ParamRegistry.FUNC, parts[5]);
+            if (funcError != null) return funcError;
+
+            string prodError = ValidateToken(ParamRegistry.PROD, parts[6]);
+            if (prodError != null) return prodError;
 
             string seqError = ValidateToken(ParamRegistry.SEQ, parts[7]);
             if (seqError != null) return seqError;
@@ -772,7 +786,8 @@ namespace StingTools.Core
         {
             if (string.IsNullOrEmpty(tagValue))
                 return false;
-            string[] parts = tagValue.Split(new[] { Separator[0] });
+            char sepChar = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
+            string[] parts = tagValue.Split(new[] { sepChar });
             if (parts.Length != expectedTokens)
                 return false;
             for (int i = 0; i < parts.Length; i++)
@@ -783,6 +798,8 @@ namespace StingTools.Core
             return true;
         }
 
+        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "0000" };
+
         /// <summary>
         /// Strict tag completeness check. In addition to the standard check,
         /// rejects tags where any segment is a placeholder ("XX", "ZZ", "0000").
@@ -792,9 +809,10 @@ namespace StingTools.Core
         {
             if (!TagIsComplete(tagValue, expectedTokens))
                 return false;
-            string[] parts = tagValue.Split(new[] { Separator[0] });
+            char sepChar = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
+            string[] parts = tagValue.Split(new[] { sepChar });
             // Reject placeholder segments
-            var placeholders = new HashSet<string> { "XX", "ZZ", "0000" };
+            var placeholders = _placeholders;
             for (int i = 0; i < parts.Length; i++)
             {
                 if (placeholders.Contains(parts[i]))
@@ -966,6 +984,11 @@ namespace StingTools.Core
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func);
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod);
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.SEQ, seq);
+
+                // Re-read actual token values (some may have been preserved by SetIfEmpty)
+                // to ensure TAG1 reflects what's actually on the element
+                string[] actualTokens = ParamRegistry.ReadTokenValues(el);
+                tag = string.Join(Separator, actualTokens);
             }
             ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
 
@@ -1287,14 +1310,15 @@ namespace StingTools.Core
         /// (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
         /// Similarly, fire protection pipes should be "FP".
         /// </summary>
+        private static readonly HashSet<string> _pipeCategories = new HashSet<string>
+        {
+            "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes"
+        };
+
         public static string GetSystemAwareDisc(string disc, string sys, string categoryName)
         {
             // Only apply system-aware override for ambiguous categories (pipes, pipe fittings, etc.)
-            var pipeCategories = new HashSet<string>
-            {
-                "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes"
-            };
-            if (!pipeCategories.Contains(categoryName))
+            if (!_pipeCategories.Contains(categoryName))
                 return disc;
 
             // Override DISC based on the detected system

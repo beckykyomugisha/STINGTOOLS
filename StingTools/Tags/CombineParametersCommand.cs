@@ -103,9 +103,7 @@ namespace StingTools.Tags
                 int start = page * pageSize;
                 if (start >= allGroups.Length)
                 {
-                    if (selected.Count > 0) break;
-                    page = 0;
-                    start = 0;
+                    break; // Always exit — caller checks selected.Count
                 }
 
                 int count = Math.Min(pageSize, allGroups.Length - start);

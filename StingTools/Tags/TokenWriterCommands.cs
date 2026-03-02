@@ -48,9 +48,10 @@ namespace StingTools.Tags
             int page = 0;
             const int pageSize = 4; // TaskDialog max command links
 
+            int itemsShown = 0; // tracks cumulative items shown across pages
             while (value == null)
             {
-                int startIdx = page * pageSize;
+                int startIdx = itemsShown;
                 // Reserve 1 link slot for "More..." if there are items beyond this page
                 int remaining = options.Length - startIdx;
                 bool hasMore = remaining > pageSize;
@@ -96,6 +97,7 @@ namespace StingTools.Tags
                 // Check if "More options..." was selected
                 if (hasMore && selectedLink == showCount)
                 {
+                    itemsShown += showCount;
                     page++;
                     continue; // Show next page
                 }

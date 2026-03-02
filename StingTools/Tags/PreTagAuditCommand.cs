@@ -55,6 +55,7 @@ namespace StingTools.Tags
             switch (scopeDlg.Show())
             {
                 case TaskDialogResult.CommandLink1:
+                    if (doc.ActiveView == null) { TaskDialog.Show("Pre-Tag Audit", "No active view."); return Result.Failed; }
                     targetElements = new FilteredElementCollector(doc, doc.ActiveView.Id)
                         .WhereElementIsNotElementType().ToList();
                     scopeLabel = $"active view '{doc.ActiveView.Name}'";

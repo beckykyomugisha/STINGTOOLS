@@ -72,6 +72,7 @@ namespace StingTools.Tags
                     scopeLabel = $"{targetIds.Count} selected elements";
                     break;
                 case TaskDialogResult.CommandLink2:
+                    if (doc.ActiveView == null) { TaskDialog.Show("Populate", "No active view."); return Result.Failed; }
                     targetIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
                         .WhereElementIsNotElementType()
                         .Select(e => e.Id).ToList();

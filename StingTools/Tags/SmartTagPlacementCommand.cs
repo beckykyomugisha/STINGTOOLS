@@ -43,7 +43,7 @@ namespace StingTools.Tags
                 _cellSize = cellSize > 0 ? cellSize : 1.0;
             }
 
-            private long CellKey(int cx, int cy) => ((long)cx << 32) | (uint)cy;
+            private long CellKey(int cx, int cy) => ((long)(uint)cx << 32) | (uint)cy;
 
             public void Insert(Box2D box)
             {
@@ -157,7 +157,7 @@ namespace StingTools.Tags
         public static double GetModelOffset(View view, double baseOffset = 0.01)
         {
             int viewScale = view.Scale > 0 ? view.Scale : 100;
-            return baseOffset * viewScale;
+            return Math.Min(baseOffset * viewScale, 10.0); // cap at 10 ft for high-scale views
         }
 
         /// <summary>Get element center point in view coordinates.</summary>
@@ -1811,15 +1811,20 @@ namespace StingTools.Tags
                         ft.Commit();
                     }
 
-                    if (changed)
+                    try
                     {
-                        // Reload modified family into project
-                        famDoc.LoadFamily(doc, new TagFamilyLoadOptions());
-                        modified++;
-                        report.AppendLine($"  [OK] {fam.Name}");
+                        if (changed)
+                        {
+                            // Reload modified family into project
+                            famDoc.LoadFamily(doc, new TagFamilyLoadOptions());
+                            modified++;
+                            report.AppendLine($"  [OK] {fam.Name}");
+                        }
                     }
-
-                    famDoc.Close(false);
+                    finally
+                    {
+                        famDoc.Close(false);
+                    }
                 }
                 catch (Exception ex)
                 {
