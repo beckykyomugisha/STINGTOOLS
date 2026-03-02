@@ -265,6 +265,18 @@ namespace StingTools.UI
                     case "CropToContent": RunCommand<Docs.CropToContentCommand>(app); break;
                     case "BatchAlignViewports": RunCommand<Docs.BatchAlignViewportsCommand>(app); break;
 
+                    // ── Documentation Automation (Phase 6) ──
+                    case "BatchCreateViews": RunCommand<Docs.BatchCreateViewsCommand>(app); break;
+                    case "BatchCreateSheets": RunCommand<Docs.BatchCreateSheetsCommand>(app); break;
+                    case "CreateDependentViews": RunCommand<Docs.CreateDependentViewsCommand>(app); break;
+                    case "ScopeBoxManager": RunCommand<Docs.ScopeBoxManagerCommand>(app); break;
+                    case "ViewTemplateAssigner": RunCommand<Docs.ViewTemplateAssignerCommand>(app); break;
+                    case "DocumentationPackage": RunCommand<Docs.DocumentationPackageCommand>(app); break;
+                    case "BatchCreateSections": RunCommand<Docs.BatchCreateSectionsCommand>(app); break;
+                    case "BatchCreateElevations": RunCommand<Docs.BatchCreateElevationsCommand>(app); break;
+                    case "DrawingRegister": RunCommand<Docs.DrawingRegisterCommand>(app); break;
+                    case "ProjectBrowserOrganizer": RunCommand<Docs.ProjectBrowserOrganizerCommand>(app); break;
+
                     // ════════════════════════════════════════════════════════
                     // TEMP TAB
                     // ════════════════════════════════════════════════════════

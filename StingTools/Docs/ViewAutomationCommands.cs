@@ -89,7 +89,7 @@ namespace StingTools.Docs
                         newName = $"{baseName} Copy {suffix++}";
                     }
                     try { newView.Name = newName; }
-                    catch { /* name collision handled above, but just in case */ }
+                    catch (Exception ex) { StingLog.Warn($"DuplicateView rename: {ex.Message}"); }
                 }
 
                 tx.Commit();
@@ -103,7 +103,7 @@ namespace StingTools.Docs
 
             // Switch to the new view
             try { uidoc.ActiveView = duplicated; }
-            catch { /* may fail if view can't be activated */ }
+            catch (Exception ex) { StingLog.Warn($"DuplicateView activate: {ex.Message}"); }
 
             return Result.Succeeded;
         }
@@ -382,7 +382,7 @@ namespace StingTools.Docs
                         if (source.DetailLevel != ViewDetailLevel.Undefined)
                             target.DetailLevel = source.DetailLevel;
                         try { target.Scale = source.Scale; }
-                        catch { /* some views don't support scale changes */ }
+                        catch (Exception ex) { StingLog.Warn($"CopyViewSettings scale: {ex.Message}"); }
 
                         // Copy filters
                         foreach (ElementId filterId in sourceFilterIds)

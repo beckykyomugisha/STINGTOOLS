@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **47 source files** (46 C# + 1 XAML, ~32,966 lines of code) across 8 directories
-- **167 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider`
+- **48 source files** (47 C# + 1 XAML, ~35,366 lines of code) across 8 directories
+- **177 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider`
 - **16 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel
 
@@ -56,13 +56,14 @@ STINGTOOLS/
     │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 400 button tags to 165 command classes + 64 inline helpers
     │   └── StingDockPanelProvider.cs   # IDockablePaneProvider — registers panel with Revit
     │
-    ├── Docs/                           # Documentation commands (7 files, 17 commands)
+    ├── Docs/                           # Documentation commands (8 files, 27 commands)
     │   ├── SheetOrganizerCommand.cs    # Group sheets by discipline prefix
     │   ├── ViewOrganizerCommand.cs     # Organize views by type/level
     │   ├── SheetIndexCommand.cs        # Create sheet index schedule
     │   ├── TransmittalCommand.cs       # ISO 19650 transmittal report
     │   ├── ViewportCommands.cs         # Align, Renumber, TextCase, SumAreas
     │   ├── DocAutomationCommands.cs    # DeleteUnusedViews, SheetNamingCheck, AutoNumberSheets
+    │   ├── DocAutomationExtCommands.cs # Batch views/sheets/sections/elevations, doc package, scope boxes, templates, drawing register, browser organizer
     │   └── ViewAutomationCommands.cs   # DuplicateView, BatchRename, CopySettings, AutoPlace, Crop, BatchAlign
     │
     ├── Tags/                           # Tagging commands (14 files, 35 commands)
@@ -171,6 +172,20 @@ STINGTOOLS/
 | Auto-Place Viewports | `Docs.AutoPlaceViewportsCommand` | Manual | Auto-place and scale viewports on sheets |
 | Crop to Content | `Docs.CropToContentCommand` | Manual | Smart crop region generation based on element extents |
 | Batch Align Viewports | `Docs.BatchAlignViewportsCommand` | Manual | Multi-view alignment on sheets |
+
+**Documentation Automation pulldown (10 commands — NEW):**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Documentation Package | `Docs.DocumentationPackageCommand` | Manual | One-click full doc set: views + dependents + sheets + templates |
+| Batch Create Views | `Docs.BatchCreateViewsCommand` | Manual | Create views from Levels × Disciplines × ViewTypes × ScopeBoxes with 7-layer template intelligence |
+| Batch Create Sheets | `Docs.BatchCreateSheetsCommand` | Manual | Create sheets with auto-numbering, 3 modes (one-per-view, group-by-level, group-by-discipline) |
+| Create Dependent Views | `Docs.CreateDependentViewsCommand` | Manual | One-click scope box dependents (all parents, STING only, or active view) |
+| Scope Box Manager | `Docs.ScopeBoxManagerCommand` | Manual | Audit scope box usage, auto-assign by name similarity, clear assignments |
+| View Template Assigner | `Docs.ViewTemplateAssignerCommand` | Manual | 7-layer intelligent template assignment with auto/force/remove modes |
+| Batch Create Sections | `Docs.BatchCreateSectionsCommand` | Manual | Create sections from grids (all, numbered only, lettered only) |
+| Batch Create Elevations | `Docs.BatchCreateElevationsCommand` | Manual | 4 exterior elevations at origin or interior elevations for rooms |
+| Drawing Register | `Docs.DrawingRegisterCommand` | ReadOnly | ISO 19650 drawing register with revision tracking, exports CSV |
+| Project Browser Organizer | `Docs.ProjectBrowserOrganizerCommand` | Manual | Rename views by STING convention, audit organization, clean up names |
 
 ### Tags Panel (3 buttons + More/Setup/Tokens/QA pulldowns)
 | Button | Command Class | Transaction | Description |
@@ -332,6 +347,7 @@ STINGTOOLS/
 | `Docs/TransmittalCommand.cs` | 1 | 93 |
 | `Docs/ViewportCommands.cs` | 4 (Align, Renumber, TextCase, SumAreas) | 405 |
 | `Docs/DocAutomationCommands.cs` | 3 (DeleteUnusedViews, SheetNamingCheck, AutoNumberSheets) | 439 |
+| `Docs/DocAutomationExtCommands.cs` | 10 (BatchCreateViews, BatchCreateSheets, CreateDependentViews, ScopeBoxManager, ViewTemplateAssigner, DocumentationPackage, BatchCreateSections, BatchCreateElevations, DrawingRegister, ProjectBrowserOrganizer) + DocAutomationHelper | ~2,400 |
 | `Docs/ViewAutomationCommands.cs` | 6 (DuplicateView, BatchRename, CopySettings, AutoPlace, CropToContent, BatchAlign) | 812 |
 | `Tags/AutoTagCommand.cs` | 2 (AutoTag, TagNewOnly) | 322 |
 | `Tags/BatchTagCommand.cs` | 1 | 217 |
@@ -363,7 +379,7 @@ STINGTOOLS/
 | `UI/StingDockPanel.xaml.cs` | 0 (WPF code-behind) | 188 |
 | `UI/StingDockPanelProvider.cs` | 0 (IDockablePaneProvider) | 37 |
 | `UI/StingDockPanel.xaml` | — (WPF markup, 6-tab panel with ~413 buttons) | 1,463 |
-| **Total** | **167 commands** | **~32,966** |
+| **Total** | **177 commands** | **~35,366** |
 
 ## Core Classes
 
@@ -480,6 +496,7 @@ These `internal static` classes provide shared logic used by multiple commands w
 
 | Helper Class | Location | Purpose |
 |--------------|----------|---------|
+| `DocAutomationHelper` | `Docs/DocAutomationExtCommands.cs` | Shared documentation automation engine: discipline defs, sheet numbering, 7-layer template matching, view creation by family, scope box utilities, name caching |
 | `CategorySelector` | `Select/CategorySelectCommands.cs` | `SelectByCategory()` — shared logic for all 15 category selection commands |
 | `TokenWriter` | `Tags/TokenWriterCommands.cs` | Encapsulates LOC/ZONE/STATUS token writing and number assignment logic |
 | `CompoundTypeCreator` | `Temp/FamilyCommands.cs` | Creates compound wall/floor/ceiling/roof/duct/pipe types from CSV data; `ElementKind` enum; applies material properties |
@@ -492,7 +509,7 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `FormulaEngine` | `Temp/FormulaEvaluatorCommand.cs` | Formula parsing, context building, text/numeric evaluation, includes `ExpressionParser` recursive descent parser |
 | `TemplateManager` | `Temp/TemplateManagerCommands.cs` | Deep template intelligence engine: 5-layer auto-assignment, compliance scoring, VG diff, style definitions |
 | `TagFamilyConfig` | `Tags/TagFamilyCreatorCommand.cs` | Configuration for tag family creation: 50 `BuiltInCategory` to `.rft` template mappings, seed family lookup, output directory management |
-| `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 400 dockable panel button tags to 165 command classes + 64 inline helpers on the Revit API thread |
+| `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 400+ dockable panel button tags to 177 command classes + 64 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 6-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW) with colour swatches and status bar |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers dockable panel with Revit; PaneGuid for panel identification |
 | `ColorHelper` | `Select/ColorCommands.cs` | 10 built-in colour palettes, `OverrideGraphicSettings` builder, solid fill pattern finder, preset save/load |
@@ -1075,13 +1092,21 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 38. **Template VG Audit** — `TemplateVGAuditCommand` audits STING view templates for discipline colour consistency, transparency values, filter naming conventions, and coverage gaps
 39. **Auto-Align Leader Text** — `AutoAlignLeaderTextCommand` repositions tags with leaders so text reads away from leader direction
 
+#### Completed (Phase 6)
+
+40. **Documentation automation engine** — `DocAutomationExtCommands.cs` (10 commands + `DocAutomationHelper` shared engine): Batch view/sheet/section/elevation creation, one-click documentation package, scope box management, 7-layer template assignment, ISO 19650 drawing register, project browser organization. Inspired by Naviate/Ideate/Glyph/DiRoots with enhanced multi-layer intelligence.
+41. **Batch view creation** — `BatchCreateViewsCommand` creates views from Levels × Disciplines × ViewTypes × ScopeBoxes with auto-template assignment, dependent view creation, and `CreateViewByFamily` that correctly handles Plan/Section/Elevation API differences
+42. **One-click documentation package** — `DocumentationPackageCommand` uses TransactionGroup for atomic operation: Phase 1 creates views + dependents + templates, Phase 2 creates sheets + places viewports
+43. **Drawing register export** — `DrawingRegisterCommand` generates ISO 19650-compliant register with suitability codes, revision tracking, discipline breakdown, exports CSV
+44. **Scope box management** — `ScopeBoxManagerCommand` with audit, auto-assign by name similarity, clear operations; `CreateDependentViewsCommand` for one-click scope box dependents
+
 #### Next Priorities
 
-40. **Cancellation support** — Background worker with abort for batch operations
-41. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (10,661 entries) to replace hardcoded `DisciplineBindings`
-42. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,686 entries) for family-level validation
-43. **Batch command chaining / workflow presets** — Queue: AutoTag, Validate, Export
-44. **AI Smart Select implementation** — Currently 8 placeholder stubs in StingCommandHandler; implement actual AI-powered selection logic
+45. **Cancellation support** — Background worker with abort for batch operations
+46. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (10,661 entries) to replace hardcoded `DisciplineBindings`
+47. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,686 entries) for family-level validation
+48. **Batch command chaining / workflow presets** — Queue: AutoTag, Validate, Export
+49. **AI Smart Select implementation** — Currently 8 placeholder stubs in StingCommandHandler; implement actual AI-powered selection logic
 
 ### External Tool References
 

@@ -852,6 +852,35 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- DOCUMENTATION AUTOMATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DOCUMENTATION AUTOMATION"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ONE-CLICK"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Doc Package" Tag="DocumentationPackage" Click="Cmd_Click" ToolTip="One-click full documentation set: views + dependents + sheets + templates"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="VIEW CREATION"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Views" Tag="BatchCreateViews" Click="Cmd_Click" ToolTip="Create views from levels x disciplines x scope boxes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Dependents" Tag="CreateDependentViews" Click="Cmd_Click" ToolTip="Create dependent views from scope boxes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sections" Tag="BatchCreateSections" Click="Cmd_Click" ToolTip="Create sections from grids"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Elevations" Tag="BatchCreateElevations" Click="Cmd_Click" ToolTip="Create exterior/interior elevations"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="SHEET CREATION"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Sheets" Tag="BatchCreateSheets" Click="Cmd_Click" ToolTip="Create sheets with auto-numbering and viewport placement"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Drawing Register" Tag="DrawingRegister" Click="Cmd_Click" ToolTip="ISO 19650 drawing register with revision tracking"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="MANAGEMENT"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Scope Boxes" Tag="ScopeBoxManager" Click="Cmd_Click" ToolTip="Assign/audit scope box usage"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Templates" Tag="ViewTemplateAssigner" Click="Cmd_Click" ToolTip="7-layer intelligent template assignment"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Browser Org" Tag="ProjectBrowserOrganizer" Click="Cmd_Click" ToolTip="Organize project browser by naming convention"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- VIEWS -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="VIEWS"/>
                         <Border Style="{StaticResource GroupBorder}">
