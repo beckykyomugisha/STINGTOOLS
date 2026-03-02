@@ -928,11 +928,17 @@
                         <!-- SETUP -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ SETUP"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
-                            <WrapPanel>
-                                <Button Style="{StaticResource PurpleBtn}" Content="Master Setup" Tag="MasterSetup" Click="Cmd_Click" ToolTip="One-click full project setup"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Create Params" Tag="CreateParameters" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Check Data" Tag="CheckData" Click="Cmd_Click"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Project Setup Wizard" Tag="ProjectSetup" Click="Cmd_Click"
+                                            ToolTip="6-page wizard: project info, levels, grids, disciplines, automation — then runs full setup" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Master Setup" Tag="MasterSetup" Click="Cmd_Click" ToolTip="One-click full project setup (no wizard)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Create Params" Tag="CreateParameters" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Check Data" Tag="CheckData" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                         <!-- MATERIALS -->

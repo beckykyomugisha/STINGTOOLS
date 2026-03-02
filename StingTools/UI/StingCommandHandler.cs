@@ -282,6 +282,7 @@ namespace StingTools.UI
                     // ════════════════════════════════════════════════════════
 
                     // ── Setup ──
+                    case "ProjectSetup": RunCommand<Temp.ProjectSetupCommand>(app); break;
                     case "MasterSetup": RunCommand<Temp.MasterSetupCommand>(app); break;
                     case "CreateParameters": RunCommand<Temp.CreateParametersCommand>(app); break;
                     case "CheckData": RunCommand<Temp.CheckDataCommand>(app); break;

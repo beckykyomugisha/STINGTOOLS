@@ -1,0 +1,793 @@
+<Window x:Class="StingTools.UI.ProjectSetupWizard"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="STING Project Setup Wizard"
+        Width="740" Height="720"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResizeWithGrip"
+        Background="#F5F5F5">
+
+    <Window.Resources>
+        <!-- Shared styles matching STING panel -->
+        <Style x:Key="WizSectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#6A1B9A"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+        </Style>
+        <Style x:Key="WizSubHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#333"/>
+            <Setter Property="Margin" Value="0,6,0,3"/>
+        </Style>
+        <Style x:Key="WizLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#555"/>
+            <Setter Property="Margin" Value="0,3,6,3"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="WizInput" TargetType="TextBox">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="4,3"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="BorderBrush" Value="#CCC"/>
+        </Style>
+        <Style x:Key="WizCombo" TargetType="ComboBox">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+        <Style x:Key="WizCheck" TargetType="CheckBox">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="WizGroupBox" TargetType="Border">
+            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+        <Style x:Key="NavBtn" TargetType="Button">
+            <Setter Property="Width" Value="100"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="RunBtn" TargetType="Button">
+            <Setter Property="Width" Value="200"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Background" Value="#4CAF50"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#388E3C"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="4,0"/>
+        </Style>
+        <Style x:Key="StepIndicator" TargetType="Border">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Background" Value="#E0E0E0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- HEADER: Step indicators -->
+        <Border Grid.Row="0" Background="#6A1B9A" Padding="12,8">
+            <StackPanel>
+                <TextBlock Text="STING Project Setup Wizard" FontSize="16" FontWeight="Bold"
+                           Foreground="White" Margin="0,0,0,6"/>
+                <StackPanel x:Name="StepIndicators" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <!-- Steps filled dynamically in code-behind -->
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- CONTENT: Wizard pages in a TabControl (tabs hidden) -->
+        <TabControl x:Name="WizardPages" Grid.Row="1" Margin="0"
+                    BorderThickness="0" Background="Transparent">
+            <TabControl.ItemContainerStyle>
+                <Style TargetType="TabItem">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </Style>
+            </TabControl.ItemContainerStyle>
+
+            <!-- ═══ PAGE 1: PROJECT INFORMATION ═══ -->
+            <TabItem Header="Project Info">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="1. Project Information (ISO 19650)"/>
+                        <TextBlock Text="Fill in your project details. These populate Revit Project Information parameters."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Project Name *"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtProjectName" Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Project Number *"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtProjectNumber" Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Client Name"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtClientName" Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Organisation"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="txtOrganisation" Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Author"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="txtAuthor" Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Building Name"/>
+                                <TextBox Grid.Row="5" Grid.Column="1" x:Name="txtBuildingName" Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="6" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Project Address"/>
+                                <TextBox Grid.Row="6" Grid.Column="1" x:Name="txtAddress" Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="7" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Project Status"/>
+                                <ComboBox Grid.Row="7" Grid.Column="1" x:Name="cmbStatus" Style="{StaticResource WizCombo}">
+                                    <ComboBoxItem Content="Work in Progress" IsSelected="True"/>
+                                    <ComboBoxItem Content="For Information"/>
+                                    <ComboBoxItem Content="For Review"/>
+                                    <ComboBoxItem Content="For Approval"/>
+                                    <ComboBoxItem Content="For Construction"/>
+                                    <ComboBoxItem Content="As Built"/>
+                                </ComboBox>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock Style="{StaticResource WizSubHeader}" Text="Location Codes (LOC)"/>
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Text="Define building/location codes for tagging (comma-separated):"
+                                           FontSize="10" Foreground="#777" Margin="0,0,0,4"/>
+                                <TextBox x:Name="txtLocCodes" Style="{StaticResource WizInput}"
+                                         Text="BLD1, BLD2, BLD3, EXT"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Style="{StaticResource WizSubHeader}" Text="Zone Codes"/>
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Text="Define zone codes for spatial tagging (comma-separated):"
+                                           FontSize="10" Foreground="#777" Margin="0,0,0,4"/>
+                                <TextBox x:Name="txtZoneCodes" Style="{StaticResource WizInput}"
+                                         Text="Z01, Z02, Z03, Z04"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══ PAGE 2: BUILDING LEVELS ═══ -->
+            <TabItem Header="Levels">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="2. Building Levels"/>
+                        <TextBlock Text="Define levels for your building. Existing Revit levels will be kept; new ones will be created."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Quick Presets"/>
+                                <WrapPanel Margin="0,4">
+                                    <Button Content="Residential (GF + 3)" Tag="residential" Click="LevelPreset_Click"
+                                            Padding="8,4" Margin="2" FontSize="10"/>
+                                    <Button Content="Commercial (B1 + GF + 5)" Tag="commercial" Click="LevelPreset_Click"
+                                            Padding="8,4" Margin="2" FontSize="10"/>
+                                    <Button Content="High-Rise (B2 + GF + 15)" Tag="highrise" Click="LevelPreset_Click"
+                                            Padding="8,4" Margin="2" FontSize="10"/>
+                                    <Button Content="Industrial (GF + RF)" Tag="industrial" Click="LevelPreset_Click"
+                                            Padding="8,4" Margin="2" FontSize="10"/>
+                                    <Button Content="Clear All" Tag="clear" Click="LevelPreset_Click"
+                                            Padding="8,4" Margin="2" FontSize="10"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Level Definitions"/>
+                                <TextBlock Text="Name | Elevation (m) | Type (one per line)"
+                                           FontSize="10" Foreground="#777" Margin="0,0,0,4"/>
+                                <TextBox x:Name="txtLevels" AcceptsReturn="True" TextWrapping="Wrap"
+                                         Height="220" FontSize="11" FontFamily="Consolas"
+                                         VerticalScrollBarVisibility="Auto"
+                                         Padding="6" BorderBrush="#CCC"/>
+                                <TextBlock Text="Format: Name | Elevation(m)   Example: Ground Floor | 0.0"
+                                           FontSize="9" Foreground="#999" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Floor-to-Floor Height"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource WizLabel}" Text="Default height (m):"/>
+                                    <TextBox x:Name="txtFloorHeight" Style="{StaticResource WizInput}"
+                                             Width="80" Text="3.5"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══ PAGE 3: GRIDS ═══ -->
+            <TabItem Header="Grids">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="3. Grid System"/>
+                        <TextBlock Text="Define structural grids. Grids enable section creation and spatial organization."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <CheckBox x:Name="chkCreateGrids" Style="{StaticResource WizCheck}"
+                                  Content="Create grids" IsChecked="True"/>
+
+                        <Border Style="{StaticResource WizGroupBox}" x:Name="gridOptions"
+                                IsEnabled="{Binding IsChecked, ElementName=chkCreateGrids}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Horizontal Grids (Lettered: A, B, C...)"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="110"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Count:"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtGridHCount" Style="{StaticResource WizInput}" Width="80" Text="5" HorizontalAlignment="Left"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Spacing (m):"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtGridHSpacing" Style="{StaticResource WizInput}" Width="80" Text="6.0" HorizontalAlignment="Left"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Length (m):"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtGridHLength" Style="{StaticResource WizInput}" Width="80" Text="50" HorizontalAlignment="Left"/>
+                                </Grid>
+
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Vertical Grids (Numbered: 1, 2, 3...)"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="110"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Count:"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtGridVCount" Style="{StaticResource WizInput}" Width="80" Text="8" HorizontalAlignment="Left"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Spacing (m):"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtGridVSpacing" Style="{StaticResource WizInput}" Width="80" Text="6.0" HorizontalAlignment="Left"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Length (m):"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtGridVLength" Style="{StaticResource WizInput}" Width="80" Text="30" HorizontalAlignment="Left"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══ PAGE 4: DISCIPLINES + SCOPE ═══ -->
+            <TabItem Header="Disciplines">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="4. Disciplines &amp; Documentation Scope"/>
+                        <TextBlock Text="Select which disciplines this project includes. This controls view/sheet/template creation."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Active Disciplines"/>
+                                <CheckBox x:Name="chkDiscArch" Style="{StaticResource WizCheck}" Content="[A] Architectural" IsChecked="True"/>
+                                <CheckBox x:Name="chkDiscStruct" Style="{StaticResource WizCheck}" Content="[S] Structural" IsChecked="True"/>
+                                <CheckBox x:Name="chkDiscMech" Style="{StaticResource WizCheck}" Content="[M] Mechanical / HVAC" IsChecked="True"/>
+                                <CheckBox x:Name="chkDiscElec" Style="{StaticResource WizCheck}" Content="[E] Electrical" IsChecked="True"/>
+                                <CheckBox x:Name="chkDiscPlumb" Style="{StaticResource WizCheck}" Content="[P] Plumbing" IsChecked="True"/>
+                                <CheckBox x:Name="chkDiscFire" Style="{StaticResource WizCheck}" Content="[FP] Fire Protection"/>
+                                <CheckBox x:Name="chkDiscLV" Style="{StaticResource WizCheck}" Content="[LV] Low Voltage (comms, data, security, nurse call)"/>
+                                <CheckBox x:Name="chkDiscGen" Style="{StaticResource WizCheck}" Content="[G] Generic (specialty, medical equipment)"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Title Block"/>
+                                <TextBlock Text="Select which title block to use for sheets (first loaded will be used if not specified):"
+                                           FontSize="10" Foreground="#777" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="cmbTitleBlock" Style="{StaticResource WizCombo}">
+                                    <ComboBoxItem Content="(Use first available)" IsSelected="True"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Worksharing"/>
+                                <CheckBox x:Name="chkWorksharing" Style="{StaticResource WizCheck}"
+                                          Content="Enable worksharing and create worksets (35 ISO 19650 worksets)"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Units &amp; Orientation"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Display Units:"/>
+                                    <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbUnits" Style="{StaticResource WizCombo}" Width="200" HorizontalAlignment="Left">
+                                        <ComboBoxItem Content="Metric (Millimeters)" IsSelected="True"/>
+                                        <ComboBoxItem Content="Metric (Meters)"/>
+                                        <ComboBoxItem Content="Imperial (Feet and Inches)"/>
+                                    </ComboBox>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}" Text="True North (°):"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtTrueNorth" Style="{StaticResource WizInput}"
+                                             Width="80" Text="0" HorizontalAlignment="Left"
+                                             ToolTip="Degrees clockwise from Project North to True North"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══ PAGE 5: DISCIPLINE-SPECIFIC CONFIGURATION ═══ -->
+            <TabItem Header="Disc. Config">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel x:Name="pnlDisciplineConfig">
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="5. Discipline-Specific Configuration"/>
+                        <TextBlock Text="Configure details for each selected discipline. Only checked disciplines from Step 4 are shown."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <!-- ─── Mechanical [M] ─── -->
+                        <Expander x:Name="expMech" Header="[M] Mechanical / HVAC" IsExpanded="False" Margin="0,2"
+                                  FontWeight="SemiBold" FontSize="11" Foreground="#1565C0">
+                            <Border Style="{StaticResource WizGroupBox}" Margin="0,4">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="HVAC Systems" FontWeight="Normal"/>
+                                    <CheckBox x:Name="chkMechHVAC" Style="{StaticResource WizCheck}" Content="HVAC (Supply / Return / Exhaust / Fresh Air)" IsChecked="True"/>
+                                    <CheckBox x:Name="chkMechHWS" Style="{StaticResource WizCheck}" Content="HWS — Heating Water System" IsChecked="True"/>
+                                    <CheckBox x:Name="chkMechDHW" Style="{StaticResource WizCheck}" Content="DHW — Domestic Hot Water"/>
+                                    <CheckBox x:Name="chkMechGAS" Style="{StaticResource WizCheck}" Content="GAS — Gas Supply"/>
+
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Design Parameters" FontWeight="Normal" Margin="0,6,0,3"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="140"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Duct material:"/>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbMechDuctMat" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="Galvanised Steel" IsSelected="True"/>
+                                            <ComboBoxItem Content="Aluminium"/>
+                                            <ComboBoxItem Content="Stainless Steel"/>
+                                            <ComboBoxItem Content="Fabric"/>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Pipe material:"/>
+                                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbMechPipeMat" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="Copper" IsSelected="True"/>
+                                            <ComboBoxItem Content="Steel"/>
+                                            <ComboBoxItem Content="PVC"/>
+                                            <ComboBoxItem Content="PPR"/>
+                                            <ComboBoxItem Content="Stainless Steel"/>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Insulation (mm):"/>
+                                        <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtMechInsulation" Style="{StaticResource WizInput}" Width="80" Text="25" HorizontalAlignment="Left"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+
+                        <!-- ─── Electrical [E] ─── -->
+                        <Expander x:Name="expElec" Header="[E] Electrical" IsExpanded="False" Margin="0,2"
+                                  FontWeight="SemiBold" FontSize="11" Foreground="#F9A825">
+                            <Border Style="{StaticResource WizGroupBox}" Margin="0,4">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Electrical Systems" FontWeight="Normal"/>
+                                    <CheckBox x:Name="chkElecPower" Style="{StaticResource WizCheck}" Content="Power Distribution (MSB, DB, circuits)" IsChecked="True"/>
+                                    <CheckBox x:Name="chkElecLighting" Style="{StaticResource WizCheck}" Content="Lighting (fixtures, controls, emergency)" IsChecked="True"/>
+
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Design Parameters" FontWeight="Normal" Margin="0,6,0,3"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="140"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Supply voltage (V):"/>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbElecVoltage" Style="{StaticResource WizCombo}" Width="140" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="230V (UK/EU)" IsSelected="True"/>
+                                            <ComboBoxItem Content="240V (AU/NZ)"/>
+                                            <ComboBoxItem Content="120V (US/CA)"/>
+                                            <ComboBoxItem Content="110V (Japan)"/>
+                                            <ComboBoxItem Content="400V 3-Phase"/>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Phase system:"/>
+                                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbElecPhases" Style="{StaticResource WizCombo}" Width="140" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="Single Phase" IsSelected="True"/>
+                                            <ComboBoxItem Content="Three Phase"/>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Containment:"/>
+                                        <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbElecContain" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="Cable Tray + Conduit" IsSelected="True"/>
+                                            <ComboBoxItem Content="Cable Tray Only"/>
+                                            <ComboBoxItem Content="Conduit Only"/>
+                                            <ComboBoxItem Content="Basket Tray + Conduit"/>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource WizLabel}" Text="IP rating:"/>
+                                        <ComboBox Grid.Row="3" Grid.Column="1" x:Name="cmbElecIP" Style="{StaticResource WizCombo}" Width="100" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="IP20" IsSelected="True"/>
+                                            <ComboBoxItem Content="IP44"/>
+                                            <ComboBoxItem Content="IP55"/>
+                                            <ComboBoxItem Content="IP65"/>
+                                            <ComboBoxItem Content="IP66"/>
+                                        </ComboBox>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+
+                        <!-- ─── Plumbing [P] ─── -->
+                        <Expander x:Name="expPlumb" Header="[P] Plumbing" IsExpanded="False" Margin="0,2"
+                                  FontWeight="SemiBold" FontSize="11" Foreground="#2E7D32">
+                            <Border Style="{StaticResource WizGroupBox}" Margin="0,4">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Plumbing Systems" FontWeight="Normal"/>
+                                    <CheckBox x:Name="chkPlumbDCW" Style="{StaticResource WizCheck}" Content="DCW — Domestic Cold Water" IsChecked="True"/>
+                                    <CheckBox x:Name="chkPlumbSAN" Style="{StaticResource WizCheck}" Content="SAN — Sanitary Drainage" IsChecked="True"/>
+                                    <CheckBox x:Name="chkPlumbRWD" Style="{StaticResource WizCheck}" Content="RWD — Rainwater Drainage"/>
+
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Design Parameters" FontWeight="Normal" Margin="0,6,0,3"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="140"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Pipe material:"/>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbPlumbPipeMat" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="Copper" IsSelected="True"/>
+                                            <ComboBoxItem Content="PVC"/>
+                                            <ComboBoxItem Content="HDPE"/>
+                                            <ComboBoxItem Content="Cast Iron"/>
+                                            <ComboBoxItem Content="PPR"/>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Fixture standard:"/>
+                                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbPlumbStd" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="Commercial Grade" IsSelected="True"/>
+                                            <ComboBoxItem Content="Residential Grade"/>
+                                            <ComboBoxItem Content="Healthcare/Clinical"/>
+                                            <ComboBoxItem Content="Industrial/Heavy Duty"/>
+                                        </ComboBox>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+
+                        <!-- ─── Architectural [A] ─── -->
+                        <Expander x:Name="expArch" Header="[A] Architectural" IsExpanded="False" Margin="0,2"
+                                  FontWeight="SemiBold" FontSize="11" Foreground="#757575">
+                            <Border Style="{StaticResource WizGroupBox}" Margin="0,4">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Architectural Scope" FontWeight="Normal"/>
+                                    <CheckBox x:Name="chkArchFinishes" Style="{StaticResource WizCheck}" Content="Interior finishes (floor, wall, ceiling, base)" IsChecked="True"/>
+                                    <CheckBox x:Name="chkArchFurniture" Style="{StaticResource WizCheck}" Content="Furniture and casework"/>
+                                    <CheckBox x:Name="chkArchCurtainWall" Style="{StaticResource WizCheck}" Content="Curtain wall / glazing systems"/>
+
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Design Parameters" FontWeight="Normal" Margin="0,6,0,3"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="140"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Wall construction:"/>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbArchWallType" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="Cavity Wall" IsSelected="True"/>
+                                            <ComboBoxItem Content="Solid Masonry"/>
+                                            <ComboBoxItem Content="Steel Frame / Drywall"/>
+                                            <ComboBoxItem Content="Timber Frame"/>
+                                            <ComboBoxItem Content="Concrete"/>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Glazing:"/>
+                                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbArchGlazing" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="Double Glazed" IsSelected="True"/>
+                                            <ComboBoxItem Content="Single Glazed"/>
+                                            <ComboBoxItem Content="Triple Glazed"/>
+                                            <ComboBoxItem Content="Low-E Coated"/>
+                                        </ComboBox>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+
+                        <!-- ─── Structural [S] ─── -->
+                        <Expander x:Name="expStruct" Header="[S] Structural" IsExpanded="False" Margin="0,2"
+                                  FontWeight="SemiBold" FontSize="11" Foreground="#C62828">
+                            <Border Style="{StaticResource WizGroupBox}" Margin="0,4">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Structural Design" FontWeight="Normal"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="140"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Primary material:"/>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbStructMat" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="Reinforced Concrete" IsSelected="True"/>
+                                            <ComboBoxItem Content="Structural Steel"/>
+                                            <ComboBoxItem Content="Composite (Steel + Concrete)"/>
+                                            <ComboBoxItem Content="Timber (CLT / Glulam)"/>
+                                            <ComboBoxItem Content="Precast Concrete"/>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Concrete class:"/>
+                                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbStructConc" Style="{StaticResource WizCombo}" Width="120" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="C30/37" IsSelected="True"/>
+                                            <ComboBoxItem Content="C25/30"/>
+                                            <ComboBoxItem Content="C35/45"/>
+                                            <ComboBoxItem Content="C40/50"/>
+                                            <ComboBoxItem Content="C50/60"/>
+                                        </ComboBox>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Steel grade:"/>
+                                        <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbStructSteel" Style="{StaticResource WizCombo}" Width="120" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="S355" IsSelected="True"/>
+                                            <ComboBoxItem Content="S275"/>
+                                            <ComboBoxItem Content="S235"/>
+                                            <ComboBoxItem Content="S460"/>
+                                        </ComboBox>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+
+                        <!-- ─── Fire Protection [FP] ─── -->
+                        <Expander x:Name="expFire" Header="[FP] Fire Protection" IsExpanded="False" Margin="0,2"
+                                  FontWeight="SemiBold" FontSize="11" Foreground="#E65100">
+                            <Border Style="{StaticResource WizGroupBox}" Margin="0,4">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Fire Protection Systems" FontWeight="Normal"/>
+                                    <CheckBox x:Name="chkFireSprinkler" Style="{StaticResource WizCheck}" Content="Sprinkler system (wet)" IsChecked="True"/>
+                                    <CheckBox x:Name="chkFireAlarm" Style="{StaticResource WizCheck}" Content="Fire alarm and detection" IsChecked="True"/>
+                                    <CheckBox x:Name="chkFireSuppress" Style="{StaticResource WizCheck}" Content="Suppression (dry, deluge, FM200)"/>
+
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Design Parameters" FontWeight="Normal" Margin="0,6,0,3"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="140"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Fire rating (min):"/>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbFireRating" Style="{StaticResource WizCombo}" Width="120" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="60 min" IsSelected="True"/>
+                                            <ComboBoxItem Content="30 min"/>
+                                            <ComboBoxItem Content="90 min"/>
+                                            <ComboBoxItem Content="120 min"/>
+                                            <ComboBoxItem Content="240 min"/>
+                                        </ComboBox>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+
+                        <!-- ─── Low Voltage [LV] ─── -->
+                        <Expander x:Name="expLV" Header="[LV] Low Voltage" IsExpanded="False" Margin="0,2"
+                                  FontWeight="SemiBold" FontSize="11" Foreground="#7B1FA2">
+                            <Border Style="{StaticResource WizGroupBox}" Margin="0,4">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Low Voltage Systems" FontWeight="Normal"/>
+                                    <CheckBox x:Name="chkLVComms" Style="{StaticResource WizCheck}" Content="COM — Communications (telephone, intercom)" IsChecked="True"/>
+                                    <CheckBox x:Name="chkLVData" Style="{StaticResource WizCheck}" Content="ICT — Data / Network (CAT6, fibre, WiFi)" IsChecked="True"/>
+                                    <CheckBox x:Name="chkLVSecurity" Style="{StaticResource WizCheck}" Content="SEC — Security / Access Control (CCTV, card readers)"/>
+                                    <CheckBox x:Name="chkLVNurse" Style="{StaticResource WizCheck}" Content="NCL — Nurse Call (clinical environments)"/>
+
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Design Parameters" FontWeight="Normal" Margin="0,6,0,3"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="140"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Cable standard:"/>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbLVCable" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
+                                            <ComboBoxItem Content="CAT6A" IsSelected="True"/>
+                                            <ComboBoxItem Content="CAT6"/>
+                                            <ComboBoxItem Content="CAT7"/>
+                                            <ComboBoxItem Content="Fibre Optic (OM3/OM4)"/>
+                                            <ComboBoxItem Content="Mixed (CAT6A + Fibre)"/>
+                                        </ComboBox>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+
+                        <!-- ─── Generic [G] ─── -->
+                        <Expander x:Name="expGen" Header="[G] Generic / Specialty" IsExpanded="False" Margin="0,2"
+                                  FontWeight="SemiBold" FontSize="11" Foreground="#795548">
+                            <Border Style="{StaticResource WizGroupBox}" Margin="0,4">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Generic Equipment Scope" FontWeight="Normal"/>
+                                    <CheckBox x:Name="chkGenSpecialty" Style="{StaticResource WizCheck}" Content="Specialty equipment (kitchen, laundry, lab)"/>
+                                    <CheckBox x:Name="chkGenMedical" Style="{StaticResource WizCheck}" Content="Medical equipment (clinical, imaging, therapy)"/>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══ PAGE 6: AUTOMATION OPTIONS ═══ -->
+            <TabItem Header="Automation">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="6. Automation Options"/>
+                        <TextBlock Text="Choose what to automate. Uncheck items you want to do manually later."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Parameters &amp; Data"/>
+                                <CheckBox x:Name="chkLoadParams" Style="{StaticResource WizCheck}"
+                                          Content="Load shared parameters (200+ STING parameters)" IsChecked="True"/>
+                                <CheckBox x:Name="chkCreateMaterials" Style="{StaticResource WizCheck}"
+                                          Content="Create materials (815 BLE + 464 MEP from CSV)" IsChecked="True"/>
+                                <CheckBox x:Name="chkCreateFamilyTypes" Style="{StaticResource WizCheck}"
+                                          Content="Create family types (walls, floors, ceilings, roofs, ducts, pipes, cable trays, conduits)" IsChecked="True"/>
+                                <CheckBox x:Name="chkCreateSchedules" Style="{StaticResource WizCheck}"
+                                          Content="Create schedules (168 definitions from CSV)" IsChecked="True"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Styles &amp; Templates"/>
+                                <CheckBox x:Name="chkCreateStyles" Style="{StaticResource WizCheck}"
+                                          Content="Create styles (fill/line patterns, line/text/dimension/object styles)" IsChecked="True"/>
+                                <CheckBox x:Name="chkCreateFilters" Style="{StaticResource WizCheck}"
+                                          Content="Create view filters (28+ discipline/status filters)" IsChecked="True"/>
+                                <CheckBox x:Name="chkCreateTemplates" Style="{StaticResource WizCheck}"
+                                          Content="Create view templates (23 with VG overrides)" IsChecked="True"/>
+                                <CheckBox x:Name="chkCreatePhases" Style="{StaticResource WizCheck}"
+                                          Content="Audit project phases (Revit API cannot create phases — reports missing ones)" IsChecked="True"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Documentation"/>
+                                <CheckBox x:Name="chkCreateViews" Style="{StaticResource WizCheck}"
+                                          Content="Create views (plans + RCPs per level per discipline)" IsChecked="True"/>
+                                <CheckBox x:Name="chkCreateDependents" Style="{StaticResource WizCheck}"
+                                          Content="Create dependent views from scope boxes (if any exist)"/>
+                                <CheckBox x:Name="chkCreateSheets" Style="{StaticResource WizCheck}"
+                                          Content="Create sheets with auto-numbering and viewport placement" IsChecked="True"/>
+                                <CheckBox x:Name="chkCreateSections" Style="{StaticResource WizCheck}"
+                                          Content="Create building sections from grids"/>
+                                <CheckBox x:Name="chkCreateElevations" Style="{StaticResource WizCheck}"
+                                          Content="Create 4 exterior elevations (N/S/E/W)" IsChecked="True"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══ PAGE 7: REVIEW + RUN ═══ -->
+            <TabItem Header="Review">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="7. Review &amp; Execute"/>
+                        <TextBlock Text="Review your selections, then click Run to automate the entire project setup."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <TextBox x:Name="txtReviewSummary" IsReadOnly="True"
+                                     AcceptsReturn="True" TextWrapping="Wrap"
+                                     Height="380" FontSize="11" FontFamily="Consolas"
+                                     VerticalScrollBarVisibility="Auto"
+                                     Background="#FAFAFA" BorderBrush="#CCC"
+                                     Padding="8"/>
+                        </Border>
+
+                        <TextBlock Text="All changes are wrapped in a TransactionGroup for atomic rollback."
+                                   FontSize="10" Foreground="#777" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- FOOTER: Navigation buttons -->
+        <Border Grid.Row="2" Background="#EEE" Padding="12,8" BorderBrush="#DDD" BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock x:Name="txtPageInfo" FontSize="11" Foreground="#777"
+                               VerticalAlignment="Center" Text="Step 1 of 7"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="btnBack" Style="{StaticResource NavBtn}" Content="Back"
+                            Click="BtnBack_Click" IsEnabled="False"/>
+                    <Button x:Name="btnNext" Style="{StaticResource NavBtn}" Content="Next"
+                            Click="BtnNext_Click"/>
+                    <Button x:Name="btnRun" Style="{StaticResource RunBtn}" Content="Run Setup"
+                            Click="BtnRun_Click" Visibility="Collapsed"/>
+                    <Button Style="{StaticResource NavBtn}" Content="Cancel"
+                            Click="BtnCancel_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
