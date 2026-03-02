@@ -253,17 +253,6 @@ namespace StingTools.Tags
                     discStats[disc] = (s.total + 1, s.tagged, s.untagged + 1, s.violations + (elementIsoErrors > 0 ? 1 : 0));
                 }
 
-                // Cross-validation: check predicted PROD against DISC
-                if (!hasTag && !string.IsNullOrEmpty(prod) && !string.IsNullOrEmpty(disc))
-                {
-                    var prodErr = ISO19650Validator.ValidateToken(ParamRegistry.PROD, prod);
-                    if (prodErr == null)
-                    {
-                        // Check PROD↔DISC consistency using the validator's static helper
-                        // (This validates the prediction, not the existing tag)
-                    }
-                }
-
                 csvRows.Add($"{el.Id},\"{catName}\",\"{familyName}\",\"{existingTag}\",\"{predictedTag}\",{action},{locSource},{zoneSource},{prodSource},{elementIsoErrors}");
             }
 

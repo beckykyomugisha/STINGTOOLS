@@ -283,7 +283,7 @@ namespace StingTools.Docs
                 return "Sheet number is empty";
 
             // Check if it follows a segmented pattern (at least 3 segments with a separator)
-            string[] parts = num.Split(new[] { '-', '_', '.' }, StringSplitOptions.None);
+            string[] parts = num.Split(new[] { '-', '_', '.' }, StringSplitOptions.RemoveEmptyEntries);
 
             if (parts.Length < 3)
                 return $"Sheet number '{num}' has fewer than 3 segments (need Project-Role-Number minimum)";

@@ -608,6 +608,7 @@ namespace StingTools.Select
             foreach (var kvp in colorGroups)
             {
                 var parts = kvp.Key.Split(',');
+                if (parts.Length < 3) { groupNum++; continue; }
                 preset.ValueColors[$"Group_{groupNum++} ({kvp.Value.Count} elements)"] =
                     new[] { int.Parse(parts[0]), int.Parse(parts[1]), int.Parse(parts[2]) };
             }

@@ -14,6 +14,7 @@ namespace StingTools.Core
         /// <summary>Return the string value of a named parameter, or empty string.</summary>
         public static string GetString(Element el, string paramName)
         {
+            if (el == null || string.IsNullOrEmpty(paramName)) return string.Empty;
             Parameter p = el.LookupParameter(paramName);
             if (p != null && p.StorageType == StorageType.String)
             {
@@ -27,6 +28,7 @@ namespace StingTools.Core
         public static bool SetString(Element el, string paramName, string value,
             bool overwrite = false)
         {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
             Parameter p = el.LookupParameter(paramName);
             if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
                 return false;

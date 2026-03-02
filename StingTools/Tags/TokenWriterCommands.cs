@@ -395,7 +395,7 @@ namespace StingTools.Tags
                     {
                         string sys = tokenValues[4];
                         string lvl = tokenValues[3];
-                        string seqKey = $"{disc}_{sys}_{lvl}";
+                        string seqKey = $"{disc}_{(string.IsNullOrEmpty(sys) ? "GEN" : sys)}_{(string.IsNullOrEmpty(lvl) ? "XX" : lvl)}";
                         if (!seqCounters.ContainsKey(seqKey)) seqCounters[seqKey] = 0;
 
                         int safety = 10000;

@@ -201,10 +201,13 @@ namespace StingTools.Tags
                         }
                     }
 
-                    // DISC correction — system-aware override for pipes
-                    disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
-                    if (overwrite)
+                    // DISC correction — system-aware override (e.g. M→P for plumbing pipes, M→FP for fire)
+                    string correctedDisc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
+                    if (correctedDisc != disc)
+                    {
+                        disc = correctedDisc;
                         ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);
+                    }
 
                     // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
                     string func = TagConfig.GetSmartFuncCode(el, sys);

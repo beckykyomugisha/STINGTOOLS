@@ -71,7 +71,10 @@ namespace StingTools.Core
         public static string Ext(string key)
         {
             EnsureLoaded();
-            return _extendedParams.TryGetValue(key, out string name) ? name : "";
+            if (_extendedParams.TryGetValue(key, out string name))
+                return name;
+            StingLog.Warn($"ParamRegistry.Ext: key '{key}' not found in extended_params");
+            return "";
         }
 
         // ── Identity parameters ──────────────────────────────────────────

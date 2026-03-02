@@ -690,7 +690,7 @@ namespace StingTools.UI
         private static void ViewIsolateSelected(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
+            if (uidoc?.ActiveView == null) return;
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Isolate", "Select elements first."); return; }
             uidoc.ActiveView.IsolateElementsTemporary(ids);
@@ -699,7 +699,7 @@ namespace StingTools.UI
         private static void ViewHideSelected(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
+            if (uidoc?.ActiveView == null) return;
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Hide", "Select elements first."); return; }
             uidoc.ActiveView.HideElementsTemporary(ids);
@@ -729,14 +729,14 @@ namespace StingTools.UI
         private static void ViewResetIsolate(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
+            if (uidoc?.ActiveView == null) return;
             uidoc.ActiveView.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
         }
 
         private static void SelectAllVisible(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
+            if (uidoc?.ActiveView == null) return;
             var ids = new FilteredElementCollector(uidoc.Document, uidoc.ActiveView.Id)
                 .WhereElementIsNotElementType()
                 .ToElementIds();
@@ -753,7 +753,7 @@ namespace StingTools.UI
         private static void InvertSelection(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
+            if (uidoc?.ActiveView == null) return;
             var selected = new HashSet<ElementId>(uidoc.Selection.GetElementIds());
             var all = new FilteredElementCollector(uidoc.Document, uidoc.ActiveView.Id)
                 .WhereElementIsNotElementType()
@@ -786,7 +786,7 @@ namespace StingTools.UI
         private static void SelectAnnotationTags(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
+            if (uidoc?.ActiveView == null) return;
             var selected = uidoc.Selection.GetElementIds();
             var tagIds = new List<ElementId>();
             var allTags = new FilteredElementCollector(uidoc.Document, uidoc.ActiveView.Id)
@@ -1212,7 +1212,7 @@ namespace StingTools.UI
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"SelectConnected: connector traversal failed for {el.Id}: {ex.Message}"); }
             }
 
             uidoc.Selection.SetElementIds(connected.ToList());
@@ -2999,7 +2999,7 @@ namespace StingTools.UI
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"AIChainSelect: connector traversal failed for {currentId}: {ex.Message}"); }
             }
 
             uidoc.Selection.SetElementIds(visited.ToList());

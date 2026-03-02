@@ -251,7 +251,7 @@ namespace StingTools.Core
                 bool isKnownLvl = value == "GF" || value == "RF" || value == "LG" ||
                     value == "UG" || value == "MZ" || value == "PL" || value == "PH" ||
                     value == "AT" || value == "TR" || value == "POD" ||
-                    (value.StartsWith("L") && value.Length <= 3 && value.Substring(1).All(char.IsDigit)) ||
+                    (value.StartsWith("L") && value.Length >= 2 && value.Length <= 3 && value.Substring(1).All(char.IsDigit)) ||
                     (value.StartsWith("B") && value.Length <= 2 && value.Substring(1).All(char.IsDigit)) ||
                     (value.StartsWith("SB") && (value.Length == 2 || value.Substring(2).All(char.IsDigit)));
                 if (!isKnownLvl && !value.All(c => char.IsLetterOrDigit(c)))
@@ -938,8 +938,9 @@ namespace StingTools.Core
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
-                // Remove old tag from index if overwriting
-                if (overwriteTokens && !string.IsNullOrEmpty(existingTag))
+                // Always remove old tag from index before adding new one —
+                // prevents stale entries even when not overwriting tokens
+                if (!string.IsNullOrEmpty(existingTag))
                     existingTags.Remove(existingTag);
                 existingTags.Add(tag);
             }

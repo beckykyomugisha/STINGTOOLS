@@ -3115,7 +3115,7 @@ namespace StingTools.Temp
                 else if (sourceTemplate.ViewType == ViewType.ThreeD) viewTypeStr = "3D";
                 else if (sourceTemplate.ViewType == ViewType.Elevation) viewTypeStr = "Elevation";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"CloneTemplate: could not read ViewType: {ex.Message}"); }
 
             string cloneName = $"STING - {targetLabel} {viewTypeStr} (Clone)";
 
