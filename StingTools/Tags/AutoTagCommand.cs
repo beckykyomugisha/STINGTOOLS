@@ -263,21 +263,22 @@ namespace StingTools.Tags
                             if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) populated++;
                         }
 
-                        // Auto-populate DISC
-                        string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) populated++;
-
-                        // Family-aware PROD code
-                        string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) populated++;
-
-                        // SYS and FUNC (MEP system-aware + smart sub-function)
+                        // SYS and FUNC (MEP system-aware + smart sub-function) — derive before DISC
                         string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
                         if (!string.IsNullOrEmpty(sys))
                             if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) populated++;
                         string func = TagConfig.GetSmartFuncCode(el, sys);
                         if (!string.IsNullOrEmpty(func))
                             if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) populated++;
+
+                        // Auto-populate DISC (with system-aware correction for pipes/fire)
+                        string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                        disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) populated++;
+
+                        // Family-aware PROD code
+                        string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) populated++;
 
                         // LVL
                         string lvl = ParameterHelpers.GetLevelCode(doc, el);

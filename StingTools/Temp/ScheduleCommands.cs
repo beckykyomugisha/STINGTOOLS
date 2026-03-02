@@ -757,8 +757,10 @@ namespace StingTools.Temp
                     try
                     {
                     // ── STEP 1: Tag token population ───────────────────────────
-                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC,
-                        TagConfig.DiscMap[catName])) tokensFilled++;
+                    string disc = TagConfig.DiscMap.ContainsKey(catName)
+                        ? TagConfig.DiscMap[catName] : "";
+                    if (!string.IsNullOrEmpty(disc))
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) tokensFilled++;
 
                     string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
                     if (!string.IsNullOrEmpty(prod))
@@ -767,6 +769,14 @@ namespace StingTools.Temp
                     string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
                     if (!string.IsNullOrEmpty(sys))
                         if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) tokensFilled++;
+
+                    // System-aware DISC correction: M→P for plumbing, M→FP for fire
+                    string correctedDisc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
+                    if (correctedDisc != disc && !string.IsNullOrEmpty(correctedDisc))
+                    {
+                        ParameterHelpers.SetString(el, ParamRegistry.DISC, correctedDisc, overwrite: true);
+                        tokensFilled++;
+                    }
 
                     string func = TagConfig.GetSmartFuncCode(el, sys);
                     if (!string.IsNullOrEmpty(func))

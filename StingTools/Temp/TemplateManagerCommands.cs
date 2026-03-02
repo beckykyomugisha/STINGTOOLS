@@ -231,6 +231,29 @@ namespace StingTools.Temp
         public static string GetDisciplineFromTemplateName(string name)
         {
             if (string.IsNullOrEmpty(name)) return null;
+            // Per-discipline presentation accent templates (check BEFORE generic matches)
+            if (name.Contains("Presentation Monochrome")) return "PRES_MONO";
+            if (name.Contains("Presentation Dark")) return "PRES_DARK";
+            if (name.Contains("Presentation Landscape")) return "PRES_LAND";
+            if (name.Contains("Presentation Electrical")) return "PRES_E_DISC";
+            if (name.Contains("Presentation Architectural")) return "PRES_A";
+            if (name.Contains("Presentation Structural")) return "PRES_S";
+            if (name.Contains("Presentation Plumbing")) return "PRES_P";
+            if (name.Contains("Presentation MEP")) return "PRES_MEP";
+            if (name.Contains("Presentation Classic")) return "PRES_C";
+            if (name.Contains("Presentation Enhanced")) return "PRES_E";
+            if (name.Contains("Presentation Section")) return "SEC_P";
+            if (name.Contains("Presentation Elevation")) return "ELEV_P";
+            if (name.Contains("Presentation 3D")) return "PRES_3D";
+            // Per-discipline 3D templates
+            if (name.Contains("3D Monochrome")) return "3D_MONO";
+            if (name.Contains("3D Dark")) return "3D_DARK";
+            if (name.Contains("3D Architectural")) return "3D_A";
+            if (name.Contains("3D Structural")) return "3D_S";
+            if (name.Contains("3D Electrical")) return "3D_E";
+            if (name.Contains("3D Plumbing")) return "3D_P";
+            if (name.Contains("Coordination 3D")) return "MEP_3D";
+            // Working discipline plans
             if (name.Contains("Mechanical")) return "M";
             if (name.Contains("Electrical")) return "E";
             if (name.Contains("Plumbing")) return "P";
@@ -240,20 +263,15 @@ namespace StingTools.Temp
             if (name.Contains("Low Voltage")) return "LV";
             if (name.Contains("MEP Coordination")) return "MEP";
             if (name.Contains("Combined")) return "ALL";
+            // Special purpose
             if (name.Contains("Lighting RCP")) return "RCP_LTG";
             if (name.Contains("Ceiling RCP")) return "RCP_CLG";
-            if (name.Contains("Presentation Classic")) return "PRES_C";
-            if (name.Contains("Presentation Enhanced")) return "PRES_E";
-            if (name.Contains("Presentation Section")) return "SEC_P";
             if (name.Contains("Working Section")) return "SEC_W";
             if (name.Contains("Detail Section")) return "SEC_D";
+            if (name.Contains("Working Elevation")) return "ELEV_W";
             if (name.Contains("Demolition")) return "DEMO";
             if (name.Contains("As-Built")) return "EXIST";
             if (name.Contains("Area")) return "AREA";
-            if (name.Contains("Coordination 3D")) return "MEP_3D";
-            if (name.Contains("Presentation 3D")) return "PRES_3D";
-            if (name.Contains("Presentation Elevation")) return "ELEV_P";
-            if (name.Contains("Working Elevation")) return "ELEV_W";
             return null;
         }
 

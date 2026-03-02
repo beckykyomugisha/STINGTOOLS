@@ -128,6 +128,15 @@ namespace StingTools.Core
         public static string RAMP_WIDTH     => Ext("RAMP_WIDTH");
         public static string STRUCT_TYPE    => Ext("STRUCT_TYPE");
         public static string FIRE_RATING    => Ext("FIRE_RATING");
+        public static string ELE_VOLUME     => Ext("ELE_VOLUME");
+        public static string ELE_LENGTH     => Ext("ELE_LENGTH");
+        public static string DOOR_HEAD_HT   => Ext("DOOR_HEAD_HT");
+        public static string DOOR_FUNC      => Ext("DOOR_FUNC");
+        public static string WINDOW_HEAD_HT => Ext("WINDOW_HEAD_HT");
+        public static string ROOM_FINISH_FLR  => Ext("ROOM_FINISH_FLR");
+        public static string ROOM_FINISH_WALL => Ext("ROOM_FINISH_WALL");
+        public static string ROOM_FINISH_CLG  => Ext("ROOM_FINISH_CLG");
+        public static string ROOM_FINISH_BASE => Ext("ROOM_FINISH_BASE");
 
         // ── Electrical parameters ────────────────────────────────────────
         public static string ELC_POWER      => Ext("ELC_POWER");
@@ -153,6 +162,10 @@ namespace StingTools.Core
         public static string HVC_VELOCITY   => Ext("HVC_VELOCITY");
         public static string HVC_PRESSURE   => Ext("HVC_PRESSURE");
         public static string HVC_AIRFLOW    => Ext("HVC_AIRFLOW");
+        public static string HVC_DUCT_WIDTH => Ext("HVC_DUCT_WIDTH");
+        public static string HVC_DUCT_HEIGHT => Ext("HVC_DUCT_HEIGHT");
+        public static string HVC_INSULATION => Ext("HVC_INSULATION");
+        public static string HVC_DUCT_LENGTH => Ext("HVC_DUCT_LENGTH");
 
         // ── Plumbing parameters ──────────────────────────────────────────
         public static string PLM_PIPE_FLOW  => Ext("PLM_PIPE_FLOW");
@@ -357,6 +370,8 @@ namespace StingTools.Core
                 _allContainers = null;
                 _containersByCategory = null;
             }
+            // Invalidate downstream caches that depend on our data
+            SharedParamGuids.InvalidateCache();
             EnsureLoaded();
         }
 
@@ -419,7 +434,8 @@ namespace StingTools.Core
                         tokenNames.Add(def.ParamName);
                     }
                     SourceTokens = tokens.OrderBy(t => t.Slot).ToArray();
-                    AllTokenParams = tokenNames.ToArray();
+                    // Build AllTokenParams from sorted SourceTokens to ensure slot ordering matches
+                    AllTokenParams = SourceTokens.Select(t => t.ParamName).ToArray();
                 }
 
                 // Support params
@@ -747,6 +763,18 @@ namespace StingTools.Core
                 { "PLM_PIPE_FLOW", "PLM_PPE_FLW_LPS" }, { "PLM_PIPE_SIZE", "PLM_PPE_SZ_MM" },
                 { "PLM_VELOCITY", "PLM_VEL_MPS" }, { "PLM_FLOW_RATE", "PLM_FLOW_RATE_LPS" },
                 { "PLM_PIPE_LENGTH", "PLM_PPE_LENGTH_M" },
+                // Volume, length, head heights, function
+                { "ELE_VOLUME", "BLE_ELE_VOLUME_CU_M" }, { "ELE_LENGTH", "BLE_ELE_LENGTH_M" },
+                { "DOOR_HEAD_HT", "BLE_DOOR_HEAD_HEIGHT_MM" }, { "DOOR_FUNC", "BLE_DOOR_FUNCTION_TXT" },
+                { "WINDOW_HEAD_HT", "BLE_WINDOW_HEAD_HEIGHT_MM" },
+                // Room finishes
+                { "ROOM_FINISH_FLR", "BLE_ROOM_FINISH_FLOOR_TXT" },
+                { "ROOM_FINISH_WALL", "BLE_ROOM_FINISH_WALL_TXT" },
+                { "ROOM_FINISH_CLG", "BLE_ROOM_FINISH_CEILING_TXT" },
+                { "ROOM_FINISH_BASE", "BLE_ROOM_FINISH_BASE_TXT" },
+                // Duct dimensions
+                { "HVC_DUCT_WIDTH", "HVC_DCT_WIDTH_MM" }, { "HVC_DUCT_HEIGHT", "HVC_DCT_HEIGHT_MM" },
+                { "HVC_INSULATION", "HVC_INS_THICKNESS_MM" }, { "HVC_DUCT_LENGTH", "HVC_DCT_LENGTH_M" },
             };
 
             ContainerGroups = Array.Empty<ContainerGroupDef>();

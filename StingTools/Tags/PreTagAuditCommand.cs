@@ -221,6 +221,9 @@ namespace StingTools.Tags
                     string func = TagConfig.GetSmartFuncCode(el, sys);
                     // Apply system-aware DISC correction for pipes
                     disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
+                    // Ensure corrected disc key exists in stats
+                    if (!discStats.ContainsKey(disc))
+                        discStats[disc] = (0, 0, 0, 0);
 
                     string seqKey = $"{disc}_{sys}_{lvl}";
                     if (!simCounters.ContainsKey(seqKey)) simCounters[seqKey] = 0;

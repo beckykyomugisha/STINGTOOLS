@@ -400,7 +400,8 @@ namespace StingTools.UI
                     case "SelectBBox": StingLog.Info("SelectBBox"); break;
 
                     case "BulkBrain": StingLog.Info("BulkBrain — AI param suggestion"); break;
-                    case "ParamLookupRefresh": StingLog.Info("ParamLookupRefresh"); break;
+                    case "ParamLookupRefresh":
+                    case "RefreshParamList": RefreshParamList(app); break;
                     case "CondAdd": StingLog.Info("CondAdd"); break;
                     case "CondRemove": StingLog.Info("CondRemove"); break;
                     case "CondClear": StingLog.Info("CondClear"); break;
@@ -451,8 +452,8 @@ namespace StingTools.UI
                     case "LeaderCombine": RunCommand<Organise.AddLeadersCommand>(app); break;
                     case "LeaderAdd":
                     case "LeaderStraight": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
-                    case "TagSnap45":
-                    case "TagSnap90": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
+                    case "TagSnap45": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "TagSnap90": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
                     case "LeaderSpacing": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
 
                     case "BrainSmartLdr": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
@@ -596,7 +597,7 @@ namespace StingTools.UI
                         break;
                     case "BotOptions": RunCommand<Tags.TagConfigCommand>(app); break;
 
-                    case "ColorSchemeDel": RunCommand<Select.ClearColorOverridesCommand>(app); break;
+                    case "ColorSchemeDel": DeleteColorPreset(app); break;
                     case "GradientApply": RunCommand<Select.ColorByParameterCommand>(app); break;
                     case "PatternApplyView": ApplyLinePattern(app); break;
                     case "ApplyLineWeight": ApplyLineWeightOverride(app); break;
@@ -904,6 +905,58 @@ namespace StingTools.UI
             foreach (var kvp in _memorySlots)
                 msg += $"\n  {kvp.Key}: {kvp.Value.Count} stored";
             TaskDialog.Show("Selection Info", msg);
+        }
+
+        private static void RefreshParamList(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            // Collect parameter names from selected element (or first taggable in view)
+            var ids = uidoc.Selection.GetElementIds();
+            Element target = null;
+            if (ids.Count > 0)
+                target = doc.GetElement(ids.First());
+            if (target == null)
+            {
+                target = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                    .WhereElementIsNotElementType()
+                    .FirstOrDefault(e => e.Category != null);
+            }
+
+            if (target == null)
+            {
+                TaskDialog.Show("Parameter List", "No elements found in current view.");
+                return;
+            }
+
+            // Build param list: registry params + element instance params
+            var paramNames = new SortedSet<string>(StringComparer.Ordinal);
+            foreach (string p in ParamRegistry.AllParamGuids.Keys)
+                paramNames.Add(p);
+
+            foreach (Parameter p in target.Parameters)
+            {
+                if (p.Definition != null && !string.IsNullOrEmpty(p.Definition.Name))
+                    paramNames.Add(p.Definition.Name);
+            }
+
+            var msg = new StringBuilder();
+            msg.AppendLine($"Parameters for {ParameterHelpers.GetCategoryName(target)} ({paramNames.Count} total):\n");
+            int shown = 0;
+            foreach (string name in paramNames)
+            {
+                if (shown++ > 80) { msg.AppendLine($"  ... and {paramNames.Count - 80} more"); break; }
+                string val = ParameterHelpers.GetString(target, name);
+                if (!string.IsNullOrEmpty(val))
+                    msg.AppendLine($"  {name} = {val}");
+                else
+                    msg.AppendLine($"  {name}");
+            }
+
+            TaskDialog.Show("Parameter List", msg.ToString());
+            StingLog.Info($"RefreshParamList: {paramNames.Count} params for {ParameterHelpers.GetCategoryName(target)}");
         }
 
         private static void QuickParamFilter(UIApplication app, string paramName)
@@ -1321,6 +1374,56 @@ namespace StingTools.UI
                 foreach (ElementId id in ids)
                     uidoc.ActiveView.SetElementOverrides(id, ogs);
                 tx.Commit();
+            }
+        }
+
+        private static void DeleteColorPreset(UIApplication app)
+        {
+            string presetPath = Path.Combine(StingToolsApp.DataPath ?? "", "COLOR_PRESETS.json");
+            if (!File.Exists(presetPath))
+            { TaskDialog.Show("Delete Preset", "No saved presets found."); return; }
+
+            try
+            {
+                var presets = Newtonsoft.Json.JsonConvert.DeserializeObject<
+                    Dictionary<string, object>>(File.ReadAllText(presetPath));
+                if (presets == null || presets.Count == 0)
+                { TaskDialog.Show("Delete Preset", "No saved presets found."); return; }
+
+                var td = new TaskDialog("Delete Color Preset");
+                td.MainInstruction = "Select preset to delete";
+                var names = presets.Keys.ToList();
+                int linkCount = 0;
+                foreach (string name in names.Take(4))
+                {
+                    td.AddCommandLink((TaskDialogCommandLinkId)(1001 + linkCount), name);
+                    linkCount++;
+                }
+                td.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var result = td.Show();
+
+                int idx = result switch
+                {
+                    TaskDialogResult.CommandLink1 => 0,
+                    TaskDialogResult.CommandLink2 => 1,
+                    TaskDialogResult.CommandLink3 => 2,
+                    TaskDialogResult.CommandLink4 => 3,
+                    _ => -1
+                };
+
+                if (idx >= 0 && idx < names.Count)
+                {
+                    presets.Remove(names[idx]);
+                    File.WriteAllText(presetPath,
+                        Newtonsoft.Json.JsonConvert.SerializeObject(presets, Newtonsoft.Json.Formatting.Indented));
+                    TaskDialog.Show("Delete Preset", $"Deleted preset: {names[idx]}");
+                    StingLog.Info($"Deleted color preset: {names[idx]}");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"Delete preset failed: {ex.Message}");
+                TaskDialog.Show("Delete Preset", $"Error: {ex.Message}");
             }
         }
 

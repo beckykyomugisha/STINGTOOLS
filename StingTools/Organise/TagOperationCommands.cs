@@ -3381,17 +3381,19 @@ namespace StingTools.Organise
 
                             if (absDx > absDy)
                             {
-                                // Diagonal from host, then horizontal to tag
+                                // Wider than tall: diagonal from host, then horizontal to tag
+                                // Elbow at diagonal endpoint — same Y as tag head
                                 elbowPos = new XYZ(
                                     hostCenter.X + diag * signX,
-                                    hostCenter.Y + diag * signY,
+                                    tagHead.Y,
                                     hostCenter.Z);
                             }
                             else
                             {
-                                // Diagonal from host, then vertical to tag
+                                // Taller than wide: diagonal from host, then vertical to tag
+                                // Elbow at diagonal endpoint — same X as tag head
                                 elbowPos = new XYZ(
-                                    hostCenter.X + diag * signX,
+                                    tagHead.X,
                                     hostCenter.Y + diag * signY,
                                     hostCenter.Z);
                             }

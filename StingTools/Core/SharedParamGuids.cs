@@ -65,6 +65,16 @@ namespace StingTools.Core
         /// <summary>
         /// Build a CategorySet from BuiltInCategory enum values (type-safe).
         /// </summary>
+        /// <summary>
+        /// Invalidate cached data so next access re-derives from ParamRegistry.
+        /// Called by ParamRegistry.Reload() to prevent stale caches.
+        /// </summary>
+        internal static void InvalidateCache()
+        {
+            _allCategoryEnums = null;
+            _disciplineBindings = null;
+        }
+
         public static CategorySet BuildCategorySet(Document doc, BuiltInCategory[] categories)
         {
             CategorySet catSet = new CategorySet();

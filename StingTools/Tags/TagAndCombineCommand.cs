@@ -104,6 +104,7 @@ namespace StingTools.Tags
             int locDetected = 0;
             int zoneDetected = 0;
             int errors = 0;
+            var stats = new TaggingStats();
 
             // Container definitions now loaded from PARAMETER_REGISTRY.json via ParamRegistry
             // This eliminates DRY violations — all container definitions in a single source of truth.
@@ -151,7 +152,17 @@ namespace StingTools.Tags
                         }
 
                         // Step 3: Auto-populate tokens from category + family lookup
+                        // Derive SYS first so DISC can use system-aware correction
+                        string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                        if (!string.IsNullOrEmpty(sys))
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) populated++;
+                        string func = TagConfig.GetSmartFuncCode(el, sys);
+                        if (!string.IsNullOrEmpty(func))
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) populated++;
+
+                        // DISC with system-aware correction (M→P for plumbing, M→FP for fire)
                         string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+                        disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
                         if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) populated++;
 
                         // Family-aware PROD code: check family name before falling back to category
@@ -159,20 +170,13 @@ namespace StingTools.Tags
                         if (!string.IsNullOrEmpty(prod))
                             if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) populated++;
 
-                        // MEP system-aware SYS derivation (uses connected system name when available)
-                        string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                        if (!string.IsNullOrEmpty(sys))
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) populated++;
-                        string func = TagConfig.GetSmartFuncCode(el, sys);
-                        if (!string.IsNullOrEmpty(func))
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) populated++;
                         string lvl = ParameterHelpers.GetLevelCode(doc, el);
                         if (lvl != "XX")
                             if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) populated++;
 
-                        // Step 4: Tag if not already complete (with collision detection)
+                        // Step 4: Tag if not already complete (with collision detection + stats)
                         if (TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                            existingTags: tagIndex))
+                            existingTags: tagIndex, stats: stats))
                             tagged++;
 
                         // Step 5: Combine into ALL containers via ParamRegistry (single source of truth)
@@ -209,6 +213,10 @@ namespace StingTools.Tags
             if (errors > 0)
                 report.AppendLine($"  Errors:           {errors} (see log for details)");
             report.AppendLine($"  Duration:         {sw.Elapsed.TotalSeconds:F1}s");
+            if (stats.TotalCollisions > 0)
+                report.AppendLine($"  Collisions:       {stats.TotalCollisions} (auto-resolved)");
+            report.AppendLine();
+            report.Append(stats.BuildReport());
 
             TaskDialog td = new TaskDialog("Tag & Combine All");
             td.MainInstruction = $"Processed {totalProcessed} elements ({combined} containers)";

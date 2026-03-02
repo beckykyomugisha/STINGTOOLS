@@ -215,54 +215,57 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(value))
                 return $"{tokenName}: empty value";
 
-            switch (tokenName)
+            // Use if/else chain instead of switch — ParamRegistry properties are not compile-time constants
+            if (tokenName == ParamRegistry.DISC)
             {
-                case ParamRegistry.DISC:
-                    if (!ValidDiscCodes.Contains(value))
-                        return $"DISC '{value}' not in valid set ({string.Join(",", ValidDiscCodes)})";
-                    break;
-                case ParamRegistry.LOC:
-                    if (!TagConfig.LocCodes.Contains(value))
-                        return $"LOC '{value}' not in valid set ({string.Join(",", TagConfig.LocCodes)})";
-                    break;
-                case ParamRegistry.ZONE:
-                    if (!TagConfig.ZoneCodes.Contains(value))
-                        return $"ZONE '{value}' not in valid set ({string.Join(",", TagConfig.ZoneCodes)})";
-                    break;
-                case ParamRegistry.SYS:
-                    if (!ValidSysCodes.Contains(value))
-                        return $"SYS '{value}' not in valid set ({string.Join(",", ValidSysCodes)})";
-                    break;
-                case ParamRegistry.FUNC:
-                    if (!ValidFuncCodes.Contains(value))
-                        return $"FUNC '{value}' not in valid set ({string.Join(",", ValidFuncCodes)})";
-                    break;
-                case ParamRegistry.LVL:
-                    // Valid LVL codes: L01-L99, GF, LG, UG, B1-B9, SB, RF, PH, AT, TR, POD, MZ, PL, XX
-                    if (value.Length > 4 || value.Contains(" "))
-                        return $"LVL '{value}' exceeds 4-char limit or contains spaces";
-                    // Warn on known placeholder
-                    if (value == "XX")
-                        return null; // XX is valid but a placeholder
-                    // Check against known patterns
-                    bool isKnownLvl = value == "GF" || value == "RF" || value == "LG" ||
-                        value == "UG" || value == "MZ" || value == "PL" || value == "PH" ||
-                        value == "AT" || value == "TR" || value == "POD" ||
-                        (value.StartsWith("L") && value.Length <= 3 && value.Substring(1).All(char.IsDigit)) ||
-                        (value.StartsWith("B") && value.Length <= 2 && value.Substring(1).All(char.IsDigit)) ||
-                        (value.StartsWith("SB") && (value.Length == 2 || value.Substring(2).All(char.IsDigit)));
-                    if (!isKnownLvl && !value.All(c => char.IsLetterOrDigit(c)))
-                        return $"LVL '{value}' contains invalid characters";
-                    break;
-                case ParamRegistry.PROD:
-                    // PROD codes: 2-4 uppercase alphanumeric
-                    if (value.Length < 2 || value.Length > 4)
-                        return $"PROD '{value}' should be 2-4 characters";
-                    break;
-                case ParamRegistry.SEQ:
-                    if (!int.TryParse(value, out _))
-                        return $"SEQ '{value}' is not a valid number";
-                    break;
+                if (!ValidDiscCodes.Contains(value))
+                    return $"DISC '{value}' not in valid set ({string.Join(",", ValidDiscCodes)})";
+            }
+            else if (tokenName == ParamRegistry.LOC)
+            {
+                if (!TagConfig.LocCodes.Contains(value))
+                    return $"LOC '{value}' not in valid set ({string.Join(",", TagConfig.LocCodes)})";
+            }
+            else if (tokenName == ParamRegistry.ZONE)
+            {
+                if (!TagConfig.ZoneCodes.Contains(value))
+                    return $"ZONE '{value}' not in valid set ({string.Join(",", TagConfig.ZoneCodes)})";
+            }
+            else if (tokenName == ParamRegistry.SYS)
+            {
+                if (!ValidSysCodes.Contains(value))
+                    return $"SYS '{value}' not in valid set ({string.Join(",", ValidSysCodes)})";
+            }
+            else if (tokenName == ParamRegistry.FUNC)
+            {
+                if (!ValidFuncCodes.Contains(value))
+                    return $"FUNC '{value}' not in valid set ({string.Join(",", ValidFuncCodes)})";
+            }
+            else if (tokenName == ParamRegistry.LVL)
+            {
+                // Valid LVL codes: L01-L99, GF, LG, UG, B1-B9, SB, RF, PH, AT, TR, POD, MZ, PL, XX
+                if (value.Length > 4 || value.Contains(" "))
+                    return $"LVL '{value}' exceeds 4-char limit or contains spaces";
+                if (value == "XX")
+                    return null; // XX is valid but a placeholder
+                bool isKnownLvl = value == "GF" || value == "RF" || value == "LG" ||
+                    value == "UG" || value == "MZ" || value == "PL" || value == "PH" ||
+                    value == "AT" || value == "TR" || value == "POD" ||
+                    (value.StartsWith("L") && value.Length <= 3 && value.Substring(1).All(char.IsDigit)) ||
+                    (value.StartsWith("B") && value.Length <= 2 && value.Substring(1).All(char.IsDigit)) ||
+                    (value.StartsWith("SB") && (value.Length == 2 || value.Substring(2).All(char.IsDigit)));
+                if (!isKnownLvl && !value.All(c => char.IsLetterOrDigit(c)))
+                    return $"LVL '{value}' contains invalid characters";
+            }
+            else if (tokenName == ParamRegistry.PROD)
+            {
+                if (value.Length < 2 || value.Length > 4)
+                    return $"PROD '{value}' should be 2-4 characters";
+            }
+            else if (tokenName == ParamRegistry.SEQ)
+            {
+                if (!int.TryParse(value, out _))
+                    return $"SEQ '{value}' is not a valid number";
             }
             return null; // valid
         }
@@ -289,18 +292,21 @@ namespace StingTools.Core
                     errors.Add(error);
             }
 
-            // Cross-validate: DISC must match element category
+            // Cross-validate: DISC must match element category (accounting for system-aware correction)
             string catName = ParameterHelpers.GetCategoryName(el);
             string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
             if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(disc))
             {
                 string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : null;
+                // Apply system-aware DISC correction (e.g., M→P for plumbing pipes, M→FP for fire)
+                if (expectedDisc != null && !string.IsNullOrEmpty(sys))
+                    expectedDisc = TagConfig.GetSystemAwareDisc(expectedDisc, sys, catName);
                 if (expectedDisc != null && expectedDisc != disc)
                     errors.Add($"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'");
             }
 
             // Cross-validate: SYS should match category
-            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
             if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(sys))
             {
                 string expectedSys = TagConfig.GetSysCode(catName);
@@ -432,8 +438,8 @@ namespace StingTools.Core
     /// </summary>
     public static class TagConfig
     {
-        public const int NumPad = 4;
-        public const string Separator = "-";
+        public static int NumPad => ParamRegistry.NumPad;
+        public static string Separator => ParamRegistry.Separator;
         public const int MaxCollisionDepth = 10000;
 
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
@@ -1596,7 +1602,22 @@ namespace StingTools.Core
             var maxSeq = new Dictionary<string, int>();
             var known = new HashSet<string>(DiscMap.Keys);
 
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            // Use category filter to skip non-taggable elements (views, sheets, etc.)
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> elements;
+            if (catEnums != null && catEnums.Length > 0)
+            {
+                var bicList = new List<BuiltInCategory>(catEnums);
+                elements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(bicList));
+            }
+            else
+            {
+                elements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            }
+
+            foreach (Element elem in elements)
             {
                 string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(tag))
@@ -1684,7 +1705,8 @@ namespace StingTools.Core
                 // Pipes default to DCW (Domestic Cold Water per CIBSE/CAWS S10); runtime MEP
                 // system detection in GetMepSystemAwareSysCode overrides to HWS/SAN/GAS as needed
                 { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories" } },
-                { "DHW", new List<string> { "Plumbing Fixtures", "Flex Pipes" } },
+                { "SAN", new List<string> { "Plumbing Fixtures" } },
+                { "DHW", new List<string> { "Flex Pipes" } },
                 { "FP", new List<string> { "Sprinklers" } },
                 { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings" } },
                 { "FLS", new List<string> { "Fire Alarm Devices" } },

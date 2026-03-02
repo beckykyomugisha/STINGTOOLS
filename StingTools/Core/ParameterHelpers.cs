@@ -547,6 +547,7 @@ namespace StingTools.Core
 
             const double ftToMm = 304.8;
             const double sqFtToSqM = 0.092903;
+            const double cuFtToCuM = 0.0283168;
             try
             {
                 switch (catName)
@@ -558,6 +559,10 @@ namespace StingTools.Core
                             ParamRegistry.WALL_LENGTH, ftToMm);
                         written += MapDimension(el, BuiltInParameter.WALL_ATTR_WIDTH_PARAM,
                             ParamRegistry.WALL_THICKNESS, ftToMm);
+                        written += MapDimension(el, BuiltInParameter.HOST_AREA_COMPUTED,
+                            ParamRegistry.ELE_AREA, sqFtToSqM);
+                        written += MapDimension(el, BuiltInParameter.HOST_VOLUME_COMPUTED,
+                            ParamRegistry.ELE_VOLUME, cuFtToCuM);
                         written += MapStringParam(el, "Fire Rating",
                             ParamRegistry.FIRE_RATING);
                         break;
@@ -567,6 +572,9 @@ namespace StingTools.Core
                             ParamRegistry.DOOR_WIDTH, ftToMm);
                         written += MapDimension(el, BuiltInParameter.FAMILY_HEIGHT_PARAM,
                             ParamRegistry.DOOR_HEIGHT, ftToMm);
+                        written += MapDimension(el, BuiltInParameter.INSTANCE_HEAD_HEIGHT_PARAM,
+                            ParamRegistry.DOOR_HEAD_HT, ftToMm);
+                        written += MapFunctionParam(el, ParamRegistry.DOOR_FUNC);
                         written += MapStringParam(el, "Fire Rating",
                             ParamRegistry.FIRE_RATING);
                         break;
@@ -578,12 +586,16 @@ namespace StingTools.Core
                             ParamRegistry.WINDOW_HEIGHT, ftToMm);
                         written += MapDimension(el, BuiltInParameter.INSTANCE_SILL_HEIGHT_PARAM,
                             ParamRegistry.WINDOW_SILL, ftToMm);
+                        written += MapDimension(el, BuiltInParameter.INSTANCE_HEAD_HEIGHT_PARAM,
+                            ParamRegistry.WINDOW_HEAD_HT, ftToMm);
                         break;
 
                     case "Floors":
                         written += MapFloorThickness(el, ParamRegistry.FLR_THICKNESS);
                         written += MapDimension(el, BuiltInParameter.HOST_AREA_COMPUTED,
                             ParamRegistry.ELE_AREA, sqFtToSqM);
+                        written += MapDimension(el, BuiltInParameter.HOST_VOLUME_COMPUTED,
+                            ParamRegistry.ELE_VOLUME, cuFtToCuM);
                         break;
 
                     case "Ceilings":
@@ -624,10 +636,19 @@ namespace StingTools.Core
                         written += MapDimension(el, BuiltInParameter.ROOM_AREA,
                             ParamRegistry.ROOM_AREA, sqFtToSqM);
                         written += MapDimension(el, BuiltInParameter.ROOM_VOLUME,
-                            ParamRegistry.ROOM_VOLUME, 0.0283168); // cu ft → cu m
+                            ParamRegistry.ROOM_VOLUME, cuFtToCuM);
                         written += MapDimension(el, BuiltInParameter.ROOM_UPPER_OFFSET,
                             ParamRegistry.CEILING_HEIGHT, ftToMm);
                         written += MapRoomNameNumber(el);
+                        // Room finishes (commonly needed for fit-out schedules)
+                        written += MapBuiltInString(el, BuiltInParameter.ROOM_FINISH_FLOOR,
+                            ParamRegistry.ROOM_FINISH_FLR);
+                        written += MapBuiltInString(el, BuiltInParameter.ROOM_FINISH_WALL,
+                            ParamRegistry.ROOM_FINISH_WALL);
+                        written += MapBuiltInString(el, BuiltInParameter.ROOM_FINISH_CEILING,
+                            ParamRegistry.ROOM_FINISH_CLG);
+                        written += MapBuiltInString(el, BuiltInParameter.ROOM_FINISH_BASE,
+                            ParamRegistry.ROOM_FINISH_BASE);
                         break;
                 }
 
@@ -697,6 +718,39 @@ namespace StingTools.Core
                     ? p.AsString()
                     : p.AsValueString();
 
+                if (string.IsNullOrEmpty(val)) return 0;
+                return SetIfEmptyInt(el, targetParam, val);
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>Map a built-in string parameter directly (e.g., room finishes).</summary>
+        private static int MapBuiltInString(Element el, BuiltInParameter bip, string targetParam)
+        {
+            try
+            {
+                Parameter p = el.get_Parameter(bip);
+                if (p == null || !p.HasValue) return 0;
+
+                string val = p.StorageType == StorageType.String
+                    ? p.AsString()
+                    : p.AsValueString();
+
+                if (string.IsNullOrEmpty(val)) return 0;
+                return SetIfEmptyInt(el, targetParam, val);
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>Map door/window function (Interior/Exterior) from built-in parameter.</summary>
+        private static int MapFunctionParam(Element el, string targetParam)
+        {
+            try
+            {
+                Parameter p = el.get_Parameter(BuiltInParameter.FUNCTION_PARAM);
+                if (p == null || !p.HasValue) return 0;
+
+                string val = p.AsValueString(); // "Interior", "Exterior", etc.
                 if (string.IsNullOrEmpty(val)) return 0;
                 return SetIfEmptyInt(el, targetParam, val);
             }
@@ -824,12 +878,45 @@ namespace StingTools.Core
 
         /// <summary>
         /// Set default values for parameters that have sensible defaults.
-        /// ASS_STATUS_TXT defaults to "NEW" for all elements.
+        /// STATUS is derived from the element's phase (PHASE_CREATED / PHASE_DEMOLISHED)
+        /// when available, falling back to "NEW" if no phase data exists.
         /// </summary>
         private static int MapDefaults(Element el)
         {
             int written = 0;
-            written += SetIfEmptyInt(el, ParamRegistry.STATUS, "NEW");
+
+            // Derive STATUS from element phase lifecycle
+            string status = "NEW";
+            try
+            {
+                var phaseCreated = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                var phaseDemolished = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
+
+                if (phaseDemolished != null && phaseDemolished.AsElementId() != ElementId.InvalidElementId)
+                {
+                    // Element has a demolition phase — it's demolished
+                    status = "DEMOLISHED";
+                }
+                else if (phaseCreated != null && phaseCreated.AsElementId() != ElementId.InvalidElementId)
+                {
+                    var doc = el.Document;
+                    var phase = doc.GetElement(phaseCreated.AsElementId());
+                    if (phase != null)
+                    {
+                        string phaseName = phase.Name.ToUpperInvariant();
+                        if (phaseName.Contains("EXIST"))
+                            status = "EXISTING";
+                        else if (phaseName.Contains("DEMO"))
+                            status = "DEMOLISHED";
+                        else if (phaseName.Contains("TEMP"))
+                            status = "TEMPORARY";
+                        // else remains "NEW" (for "New Construction" etc.)
+                    }
+                }
+            }
+            catch { /* Phase parameters may not exist on all element types */ }
+
+            written += SetIfEmptyInt(el, ParamRegistry.STATUS, status);
             return written;
         }
 
@@ -840,6 +927,7 @@ namespace StingTools.Core
         /// </summary>
         private static int MapMepParams(Element el)
         {
+            const double ftToMm = 304.8;
             int written = 0;
             string catName = (el.Category?.Name ?? "");
             string catUpper = catName.ToUpperInvariant();
@@ -887,8 +975,22 @@ namespace StingTools.Core
                 written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_DUCT_FLOW);
                 written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, ParamRegistry.HVC_VELOCITY);
                 written += MapBuiltIn(el, BuiltInParameter.RBS_LOSS_COEFFICIENT, ParamRegistry.HVC_PRESSURE);
-                // HVC_AIRFLOW from velocity (distinct from HVC_DUCT_FLOW which is volume flow rate)
-                written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, ParamRegistry.HVC_AIRFLOW);
+                written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_AIRFLOW);
+                // Duct dimensions
+                written += MapBuiltIn(el, BuiltInParameter.RBS_CURVE_WIDTH_PARAM, ParamRegistry.HVC_DUCT_WIDTH);
+                written += MapBuiltIn(el, BuiltInParameter.RBS_CURVE_HEIGHT_PARAM, ParamRegistry.HVC_DUCT_HEIGHT);
+                // Duct insulation thickness
+                written += MapLookup(el, "Insulation Thickness", ParamRegistry.HVC_INSULATION, ftToMm);
+                // Duct length
+                written += MapDimension(el, BuiltInParameter.CURVE_ELEM_LENGTH,
+                    ParamRegistry.HVC_DUCT_LENGTH, 0.3048); // ft → m
+            }
+
+            // ── Conduit & Cable Tray length ─────────────────────────────────────
+            if (catUpper.Contains("CONDUIT") || catUpper.Contains("CABLE TRAY"))
+            {
+                written += MapDimension(el, BuiltInParameter.CURVE_ELEM_LENGTH,
+                    ParamRegistry.ELE_LENGTH, 0.3048); // ft → m
             }
 
             // ── Mechanical Equipment ───────────────────────────────────────────

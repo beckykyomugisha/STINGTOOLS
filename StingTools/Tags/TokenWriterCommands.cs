@@ -43,27 +43,67 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            // Show options dialog
-            TaskDialog td = new TaskDialog(label);
-            td.MainInstruction = $"Set {label} on {targetIds.Count} elements";
-            td.MainContent = usingSelection ? "(Selected elements)" : "(All taggable in view)";
-
-            for (int i = 0; i < Math.Min(options.Length, 4); i++)
-            {
-                td.AddCommandLink((TaskDialogCommandLinkId)(i + 1001), options[i]);
-            }
-            td.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var result = td.Show();
+            // Show options dialog — supports >4 options via paging
             string value = null;
+            int page = 0;
+            const int pageSize = 4; // TaskDialog max command links
 
-            switch (result)
+            while (value == null)
             {
-                case TaskDialogResult.CommandLink1: value = options.Length > 0 ? options[0] : null; break;
-                case TaskDialogResult.CommandLink2: value = options.Length > 1 ? options[1] : null; break;
-                case TaskDialogResult.CommandLink3: value = options.Length > 2 ? options[2] : null; break;
-                case TaskDialogResult.CommandLink4: value = options.Length > 3 ? options[3] : null; break;
-                default: return Result.Cancelled;
+                int startIdx = page * pageSize;
+                // Reserve 1 link slot for "More..." if there are items beyond this page
+                int remaining = options.Length - startIdx;
+                bool hasMore = remaining > pageSize;
+                int showCount = hasMore ? pageSize - 1 : Math.Min(remaining, pageSize);
+                int endIdx = startIdx + showCount;
+
+                if (startIdx >= options.Length) break;
+
+                TaskDialog td = new TaskDialog(label);
+                td.MainInstruction = $"Set {label} on {targetIds.Count} elements";
+                string pageInfo = options.Length > pageSize
+                    ? $"\nPage {page + 1}: showing {options[startIdx]}..{options[endIdx - 1]}"
+                    : "";
+                td.MainContent = (usingSelection ? "(Selected elements)" : "(All taggable in view)") + pageInfo;
+
+                int linkCount = 0;
+                for (int i = startIdx; i < endIdx; i++)
+                {
+                    td.AddCommandLink((TaskDialogCommandLinkId)(linkCount + 1001), options[i]);
+                    linkCount++;
+                }
+
+                // Add "More..." link on reserved slot
+                if (hasMore)
+                {
+                    td.AddCommandLink((TaskDialogCommandLinkId)(linkCount + 1001), "More options...");
+                }
+
+                td.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var result = td.Show();
+
+                int selectedLink = -1;
+                switch (result)
+                {
+                    case TaskDialogResult.CommandLink1: selectedLink = 0; break;
+                    case TaskDialogResult.CommandLink2: selectedLink = 1; break;
+                    case TaskDialogResult.CommandLink3: selectedLink = 2; break;
+                    case TaskDialogResult.CommandLink4: selectedLink = 3; break;
+                    default: return Result.Cancelled;
+                }
+
+                int actualIdx = startIdx + selectedLink;
+                // Check if "More options..." was selected
+                if (hasMore && selectedLink == showCount)
+                {
+                    page++;
+                    continue; // Show next page
+                }
+
+                if (actualIdx >= 0 && actualIdx < options.Length)
+                    value = options[actualIdx];
+                else
+                    return Result.Cancelled;
             }
 
             if (value == null) return Result.Cancelled;
@@ -252,6 +292,10 @@ namespace StingTools.Tags
             int containerWrites = 0;
             int skipped = 0;
 
+            // Build spatial index and project LOC once before the loop for performance
+            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+
             using (Transaction tx = new Transaction(doc, "STING Build Tags + All Containers"))
             {
                 tx.Start();
@@ -285,6 +329,40 @@ namespace StingTools.Tags
                         }
                     }
 
+                    // Auto-derive LOC if missing (spatial detection from rooms / project info)
+                    if (string.IsNullOrEmpty(tokenValues[1]))
+                    {
+                        string loc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex,
+                            projectLoc);
+                        if (!string.IsNullOrEmpty(loc))
+                        {
+                            tokenValues[1] = loc;
+                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LOC, loc);
+                        }
+                    }
+
+                    // Auto-derive ZONE if missing (spatial detection from rooms)
+                    if (string.IsNullOrEmpty(tokenValues[2]))
+                    {
+                        string zone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
+                        if (!string.IsNullOrEmpty(zone))
+                        {
+                            tokenValues[2] = zone;
+                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.ZONE, zone);
+                        }
+                    }
+
+                    // Auto-derive LVL if missing
+                    if (string.IsNullOrEmpty(tokenValues[3]))
+                    {
+                        string lvl = ParameterHelpers.GetLevelCode(doc, elem);
+                        if (!string.IsNullOrEmpty(lvl))
+                        {
+                            tokenValues[3] = lvl;
+                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
+                        }
+                    }
+
                     // Auto-derive FUNC if missing (smart subsystem differentiation)
                     if (string.IsNullOrEmpty(tokenValues[5]))
                     {
@@ -293,6 +371,17 @@ namespace StingTools.Tags
                         {
                             tokenValues[5] = func;
                             ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func);
+                        }
+                    }
+
+                    // Auto-derive PROD if missing (family-aware product code)
+                    if (string.IsNullOrEmpty(tokenValues[6]))
+                    {
+                        string prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
+                        if (!string.IsNullOrEmpty(prod))
+                        {
+                            tokenValues[6] = prod;
+                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.PROD, prod);
                         }
                     }
 

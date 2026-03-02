@@ -501,10 +501,21 @@ namespace StingTools.Select
                 foreach (ElementId id in idList)
                 {
                     var existing = view.GetElementOverrides(id);
-                    // Only clear if there are actual overrides
-                    if (existing.ProjectionLineColor.IsValid ||
+                    // Check all override types — projection, surface, cut, and transparency
+                    bool hasOverride =
+                        existing.ProjectionLineColor.IsValid ||
+                        existing.ProjectionLineWeight > 0 ||
                         existing.Halftone ||
-                        existing.ProjectionLineWeight > 0)
+                        existing.SurfaceForegroundPatternColor.IsValid ||
+                        existing.SurfaceBackgroundPatternColor.IsValid ||
+                        existing.CutLineColor.IsValid ||
+                        existing.CutLineWeight > 0 ||
+                        existing.CutForegroundPatternColor.IsValid ||
+                        existing.CutBackgroundPatternColor.IsValid ||
+                        existing.Transparency > 0 ||
+                        existing.SurfaceForegroundPatternId != ElementId.InvalidElementId ||
+                        existing.CutForegroundPatternId != ElementId.InvalidElementId;
+                    if (hasOverride)
                     {
                         view.SetElementOverrides(id, blank);
                         cleared++;
@@ -543,7 +554,10 @@ namespace StingTools.Select
             foreach (Element elem in elems)
             {
                 var ogs = view.GetElementOverrides(elem.Id);
-                Color c = ogs.ProjectionLineColor;
+                // Check both surface and projection colors — BuildOverride sets both
+                Color c = ogs.SurfaceForegroundPatternColor;
+                if (!c.IsValid)
+                    c = ogs.ProjectionLineColor;
                 if (!c.IsValid) continue;
 
                 string key = $"{c.Red},{c.Green},{c.Blue}";

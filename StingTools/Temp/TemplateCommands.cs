@@ -63,8 +63,7 @@ namespace StingTools.Temp
             ("STING - Rooms & Spaces", new[] {
                 BuiltInCategory.OST_Rooms }),
             ("STING - Generic & Specialty", new[] {
-                BuiltInCategory.OST_GenericModel, BuiltInCategory.OST_SpecialityEquipment,
-                BuiltInCategory.OST_Casework }),  // Medical equipment falls under SpecialityEquipment (above)
+                BuiltInCategory.OST_GenericModel, BuiltInCategory.OST_SpecialityEquipment }),
         };
 
         /// <summary>
@@ -123,6 +122,19 @@ namespace StingTools.Temp
             ("STING - QA: Missing Sequence", ParamRegistry.SEQ, "HasNoValue", ""),
             ("STING - QA: Missing Location", ParamRegistry.LOC, "HasNoValue", ""),
             ("STING - QA: Missing System", ParamRegistry.SYS, "HasNoValue", ""),
+            // System-level filters (for subsystem isolation in MEP templates)
+            ("STING - Sys: HVAC", ParamRegistry.SYS, "Equals", "HVAC"),
+            ("STING - Sys: DCW", ParamRegistry.SYS, "Equals", "DCW"),
+            ("STING - Sys: HWS", ParamRegistry.SYS, "Equals", "HWS"),
+            ("STING - Sys: SAN", ParamRegistry.SYS, "Equals", "SAN"),
+            ("STING - Sys: RWD", ParamRegistry.SYS, "Equals", "RWD"),
+            ("STING - Sys: GAS", ParamRegistry.SYS, "Equals", "GAS"),
+            ("STING - Sys: FP", ParamRegistry.SYS, "Equals", "FP"),
+            ("STING - Sys: FLS", ParamRegistry.SYS, "Equals", "FLS"),
+            ("STING - Sys: LV", ParamRegistry.SYS, "Equals", "LV"),
+            ("STING - Sys: COM", ParamRegistry.SYS, "Equals", "COM"),
+            ("STING - Sys: SEC", ParamRegistry.SYS, "Equals", "SEC"),
+            ("STING - Sys: ICT", ParamRegistry.SYS, "Equals", "ICT"),
             // Element status filters
             ("STING - Status: Existing", ParamRegistry.STATUS, "Equals", "EXISTING"),
             ("STING - Status: New", ParamRegistry.STATUS, "Equals", "NEW"),
@@ -971,12 +983,15 @@ namespace StingTools.Temp
                     return;
                 }
 
-                // Elevation templates: working = standard, presentation = fine + colours
-                if (discipline == "ELEV_W" || discipline == "ELEV_P" || discipline == "SEC_D" || discipline == "SEC_W")
+                // Elevation & Section templates: working = standard, presentation/detail = fine + colours
+                if (discipline == "ELEV_W" || discipline == "ELEV_P" ||
+                    discipline == "SEC_D" || discipline == "SEC_W" || discipline == "SEC_P")
                 {
-                    if (discipline == "ELEV_P")
-                        template.DetailLevel = ViewDetailLevel.Fine;
-                    if (discipline == "SEC_D")
+                    bool isFineDetail = discipline == "ELEV_P" || discipline == "SEC_D" || discipline == "SEC_P";
+                    bool isWorking = discipline == "ELEV_W" || discipline == "SEC_W";
+                    bool isSection = discipline.StartsWith("SEC");
+
+                    if (isFineDetail)
                         template.DetailLevel = ViewDetailLevel.Fine;
 
                     foreach (var kvp in filterLookup)
@@ -985,12 +1000,39 @@ namespace StingTools.Temp
                         try
                         {
                             template.AddFilter(kvp.Value.Id);
-                            if (discipline != "ELEV_W" &&
-                                DisciplineColors.TryGetValue(kvp.Key, out Color colElev))
+
+                            if (!isWorking && DisciplineColors.TryGetValue(kvp.Key, out Color colElev))
                             {
                                 var elevOgs = new OverrideGraphicSettings();
                                 elevOgs.SetProjectionLineColor(colElev);
+
+                                // Section templates: also set cut-plane graphics
+                                if (isSection)
+                                {
+                                    elevOgs.SetCutLineColor(colElev);
+                                    elevOgs.SetCutLineWeight(isFineDetail ? 4 : 3);
+                                    if (solidFill != null)
+                                    {
+                                        // Cut fill: lighter tint of discipline colour
+                                        byte tintR = (byte)Math.Min(255, colElev.Red + (255 - colElev.Red) / 2);
+                                        byte tintG = (byte)Math.Min(255, colElev.Green + (255 - colElev.Green) / 2);
+                                        byte tintB = (byte)Math.Min(255, colElev.Blue + (255 - colElev.Blue) / 2);
+                                        elevOgs.SetCutForegroundPatternId(solidFill.Id);
+                                        elevOgs.SetCutForegroundPatternColor(new Color(tintR, tintG, tintB));
+                                    }
+                                }
+
                                 template.SetFilterOverrides(kvp.Value.Id, elevOgs);
+                            }
+                            else if (isWorking && isSection)
+                            {
+                                // Working sections: add cut weight boost for readability
+                                if (DisciplineColors.TryGetValue(kvp.Key, out Color colSW))
+                                {
+                                    var secOgs = new OverrideGraphicSettings();
+                                    secOgs.SetCutLineWeight(3);
+                                    template.SetFilterOverrides(kvp.Value.Id, secOgs);
+                                }
                             }
                         }
                         catch { }
@@ -1010,10 +1052,21 @@ namespace StingTools.Temp
                         {
                             template.AddFilter(kvp.Value.Id);
                             bool isArch = kvp.Key.Contains("Architectural");
-                            if (!isArch && discipline == "PRES_C")
+                            if (discipline == "PRES_C")
                             {
-                                // Classic presentation: halftone non-architectural
-                                template.SetFilterOverrides(kvp.Value.Id, halftone);
+                                if (isArch)
+                                {
+                                    // Classic: highlight Architectural with slightly heavier lines
+                                    var archOgs = new OverrideGraphicSettings();
+                                    archOgs.SetProjectionLineWeight(3);
+                                    archOgs.SetProjectionLineColor(new Color(80, 80, 80));
+                                    template.SetFilterOverrides(kvp.Value.Id, archOgs);
+                                }
+                                else
+                                {
+                                    // Classic: halftone non-architectural
+                                    template.SetFilterOverrides(kvp.Value.Id, halftone);
+                                }
                             }
                             else if (discipline == "PRES_E")
                             {
