@@ -16,8 +16,8 @@ namespace StingTools.UI
     /// to the appropriate IExternalCommand classes. This ensures all Revit API
     /// calls happen on the correct thread (main Revit API context).
     ///
-    /// Unified dispatcher for all 160+ commands across 5 tabs:
-    /// SELECT, ORGANISE, DOCS, TEMP, CREATE.
+    /// Unified dispatcher for all 170+ commands across 7 tabs:
+    /// SELECT, ORGANISE, DOCS, TEMP, CREATE, VIEW, MODEL.
     /// </summary>
     public class StingCommandHandler : IExternalEventHandler
     {
@@ -709,6 +709,34 @@ namespace StingTools.UI
                     case "GradientApply": RunCommand<Select.ColorByParameterCommand>(app); break;
                     case "PatternApplyView": ApplyLinePattern(app); break;
                     case "ApplyLineWeight": ApplyLineWeightOverride(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // MODEL TAB — Auto-Modeling Engine
+                    // ════════════════════════════════════════════════════════
+
+                    // ── Architectural elements ──
+                    case "ModelCreateWall": RunCommand<Model.ModelCreateWallCommand>(app); break;
+                    case "ModelCreateRoom": RunCommand<Model.ModelCreateRoomCommand>(app); break;
+                    case "ModelCreateFloor": RunCommand<Model.ModelCreateFloorCommand>(app); break;
+                    case "ModelCreateCeiling": RunCommand<Model.ModelCreateCeilingCommand>(app); break;
+                    case "ModelCreateRoof": RunCommand<Model.ModelCreateRoofCommand>(app); break;
+                    case "ModelPlaceDoor": RunCommand<Model.ModelPlaceDoorCommand>(app); break;
+                    case "ModelPlaceWindow": RunCommand<Model.ModelPlaceWindowCommand>(app); break;
+                    case "ModelBuildingShell": RunCommand<Model.ModelBuildingShellCommand>(app); break;
+
+                    // ── Structural elements ──
+                    case "ModelPlaceColumn": RunCommand<Model.ModelPlaceColumnCommand>(app); break;
+                    case "ModelColumnGrid": RunCommand<Model.ModelColumnGridCommand>(app); break;
+                    case "ModelCreateBeam": RunCommand<Model.ModelCreateBeamCommand>(app); break;
+
+                    // ── MEP elements ──
+                    case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;
+                    case "ModelCreatePipe": RunCommand<Model.ModelCreatePipeCommand>(app); break;
+                    case "ModelPlaceFixture": RunCommand<Model.ModelPlaceFixtureCommand>(app); break;
+
+                    // ── DWG to Model ──
+                    case "ModelDWGToModel": RunCommand<Model.ModelDWGToModelCommand>(app); break;
+                    case "ModelDWGPreview": RunCommand<Model.ModelDWGPreviewCommand>(app); break;
 
                     // ── Unmapped / placeholder ──
                     default:

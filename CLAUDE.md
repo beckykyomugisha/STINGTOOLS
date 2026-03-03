@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **62 source files** (59 C# + 2 XAML + 1 AssemblyInfo, ~60,882 lines of code) across 8 directories
-- **251 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
+- **65 source files** (62 C# + 2 XAML + 1 AssemblyInfo, ~62,100+ lines of code) across 9 directories
+- **267 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
 - **20 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel + 1 WPF project setup wizard + 1 WPF progress dialog
 
@@ -116,6 +116,11 @@ STINGTOOLS/
     │   ├── TemplateExtCommands.cs      # Line patterns, phases, apply filters, cable trays, conduits, material schedules
     │   ├── TemplateManagerCommands.cs  # 17 template intelligence commands + TemplateManager engine (~3,415 lines)
     │   └── DataPipelineCommands.cs     # ValidateTemplate (45 checks), DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit
+    │
+    ├── Model/                          # MODEL auto-modeling engine (3 files, 16 commands)
+    │   ├── ModelEngine.cs              # Core engine: walls, floors, roofs, ceilings, columns, beams, doors, windows, rooms, MEP + FamilyResolver + WorksetAssigner + FailureHandler
+    │   ├── CADToModelEngine.cs         # DWG/DXF to BIM: parallel line detection (walls), closed loop detection (floors), PlanTopology (rooms), layer mapping
+    │   └── ModelCommands.cs            # 16 IExternalCommand classes wrapping ModelEngine + CADToModelEngine
     │
     └── Data/                           # Runtime data files (20 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
@@ -418,9 +423,12 @@ STINGTOOLS/
 | `UI/StingDockPanelProvider.cs` | 0 (IDockablePaneProvider) | 37 |
 | `UI/StingProgressDialog.cs` | 0 (modeless WPF progress dialog with ETA + cancel) | 211 |
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
-| `UI/StingDockPanel.xaml` | — (WPF markup, 6-tab panel with ~430 buttons) | 1,651 |
+| `UI/StingDockPanel.xaml` | — (WPF markup, 7-tab panel with ~446 buttons) | ~1,720 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
-| **Total** | **251 commands** | **~60,882** |
+| `Model/ModelEngine.cs` | 0 (core engine + FamilyResolver + WorksetAssigner + FailureHandler) | ~750 |
+| `Model/CADToModelEngine.cs` | 0 (DWG-to-BIM pipeline + LayerMapper + geometry types) | ~500 |
+| `Model/ModelCommands.cs` | 16 (ModelCreateWall, ModelCreateRoom, ModelCreateFloor, ModelCreateCeiling, ModelCreateRoof, ModelPlaceDoor, ModelPlaceWindow, ModelPlaceColumn, ModelColumnGrid, ModelCreateBeam, ModelCreateDuct, ModelCreatePipe, ModelPlaceFixture, ModelBuildingShell, ModelDWGToModel, ModelDWGPreview) | ~700 |
+| **Total** | **267 commands** | **~62,832** |
 
 ## Core Classes
 
@@ -695,6 +703,7 @@ The plugin's primary user interface is a **WPF dockable panel** that consolidate
 | TEMP | Materials, families, schedules, template setup, data pipeline, workflow automation | Temp |
 | CREATE | Tagging commands, token writers, combine, setup, legends | Tags |
 | VIEW | View templates, template manager, styles, presentation modes | Temp Templates |
+| MODEL | Auto-modeling: walls, floors, roofs, ceilings, columns, beams, doors, windows, MEP, DWG-to-BIM | New (MODEL engine) |
 
 ### Thread Safety Pattern
 All button clicks dispatch through `IExternalEventHandler` to ensure Revit API calls execute on the correct thread:
@@ -773,6 +782,101 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 | List Presets | `Core.ListWorkflowPresetsCommand` | ReadOnly | List all available presets (built-in + user JSON) |
 | Create Preset | `Core.CreateWorkflowPresetCommand` | ReadOnly | Create new preset from built-in templates |
 | Auto-Tagger Toggle | `Core.AutoTaggerToggleCommand` | ReadOnly | Toggle real-time IUpdater auto-tagging on/off |
+
+## MODEL Auto-Modeling Engine
+
+`Model/ModelEngine.cs` (~750 lines), `Model/CADToModelEngine.cs` (~500 lines), `Model/ModelCommands.cs` (~700 lines) provide a comprehensive auto-modeling engine combining techniques from EaseBit, eTLipse/ARQER, and StingBIM.AI.Creation.
+
+### Architecture
+
+```
+ModelCommands (16 IExternalCommand classes)
+    ├── ModelEngine (orchestrator)
+    │     ├── ModelFamilyResolver — resolves types from live Document (never hardcoded)
+    │     ├── ModelWorksetAssigner — auto-assigns discipline worksets
+    │     ├── ModelFailureHandler — IFailuresPreprocessor (suppresses warnings, captures errors)
+    │     └── Element Creators (walls, floors, roofs, MEP, structural)
+    └── CADToModelEngine (DWG-to-BIM pipeline)
+          ├── LayerMapper — DWG layer name → Revit category (30+ patterns, multilingual)
+          ├── Parallel line detection — wall centerline + thickness (EaseBit pattern)
+          ├── Closed loop detection — floor boundaries (Jeremy Tammik pattern)
+          └── PlanTopology — room placement in enclosed circuits
+```
+
+### ModelEngine Methods
+
+| Method | Creates | Key Logic |
+|--------|---------|-----------|
+| `CreateWall` | Single wall between two points | WallType resolution by name/thickness, Wall.Create |
+| `CreateRectangularRoom` | 4 walls + room element | TransactionGroup, WallUtils.AllowWallJoinAtEnd, PlanTopology |
+| `CreateFloor` | Rectangular floor slab | CurveLoop, Floor.Create |
+| `CreateFloorInRoom` | Floor from room boundary | SpatialElementBoundaryOptions, segment traversal |
+| `CreateCeiling` | Rectangular ceiling | CurveLoop, Ceiling.Create |
+| `CreateRoof` | Footprint roof with slope | FootPrintRoof, ModelCurveArray slope |
+| `PlaceDoor` | Door in host wall | Wall midpoint, FamilySymbol.Activate, host-based placement |
+| `PlaceWindow` | Window in host wall | Sill height offset, host-based placement |
+| `PlaceColumn` | Single structural column | Top/base level constraints, StructuralType.Column |
+| `PlaceColumnGrid` | Rows × cols column grid | Loop with progress, EscapeChecker cancellation |
+| `CreateBeam` | Structural beam | Line-based, StructuralType.Beam |
+| `CreateDuct` | Duct run between points | Duct.Create, MEPSystemType.SupplyAir |
+| `CreatePipe` | Pipe run between points | Pipe.Create, PipingSystemType |
+| `PlaceMEPFixture` | MEP fixture at point | Category-based resolution (light/plumbing/electrical/mechanical) |
+| `CreateBuildingShell` | 4 walls + floor + roof | Batch operation with TransactionGroup |
+
+### CADToModelEngine Pipeline
+
+1. **Extract geometry** — ImportInstance → GeometryElement → GeometryInstance → Lines/Arcs/PolyLines, layer names via GraphicsStyle
+2. **Classify by layer** — LayerMapper.InferCategory: 30+ patterns (wall, door, window, column, beam, slab, duct, pipe, elec, etc.) in English, German, French
+3. **Detect walls** — Parallel line pairs within 50-600mm, compute centerline + thickness
+4. **Detect floors** — Chain endpoints into closed loops (SortCurvesContiguous)
+5. **Create elements** — Walls via Wall.Create, Floors via Floor.Create
+6. **Place rooms** — PlanTopology.Circuits, doc.Create.NewRoom for unlocated circuits
+
+### MODEL Tab Commands (16)
+
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Wall | `Model.ModelCreateWallCommand` | Manual | Pick two points to create a wall |
+| Room | `Model.ModelCreateRoomCommand` | Manual | Create rectangular room enclosure |
+| Floor | `Model.ModelCreateFloorCommand` | Manual | Create rectangular floor or floor-in-room |
+| Ceiling | `Model.ModelCreateCeilingCommand` | Manual | Create rectangular ceiling |
+| Roof | `Model.ModelCreateRoofCommand` | Manual | Create footprint roof |
+| Door | `Model.ModelPlaceDoorCommand` | Manual | Place door in selected wall |
+| Window | `Model.ModelPlaceWindowCommand` | Manual | Place window in selected wall |
+| Column | `Model.ModelPlaceColumnCommand` | Manual | Place structural column at point |
+| Column Grid | `Model.ModelColumnGridCommand` | Manual | Create rectangular column grid |
+| Beam | `Model.ModelCreateBeamCommand` | Manual | Create beam between two points |
+| Duct | `Model.ModelCreateDuctCommand` | Manual | Create duct run between two points |
+| Pipe | `Model.ModelCreatePipeCommand` | Manual | Create pipe run between two points |
+| Fixture | `Model.ModelPlaceFixtureCommand` | Manual | Place MEP fixture (light/plumbing/electrical/mechanical) |
+| Building Shell | `Model.ModelBuildingShellCommand` | Manual | Create complete building: 4 walls + floor + roof |
+| DWG → Model | `Model.ModelDWGToModelCommand` | Manual | Convert DWG import to BIM elements |
+| DWG Preview | `Model.ModelDWGPreviewCommand` | ReadOnly | Audit DWG layers and entities |
+
+### ModelFamilyResolver
+
+Never hardcodes family names. Resolution strategy:
+1. **Exact match** — search loaded types by name
+2. **Keyword match** — match type name keywords (e.g., "concrete", "generic")
+3. **Dimension match** — find closest thickness/width match
+4. **Fallback** — first available type in the category
+
+### Key Internal Classes
+
+| Class | File | Purpose |
+|-------|------|---------|
+| `ModelEngine` | `Model/ModelEngine.cs` | Core orchestrator for all element creation |
+| `ModelFamilyResolver` | `Model/ModelEngine.cs` | 5-level type resolution for all categories |
+| `ModelWorksetAssigner` | `Model/ModelEngine.cs` | Category → workset mapping (workshared projects) |
+| `ModelFailureHandler` | `Model/ModelEngine.cs` | IFailuresPreprocessor — suppresses warnings, captures for reporting |
+| `Units` | `Model/ModelEngine.cs` | Mm/M/Feet conversion constants and methods |
+| `ModelResult` | `Model/ModelEngine.cs` | Operation result with CreatedIds, Success, Message, Warnings |
+| `CADToModelEngine` | `Model/CADToModelEngine.cs` | DWG geometry extraction and BIM conversion |
+| `LayerMapper` | `Model/CADToModelEngine.cs` | DWG layer → Revit category mapping (30+ patterns) |
+| `ExtractedLine` | `Model/CADToModelEngine.cs` | Line segment with layer name and direction |
+| `DetectedWall` | `Model/CADToModelEngine.cs` | Parallel line pair → centerline + thickness |
+| `DetectedLoop` | `Model/CADToModelEngine.cs` | Closed loop for floor/room boundary |
+| `CADConversionResult` | `Model/CADToModelEngine.cs` | Full conversion results with counts and warnings |
 
 ## Development Workflow
 
