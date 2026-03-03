@@ -22,19 +22,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            // Attempt to find a project_config.json alongside the assembly
+            // Display current config — do NOT reload (preserves session customizations)
             string configPath = Path.Combine(
                 StingToolsApp.DataPath ?? string.Empty,
                 "project_config.json");
-
-            if (File.Exists(configPath))
-            {
-                TagConfig.LoadFromFile(configPath);
-            }
-            else
-            {
-                TagConfig.LoadDefaults();
-            }
 
             var report = new StringBuilder();
             report.AppendLine("Tag Configuration");

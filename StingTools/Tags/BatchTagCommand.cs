@@ -94,8 +94,7 @@ namespace StingTools.Tags
             // This ensures contiguous SEQ numbers per group (all HVAC on L01 together)
             var sorted = SmartSortElements(doc, taggableElements);
 
-            var sequenceCounters = TagConfig.GetExistingSequenceCounters(doc);
-            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
             var stats = new TaggingStats();

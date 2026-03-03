@@ -1427,7 +1427,7 @@ namespace StingTools.Tags
             dlg.MainInstruction = "Select a tag placement template";
             for (int i = 0; i < recent.Count; i++)
             {
-                dlg.AddCommandLink((TaskDialogCommandLinkId)(i + 201),
+                dlg.AddCommandLink((TaskDialogCommandLinkId)(i + 1001),
                     recent[i].Name,
                     $"{recent[i].Rules.Count} category rules, from '{recent[i].CreatedFrom}'");
             }
@@ -1685,7 +1685,7 @@ namespace StingTools.Tags
             sizeDlg.MainInstruction = "Select new text size";
             for (int i = 0; i < Math.Min(4, Sizes.Length); i++)
             {
-                sizeDlg.AddCommandLink((TaskDialogCommandLinkId)(i + 201), Sizes[i].name);
+                sizeDlg.AddCommandLink((TaskDialogCommandLinkId)(i + 1001), Sizes[i].name);
             }
             sizeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 

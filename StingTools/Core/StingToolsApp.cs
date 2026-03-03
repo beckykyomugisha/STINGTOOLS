@@ -47,6 +47,7 @@ namespace StingTools.Core
         public Result OnShutdown(UIControlledApplication application)
         {
             StingLog.Info("STING Tools shutting down");
+            StingLog.Shutdown();
             return Result.Succeeded;
         }
 

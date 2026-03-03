@@ -117,8 +117,7 @@ namespace StingTools.Tags
             var sorted = BatchTagCommand.SmartSortElements(doc, taggableElements);
 
             int populated = 0;
-            var sequenceCounters = TagConfig.GetExistingSequenceCounters(doc);
-            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
             var stats = new TaggingStats();
@@ -233,8 +232,7 @@ namespace StingTools.Tags
             // Smart sort for contiguous SEQ
             var sorted = BatchTagCommand.SmartSortElements(doc, untagged);
 
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
-            var tagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
             var stats = new TaggingStats();

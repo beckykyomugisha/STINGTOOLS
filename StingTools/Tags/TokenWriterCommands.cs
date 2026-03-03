@@ -50,7 +50,7 @@ namespace StingTools.Tags
 
             for (int i = 0; i < Math.Min(options.Length, 4); i++)
             {
-                td.AddCommandLink((TaskDialogCommandLinkId)(i + 201), options[i]);
+                td.AddCommandLink((TaskDialogCommandLinkId)(i + 1001), options[i]);
             }
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
 
@@ -245,8 +245,7 @@ namespace StingTools.Tags
             }
 
             // Build collision detection index and sequence counters
-            var existingTags = TagConfig.BuildExistingTagIndex(doc);
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
 
             int built = 0;
             int collisions = 0;

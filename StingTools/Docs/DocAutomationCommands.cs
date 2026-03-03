@@ -335,7 +335,7 @@ namespace StingTools.Docs
             string digits = new string(num.Where(char.IsDigit).ToArray());
             if (!string.IsNullOrEmpty(digits))
                 seq = digits.PadLeft(3, '0');
-            if (seq.Length > 4) seq = seq.Substring(seq.Length - 3);
+            if (seq.Length > 3) seq = seq.Substring(seq.Length - 3);
 
             return $"{proj}-{orig}-ZZ-XX-DR-{role}-{seq}";
         }
@@ -366,17 +366,20 @@ namespace StingTools.Docs
                 return Result.Succeeded;
             }
 
-            // Group by first 2 chars (discipline prefix)
+            // Group by first 2 chars (discipline prefix) — materialize to avoid
+            // deferred re-evaluation after Phase 1 mutates sheet numbers
             var groups = sheets
                 .GroupBy(s => s.SheetNumber.Length >= 2 ? s.SheetNumber.Substring(0, 2).ToUpperInvariant() : "XX")
-                .OrderBy(g => g.Key);
+                .OrderBy(g => g.Key)
+                .Select(g => new { Key = g.Key, Sheets = g.ToList() })
+                .ToList();
 
             int totalRenamed = 0;
             var report = new StringBuilder();
-            report.AppendLine($"Will renumber {sheets.Count} sheets in {groups.Count()} discipline groups.");
+            report.AppendLine($"Will renumber {sheets.Count} sheets in {groups.Count} discipline groups.");
             report.AppendLine();
             foreach (var g in groups)
-                report.AppendLine($"  [{g.Key}] — {g.Count()} sheets");
+                report.AppendLine($"  [{g.Key}] — {g.Sheets.Count} sheets");
 
             TaskDialog confirm = new TaskDialog("Auto-Number Sheets");
             confirm.MainInstruction = $"Renumber {sheets.Count} sheets?";
@@ -405,11 +408,11 @@ namespace StingTools.Docs
                     }
                 }
 
-                // Phase 2: Assign final numbers by group
+                // Phase 2: Assign final numbers by group (using materialized groups)
                 foreach (var group in groups)
                 {
                     int seq = 1;
-                    foreach (var sheet in group.OrderBy(s => s.Name))
+                    foreach (var sheet in group.Sheets.OrderBy(s => s.Name))
                     {
                         string newNum = $"{group.Key}-{seq:D3}";
                         try
