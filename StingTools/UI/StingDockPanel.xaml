@@ -458,6 +458,100 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- TAG7 RICH DISPLAY -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG7 RICH DISPLAY"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Rich Note" Tag="RichTagNote" Click="Cmd_Click" ToolTip="Place styled TextNote annotations with Bold/Italic/Underline"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="HTML Report" Tag="ExportRichTagReport" Click="Cmd_Click" ToolTip="Export TAG7 as color-coded HTML report"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="View Sections" Tag="ViewTag7Sections" Click="Cmd_Click" ToolTip="View TAG7 A-F section breakdown"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Presets" Tag="SwitchTag7Preset" Click="Cmd_Click" ToolTip="Switch TAG7 color/style preset (Discipline, Status, System, Completeness, Monochrome, Accessible, Technical)"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- TAG1-TAG6 SEGMENT DISPLAY -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG SEGMENT DISPLAY"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Seg Note" Tag="RichSegmentNote" Click="Cmd_Click" ToolTip="Place segment-colored TextNote annotations for TAG1-TAG6 (DISC=Blue, LOC=Green, ZONE=Orange, etc.)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="View Segs" Tag="ViewSegments" Click="Cmd_Click" ToolTip="View TAG1-TAG6 segment breakdown with style hints"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- COLOR LEGENDS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="COLOR LEGENDS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource BlueBtn}" Content="Create Legend" Tag="CreateColorLegend" Click="Cmd_Click" ToolTip="Create persistent color legend (drafting view) for any colorization scheme — place on sheets for clients"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Auto All" Tag="AutoCreateLegends" Click="Cmd_Click" ToolTip="Auto-create legends for all categories, types, disciplines, systems, levels, and status — batch creates 6 drafting views"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="From View" Tag="LegendFromView" Click="Cmd_Click" ToolTip="Detect active colorization in current view and create a matching legend automatically"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="HTML Legend" Tag="ExportColorLegendHtml" Click="Cmd_Click" ToolTip="Export all color schemes as a comprehensive HTML legend guide"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="To Sheet" Tag="PlaceLegendOnSheet" Click="Cmd_Click" ToolTip="Place a legend view on the active sheet (legend views can go on multiple sheets)"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Sheet Legend" Tag="SheetContextLegend" Click="Cmd_Click" ToolTip="Create legend showing ONLY disciplines/categories present on this sheet, auto-placed"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="All Sheets" Tag="PlaceLegendOnAllSheets" Click="Cmd_Click" ToolTip="Place a legend on ALL sheets at the same position"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Batch Per-Sheet" Tag="BatchSheetContextLegends" Click="Cmd_Click" ToolTip="Create per-sheet context legends for every sheet — each shows only its own content"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- TAG LEGENDS — Workaround for Revit's missing Tag Legend API -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG LEGENDS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource BlueBtn}" Content="Tag Legend" Tag="CreateTagLegend" Click="Cmd_Click" ToolTip="Create tag legend showing loaded tag families per category with sample ISO 19650 tags — workaround for Revit's Legend Component limitation"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Sheet Tags" Tag="SheetTagLegend" Click="Cmd_Click" ToolTip="Create tag legend for active sheet only — shows tag families for categories on this sheet, auto-placed"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Batch Tags" Tag="BatchTagLegends" Click="Cmd_Click" ToolTip="Create per-sheet tag legends for ALL sheets — each shows only tag families for its own categories"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="One-Click" Tag="OneClickLegendPipeline" Click="Cmd_Click" ToolTip="Full legend pipeline: create color + tag + segment legends and place on all sheets"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- MEP & ARCHITECTURAL LEGENDS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="MEP &amp; ARCH LEGENDS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource BlueBtn}" Content="MEP Systems" Tag="MepSystemLegend" Click="Cmd_Click" ToolTip="MEP system color legend: HVAC, DCW, SAN, HWS, FP, LV — CIBSE/Uniclass colors"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Equipment" Tag="EquipmentLegend" Click="Cmd_Click" ToolTip="MEP equipment families by category with unit counts and sizing data"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Materials" Tag="MaterialLegend" Click="Cmd_Click" ToolTip="Material legend grouped by type: Concrete, Metal, Timber, Gypsum, Insulation, etc."/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Types" Tag="CompoundTypeLegend" Click="Cmd_Click" ToolTip="Wall/Floor/Ceiling/Roof compound types with layer count and thickness"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Fire Rating" Tag="FireRatingLegend" Click="Cmd_Click" ToolTip="Fire rating legend with severity color-coding (green→yellow→orange→red)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="★ Master" Tag="MasterLegendPipeline" Click="Cmd_Click" ToolTip="5-Layer intelligent pipeline: detect content → create ALL legends → place on discipline-matched sheets automatically"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- VG / FILTER LINKED LEGENDS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="VG / FILTER LEGENDS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource BlueBtn}" Content="Filter Legend" Tag="FilterLegend" Click="Cmd_Click" ToolTip="Legend from ACTUAL filter overrides in active view/template — reads real colors, not hardcoded maps"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Template Doc" Tag="TemplateLegend" Click="Cmd_Click" ToolTip="Document a view template's full VG state: all filter overrides + category VG overrides"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="VG Categories" Tag="VGCategoryLegend" Click="Cmd_Click" ToolTip="Legend from per-category VG overrides in active view — shows what each category looks like"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="All Templates" Tag="BatchTemplateLegend" Click="Cmd_Click" ToolTip="Batch create legends for every STING view template — full VG documentation"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- LEGEND INTELLIGENCE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LEGEND INTELLIGENCE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="★ Flexible" Tag="FlexibleLegend" Click="Cmd_Click" ToolTip="Create legend with user-selectable color mode: Discipline, System, VG-Linked, Tag Segment, RAG, Monochrome, Fire Rating"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="From Preset" Tag="LegendFromPreset" Click="Cmd_Click" ToolTip="Generate legend from saved COLOR_PRESETS.json color scheme"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Components" Tag="ComponentTypeLegend" Click="Cmd_Click" ToolTip="Create legend with real LegendComponent instances (auto-seed with fallback to drawn representation)"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Color Ref" Tag="ColorReferenceLegend" Click="Cmd_Click" ToolTip="Comprehensive color reference: all STING colors (disciplines, systems, status, validation, tag segments)"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Sync Audit" Tag="LegendSyncAudit" Click="Cmd_Click" ToolTip="Audit legends for staleness — detect missing disciplines, systems, or filter changes"/>
+                                <Button Style="{StaticResource RedBtn}" Content="Status" Tag="StatusLegend" Click="Cmd_Click" ToolTip="Element status legend (EXISTING/NEW/DEMOLISHED/TEMPORARY) with lifecycle colors"/>
+                                <Button Style="{StaticResource PurpleBtn}" Content="Worksets" Tag="WorksetLegend" Click="Cmd_Click" ToolTip="Workset legend color-coded by discipline group prefix"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- SYSTEM PARAMETER PUSH -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SYSTEM PARAM PUSH"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="★ Push Sys" Tag="SystemParamPush" Click="Cmd_Click" ToolTip="Push STING parameters to all untagged elements in a selected MEP system (Hybrid/Inherit/Derive/FullAuto modes)"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Batch All" Tag="BatchSystemPush" Click="Cmd_Click" ToolTip="Scan entire project for MEP systems with untagged elements and batch-push parameters across all systems"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Select Sys" Tag="SelectSystemElements" Click="Cmd_Click" ToolTip="Select all elements connected to current selection's MEP system (visual feedback for push scope)"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- ORIENTATION & TEXT ALIGNMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ORIENTATION &amp; TEXT ALIGNMENT"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -775,6 +869,20 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Match Widest" Tag="SchedMatchWidest" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Set Width" Tag="SchedSetWidth" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Equalise" Tag="SchedEqualise" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Fit" Tag="SchedAutoFit" Click="Cmd_Click" ToolTip="Auto-fit column widths based on data content"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Unhide All" Tag="SchedToggleHidden" Click="Cmd_Click" ToolTip="Reveal all hidden fields"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="SCHEDULE MANAGEMENT"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="ScheduleAudit" Click="Cmd_Click" ToolTip="Audit all schedules for issues and CSV coverage"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compare" Tag="ScheduleCompare" Click="Cmd_Click" ToolTip="Compare two schedules side-by-side"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Duplicate" Tag="ScheduleDuplicate" Click="Cmd_Click" ToolTip="Clone current schedule with new name"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Refresh" Tag="ScheduleRefresh" Click="Cmd_Click" ToolTip="Re-apply formatting from CSV definitions"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Field Mgr" Tag="ScheduleFieldMgr" Click="Cmd_Click" ToolTip="Bulk add/remove/reorder fields"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Colors" Tag="ScheduleColor" Click="Cmd_Click" ToolTip="Apply discipline color formatting"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stats" Tag="ScheduleStats" Click="Cmd_Click" ToolTip="Schedule statistics and data fill"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Delete" Tag="ScheduleDelete" Click="Cmd_Click" ToolTip="Batch delete empty/unplaced/non-STING schedules"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Report" Tag="ScheduleReport" Click="Cmd_Click" ToolTip="Export comprehensive schedule report to CSV"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -824,6 +932,8 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Sync Pos" Tag="LegendSyncPos" Click="Cmd_Click" ToolTip="Align legend viewports on sheet"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Title Line" Tag="LegendTitleLine" Click="Cmd_Click" ToolTip="Add title line to legend"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Uniform" Tag="LegendUniform" Click="Cmd_Click" ToolTip="Uniform legend sizing"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Refresh" Tag="UpdateLegend" Click="Cmd_Click" ToolTip="Refresh existing STING legends with current project data"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cleanup" Tag="DeleteStaleLegend" Click="Cmd_Click" ToolTip="Delete stale/unplaced STING legend views"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource GreenBtn}" Content="Tag Dictionary" Tag="TagDictionary" Click="Cmd_Click" ToolTip="Create tag nomenclature schedule"/>
@@ -850,6 +960,35 @@
                                 <Button Style="{StaticResource RedBtn}" Content="Del Clouds (View)" Tag="RevDelCloudsView" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource RedBtn}" Content="Del Clouds (Sel)" Tag="RevDelCloudsSel" Click="Cmd_Click"/>
                             </WrapPanel>
+                        </Border>
+
+                        <!-- DOCUMENTATION AUTOMATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DOCUMENTATION AUTOMATION"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ONE-CLICK"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Doc Package" Tag="DocumentationPackage" Click="Cmd_Click" ToolTip="One-click full documentation set: views + dependents + sheets + templates"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="VIEW CREATION"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Views" Tag="BatchCreateViews" Click="Cmd_Click" ToolTip="Create views from levels x disciplines x scope boxes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Dependents" Tag="CreateDependentViews" Click="Cmd_Click" ToolTip="Create dependent views from scope boxes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sections" Tag="BatchCreateSections" Click="Cmd_Click" ToolTip="Create sections from grids"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Elevations" Tag="BatchCreateElevations" Click="Cmd_Click" ToolTip="Create exterior/interior elevations"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="SHEET CREATION"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Sheets" Tag="BatchCreateSheets" Click="Cmd_Click" ToolTip="Create sheets with auto-numbering and viewport placement"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Drawing Register" Tag="DrawingRegister" Click="Cmd_Click" ToolTip="ISO 19650 drawing register with revision tracking"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="MANAGEMENT"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Scope Boxes" Tag="ScopeBoxManager" Click="Cmd_Click" ToolTip="Assign/audit scope box usage"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Templates" Tag="ViewTemplateAssigner" Click="Cmd_Click" ToolTip="7-layer intelligent template assignment"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Browser Org" Tag="ProjectBrowserOrganizer" Click="Cmd_Click" ToolTip="Organize project browser by naming convention"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                         <!-- VIEWS -->
@@ -899,11 +1038,17 @@
                         <!-- SETUP -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ SETUP"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
-                            <WrapPanel>
-                                <Button Style="{StaticResource PurpleBtn}" Content="Master Setup" Tag="MasterSetup" Click="Cmd_Click" ToolTip="One-click full project setup"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Create Params" Tag="CreateParameters" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Check Data" Tag="CheckData" Click="Cmd_Click"/>
-                            </WrapPanel>
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Project Setup Wizard" Tag="ProjectSetup" Click="Cmd_Click"
+                                            ToolTip="6-page wizard: project info, levels, grids, disciplines, automation — then runs full setup" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Master Setup" Tag="MasterSetup" Click="Cmd_Click" ToolTip="One-click full project setup (no wizard)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Create Params" Tag="CreateParameters" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Check Data" Tag="CheckData" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                         <!-- MATERIALS -->
@@ -1094,6 +1239,23 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- PARAGRAPH & PRESENTATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ PARAGRAPH &amp; PRESENTATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#7B1FA2">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Presentation Mode" Tag="SetPresentationMode" Click="Cmd_Click" ToolTip="One-click switch: Compact / Technical / Full Spec / Presentation / BOQ"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Paragraph Depth" Tag="SetParagraphDepth" Click="Cmd_Click" ToolTip="Set compact/standard/comprehensive depth on element types"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Toggle Warnings" Tag="ToggleWarningVisibility" Click="Cmd_Click" ToolTip="Show/hide threshold warning text in tags"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="View Label Spec" Tag="ViewLabelSpec" Click="Cmd_Click" ToolTip="Show Edit Label configuration guide for any category"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Label Guide" Tag="ExportLabelGuide" Click="Cmd_Click" ToolTip="Export complete label guide to text file"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="TAG7 Heading Style" Tag="SetTag7HeadingStyle" Click="Cmd_Click" ToolTip="Set bold/italic/underline style for TAG7 short tag heading (ASS_TAG_2_TXT)"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- ISO COMPLETENESS DASHBOARD -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="[Chart] ISO COMPLETENESS DASHBOARD"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -1156,6 +1318,15 @@
                             <StackPanel>
                                 <TextBlock Text="Select element then Inspect :" FontSize="9" Foreground="#888"/>
                                 <Button Style="{StaticResource BlueBtn}" Content="[Find] Inspect Selection" Tag="PreTagAudit" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Resolve All Issues -->
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="One-click 100% compliance :" FontSize="9" Foreground="#888"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Resolve All Issues" Tag="ResolveAllIssues" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,4,0,0"
+                                        ToolTip="Force-populate all tokens, rebuild all tags, fix duplicates, fill containers — achieve 100% compliance"/>
                             </StackPanel>
                         </Border>
 

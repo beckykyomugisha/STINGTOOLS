@@ -103,9 +103,7 @@ namespace StingTools.Tags
                 int start = page * pageSize;
                 if (start >= allGroups.Length)
                 {
-                    if (selected.Count > 0) break;
-                    page = 0;
-                    start = 0;
+                    break; // Always exit — caller checks selected.Count
                 }
 
                 int count = Math.Min(pageSize, allGroups.Length - start);
@@ -207,6 +205,10 @@ namespace StingTools.Tags
 
                         foreach (var container in group.Params)
                         {
+                            // Skip TAG7 in normal assembly — it uses the narrative builder
+                            if (container.ParamName == ParamRegistry.TAG7)
+                                continue;
+
                             string assembled = ParamRegistry.AssembleContainer(container, tokenValues);
 
                             if (!string.IsNullOrEmpty(assembled))
@@ -220,6 +222,12 @@ namespace StingTools.Tags
                             }
                         }
                     }
+
+                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                    int tag7Writes = TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
+                    totalWrites += tag7Writes;
+                    if (tag7Writes > 0 && writesPerGroup.ContainsKey("UNIVERSAL"))
+                        writesPerGroup["UNIVERSAL"] += tag7Writes;
                 }
 
                 tx.Commit();
@@ -276,7 +284,8 @@ namespace StingTools.Tags
             var missingByToken = new Dictionary<string, int>
             {
                 { "DISC", 0 }, { "LOC", 0 }, { "ZONE", 0 }, { "LVL", 0 },
-                { "SYS", 0 }, { "FUNC", 0 }, { "PROD", 0 }, { "SEQ", 0 }
+                { "SYS", 0 }, { "FUNC", 0 }, { "PROD", 0 }, { "SEQ", 0 },
+                { "STATUS", 0 }, { "REV", 0 }
             };
             var readyByDisc = new Dictionary<string, int>();
             var incompleteByDisc = new Dictionary<string, int>();
@@ -284,11 +293,11 @@ namespace StingTools.Tags
             var emptyTagCount = 0;
             var existingTagCount = 0;
 
-            string[] tokenNames = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+            string[] tokenNames = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ", "STATUS", "REV" };
             string[] tokenParams = {
                 ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
                 ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
-                ParamRegistry.PROD, ParamRegistry.SEQ
+                ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS, ParamRegistry.REV
             };
 
             foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
@@ -328,7 +337,7 @@ namespace StingTools.Tags
 
                 if (hasPlaceholder) placeholderCount++;
 
-                if (filledCount == 8)
+                if (filledCount == tokenParams.Length)
                 {
                     fullyReady++;
                     if (!string.IsNullOrEmpty(disc))

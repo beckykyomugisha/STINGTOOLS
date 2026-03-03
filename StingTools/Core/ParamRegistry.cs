@@ -71,7 +71,10 @@ namespace StingTools.Core
         public static string Ext(string key)
         {
             EnsureLoaded();
-            return _extendedParams.TryGetValue(key, out string name) ? name : "";
+            if (_extendedParams.TryGetValue(key, out string name))
+                return name;
+            StingLog.Warn($"ParamRegistry.Ext: key '{key}' not found in extended_params");
+            return "";
         }
 
         // ── Identity parameters ──────────────────────────────────────────
@@ -128,6 +131,15 @@ namespace StingTools.Core
         public static string RAMP_WIDTH     => Ext("RAMP_WIDTH");
         public static string STRUCT_TYPE    => Ext("STRUCT_TYPE");
         public static string FIRE_RATING    => Ext("FIRE_RATING");
+        public static string ELE_VOLUME     => Ext("ELE_VOLUME");
+        public static string ELE_LENGTH     => Ext("ELE_LENGTH");
+        public static string DOOR_HEAD_HT   => Ext("DOOR_HEAD_HT");
+        public static string DOOR_FUNC      => Ext("DOOR_FUNC");
+        public static string WINDOW_HEAD_HT => Ext("WINDOW_HEAD_HT");
+        public static string ROOM_FINISH_FLR  => Ext("ROOM_FINISH_FLR");
+        public static string ROOM_FINISH_WALL => Ext("ROOM_FINISH_WALL");
+        public static string ROOM_FINISH_CLG  => Ext("ROOM_FINISH_CLG");
+        public static string ROOM_FINISH_BASE => Ext("ROOM_FINISH_BASE");
 
         // ── Electrical parameters ────────────────────────────────────────
         public static string ELC_POWER      => Ext("ELC_POWER");
@@ -153,6 +165,10 @@ namespace StingTools.Core
         public static string HVC_VELOCITY   => Ext("HVC_VELOCITY");
         public static string HVC_PRESSURE   => Ext("HVC_PRESSURE");
         public static string HVC_AIRFLOW    => Ext("HVC_AIRFLOW");
+        public static string HVC_DUCT_WIDTH => Ext("HVC_DUCT_WIDTH");
+        public static string HVC_DUCT_HEIGHT => Ext("HVC_DUCT_HEIGHT");
+        public static string HVC_INSULATION => Ext("HVC_INSULATION");
+        public static string HVC_DUCT_LENGTH => Ext("HVC_DUCT_LENGTH");
 
         // ── Plumbing parameters ──────────────────────────────────────────
         public static string PLM_PIPE_FLOW  => Ext("PLM_PIPE_FLOW");
@@ -160,6 +176,72 @@ namespace StingTools.Core
         public static string PLM_VELOCITY   => Ext("PLM_VELOCITY");
         public static string PLM_FLOW_RATE  => Ext("PLM_FLOW_RATE");
         public static string PLM_PIPE_LENGTH => Ext("PLM_PIPE_LENGTH");
+
+        // ── Paragraph visibility controls (v4.2) ────────────────────────
+        /// <summary>Compact paragraph depth (State 1 only).</summary>
+        public static string PARA_STATE_1 { get; private set; } = "TAG_PARA_STATE_1_BOOL";
+        /// <summary>Standard paragraph depth (States 1+2).</summary>
+        public static string PARA_STATE_2 { get; private set; } = "TAG_PARA_STATE_2_BOOL";
+        /// <summary>Comprehensive paragraph depth (States 1+2+3).</summary>
+        public static string PARA_STATE_3 { get; private set; } = "TAG_PARA_STATE_3_BOOL";
+        /// <summary>Enable/disable warning text in tags.</summary>
+        public static string WARN_VISIBLE { get; private set; } = "TAG_WARN_VISIBLE_BOOL";
+        /// <summary>Warning severity filter: CRITICAL, HIGH, MEDIUM, ALL.</summary>
+        public static string WARN_SEVERITY_FILTER { get; private set; } = "TAG_WARN_SEVERITY_FILTER_TXT";
+
+        // ── Paragraph container parameter names (v4.2/v4.3) ─────────────
+        public static string PARA_WALL      => Ext("PARA_WALL");
+        public static string PARA_FLOOR     => Ext("PARA_FLOOR");
+        public static string PARA_DOOR      => Ext("PARA_DOOR");
+        public static string PARA_WIN       => Ext("PARA_WIN");
+        public static string PARA_ROOM      => Ext("PARA_ROOM");
+        public static string PARA_CEIL      => Ext("PARA_CEIL");
+        public static string PARA_ROOF      => Ext("PARA_ROOF");
+        public static string PARA_STAIR     => Ext("PARA_STAIR");
+        public static string PARA_RAMP      => Ext("PARA_RAMP");
+        public static string PARA_FACADE    => Ext("PARA_FACADE");
+        public static string PARA_CASEWORK  => Ext("PARA_CASEWORK");
+        public static string PARA_FURNITURE => Ext("PARA_FURNITURE");
+        public static string PARA_STR_COL   => Ext("PARA_STR_COL");
+        public static string PARA_STR_BEAM  => Ext("PARA_STR_BEAM");
+        public static string PARA_STR_FDN   => Ext("PARA_STR_FDN");
+        public static string PARA_HVC_SPEC  => Ext("PARA_HVC_SPEC");
+        public static string PARA_HVC_DUCT  => Ext("PARA_HVC_DUCT");
+        public static string PARA_HVC_AT    => Ext("PARA_HVC_AT");
+        public static string PARA_ELC_PANEL => Ext("PARA_ELC_PANEL");
+        public static string PARA_ELC_CIRCUIT => Ext("PARA_ELC_CIRCUIT");
+        public static string PARA_LTG_SPEC  => Ext("PARA_LTG_SPEC");
+        public static string PARA_PLM_FIXTURE => Ext("PARA_PLM_FIXTURE");
+        public static string PARA_PLM_PIPE  => Ext("PARA_PLM_PIPE");
+        public static string PARA_FLS_FA    => Ext("PARA_FLS_FA");
+        public static string PARA_FLS_SPR   => Ext("PARA_FLS_SPR");
+        public static string PARA_COM_BMS   => Ext("PARA_COM_BMS");
+        // ── Paragraph containers added v4.3 (completing 15 missing) ────
+        public static string PARA_HVC_FLEXDUCT => Ext("PARA_HVC_FLEXDUCT");
+        public static string PARA_HVC_DCTACC  => Ext("PARA_HVC_DCTACC");
+        public static string PARA_ELC_CONDUIT => Ext("PARA_ELC_CONDUIT");
+        public static string PARA_ELC_TRAY   => Ext("PARA_ELC_TRAY");
+        public static string PARA_ELC_CABLE  => Ext("PARA_ELC_CABLE");
+        public static string PARA_PLM_EQUIP  => Ext("PARA_PLM_EQUIP");
+        public static string PARA_PLM_PIPEACC => Ext("PARA_PLM_PIPEACC");
+        public static string PARA_PLM_DRAIN  => Ext("PARA_PLM_DRAIN");
+        public static string PARA_ICT_DATA   => Ext("PARA_ICT_DATA");
+        public static string PARA_NCL        => Ext("PARA_NCL");
+        public static string PARA_SEC        => Ext("PARA_SEC");
+        public static string PARA_ASS_EQUIP  => Ext("PARA_ASS_EQUIP");
+        public static string PARA_RGL_CMPL   => Ext("PARA_RGL_CMPL");
+        public static string PARA_PER_ENV    => Ext("PARA_PER_ENV");
+        public static string PARA_CST_CONC   => Ext("PARA_CST_CONC");
+
+        // ── ISO 19650 naming parameters ────────────────────────────────
+        public static string PROJECT_COD    => Ext("PROJECT_COD");
+        public static string ORIGINATOR_COD => Ext("ORIGINATOR_COD");
+        public static string VOLUME_COD     => Ext("VOLUME_COD");
+        public static string STATUS_COD     => Ext("STATUS_COD");
+        public static string REV_COD        => Ext("REV_COD");
+
+        // ── Warning threshold parameter ─────────────────────────────────
+        public static string ELC_PNL_RATED  => Ext("ELC_PNL_RATED");
 
         // ── Universal tag container names (convenience) ─────────────────
         /// <summary>Full 8-segment tag: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ</summary>
@@ -174,6 +256,35 @@ namespace StingTools.Core
         public static string TAG5 { get; private set; } = "ASS_TAG_5_TXT";
         /// <summary>Multi-line bottom: SYS-FUNC-PROD-SEQ</summary>
         public static string TAG6 { get; private set; } = "ASS_TAG_6_TXT";
+        /// <summary>Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup.</summary>
+        public static string TAG7 { get; private set; } = "ASS_TAG_7_TXT";
+
+        // ── TAG7 Sub-Section Parameters ──────────────────────────────────
+        // Split TAG7 into independently stylable sections for multi-label tag families.
+        // Each sub-param can have its own font/size/color/bold in annotation family labels.
+        /// <summary>TAG7 Section A: Identity Header — asset name, product, manufacturer (BOLD in tag families).</summary>
+        public static string TAG7A { get; private set; } = "ASS_TAG_7A_TXT";
+        /// <summary>TAG7 Section B: System &amp; Function Context — full descriptions (ITALIC in tag families).</summary>
+        public static string TAG7B { get; private set; } = "ASS_TAG_7B_TXT";
+        /// <summary>TAG7 Section C: Spatial Context — room, department, grid reference.</summary>
+        public static string TAG7C { get; private set; } = "ASS_TAG_7C_TXT";
+        /// <summary>TAG7 Section D: Lifecycle &amp; Status — status, revision, origin, maintenance.</summary>
+        public static string TAG7D { get; private set; } = "ASS_TAG_7D_TXT";
+        /// <summary>TAG7 Section E: Technical Specifications — discipline-specific performance data.</summary>
+        public static string TAG7E { get; private set; } = "ASS_TAG_7E_TXT";
+        /// <summary>TAG7 Section F: Classification &amp; Reference — codes, cost, ISO tag.</summary>
+        public static string TAG7F { get; private set; } = "ASS_TAG_7F_TXT";
+
+        /// <summary>All TAG7 sub-section parameter names in order (A-F).</summary>
+        public static string[] TAG7Sections => new[] { TAG7A, TAG7B, TAG7C, TAG7D, TAG7E, TAG7F };
+
+        /// <summary>Check if a parameter is any TAG7 variant (main or sub-section).</summary>
+        public static bool IsTag7Param(string paramName)
+        {
+            return paramName == TAG7 || paramName == TAG7A || paramName == TAG7B ||
+                   paramName == TAG7C || paramName == TAG7D || paramName == TAG7E ||
+                   paramName == TAG7F;
+        }
 
         // ── Token presets (named token index arrays) ────────────────────
         public static Dictionary<string, int[]> TokenPresets { get; private set; } = new Dictionary<string, int[]>();
@@ -357,6 +468,8 @@ namespace StingTools.Core
                 _allContainers = null;
                 _containersByCategory = null;
             }
+            // Invalidate downstream caches that depend on our data
+            SharedParamGuids.InvalidateCache();
             EnsureLoaded();
         }
 
@@ -419,7 +532,8 @@ namespace StingTools.Core
                         tokenNames.Add(def.ParamName);
                     }
                     SourceTokens = tokens.OrderBy(t => t.Slot).ToArray();
-                    AllTokenParams = tokenNames.ToArray();
+                    // Build AllTokenParams from sorted SourceTokens to ensure slot ordering matches
+                    AllTokenParams = SourceTokens.Select(t => t.ParamName).ToArray();
                 }
 
                 // Support params
@@ -429,9 +543,14 @@ namespace StingTools.Core
                     foreach (JObject s in supArr)
                     {
                         string name = s["param_name"]?.ToString() ?? "";
-                        if (name.Contains("STATUS")) STATUS = name;
+                        if (name.Contains("STATUS") && !name.Contains("PARA") && !name.Contains("WARN")) STATUS = name;
                         else if (name.Contains("DETAIL")) DETAIL_NUM = name;
                         else if (name.Contains("MNT")) MNT_TYPE = name;
+                        else if (name == "TAG_PARA_STATE_1_BOOL") PARA_STATE_1 = name;
+                        else if (name == "TAG_PARA_STATE_2_BOOL") PARA_STATE_2 = name;
+                        else if (name == "TAG_PARA_STATE_3_BOOL") PARA_STATE_3 = name;
+                        else if (name == "TAG_WARN_VISIBLE_BOOL") WARN_VISIBLE = name;
+                        else if (name == "TAG_WARN_SEVERITY_FILTER_TXT") WARN_SEVERITY_FILTER = name;
                     }
                 }
 
@@ -503,6 +622,20 @@ namespace StingTools.Core
                     TAG4 = ContainerGroups[0].Params[3].ParamName;
                     TAG5 = ContainerGroups[0].Params[4].ParamName;
                     TAG6 = ContainerGroups[0].Params[5].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 7)
+                        TAG7 = ContainerGroups[0].Params[6].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 8)
+                        TAG7A = ContainerGroups[0].Params[7].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 9)
+                        TAG7B = ContainerGroups[0].Params[8].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 10)
+                        TAG7C = ContainerGroups[0].Params[9].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 11)
+                        TAG7D = ContainerGroups[0].Params[10].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 12)
+                        TAG7E = ContainerGroups[0].Params[11].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 13)
+                        TAG7F = ContainerGroups[0].Params[12].ParamName;
                 }
 
                 // Category enum map
@@ -601,6 +734,27 @@ namespace StingTools.Core
                     }
                 }
             }
+
+            // Extended params (iso19650_naming, paragraph_containers, warning_thresholds, etc.)
+            var ext = root["extended_params"] as JObject;
+            if (ext != null)
+            {
+                foreach (var group in ext)
+                {
+                    var arr = group.Value as JArray;
+                    if (arr == null) continue;
+                    foreach (JObject item in arr)
+                    {
+                        string name = item["param_name"]?.ToString();
+                        string guidStr = item["guid"]?.ToString();
+                        if (!string.IsNullOrEmpty(name) && Guid.TryParse(guidStr, out Guid g))
+                        {
+                            _guidByName[name] = g;
+                            _nameByGuid[g] = name;
+                        }
+                    }
+                }
+            }
         }
 
         private static void BuildUniversalParams(JObject root)
@@ -685,6 +839,9 @@ namespace StingTools.Core
 
             TAG1 = "ASS_TAG_1_TXT"; TAG2 = "ASS_TAG_2_TXT"; TAG3 = "ASS_TAG_3_TXT";
             TAG4 = "ASS_TAG_4_TXT"; TAG5 = "ASS_TAG_5_TXT"; TAG6 = "ASS_TAG_6_TXT";
+            TAG7 = "ASS_TAG_7_TXT";
+            TAG7A = "ASS_TAG_7A_TXT"; TAG7B = "ASS_TAG_7B_TXT"; TAG7C = "ASS_TAG_7C_TXT";
+            TAG7D = "ASS_TAG_7D_TXT"; TAG7E = "ASS_TAG_7E_TXT"; TAG7F = "ASS_TAG_7F_TXT";
             STATUS = "ASS_STATUS_TXT"; DETAIL_NUM = "ASS_INST_DETAIL_NUM_TXT"; MNT_TYPE = "MNT_TYPE_TXT";
 
             TokenPresets = new Dictionary<string, int[]>
@@ -747,6 +904,33 @@ namespace StingTools.Core
                 { "PLM_PIPE_FLOW", "PLM_PPE_FLW_LPS" }, { "PLM_PIPE_SIZE", "PLM_PPE_SZ_MM" },
                 { "PLM_VELOCITY", "PLM_VEL_MPS" }, { "PLM_FLOW_RATE", "PLM_FLOW_RATE_LPS" },
                 { "PLM_PIPE_LENGTH", "PLM_PPE_LENGTH_M" },
+                // Volume, length, head heights, function
+                { "ELE_VOLUME", "BLE_ELE_VOLUME_CU_M" }, { "ELE_LENGTH", "BLE_ELE_LENGTH_M" },
+                { "DOOR_HEAD_HT", "BLE_DOOR_HEAD_HEIGHT_MM" }, { "DOOR_FUNC", "BLE_DOOR_FUNCTION_TXT" },
+                { "WINDOW_HEAD_HT", "BLE_WINDOW_HEAD_HEIGHT_MM" },
+                // Room finishes
+                { "ROOM_FINISH_FLR", "BLE_ROOM_FINISH_FLOOR_TXT" },
+                { "ROOM_FINISH_WALL", "BLE_ROOM_FINISH_WALL_TXT" },
+                { "ROOM_FINISH_CLG", "BLE_ROOM_FINISH_CEILING_TXT" },
+                { "ROOM_FINISH_BASE", "BLE_ROOM_FINISH_BASE_TXT" },
+                // Duct dimensions
+                { "HVC_DUCT_WIDTH", "HVC_DCT_WIDTH_MM" }, { "HVC_DUCT_HEIGHT", "HVC_DCT_HEIGHT_MM" },
+                { "HVC_INSULATION", "HVC_INS_THICKNESS_MM" }, { "HVC_DUCT_LENGTH", "HVC_DCT_LENGTH_M" },
+                // ISO 19650 naming
+                { "PROJECT_COD", "ASS_PROJECT_COD_TXT" }, { "ORIGINATOR_COD", "ASS_ORIGINATOR_COD_TXT" },
+                { "VOLUME_COD", "ASS_VOLUME_COD_TXT" }, { "STATUS_COD", "ASS_STATUS_COD_TXT" },
+                { "REV_COD", "ASS_REV_COD_TXT" },
+                // Paragraph containers
+                { "PARA_WALL", "ARCH_TAG_7_PARA_WALL_TXT" }, { "PARA_FLOOR", "ARCH_TAG_7_PARA_FLOOR_TXT" },
+                { "PARA_CEIL", "ARCH_TAG_7_PARA_CEIL_TXT" }, { "PARA_ROOF", "ARCH_TAG_7_PARA_ROOF_TXT" },
+                { "PARA_DOOR", "ARCH_TAG_7_PARA_DOOR_TXT" }, { "PARA_WIN", "ARCH_TAG_7_PARA_WIN_TXT" },
+                { "PARA_STAIR", "ARCH_TAG_7_PARA_STAIR_TXT" }, { "PARA_RAMP", "ARCH_TAG_7_PARA_RAMP_TXT" },
+                { "PARA_ROOM", "ARCH_TAG_7_PARA_ROOM_TXT" }, { "PARA_FACADE", "ARCH_TAG_7_PARA_FACADE_TXT" },
+                { "PARA_CASEWORK", "ARCH_TAG_7_PARA_CASEWORK_TXT" }, { "PARA_FURNITURE", "ARCH_TAG_7_PARA_FURNITURE_TXT" },
+                { "PARA_STR_FDN", "STR_TAG_7_PARA_FDN_TXT" }, { "PARA_STR_COL", "STR_TAG_7_PARA_COL_TXT" },
+                { "PARA_STR_BEAM", "STR_TAG_7_PARA_BEAM_TXT" },
+                { "PARA_HVC_SPEC", "HVC_TAG_7_PARA_SPEC_TXT" }, { "PARA_HVC_DUCT", "HVC_TAG_7_PARA_DUCT_TXT" },
+                { "PARA_HVC_AT", "HVC_TAG_7_PARA_AT_TXT" },
             };
 
             ContainerGroups = Array.Empty<ContainerGroupDef>();
@@ -804,6 +988,8 @@ namespace StingTools.Core
         /// <summary>
         /// Write all applicable containers for an element based on its category.
         /// Returns count of containers written.
+        /// TAG7 is always skipped here — it requires the narrative builder
+        /// (TagConfig.BuildTag7Narrative) rather than simple token concatenation.
         /// </summary>
         public static int WriteContainers(Element el, string[] tokenValues, string categoryName,
             bool overwrite = true, string skipParam = null)
@@ -813,6 +999,8 @@ namespace StingTools.Core
             foreach (var c in containers)
             {
                 if (c.ParamName == skipParam) continue;
+                // TAG7 + sub-sections use the narrative builder, not token concatenation
+                if (IsTag7Param(c.ParamName)) continue;
                 string assembled = AssembleContainer(c, tokenValues);
                 if (!string.IsNullOrEmpty(assembled))
                 {

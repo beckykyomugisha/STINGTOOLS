@@ -97,6 +97,11 @@ namespace StingTools.Organise
                         existingTags: tagIndex,
                         collisionMode: collisionMode,
                         stats: stats);
+
+                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                    string catTag7 = ParameterHelpers.GetCategoryName(elem);
+                    string[] tVals = ParamRegistry.ReadTokenValues(elem);
+                    TagConfig.WriteTag7All(doc, elem, catTag7, tVals, overwrite: true);
                 }
                 tx.Commit();
             }
@@ -165,6 +170,11 @@ namespace StingTools.Organise
                         existingTags: tagIndex,
                         collisionMode: TagCollisionMode.Overwrite))
                         retagged++;
+
+                    // Rebuild TAG7 + sub-sections with updated tokens
+                    string catRT = ParameterHelpers.GetCategoryName(elem);
+                    string[] tvRT = ParamRegistry.ReadTokenValues(elem);
+                    TagConfig.WriteTag7All(doc, elem, catRT, tvRT, overwrite: true);
                 }
                 tx.Commit();
             }
@@ -221,7 +231,7 @@ namespace StingTools.Organise
 
             var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
             var tagIndex = new HashSet<string>(tagMap.Keys, StringComparer.Ordinal);
-            int fixed_ = 0;
+            int fixedCount = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Fix Duplicates"))
             {
@@ -232,6 +242,7 @@ namespace StingTools.Organise
                     for (int i = 1; i < kvp.Value.Count; i++)
                     {
                         Element elem = kvp.Value[i];
+                        string catName = ParameterHelpers.GetCategoryName(elem);
                         string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                         string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
                         string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
@@ -239,6 +250,22 @@ namespace StingTools.Organise
                         string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
                         string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
                         string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+
+                        // Guaranteed defaults for empty tokens
+                        if (string.IsNullOrEmpty(disc))
+                            disc = TagConfig.DiscMap.TryGetValue(catName, out string dd) ? dd : "A";
+                        if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                        if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                        if (string.IsNullOrEmpty(lvl)) lvl = "L00";
+                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                        if (string.IsNullOrEmpty(func))
+                        {
+                            func = TagConfig.GetSmartFuncCode(elem, sys);
+                            if (string.IsNullOrEmpty(func))
+                                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                        }
+                        if (string.IsNullOrEmpty(prod))
+                            prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
 
                         if (string.IsNullOrEmpty(disc)) continue;
 
@@ -260,27 +287,30 @@ namespace StingTools.Organise
                         ParameterHelpers.SetString(elem, ParamRegistry.SEQ, newSeq, overwrite: true);
                         ParameterHelpers.SetString(elem, ParamRegistry.TAG1, newTag, overwrite: true);
 
-                        // Update containers with the new tag
+                        // Update containers and TAG7 + sub-sections with the new tag
                         try
                         {
                             string catName = ParameterHelpers.GetCategoryName(elem);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
                             if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                            {
                                 ParamRegistry.WriteContainers(elem, tokenVals, catName, overwrite: true);
+                                TagConfig.WriteTag7All(doc, elem, catName, tokenVals, overwrite: true);
+                            }
                         }
                         catch (Exception ex)
                         {
                             StingLog.Warn($"FixDuplicates: container write failed for {elem.Id}: {ex.Message}");
                         }
 
-                        fixed_++;
+                        fixedCount++;
                     }
                 }
                 tx.Commit();
             }
 
             TaskDialog.Show("Fix Duplicates",
-                $"Fixed {fixed_} duplicate tags across {duplicates.Count} tag values.\n" +
+                $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.\n" +
                 "All tags are now unique.");
             return Result.Succeeded;
         }
@@ -403,7 +433,8 @@ namespace StingTools.Organise
                         string seqStr = seq.ToString().PadLeft(ParamRegistry.NumPad, '0');
                         ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seqStr, overwrite: true);
 
-                        // Rebuild assembled tag
+                        // Rebuild assembled tag with guaranteed defaults for empty tokens
+                        string catName = ParameterHelpers.GetCategoryName(elem);
                         string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                         string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
                         string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
@@ -411,17 +442,36 @@ namespace StingTools.Organise
                         string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
                         string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
                         string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+
+                        if (string.IsNullOrEmpty(disc))
+                            disc = TagConfig.DiscMap.TryGetValue(catName, out string dd) ? dd : "A";
+                        if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                        if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                        if (string.IsNullOrEmpty(lvl)) lvl = "L00";
+                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                        if (string.IsNullOrEmpty(func))
+                        {
+                            func = TagConfig.GetSmartFuncCode(elem, sys);
+                            if (string.IsNullOrEmpty(func))
+                                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                        }
+                        if (string.IsNullOrEmpty(prod))
+                            prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
+
                         string tag = string.Join(ParamRegistry.Separator,
                             disc, loc, zone, lvl, sys, func, prod, seqStr);
                         ParameterHelpers.SetString(elem, ParamRegistry.TAG1, tag, overwrite: true);
 
-                        // Update containers with the new tag
+                        // Update containers and TAG7 + sub-sections with the new tag
                         try
                         {
                             string catName = ParameterHelpers.GetCategoryName(elem);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
                             if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                            {
                                 ParamRegistry.WriteContainers(elem, tokenVals, catName, overwrite: true);
+                                TagConfig.WriteTag7All(doc, elem, catName, tokenVals, overwrite: true);
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -450,7 +500,7 @@ namespace StingTools.Organise
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             var sb = new StringBuilder();
-            sb.AppendLine("ElementId,Category,Tag,DISC,LOC,ZONE,LVL,SYS,FUNC,PROD,SEQ,STATUS,Valid");
+            sb.AppendLine("ElementId,Category,Tag,DISC,LOC,ZONE,LVL,SYS,FUNC,PROD,SEQ,STATUS,REV,Valid,FullyResolved");
 
             int total = 0;
             foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
@@ -469,9 +519,11 @@ namespace StingTools.Organise
                 string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
                 string seq = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
                 string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
+                string rev = ParameterHelpers.GetString(elem, ParamRegistry.REV);
                 bool valid = TagConfig.TagIsComplete(tag);
+                bool resolved = TagConfig.TagIsFullyResolved(tag);
 
-                sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{valid}");
+                sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{rev},{valid},{resolved}");
             }
 
             // Write to file
@@ -571,21 +623,47 @@ namespace StingTools.Organise
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Red = missing, Orange = incomplete, Yellow = ISO violation, Purple = placeholder
+            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(doc);
+
             var red = new OverrideGraphicSettings();
             red.SetProjectionLineColor(new Color(255, 0, 0));
             red.SetProjectionLineWeight(5);
+            if (solidFill != null)
+            {
+                red.SetSurfaceForegroundPatternId(solidFill.Id);
+                red.SetSurfaceForegroundPatternColor(new Color(255, 200, 200));
+                red.SetSurfaceTransparency(50);
+            }
 
             var orange = new OverrideGraphicSettings();
             orange.SetProjectionLineColor(new Color(255, 165, 0));
             orange.SetProjectionLineWeight(4);
+            if (solidFill != null)
+            {
+                orange.SetSurfaceForegroundPatternId(solidFill.Id);
+                orange.SetSurfaceForegroundPatternColor(new Color(255, 230, 180));
+                orange.SetSurfaceTransparency(50);
+            }
 
             var yellow = new OverrideGraphicSettings();
             yellow.SetProjectionLineColor(new Color(255, 255, 0));
             yellow.SetProjectionLineWeight(3);
+            if (solidFill != null)
+            {
+                yellow.SetSurfaceForegroundPatternId(solidFill.Id);
+                yellow.SetSurfaceForegroundPatternColor(new Color(255, 255, 200));
+                yellow.SetSurfaceTransparency(50);
+            }
 
             var purple = new OverrideGraphicSettings();
             purple.SetProjectionLineColor(new Color(160, 32, 240));
             purple.SetProjectionLineWeight(3);
+            if (solidFill != null)
+            {
+                purple.SetSurfaceForegroundPatternId(solidFill.Id);
+                purple.SetSurfaceForegroundPatternColor(new Color(220, 200, 240));
+                purple.SetSurfaceTransparency(50);
+            }
 
             int missing = 0, incomplete = 0, isoInvalid = 0, unresolved = 0;
 
@@ -628,12 +706,38 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
-            TaskDialog.Show("Highlight Invalid",
+            var resultDlg = new TaskDialog("Highlight Invalid");
+            resultDlg.MainContent =
                 $"Red (missing tag):     {missing}\n" +
                 $"Orange (incomplete):   {incomplete}\n" +
                 $"Purple (placeholders): {unresolved}\n" +
                 $"Yellow (ISO issues):   {isoInvalid}\n\n" +
-                "Use 'Clear Overrides' to reset.");
+                "Use 'Clear Overrides' to reset.\n\n" +
+                "Create a persistent color legend?";
+            resultDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+            resultDlg.DefaultButton = TaskDialogResult.No;
+
+            if (resultDlg.Show() == TaskDialogResult.Yes)
+            {
+                var entries = Tags.LegendBuilder.FromHighlightInvalid(missing, incomplete, unresolved, isoInvalid);
+                var config = new Tags.LegendBuilder.LegendConfig
+                {
+                    Title = "Tag Validation Status",
+                    Subtitle = "Highlight Invalid Results",
+                    Footer = $"View: {view.Name} | Generated by STING Tools",
+                };
+
+                using (Transaction ltx = new Transaction(doc, "STING Validation Legend"))
+                {
+                    ltx.Start();
+                    var legendView = Tags.LegendBuilder.CreateLegendView(doc, entries, config);
+                    ltx.Commit();
+
+                    if (legendView != null)
+                        TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
+                }
+            }
+
             return Result.Succeeded;
         }
     }
@@ -676,10 +780,10 @@ namespace StingTools.Organise
     [Regeneration(RegenerationOption.Manual)]
     public class CopyTagsCommand : IExternalCommand
     {
+        // Only copy individual tokens (not TAG1-TAG6 containers which embed SEQ).
+        // After copying, user should run "Build Tags" to reassemble with unique SEQ.
         private static readonly string[] CopyParams = new[]
         {
-            ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
-            ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
             ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
             ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
             ParamRegistry.PROD, ParamRegistry.STATUS,
@@ -716,7 +820,7 @@ namespace StingTools.Organise
                 Element target = doc.GetElement(selected[i]);
                 if (target == null) continue;
                 string targetCat = ParameterHelpers.GetCategoryName(target);
-                string expectedDisc = TagConfig.DiscMap.TryGetValue(targetCat, out string td2) ? td2 : "XX";
+                string expectedDisc = TagConfig.DiscMap.TryGetValue(targetCat, out string td2) ? td2 : "A";
                 if (!string.IsNullOrEmpty(sourceDisc) && sourceDisc != expectedDisc)
                     discMismatches++;
             }
@@ -1235,8 +1339,36 @@ namespace StingTools.Organise
                 var c = AnnotationColorHelper.DisciplineColors[kvp.Key];
                 report.AppendLine($"  {kvp.Key}: {kvp.Value} tags (RGB {c.Red},{c.Green},{c.Blue})");
             }
+            report.AppendLine();
+            report.AppendLine("Create a persistent color legend?");
 
-            TaskDialog.Show("Color Tags by Discipline", report.ToString());
+            var resultDlg = new TaskDialog("Color Tags by Discipline");
+            resultDlg.MainContent = report.ToString();
+            resultDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+            resultDlg.DefaultButton = TaskDialogResult.No;
+
+            if (resultDlg.Show() == TaskDialogResult.Yes)
+            {
+                var entries = Tags.LegendBuilder.FromDisciplineColors(
+                    AnnotationColorHelper.DisciplineColors, discCounts);
+                var config = new Tags.LegendBuilder.LegendConfig
+                {
+                    Title = "Discipline Color Coding",
+                    Subtitle = "Annotation Tags by Discipline",
+                    Footer = $"View: {view.Name} | Generated by STING Tools",
+                };
+
+                using (Transaction ltx = new Transaction(doc, "STING Discipline Legend"))
+                {
+                    ltx.Start();
+                    var legendView = Tags.LegendBuilder.CreateLegendView(doc, entries, config);
+                    ltx.Commit();
+
+                    if (legendView != null)
+                        TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
+                }
+            }
+
             StingLog.Info($"ColorTagsByDiscipline: colored={colored}");
             return Result.Succeeded;
         }
@@ -2410,7 +2542,7 @@ namespace StingTools.Organise
                 // Validation
                 "TagValid", "TagResolved", "TagComplete", "ValidationIssues",
                 // Status & Classification
-                "STATUS", "Mark", "Description", "Manufacturer", "Model",
+                "STATUS", "REV", "Mark", "Description", "Manufacturer", "Model",
                 // Spatial
                 "Level", "RoomName", "RoomNumber", "Department", "GridRef",
                 // Dimensional
@@ -2483,6 +2615,7 @@ namespace StingTools.Organise
                 string familyName = ParameterHelpers.GetFamilyName(el);
                 string typeName = ParameterHelpers.GetFamilySymbolName(el);
                 string status = Gs(el, ParamRegistry.STATUS);
+                string rev = Gs(el, ParamRegistry.REV);
                 string mark = Gp(el, BuiltInParameter.ALL_MODEL_MARK);
                 string desc = Gs(el, ParamRegistry.DESC);
                 if (string.IsNullOrEmpty(desc)) desc = Gp(el, BuiltInParameter.ALL_MODEL_DESCRIPTION);
@@ -2557,6 +2690,7 @@ namespace StingTools.Organise
                 sb.Append(isComplete).Append(',');
                 sb.Append(Esc(issueStr)).Append(',');
                 sb.Append(status).Append(',');
+                sb.Append(rev).Append(',');
                 sb.Append(Esc(mark)).Append(',');
                 sb.Append(Esc(desc)).Append(',');
                 sb.Append(Esc(mfr)).Append(',');
@@ -3300,8 +3434,11 @@ namespace StingTools.Organise
     }
 
     /// <summary>
-    /// Snap leader elbows to 45° or 90° angles for clean annotation layout.
+    /// Snap leader elbows to 45°, 90°, or straight angles for clean annotation layout.
     /// Works on selected tags or all tags in view.
+    /// Supports cycling: each invocation detects the current angle and rotates to the next
+    /// in the sequence 90° → 45° → Straight → 90°.
+    /// Also supports direct angle setting via the static SnapToAngle method.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -3321,27 +3458,74 @@ namespace StingTools.Organise
                 return Result.Succeeded;
             }
 
-            // Choose angle
-            TaskDialog dlg = new TaskDialog("Snap Leader Elbows");
-            dlg.MainInstruction = $"Snap {tags.Count} leader elbows";
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "90° (Orthogonal)",
-                "Snap elbows to horizontal/vertical angles (clean, technical drawings)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "45° (Diagonal)",
-                "Snap elbows to 45° angles (compact, isometric style)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Straight (No Elbow)",
-                "Direct straight line from element to tag head — no elbow bend");
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // Auto-cycle: detect current angle and rotate to next
+            // Cycle order: 90° → 45° → Straight (0°) → 90°
+            string targetAngle = DetectCurrentAngleAndCycle(doc, tags);
 
-            var result = dlg.Show();
-            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+            int snapped = SnapToAngle(doc, tags, targetAngle);
 
-            bool use45 = result == TaskDialogResult.CommandLink2;
-            bool useStraight = result == TaskDialogResult.CommandLink3;
+            string angleLabel = targetAngle == "0" ? "Straight" : $"{targetAngle}°";
+            TaskDialog.Show("Snap Elbows",
+                $"Snapped {snapped} of {tags.Count} leader elbows to {angleLabel}.\n" +
+                "(Click again to cycle to next angle)");
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Detect the predominant current elbow angle and return the next in cycle.
+        /// Cycle: 90° → 45° → Straight (0°) → 90°
+        /// </summary>
+        private static string DetectCurrentAngleAndCycle(Document doc, List<IndependentTag> tags)
+        {
+            int count90 = 0, count45 = 0, count0 = 0;
+
+            foreach (IndependentTag tag in tags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    Element host = hostIds.Count > 0 ? doc.GetElement(hostIds.First()) : null;
+                    if (host == null) continue;
+
+                    XYZ hostCenter = LeaderHelper.GetElementCenter(host);
+                    if (hostCenter == null) continue;
+
+                    XYZ tagHead = tag.TagHeadPosition;
+                    var refs = tag.GetTaggedReferences();
+                    if (refs == null || refs.Count == 0) continue;
+
+                    XYZ elbow = tag.GetLeaderElbow(refs.First());
+                    if (elbow == null) { count90++; continue; }
+
+                    // Classify the elbow position
+                    XYZ mid = (hostCenter + tagHead) / 2.0;
+                    XYZ ortho90 = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+
+                    if (elbow.DistanceTo(mid) < 0.2)
+                        count0++;       // Straight
+                    else if (elbow.DistanceTo(ortho90) < 0.2)
+                        count90++;      // 90°
+                    else
+                        count45++;      // 45° or other
+                }
+                catch { count90++; }
+            }
+
+            // Determine dominant angle and cycle to next
+            if (count90 >= count45 && count90 >= count0)
+                return "45";    // Currently 90° → cycle to 45°
+            if (count45 >= count90 && count45 >= count0)
+                return "0";     // Currently 45° → cycle to Straight
+            return "90";        // Currently Straight → cycle to 90°
+        }
+
+        /// <summary>
+        /// Snap leader elbows to a specific angle. Called by the handler for direct snapping.
+        /// angleMode: "90", "45", or "0" (straight).
+        /// </summary>
+        public static int SnapToAngle(Document doc, List<IndependentTag> tags, string angleMode)
+        {
             int snapped = 0;
-
             using (Transaction tx = new Transaction(doc, "STING Snap Leader Elbows"))
             {
                 tx.Start();
@@ -3349,9 +3533,8 @@ namespace StingTools.Organise
                 {
                     try
                     {
-                        // Get tagged element center and tag head
-                        var _hostIds = tag.GetTaggedLocalElementIds();
-                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
+                        var hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = hostIds.Count > 0 ? doc.GetElement(hostIds.First()) : null;
                         if (host == null) continue;
 
                         XYZ hostCenter = LeaderHelper.GetElementCenter(host);
@@ -3359,50 +3542,10 @@ namespace StingTools.Organise
 
                         XYZ tagHead = tag.TagHeadPosition;
                         XYZ delta = tagHead - hostCenter;
-
                         if (delta.GetLength() < 0.01) continue;
 
-                        // Calculate snapped elbow position
-                        XYZ elbowPos;
-                        if (useStraight)
-                        {
-                            // Straight: place elbow at midpoint of host→tagHead line
-                            // This effectively creates a straight leader (no visible bend)
-                            elbowPos = (hostCenter + tagHead) / 2.0;
-                        }
-                        else if (use45)
-                        {
-                            // 45° elbow: move along diagonal first, then horizontal
-                            double absDx = Math.Abs(delta.X);
-                            double absDy = Math.Abs(delta.Y);
-                            double diag = Math.Min(absDx, absDy);
-                            double signX = delta.X >= 0 ? 1 : -1;
-                            double signY = delta.Y >= 0 ? 1 : -1;
+                        XYZ elbowPos = CalculateElbowPosition(hostCenter, tagHead, delta, angleMode);
 
-                            if (absDx > absDy)
-                            {
-                                // Diagonal from host, then horizontal to tag
-                                elbowPos = new XYZ(
-                                    hostCenter.X + diag * signX,
-                                    hostCenter.Y + diag * signY,
-                                    hostCenter.Z);
-                            }
-                            else
-                            {
-                                // Diagonal from host, then vertical to tag
-                                elbowPos = new XYZ(
-                                    hostCenter.X + diag * signX,
-                                    hostCenter.Y + diag * signY,
-                                    hostCenter.Z);
-                            }
-                        }
-                        else
-                        {
-                            // 90° elbow: horizontal from host, then vertical to tag head
-                            elbowPos = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
-                        }
-
-                        // Set elbow position via leader end + head position
                         var refs = tag.GetTaggedReferences();
                         if (refs != null && refs.Count > 0)
                         {
@@ -3418,11 +3561,38 @@ namespace StingTools.Organise
                 }
                 tx.Commit();
             }
+            return snapped;
+        }
 
-            string angle = useStraight ? "Straight" : use45 ? "45°" : "90°";
-            TaskDialog.Show("Snap Elbows",
-                $"Snapped {snapped} of {tags.Count} leader elbows to {angle}.");
-            return Result.Succeeded;
+        /// <summary>
+        /// Calculate the elbow position for a given angle mode.
+        /// </summary>
+        private static XYZ CalculateElbowPosition(XYZ hostCenter, XYZ tagHead, XYZ delta, string angleMode)
+        {
+            if (angleMode == "0")
+            {
+                // Straight: elbow at midpoint — creates straight leader
+                return (hostCenter + tagHead) / 2.0;
+            }
+            else if (angleMode == "45")
+            {
+                // 45° elbow: diagonal then horizontal/vertical
+                double absDx = Math.Abs(delta.X);
+                double absDy = Math.Abs(delta.Y);
+                double diag = Math.Min(absDx, absDy);
+                double signX = delta.X >= 0 ? 1 : -1;
+                double signY = delta.Y >= 0 ? 1 : -1;
+
+                if (absDx > absDy)
+                    return new XYZ(hostCenter.X + diag * signX, tagHead.Y, hostCenter.Z);
+                else
+                    return new XYZ(tagHead.X, hostCenter.Y + diag * signY, hostCenter.Z);
+            }
+            else // "90"
+            {
+                // 90° elbow: horizontal from host, then vertical to tag head
+                return new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+            }
         }
     }
 

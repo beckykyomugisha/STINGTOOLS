@@ -171,6 +171,48 @@ namespace StingTools.Tags
             ParamRegistry.TAG6,  // Status tag (multi-line)
         };
 
+        /// <summary>
+        /// Visibility control parameters — added to every tag family so that
+        /// calculated values in Edit Label can gate tier 2/3 and warning visibility.
+        /// These are Type parameters (Yes/No) set by SetPresentationModeCommand.
+        /// </summary>
+        public static readonly string[] VisibilityParams = new[]
+        {
+            ParamRegistry.PARA_STATE_1,  // TAG_PARA_STATE_1_BOOL — Compact
+            ParamRegistry.PARA_STATE_2,  // TAG_PARA_STATE_2_BOOL — Standard
+            ParamRegistry.PARA_STATE_3,  // TAG_PARA_STATE_3_BOOL — Comprehensive
+            ParamRegistry.WARN_VISIBLE,  // TAG_WARN_VISIBLE_BOOL — Warning toggle
+        };
+
+        /// <summary>
+        /// Get all parameters that should be added to a tag family for a specific
+        /// category. Includes TagParams + VisibilityParams + category-specific
+        /// paragraph container and tier 2/3 display parameters from LABEL_DEFINITIONS.json.
+        /// </summary>
+        public static List<string> GetAllFamilyParams(string categoryDisplayName)
+        {
+            var result = new List<string>();
+
+            // Always add universal tag params
+            result.AddRange(TagParams);
+
+            // Always add visibility control params
+            result.AddRange(VisibilityParams);
+
+            // Add description param
+            result.Add("ASS_DESCRIPTION_TXT");
+
+            // Add category-specific params from label definitions
+            var labelParams = LabelDefinitionHelper.GetCategoryParams(categoryDisplayName);
+            foreach (string p in labelParams)
+            {
+                if (!result.Contains(p))
+                    result.Add(p);
+            }
+
+            return result;
+        }
+
         /// <summary>Generate the STING family name for a category.</summary>
         public static string GetFamilyName(BuiltInCategory bic)
         {
@@ -547,8 +589,9 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    // Add shared parameters to the family
-                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app);
+                    // Add shared parameters: tag containers + visibility + category-specific
+                    var allParams = TagFamilyConfig.GetAllFamilyParams(catDisplay);
+                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, allParams);
 
                     // Attempt to rebind the existing Label to ASS_TAG_1_TXT
                     bool labelBound = TryRebindLabel(famDoc);
@@ -626,7 +669,8 @@ namespace StingTools.Tags
         /// </summary>
         private bool AddSharedParameters(Document famDoc,
             string sharedParamFile,
-            Autodesk.Revit.ApplicationServices.Application app)
+            Autodesk.Revit.ApplicationServices.Application app,
+            List<string> paramNames = null)
         {
             try
             {
@@ -646,11 +690,14 @@ namespace StingTools.Tags
                 FamilyManager famMan = famDoc.FamilyManager;
                 int added = 0;
 
+                // Use provided param list or fallback to basic TagParams
+                var paramsToAdd = paramNames ?? new List<string>(TagFamilyConfig.TagParams);
+
                 using (Transaction tx = new Transaction(famDoc, "STING Add Tag Params"))
                 {
                     tx.Start();
 
-                    foreach (string paramName in TagFamilyConfig.TagParams)
+                    foreach (string paramName in paramsToAdd)
                     {
                         // Find the definition in the shared parameter file
                         ExternalDefinition extDef = FindSharedDefinition(defFile, paramName);

@@ -1,6 +1,6 @@
 {
-  "version": "3.0",
-  "description": "STING Tools master parameter registry — single source of truth for all parameter names, GUIDs, container definitions, and category bindings. Edit this file, then run Sync Parameter Schema to propagate changes to all CSV/TXT files.",
+  "version": "4.3",
+  "description": "STING Tools master parameter registry v4.3 — single source of truth for all parameter names, GUIDs, container definitions, category bindings, paragraph containers, warning thresholds, and BOQ automation. Edit this file, then run Sync Parameter Schema to propagate changes to all CSV/TXT files.",
 
   "tag_format": {
     "separator": "-",
@@ -22,7 +22,18 @@
   "support_params": [
     { "param_name": "ASS_STATUS_TXT",          "guid": "b97665a8-5e34-585b-9674-fbdd83d7637f", "description": "Status (EXISTING, NEW, DEMOLISHED, TEMPORARY)", "binding": "universal" },
     { "param_name": "ASS_INST_DETAIL_NUM_TXT", "guid": "73f74429-76da-4ae8-ae90-66884bad8a06", "description": "Installation detail number",                    "binding": "universal" },
-    { "param_name": "MNT_TYPE_TXT",            "guid": "9358b203-900a-52c5-9e80-3a4d67dc5c51", "description": "Maintenance type",                              "binding": "universal" }
+    { "param_name": "MNT_TYPE_TXT",            "guid": "9358b203-900a-52c5-9e80-3a4d67dc5c51", "description": "Maintenance type",                              "binding": "universal" },
+    { "param_name": "TAG_PARA_STATE_1_BOOL",   "guid": "e26e01ef-33d8-5a57-9ab7-fa30faa4ceff", "description": "Paragraph depth: compact (State 1 only)",        "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_PARA_STATE_2_BOOL",   "guid": "b1080057-9890-5a0c-959a-46fb8847c766", "description": "Paragraph depth: standard (States 1+2)",         "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_PARA_STATE_3_BOOL",   "guid": "825a73c0-4b3b-5474-8db5-f54072ff40b8", "description": "Paragraph depth: comprehensive (States 1+2+3)", "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_WARN_VISIBLE_BOOL",   "guid": "11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f", "description": "Enable/disable warning text in tags",           "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_WARN_SEVERITY_FILTER_TXT", "guid": "ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b", "description": "Warning filter: CRITICAL, HIGH, MEDIUM, ALL", "binding": "universal" },
+    { "param_name": "TAG_7_SECTION_VISIBLE_A_BOOL", "guid": "a1b2c3d4-0001-5a01-b001-000000000001", "description": "Show/hide TAG7 Section A (Identity Header)",       "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_7_SECTION_VISIBLE_B_BOOL", "guid": "a1b2c3d4-0001-5a01-b001-000000000002", "description": "Show/hide TAG7 Section B (System & Function)",    "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_7_SECTION_VISIBLE_C_BOOL", "guid": "a1b2c3d4-0001-5a01-b001-000000000003", "description": "Show/hide TAG7 Section C (Spatial Context)",      "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_7_SECTION_VISIBLE_D_BOOL", "guid": "a1b2c3d4-0001-5a01-b001-000000000004", "description": "Show/hide TAG7 Section D (Lifecycle & Status)",    "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_7_SECTION_VISIBLE_E_BOOL", "guid": "a1b2c3d4-0001-5a01-b001-000000000005", "description": "Show/hide TAG7 Section E (Technical Specs)",       "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_7_SECTION_VISIBLE_F_BOOL", "guid": "a1b2c3d4-0001-5a01-b001-000000000006", "description": "Show/hide TAG7 Section F (Classification)",        "binding": "universal", "param_type": "YESNO" }
   ],
 
   "token_presets": {
@@ -46,7 +57,14 @@
         { "param_name": "ASS_TAG_3_TXT", "guid": "068abd3b-650e-4a7c-ac07-82e556160de0", "tokens": "location",  "separator": "-", "prefix": "", "suffix": "", "description": "Location (LOC-ZONE-LVL)" },
         { "param_name": "ASS_TAG_4_TXT", "guid": "9432c6e4-8912-4a0b-bf04-2ee1cf3afadf", "tokens": "system",    "separator": "-", "prefix": "", "suffix": "", "description": "System (SYS-FUNC)" },
         { "param_name": "ASS_TAG_5_TXT", "guid": "c875d795-d764-4a8b-826a-2677635b15b9", "tokens": "line1",     "separator": "-", "prefix": "", "suffix": "", "description": "Multi-line top (DISC-LOC-ZONE-LVL)" },
-        { "param_name": "ASS_TAG_6_TXT", "guid": "6fcfc27b-a42d-4f54-92ad-66c875f9be38", "tokens": "line2",     "separator": "-", "prefix": "", "suffix": "", "description": "Multi-line bottom (SYS-FUNC-PROD-SEQ)" }
+        { "param_name": "ASS_TAG_6_TXT", "guid": "6fcfc27b-a42d-4f54-92ad-66c875f9be38", "tokens": "line2",     "separator": "-", "prefix": "", "suffix": "", "description": "Multi-line bottom (SYS-FUNC-PROD-SEQ)" },
+        { "param_name": "ASS_TAG_7_TXT", "guid": "a3e7b2c1-9d45-4f8a-b6c2-1e8f0a5d3b7c", "tokens": "all",       "separator": " | ", "prefix": "", "suffix": "", "description": "Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup tokens for rich rendering" },
+        { "param_name": "ASS_TAG_7A_TXT", "guid": "b4f8c3d2-ae56-4f9b-c7d3-2f9g1b6e4c8d", "tokens": "all", "separator": " | ", "prefix": "", "suffix": "", "description": "TAG7 Section A: Identity Header — asset name, product, manufacturer, model (styled as BOLD in tag families)" },
+        { "param_name": "ASS_TAG_7B_TXT", "guid": "c5g9d4e3-bf67-5ga0-d8e4-3g0h2c7f5d9e", "tokens": "all", "separator": " | ", "prefix": "", "suffix": "", "description": "TAG7 Section B: System & Function Context — full system/function descriptions (styled as ITALIC in tag families)" },
+        { "param_name": "ASS_TAG_7C_TXT", "guid": "d6h0e5f4-cg78-6hb1-e9f5-4h1i3d8g6e0f", "tokens": "all", "separator": " | ", "prefix": "", "suffix": "", "description": "TAG7 Section C: Spatial Context — room, department, grid reference" },
+        { "param_name": "ASS_TAG_7D_TXT", "guid": "e7i1f6g5-dh89-7ic2-f0g6-5i2j4e9h7f1g", "tokens": "all", "separator": " | ", "prefix": "", "suffix": "", "description": "TAG7 Section D: Lifecycle & Status — status, revision, origin, maintenance" },
+        { "param_name": "ASS_TAG_7E_TXT", "guid": "f8j2g7h6-ei90-8jd3-g1h7-6j3k5f0i8g2h", "tokens": "all", "separator": " | ", "prefix": "", "suffix": "", "description": "TAG7 Section E: Technical Specifications — discipline-specific MEP/BLE performance data" },
+        { "param_name": "ASS_TAG_7F_TXT", "guid": "g9k3h8i7-fj01-9ke4-h2i8-7k4l6g1j9h3i", "tokens": "all", "separator": " | ", "prefix": "", "suffix": "", "description": "TAG7 Section F: Classification & Reference — Uniformat, OmniClass, keynote, cost, ISO tag" }
       ]
     },
     {
@@ -286,6 +304,13 @@
       { "key": "REV",             "param_name": "ASS_REV_TXT",                  "description": "Revision code" },
       { "key": "VOLUME",          "param_name": "ASS_VOL_TXT",                  "description": "Volume code" }
     ],
+    "iso19650_naming": [
+      { "key": "PROJECT_COD",     "param_name": "ASS_PROJECT_COD_TXT",     "guid": "24bc19e4-8ec6-4d4c-b457-5e14a1f42e58", "description": "ISO 19650 project code (GROUP 17)" },
+      { "key": "ORIGINATOR_COD",  "param_name": "ASS_ORIGINATOR_COD_TXT",  "guid": "87dc564e-8542-497d-a36f-ee335fd32bd4", "description": "ISO 19650 originator code (GROUP 17)" },
+      { "key": "VOLUME_COD",      "param_name": "ASS_VOLUME_COD_TXT",      "guid": "4f51f371-c2b1-43f5-9dea-da797442c1fb", "description": "ISO 19650 volume/zone code (GROUP 17)" },
+      { "key": "STATUS_COD",      "param_name": "ASS_STATUS_COD_TXT",      "guid": "a57dfe0c-6db9-4fb6-80e0-d2c453fe653b", "description": "ISO 19650 status/suitability code (GROUP 17)" },
+      { "key": "REV_COD",         "param_name": "ASS_REV_COD_TXT",         "guid": "83b2139d-67bb-48db-a50f-32140c0dc753", "description": "ISO 19650 revision code (GROUP 17)" }
+    ],
     "ble_dimensional": [
       { "key": "WALL_HEIGHT",     "param_name": "BLE_WALL_HEIGHT_MM",            "description": "Wall height (mm)" },
       { "key": "WALL_LENGTH",     "param_name": "BLE_WALL_LENGTH_MM",            "description": "Wall length (mm)" },
@@ -338,6 +363,52 @@
       { "key": "PLM_VELOCITY",    "param_name": "PLM_VEL_MPS",                  "description": "Pipe velocity (m/s)" },
       { "key": "PLM_FLOW_RATE",   "param_name": "PLM_FLOW_RATE_LPS",            "description": "Flow rate (L/s)" },
       { "key": "PLM_PIPE_LENGTH", "param_name": "PLM_PPE_LENGTH_M",             "description": "Pipe length (m)" }
+    ],
+    "paragraph_containers": [
+      { "key": "PARA_WALL",       "param_name": "ARCH_TAG_7_PARA_WALL_TXT",      "guid": "c0ba10c1-c570-5f35-a932-5364aaccf367", "description": "Wall paragraph container", "categories": ["Walls"] },
+      { "key": "PARA_FLOOR",      "param_name": "ARCH_TAG_7_PARA_FLOOR_TXT",     "guid": "79f63378-cf89-53ed-8d08-b7ef224664bc", "description": "Floor paragraph container", "categories": ["Floors"] },
+      { "key": "PARA_DOOR",       "param_name": "ARCH_TAG_7_PARA_DOOR_TXT",      "guid": "86482d6d-49dc-5efc-adc3-16fdfd742ea3", "description": "Door paragraph container", "categories": ["Doors"] },
+      { "key": "PARA_WIN",        "param_name": "ARCH_TAG_7_PARA_WIN_TXT",       "guid": "abae0302-a908-5e5c-8244-fac437ef2272", "description": "Window paragraph container", "categories": ["Windows"] },
+      { "key": "PARA_ROOM",       "param_name": "ARCH_TAG_7_PARA_ROOM_TXT",      "guid": "dc8a2075-2dfd-5f4c-9b4b-4cc938e87797", "description": "Room/space paragraph container", "categories": ["Rooms"] },
+      { "key": "PARA_CEIL",       "param_name": "ARCH_TAG_7_PARA_CEIL_TXT",      "guid": "ec301803-ef10-50a5-8cd0-12c129155328", "description": "Ceiling paragraph container", "categories": ["Ceilings"] },
+      { "key": "PARA_ROOF",       "param_name": "ARCH_TAG_7_PARA_ROOF_TXT",      "guid": "15306275-b3a6-509c-995a-d1a48b11f567", "description": "Roof paragraph container", "categories": ["Roofs"] },
+      { "key": "PARA_STAIR",      "param_name": "ARCH_TAG_7_PARA_STAIR_TXT",     "guid": "0eb59837-cbf1-5c91-a6c0-7bd8820e452a", "description": "Stair paragraph container", "categories": ["Stairs"] },
+      { "key": "PARA_RAMP",       "param_name": "ARCH_TAG_7_PARA_RAMP_TXT",      "guid": "ef02ada2-6d8c-5040-9cb7-700ac1cab810", "description": "Ramp paragraph container", "categories": ["Ramps"] },
+      { "key": "PARA_FACADE",     "param_name": "ARCH_TAG_7_PARA_FACADE_TXT",    "guid": "7a6fff97-e8fe-5ac2-a229-b375e9ae9eac", "description": "Facade/curtain wall paragraph", "categories": ["Curtain Panels", "Curtain Wall Mullions"] },
+      { "key": "PARA_CASEWORK",   "param_name": "ARCH_TAG_7_PARA_CASEWORK_TXT",  "guid": "e55db34e-129d-5ea8-83be-e09e5e65604f", "description": "Casework paragraph container", "categories": ["Casework"] },
+      { "key": "PARA_FURNITURE",  "param_name": "ARCH_TAG_7_PARA_FURNITURE_TXT", "guid": "b1d47bbb-397e-520b-9610-b471226f9441", "description": "Furniture paragraph container", "categories": ["Furniture"] },
+      { "key": "PARA_STR_COL",    "param_name": "STR_TAG_7_PARA_COL_TXT",        "guid": "6742bedc-d054-5aba-bda9-e2ed8baa938e", "description": "Column paragraph container", "categories": ["Structural Columns"] },
+      { "key": "PARA_STR_BEAM",   "param_name": "STR_TAG_7_PARA_BEAM_TXT",       "guid": "9406ea5b-766e-55bd-aeec-6dfced98a8ba", "description": "Beam/framing paragraph container", "categories": ["Structural Framing"] },
+      { "key": "PARA_STR_FDN",    "param_name": "STR_TAG_7_PARA_FDN_TXT",        "guid": "2c89bf41-1688-5d19-9ab9-eff5b3b7a129", "description": "Foundation paragraph container", "categories": ["Structural Foundations"] },
+      { "key": "PARA_HVC_SPEC",   "param_name": "HVC_TAG_7_PARA_SPEC_TXT",       "guid": "b62dfc26-b575-5f57-8a51-15a0296eb912", "description": "HVAC equipment paragraph", "categories": ["Mechanical Equipment"] },
+      { "key": "PARA_HVC_DUCT",   "param_name": "HVC_TAG_7_PARA_DUCT_TXT",       "guid": "afc99d4a-df1f-52e3-8e5a-3187771464af", "description": "Duct paragraph container", "categories": ["Ducts", "Duct Fittings"] },
+      { "key": "PARA_HVC_AT",     "param_name": "HVC_TAG_7_PARA_AT_TXT",         "guid": "d483bd8b-d73c-55d1-a4e9-a3fb23c9bf34", "description": "Air terminal paragraph", "categories": ["Air Terminals"] },
+      { "key": "PARA_HVC_FLEXDUCT","param_name": "HVC_TAG_7_PARA_FLEXDUCT_TXT",  "guid": "330a9fed-2a9b-5e88-863f-b63fe6f59e3d", "description": "Flex duct paragraph container", "categories": ["Flex Ducts"] },
+      { "key": "PARA_HVC_DCTACC", "param_name": "HVC_TAG_7_PARA_DCTACC_TXT",     "guid": "90cd5680-b46f-5438-8545-3d64496d3083", "description": "Duct accessory paragraph", "categories": ["Duct Accessories"] },
+      { "key": "PARA_ELC_PANEL",  "param_name": "ELC_TAG_7_PARA_PANEL_TXT",      "guid": "3f4684f4-9274-5275-993a-85c7b190fcac", "description": "DB panel paragraph container", "categories": ["Electrical Equipment"] },
+      { "key": "PARA_ELC_CIRCUIT","param_name": "ELC_TAG_7_PARA_CIRCUIT_TXT",    "guid": "2f21931c-6b91-50e6-856d-dc2b138c965a", "description": "Circuit/point paragraph", "categories": ["Electrical Fixtures"] },
+      { "key": "PARA_ELC_CONDUIT","param_name": "ELC_TAG_7_PARA_CONDUIT_TXT",    "guid": "e035389f-58b4-567e-a820-0d674ee6c2b8", "description": "Conduit paragraph container", "categories": ["Conduits", "Conduit Fittings"] },
+      { "key": "PARA_ELC_TRAY",   "param_name": "ELC_TAG_7_PARA_TRAY_TXT",       "guid": "a0837add-84a6-525b-9339-02d5d01105d6", "description": "Cable tray paragraph", "categories": ["Cable Trays", "Cable Tray Fittings"] },
+      { "key": "PARA_ELC_CABLE",  "param_name": "ELC_TAG_7_PARA_CABLE_TXT",      "guid": "447e7a85-0d13-5e3d-bd26-c5b8b0b16bc4", "description": "Cable specification paragraph", "categories": ["Cable Trays", "Conduits"] },
+      { "key": "PARA_LTG_SPEC",   "param_name": "LTG_TAG_7_PARA_SPEC_TXT",       "guid": "a3e34fde-ee41-57f0-aef6-f762cd0cee64", "description": "Lighting fixture paragraph", "categories": ["Lighting Fixtures"] },
+      { "key": "PARA_PLM_FIXTURE","param_name": "PLM_TAG_7_PARA_FIXTURE_TXT",    "guid": "224e3954-97ca-5715-b935-bf9c4c124241", "description": "Plumbing fixture paragraph", "categories": ["Plumbing Fixtures"] },
+      { "key": "PARA_PLM_EQUIP",  "param_name": "PLM_TAG_7_PARA_EQUIPMENT_TXT",  "guid": "bf7affae-dec5-5843-9cf1-a7253e9dd3b7", "description": "Plumbing equipment paragraph", "categories": ["Plumbing Fixtures"] },
+      { "key": "PARA_PLM_PIPEACC","param_name": "PLM_TAG_7_PARA_PIPEACC_TXT",    "guid": "cc56afc1-ec0a-542f-9f9b-35fc7f6e982a", "description": "Pipe accessory paragraph", "categories": ["Pipe Accessories"] },
+      { "key": "PARA_PLM_PIPE",   "param_name": "PLM_TAG_7_PARA_PIPE_TXT",       "guid": "80d8eccd-69a8-5a0d-915a-01d23118e0ab", "description": "Pipe paragraph container", "categories": ["Pipes", "Pipe Fittings"] },
+      { "key": "PARA_PLM_DRAIN",  "param_name": "PLM_TAG_7_PARA_DRAIN_TXT",      "guid": "399a3864-44ab-540f-bfdf-0b36cc9fe60b", "description": "Drainage paragraph", "categories": ["Pipes"] },
+      { "key": "PARA_FLS_FA",     "param_name": "FLS_TAG_7_PARA_FA_TXT",         "guid": "b4c8f661-0a7e-5763-8043-49a4647f023f", "description": "Fire alarm paragraph", "categories": ["Fire Alarm Devices"] },
+      { "key": "PARA_FLS_SPR",    "param_name": "FLS_TAG_7_PARA_SPR_TXT",        "guid": "3b1cbb9c-d07b-5ca4-95cd-8f178d555b1c", "description": "Sprinkler paragraph container", "categories": ["Sprinklers"] },
+      { "key": "PARA_COM_BMS",    "param_name": "COM_TAG_7_PARA_BMS_TXT",        "guid": "10c0be4c-8534-5a16-85a5-2c2c5335e6bf", "description": "BMS device paragraph", "categories": ["Communication Devices"] },
+      { "key": "PARA_ICT_DATA",   "param_name": "ICT_TAG_7_PARA_DATA_TXT",       "guid": "a5ee1f80-17ac-5088-a4bb-bd72bcb56cf8", "description": "Data/telephone outlet paragraph", "categories": ["Data Devices", "Telephone Devices"] },
+      { "key": "PARA_NCL",        "param_name": "NCL_TAG_7_PARA_NURSECALL_TXT",  "guid": "62c6c1c6-e901-5b2d-b61e-71e3ed9c9f1d", "description": "Nurse call paragraph", "categories": ["Nurse Call Devices"] },
+      { "key": "PARA_SEC",        "param_name": "SEC_TAG_7_PARA_SECURITY_TXT",   "guid": "d10b0b0c-12d1-55b8-9d48-feda6544696a", "description": "Security device paragraph", "categories": ["Security Devices"] },
+      { "key": "PARA_ASS_EQUIP",  "param_name": "ASS_TAG_7_PARA_EQUIPMENT_TXT",  "guid": "e9d487a5-e6d7-53f3-a5d8-280d247952d0", "description": "Specialty equipment paragraph", "categories": ["Specialty Equipment"] },
+      { "key": "PARA_RGL_CMPL",   "param_name": "RGL_TAG_7_PARA_COMPLIANCE_TXT", "guid": "e1767286-98d9-56e5-8794-81a59a9f023f", "description": "Regulatory compliance paragraph (tier 3)" },
+      { "key": "PARA_PER_ENV",    "param_name": "PER_TAG_7_PARA_ENVIRONMENT_TXT","guid": "7c7edc8b-e63e-546b-bcbd-90940a4b61d0", "description": "Environmental context paragraph (tier 3)" },
+      { "key": "PARA_CST_CONC",   "param_name": "CST_TAG_7_PARA_CONCRETE_TXT",   "guid": "5e68d7eb-d7a9-5929-9825-1a82beb5d822", "description": "Concrete/masonry specification paragraph (tier 3)" }
+    ],
+    "warning_thresholds": [
+      { "key": "ELC_PNL_RATED",    "param_name": "ELC_PNL_RATED_KW",              "guid": "ce012518-4b1d-5cfd-b57d-fbfa5d9e2a23", "description": "Panel rated capacity kW (for overload check)" }
     ]
   },
 

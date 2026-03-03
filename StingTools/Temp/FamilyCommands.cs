@@ -112,7 +112,7 @@ namespace StingTools.Temp
     /// </summary>
     internal static class CompoundTypeCreator
     {
-        public enum ElementKind { Wall, Floor, Ceiling, Roof, Duct, Pipe }
+        public enum ElementKind { Wall, Floor, Ceiling, Roof, Duct, Pipe, CableTray, Conduit }
 
         // CSV column indices (BLE_MATERIALS / MEP_MATERIALS)
         private const int ColElementType = 4;   // MAT_ELEMENT_TYPE
@@ -256,6 +256,8 @@ namespace StingTools.Temp
                                 break;
                             case ElementKind.Duct:
                             case ElementKind.Pipe:
+                            case ElementKind.CableTray:
+                            case ElementKind.Conduit:
                                 success = CreateMEPType(doc, typeName, matId,
                                     thicknessMm, kind);
                                 break;
@@ -437,27 +439,38 @@ namespace StingTools.Temp
         private static bool CreateMEPType(Document doc, string typeName,
             ElementId matId, double thicknessMm, ElementKind kind)
         {
-            if (kind == ElementKind.Duct)
+            switch (kind)
             {
-                var baseType = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
-                    .Cast<Autodesk.Revit.DB.Mechanical.DuctType>()
-                    .FirstOrDefault();
-
-                if (baseType == null) return false;
-                var newType = baseType.Duplicate(typeName);
-                return newType != null;
-            }
-            else // Pipe
-            {
-                var baseType = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
-                    .Cast<Autodesk.Revit.DB.Plumbing.PipeType>()
-                    .FirstOrDefault();
-
-                if (baseType == null) return false;
-                var newType = baseType.Duplicate(typeName);
-                return newType != null;
+                case ElementKind.Duct:
+                {
+                    var bt = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
+                        .FirstOrDefault();
+                    return bt != null && bt.Duplicate(typeName) != null;
+                }
+                case ElementKind.Pipe:
+                {
+                    var bt = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
+                        .FirstOrDefault();
+                    return bt != null && bt.Duplicate(typeName) != null;
+                }
+                case ElementKind.CableTray:
+                {
+                    var bt = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType))
+                        .FirstOrDefault();
+                    return bt != null && bt.Duplicate(typeName) != null;
+                }
+                case ElementKind.Conduit:
+                {
+                    var bt = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType))
+                        .FirstOrDefault();
+                    return bt != null && bt.Duplicate(typeName) != null;
+                }
+                default:
+                    return false;
             }
         }
 
@@ -648,6 +661,16 @@ namespace StingTools.Temp
                 case ElementKind.Pipe:
                     names = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
+                        .Select(e => e.Name);
+                    break;
+                case ElementKind.CableTray:
+                    names = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType))
+                        .Select(e => e.Name);
+                    break;
+                case ElementKind.Conduit:
+                    names = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType))
                         .Select(e => e.Name);
                     break;
                 default:

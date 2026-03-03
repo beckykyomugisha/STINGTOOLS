@@ -38,6 +38,7 @@ namespace StingTools.Core
         public readonly Dictionary<string, int> TaggedBySys = new Dictionary<string, int>();
         public readonly Dictionary<string, int> TaggedByLevel = new Dictionary<string, int>();
         public readonly Dictionary<string, int> SkippedByCategory = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> OverwrittenByCategory = new Dictionary<string, int>();
         public readonly Dictionary<string, int> OverwrittenByDisc = new Dictionary<string, int>();
         public readonly Dictionary<string, int> OverwrittenBySys = new Dictionary<string, int>();
         public readonly Dictionary<string, int> OverwrittenByLevel = new Dictionary<string, int>();
@@ -62,7 +63,7 @@ namespace StingTools.Core
         public void RecordOverwritten(string category, string disc = null, string sys = null, string lvl = null)
         {
             TotalOverwritten++;
-            Increment(TaggedByCategory, category);
+            Increment(OverwrittenByCategory, category);
             if (!string.IsNullOrEmpty(disc)) Increment(OverwrittenByDisc, disc);
             if (!string.IsNullOrEmpty(sys)) Increment(OverwrittenBySys, sys);
             if (!string.IsNullOrEmpty(lvl)) Increment(OverwrittenByLevel, lvl);
@@ -171,7 +172,7 @@ namespace StingTools.Core
         /// <summary>Valid discipline codes per ISO 19650.</summary>
         public static readonly HashSet<string> ValidDiscCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "M", "E", "P", "A", "S", "FP", "LV", "G", "XX"
+            "M", "E", "P", "A", "S", "FP", "LV", "G"
         };
 
         /// <summary>
@@ -188,7 +189,7 @@ namespace StingTools.Core
         {
             "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "FP", "LV",
             "FLS", "COM", "ICT", "NCL", "SEC",
-            "ARC", "STR", "GEN", ""
+            "ARC", "STR", "GEN"
         };
 
         /// <summary>
@@ -202,8 +203,7 @@ namespace StingTools.Core
             "COM", "ICT", "NCL", "SEC",
             "FIT", "STR", "GEN",
             // Subsystem FUNC codes from GetSmartFuncCode HVAC/HWS differentiation
-            "EXH", "RTN", "FRA", "DHW",
-            ""
+            "EXH", "RTN", "FRA", "DHW"
         };
 
         /// <summary>
@@ -215,54 +215,68 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(value))
                 return $"{tokenName}: empty value";
 
-            switch (tokenName)
+            // Use if/else chain instead of switch — ParamRegistry properties are not compile-time constants
+            if (tokenName == ParamRegistry.DISC)
             {
-                case ParamRegistry.DISC:
-                    if (!ValidDiscCodes.Contains(value))
-                        return $"DISC '{value}' not in valid set ({string.Join(",", ValidDiscCodes)})";
-                    break;
-                case ParamRegistry.LOC:
-                    if (!TagConfig.LocCodes.Contains(value))
-                        return $"LOC '{value}' not in valid set ({string.Join(",", TagConfig.LocCodes)})";
-                    break;
-                case ParamRegistry.ZONE:
-                    if (!TagConfig.ZoneCodes.Contains(value))
-                        return $"ZONE '{value}' not in valid set ({string.Join(",", TagConfig.ZoneCodes)})";
-                    break;
-                case ParamRegistry.SYS:
-                    if (!ValidSysCodes.Contains(value))
-                        return $"SYS '{value}' not in valid set ({string.Join(",", ValidSysCodes)})";
-                    break;
-                case ParamRegistry.FUNC:
-                    if (!ValidFuncCodes.Contains(value))
-                        return $"FUNC '{value}' not in valid set ({string.Join(",", ValidFuncCodes)})";
-                    break;
-                case ParamRegistry.LVL:
-                    // Valid LVL codes: L01-L99, GF, LG, UG, B1-B9, SB, RF, PH, AT, TR, POD, MZ, PL, XX
-                    if (value.Length > 4 || value.Contains(" "))
-                        return $"LVL '{value}' exceeds 4-char limit or contains spaces";
-                    // Warn on known placeholder
-                    if (value == "XX")
-                        return null; // XX is valid but a placeholder
-                    // Check against known patterns
-                    bool isKnownLvl = value == "GF" || value == "RF" || value == "LG" ||
-                        value == "UG" || value == "MZ" || value == "PL" || value == "PH" ||
-                        value == "AT" || value == "TR" || value == "POD" ||
-                        (value.StartsWith("L") && value.Length <= 3 && value.Substring(1).All(char.IsDigit)) ||
-                        (value.StartsWith("B") && value.Length <= 2 && value.Substring(1).All(char.IsDigit)) ||
-                        (value.StartsWith("SB") && (value.Length == 2 || value.Substring(2).All(char.IsDigit)));
-                    if (!isKnownLvl && !value.All(c => char.IsLetterOrDigit(c)))
-                        return $"LVL '{value}' contains invalid characters";
-                    break;
-                case ParamRegistry.PROD:
-                    // PROD codes: 2-4 uppercase alphanumeric
-                    if (value.Length < 2 || value.Length > 4)
-                        return $"PROD '{value}' should be 2-4 characters";
-                    break;
-                case ParamRegistry.SEQ:
-                    if (!int.TryParse(value, out _))
-                        return $"SEQ '{value}' is not a valid number";
-                    break;
+                if (!ValidDiscCodes.Contains(value))
+                    return $"DISC '{value}' not in valid set ({string.Join(",", ValidDiscCodes)})";
+            }
+            else if (tokenName == ParamRegistry.LOC)
+            {
+                if (!TagConfig.LocCodes.Contains(value))
+                    return $"LOC '{value}' not in valid set ({string.Join(",", TagConfig.LocCodes)})";
+            }
+            else if (tokenName == ParamRegistry.ZONE)
+            {
+                if (!TagConfig.ZoneCodes.Contains(value))
+                    return $"ZONE '{value}' not in valid set ({string.Join(",", TagConfig.ZoneCodes)})";
+            }
+            else if (tokenName == ParamRegistry.SYS)
+            {
+                if (!ValidSysCodes.Contains(value))
+                    return $"SYS '{value}' not in valid set ({string.Join(",", ValidSysCodes)})";
+            }
+            else if (tokenName == ParamRegistry.FUNC)
+            {
+                if (!ValidFuncCodes.Contains(value))
+                    return $"FUNC '{value}' not in valid set ({string.Join(",", ValidFuncCodes)})";
+            }
+            else if (tokenName == ParamRegistry.LVL)
+            {
+                // Valid LVL codes: L00-L99, L100+, GF, LG, UG, B1-B9, B10+, SB, RF, PH, AT, TR, POD, MZ, PL
+                string lvlUpper = value.ToUpperInvariant();
+                if (lvlUpper.Length > 4 || lvlUpper.Contains(" "))
+                    return $"LVL '{value}' exceeds 4-char limit or contains spaces";
+                if (lvlUpper == "XX")
+                    return null; // XX is valid but a placeholder
+                bool isKnownLvl = lvlUpper == "GF" || lvlUpper == "RF" || lvlUpper == "LG" ||
+                    lvlUpper == "UG" || lvlUpper == "MZ" || lvlUpper == "PL" || lvlUpper == "PH" ||
+                    lvlUpper == "AT" || lvlUpper == "TR" || lvlUpper == "POD" ||
+                    (lvlUpper.StartsWith("L") && lvlUpper.Length >= 2 && lvlUpper.Length <= 4 &&
+                        lvlUpper.Substring(1).All(char.IsDigit)) ||
+                    (lvlUpper.StartsWith("B") && lvlUpper.Length >= 2 && lvlUpper.Length <= 3 &&
+                        lvlUpper.Substring(1).All(char.IsDigit)) ||
+                    (lvlUpper.StartsWith("SB") && (lvlUpper.Length == 2 ||
+                        lvlUpper.Substring(2).All(char.IsDigit)));
+                if (!isKnownLvl && !lvlUpper.All(c => char.IsLetterOrDigit(c)))
+                    return $"LVL '{value}' contains invalid characters";
+            }
+            else if (tokenName == ParamRegistry.PROD)
+            {
+                // PROD codes: 2-4 uppercase alphanumeric characters
+                if (value.Length < 2 || value.Length > 4)
+                    return $"PROD '{value}' should be 2-4 characters";
+                if (!value.All(c => char.IsLetterOrDigit(c)))
+                    return $"PROD '{value}' must be alphanumeric only";
+            }
+            else if (tokenName == ParamRegistry.SEQ)
+            {
+                if (!int.TryParse(value, out int seqVal))
+                    return $"SEQ '{value}' is not a valid number";
+                if (seqVal < 0)
+                    return $"SEQ '{value}' must be a positive number";
+                if (value.Length > NumPad + 1)
+                    return $"SEQ '{value}' exceeds {NumPad}-digit format";
             }
             return null; // valid
         }
@@ -290,22 +304,49 @@ namespace StingTools.Core
             }
 
             // Cross-validate: DISC must match element category
+            // Accounts for system-aware DISC correction (pipes can be "P" when system is plumbing)
             string catName = ParameterHelpers.GetCategoryName(el);
             string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
             if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(disc))
             {
                 string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : null;
+                // Apply system-aware DISC correction (e.g., M→P for plumbing pipes, M→FP for fire)
+                if (expectedDisc != null && !string.IsNullOrEmpty(sys))
+                    expectedDisc = TagConfig.GetSystemAwareDisc(expectedDisc, sys, catName);
                 if (expectedDisc != null && expectedDisc != disc)
-                    errors.Add($"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'");
+                {
+                    // Allow system-aware correction: pipes/pipe fittings can be P instead of M
+                    string sysVal = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    string correctedDisc = GetSystemAwareDisc(expectedDisc, sysVal, catName);
+                    if (correctedDisc != disc)
+                        errors.Add($"DISC mismatch: element category '{catName}' expects '{correctedDisc}' but has '{disc}'");
+                }
             }
 
-            // Cross-validate: SYS should match category
-            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+            // Cross-validate: SYS should be valid for this category
+            // Uses SysMap lookup to allow ALL valid SYS codes for ambiguous categories
+            // (e.g., Pipes can be DCW, DHW, SAN, RWD, GAS, HWS, FP)
             if (!string.IsNullOrEmpty(catName) && !string.IsNullOrEmpty(sys))
             {
-                string expectedSys = TagConfig.GetSysCode(catName);
-                if (!string.IsNullOrEmpty(expectedSys) && expectedSys != sys)
-                    errors.Add($"SYS mismatch: category '{catName}' expects '{expectedSys}' but has '{sys}'");
+                bool sysValidForCategory = false;
+                // Check if this SYS code lists this category in SysMap
+                if (SysMap.TryGetValue(sys, out var sysCats) && sysCats.Contains(catName))
+                    sysValidForCategory = true;
+                // Also accept discipline-default SYS codes (ARC, STR, GEN, etc.)
+                string discForCat = DiscMap.TryGetValue(catName, out string dc) ? dc : "A";
+                if (sys == GetDiscDefaultSysCode(discForCat))
+                    sysValidForCategory = true;
+                if (!sysValidForCategory)
+                {
+                    // Find what SYS codes ARE valid for this category
+                    var validSysForCat = SysMap.Where(kvp => kvp.Value.Contains(catName))
+                        .Select(kvp => kvp.Key).ToList();
+                    string validList = validSysForCat.Count > 0
+                        ? string.Join("/", validSysForCat)
+                        : GetDiscDefaultSysCode(discForCat);
+                    errors.Add($"SYS mismatch: category '{catName}' expects '{validList}' but has '{sys}'");
+                }
             }
 
             // Cross-validate: PROD should be consistent with DISC/SYS
@@ -345,7 +386,8 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(tag))
                 return "Tag is empty";
 
-            string[] parts = tag.Split('-');
+            char sepChar = !string.IsNullOrEmpty(TagConfig.Separator) ? TagConfig.Separator[0] : '-';
+            string[] parts = tag.Split(sepChar);
             if (parts.Length != 8)
                 return $"Tag has {parts.Length} segments (expected 8): {tag}";
 
@@ -355,7 +397,7 @@ namespace StingTools.Core
                     return $"Segment {i + 1} is empty in tag: {tag}";
             }
 
-            // Validate individual segments
+            // Validate ALL 8 segments against their respective rules
             string discError = ValidateToken(ParamRegistry.DISC, parts[0]);
             if (discError != null) return discError;
 
@@ -364,6 +406,18 @@ namespace StingTools.Core
 
             string zoneError = ValidateToken(ParamRegistry.ZONE, parts[2]);
             if (zoneError != null) return zoneError;
+
+            string lvlError = ValidateToken(ParamRegistry.LVL, parts[3]);
+            if (lvlError != null) return lvlError;
+
+            string sysError = ValidateToken(ParamRegistry.SYS, parts[4]);
+            if (sysError != null) return sysError;
+
+            string funcError = ValidateToken(ParamRegistry.FUNC, parts[5]);
+            if (funcError != null) return funcError;
+
+            string prodError = ValidateToken(ParamRegistry.PROD, parts[6]);
+            if (prodError != null) return prodError;
 
             string seqError = ValidateToken(ParamRegistry.SEQ, parts[7]);
             if (seqError != null) return seqError;
@@ -432,8 +486,8 @@ namespace StingTools.Core
     /// </summary>
     public static class TagConfig
     {
-        public const int NumPad = 4;
-        public const string Separator = "-";
+        public static int NumPad => ParamRegistry.NumPad;
+        public static string Separator => ParamRegistry.Separator;
         public const int MaxCollisionDepth = 10000;
 
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
@@ -543,6 +597,28 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Get a guaranteed default SYS code from a discipline code.
+        /// Used as a fallback when MEP system detection returns empty —
+        /// ensures every element gets a valid SYS token.
+        /// M→HVAC, E→LV, P→DHW, A→ARC, S→STR, FP→FP, LV→LV, G→GAS, else GEN.
+        /// </summary>
+        public static string GetDiscDefaultSysCode(string disc)
+        {
+            switch (disc)
+            {
+                case "M":  return "HVAC";
+                case "E":  return "LV";
+                case "P":  return "DHW";
+                case "A":  return "ARC";
+                case "S":  return "STR";
+                case "FP": return "FP";
+                case "LV": return "LV";
+                case "G":  return "GAS";
+                default:   return "GEN";
+            }
+        }
+
+        /// <summary>
         /// Enhanced FUNC code derivation using element's MEP system context.
         /// For HVAC, differentiates Supply (SUP), Return (RTN), Exhaust (EXH), Fresh Air (FRA).
         /// For HWS, differentiates Heating (HTG) vs Domestic Hot Water (DHW).
@@ -551,7 +627,7 @@ namespace StingTools.Core
         public static string GetSmartFuncCode(Element el, string sysCode)
         {
             if (string.IsNullOrEmpty(sysCode))
-                return string.Empty;
+                return "GEN";
 
             // For HVAC, try to detect subsystem function from connector/system name
             if (sysCode == "HVAC")
@@ -766,7 +842,8 @@ namespace StingTools.Core
         {
             if (string.IsNullOrEmpty(tagValue))
                 return false;
-            string[] parts = tagValue.Split(new[] { Separator[0] });
+            char sepChar = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
+            string[] parts = tagValue.Split(new[] { sepChar });
             if (parts.Length != expectedTokens)
                 return false;
             for (int i = 0; i < parts.Length; i++)
@@ -777,6 +854,8 @@ namespace StingTools.Core
             return true;
         }
 
+        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "0000" };
+
         /// <summary>
         /// Strict tag completeness check. In addition to the standard check,
         /// rejects tags where any segment is a placeholder ("XX", "ZZ", "0000").
@@ -786,9 +865,10 @@ namespace StingTools.Core
         {
             if (!TagIsComplete(tagValue, expectedTokens))
                 return false;
-            string[] parts = tagValue.Split(new[] { Separator[0] });
+            char sepChar = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
+            string[] parts = tagValue.Split(new[] { sepChar });
             // Reject placeholder segments
-            var placeholders = new HashSet<string> { "XX", "ZZ", "0000" };
+            var placeholders = _placeholders;
             for (int i = 0; i < parts.Length; i++)
             {
                 if (placeholders.Contains(parts[i]))
@@ -866,21 +946,27 @@ namespace StingTools.Core
 
             bool overwriteTokens = (collisionMode == TagCollisionMode.Overwrite);
 
-            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "XX";
+            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "A";
 
             // Intelligence Layer: cross-validate DISC against element category
-            if (stats != null && disc == "XX")
-                stats.RecordWarning($"Element {el.Id}: category '{catName}' has no DISC mapping");
+            if (!DiscMap.ContainsKey(catName) && stats != null)
+                stats.RecordWarning($"Element {el.Id}: category '{catName}' has no DISC mapping — defaulted to 'A'");
 
             string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
             if (string.IsNullOrEmpty(loc)) loc = LocCodes.Count > 0 ? LocCodes[0] : "BLD1";
             string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
             if (string.IsNullOrEmpty(zone)) zone = ZoneCodes.Count > 0 ? ZoneCodes[0] : "Z01";
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
+            // Guaranteed LVL default: replace unresolved "XX" with "L00" for levelless elements
+            if (lvl == "XX") lvl = "L00";
 
             // Intelligence Layer: MEP system-aware SYS/FUNC derivation
             // 6-layer system detection: connector → sys param → circuit → family → room → category
             string sys = GetMepSystemAwareSysCode(el, catName);
+
+            // Guaranteed SYS default: derive from discipline when MEP detection returns empty
+            if (string.IsNullOrEmpty(sys))
+                sys = GetDiscDefaultSysCode(disc);
 
             // Intelligence Layer: System-aware DISC correction for pipes
             // Pipes are mapped to "M" by default, but if the connected system is plumbing
@@ -889,7 +975,14 @@ namespace StingTools.Core
 
             // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
             string func = GetSmartFuncCode(el, sys);
+            // Guaranteed FUNC default: derive from SYS via FuncMap when smart detection is empty
+            if (string.IsNullOrEmpty(func))
+                func = FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+
             string prod = GetFamilyAwareProdCode(el, catName);
+            // Guaranteed PROD default: category map or GEN
+            if (string.IsNullOrEmpty(prod))
+                prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
 
             // Log when defaults are applied for LOC/ZONE
             if (stats != null)
@@ -932,8 +1025,9 @@ namespace StingTools.Core
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
-                // Remove old tag from index if overwriting
-                if (overwriteTokens && !string.IsNullOrEmpty(existingTag))
+                // Always remove old tag from index before adding new one —
+                // prevents stale entries even when not overwriting tokens
+                if (!string.IsNullOrEmpty(existingTag))
                     existingTags.Remove(existingTag);
                 existingTags.Add(tag);
             }
@@ -959,17 +1053,52 @@ namespace StingTools.Core
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func);
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod);
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.SEQ, seq);
+
+                // Re-read actual token values (some may have been preserved by SetIfEmpty)
+                // to ensure TAG1 reflects what's actually on the element
+                string[] actualTokens = ParamRegistry.ReadTokenValues(el);
+                tag = string.Join(Separator, actualTokens);
             }
             ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
+
+            // Auto-populate STATUS from Revit phase/workset if not already set
+            // Guaranteed default: every element gets a STATUS — never left empty
+            {
+                string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                if (string.IsNullOrEmpty(existingStatus) || overwriteTokens)
+                {
+                    string status = PhaseAutoDetect.DetectStatus(doc, el);
+                    if (string.IsNullOrEmpty(status)) status = "NEW";
+                    if (overwriteTokens)
+                        ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true);
+                    else
+                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, status);
+                }
+            }
+
+            // Auto-populate REV from project revision sequence
+            // Guaranteed default: every element gets a REV — "P01" when no revisions exist
+            {
+                string existingRev = ParameterHelpers.GetString(el, ParamRegistry.REV);
+                if (string.IsNullOrEmpty(existingRev) || overwriteTokens)
+                {
+                    string rev = PhaseAutoDetect.DetectProjectRevision(doc);
+                    if (string.IsNullOrEmpty(rev)) rev = "P01";
+                    if (overwriteTokens)
+                        ParameterHelpers.SetString(el, ParamRegistry.REV, rev, overwrite: true);
+                    else
+                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, rev);
+                }
+            }
 
             // Auto-write containers: populate discipline-specific and universal containers
             // from the token values just written. This eliminates the need for a separate
             // "Combine" step after tagging — tags are immediately available in all containers.
+            // Always write containers — even partial token values should propagate.
             try
             {
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
-                    ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
+                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
             }
             catch (Exception ex)
             {
@@ -1280,14 +1409,15 @@ namespace StingTools.Core
         /// (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
         /// Similarly, fire protection pipes should be "FP".
         /// </summary>
+        private static readonly HashSet<string> _pipeCategories = new HashSet<string>
+        {
+            "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes"
+        };
+
         public static string GetSystemAwareDisc(string disc, string sys, string categoryName)
         {
             // Only apply system-aware override for ambiguous categories (pipes, pipe fittings, etc.)
-            var pipeCategories = new HashSet<string>
-            {
-                "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes"
-            };
-            if (!pipeCategories.Contains(categoryName))
+            if (!_pipeCategories.Contains(categoryName))
                 return disc;
 
             // Override DISC based on the detected system
@@ -1596,7 +1726,22 @@ namespace StingTools.Core
             var maxSeq = new Dictionary<string, int>();
             var known = new HashSet<string>(DiscMap.Keys);
 
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            // Use category filter to skip non-taggable elements (views, sheets, etc.)
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> elements;
+            if (catEnums != null && catEnums.Length > 0)
+            {
+                var bicList = new List<BuiltInCategory>(catEnums);
+                elements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(bicList));
+            }
+            else
+            {
+                elements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            }
+
+            foreach (Element elem in elements)
             {
                 string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(tag))
@@ -1684,7 +1829,8 @@ namespace StingTools.Core
                 // Pipes default to DCW (Domestic Cold Water per CIBSE/CAWS S10); runtime MEP
                 // system detection in GetMepSystemAwareSysCode overrides to HWS/SAN/GAS as needed
                 { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories" } },
-                { "DHW", new List<string> { "Plumbing Fixtures", "Flex Pipes" } },
+                { "SAN", new List<string> { "Plumbing Fixtures" } },
+                { "DHW", new List<string> { "Flex Pipes" } },
                 { "FP", new List<string> { "Sprinklers" } },
                 { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings" } },
                 { "FLS", new List<string> { "Fire Alarm Devices" } },
@@ -1748,12 +1894,1253 @@ namespace StingTools.Core
 
         private static List<string> DefaultLocCodes()
         {
-            return new List<string> { "BLD1", "BLD2", "BLD3", "EXT", "XX" };
+            return new List<string> { "BLD1", "BLD2", "BLD3", "EXT" };
         }
 
         private static List<string> DefaultZoneCodes()
         {
-            return new List<string> { "Z01", "Z02", "Z03", "Z04", "ZZ", "XX" };
+            return new List<string> { "Z01", "Z02", "Z03", "Z04" };
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // TAG7: Rich Descriptive Narrative Builder with Markup & Sub-Sections
+        // ═══════════════════════════════════════════════════════════════════════
+        //
+        // Formatting Strategy — exploiting 5 Revit output surfaces:
+        //
+        //  Surface              Bold  Italic  Underline  Color        How
+        //  ───────────────────  ────  ──────  ─────────  ──────────   ──────────────────────────────
+        //  Revit Parameters     NO    NO      NO         NO           Split into TAG7A-TAG7F sub-params
+        //  TextNote+Formatted   YES   YES     YES        Per-type     FormattedText SetBold/Italic/Underline
+        //  Tag Family Labels    YES   YES     NO         Per-label    Multi-label families reference sub-params
+        //  WPF Dockable Panel   YES   YES     YES        Per-Run      TextBlock Inlines with Run elements
+        //  HTML Export          YES   YES     YES        Per-span     Full CSS styling
+        //
+        // Markup tokens embedded in TAG7 (parsed by RichTagNote + WPF + HTML export):
+        //   «H»text«/H»  — Header/emphasis (Bold + Underline in TextNote, Bold in WPF)
+        //   «L»text«/L»  — Label text (Italic in TextNote, muted color in WPF)
+        //   «V»text«/V»  — Value text (Normal weight, accent color in WPF/HTML)
+        //   «S»text«/S»  — Section separator (pipe "|" with spacing)
+        //
+        // Sub-section parameters (TAG7A-TAG7F) hold PLAIN text versions for
+        // tag family labels. TAG7 holds the MARKED-UP full narrative.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // TAG1-TAG6 Segment Styling — Per-Segment Color and Style Definitions
+        //
+        // The 8-segment tag format (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ) can
+        // be styled per segment for rich rendering via TextNote, HTML export,
+        // and WPF panel. Each segment gets a distinct color and font style
+        // enabling instant visual parsing of the tag structure.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        /// <summary>Style definition for a single tag segment (DISC, LOC, ZONE, etc.).</summary>
+        public class TagSegmentStyle
+        {
+            /// <summary>Segment position index (0-7).</summary>
+            public int Index { get; set; }
+            /// <summary>Short segment name (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ).</summary>
+            public string Name { get; set; }
+            /// <summary>Full human-readable description.</summary>
+            public string Description { get; set; }
+            /// <summary>Hex color for rich rendering.</summary>
+            public string Color { get; set; }
+            /// <summary>Bold rendering hint.</summary>
+            public bool Bold { get; set; }
+            /// <summary>Italic rendering hint.</summary>
+            public bool Italic { get; set; }
+        }
+
+        /// <summary>
+        /// Default styles for each of the 8 tag segments.
+        /// Used by RichTagNote, HTML export, and WPF panel for segment-aware coloring.
+        /// </summary>
+        public static readonly TagSegmentStyle[] SegmentStyles = new[]
+        {
+            new TagSegmentStyle { Index = 0, Name = "DISC", Description = "Discipline",      Color = "#1565C0", Bold = true,  Italic = false },
+            new TagSegmentStyle { Index = 1, Name = "LOC",  Description = "Location",         Color = "#2E7D32", Bold = false, Italic = false },
+            new TagSegmentStyle { Index = 2, Name = "ZONE", Description = "Zone",              Color = "#E65100", Bold = false, Italic = false },
+            new TagSegmentStyle { Index = 3, Name = "LVL",  Description = "Level",             Color = "#6A1B9A", Bold = false, Italic = false },
+            new TagSegmentStyle { Index = 4, Name = "SYS",  Description = "System Type",       Color = "#C62828", Bold = true,  Italic = false },
+            new TagSegmentStyle { Index = 5, Name = "FUNC", Description = "Function",          Color = "#00838F", Bold = false, Italic = true  },
+            new TagSegmentStyle { Index = 6, Name = "PROD", Description = "Product Code",      Color = "#4527A0", Bold = true,  Italic = false },
+            new TagSegmentStyle { Index = 7, Name = "SEQ",  Description = "Sequence Number",   Color = "#37474F", Bold = false, Italic = false },
+        };
+
+        /// <summary>
+        /// Result of parsing a TAG1-TAG6 value into styled segments.
+        /// Each segment has text, style, and whether it was populated.
+        /// </summary>
+        public class TagSegmentResult
+        {
+            /// <summary>The full tag string (e.g. "M-BLD1-Z01-L02-HVAC-SUP-AHU-0003").</summary>
+            public string FullTag { get; set; } = "";
+            /// <summary>Individual segment values in order (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ).</summary>
+            public string[] Segments { get; set; } = new string[8];
+            /// <summary>Whether each segment is populated (non-empty and not a placeholder).</summary>
+            public bool[] Populated { get; set; } = new bool[8];
+            /// <summary>Marked-up tag with segment color tokens: «D0»DISC«/D0» «S»-«/S» «D1»LOC«/D1» ...</summary>
+            public string MarkedUpTag { get; set; } = "";
+        }
+
+        /// <summary>
+        /// Parse a tag string (TAG1-TAG6) into styled segments.
+        /// Returns segment data for rich rendering.
+        /// </summary>
+        public static TagSegmentResult ParseTagSegments(string tagValue)
+        {
+            var result = new TagSegmentResult { FullTag = tagValue ?? "" };
+            if (string.IsNullOrEmpty(tagValue)) return result;
+
+            string[] parts = tagValue.Split(new[] { Separator }, StringSplitOptions.None);
+            var marked = new System.Text.StringBuilder();
+
+            for (int i = 0; i < 8; i++)
+            {
+                string val = i < parts.Length ? parts[i] : "";
+                result.Segments[i] = val;
+                result.Populated[i] = !string.IsNullOrEmpty(val) && val != "XX" && val != "ZZ" && val != "0000";
+
+                if (i > 0) marked.Append($"\u00ABS\u00BB{Separator}\u00AB/S\u00BB");
+                marked.Append($"\u00ABD{i}\u00BB{val}\u00AB/D{i}\u00BB");
+            }
+
+            result.MarkedUpTag = marked.ToString();
+            return result;
+        }
+
+        /// <summary>
+        /// Parse segment markup tokens from a marked-up tag string.
+        /// Returns list of (text, segmentIndex) tuples where segmentIndex is 0-7 for segments,
+        /// -1 for separators, -2 for plain text.
+        /// </summary>
+        public static List<(string text, int segmentIndex)> ParseSegmentMarkup(string marked)
+        {
+            var result = new List<(string text, int segmentIndex)>();
+            if (string.IsNullOrEmpty(marked)) return result;
+
+            int pos = 0;
+            var plain = new System.Text.StringBuilder();
+
+            while (pos < marked.Length)
+            {
+                if (pos + 3 < marked.Length && marked[pos] == '\u00AB')
+                {
+                    // Flush plain text
+                    if (plain.Length > 0)
+                    {
+                        result.Add((plain.ToString(), -2));
+                        plain.Clear();
+                    }
+
+                    int tagEnd = marked.IndexOf('\u00BB', pos);
+                    if (tagEnd > pos)
+                    {
+                        string tag = marked.Substring(pos + 1, tagEnd - pos - 1);
+
+                        if (tag == "S")
+                        {
+                            // Separator
+                            string closeTag = "\u00AB/S\u00BB";
+                            int closeIdx = marked.IndexOf(closeTag, tagEnd + 1);
+                            if (closeIdx > tagEnd)
+                            {
+                                string content = marked.Substring(tagEnd + 1, closeIdx - tagEnd - 1);
+                                result.Add((content, -1));
+                                pos = closeIdx + closeTag.Length;
+                                continue;
+                            }
+                        }
+                        else if (tag.Length == 2 && tag[0] == 'D' && char.IsDigit(tag[1]))
+                        {
+                            int segIdx = tag[1] - '0';
+                            string closeTag = $"\u00AB/D{segIdx}\u00BB";
+                            int closeIdx = marked.IndexOf(closeTag, tagEnd + 1);
+                            if (closeIdx > tagEnd)
+                            {
+                                string content = marked.Substring(tagEnd + 1, closeIdx - tagEnd - 1);
+                                result.Add((content, segIdx));
+                                pos = closeIdx + closeTag.Length;
+                                continue;
+                            }
+                        }
+
+                        // Fallback: skip the opening tag
+                        pos = tagEnd + 1;
+                        continue;
+                    }
+                }
+
+                plain.Append(marked[pos]);
+                pos++;
+            }
+
+            if (plain.Length > 0)
+                result.Add((plain.ToString(), -2));
+
+            return result;
+        }
+
+        /// <summary>
+        /// Result of building TAG7 narrative — contains the full marked-up narrative
+        /// plus individual plain-text sections for TAG7A-TAG7F sub-parameters.
+        /// </summary>
+        public class Tag7Result
+        {
+            /// <summary>Full narrative with markup tokens (for TAG7 parameter + rich rendering).</summary>
+            public string MarkedUpNarrative { get; set; } = "";
+            /// <summary>Full narrative without markup (plain text fallback).</summary>
+            public string PlainNarrative { get; set; } = "";
+            /// <summary>Section A: Identity Header — asset name, product, manufacturer (plain).</summary>
+            public string SectionA { get; set; } = "";
+            /// <summary>Section B: System &amp; Function Context (plain).</summary>
+            public string SectionB { get; set; } = "";
+            /// <summary>Section C: Spatial Context — room, department, grid (plain).</summary>
+            public string SectionC { get; set; } = "";
+            /// <summary>Section D: Lifecycle &amp; Status (plain).</summary>
+            public string SectionD { get; set; } = "";
+            /// <summary>Section E: Technical Specifications (plain).</summary>
+            public string SectionE { get; set; } = "";
+            /// <summary>Section F: Classification &amp; Reference (plain).</summary>
+            public string SectionF { get; set; } = "";
+
+            /// <summary>All 6 sections as an array (A-F), matching TAG7Sections order.</summary>
+            public string[] AllSections => new[] { SectionA, SectionB, SectionC, SectionD, SectionE, SectionF };
+        }
+
+        /// <summary>
+        /// Section style definitions for rich rendering.
+        /// Each section has a name, color (hex), and font style hint.
+        /// Used by RichTagNoteCommand, WPF panel, and HTML export.
+        /// </summary>
+        public static readonly Tag7SectionStyle[] SectionStyles = new[]
+        {
+            new Tag7SectionStyle { Key = "A", Name = "Identity",       Color = "#1565C0", Bold = true,  Italic = false, Underline = true  },
+            new Tag7SectionStyle { Key = "B", Name = "System",         Color = "#2E7D32", Bold = false, Italic = true,  Underline = false },
+            new Tag7SectionStyle { Key = "C", Name = "Spatial",        Color = "#E65100", Bold = false, Italic = false, Underline = false },
+            new Tag7SectionStyle { Key = "D", Name = "Lifecycle",      Color = "#C62828", Bold = false, Italic = false, Underline = false },
+            new Tag7SectionStyle { Key = "E", Name = "Technical",      Color = "#6A1B9A", Bold = true,  Italic = false, Underline = false },
+            new Tag7SectionStyle { Key = "F", Name = "Classification", Color = "#37474F", Bold = false, Italic = true,  Underline = false },
+        };
+
+        /// <summary>Style definition for a TAG7 narrative section.</summary>
+        public class Tag7SectionStyle
+        {
+            public string Key { get; set; }
+            public string Name { get; set; }
+            public string Color { get; set; }
+            public bool Bold { get; set; }
+            public bool Italic { get; set; }
+            public bool Underline { get; set; }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // TAG7 Display Presets — Configurable Color/Style Schemes
+        //
+        // Each preset defines how TAG7 sections are presented based on context:
+        //   - By Discipline: M=Blue, E=Yellow, P=Green headers
+        //   - By Status: NEW=Green, EXISTING=Blue, DEMOLISHED=Red
+        //   - By System: HVAC=Orange, Electrical=Yellow, Plumbing=Green
+        //   - By Completeness: Full=Green, Partial=Orange, Missing=Red
+        //   - By Priority: Critical=Red, Standard=Blue, Low=Grey
+        //   - Monochrome: Print-ready black/grey scheme
+        //   - Accessible: Colorblind-safe palette
+        //
+        // Each preset maps a discriminator value (discipline code, status, etc.)
+        // to a Tag7DisplayStyle containing header color, section colors, and
+        // font style overrides.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Display style for a TAG7 rendering — applied per-element based on
+        /// the active preset and the element's discriminator value.
+        /// </summary>
+        public class Tag7DisplayStyle
+        {
+            /// <summary>Primary color for card header / element highlight.</summary>
+            public string HeaderColor { get; set; }
+            /// <summary>Background tint for the card body.</summary>
+            public string BackgroundTint { get; set; }
+            /// <summary>Override colors for sections A-F (null = use default SectionStyles).</summary>
+            public string[] SectionColors { get; set; }
+            /// <summary>Sections to render in bold (overrides default).</summary>
+            public bool[] BoldOverrides { get; set; }
+            /// <summary>Sections to show/hide (true = show, false = hide).</summary>
+            public bool[] SectionVisibility { get; set; }
+            /// <summary>Human-readable label for this style.</summary>
+            public string Label { get; set; }
+        }
+
+        /// <summary>
+        /// A TAG7 display preset — a named scheme mapping discriminator values
+        /// to display styles. Used by RichTagNote, HTML export, and WPF panel.
+        /// </summary>
+        public class Tag7DisplayPreset
+        {
+            /// <summary>Unique preset name (e.g. "Discipline", "Status", "System").</summary>
+            public string Name { get; set; }
+            /// <summary>Human-readable description.</summary>
+            public string Description { get; set; }
+            /// <summary>Which element attribute to discriminate on.</summary>
+            public string DiscriminatorParam { get; set; }
+            /// <summary>Mapping of discriminator value → display style.</summary>
+            public Dictionary<string, Tag7DisplayStyle> Styles { get; set; }
+            /// <summary>Fallback style when discriminator value doesn't match.</summary>
+            public Tag7DisplayStyle DefaultStyle { get; set; }
+        }
+
+        /// <summary>Active preset (changed by user via command or panel).</summary>
+        public static Tag7DisplayPreset ActivePreset { get; set; }
+
+        /// <summary>Get the display style for an element based on the active preset.</summary>
+        public static Tag7DisplayStyle GetDisplayStyle(Element el)
+        {
+            if (ActivePreset == null) return null;
+
+            string value = ParameterHelpers.GetString(el, ActivePreset.DiscriminatorParam);
+            if (!string.IsNullOrEmpty(value) && ActivePreset.Styles.TryGetValue(value, out var style))
+                return style;
+
+            return ActivePreset.DefaultStyle;
+        }
+
+        /// <summary>All built-in TAG7 display presets.</summary>
+        public static readonly Tag7DisplayPreset[] BuiltInPresets = BuildPresets();
+
+        private static Tag7DisplayPreset[] BuildPresets()
+        {
+            var all6Visible = new bool[] { true, true, true, true, true, true };
+            var defaultBold = new bool[] { true, false, false, false, true, false };
+
+            return new[]
+            {
+                // ── Preset 1: By Discipline ──────────────────────────────────
+                new Tag7DisplayPreset
+                {
+                    Name = "Discipline",
+                    Description = "Color-code by discipline: Mechanical=Blue, Electrical=Amber, Plumbing=Green, etc.",
+                    DiscriminatorParam = "ASS_DISCIPLINE_COD_TXT",
+                    Styles = new Dictionary<string, Tag7DisplayStyle>
+                    {
+                        { "M",  new Tag7DisplayStyle { HeaderColor = "#1565C0", BackgroundTint = "#E3F2FD", Label = "Mechanical",
+                            SectionColors = new[] { "#1565C0", "#1976D2", "#1E88E5", "#42A5F5", "#0D47A1", "#1565C0" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "E",  new Tag7DisplayStyle { HeaderColor = "#F9A825", BackgroundTint = "#FFFDE7", Label = "Electrical",
+                            SectionColors = new[] { "#F9A825", "#FBC02D", "#FDD835", "#FFD54F", "#F57F17", "#F9A825" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "P",  new Tag7DisplayStyle { HeaderColor = "#2E7D32", BackgroundTint = "#E8F5E9", Label = "Plumbing",
+                            SectionColors = new[] { "#2E7D32", "#388E3C", "#43A047", "#66BB6A", "#1B5E20", "#2E7D32" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "A",  new Tag7DisplayStyle { HeaderColor = "#757575", BackgroundTint = "#F5F5F5", Label = "Architectural",
+                            SectionColors = new[] { "#616161", "#757575", "#9E9E9E", "#BDBDBD", "#424242", "#616161" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "S",  new Tag7DisplayStyle { HeaderColor = "#C62828", BackgroundTint = "#FFEBEE", Label = "Structural",
+                            SectionColors = new[] { "#C62828", "#D32F2F", "#E53935", "#EF5350", "#B71C1C", "#C62828" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "FP", new Tag7DisplayStyle { HeaderColor = "#E65100", BackgroundTint = "#FFF3E0", Label = "Fire Protection",
+                            SectionColors = new[] { "#E65100", "#EF6C00", "#F57C00", "#FB8C00", "#BF360C", "#E65100" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "LV", new Tag7DisplayStyle { HeaderColor = "#6A1B9A", BackgroundTint = "#F3E5F5", Label = "Low Voltage",
+                            SectionColors = new[] { "#6A1B9A", "#7B1FA2", "#8E24AA", "#AB47BC", "#4A148C", "#6A1B9A" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "G",  new Tag7DisplayStyle { HeaderColor = "#795548", BackgroundTint = "#EFEBE9", Label = "Gas",
+                            SectionColors = new[] { "#795548", "#8D6E63", "#A1887F", "#BCAAA4", "#4E342E", "#795548" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                    },
+                    DefaultStyle = new Tag7DisplayStyle { HeaderColor = "#455A64", BackgroundTint = "#ECEFF1", Label = "Unknown",
+                        SectionColors = null, BoldOverrides = defaultBold, SectionVisibility = all6Visible },
+                },
+
+                // ── Preset 2: By Status ──────────────────────────────────────
+                new Tag7DisplayPreset
+                {
+                    Name = "Status",
+                    Description = "Color-code by lifecycle status: NEW=Green, EXISTING=Blue, DEMOLISHED=Red, TEMPORARY=Orange",
+                    DiscriminatorParam = "ASS_STATUS_TXT",
+                    Styles = new Dictionary<string, Tag7DisplayStyle>
+                    {
+                        { "NEW",         new Tag7DisplayStyle { HeaderColor = "#2E7D32", BackgroundTint = "#E8F5E9", Label = "New Construction",
+                            SectionColors = new[] { "#2E7D32", "#388E3C", "#2E7D32", "#43A047", "#2E7D32", "#388E3C" },
+                            BoldOverrides = new[] { true, false, false, true, true, false }, SectionVisibility = all6Visible } },
+                        { "EXISTING",    new Tag7DisplayStyle { HeaderColor = "#1565C0", BackgroundTint = "#E3F2FD", Label = "Existing Asset",
+                            SectionColors = new[] { "#1565C0", "#1976D2", "#1565C0", "#42A5F5", "#1565C0", "#1976D2" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "DEMOLISHED",  new Tag7DisplayStyle { HeaderColor = "#C62828", BackgroundTint = "#FFEBEE", Label = "Demolished",
+                            SectionColors = new[] { "#C62828", "#D32F2F", "#C62828", "#EF5350", "#C62828", "#D32F2F" },
+                            BoldOverrides = new[] { true, false, false, true, false, false },
+                            SectionVisibility = new[] { true, true, true, true, false, true } } },
+                        { "TEMPORARY",   new Tag7DisplayStyle { HeaderColor = "#E65100", BackgroundTint = "#FFF3E0", Label = "Temporary",
+                            SectionColors = new[] { "#E65100", "#EF6C00", "#E65100", "#FB8C00", "#E65100", "#EF6C00" },
+                            BoldOverrides = new[] { true, false, false, true, false, false }, SectionVisibility = all6Visible } },
+                    },
+                    DefaultStyle = new Tag7DisplayStyle { HeaderColor = "#757575", BackgroundTint = "#FAFAFA", Label = "No Status",
+                        SectionColors = null, BoldOverrides = defaultBold, SectionVisibility = all6Visible },
+                },
+
+                // ── Preset 3: By System ──────────────────────────────────────
+                new Tag7DisplayPreset
+                {
+                    Name = "System",
+                    Description = "Color-code by system type: HVAC=Blue, DCW=Cyan, HWS=Red, SAN=Brown, LV=Amber, FP=Orange",
+                    DiscriminatorParam = "ASS_SYSTEM_TYPE_TXT",
+                    Styles = new Dictionary<string, Tag7DisplayStyle>
+                    {
+                        { "HVAC", new Tag7DisplayStyle { HeaderColor = "#1565C0", BackgroundTint = "#E3F2FD", Label = "HVAC",
+                            SectionColors = new[] { "#1565C0", "#0D47A1", "#1565C0", "#1976D2", "#0D47A1", "#1565C0" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "DCW",  new Tag7DisplayStyle { HeaderColor = "#00838F", BackgroundTint = "#E0F7FA", Label = "Domestic Cold Water",
+                            SectionColors = new[] { "#00838F", "#006064", "#00838F", "#0097A7", "#006064", "#00838F" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "HWS",  new Tag7DisplayStyle { HeaderColor = "#D32F2F", BackgroundTint = "#FFEBEE", Label = "Hot Water Supply",
+                            SectionColors = new[] { "#D32F2F", "#C62828", "#D32F2F", "#E53935", "#C62828", "#D32F2F" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "SAN",  new Tag7DisplayStyle { HeaderColor = "#6D4C41", BackgroundTint = "#EFEBE9", Label = "Sanitary",
+                            SectionColors = new[] { "#6D4C41", "#5D4037", "#6D4C41", "#795548", "#5D4037", "#6D4C41" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "LV",   new Tag7DisplayStyle { HeaderColor = "#F9A825", BackgroundTint = "#FFFDE7", Label = "Low Voltage",
+                            SectionColors = new[] { "#F9A825", "#F57F17", "#F9A825", "#FBC02D", "#F57F17", "#F9A825" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "FP",   new Tag7DisplayStyle { HeaderColor = "#E65100", BackgroundTint = "#FFF3E0", Label = "Fire Protection",
+                            SectionColors = new[] { "#E65100", "#BF360C", "#E65100", "#EF6C00", "#BF360C", "#E65100" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "FLS",  new Tag7DisplayStyle { HeaderColor = "#FF6F00", BackgroundTint = "#FFF8E1", Label = "Fire Life Safety",
+                            SectionColors = new[] { "#FF6F00", "#E65100", "#FF6F00", "#FF8F00", "#E65100", "#FF6F00" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                    },
+                    DefaultStyle = new Tag7DisplayStyle { HeaderColor = "#546E7A", BackgroundTint = "#ECEFF1", Label = "Other System",
+                        SectionColors = null, BoldOverrides = defaultBold, SectionVisibility = all6Visible },
+                },
+
+                // ── Preset 4: By Completeness ────────────────────────────────
+                // Discriminates on TAG1 presence and section fill rate
+                new Tag7DisplayPreset
+                {
+                    Name = "Completeness",
+                    Description = "RAG status: Green=Complete (all 8 tokens), Orange=Partial, Red=Missing critical tokens",
+                    DiscriminatorParam = "_COMPLETENESS_", // Special: computed by GetDisplayStyle override
+                    Styles = new Dictionary<string, Tag7DisplayStyle>
+                    {
+                        { "COMPLETE",    new Tag7DisplayStyle { HeaderColor = "#2E7D32", BackgroundTint = "#E8F5E9", Label = "Complete",
+                            SectionColors = new[] { "#2E7D32", "#388E3C", "#2E7D32", "#43A047", "#2E7D32", "#388E3C" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "PARTIAL",     new Tag7DisplayStyle { HeaderColor = "#F9A825", BackgroundTint = "#FFFDE7", Label = "Partial",
+                            SectionColors = new[] { "#F9A825", "#FBC02D", "#F9A825", "#FDD835", "#F9A825", "#FBC02D" },
+                            BoldOverrides = new[] { true, false, false, true, false, true }, SectionVisibility = all6Visible } },
+                        { "INCOMPLETE",  new Tag7DisplayStyle { HeaderColor = "#C62828", BackgroundTint = "#FFEBEE", Label = "Incomplete",
+                            SectionColors = new[] { "#C62828", "#D32F2F", "#C62828", "#EF5350", "#C62828", "#D32F2F" },
+                            BoldOverrides = new[] { true, false, false, true, false, true }, SectionVisibility = all6Visible } },
+                    },
+                    DefaultStyle = new Tag7DisplayStyle { HeaderColor = "#9E9E9E", BackgroundTint = "#FAFAFA", Label = "Untagged",
+                        SectionColors = null, BoldOverrides = defaultBold, SectionVisibility = all6Visible },
+                },
+
+                // ── Preset 5: Monochrome (Print-Ready) ───────────────────────
+                new Tag7DisplayPreset
+                {
+                    Name = "Monochrome",
+                    Description = "Print-friendly black/grey scheme with no color — suitable for B&W printing",
+                    DiscriminatorParam = "_ALWAYS_DEFAULT_",
+                    Styles = new Dictionary<string, Tag7DisplayStyle>(),
+                    DefaultStyle = new Tag7DisplayStyle { HeaderColor = "#212121", BackgroundTint = "#FAFAFA", Label = "Asset",
+                        SectionColors = new[] { "#212121", "#424242", "#616161", "#757575", "#212121", "#424242" },
+                        BoldOverrides = new[] { true, false, false, false, true, true }, SectionVisibility = all6Visible },
+                },
+
+                // ── Preset 6: Accessible (Colorblind-Safe) ──────────────────
+                new Tag7DisplayPreset
+                {
+                    Name = "Accessible",
+                    Description = "Colorblind-safe palette using blue/orange contrast (deuteranopia/protanopia friendly)",
+                    DiscriminatorParam = "ASS_DISCIPLINE_COD_TXT",
+                    Styles = new Dictionary<string, Tag7DisplayStyle>
+                    {
+                        { "M",  new Tag7DisplayStyle { HeaderColor = "#0072B2", BackgroundTint = "#E1F5FE", Label = "Mechanical",
+                            SectionColors = new[] { "#0072B2", "#0072B2", "#0072B2", "#0072B2", "#0072B2", "#0072B2" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "E",  new Tag7DisplayStyle { HeaderColor = "#E69F00", BackgroundTint = "#FFF8E1", Label = "Electrical",
+                            SectionColors = new[] { "#E69F00", "#E69F00", "#E69F00", "#E69F00", "#E69F00", "#E69F00" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "P",  new Tag7DisplayStyle { HeaderColor = "#009E73", BackgroundTint = "#E0F2F1", Label = "Plumbing",
+                            SectionColors = new[] { "#009E73", "#009E73", "#009E73", "#009E73", "#009E73", "#009E73" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "A",  new Tag7DisplayStyle { HeaderColor = "#56B4E9", BackgroundTint = "#E1F5FE", Label = "Architectural",
+                            SectionColors = new[] { "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                        { "FP", new Tag7DisplayStyle { HeaderColor = "#D55E00", BackgroundTint = "#FBE9E7", Label = "Fire Protection",
+                            SectionColors = new[] { "#D55E00", "#D55E00", "#D55E00", "#D55E00", "#D55E00", "#D55E00" },
+                            BoldOverrides = defaultBold, SectionVisibility = all6Visible } },
+                    },
+                    DefaultStyle = new Tag7DisplayStyle { HeaderColor = "#CC79A7", BackgroundTint = "#FCE4EC", Label = "Other",
+                        SectionColors = null, BoldOverrides = defaultBold, SectionVisibility = all6Visible },
+                },
+
+                // ── Preset 7: Technical Focus ────────────────────────────────
+                new Tag7DisplayPreset
+                {
+                    Name = "Technical Focus",
+                    Description = "Emphasize Technical (E) and Classification (F) sections, dim Identity. For engineering review.",
+                    DiscriminatorParam = "_ALWAYS_DEFAULT_",
+                    Styles = new Dictionary<string, Tag7DisplayStyle>(),
+                    DefaultStyle = new Tag7DisplayStyle { HeaderColor = "#6A1B9A", BackgroundTint = "#F3E5F5", Label = "Engineering Review",
+                        SectionColors = new[] { "#9E9E9E", "#9E9E9E", "#9E9E9E", "#757575", "#6A1B9A", "#1565C0" },
+                        BoldOverrides = new[] { false, false, false, false, true, true },
+                        SectionVisibility = new[] { true, true, false, true, true, true } },
+                },
+            };
+        }
+
+        /// <summary>
+        /// Get display style with completeness-aware discrimination.
+        /// When the active preset discriminates on "_COMPLETENESS_", computes
+        /// the completeness level from the element's token fill rate.
+        /// </summary>
+        public static Tag7DisplayStyle GetDisplayStyleSmart(Element el)
+        {
+            if (ActivePreset == null) return null;
+
+            // Special computed discriminators
+            if (ActivePreset.DiscriminatorParam == "_COMPLETENESS_")
+            {
+                string[] tokens = ParamRegistry.ReadTokenValues(el);
+                int filled = tokens.Count(t => !string.IsNullOrEmpty(t) && t != "XX" && t != "ZZ");
+                string level = filled >= 8 ? "COMPLETE" : filled >= 5 ? "PARTIAL" : "INCOMPLETE";
+                if (ActivePreset.Styles.TryGetValue(level, out var style))
+                    return style;
+                return ActivePreset.DefaultStyle;
+            }
+
+            if (ActivePreset.DiscriminatorParam == "_ALWAYS_DEFAULT_")
+                return ActivePreset.DefaultStyle;
+
+            // Standard parameter-based discrimination
+            string value = ParameterHelpers.GetString(el, ActivePreset.DiscriminatorParam);
+            if (!string.IsNullOrEmpty(value) && ActivePreset.Styles.TryGetValue(value, out var s))
+                return s;
+
+            return ActivePreset.DefaultStyle;
+        }
+
+        /// <summary>Set the active preset by name. Returns true if found.</summary>
+        public static bool SetActivePreset(string presetName)
+        {
+            var preset = BuiltInPresets.FirstOrDefault(p =>
+                p.Name.Equals(presetName, StringComparison.OrdinalIgnoreCase));
+            if (preset != null)
+            {
+                ActivePreset = preset;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>Strip all markup tokens from a string, returning plain text.</summary>
+        public static string StripMarkup(string marked)
+        {
+            if (string.IsNullOrEmpty(marked)) return "";
+            return marked
+                .Replace("«H»", "").Replace("«/H»", "")
+                .Replace("«L»", "").Replace("«/L»", "")
+                .Replace("«V»", "").Replace("«/V»", "")
+                .Replace("«S»", "").Replace("«/S»", "");
+        }
+
+        /// <summary>
+        /// Parse markup tokens from TAG7 text into styled segments.
+        /// Returns a list of (text, style) tuples where style is "H", "L", "V", "S", or "" (plain).
+        /// Used by WPF panel and HTML export for rich rendering.
+        /// </summary>
+        public static List<(string text, string style)> ParseMarkup(string marked)
+        {
+            var result = new List<(string text, string style)>();
+            if (string.IsNullOrEmpty(marked)) return result;
+
+            int i = 0;
+            var plain = new System.Text.StringBuilder();
+
+            while (i < marked.Length)
+            {
+                // Check for markup token start
+                if (i + 2 < marked.Length && marked[i] == '\u00AB') // «
+                {
+                    // Flush any accumulated plain text
+                    if (plain.Length > 0)
+                    {
+                        result.Add((plain.ToString(), ""));
+                        plain.Clear();
+                    }
+
+                    // Find the style character and closing »
+                    int tagEnd = marked.IndexOf('\u00BB', i); // »
+                    if (tagEnd > i)
+                    {
+                        string tag = marked.Substring(i + 1, tagEnd - i - 1);
+                        if (tag.Length == 1 && "HLVS".Contains(tag))
+                        {
+                            // Opening tag — find matching close
+                            string closeTag = $"\u00AB/{tag}\u00BB";
+                            int closeIdx = marked.IndexOf(closeTag, tagEnd + 1);
+                            if (closeIdx > tagEnd)
+                            {
+                                string content = marked.Substring(tagEnd + 1, closeIdx - tagEnd - 1);
+                                result.Add((content, tag));
+                                i = closeIdx + closeTag.Length;
+                                continue;
+                            }
+                        }
+                        else if (tag.StartsWith("/"))
+                        {
+                            // Orphan close tag — skip
+                            i = tagEnd + 1;
+                            continue;
+                        }
+                    }
+                }
+
+                plain.Append(marked[i]);
+                i++;
+            }
+
+            if (plain.Length > 0)
+                result.Add((plain.ToString(), ""));
+
+            return result;
+        }
+
+        /// <summary>Full discipline name for human-readable narrative.</summary>
+        private static readonly Dictionary<string, string> DisciplineDescriptions = new Dictionary<string, string>
+        {
+            { "M", "Mechanical" }, { "E", "Electrical" }, { "P", "Plumbing" },
+            { "A", "Architectural" }, { "S", "Structural" }, { "FP", "Fire Protection" },
+            { "LV", "Low Voltage" }, { "G", "Gas" }, { "GEN", "General" },
+        };
+
+        /// <summary>Full system name for human-readable narrative.</summary>
+        private static readonly Dictionary<string, string> SystemDescriptions = new Dictionary<string, string>
+        {
+            { "HVAC", "Heating Ventilation and Air Conditioning" },
+            { "HWS", "Hot Water Supply" }, { "DHW", "Domestic Hot Water" },
+            { "DCW", "Domestic Cold Water" }, { "SAN", "Sanitary Drainage" },
+            { "RWD", "Rainwater Drainage" }, { "GAS", "Gas Supply" },
+            { "FP", "Fire Protection" }, { "FLS", "Fire Life Safety" },
+            { "LV", "Low Voltage Distribution" }, { "SEC", "Security Systems" },
+            { "ICT", "Information and Communications Technology" },
+            { "COM", "Communications" }, { "NCL", "Nurse Call Systems" },
+            { "ARC", "Architectural Fabric" }, { "STR", "Structural Elements" },
+            { "GEN", "General Services" },
+        };
+
+        /// <summary>Full function description for human-readable narrative.</summary>
+        private static readonly Dictionary<string, string> FunctionDescriptions = new Dictionary<string, string>
+        {
+            { "SUP", "Supply" }, { "RTN", "Return" }, { "EXH", "Exhaust" },
+            { "FRA", "Fresh Air Intake" }, { "HTG", "Heating" },
+            { "DHW", "Domestic Hot Water Distribution" },
+            { "DCW", "Domestic Cold Water Distribution" },
+            { "SAN", "Sanitary Waste Disposal" }, { "RWD", "Rainwater Disposal" },
+            { "GAS", "Gas Distribution" }, { "FP", "Fire Protection Suppression" },
+            { "FLS", "Fire Detection and Alarm" },
+            { "PWR", "Power Distribution" }, { "LTG", "Lighting" },
+            { "COM", "Voice and Data Communications" },
+            { "ICT", "Data Network and Infrastructure" },
+            { "NCL", "Patient Nurse Call" }, { "SEC", "Security and Access Control" },
+            { "FIT", "Finishes and Fitout" }, { "STR", "Primary Structure" },
+            { "GEN", "General Purpose" },
+        };
+
+        /// <summary>Full product type description for human-readable narrative.</summary>
+        private static readonly Dictionary<string, string> ProductDescriptions = new Dictionary<string, string>
+        {
+            // Mechanical
+            { "AHU", "Air Handling Unit" }, { "FCU", "Fan Coil Unit" },
+            { "VAV", "Variable Air Volume Box" }, { "CHR", "Chiller" },
+            { "BLR", "Boiler" }, { "PMP", "Pump" }, { "FAN", "Fan" },
+            { "HRU", "Heat Recovery Unit" }, { "SPL", "Split System Unit" },
+            { "IND", "Induction Unit" }, { "RAD", "Radiant Panel" },
+            { "DAM", "Damper" }, { "CLT", "Cooling Tower" },
+            { "VFD", "Variable Frequency Drive" },
+            // Electrical
+            { "DB", "Distribution Board" }, { "MCC", "Motor Control Centre" },
+            { "MSB", "Main Switchboard" }, { "SWB", "Switchboard" },
+            { "UPS", "Uninterruptible Power Supply" }, { "TRF", "Transformer" },
+            { "GEN", "Generator" }, { "ATS", "Automatic Transfer Switch" },
+            { "SPD", "Surge Protection Device" }, { "RCD", "Residual Current Device" },
+            { "ISO", "Isolator" }, { "SFS", "Soft Starter" }, { "BKP", "Battery Backup" },
+            // Lighting
+            { "LUM", "Luminaire" }, { "EML", "Emergency Luminaire" },
+            { "TRK", "Track Luminaire" }, { "DEC", "Decorative Luminaire" },
+            { "DWN", "Downlight" }, { "LIN", "Linear Luminaire" },
+            { "SPT", "Spotlight" }, { "WSH", "Wall Washer" },
+            { "BOL", "Bollard Light" }, { "UPL", "Uplighter" }, { "FLD", "Floodlight" },
+            // Plumbing
+            { "WC", "Water Closet" }, { "WHB", "Wash Hand Basin" },
+            { "URN", "Urinal" }, { "SNK", "Sink" }, { "SHW", "Shower" },
+            { "BTH", "Bath" }, { "DRK", "Drinking Fountain" },
+            { "CWL", "Water Cooler" }, { "TRP", "Grease Trap" },
+            { "BID", "Bidet" }, { "EWS", "Eyewash Station" }, { "MOP", "Mop Sink" },
+            // Fire
+            { "SML", "Smoke Detector" }, { "MCP", "Manual Call Point" },
+            { "BLL", "Fire Bell or Sounder" }, { "STB", "Strobe Beacon" },
+            { "HTD", "Heat Detector" }, { "FIM", "Fire Interface Module" },
+            { "SPR", "Sprinkler Head" }, { "FAD", "Fire Alarm Device" },
+            // Valves
+            { "BLV", "Balancing Valve" }, { "TRV", "Thermostatic Radiator Valve" },
+            { "IVL", "Isolation Valve" }, { "NRV", "Non-Return Valve" },
+            { "PRV", "Pressure Reducing Valve" }, { "STN", "Strainer" },
+            // Building Elements
+            { "WL", "Wall" }, { "FL", "Floor" }, { "CLG", "Ceiling" },
+            { "RF", "Roof" }, { "DR", "Door" }, { "WN", "Window" },
+            { "COL", "Column" }, { "BMG", "Beam" }, { "FND", "Foundation" },
+            { "STR", "Staircase" }, { "RMP", "Ramp" }, { "RLG", "Railing" },
+            { "FUR", "Furniture" }, { "CSW", "Casework" },
+            // MEP Elements
+            { "DCT", "Ductwork" }, { "PPE", "Pipework" },
+            { "CDT", "Conduit" }, { "CTR", "Cable Tray" },
+            { "ATR", "Air Terminal" }, { "ACC", "Accessory" },
+        };
+
+        /// <summary>
+        /// Build TAG7: a comprehensive, richly descriptive asset narrative with embedded
+        /// markup tokens for rich rendering across all 5 output surfaces.
+        ///
+        /// Returns a Tag7Result containing:
+        ///   - MarkedUpNarrative: full narrative with «H»/«L»/«V» markup tokens
+        ///   - PlainNarrative: same narrative without markup (parameter storage fallback)
+        ///   - SectionA-F: individual plain sections for TAG7A-TAG7F sub-parameters
+        ///
+        /// Markup tokens:
+        ///   «H»text«/H» — Header (Bold+Underline in TextNote, Bold in WPF, &lt;strong&gt; in HTML)
+        ///   «L»text«/L» — Label (Italic in TextNote, muted color in WPF, &lt;em&gt; in HTML)
+        ///   «V»text«/V» — Value (accent color in WPF, highlighted in HTML)
+        /// </summary>
+        public static Tag7Result BuildTag7Sections(Document doc, Element el, string categoryName, string[] tokenValues)
+        {
+            var result = new Tag7Result();
+            var markedSections = new List<string>();
+
+            string disc = tokenValues.Length > 0 ? tokenValues[0] : "";
+            string loc  = tokenValues.Length > 1 ? tokenValues[1] : "";
+            string zone = tokenValues.Length > 2 ? tokenValues[2] : "";
+            string lvl  = tokenValues.Length > 3 ? tokenValues[3] : "";
+            string sys  = tokenValues.Length > 4 ? tokenValues[4] : "";
+            string func = tokenValues.Length > 5 ? tokenValues[5] : "";
+            string prod = tokenValues.Length > 6 ? tokenValues[6] : "";
+            string seq  = tokenValues.Length > 7 ? tokenValues[7] : "";
+
+            // ── Section A: Asset Identity and Classification ──────────────────
+            string discDesc = DisciplineDescriptions.TryGetValue(disc, out string dd) ? dd : disc;
+            string prodDesc = ProductDescriptions.TryGetValue(prod, out string pd) ? pd : "";
+            string familyName = ParameterHelpers.GetString(el, ParamRegistry.FAMILY_NAME);
+            string typeName   = ParameterHelpers.GetString(el, ParamRegistry.TYPE_NAME);
+            string description = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+            string mfr    = ParameterHelpers.GetString(el, ParamRegistry.MFR);
+            string model  = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
+            string size   = ParameterHelpers.GetString(el, ParamRegistry.SIZE);
+
+            var identityPlain = new System.Text.StringBuilder();
+            var identityMarked = new System.Text.StringBuilder();
+
+            // Asset name (BOLD in marked)
+            string assetName = discDesc;
+            if (!string.IsNullOrEmpty(prodDesc))
+                assetName += $" {prodDesc}";
+            else if (!string.IsNullOrEmpty(categoryName))
+                assetName += $" {categoryName}";
+            if (!string.IsNullOrEmpty(prod))
+                assetName += $" ({prod})";
+
+            identityPlain.Append(assetName);
+            identityMarked.Append($"\u00ABH\u00BB{assetName}\u00AB/H\u00BB");
+
+            if (!string.IsNullOrEmpty(mfr) || !string.IsNullOrEmpty(model))
+            {
+                string mfrText = " manufactured by ";
+                if (!string.IsNullOrEmpty(mfr))
+                    mfrText += mfr;
+                if (!string.IsNullOrEmpty(model))
+                {
+                    if (!string.IsNullOrEmpty(mfr)) mfrText += " ";
+                    mfrText += $"Model {model}";
+                }
+                identityPlain.Append(mfrText);
+                identityMarked.Append($" \u00ABL\u00BBmanufactured by\u00AB/L\u00BB \u00ABV\u00BB{(mfr + " " + (string.IsNullOrEmpty(model) ? "" : $"Model {model}")).Trim()}\u00AB/V\u00BB");
+            }
+            if (!string.IsNullOrEmpty(familyName) && string.IsNullOrEmpty(mfr) && string.IsNullOrEmpty(model))
+            {
+                identityPlain.Append($", family: {familyName}");
+                identityMarked.Append($", \u00ABL\u00BBfamily:\u00AB/L\u00BB \u00ABV\u00BB{familyName}\u00AB/V\u00BB");
+                if (!string.IsNullOrEmpty(typeName))
+                {
+                    identityPlain.Append($", type: {typeName}");
+                    identityMarked.Append($", \u00ABL\u00BBtype:\u00AB/L\u00BB \u00ABV\u00BB{typeName}\u00AB/V\u00BB");
+                }
+            }
+            if (!string.IsNullOrEmpty(description))
+            {
+                identityPlain.Append($" — {description}");
+                identityMarked.Append($" — \u00ABV\u00BB{description}\u00AB/V\u00BB");
+            }
+            if (!string.IsNullOrEmpty(size))
+            {
+                identityPlain.Append($" [{size}]");
+                identityMarked.Append($" [\u00ABV\u00BB{size}\u00AB/V\u00BB]");
+            }
+
+            result.SectionA = identityPlain.ToString().Trim();
+            markedSections.Add(identityMarked.ToString().Trim());
+
+            // ── Section B: System and Function Context ────────────────────────
+            string sysDesc  = SystemDescriptions.TryGetValue(sys, out string sd) ? sd : sys;
+            string funcDesc = FunctionDescriptions.TryGetValue(func, out string fd) ? fd : func;
+
+            if (!string.IsNullOrEmpty(sysDesc))
+            {
+                var sysPlain = new System.Text.StringBuilder(sysDesc);
+                var sysMarked = new System.Text.StringBuilder($"\u00ABH\u00BB{sysDesc}\u00AB/H\u00BB");
+                if (!string.IsNullOrEmpty(funcDesc) && funcDesc != sysDesc)
+                {
+                    sysPlain.Append($" {funcDesc}");
+                    sysMarked.Append($" \u00ABV\u00BB{funcDesc}\u00AB/V\u00BB");
+                }
+                string servingText = $" serving Zone {zone}, Level {lvl} of Building {loc}";
+                sysPlain.Append(servingText);
+                sysMarked.Append($" \u00ABL\u00BBserving\u00AB/L\u00BB Zone \u00ABV\u00BB{zone}\u00AB/V\u00BB, Level \u00ABV\u00BB{lvl}\u00AB/V\u00BB of Building \u00ABV\u00BB{loc}\u00AB/V\u00BB");
+
+                result.SectionB = sysPlain.ToString();
+                markedSections.Add(sysMarked.ToString());
+            }
+
+            // ── Section C: Spatial Context and Room Information ────────────────
+            string roomName = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
+            string roomNum  = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NUM);
+            string dept     = ParameterHelpers.GetString(el, ParamRegistry.DEPT);
+            string gridRef  = ParameterHelpers.GetString(el, ParamRegistry.GRID_REF);
+            string bleRoom  = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
+            string bleNum   = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NUM);
+            if (string.IsNullOrEmpty(roomName) && !string.IsNullOrEmpty(bleRoom)) roomName = bleRoom;
+            if (string.IsNullOrEmpty(roomNum) && !string.IsNullOrEmpty(bleNum)) roomNum = bleNum;
+
+            if (!string.IsNullOrEmpty(roomName) || !string.IsNullOrEmpty(gridRef))
+            {
+                var spatialPlain = new System.Text.StringBuilder("Located in ");
+                var spatialMarked = new System.Text.StringBuilder("\u00ABL\u00BBLocated in\u00AB/L\u00BB ");
+                if (!string.IsNullOrEmpty(roomName))
+                {
+                    spatialPlain.Append(roomName);
+                    spatialMarked.Append($"\u00ABV\u00BB{roomName}\u00AB/V\u00BB");
+                    if (!string.IsNullOrEmpty(roomNum))
+                    {
+                        spatialPlain.Append($" (Room {roomNum})");
+                        spatialMarked.Append($" (Room \u00ABV\u00BB{roomNum}\u00AB/V\u00BB)");
+                    }
+                }
+                if (!string.IsNullOrEmpty(dept))
+                {
+                    spatialPlain.Append($", Department: {dept}");
+                    spatialMarked.Append($", \u00ABL\u00BBDepartment:\u00AB/L\u00BB \u00ABV\u00BB{dept}\u00AB/V\u00BB");
+                }
+                if (!string.IsNullOrEmpty(gridRef))
+                {
+                    spatialPlain.Append($", Grid Reference {gridRef}");
+                    spatialMarked.Append($", \u00ABL\u00BBGrid Reference\u00AB/L\u00BB \u00ABV\u00BB{gridRef}\u00AB/V\u00BB");
+                }
+                result.SectionC = spatialPlain.ToString();
+                markedSections.Add(spatialMarked.ToString());
+            }
+
+            // ── Section D: Lifecycle Status, Revision, and Origin ─────────────
+            string status  = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+            string rev     = ParameterHelpers.GetString(el, ParamRegistry.REV);
+            string origin  = ParameterHelpers.GetString(el, ParamRegistry.ORIGIN);
+            string project = ParameterHelpers.GetString(el, ParamRegistry.PROJECT);
+            string volume  = ParameterHelpers.GetString(el, ParamRegistry.VOLUME);
+            string mntType = ParameterHelpers.GetString(el, ParamRegistry.MNT_TYPE);
+            string detailNum = ParameterHelpers.GetString(el, ParamRegistry.DETAIL_NUM);
+
+            var lifecyclePlain = new System.Text.StringBuilder();
+            var lifecycleMarked = new System.Text.StringBuilder();
+            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Status", status);
+            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Revision", rev);
+            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Origin", origin);
+            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Project", project);
+            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Volume", volume);
+            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Maintenance", mntType);
+            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Detail", detailNum);
+
+            if (lifecyclePlain.Length > 0)
+            {
+                result.SectionD = lifecyclePlain.ToString();
+                markedSections.Add(lifecycleMarked.ToString());
+            }
+
+            // ── Section E: Technical Data (discipline-specific + dimensions) ──
+            string techData = BuildDisciplineTechSection(el, disc, categoryName);
+            string dimData = BuildDimensionalSection(el, categoryName);
+            var techPlain = new System.Text.StringBuilder();
+            var techMarked = new System.Text.StringBuilder();
+            if (!string.IsNullOrEmpty(techData))
+            {
+                techPlain.Append(techData);
+                // Build marked version with label/value pairs
+                techMarked.Append(BuildMarkedTechSection(el, disc, categoryName));
+            }
+            if (!string.IsNullOrEmpty(dimData))
+            {
+                if (techPlain.Length > 0) { techPlain.Append(", "); techMarked.Append(", "); }
+                techPlain.Append(dimData);
+                techMarked.Append(BuildMarkedDimSection(el, categoryName));
+            }
+            if (techPlain.Length > 0)
+            {
+                result.SectionE = techPlain.ToString();
+                markedSections.Add(techMarked.ToString());
+            }
+
+            // ── Section F: Classification + Cost + ISO Reference ──────────────
+            string uniformat     = ParameterHelpers.GetString(el, ParamRegistry.UNIFORMAT);
+            string uniformatDesc = ParameterHelpers.GetString(el, ParamRegistry.UNIFORMAT_DESC);
+            string omniclass     = ParameterHelpers.GetString(el, ParamRegistry.OMNICLASS);
+            string keynote       = ParameterHelpers.GetString(el, ParamRegistry.KEYNOTE);
+            string typeMark      = ParameterHelpers.GetString(el, ParamRegistry.TYPE_MARK);
+            string cost          = ParameterHelpers.GetString(el, ParamRegistry.COST);
+
+            var classPlain = new System.Text.StringBuilder();
+            var classMarked = new System.Text.StringBuilder();
+            if (!string.IsNullOrEmpty(uniformat))
+            {
+                classPlain.Append($"Uniformat {uniformat}");
+                classMarked.Append($"\u00ABL\u00BBUniformat\u00AB/L\u00BB \u00ABV\u00BB{uniformat}\u00AB/V\u00BB");
+                if (!string.IsNullOrEmpty(uniformatDesc))
+                {
+                    classPlain.Append($" ({uniformatDesc})");
+                    classMarked.Append($" ({uniformatDesc})");
+                }
+            }
+            if (!string.IsNullOrEmpty(omniclass))
+            {
+                if (classPlain.Length > 0) { classPlain.Append(", "); classMarked.Append(", "); }
+                classPlain.Append($"OmniClass {omniclass}");
+                classMarked.Append($"\u00ABL\u00BBOmniClass\u00AB/L\u00BB \u00ABV\u00BB{omniclass}\u00AB/V\u00BB");
+            }
+            if (!string.IsNullOrEmpty(keynote))
+            {
+                if (classPlain.Length > 0) { classPlain.Append(", "); classMarked.Append(", "); }
+                classPlain.Append($"Keynote {keynote}");
+                classMarked.Append($"\u00ABL\u00BBKeynote\u00AB/L\u00BB \u00ABV\u00BB{keynote}\u00AB/V\u00BB");
+            }
+            if (!string.IsNullOrEmpty(typeMark))
+            {
+                if (classPlain.Length > 0) { classPlain.Append(", "); classMarked.Append(", "); }
+                classPlain.Append($"Type Mark {typeMark}");
+                classMarked.Append($"\u00ABL\u00BBType Mark\u00AB/L\u00BB \u00ABV\u00BB{typeMark}\u00AB/V\u00BB");
+            }
+            if (!string.IsNullOrEmpty(cost))
+            {
+                if (classPlain.Length > 0) { classPlain.Append(", "); classMarked.Append(", "); }
+                classPlain.Append($"Unit Cost: {cost}");
+                classMarked.Append($"\u00ABL\u00BBUnit Cost:\u00AB/L\u00BB \u00ABV\u00BB{cost}\u00AB/V\u00BB");
+            }
+
+            // ISO reference always added
+            string fullTag = string.Join(Separator, tokenValues);
+            if (classPlain.Length > 0) { classPlain.Append(", "); classMarked.Append(", "); }
+            classPlain.Append($"ISO 19650 Tag: {fullTag}");
+            classMarked.Append($"\u00ABL\u00BBISO 19650 Tag:\u00AB/L\u00BB \u00ABH\u00BB{fullTag}\u00AB/H\u00BB");
+
+            result.SectionF = classPlain.ToString();
+            markedSections.Add(classMarked.ToString());
+
+            // ── Assemble final narratives ─────────────────────────────────────
+            var plainSections = new List<string>();
+            if (!string.IsNullOrEmpty(result.SectionA)) plainSections.Add(result.SectionA);
+            if (!string.IsNullOrEmpty(result.SectionB)) plainSections.Add(result.SectionB);
+            if (!string.IsNullOrEmpty(result.SectionC)) plainSections.Add(result.SectionC);
+            if (!string.IsNullOrEmpty(result.SectionD)) plainSections.Add(result.SectionD);
+            if (!string.IsNullOrEmpty(result.SectionE)) plainSections.Add(result.SectionE);
+            if (!string.IsNullOrEmpty(result.SectionF)) plainSections.Add(result.SectionF);
+
+            result.PlainNarrative = string.Join(" | ", plainSections);
+            result.MarkedUpNarrative = string.Join(" \u00ABS\u00BB|\u00AB/S\u00BB ", markedSections);
+
+            return result;
+        }
+
+        /// <summary>
+        /// Backward-compatible wrapper: returns the plain narrative string.
+        /// All existing callers use this — returns exactly the same output as before.
+        /// </summary>
+        public static string BuildTag7Narrative(Document doc, Element el, string categoryName, string[] tokenValues)
+        {
+            return BuildTag7Sections(doc, el, categoryName, tokenValues).PlainNarrative;
+        }
+
+        /// <summary>
+        /// Write TAG7 + all sub-section parameters (TAG7A-TAG7F) for an element.
+        /// Writes the marked-up narrative to TAG7, and plain sections to TAG7A-TAG7F.
+        /// Returns number of parameters written.
+        /// </summary>
+        public static int WriteTag7All(Document doc, Element el, string categoryName, string[] tokenValues, bool overwrite = true)
+        {
+            var tag7 = BuildTag7Sections(doc, el, categoryName, tokenValues);
+            int written = 0;
+
+            // TAG7 gets the marked-up narrative (with «H»/«L»/«V» tokens)
+            if (!string.IsNullOrEmpty(tag7.MarkedUpNarrative))
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, tag7.MarkedUpNarrative, overwrite))
+                    written++;
+            }
+
+            // TAG7A-TAG7F get plain section text for tag family labels
+            string[] sectionParams = ParamRegistry.TAG7Sections;
+            string[] sectionValues = tag7.AllSections;
+            for (int i = 0; i < sectionParams.Length && i < sectionValues.Length; i++)
+            {
+                if (!string.IsNullOrEmpty(sectionValues[i]))
+                {
+                    if (ParameterHelpers.SetString(el, sectionParams[i], sectionValues[i], overwrite))
+                        written++;
+                }
+            }
+
+            return written;
+        }
+
+        /// <summary>Append a label:value pair to both plain and marked StringBuilders.</summary>
+        private static void AppendLabelValue(System.Text.StringBuilder plain, System.Text.StringBuilder marked,
+            string label, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return;
+            if (plain.Length > 0) { plain.Append(", "); marked.Append(", "); }
+            plain.Append($"{label}: {value}");
+            marked.Append($"\u00ABL\u00BB{label}:\u00AB/L\u00BB \u00ABV\u00BB{value}\u00AB/V\u00BB");
+        }
+
+        /// <summary>Build marked-up technical data with «L»label«/L» «V»value«/V» tokens.</summary>
+        private static string BuildMarkedTechSection(Element el, string disc, string categoryName)
+        {
+            var sb = new System.Text.StringBuilder();
+            void AddM(string paramName, string label, string unit)
+            {
+                string v = ParameterHelpers.GetString(el, paramName);
+                if (!string.IsNullOrEmpty(v))
+                {
+                    if (sb.Length > 0) sb.Append(", ");
+                    sb.Append($"\u00ABL\u00BB{label}:\u00AB/L\u00BB \u00ABV\u00BB{v}{(string.IsNullOrEmpty(unit) ? "" : $" {unit}")}\u00AB/V\u00BB");
+                }
+            }
+            if (disc == "E" || categoryName == "Electrical Equipment" || categoryName == "Electrical Fixtures")
+            {
+                AddM(ParamRegistry.ELC_POWER, "Power", "kW"); AddM(ParamRegistry.ELC_VOLTAGE, "Voltage", "V");
+                AddM(ParamRegistry.ELC_CIRCUIT_NR, "Circuit", ""); AddM(ParamRegistry.ELC_PNL_NAME, "Panel", "");
+                AddM(ParamRegistry.ELC_PHASES, "Phases", ""); AddM(ParamRegistry.ELC_PNL_FED_FROM, "Fed from", "");
+                AddM(ParamRegistry.ELC_MAIN_BRK, "Main Breaker", "A"); AddM(ParamRegistry.ELC_WAYS, "Ways", "");
+                AddM(ParamRegistry.ELC_IP_RATING, "IP Rating", ""); AddM(ParamRegistry.ELC_PNL_LOAD, "Connected Load", "kW");
+            }
+            else if (categoryName == "Lighting Fixtures" || categoryName == "Lighting Devices")
+            {
+                AddM(ParamRegistry.LTG_WATTAGE, "Wattage", "W"); AddM(ParamRegistry.LTG_LUMENS, "Output", "lm");
+                AddM(ParamRegistry.LTG_EFFICACY, "Efficacy", "lm/W"); AddM(ParamRegistry.LTG_LAMP_TYPE, "Lamp", "");
+                AddM(ParamRegistry.ELC_CIRCUIT_NR, "Circuit", "");
+            }
+            else if (disc == "M" || categoryName == "Mechanical Equipment" || categoryName == "Ducts" ||
+                     categoryName == "Air Terminals" || categoryName == "Duct Fittings")
+            {
+                AddM(ParamRegistry.HVC_AIRFLOW, "Airflow", "L/s"); AddM(ParamRegistry.HVC_DUCT_FLOW, "Duct Flow", "CFM");
+                AddM(ParamRegistry.HVC_VELOCITY, "Velocity", "m/s"); AddM(ParamRegistry.HVC_PRESSURE, "Pressure Drop", "Pa");
+            }
+            else if (disc == "P" || categoryName == "Pipes" || categoryName == "Plumbing Fixtures" || categoryName == "Pipe Fittings")
+            {
+                AddM(ParamRegistry.PLM_PIPE_FLOW, "Pipe Flow", "L/s"); AddM(ParamRegistry.PLM_PIPE_SIZE, "Pipe Size", "mm");
+                AddM(ParamRegistry.PLM_VELOCITY, "Velocity", "m/s"); AddM(ParamRegistry.PLM_FLOW_RATE, "Flow Rate", "L/s");
+                AddM(ParamRegistry.PLM_PIPE_LENGTH, "Pipe Length", "m");
+            }
+            else if (disc == "FP" || categoryName == "Sprinklers" || categoryName == "Fire Alarm Devices")
+            {
+                AddM(ParamRegistry.FIRE_RATING, "Fire Resistance", "min");
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>Build marked-up dimensional data with «L»label«/L» «V»value«/V» tokens.</summary>
+        private static string BuildMarkedDimSection(Element el, string categoryName)
+        {
+            var sb = new System.Text.StringBuilder();
+            void AddM(string paramName, string label, string unit)
+            {
+                string v = ParameterHelpers.GetString(el, paramName);
+                if (!string.IsNullOrEmpty(v))
+                {
+                    if (sb.Length > 0) sb.Append(", ");
+                    sb.Append($"\u00ABL\u00BB{label}:\u00AB/L\u00BB \u00ABV\u00BB{v}{(string.IsNullOrEmpty(unit) ? "" : $" {unit}")}\u00AB/V\u00BB");
+                }
+            }
+            if (categoryName == "Walls")
+            {
+                AddM(ParamRegistry.WALL_HEIGHT, "Height", "mm"); AddM(ParamRegistry.WALL_LENGTH, "Length", "mm");
+                AddM(ParamRegistry.WALL_THICKNESS, "Thickness", "mm"); AddM(ParamRegistry.ELE_AREA, "Area", "m\u00B2");
+                AddM(ParamRegistry.FIRE_RATING, "Fire Resistance", "min"); AddM(ParamRegistry.STRUCT_TYPE, "Structural", "");
+            }
+            else if (categoryName == "Doors")
+            {
+                AddM(ParamRegistry.DOOR_WIDTH, "Width", "mm"); AddM(ParamRegistry.DOOR_HEIGHT, "Height", "mm");
+                AddM(ParamRegistry.FIRE_RATING, "Fire Resistance", "min");
+            }
+            else if (categoryName == "Windows")
+            {
+                AddM(ParamRegistry.WINDOW_WIDTH, "Width", "mm"); AddM(ParamRegistry.WINDOW_HEIGHT, "Height", "mm");
+                AddM(ParamRegistry.WINDOW_SILL, "Sill Height", "mm");
+            }
+            else if (categoryName == "Floors")
+            {
+                AddM(ParamRegistry.FLR_THICKNESS, "Thickness", "mm"); AddM(ParamRegistry.ELE_AREA, "Area", "m\u00B2");
+                AddM(ParamRegistry.STRUCT_TYPE, "Structural", ""); AddM(ParamRegistry.FIRE_RATING, "Fire Resistance", "min");
+            }
+            else if (categoryName == "Ceilings")
+            {
+                AddM(ParamRegistry.CEILING_HEIGHT, "Height", "mm"); AddM(ParamRegistry.ELE_AREA, "Area", "m\u00B2");
+            }
+            else if (categoryName == "Roofs")
+            {
+                AddM(ParamRegistry.ROOF_SLOPE, "Slope", "\u00B0"); AddM(ParamRegistry.ELE_AREA, "Area", "m\u00B2");
+            }
+            else if (categoryName == "Stairs")
+            {
+                AddM(ParamRegistry.STAIR_TREAD, "Tread", "mm"); AddM(ParamRegistry.STAIR_RISE, "Riser", "mm");
+                AddM(ParamRegistry.STAIR_WIDTH, "Width", "mm");
+            }
+            else if (categoryName == "Ramps")
+            {
+                AddM(ParamRegistry.RAMP_SLOPE, "Slope", "%"); AddM(ParamRegistry.RAMP_WIDTH, "Width", "mm");
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Build discipline-specific technical data section for TAG7 narrative.
+        /// Reads electrical ratings, HVAC airflow, plumbing flow rates, and lighting
+        /// performance data based on the element's discipline code.
+        /// </summary>
+        private static string BuildDisciplineTechSection(Element el, string disc, string categoryName)
+        {
+            var tech = new System.Text.StringBuilder();
+
+            if (disc == "E" || categoryName == "Electrical Equipment" || categoryName == "Electrical Fixtures")
+            {
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_POWER), "Power: {0} kW");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_VOLTAGE), "Voltage: {0} V");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_CIRCUIT_NR), "Circuit: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_NAME), "Panel: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PHASES), "Phases: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_FED_FROM), "Fed from: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_MAIN_BRK), "Main Breaker: {0} A");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_WAYS), "Ways: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_IP_RATING), "IP Rating: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_LOAD), "Connected Load: {0} kW");
+            }
+            else if (categoryName == "Lighting Fixtures" || categoryName == "Lighting Devices")
+            {
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_WATTAGE), "Wattage: {0} W");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_LUMENS), "Luminous Output: {0} lm");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_EFFICACY), "Efficacy: {0} lm/W");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_LAMP_TYPE), "Lamp Type: {0}");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_CIRCUIT_NR), "Circuit: {0}");
+            }
+            else if (disc == "M" || categoryName == "Mechanical Equipment" || categoryName == "Ducts" ||
+                     categoryName == "Air Terminals" || categoryName == "Duct Fittings")
+            {
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_AIRFLOW), "Airflow: {0} L/s");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_DUCT_FLOW), "Duct Flow: {0} CFM");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_VELOCITY), "Velocity: {0} m/s");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_PRESSURE), "Pressure Drop: {0} Pa");
+            }
+            else if (disc == "P" || categoryName == "Pipes" || categoryName == "Plumbing Fixtures" ||
+                     categoryName == "Pipe Fittings")
+            {
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_FLOW), "Pipe Flow: {0} L/s");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_SIZE), "Pipe Size: {0} mm");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_VELOCITY), "Velocity: {0} m/s");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_FLOW_RATE), "Flow Rate: {0} L/s");
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_LENGTH), "Pipe Length: {0} m");
+            }
+            else if (disc == "FP" || categoryName == "Sprinklers" || categoryName == "Fire Alarm Devices")
+            {
+                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "Fire Resistance Rating: {0} minutes");
+            }
+
+            return tech.Length > 0 ? tech.ToString() : "";
+        }
+
+        /// <summary>
+        /// Build dimensional properties section for TAG7 narrative.
+        /// Reads category-specific BLE dimensional parameters (height, width, thickness,
+        /// area, slope, fire rating) for building elements.
+        /// </summary>
+        private static string BuildDimensionalSection(Element el, string categoryName)
+        {
+            var dim = new System.Text.StringBuilder();
+
+            if (categoryName == "Walls")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_HEIGHT), "Wall Height: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_LENGTH), "Wall Length: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_THICKNESS), "Wall Thickness: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "Area: {0} m²");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "Fire Resistance: {0} min");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STRUCT_TYPE), "Structural Type: {0}");
+            }
+            else if (categoryName == "Doors")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.DOOR_WIDTH), "Door Width: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.DOOR_HEIGHT), "Door Height: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "Fire Resistance: {0} min");
+            }
+            else if (categoryName == "Windows")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_WIDTH), "Window Width: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_HEIGHT), "Window Height: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_SILL), "Sill Height: {0} mm");
+            }
+            else if (categoryName == "Floors")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.FLR_THICKNESS), "Floor Thickness: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "Area: {0} m²");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STRUCT_TYPE), "Structural Type: {0}");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "Fire Resistance: {0} min");
+            }
+            else if (categoryName == "Ceilings")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.CEILING_HEIGHT), "Ceiling Height: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "Area: {0} m²");
+            }
+            else if (categoryName == "Roofs")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ROOF_SLOPE), "Roof Slope: {0}°");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "Area: {0} m²");
+            }
+            else if (categoryName == "Stairs")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_TREAD), "Tread Depth: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_RISE), "Riser Height: {0} mm");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_WIDTH), "Stair Width: {0} mm");
+            }
+            else if (categoryName == "Ramps")
+            {
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.RAMP_SLOPE), "Ramp Slope: {0}%");
+                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.RAMP_WIDTH), "Ramp Width: {0} mm");
+            }
+
+            return dim.Length > 0 ? dim.ToString() : "";
+        }
+
+        /// <summary>Append a formatted value to a StringBuilder if the value is not empty.</summary>
+        private static void AppendIfNotEmpty(System.Text.StringBuilder sb, string value, string format)
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                if (sb.Length > 0) sb.Append(", ");
+                sb.Append(string.Format(format, value));
+            }
         }
     }
 

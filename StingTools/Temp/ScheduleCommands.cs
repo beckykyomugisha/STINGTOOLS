@@ -710,10 +710,8 @@ namespace StingTools.Temp
             Document doc = commandData.Application.ActiveUIDocument.Document;
 
             // ── Prepare indexes ────────────────────────────────────────────────
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
-            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Load formula engine
             string csvPath = StingToolsApp.FindDataFile("FORMULAS_WITH_DEPENDENCIES.csv");
@@ -737,60 +735,30 @@ namespace StingTools.Temp
 
             int tokensFilled = 0, nativesMapped = 0, formulasWritten = 0;
             int tagged = 0, combined = 0, gridRefSet = 0;
+            int statusDetected = 0, revSet = 0;
             int totalElements = 0;
+            int errors = 0;
 
             // Container definitions loaded from ParamRegistry.ContainerGroups
 
             using (Transaction tx = new Transaction(doc, "STING Full Auto-Populate"))
             {
                 tx.Start();
-
-                int errors = 0;
                 foreach (Element el in allElements)
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
-                    if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
+                    if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
                         continue;
 
                     totalElements++;
 
                     try
                     {
-                    // ── STEP 1: Tag token population ───────────────────────────
-                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC,
-                        TagConfig.DiscMap[catName])) tokensFilled++;
-
-                    string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                    if (!string.IsNullOrEmpty(prod))
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) tokensFilled++;
-
-                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                    if (!string.IsNullOrEmpty(sys))
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) tokensFilled++;
-
-                    string func = TagConfig.GetSmartFuncCode(el, sys);
-                    if (!string.IsNullOrEmpty(func))
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) tokensFilled++;
-
-                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                    if (lvl != "XX")
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) tokensFilled++;
-
-                    // LOC from spatial
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
-                    {
-                        string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (!string.IsNullOrEmpty(loc) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc))
-                            tokensFilled++;
-                    }
-
-                    // ZONE from room
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
-                    {
-                        string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (!string.IsNullOrEmpty(zone) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone))
-                            tokensFilled++;
-                    }
+                    // ── STEP 1: Full 9-token population via TokenAutoPopulator ──
+                    var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx);
+                    tokensFilled += popResult.TokensSet;
+                    if (popResult.StatusDetected) statusDetected++;
+                    if (popResult.RevSet) revSet++;
 
                     // ── STEP 2: Native parameter mapping ───────────────────────
                     nativesMapped += NativeParamMapper.MapAll(doc, el);
@@ -840,10 +808,11 @@ namespace StingTools.Temp
 
                     // ── STEP 5: Combine into all containers via ParamRegistry ───
                     string[] tokenValues = ParamRegistry.ReadTokenValues(el);
-                    if (tokenValues.Any(v => !string.IsNullOrEmpty(v)))
-                    {
-                        combined += ParamRegistry.WriteContainers(el, tokenValues, catName);
-                    }
+                    combined += ParamRegistry.WriteContainers(el, tokenValues, catName,
+                        skipParam: ParamRegistry.TAG7);
+
+                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                    combined += TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
 
                     // ── STEP 6: Grid Reference ─────────────────────────────────
                     if (gridLines.Count > 0 &&
@@ -876,6 +845,10 @@ namespace StingTools.Temp
             report.AppendLine(new string('═', 50));
             report.AppendLine($"  Elements processed:    {totalElements}");
             report.AppendLine($"  Tag tokens filled:     {tokensFilled}");
+            if (statusDetected > 0)
+                report.AppendLine($"  STATUS auto-detected:  {statusDetected} (from Revit phases/worksets)");
+            if (revSet > 0)
+                report.AppendLine($"  REV auto-set:          {revSet} (revision '{popCtx.ProjectRev}')");
             report.AppendLine($"  Native params mapped:  {nativesMapped}");
             report.AppendLine($"  Formulas evaluated:    {formulasWritten}");
             report.AppendLine($"  Tags built (SEQ):      {tagged}");
@@ -886,12 +859,13 @@ namespace StingTools.Temp
                 report.AppendLine($"  Errors (skipped):      {errors}");
             report.AppendLine($"  Duration:              {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
-            report.AppendLine("Pipeline: Tokens → Dimensions → MEP → Formulas → Tags → Combine → Grid");
+            report.AppendLine("Pipeline: Tokens(9) → Dimensions → MEP → Formulas → Tags → Combine → Grid");
 
             TaskDialog.Show("Full Auto-Populate", report.ToString());
 
             StingLog.Info($"FullAutoPopulate: {totalElements} elements, " +
-                $"tokens={tokensFilled}, natives={nativesMapped}, formulas={formulasWritten}, " +
+                $"tokens={tokensFilled}, statusDetect={statusDetected}, revSet={revSet}, " +
+                $"natives={nativesMapped}, formulas={formulasWritten}, " +
                 $"tags={tagged}, combined={combined}, grids={gridRefSet}, " +
                 $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
 

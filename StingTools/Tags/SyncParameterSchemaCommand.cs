@@ -305,15 +305,36 @@ namespace StingTools.Tags
                 if (cols.Length < 2) continue;
                 formulaCount++;
 
-                // Check target param
+                // Check target param exists in registry
                 string target = cols[0].Trim();
-                // We only flag registry-managed params that might have been renamed
-                // (non-registry params are out of scope)
+                if (!string.IsNullOrEmpty(target) && !knownParams.Contains(target))
+                {
+                    unknownParams.Add(target);
+                    unknownRefs++;
+                }
+
+                // Check dependency params (col index 2+) if present
+                for (int i = 2; i < cols.Length; i++)
+                {
+                    string dep = cols[i].Trim();
+                    if (!string.IsNullOrEmpty(dep) && !knownParams.Contains(dep)
+                        && !dep.StartsWith("=") && !dep.Contains("("))
+                    {
+                        unknownParams.Add(dep);
+                        unknownRefs++;
+                    }
+                }
             }
 
             report.AppendLine($"  {formulaCount} formulas validated");
             if (unknownRefs > 0)
-                report.AppendLine($"  WARNING: {unknownRefs} references to unknown params");
+            {
+                report.AppendLine($"  WARNING: {unknownRefs} references to unknown params:");
+                foreach (string p in unknownParams.Take(10))
+                    report.AppendLine($"    ? {p}");
+                if (unknownParams.Count > 10)
+                    report.AppendLine($"    ... and {unknownParams.Count - 10} more");
+            }
             else
                 report.AppendLine("  No issues found");
         }
