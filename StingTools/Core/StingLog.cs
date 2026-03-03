@@ -1,8 +1,32 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace StingTools.Core
 {
+    /// <summary>
+    /// Checks whether the user has pressed Escape to cancel a long-running batch operation.
+    /// Uses Win32 GetAsyncKeyState to poll the keyboard without blocking Revit's UI thread.
+    /// Call <see cref="IsEscapePressed"/> periodically (e.g., every 100-500 elements) inside
+    /// batch processing loops. When it returns true, roll back the transaction and exit.
+    /// </summary>
+    public static class EscapeChecker
+    {
+        private const int VK_ESCAPE = 0x1B;
+
+        [DllImport("user32.dll")]
+        private static extern short GetAsyncKeyState(int vKey);
+
+        /// <summary>
+        /// Returns true if the Escape key is currently pressed (or was pressed since last check).
+        /// Lightweight — safe to call in tight loops.
+        /// </summary>
+        public static bool IsEscapePressed()
+        {
+            return (GetAsyncKeyState(VK_ESCAPE) & 0x8001) != 0;
+        }
+    }
+
     /// <summary>
     /// Lightweight logger for STING Tools. Writes to a log file alongside the DLL
     /// and optionally to the Revit journal. Replaces silent catch blocks throughout

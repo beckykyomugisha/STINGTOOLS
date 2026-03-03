@@ -91,7 +91,10 @@ namespace StingTools.Temp
                         emptySchedules++;
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ScheduleAudit: cannot read body of '{name}': {ex.Message}");
+                }
 
                 // Check filters
                 if (def.GetFilterCount() > 0) hasFilters++;
@@ -1227,7 +1230,10 @@ namespace StingTools.Temp
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ScheduleReport: data stats failed for '{sched.Name}': {ex.Message}");
+            }
 
             // Field details
             report.AppendLine();

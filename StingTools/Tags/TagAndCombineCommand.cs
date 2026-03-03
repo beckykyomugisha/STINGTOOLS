@@ -119,11 +119,23 @@ namespace StingTools.Tags
             // Container definitions now loaded from PARAMETER_REGISTRY.json via ParamRegistry
             // This eliminates DRY violations — all container definitions in a single source of truth.
 
+            bool cancelled = false;
+
             using (Transaction tx = new Transaction(doc, "STING Tag & Combine All"))
             {
                 tx.Start();
+                int loopIndex = 0;
                 foreach (ElementId id in targetIds)
                 {
+                    // Check for user cancellation via Escape key every 100 elements
+                    if (loopIndex % 100 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        StingLog.Info($"TagAndCombine: cancelled by user at {totalProcessed} processed");
+                        cancelled = true;
+                        break;
+                    }
+                    loopIndex++;
+
                     Element el = doc.GetElement(id);
                     if (el == null) continue;
 
@@ -226,6 +238,13 @@ namespace StingTools.Tags
                         StingLog.Error($"TagAndCombine: failed on element {id}: {ex.Message}", ex);
                         errors++;
                     }
+                }
+
+                if (cancelled)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Tag & Combine", $"Cancelled by user.\n{totalProcessed} elements processed before cancellation.\nAll changes rolled back.");
+                    return Result.Cancelled;
                 }
 
                 tx.Commit();

@@ -5175,7 +5175,10 @@ namespace StingTools.Tags
                         .WhereElementIsNotElementType()
                         .Where(e => e.Category != null && e.Category.HasMaterialQuantities));
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"SystemLegend: failed to collect elements from view '{v.Name}': {ex.Message}");
+                }
             }
 
             var unique = sheetElements.GroupBy(e => e.Id).Select(g => g.First()).ToList();
@@ -5603,7 +5606,10 @@ namespace StingTools.Tags
                             }
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"SheetLegend: discipline detection failed for view: {ex.Message}");
+                    }
                 }
 
                 // Add disciplines that represent >10% of elements
@@ -6580,7 +6586,10 @@ namespace StingTools.Tags
                         Italic = ogs.Halftone,
                     });
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"CategoryLegend: failed reading overrides for '{cat?.Name}': {ex.Message}");
+                }
             }
 
             return entries;

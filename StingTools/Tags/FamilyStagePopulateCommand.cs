@@ -123,12 +123,23 @@ namespace StingTools.Tags
             int familyProdUsed = 0;
             int phaseDetected = 0;
 
+            bool cancelled = false;
+
             using (Transaction tx = new Transaction(doc, "STING Family-Stage Populate"))
             {
                 tx.Start();
 
+                int loopIndex = 0;
                 foreach (ElementId id in targetIds)
                 {
+                    if (loopIndex % 100 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        StingLog.Info($"FamilyStagePopulate: cancelled by user at {processed} processed");
+                        cancelled = true;
+                        break;
+                    }
+                    loopIndex++;
+
                     Element el = doc.GetElement(id);
                     if (el == null) continue;
 
@@ -294,6 +305,13 @@ namespace StingTools.Tags
                     {
                         StingLog.Error($"FamilyStagePopulate: element {el?.Id}: {ex.Message}", ex);
                     }
+                }
+
+                if (cancelled)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Family-Stage Populate", $"Cancelled by user.\n{processed} elements processed before cancellation.\nAll changes rolled back.");
+                    return Result.Cancelled;
                 }
 
                 tx.Commit();

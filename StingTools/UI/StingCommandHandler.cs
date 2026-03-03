@@ -2562,7 +2562,10 @@ namespace StingTools.UI
                     if (perimP != null && perimP.HasValue)
                         totalPerimeter += perimP.AsDouble();
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Measurement: failed on element {e?.Id}: {ex.Message}");
+                }
             }
 
             var report = new StringBuilder();

@@ -124,12 +124,23 @@ namespace StingTools.Tags
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             var stats = new TaggingStats();
 
+            bool cancelled = false;
+
             using (Transaction tx = new Transaction(doc, "STING Auto Tag"))
             {
                 tx.Start();
 
+                int processed = 0;
                 foreach (Element el in sorted)
                 {
+                    if (processed % 100 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        StingLog.Info($"AutoTag: cancelled by user at {processed}/{taggable}");
+                        cancelled = true;
+                        break;
+                    }
+                    processed++;
+
                     try
                     {
                         // Full 9-token auto-population via shared helper
@@ -157,6 +168,13 @@ namespace StingTools.Tags
                         StingLog.Error($"AutoTag: failed on element {el?.Id}: {ex.Message}", ex);
                         stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
                     }
+                }
+
+                if (cancelled)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Auto Tag", $"Cancelled by user.\nAll changes rolled back.");
+                    return Result.Cancelled;
                 }
 
                 tx.Commit();
@@ -248,12 +266,23 @@ namespace StingTools.Tags
             int populated = 0;
             int statusDetected = 0, revSet = 0;
 
+            bool cancelled = false;
+
             using (Transaction tx = new Transaction(doc, "STING Tag New Only"))
             {
                 tx.Start();
 
+                int processed = 0;
                 foreach (Element el in sorted)
                 {
+                    if (processed % 100 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        StingLog.Info($"TagNewOnly: cancelled by user at {processed}/{untagged.Count}");
+                        cancelled = true;
+                        break;
+                    }
+                    processed++;
+
                     try
                     {
                         // Full 9-token auto-population via shared helper
@@ -276,6 +305,13 @@ namespace StingTools.Tags
                         StingLog.Error($"TagNewOnly: failed on element {el?.Id}: {ex.Message}", ex);
                         stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
                     }
+                }
+
+                if (cancelled)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Tag New Only", $"Cancelled by user.\nAll changes rolled back.");
+                    return Result.Cancelled;
                 }
 
                 tx.Commit();

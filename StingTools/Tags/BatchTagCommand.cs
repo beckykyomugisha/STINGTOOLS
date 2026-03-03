@@ -105,6 +105,8 @@ namespace StingTools.Tags
 
             StingLog.Info($"Batch Tag: starting — {totalTaggable} taggable, {alreadyTagged} tagged, mode={collisionMode}");
 
+            bool cancelled = false;
+
             using (Transaction tx = new Transaction(doc, "STING Batch Tag"))
             {
                 tx.Start();
@@ -112,6 +114,14 @@ namespace StingTools.Tags
                 int processed = 0;
                 foreach (Element el in sorted)
                 {
+                    // Check for user cancellation via Escape key every 100 elements
+                    if (processed % 100 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        StingLog.Info($"Batch Tag: cancelled by user at {processed}/{totalTaggable}");
+                        cancelled = true;
+                        break;
+                    }
+
                     try
                     {
                         // Full 9-token auto-population via shared helper
@@ -144,6 +154,13 @@ namespace StingTools.Tags
                     if (processed % 500 == 0)
                         StingLog.Info($"Batch Tag progress: {processed}/{totalTaggable} " +
                             $"({stats.TotalTagged} tagged, {stats.TotalCollisions} collisions)");
+                }
+
+                if (cancelled)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Batch Tag", $"Cancelled by user.\n{processed} of {totalTaggable} elements processed.\nAll changes rolled back.");
+                    return Result.Cancelled;
                 }
 
                 tx.Commit();

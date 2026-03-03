@@ -275,8 +275,8 @@ namespace StingTools.Core
                     return $"SEQ '{value}' is not a valid number";
                 if (seqVal < 0)
                     return $"SEQ '{value}' must be a positive number";
-                if (value.Length > NumPad + 1)
-                    return $"SEQ '{value}' exceeds {NumPad}-digit format";
+                if (value.Length > TagConfig.NumPad + 1)
+                    return $"SEQ '{value}' exceeds {TagConfig.NumPad}-digit format";
             }
             return null; // valid
         }
@@ -315,13 +315,7 @@ namespace StingTools.Core
                 if (expectedDisc != null && !string.IsNullOrEmpty(sys))
                     expectedDisc = TagConfig.GetSystemAwareDisc(expectedDisc, sys, catName);
                 if (expectedDisc != null && expectedDisc != disc)
-                {
-                    // Allow system-aware correction: pipes/pipe fittings can be P instead of M
-                    string sysVal = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                    string correctedDisc = GetSystemAwareDisc(expectedDisc, sysVal, catName);
-                    if (correctedDisc != disc)
-                        errors.Add($"DISC mismatch: element category '{catName}' expects '{correctedDisc}' but has '{disc}'");
-                }
+                    errors.Add($"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'");
             }
 
             // Cross-validate: SYS should be valid for this category
@@ -331,20 +325,20 @@ namespace StingTools.Core
             {
                 bool sysValidForCategory = false;
                 // Check if this SYS code lists this category in SysMap
-                if (SysMap.TryGetValue(sys, out var sysCats) && sysCats.Contains(catName))
+                if (TagConfig.SysMap.TryGetValue(sys, out var sysCats) && sysCats.Contains(catName))
                     sysValidForCategory = true;
                 // Also accept discipline-default SYS codes (ARC, STR, GEN, etc.)
-                string discForCat = DiscMap.TryGetValue(catName, out string dc) ? dc : "A";
-                if (sys == GetDiscDefaultSysCode(discForCat))
+                string discForCat = TagConfig.DiscMap.TryGetValue(catName, out string dc) ? dc : "A";
+                if (sys == TagConfig.GetDiscDefaultSysCode(discForCat))
                     sysValidForCategory = true;
                 if (!sysValidForCategory)
                 {
                     // Find what SYS codes ARE valid for this category
-                    var validSysForCat = SysMap.Where(kvp => kvp.Value.Contains(catName))
+                    var validSysForCat = TagConfig.SysMap.Where(kvp => kvp.Value.Contains(catName))
                         .Select(kvp => kvp.Key).ToList();
                     string validList = validSysForCat.Count > 0
                         ? string.Join("/", validSysForCat)
-                        : GetDiscDefaultSysCode(discForCat);
+                        : TagConfig.GetDiscDefaultSysCode(discForCat);
                     errors.Add($"SYS mismatch: category '{catName}' expects '{validList}' but has '{sys}'");
                 }
             }
