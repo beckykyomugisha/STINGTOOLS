@@ -775,6 +775,20 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Match Widest" Tag="SchedMatchWidest" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Set Width" Tag="SchedSetWidth" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Equalise" Tag="SchedEqualise" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Fit" Tag="SchedAutoFit" Click="Cmd_Click" ToolTip="Auto-fit column widths based on data content"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Unhide All" Tag="SchedToggleHidden" Click="Cmd_Click" ToolTip="Reveal all hidden fields"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="SCHEDULE MANAGEMENT"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="ScheduleAudit" Click="Cmd_Click" ToolTip="Audit all schedules for issues and CSV coverage"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compare" Tag="ScheduleCompare" Click="Cmd_Click" ToolTip="Compare two schedules side-by-side"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Duplicate" Tag="ScheduleDuplicate" Click="Cmd_Click" ToolTip="Clone current schedule with new name"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Refresh" Tag="ScheduleRefresh" Click="Cmd_Click" ToolTip="Re-apply formatting from CSV definitions"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Field Mgr" Tag="ScheduleFieldMgr" Click="Cmd_Click" ToolTip="Bulk add/remove/reorder fields"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Colors" Tag="ScheduleColor" Click="Cmd_Click" ToolTip="Apply discipline color formatting"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stats" Tag="ScheduleStats" Click="Cmd_Click" ToolTip="Schedule statistics and data fill"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Delete" Tag="ScheduleDelete" Click="Cmd_Click" ToolTip="Batch delete empty/unplaced/non-STING schedules"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Report" Tag="ScheduleReport" Click="Cmd_Click" ToolTip="Export comprehensive schedule report to CSV"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -1125,6 +1139,23 @@
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource BlueBtn}" Content="Completeness %" Tag="CompletenessDashboard" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Find Duplicates" Tag="FindDuplicates" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PARAGRAPH & PRESENTATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ PARAGRAPH &amp; PRESENTATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#7B1FA2">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Presentation Mode" Tag="SetPresentationMode" Click="Cmd_Click" ToolTip="One-click switch: Compact / Technical / Full Spec / Presentation / BOQ"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Paragraph Depth" Tag="SetParagraphDepth" Click="Cmd_Click" ToolTip="Set compact/standard/comprehensive depth on element types"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Toggle Warnings" Tag="ToggleWarningVisibility" Click="Cmd_Click" ToolTip="Show/hide threshold warning text in tags"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="View Label Spec" Tag="ViewLabelSpec" Click="Cmd_Click" ToolTip="Show Edit Label configuration guide for any category"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Label Guide" Tag="ExportLabelGuide" Click="Cmd_Click" ToolTip="Export complete label guide to text file"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="TAG7 Heading Style" Tag="SetTag7HeadingStyle" Click="Cmd_Click" ToolTip="Set bold/italic/underline style for TAG7 short tag heading (ASS_TAG_2_TXT)"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
