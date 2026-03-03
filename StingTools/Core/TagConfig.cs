@@ -1019,9 +1019,9 @@ namespace StingTools.Core
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
-                // Always remove old tag from index before adding new one —
-                // prevents stale entries even when not overwriting tokens
-                if (!string.IsNullOrEmpty(existingTag))
+                // Only remove old tag from index when overwriting — prevents
+                // stale removal when multiple elements share the same existing tag
+                if (overwriteTokens && !string.IsNullOrEmpty(existingTag))
                     existingTags.Remove(existingTag);
                 existingTags.Add(tag);
             }

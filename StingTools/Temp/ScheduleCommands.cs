@@ -312,6 +312,9 @@ namespace StingTools.Temp
                         && !string.IsNullOrEmpty(oldField)
                         && !string.IsNullOrEmpty(newField))
                     {
+                        if (remaps.ContainsKey(oldField))
+                            StingLog.Warn($"SCHEDULE_FIELD_REMAP: duplicate source key '{oldField}' — " +
+                                $"overwriting '{remaps[oldField]}' with '{newField}'");
                         remaps[oldField] = newField;
                     }
                 }

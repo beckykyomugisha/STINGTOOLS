@@ -693,7 +693,9 @@ namespace StingTools.UI
 
                     // ── Unmapped / placeholder ──
                     default:
-                        StingLog.Info($"DockPanel command not yet mapped: {_commandTag}");
+                        StingLog.Warn($"Unrecognised command tag: {_commandTag}");
+                        TaskDialog.Show("STING Tools",
+                            $"Command '{_commandTag}' is not yet available.\nCheck for plugin updates.");
                         break;
                 }
             }

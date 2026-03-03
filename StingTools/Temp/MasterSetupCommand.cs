@@ -79,6 +79,22 @@ namespace StingTools.Temp
             int failed = 0;
             var totalSw = Stopwatch.StartNew();
 
+            // Step 0: Load project_config.json so tag format, LOC/ZONE codes,
+            // and discipline mappings reflect user's project settings
+            string configPath = StingToolsApp.FindDataFile("project_config.json");
+            if (!string.IsNullOrEmpty(configPath))
+            {
+                TagConfig.LoadFromFile(configPath);
+                StingLog.Info($"Master Setup: loaded project config from {configPath}");
+                report.AppendLine($"   0. Load project_config.json — OK");
+            }
+            else
+            {
+                TagConfig.LoadDefaults();
+                StingLog.Info("Master Setup: project_config.json not found, using defaults");
+                report.AppendLine($"   0. Load project_config.json — SKIPPED (using defaults)");
+            }
+
             using (TransactionGroup tg = new TransactionGroup(doc, "STING Master Setup"))
             {
                 tg.Start();
