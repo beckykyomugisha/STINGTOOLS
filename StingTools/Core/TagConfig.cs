@@ -505,25 +505,30 @@ namespace StingTools.Core
         public static string ConfigSource { get; private set; }
 
         /// <summary>Reverse lookup: category name → SYS code. Built lazily from SysMap.</summary>
-        private static Dictionary<string, string> _reverseSysMap;
+        private static Dictionary<string, List<string>> _reverseSysMap;
 
         static TagConfig()
         {
             LoadDefaults();
         }
 
-        /// <summary>Build or return the cached reverse SysMap (category → SYS code).</summary>
-        private static Dictionary<string, string> GetReverseSysMap()
+        /// <summary>Build or return the cached reverse SysMap (category → list of valid SYS codes).</summary>
+        private static Dictionary<string, List<string>> GetReverseSysMap()
         {
             if (_reverseSysMap == null)
             {
-                _reverseSysMap = new Dictionary<string, string>(StringComparer.Ordinal);
+                _reverseSysMap = new Dictionary<string, List<string>>(StringComparer.Ordinal);
                 foreach (var kvp in SysMap)
                 {
                     foreach (string cat in kvp.Value)
                     {
-                        if (!_reverseSysMap.ContainsKey(cat))
-                            _reverseSysMap[cat] = kvp.Key;
+                        if (!_reverseSysMap.TryGetValue(cat, out var list))
+                        {
+                            list = new List<string>();
+                            _reverseSysMap[cat] = list;
+                        }
+                        if (!list.Contains(kvp.Key))
+                            list.Add(kvp.Key);
                     }
                 }
             }
@@ -577,11 +582,20 @@ namespace StingTools.Core
             ConfigSource = "built-in defaults";
         }
 
-        /// <summary>Get the SYS code for a category name. O(1) via cached reverse lookup.</summary>
+        /// <summary>Get the first valid SYS code for a category name. O(1) via cached reverse lookup.
+        /// For categories with multiple valid systems (e.g., Pipes), returns the first match.
+        /// Use <see cref="GetAllSysCodes"/> when the full list is needed.</summary>
         public static string GetSysCode(string categoryName)
         {
             var reverse = GetReverseSysMap();
-            return reverse.TryGetValue(categoryName, out string sys) ? sys : string.Empty;
+            return reverse.TryGetValue(categoryName, out var list) && list.Count > 0 ? list[0] : string.Empty;
+        }
+
+        /// <summary>Get ALL valid SYS codes for a category (e.g., Pipes → DCW, DHW, SAN, RWD, GAS, FP, HWS).</summary>
+        public static List<string> GetAllSysCodes(string categoryName)
+        {
+            var reverse = GetReverseSysMap();
+            return reverse.TryGetValue(categoryName, out var list) ? list : new List<string>();
         }
 
         /// <summary>Get the FUNC code for a SYS code (basic lookup).</summary>
@@ -594,7 +608,7 @@ namespace StingTools.Core
         /// Get a guaranteed default SYS code from a discipline code.
         /// Used as a fallback when MEP system detection returns empty —
         /// ensures every element gets a valid SYS token.
-        /// M→HVAC, E→LV, P→DHW, A→ARC, S→STR, FP→FP, LV→LV, G→GAS, else GEN.
+        /// M→HVAC, E→LV, P→DCW (cold water bias), A→ARC, S→STR, FP→FP, LV→LV, G→GEN, else GEN.
         /// </summary>
         public static string GetDiscDefaultSysCode(string disc)
         {
@@ -602,12 +616,12 @@ namespace StingTools.Core
             {
                 case "M":  return "HVAC";
                 case "E":  return "LV";
-                case "P":  return "DHW";
+                case "P":  return "DCW"; // Cold water is more prevalent than DHW for unconnected pipes
                 case "A":  return "ARC";
                 case "S":  return "STR";
                 case "FP": return "FP";
                 case "LV": return "LV";
-                case "G":  return "GAS";
+                case "G":  return "GEN"; // Generic Models/Specialty Equipment — not gas-specific
                 default:   return "GEN";
             }
         }
@@ -1819,13 +1833,17 @@ namespace StingTools.Core
         {
             return new Dictionary<string, List<string>>
             {
-                { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Flex Ducts", "Mechanical Equipment" } },
-                // Pipes default to DCW (Domestic Cold Water per CIBSE/CAWS S10); runtime MEP
-                // system detection in GetMepSystemAwareSysCode overrides to HWS/SAN/GAS as needed
-                { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories" } },
-                { "SAN", new List<string> { "Plumbing Fixtures" } },
-                { "DHW", new List<string> { "Flex Pipes" } },
-                { "FP", new List<string> { "Sprinklers" } },
+                { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Flex Ducts", "Mechanical Equipment", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                // Pipes default to DCW (cold water bias); runtime MEP detection overrides.
+                // All pipe categories appear in every applicable system entry so
+                // GetAllSysCodes() returns the full list for validation (BUG-001 fix).
+                { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" } },
+                { "DHW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                { "HWS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                { "SAN", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" } },
+                { "RWD", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                { "GAS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                { "FP", new List<string> { "Sprinklers", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
                 { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings" } },
                 { "FLS", new List<string> { "Fire Alarm Devices" } },
                 { "COM", new List<string> { "Communication Devices", "Telephone Devices" } },

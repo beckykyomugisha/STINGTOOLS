@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
@@ -11,11 +12,43 @@ namespace StingTools.Core
     /// </summary>
     public static class ParameterHelpers
     {
+        // Parameter lookup cache: avoids O(n) LookupParameter on every call.
+        // Keyed by (ElementId typeId, string paramName) → Definition.
+        // Null values are cached to avoid repeated miss lookups.
+        private static readonly ConcurrentDictionary<(ElementId, string), Definition> _paramCache
+            = new ConcurrentDictionary<(ElementId, string), Definition>();
+
+        /// <summary>Clear the parameter lookup cache. Call on document close or when
+        /// shared parameters change (e.g., after LoadSharedParams).</summary>
+        public static void ClearParamCache()
+        {
+            _paramCache.Clear();
+        }
+
+        /// <summary>Cached parameter lookup. Uses element's TypeId + paramName as cache key.
+        /// Falls back to LookupParameter on first access per type, then O(1) thereafter.</summary>
+        private static Parameter CachedLookup(Element el, string paramName)
+        {
+            ElementId typeId = el.GetTypeId();
+            var key = (typeId, paramName);
+
+            if (!_paramCache.TryGetValue(key, out Definition cachedDef))
+            {
+                Parameter found = el.LookupParameter(paramName);
+                // Cache the Definition (not Parameter — that's per-element)
+                _paramCache[key] = found?.Definition;
+                return found;
+            }
+
+            if (cachedDef == null) return null; // Known miss
+            return el.get_Parameter(cachedDef);
+        }
+
         /// <summary>Return the string value of a named parameter, or empty string.</summary>
         public static string GetString(Element el, string paramName)
         {
             if (el == null || string.IsNullOrEmpty(paramName)) return string.Empty;
-            Parameter p = el.LookupParameter(paramName);
+            Parameter p = CachedLookup(el, paramName);
             if (p != null && p.StorageType == StorageType.String)
             {
                 string v = p.AsString();
@@ -29,7 +62,7 @@ namespace StingTools.Core
             bool overwrite = false)
         {
             if (el == null || string.IsNullOrEmpty(paramName)) return false;
-            Parameter p = el.LookupParameter(paramName);
+            Parameter p = CachedLookup(el, paramName);
             if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
                 return false;
 

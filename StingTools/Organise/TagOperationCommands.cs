@@ -421,6 +421,11 @@ namespace StingTools.Organise
                 groups[key].Add(elem);
             }
 
+            // BUG-008: Build existing tag index for post-renumber collision check
+            var existingTagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var newTags = new HashSet<string>(StringComparer.Ordinal);
+            int collisions = 0;
+
             int renumbered = 0;
             using (Transaction tx = new Transaction(doc, "STING Renumber Tags"))
             {
@@ -460,12 +465,38 @@ namespace StingTools.Organise
 
                         string tag = string.Join(ParamRegistry.Separator,
                             disc, loc, zone, lvl, sys, func, prod, seqStr);
+
+                        // BUG-008: Check for collision with existing tags or within this batch
+                        if (existingTagIndex.Contains(tag) || newTags.Contains(tag))
+                        {
+                            // Auto-increment SEQ to resolve collision
+                            string groupKey = string.Join(ParamRegistry.Separator,
+                                disc, loc, zone, lvl, sys, func, prod);
+                            int incSeq = seq + 1;
+                            string incTag;
+                            do
+                            {
+                                string incSeqStr = incSeq.ToString().PadLeft(ParamRegistry.NumPad, '0');
+                                incTag = groupKey + ParamRegistry.Separator + incSeqStr;
+                                incSeq++;
+                            }
+                            while (existingTagIndex.Contains(incTag) || newTags.Contains(incTag));
+
+                            // Use resolved tag and SEQ
+                            int resolvedSeq = incSeq - 1;
+                            seqStr = resolvedSeq.ToString().PadLeft(ParamRegistry.NumPad, '0');
+                            tag = groupKey + ParamRegistry.Separator + seqStr;
+                            ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seqStr, overwrite: true);
+                            collisions++;
+                            StingLog.Warn($"Renumber collision: element {elem.Id} SEQ auto-incremented to {seqStr}");
+                        }
+                        newTags.Add(tag);
+
                         ParameterHelpers.SetString(elem, ParamRegistry.TAG1, tag, overwrite: true);
 
                         // Update containers and TAG7 + sub-sections with the new tag
                         try
                         {
-                            string catName = ParameterHelpers.GetCategoryName(elem);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
                             if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
                             {
@@ -485,7 +516,11 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
-            TaskDialog.Show("Renumber", $"Renumbered {renumbered} elements in {groups.Count} groups.");
+            string collisionNote = collisions > 0
+                ? $"\n{collisions} collision(s) auto-resolved by incrementing SEQ."
+                : "";
+            TaskDialog.Show("Renumber",
+                $"Renumbered {renumbered} elements in {groups.Count} groups.{collisionNote}");
             return Result.Succeeded;
         }
     }

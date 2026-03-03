@@ -63,6 +63,10 @@ namespace StingTools.Temp
             int totalErrors = 0;
             int elementsProcessed = 0;
 
+            // BUG-006: Per-formula error tracking
+            var formulaErrorCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            var formulaSampleFailures = new Dictionary<string, List<ElementId>>(StringComparer.Ordinal);
+
             using (Transaction tx = new Transaction(doc, "STING Evaluate Formulas"))
             {
                 tx.Start();
@@ -124,6 +128,17 @@ namespace StingTools.Temp
                         catch (Exception ex)
                         {
                             totalErrors++;
+                            // Per-formula error tracking
+                            string fKey = formula.ParameterName;
+                            if (!formulaErrorCounts.ContainsKey(fKey))
+                            {
+                                formulaErrorCounts[fKey] = 0;
+                                formulaSampleFailures[fKey] = new List<ElementId>();
+                            }
+                            formulaErrorCounts[fKey]++;
+                            if (formulaSampleFailures[fKey].Count < 5)
+                                formulaSampleFailures[fKey].Add(el.Id);
+
                             if (totalErrors <= 10)
                                 StingLog.Warn($"Formula '{formula.ParameterName}' on element {el.Id}: {ex.Message}");
                         }
@@ -146,7 +161,24 @@ namespace StingTools.Temp
             report.AppendLine($"Values written: {totalWritten}");
             report.AppendLine($"Evaluations attempted: {totalEvaluated}");
             if (totalErrors > 0)
+            {
                 report.AppendLine($"Errors: {totalErrors} (see log for details)");
+
+                // Report top-5 failing formulas
+                var topFailures = formulaErrorCounts
+                    .OrderByDescending(kvp => kvp.Value)
+                    .Take(5);
+                report.AppendLine();
+                report.AppendLine("Top failing formulas:");
+                foreach (var kvp in topFailures)
+                {
+                    string sampleIds = string.Join(", ",
+                        formulaSampleFailures[kvp.Key].Select(id => id.ToString()));
+                    report.AppendLine($"  {kvp.Key}: {kvp.Value} errors (samples: {sampleIds})");
+                    StingLog.Warn($"Formula summary: '{kvp.Key}' failed {kvp.Value} times, " +
+                        $"sample elements: {sampleIds}");
+                }
+            }
 
             TaskDialog.Show("Formula Evaluator", report.ToString());
 

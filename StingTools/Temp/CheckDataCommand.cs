@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Autodesk.Revit.Attributes;
@@ -70,6 +71,45 @@ namespace StingTools.Temp
             else
                 report.AppendLine("  Binding validation: skipped (CSV not found)");
 
+            // DAT-002: Data file version drift check
+            report.AppendLine();
+            report.AppendLine("── Version Drift Check ──");
+            string registryVersion = GetRegistryVersion(dataDir);
+            if (!string.IsNullOrEmpty(registryVersion))
+            {
+                report.AppendLine($"  PARAMETER_REGISTRY.json: v{registryVersion}");
+                int driftCount = 0;
+                string[] csvFiles = { "BLE_MATERIALS.csv", "MEP_MATERIALS.csv",
+                    "MR_PARAMETERS.csv", "MR_SCHEDULES.csv",
+                    "FORMULAS_WITH_DEPENDENCIES.csv", "SCHEDULE_FIELD_REMAP.csv",
+                    "BINDING_COVERAGE_MATRIX.csv", "CATEGORY_BINDINGS.csv",
+                    "FAMILY_PARAMETER_BINDINGS.csv", "PARAMETER__CATEGORIES.csv" };
+                foreach (string csvName in csvFiles)
+                {
+                    string csvFilePath = Path.Combine(dataDir, csvName);
+                    if (!File.Exists(csvFilePath)) continue;
+                    string csvVer = GetCsvVersion(csvFilePath);
+                    if (!string.IsNullOrEmpty(csvVer))
+                    {
+                        bool match = csvVer == registryVersion;
+                        if (!match)
+                        {
+                            report.AppendLine($"  {csvName,-40} v{csvVer}  ← DRIFT (registry v{registryVersion})");
+                            StingLog.Warn($"Version drift: {csvName} v{csvVer} vs PARAMETER_REGISTRY v{registryVersion}");
+                            driftCount++;
+                        }
+                    }
+                }
+                if (driftCount == 0)
+                    report.AppendLine("  All CSV versions consistent (no drift detected)");
+                else
+                    report.AppendLine($"  {driftCount} file(s) have version drift — consider updating");
+            }
+            else
+            {
+                report.AppendLine("  PARAMETER_REGISTRY.json: version not found (skipping drift check)");
+            }
+
             TaskDialog td = new TaskDialog("Check Data");
             td.MainInstruction = $"{fileCount} data files found";
             td.MainContent = report.ToString();
@@ -96,6 +136,59 @@ namespace StingTools.Temp
                 StingLog.Warn($"Hash compute failed for {filePath}: {ex.Message}");
                 return "????????";
             }
+        }
+
+        /// <summary>Extract version from PARAMETER_REGISTRY.json "version" field.</summary>
+        private static string GetRegistryVersion(string dataDir)
+        {
+            try
+            {
+                string path = Path.Combine(dataDir, "PARAMETER_REGISTRY.json");
+                if (!File.Exists(path)) return null;
+                // Read first few lines to find "version" without parsing full JSON
+                foreach (string line in File.ReadLines(path).Take(10))
+                {
+                    string trimmed = line.Trim();
+                    if (trimmed.StartsWith("\"version\""))
+                    {
+                        int colon = trimmed.IndexOf(':');
+                        if (colon < 0) continue;
+                        string val = trimmed.Substring(colon + 1).Trim().Trim(',').Trim('"');
+                        return val;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Failed to read registry version: {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>Extract version from CSV header comment (format: # vX.Y | date | desc).</summary>
+        private static string GetCsvVersion(string csvPath)
+        {
+            try
+            {
+                using (var reader = new StreamReader(csvPath))
+                {
+                    string firstLine = reader.ReadLine();
+                    if (firstLine != null && firstLine.StartsWith("# v"))
+                    {
+                        // Parse "# v2.3 | 20260227 | ..."
+                        string afterHash = firstLine.Substring(2).Trim(); // "v2.3 | ..."
+                        int pipe = afterHash.IndexOf('|');
+                        string verPart = (pipe > 0 ? afterHash.Substring(0, pipe) : afterHash).Trim();
+                        if (verPart.StartsWith("v"))
+                            return verPart.Substring(1); // strip leading 'v'
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Failed to read CSV version from {csvPath}: {ex.Message}");
+            }
+            return null;
         }
     }
 }
