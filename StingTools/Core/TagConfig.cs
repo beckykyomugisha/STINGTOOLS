@@ -562,6 +562,14 @@ namespace StingTools.Core
                 ZoneCodes = TryDeserialize<List<string>>(data, "ZONE_CODES") ?? DefaultZoneCodes();
                 _reverseSysMap = null; // Invalidate cache
                 ConfigSource = "project_config.json";
+
+                // GAP-009: Restore persisted active preset
+                if (data.TryGetValue("ACTIVE_PRESET", out object presetObj) && presetObj is string presetStr)
+                {
+                    _activePresetName = presetStr;
+                    // Defer actual SetActivePreset since BuiltInPresets may not be loaded yet
+                    // — will be applied when first accessed
+                }
             }
             catch (Exception ex)
             {
@@ -580,6 +588,39 @@ namespace StingTools.Core
             ZoneCodes = DefaultZoneCodes();
             _reverseSysMap = null; // Invalidate cache
             ConfigSource = "built-in defaults";
+        }
+
+        /// <summary>
+        /// GAP-006: Persist current TagConfig state to project_config.json.
+        /// Called by ProjectSetupWizard to ensure settings survive Revit restart.
+        /// </summary>
+        public static bool SaveToFile(string path)
+        {
+            try
+            {
+                var data = new Dictionary<string, object>
+                {
+                    ["DISC_MAP"] = DiscMap,
+                    ["SYS_MAP"] = SysMap,
+                    ["PROD_MAP"] = ProdMap,
+                    ["FUNC_MAP"] = FuncMap,
+                    ["LOC_CODES"] = LocCodes,
+                    ["ZONE_CODES"] = ZoneCodes
+                };
+
+                string json = JsonConvert.SerializeObject(data, Formatting.Indented);
+                string dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllText(path, json);
+                StingLog.Info($"TagConfig saved to {path}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"TagConfig save failed to {path}: {ex.Message}", ex);
+                return false;
+            }
         }
 
         /// <summary>Get the first valid SYS code for a category name. O(1) via cached reverse lookup.
@@ -1133,11 +1174,11 @@ namespace StingTools.Core
         public static string GetMepSystemAwareSysCode(Element el, string categoryName)
         {
             // Layer 1: Connected MEP system name (most reliable for piping and ductwork)
-            string fromConnector = GetSysFromConnector(el);
+            string fromConnector = GetSysFromConnector(el, categoryName);
             if (!string.IsNullOrEmpty(fromConnector)) return fromConnector;
 
             // Layer 2: Duct/Pipe system type built-in parameter
-            string fromSysType = GetSysFromSystemTypeParam(el);
+            string fromSysType = GetSysFromSystemTypeParam(el, categoryName);
             if (!string.IsNullOrEmpty(fromSysType)) return fromSysType;
 
             // Layer 3: Electrical circuit panel name
@@ -1157,7 +1198,7 @@ namespace StingTools.Core
         }
 
         /// <summary>Layer 1: Read connected MEP system name via connectors.</summary>
-        private static string GetSysFromConnector(Element el)
+        private static string GetSysFromConnector(Element el, string categoryName = null)
         {
             try
             {
@@ -1169,7 +1210,7 @@ namespace StingTools.Core
                         if (conn.MEPSystem != null)
                         {
                             string sysName = conn.MEPSystem.Name?.ToUpperInvariant() ?? "";
-                            string mapped = MapSystemNameToCode(sysName);
+                            string mapped = MapSystemNameToCode(sysName, categoryName);
                             if (!string.IsNullOrEmpty(mapped)) return mapped;
                         }
                     }
@@ -1180,7 +1221,7 @@ namespace StingTools.Core
         }
 
         /// <summary>Layer 2: Read RBS_DUCT_SYSTEM_TYPE or RBS_PIPING_SYSTEM_TYPE parameter.</summary>
-        private static string GetSysFromSystemTypeParam(Element el)
+        private static string GetSysFromSystemTypeParam(Element el, string categoryName = null)
         {
             try
             {
@@ -1199,7 +1240,7 @@ namespace StingTools.Core
                 if (pipeSys != null && pipeSys.HasValue)
                 {
                     string val = pipeSys.AsValueString()?.ToUpperInvariant() ?? "";
-                    string mapped = MapSystemNameToCode(val);
+                    string mapped = MapSystemNameToCode(val, categoryName);
                     if (!string.IsNullOrEmpty(mapped)) return mapped;
                 }
             }
@@ -1451,7 +1492,7 @@ namespace StingTools.Core
         /// Map a system name string to a SYS code. Used by Layer 1 (connector) and Layer 2 (parameter).
         /// Centralised mapping for all MEP system naming conventions.
         /// </summary>
-        private static string MapSystemNameToCode(string sysName)
+        private static string MapSystemNameToCode(string sysName, string categoryName = null)
         {
             if (string.IsNullOrEmpty(sysName)) return null;
 
@@ -1468,7 +1509,17 @@ namespace StingTools.Core
             if (sysName == "EA" || sysName.StartsWith("EA ") || sysName.Contains(" EA ")) return "HVAC";
             if (sysName == "OA" || sysName.StartsWith("OA ") || sysName.Contains(" OA ")) return "HVAC";
             if (sysName == "CHW" || sysName.StartsWith("CHW ") || sysName.Contains(" CHW ")) return "HVAC";
-            if (sysName == "CW" || sysName.StartsWith("CW ") || sysName.Contains(" CW ")) return "HVAC";
+            // BUG-010: "CW" is ambiguous — Condenser Water (HVAC) vs Cold Water (Plumbing)
+            // If the element is a pipe category, map to DCW; otherwise HVAC (Condenser Water)
+            if (sysName == "CW" || sysName.StartsWith("CW ") || sysName.Contains(" CW "))
+            {
+                if (!string.IsNullOrEmpty(categoryName) &&
+                    (categoryName == "Pipes" || categoryName == "Pipe Fittings" ||
+                     categoryName == "Pipe Accessories" || categoryName == "Flex Pipes" ||
+                     categoryName == "Plumbing Fixtures" || categoryName == "Plumbing Equipment"))
+                    return "DCW";
+                return "HVAC";
+            }
             if (sysName == "FCU" || sysName.StartsWith("FCU ")) return "HVAC";
 
             // Heating / hot water systems
@@ -2202,8 +2253,24 @@ namespace StingTools.Core
             public Tag7DisplayStyle DefaultStyle { get; set; }
         }
 
-        /// <summary>Active preset (changed by user via command or panel).</summary>
-        public static Tag7DisplayPreset ActivePreset { get; set; }
+        /// <summary>Active preset (changed by user via command or panel).
+        /// GAP-009: Lazily restores from persisted name on first access.</summary>
+        private static Tag7DisplayPreset _activePreset;
+        public static Tag7DisplayPreset ActivePreset
+        {
+            get
+            {
+                if (_activePreset == null && !string.IsNullOrEmpty(_activePresetName))
+                {
+                    var preset = BuiltInPresets.FirstOrDefault(p =>
+                        p.Name.Equals(_activePresetName, StringComparison.OrdinalIgnoreCase));
+                    if (preset != null) _activePreset = preset;
+                    else _activePresetName = null; // Invalid preset name, clear it
+                }
+                return _activePreset;
+            }
+            set { _activePreset = value; }
+        }
 
         /// <summary>Get the display style for an element based on the active preset.</summary>
         public static Tag7DisplayStyle GetDisplayStyle(Element el)
@@ -2433,7 +2500,8 @@ namespace StingTools.Core
             return ActivePreset.DefaultStyle;
         }
 
-        /// <summary>Set the active preset by name. Returns true if found.</summary>
+        /// <summary>Set the active preset by name. Returns true if found.
+        /// GAP-009: Also persists the preset name so it survives Revit restart.</summary>
         public static bool SetActivePreset(string presetName)
         {
             var preset = BuiltInPresets.FirstOrDefault(p =>
@@ -2441,9 +2509,42 @@ namespace StingTools.Core
             if (preset != null)
             {
                 ActivePreset = preset;
+                _activePresetName = presetName;
+                PersistPresetName(presetName);
                 return true;
             }
             return false;
+        }
+
+        /// <summary>The stored preset name for config persistence.</summary>
+        private static string _activePresetName;
+
+        /// <summary>GAP-009: Persist preset name to project_config.json.</summary>
+        private static void PersistPresetName(string presetName)
+        {
+            try
+            {
+                string configPath = StingToolsApp.FindDataFile("project_config.json");
+                if (string.IsNullOrEmpty(configPath)) return;
+
+                Dictionary<string, object> data;
+                if (File.Exists(configPath))
+                {
+                    string json = File.ReadAllText(configPath);
+                    data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
+                        ?? new Dictionary<string, object>();
+                }
+                else
+                {
+                    data = new Dictionary<string, object>();
+                }
+                data["ACTIVE_PRESET"] = presetName;
+                File.WriteAllText(configPath, JsonConvert.SerializeObject(data, Formatting.Indented));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Failed to persist preset name: {ex.Message}");
+            }
         }
 
         /// <summary>Strip all markup tokens from a string, returning plain text.</summary>

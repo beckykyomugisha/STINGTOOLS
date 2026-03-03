@@ -51,6 +51,10 @@ namespace StingTools.Temp
             // Sort by dependency level (level 0 first, then 1, 2, ... 6)
             formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
 
+            // DAT-005: Validate dependency DAG — check that formulas only depend on
+            // parameters written at equal or lower dependency levels
+            ValidateFormulaDag(formulas);
+
             // Collect taggable elements only (skip views, sheets, annotations, etc.)
             var collector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
@@ -183,6 +187,47 @@ namespace StingTools.Temp
             TaskDialog.Show("Formula Evaluator", report.ToString());
 
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// DAT-005: Validate dependency DAG — each formula should only reference
+        /// parameters written at equal or lower dependency levels. Log warnings
+        /// for any violations.
+        /// </summary>
+        private static void ValidateFormulaDag(List<FormulaEngine.FormulaDefinition> formulas)
+        {
+            // Build output-to-level map: parameter name → dependency level it's written at
+            var outputLevel = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in formulas)
+            {
+                if (!outputLevel.ContainsKey(f.ParameterName))
+                    outputLevel[f.ParameterName] = f.DependencyLevel;
+            }
+
+            int violations = 0;
+            foreach (var f in formulas)
+            {
+                foreach (string input in f.InputParameters)
+                {
+                    if (string.IsNullOrEmpty(input)) continue;
+                    if (outputLevel.TryGetValue(input, out int inputLevel))
+                    {
+                        if (inputLevel > f.DependencyLevel)
+                        {
+                            violations++;
+                            if (violations <= 10)
+                                StingLog.Warn($"Formula DAG violation: '{f.ParameterName}' (level {f.DependencyLevel}) " +
+                                    $"reads '{input}' which is written at level {inputLevel}");
+                        }
+                    }
+                }
+            }
+
+            if (violations > 0)
+                StingLog.Warn($"Formula DAG: {violations} dependency violation(s) detected — " +
+                    "some formulas may read stale values from a previous session");
+            else
+                StingLog.Info("Formula DAG: all dependencies validated — no violations");
         }
     }
 

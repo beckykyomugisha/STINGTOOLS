@@ -1053,6 +1053,10 @@ namespace StingTools.Temp
                 .ToList();
             double giaM2 = rooms.Sum(r => r.Area) * 0.092903; // sqft to m²
 
+            // ── DAT-007: Load rate defaults from BOQ_TEMPLATE.csv SECTION 8 ──
+            var rateDefaults = LoadRateDefaults();
+            int rateDefaultsApplied = 0;
+
             // ── Build BOQ items ──
             var boqItems = new List<BOQItem>();
             int warnings = 0;
@@ -1104,6 +1108,19 @@ namespace StingTools.Temp
                     item.UnitPrice = ReadDouble(el, "ASS_CST_UNIT_PRICE_UGX_NR");
                     item.Quantity = ReadDouble(el, "ASS_CST_QUANTITY_NR");
                     if (item.Quantity == 0) item.Quantity = 1;
+
+                    // DAT-007: Apply rate default when unit price is empty
+                    if (item.UnitPrice == 0 && rateDefaults.Count > 0)
+                    {
+                        string prodCode = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                        if (!string.IsNullOrEmpty(prodCode) &&
+                            rateDefaults.TryGetValue(prodCode, out double defaultRate))
+                        {
+                            item.UnitPrice = defaultRate;
+                            rateDefaultsApplied++;
+                        }
+                    }
+
                     item.TotalCost = ReadDouble(el, "ASS_CST_TOTAL_UGX_NR");
                     if (item.TotalCost == 0 && item.UnitPrice > 0)
                         item.TotalCost = item.UnitPrice * item.Quantity;
@@ -1594,6 +1611,8 @@ namespace StingTools.Temp
                 if (unclassifiedCount > 0)
                     summary.AppendLine($"  {unclassifiedCount} elements in General");
             }
+            if (rateDefaultsApplied > 0)
+                summary.AppendLine($"\n  {rateDefaultsApplied} elements used rate defaults from BOQ_TEMPLATE.csv");
             summary.AppendLine();
             summary.AppendLine($"Exported to: {exportPath}");
 
@@ -1768,6 +1787,63 @@ namespace StingTools.Temp
                 return double.TryParse(s, out double d) ? d : 0;
             }
             catch { return 0; }
+        }
+
+        /// <summary>
+        /// DAT-007: Loads RATE_DEFAULTS section from BOQ_TEMPLATE.csv.
+        /// Returns PROD_CODE → unit rate mapping for fallback pricing.
+        /// </summary>
+        private static Dictionary<string, double> LoadRateDefaults()
+        {
+            var rates = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string csvPath = StingToolsApp.FindDataFile("BOQ_TEMPLATE.csv");
+                if (string.IsNullOrEmpty(csvPath) || !File.Exists(csvPath))
+                    return rates;
+
+                bool inRateSection = false;
+                bool headerSkipped = false;
+                foreach (string line in File.ReadLines(csvPath))
+                {
+                    string trimmed = line.Trim();
+                    if (trimmed.StartsWith("##")) continue;
+                    if (string.IsNullOrEmpty(trimmed)) continue;
+
+                    if (trimmed.StartsWith("SECTION,RATE_DEFAULTS", StringComparison.OrdinalIgnoreCase))
+                    {
+                        inRateSection = true;
+                        headerSkipped = false;
+                        continue;
+                    }
+
+                    if (inRateSection && trimmed.StartsWith("SECTION,", StringComparison.OrdinalIgnoreCase))
+                        break; // next section
+
+                    if (!inRateSection) continue;
+
+                    if (!headerSkipped)
+                    {
+                        headerSkipped = true; // skip PROD_CODE,UNIT_RATE_UGX,UNIT,DESCRIPTION header
+                        continue;
+                    }
+
+                    var cols = StingToolsApp.ParseCsvLine(trimmed);
+                    if (cols.Length >= 2 && !string.IsNullOrEmpty(cols[0]))
+                    {
+                        if (double.TryParse(cols[1], out double rate) && rate > 0)
+                            rates[cols[0].Trim()] = rate;
+                    }
+                }
+
+                if (rates.Count > 0)
+                    StingLog.Info($"BOQ rate defaults loaded: {rates.Count} PROD codes");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Failed to load rate defaults: {ex.Message}");
+            }
+            return rates;
         }
 
         private class BOQItem

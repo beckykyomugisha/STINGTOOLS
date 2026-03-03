@@ -110,8 +110,15 @@ namespace StingTools.Temp
                 report.AppendLine("  PARAMETER_REGISTRY.json: version not found (skipping drift check)");
             }
 
+            // GAP-012: SHA-256 checksum verification against stored checksums
+            report.AppendLine();
+            report.AppendLine("── Integrity Check ──");
+            string checksumPath = Path.Combine(dataDir, "checksums.json");
+            int integrityIssues = VerifyChecksums(dataDir, checksumPath, report);
+
             TaskDialog td = new TaskDialog("Check Data");
-            td.MainInstruction = $"{fileCount} data files found";
+            td.MainInstruction = $"{fileCount} data files found" +
+                (integrityIssues > 0 ? $" ({integrityIssues} integrity warning(s))" : "");
             td.MainContent = report.ToString();
             td.Show();
 
@@ -189,6 +196,101 @@ namespace StingTools.Temp
                 StingLog.Warn($"Failed to read CSV version from {csvPath}: {ex.Message}");
             }
             return null;
+        }
+
+        /// <summary>
+        /// GAP-012: Verify data file checksums. On first run, generates and saves checksums.json.
+        /// On subsequent runs, compares current file hashes to stored ones.
+        /// </summary>
+        private static int VerifyChecksums(string dataDir, string checksumPath, StringBuilder report)
+        {
+            int issues = 0;
+            try
+            {
+                // Compute current checksums for all data files
+                var currentChecksums = new Dictionary<string, string>();
+                string[] exts = { "*.csv", "*.json", "*.txt" };
+                foreach (string ext in exts)
+                {
+                    foreach (string file in Directory.GetFiles(dataDir, ext))
+                    {
+                        if (file == checksumPath) continue; // skip self
+                        string relName = Path.GetFileName(file);
+                        currentChecksums[relName] = ComputeFullHash(file);
+                    }
+                }
+
+                if (File.Exists(checksumPath))
+                {
+                    // Compare against stored checksums
+                    string json = File.ReadAllText(checksumPath);
+                    var stored = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                    if (stored != null)
+                    {
+                        foreach (var kvp in stored)
+                        {
+                            if (currentChecksums.TryGetValue(kvp.Key, out string currentHash))
+                            {
+                                if (!string.Equals(currentHash, kvp.Value, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    report.AppendLine($"  MODIFIED: {kvp.Key}");
+                                    StingLog.Warn($"Data integrity: {kvp.Key} checksum changed (expected {kvp.Value.Substring(0, 8)}..., got {currentHash.Substring(0, 8)}...)");
+                                    issues++;
+                                }
+                            }
+                            else
+                            {
+                                report.AppendLine($"  MISSING: {kvp.Key}");
+                                issues++;
+                            }
+                        }
+
+                        // Report new files not in stored checksums
+                        foreach (var kvp in currentChecksums)
+                        {
+                            if (!stored.ContainsKey(kvp.Key))
+                                report.AppendLine($"  NEW: {kvp.Key} (not in baseline)");
+                        }
+                    }
+
+                    if (issues == 0)
+                        report.AppendLine("  All checksums match baseline — data integrity OK");
+                    else
+                        report.AppendLine($"  {issues} file(s) changed since baseline — run Check Data again to update");
+                }
+                else
+                {
+                    // First run: save checksums
+                    string json = Newtonsoft.Json.JsonConvert.SerializeObject(currentChecksums, Newtonsoft.Json.Formatting.Indented);
+                    File.WriteAllText(checksumPath, json);
+                    report.AppendLine($"  Baseline checksums saved ({currentChecksums.Count} files)");
+                    StingLog.Info($"Data integrity: baseline checksums saved to {checksumPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                report.AppendLine($"  Checksum verification error: {ex.Message}");
+                StingLog.Warn($"Checksum verification failed: {ex.Message}");
+            }
+            return issues;
+        }
+
+        /// <summary>Compute full SHA-256 hash of a file.</summary>
+        private static string ComputeFullHash(string filePath)
+        {
+            try
+            {
+                using (var sha = SHA256.Create())
+                using (var stream = File.OpenRead(filePath))
+                {
+                    byte[] hash = sha.ComputeHash(stream);
+                    return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                }
+            }
+            catch
+            {
+                return "error";
+            }
         }
     }
 }

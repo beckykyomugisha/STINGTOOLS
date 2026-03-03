@@ -10716,3 +10716,2061 @@ VGPS_SURFACE_COLOR_R_INT,Generic Models,Type,True
 VGPS_SURFACE_PATTERN_TXT,Generic Models,Type,True
 VGPS_TRANSPARENCY_NR,Generic Models,Type,True
 VGPS_VISIBLE_BOOL,Generic Models,Type,True
+ASS_CAT_TXT,Columns,Type,True
+ASS_DESCRIPTION_TXT,Columns,Type,True
+ASS_ID_TXT,Columns,Type,True
+ASS_LOC_TXT,Columns,Type,True
+ASS_TAG_1_TXT,Columns,Type,True
+ASS_TAG_2_TXT,Columns,Type,True
+ASS_TAG_3_TXT,Columns,Type,True
+BLE_DOOR_ACOUSTIC_RATING_DB,Columns,Type,True
+BLE_DOOR_CLOSER_REQUIRED_BOOL,Columns,Type,True
+BLE_DOOR_GLAZING_PCT,Columns,Type,True
+BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Columns,Type,True
+BLE_DOOR_HEIGHT_MM,Columns,Type,True
+BLE_DOOR_MAT_TXT,Columns,Type,True
+BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,Columns,Type,True
+BLE_DOOR_PANIC_HARDWARE_REQUIRED_BOOL,Columns,Type,True
+BLE_DOOR_SECURITY_RATING_GRADE_TXT,Columns,Type,True
+BLE_DOOR_WIDTH_MM,Columns,Type,True
+CST_CALC_ADHESIVE_KG,Columns,Type,True
+CST_CALC_AGGREGATE_M3,Columns,Type,True
+CST_CALC_AREA_M2,Columns,Type,True
+CST_CALC_BLOCKS_NR,Columns,Type,True
+CST_CALC_CEMENT_BAGS_NR,Columns,Type,True
+CST_CALC_CEMENT_PLASTER_BAGS,Columns,Type,True
+CST_CALC_CONCRETE_M3,Columns,Type,True
+CST_CALC_FASTENERS_NR,Columns,Type,True
+CST_CALC_GROUT_KG,Columns,Type,True
+CST_CALC_LENGTH_M,Columns,Type,True
+CST_CALC_MORTAR_M3,Columns,Type,True
+CST_CALC_PAINT_LITERS,Columns,Type,True
+CST_CALC_PLASTER_M3,Columns,Type,True
+CST_CALC_PRIMER_LITERS,Columns,Type,True
+CST_CALC_PURLINS_M,Columns,Type,True
+CST_CALC_PUTTY_KG,Columns,Type,True
+CST_CALC_RIDGE_CAP_M,Columns,Type,True
+CST_CALC_SAND_M3,Columns,Type,True
+CST_CALC_SAND_PLASTER_M3,Columns,Type,True
+CST_CALC_SHEETS_NR,Columns,Type,True
+CST_CALC_STEEL_KG,Columns,Type,True
+CST_CALC_TILE_M2,Columns,Type,True
+CST_CALC_VOLUME_M3,Columns,Type,True
+CST_CALC_WATER_M3,Columns,Type,True
+CST_S_CON_ADMIXTURE_TXT,Columns,Type,True
+CST_S_CON_AGGREGATE_VOLUME_CU_M,Columns,Type,True
+CST_S_CON_CEMENT_BAGS_NR,Columns,Type,True
+CST_S_CON_CST_TOTAL_UGX_NR,Columns,Type,True
+CST_S_CON_CURING_DAYS_NR,Columns,Type,True
+CST_S_CON_GRADE_TXT,Columns,Type,True
+CST_S_CON_MIX_RATIO_TXT,Columns,Type,True
+CST_S_CON_POUR_SEQUENCE_TXT,Columns,Type,True
+CST_S_CON_SAND_VOLUME_CU_M,Columns,Type,True
+CST_S_CON_SLUMP_MM,Columns,Type,True
+CST_S_CON_STRENGTH_MPA,Columns,Type,True
+CST_S_CON_TYPE_TXT,Columns,Type,True
+CST_S_CON_VOLUME_CU_M,Columns,Type,True
+CST_S_CON_VOLUME_WASTAGE_CU_M,Columns,Type,True
+CST_S_CON_WTR_VOLUME_L,Columns,Type,True
+CST_S_EAR_BACKFILL_VOLUME_CU_M,Columns,Type,True
+CST_S_EAR_BLINDING_VOLUME_CU_M,Columns,Type,True
+CST_S_EAR_COMPACTION_NR,Columns,Type,True
+CST_S_EAR_EXCAVATION_DEPTH_M,Columns,Type,True
+CST_S_EAR_EXCAVATION_METHOD_TXT,Columns,Type,True
+CST_S_EAR_EXCAVATION_VOLUME_CU_M,Columns,Type,True
+CST_S_EAR_FILL_MAT_TXT,Columns,Type,True
+CST_S_EAR_GEOTEXTILE_AREA_SQ_M,Columns,Type,True
+CST_S_EAR_HARDCORE_THICKNESS_MM,Columns,Type,True
+CST_S_EAR_HARDCORE_VOLUME_CU_M,Columns,Type,True
+CST_S_EAR_SOIL_TYPE_TXT,Columns,Type,True
+CST_S_FRM_BEAM_AREA_SQ_M,Columns,Type,True
+CST_S_FRM_COLUMN_AREA_SQ_M,Columns,Type,True
+CST_S_FRM_CST_TOTAL_UGX_NR,Columns,Type,True
+CST_S_FRM_PLYWOOD_SHEETS_NR,Columns,Type,True
+CST_S_FRM_PROPS_QUANTITY_NR,Columns,Type,True
+CST_S_FRM_RELEASE_AGENT_L,Columns,Type,True
+CST_S_FRM_REUSE_CYCLES_NR,Columns,Type,True
+CST_S_FRM_SLAB_AREA_SQ_M,Columns,Type,True
+CST_S_FRM_STRIPPING_TIME_DAYS,Columns,Type,True
+CST_S_FRM_TIMBER_VOLUME_CU_M,Columns,Type,True
+CST_S_FRM_TYPE_TXT,Columns,Type,True
+CST_S_MAS_BRICK_QUANTITY_NR,Columns,Type,True
+CST_S_MAS_BRICK_STRENGTH_TXT,Columns,Type,True
+CST_S_MAS_BRICK_TYPE_TXT,Columns,Type,True
+CST_S_MAS_BRICK_WASTAGE_NR,Columns,Type,True
+CST_S_MAS_CEMENT_BAGS_NR,Columns,Type,True
+CST_S_MAS_CST_TOTAL_UGX_NR,Columns,Type,True
+CST_S_MAS_MORTAR_RATIO_TXT,Columns,Type,True
+CST_S_MAS_MORTAR_TYPE_TXT,Columns,Type,True
+CST_S_MAS_MORTAR_VOLUME_CU_M,Columns,Type,True
+CST_S_MAS_NET_AREA_SQ_M,Columns,Type,True
+CST_S_MAS_OPENING_AREA_SQ_M,Columns,Type,True
+CST_S_MAS_SAND_VOLUME_CU_M,Columns,Type,True
+CST_S_MAS_WALL_AREA_SQ_M,Columns,Type,True
+CST_S_MAS_WALL_THICKNESS_MM,Columns,Type,True
+CST_S_MAS_WASTAGE_FCT_PCT,Columns,Type,True
+CST_S_REI_COVER_MM,Columns,Type,True
+CST_S_REI_CST_TOTAL_UGX_NR,Columns,Type,True
+CST_S_REI_DIAMETER_MM,Columns,Type,True
+CST_S_REI_GRADE_TXT,Columns,Type,True
+CST_S_REI_LENGTH_M,Columns,Type,True
+CST_S_REI_MARK_PREFIX_TXT,Columns,Type,True
+CST_S_REI_OVERLAP_LENGTH_MM,Columns,Type,True
+CST_S_REI_SCHEDULE_REF_TXT,Columns,Type,True
+CST_S_REI_SPACING_MM,Columns,Type,True
+CST_S_REI_TYPE_TXT,Columns,Type,True
+CST_S_REI_WEIGHT_KG,Columns,Type,True
+CST_S_REI_WEIGHT_WASTAGE_KG,Columns,Type,True
+CST_S_REI_WIRE_WEIGHT_KG,Columns,Type,True
+PER_ACOUSTICS_BACKGROUND_NOISE_DB,Columns,Type,True
+PER_ACOUSTICS_IIC_RATING_TXT,Columns,Type,True
+PER_ACOUSTICS_ISOLATION_REQ_BOOL,Columns,Type,True
+PER_ACOUSTICS_REVERBERATION_TIME_SEC_NR,Columns,Type,True
+PER_ACOUSTICS_STC_RATING_TXT,Columns,Type,True
+PER_ACOUSTICS_TREATMENT_TYPE_TXT,Columns,Type,True
+PER_ENVIRONMENTAL_ALTITUDE_M,Columns,Type,True
+PER_ENVIRONMENTAL_CLIMATE_ZONE_TXT,Columns,Type,True
+PER_ENVIRONMENTAL_CORROSION_PROT_TXT,Columns,Type,True
+PER_ENVIRONMENTAL_DUST_PROT_REQ_BOOL,Columns,Type,True
+PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT,Columns,Type,True
+PER_ENVIRONMENTAL_RAINFALL_ANNUAL_MM,Columns,Type,True
+PER_ENVIRONMENTAL_TEMP_DESIGN_C,Columns,Type,True
+PER_ENVIRONMENTAL_TERMITE_PROT_BOOL,Columns,Type,True
+PER_SUST_CARBON_FOOTPRINT_KG,Columns,Type,True
+PER_SUST_EDGE_CONTRIB_TXT,Columns,Type,True
+PER_SUST_ENERGY_RATING_TXT,Columns,Type,True
+PER_SUST_LEED_CONTRIB_TXT,Columns,Type,True
+PER_SUST_RECYCLABLE_BOOL,Columns,Type,True
+PER_SUST_RECYCLED_CONTENT_PCT,Columns,Type,True
+PER_SUST_WTR_RATING_NR,Columns,Type,True
+PER_THERM_CONDENSATION_RISK_TXT,Columns,Type,True
+PER_THERM_NATURAL_VENT_TXT,Columns,Type,True
+PER_THERM_PASSIVE_DESIGN_TXT,Columns,Type,True
+PER_THERM_R_VALUE_M2K_W,Columns,Type,True
+PER_THERM_SHADING_DEVICE_TXT,Columns,Type,True
+PER_THERM_SOLAR_ABSORPTANCE_NR,Columns,Type,True
+PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Columns,Type,True
+PER_THERM_U_VALUE_W_M2K_NR,Columns,Type,True
+PRJ_COMMENTS_TXT,Columns,Type,True
+RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Columns,Type,True
+RGL_ACCESS_CLEAR_WIDTH_MM,Columns,Type,True
+RGL_ACCESS_CMPL_STD_TXT,Columns,Type,True
+RGL_ACCESS_HEARING_LOOP_BOOL,Columns,Type,True
+RGL_ACCESS_REFUGE_AREA_TXT,Columns,Type,True
+RGL_ACCESS_TACTILE_WARNING_TXT,Columns,Type,True
+RGL_ACCESS_THRESHOLD_HEIGHT_MM,Columns,Type,True
+RGL_ACCESS_TURNING_RADIUS_MM,Columns,Type,True
+RGL_KCCA_APPROVAL_REQ_BOOL,Columns,Type,True
+RGL_NEMA_APPROVAL_REQ_BOOL,Columns,Type,True
+RGL_NWSC_APPROVAL_BOOL,Columns,Type,True
+RGL_OCCUPANCY_CERT_REQ_BOOL,Columns,Type,True
+RGL_PERIODIC_INSP_FREQ_TXT,Columns,Type,True
+RGL_QA_APVD_VENDOR_TXT,Columns,Type,True
+RGL_QA_CERTIFICATION_TXT,Columns,Type,True
+RGL_QA_COMMISSIONING_REQ_TXT,Columns,Type,True
+RGL_QA_INSP_BOOL,Columns,Type,True
+RGL_QA_STD_COMPLY_TXT,Columns,Type,True
+RGL_QA_TST_REPORT_REF_TXT,Columns,Type,True
+RGL_STD_TXT,Columns,Type,True
+RGL_UMEME_APPROVAL_BOOL,Columns,Type,True
+RGL_UNBS_STD_TXT,Columns,Type,True
+SPARE_PARAM_01_TXT,Columns,Type,True
+SPARE_PARAM_02_TXT,Columns,Type,True
+SPARE_PARAM_03_TXT,Columns,Type,True
+SPARE_PARAM_04_NR,Columns,Type,True
+SPARE_PARAM_05_INT,Columns,Type,True
+USAGE_TXT,Columns,Type,True
+MAT_EPD_REF_TXT,Columns,Type,True
+MAT_TAG_6_TXT,Columns,Type,True
+SUST_MAT_TAG_1_TXT,Columns,Type,True
+SUST_MAT_TAG_2_TXT,Columns,Type,True
+ASS_INST_DETAIL_NUM_TXT,Columns,Type,True
+ASS_TAG_4_TXT,Columns,Type,True
+ASS_TAG_5_TXT,Columns,Type,True
+ASS_TAG_6_TXT,Columns,Type,True
+BLE_ELES_SPARE_01_TXT,Columns,Type,True
+BLE_ELES_SPARE_02_TXT,Columns,Type,True
+BLE_ELES_SPARE_03_TXT,Columns,Type,True
+CST_PERCENTAGE_OF_TOTAL_PCT,Columns,Type,True
+CST_S_EAR_CST_TOTAL_UGX_NR,Columns,Type,True
+CST_S_EAR_DISPOSAL_VOLUME_CU_M,Columns,Type,True
+CST_S_FRM_BEAM_LENGTH_M,Columns,Type,True
+CST_TOTAL_EQUIPMENT_COST,Columns,Type,True
+ASS_LVL_COD_TXT,Columns,Type,True
+ASS_MANUFACTURER_TXT,Columns,Type,True
+ASS_MODEL_NR_TXT,Columns,Type,True
+ASS_RM_COD_TXT,Columns,Type,True
+FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Columns,Type,True
+BLE_ROOM_NUMBER_TXT,Columns,Type,True
+BLE_FACADE_TYPE_TXT,Columns,Type,True
+BLE_CEILING_TYPE_CLASSIFICATION_TXT,Columns,Type,True
+BLE_FACADE_INS_BOOL,Columns,Type,True
+BLE_WINDOW_WIDTH_MM,Columns,Type,True
+BLE_STRUCT_SLAB_THICKNESS_MM,Columns,Type,True
+BLE_WALL_THICKNESS_MM,Columns,Type,True
+BLE_ROOF_CLR_TXT,Columns,Type,True
+BLE_FACADE_PNL_SZ_TXT,Columns,Type,True
+BLE_STRUCT_SEISMIC_DESIGN_BOOL,Columns,Type,True
+BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT,Columns,Type,True
+BLE_FLR_FINISH_TXT,Columns,Type,True
+BLE_CEILING_FINISH_TXT,Columns,Type,True
+BLE_CEILING_LIGHT_REFLECTANCE_PCT,Columns,Type,True
+BLE_STRUCT_FOUNDATION_TYPE_TXT,Columns,Type,True
+BLE_ROOM_NAME_TXT,Columns,Type,True
+BLE_ROOF_INS_R_VALUE_M_2K_W,Columns,Type,True
+BLE_ROOF_WATERPROOFING_SYSTEM_TXT,Columns,Type,True
+BLE_ROOF_DOWNPPE_SZ_MM,Columns,Type,True
+BLE_CEILING_GRID_SZ_MM,Columns,Type,True
+BLE_FLR_FINISH_THICKNESS_MM,Columns,Type,True
+BLE_WALL_TYPE_CLASSIFICATION_TXT,Columns,Type,True
+BLE_FINISH_PAINT_VOLUME_L,Columns,Type,True
+BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Columns,Type,True
+BLE_ELE_AREA_SQ_M,Columns,Type,True
+BLE_WALL_INTERIOR_FINISH_TXT,Columns,Type,True
+BLE_WINDOW_OPERATION_TYPE_TXT,Columns,Type,True
+BLE_STRUCT_CONCRETE_GRADE_TXT,Columns,Type,True
+BLE_ROOF_TYPE_TXT,Columns,Type,True
+BLE_FLR_MOISTURE_BARRIER_REQUIRED_BOOL,Columns,Type,True
+BLE_FLR_THICKNESS_MM,Columns,Type,True
+BLE_CEILING_HEIGHT_MM,Columns,Type,True
+BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR,Columns,Type,True
+BLE_WALL_HEIGHT_MM,Columns,Type,True
+BLE_STRUCT_REINFORCEMENT_TXT,Columns,Type,True
+BLE_FINISH_PLASTER_AREA_SQ_M,Columns,Type,True
+BLE_RAMP_SLOPE_PCT,Columns,Type,True
+BLE_WALL_EXTERIOR_FINISH_TXT,Columns,Type,True
+BLE_FLR_RAISED_FLR_HEIGHT_MM,Columns,Type,True
+BLE_RAMP_SURFACE_FINISH_TXT,Columns,Type,True
+BLE_FLR_STRUCTURAL_SYSTEM_TXT,Columns,Type,True
+CST_ENERGY_ANNUAL_UGX_NUM_NR,Columns,Type,True
+BLE_FLR_PERIMETER_DETAIL_TYPE_TXT,Columns,Type,True
+BLE_CEILING_PLENUM_HEIGHT_MM,Columns,Type,True
+BLE_STRUCT_ELE_TYPE_TXT,Columns,Type,True
+BLE_STRUCT_COLUMN_SZ_TXT,Columns,Type,True
+BLE_ROOF_SLOPE_DEG,Columns,Type,True
+BLE_FLR_UNDERFLR_HEATING_SYSTEM_TXT,Columns,Type,True
+BLE_ROOF_SOLAR_REFLECTANCE_INDEX_NR,Columns,Type,True
+BLE_FINISH_PAINT_COATS_NR,Columns,Type,True
+BLE_FACADE_FIX_SYSTEM_TXT,Columns,Type,True
+BLE_STRUCT_STEEL_GRADE_TXT,Columns,Type,True
+BLE_FLR_RAISED_ACCESS_FLR_TXT,Columns,Type,True
+BLE_WALL_MOISTURE_BARRIER_INCLUDED_TXT,Columns,Type,True
+BLE_FACADE_FINISH_TXT,Columns,Type,True
+BLE_WINDOW_TYPE_CLASSIFICATION_TXT,Columns,Type,True
+BLE_FLR_TYPE_CLASSIFICATION_TXT,Columns,Type,True
+BLE_WINDOW_HEIGHT_MM,Columns,Type,True
+BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,Columns,Type,True
+BLE_FLR_LD_CAP_KPA,Columns,Type,True
+BLE_ROOF_RAINWTR_HARVESTING_INTEGRATION_BOOL,Columns,Type,True
+BLE_CEILING_NOISE_REDCTION_COEFFICIENT_NRC_NR,Columns,Type,True
+BLE_FINISH_ADHESIVE_WEIGHT_KG,Columns,Type,True
+BLE_WALL_FUNCTION_TXT,Columns,Type,True
+BLE_ROOF_GUTTER_SZ_MM,Columns,Type,True
+BLE_FINISH_PLASTER_THICKNESS_MM,Columns,Type,True
+BLE_RAMP_HANDRAIL_BOTH_SIDES_TXT,Columns,Type,True
+BLE_LOAD_BEARING_ELE_BOOL,Columns,Type,True
+BLE_FINISH_TILE_QUANTITY_NR,Columns,Type,True
+BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,Columns,Type,True
+BLE_STRUCT_BEAM_SZ_TXT,Columns,Type,True
+BLE_FLR_SLIP_RESISTANCE_RATING_NR,Columns,Type,True
+BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,Columns,Type,True
+BLE_ROOF_OVERHANG_MM,Columns,Type,True
+BLE_FLR_IMPACT_SOUND_INS_DB,Columns,Type,True
+BLE_FINISH_TILE_SZ_TXT,Columns,Type,True
+BLE_STRUCT_LD_CAP_KN_NR,Columns,Type,True
+BLE_FINISH_GROUT_WEIGHT_KG,Columns,Type,True
+BLE_ROOF_STRUCTURE_TYPE_TXT,Columns,Type,True
+BLE_WINDOW_VISIBLE_LIGHT_TRANSMITTANCE_PCT,Columns,Type,True
+BLE_WALL_FINISH_TXT,Columns,Type,True
+BLE_WINDOW_MOSQUITO_SCREEN_INCLUDED_TXT,Columns,Type,True
+BLE_FLR_LVL_NR,Columns,Instance,True
+BLE_WINDOW_BURGLAR_BARS_REQUIRED_UGANDA_BOOL,Columns,Type,True
+BLE_FINISH_PAINT_AREA_SQ_M,Columns,Type,True
+BLE_FACADE_VENTILATED_TXT,Columns,Type,True
+BLE_FINISH_TILE_AREA_SQ_M,Columns,Type,True
+BLE_CEILING_SYSTEM_TXT,Columns,Type,True
+BLE_FINISH_PLASTER_RATIO_NR,Columns,Type,True
+BLE_RAMP_WIDTH_MM,Columns,Type,True
+BLE_WALL_CST_METHOD_TXT,Columns,Type,True
+BLE_CEILING_ACCESS_PNLS_INCLUDED_TXT,Columns,Type,True
+BLE_WALL_LENGTH_MM,Columns,Type,True
+BLE_WINDOW_U_VALUE_W_M_2K_NR,Columns,Type,True
+BLE_FINISH_TYPE_TXT,Columns,Type,True
+BLE_FACADE_CLR_TXT,Columns,Type,True
+WS_DESCRIPTION_TXT,Columns,Type,True
+WS_OWNER_TXT,Columns,Type,True
+WS_VISIBLE_DEFAULT_BOOL,Columns,Type,True
+WS_DISCIPLINE_TXT,Columns,Type,True
+WS_TYPE_TXT,Columns,Type,True
+WS_NAME_TXT,Columns,Type,True
+WS_EDITABLE_DEFAULT_BOOL,Columns,Type,True
+PH_NUMBER_INT,Columns,Type,True
+PH_DESCRIPTION_TXT,Columns,Type,True
+PH_END_DATE_TXT,Columns,Type,True
+PH_STATUS_TXT,Columns,Type,True
+PH_START_DATE_TXT,Columns,Type,True
+PH_NAME_TXT,Columns,Type,True
+ASS_CAT_TXT,Curtain Systems,Type,True
+ASS_DESCRIPTION_TXT,Curtain Systems,Type,True
+ASS_ID_TXT,Curtain Systems,Type,True
+ASS_LOC_TXT,Curtain Systems,Type,True
+ASS_TAG_1_TXT,Curtain Systems,Type,True
+ASS_TAG_2_TXT,Curtain Systems,Type,True
+ASS_TAG_3_TXT,Curtain Systems,Type,True
+BLE_DOOR_ACOUSTIC_RATING_DB,Curtain Systems,Type,True
+BLE_DOOR_CLOSER_REQUIRED_BOOL,Curtain Systems,Type,True
+BLE_DOOR_GLAZING_PCT,Curtain Systems,Type,True
+BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Curtain Systems,Type,True
+BLE_DOOR_HEIGHT_MM,Curtain Systems,Type,True
+BLE_DOOR_MAT_TXT,Curtain Systems,Type,True
+BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,Curtain Systems,Type,True
+BLE_DOOR_PANIC_HARDWARE_REQUIRED_BOOL,Curtain Systems,Type,True
+BLE_DOOR_SECURITY_RATING_GRADE_TXT,Curtain Systems,Type,True
+BLE_DOOR_WIDTH_MM,Curtain Systems,Type,True
+CST_CALC_ADHESIVE_KG,Curtain Systems,Type,True
+CST_CALC_AGGREGATE_M3,Curtain Systems,Type,True
+CST_CALC_AREA_M2,Curtain Systems,Type,True
+CST_CALC_BLOCKS_NR,Curtain Systems,Type,True
+CST_CALC_CEMENT_BAGS_NR,Curtain Systems,Type,True
+CST_CALC_CEMENT_PLASTER_BAGS,Curtain Systems,Type,True
+CST_CALC_CONCRETE_M3,Curtain Systems,Type,True
+CST_CALC_FASTENERS_NR,Curtain Systems,Type,True
+CST_CALC_GROUT_KG,Curtain Systems,Type,True
+CST_CALC_LENGTH_M,Curtain Systems,Type,True
+CST_CALC_MORTAR_M3,Curtain Systems,Type,True
+CST_CALC_PAINT_LITERS,Curtain Systems,Type,True
+CST_CALC_PLASTER_M3,Curtain Systems,Type,True
+CST_CALC_PRIMER_LITERS,Curtain Systems,Type,True
+CST_CALC_PURLINS_M,Curtain Systems,Type,True
+CST_CALC_PUTTY_KG,Curtain Systems,Type,True
+CST_CALC_RIDGE_CAP_M,Curtain Systems,Type,True
+CST_CALC_SAND_M3,Curtain Systems,Type,True
+CST_CALC_SAND_PLASTER_M3,Curtain Systems,Type,True
+CST_CALC_SHEETS_NR,Curtain Systems,Type,True
+CST_CALC_STEEL_KG,Curtain Systems,Type,True
+CST_CALC_TILE_M2,Curtain Systems,Type,True
+CST_CALC_VOLUME_M3,Curtain Systems,Type,True
+CST_CALC_WATER_M3,Curtain Systems,Type,True
+CST_S_CON_ADMIXTURE_TXT,Curtain Systems,Type,True
+CST_S_CON_AGGREGATE_VOLUME_CU_M,Curtain Systems,Type,True
+CST_S_CON_CEMENT_BAGS_NR,Curtain Systems,Type,True
+CST_S_CON_CST_TOTAL_UGX_NR,Curtain Systems,Type,True
+CST_S_CON_CURING_DAYS_NR,Curtain Systems,Type,True
+CST_S_CON_GRADE_TXT,Curtain Systems,Type,True
+CST_S_CON_MIX_RATIO_TXT,Curtain Systems,Type,True
+CST_S_CON_POUR_SEQUENCE_TXT,Curtain Systems,Type,True
+CST_S_CON_SAND_VOLUME_CU_M,Curtain Systems,Type,True
+CST_S_CON_SLUMP_MM,Curtain Systems,Type,True
+CST_S_CON_STRENGTH_MPA,Curtain Systems,Type,True
+CST_S_CON_TYPE_TXT,Curtain Systems,Type,True
+CST_S_CON_VOLUME_CU_M,Curtain Systems,Type,True
+CST_S_CON_VOLUME_WASTAGE_CU_M,Curtain Systems,Type,True
+CST_S_CON_WTR_VOLUME_L,Curtain Systems,Type,True
+CST_S_EAR_BACKFILL_VOLUME_CU_M,Curtain Systems,Type,True
+CST_S_EAR_BLINDING_VOLUME_CU_M,Curtain Systems,Type,True
+CST_S_EAR_COMPACTION_NR,Curtain Systems,Type,True
+CST_S_EAR_EXCAVATION_DEPTH_M,Curtain Systems,Type,True
+CST_S_EAR_EXCAVATION_METHOD_TXT,Curtain Systems,Type,True
+CST_S_EAR_EXCAVATION_VOLUME_CU_M,Curtain Systems,Type,True
+CST_S_EAR_FILL_MAT_TXT,Curtain Systems,Type,True
+CST_S_EAR_GEOTEXTILE_AREA_SQ_M,Curtain Systems,Type,True
+CST_S_EAR_HARDCORE_THICKNESS_MM,Curtain Systems,Type,True
+CST_S_EAR_HARDCORE_VOLUME_CU_M,Curtain Systems,Type,True
+CST_S_EAR_SOIL_TYPE_TXT,Curtain Systems,Type,True
+CST_S_FRM_BEAM_AREA_SQ_M,Curtain Systems,Type,True
+CST_S_FRM_COLUMN_AREA_SQ_M,Curtain Systems,Type,True
+CST_S_FRM_CST_TOTAL_UGX_NR,Curtain Systems,Type,True
+CST_S_FRM_PLYWOOD_SHEETS_NR,Curtain Systems,Type,True
+CST_S_FRM_PROPS_QUANTITY_NR,Curtain Systems,Type,True
+CST_S_FRM_RELEASE_AGENT_L,Curtain Systems,Type,True
+CST_S_FRM_REUSE_CYCLES_NR,Curtain Systems,Type,True
+CST_S_FRM_SLAB_AREA_SQ_M,Curtain Systems,Type,True
+CST_S_FRM_STRIPPING_TIME_DAYS,Curtain Systems,Type,True
+CST_S_FRM_TIMBER_VOLUME_CU_M,Curtain Systems,Type,True
+CST_S_FRM_TYPE_TXT,Curtain Systems,Type,True
+CST_S_MAS_BRICK_QUANTITY_NR,Curtain Systems,Type,True
+CST_S_MAS_BRICK_STRENGTH_TXT,Curtain Systems,Type,True
+CST_S_MAS_BRICK_TYPE_TXT,Curtain Systems,Type,True
+CST_S_MAS_BRICK_WASTAGE_NR,Curtain Systems,Type,True
+CST_S_MAS_CEMENT_BAGS_NR,Curtain Systems,Type,True
+CST_S_MAS_CST_TOTAL_UGX_NR,Curtain Systems,Type,True
+CST_S_MAS_MORTAR_RATIO_TXT,Curtain Systems,Type,True
+CST_S_MAS_MORTAR_TYPE_TXT,Curtain Systems,Type,True
+CST_S_MAS_MORTAR_VOLUME_CU_M,Curtain Systems,Type,True
+CST_S_MAS_NET_AREA_SQ_M,Curtain Systems,Type,True
+CST_S_MAS_OPENING_AREA_SQ_M,Curtain Systems,Type,True
+CST_S_MAS_SAND_VOLUME_CU_M,Curtain Systems,Type,True
+CST_S_MAS_WALL_AREA_SQ_M,Curtain Systems,Type,True
+CST_S_MAS_WALL_THICKNESS_MM,Curtain Systems,Type,True
+CST_S_MAS_WASTAGE_FCT_PCT,Curtain Systems,Type,True
+CST_S_REI_COVER_MM,Curtain Systems,Type,True
+CST_S_REI_CST_TOTAL_UGX_NR,Curtain Systems,Type,True
+CST_S_REI_DIAMETER_MM,Curtain Systems,Type,True
+CST_S_REI_GRADE_TXT,Curtain Systems,Type,True
+CST_S_REI_LENGTH_M,Curtain Systems,Type,True
+CST_S_REI_MARK_PREFIX_TXT,Curtain Systems,Type,True
+CST_S_REI_OVERLAP_LENGTH_MM,Curtain Systems,Type,True
+CST_S_REI_SCHEDULE_REF_TXT,Curtain Systems,Type,True
+CST_S_REI_SPACING_MM,Curtain Systems,Type,True
+CST_S_REI_TYPE_TXT,Curtain Systems,Type,True
+CST_S_REI_WEIGHT_KG,Curtain Systems,Type,True
+CST_S_REI_WEIGHT_WASTAGE_KG,Curtain Systems,Type,True
+CST_S_REI_WIRE_WEIGHT_KG,Curtain Systems,Type,True
+PER_ACOUSTICS_BACKGROUND_NOISE_DB,Curtain Systems,Type,True
+PER_ACOUSTICS_IIC_RATING_TXT,Curtain Systems,Type,True
+PER_ACOUSTICS_ISOLATION_REQ_BOOL,Curtain Systems,Type,True
+PER_ACOUSTICS_REVERBERATION_TIME_SEC_NR,Curtain Systems,Type,True
+PER_ACOUSTICS_STC_RATING_TXT,Curtain Systems,Type,True
+PER_ACOUSTICS_TREATMENT_TYPE_TXT,Curtain Systems,Type,True
+PER_ENVIRONMENTAL_ALTITUDE_M,Curtain Systems,Type,True
+PER_ENVIRONMENTAL_CLIMATE_ZONE_TXT,Curtain Systems,Type,True
+PER_ENVIRONMENTAL_CORROSION_PROT_TXT,Curtain Systems,Type,True
+PER_ENVIRONMENTAL_DUST_PROT_REQ_BOOL,Curtain Systems,Type,True
+PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT,Curtain Systems,Type,True
+PER_ENVIRONMENTAL_RAINFALL_ANNUAL_MM,Curtain Systems,Type,True
+PER_ENVIRONMENTAL_TEMP_DESIGN_C,Curtain Systems,Type,True
+PER_ENVIRONMENTAL_TERMITE_PROT_BOOL,Curtain Systems,Type,True
+PER_SUST_CARBON_FOOTPRINT_KG,Curtain Systems,Type,True
+PER_SUST_EDGE_CONTRIB_TXT,Curtain Systems,Type,True
+PER_SUST_ENERGY_RATING_TXT,Curtain Systems,Type,True
+PER_SUST_LEED_CONTRIB_TXT,Curtain Systems,Type,True
+PER_SUST_RECYCLABLE_BOOL,Curtain Systems,Type,True
+PER_SUST_RECYCLED_CONTENT_PCT,Curtain Systems,Type,True
+PER_SUST_WTR_RATING_NR,Curtain Systems,Type,True
+PER_THERM_CONDENSATION_RISK_TXT,Curtain Systems,Type,True
+PER_THERM_NATURAL_VENT_TXT,Curtain Systems,Type,True
+PER_THERM_PASSIVE_DESIGN_TXT,Curtain Systems,Type,True
+PER_THERM_R_VALUE_M2K_W,Curtain Systems,Type,True
+PER_THERM_SHADING_DEVICE_TXT,Curtain Systems,Type,True
+PER_THERM_SOLAR_ABSORPTANCE_NR,Curtain Systems,Type,True
+PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Curtain Systems,Type,True
+PER_THERM_U_VALUE_W_M2K_NR,Curtain Systems,Type,True
+PRJ_COMMENTS_TXT,Curtain Systems,Type,True
+RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Curtain Systems,Type,True
+RGL_ACCESS_CLEAR_WIDTH_MM,Curtain Systems,Type,True
+RGL_ACCESS_CMPL_STD_TXT,Curtain Systems,Type,True
+RGL_ACCESS_HEARING_LOOP_BOOL,Curtain Systems,Type,True
+RGL_ACCESS_REFUGE_AREA_TXT,Curtain Systems,Type,True
+RGL_ACCESS_TACTILE_WARNING_TXT,Curtain Systems,Type,True
+RGL_ACCESS_THRESHOLD_HEIGHT_MM,Curtain Systems,Type,True
+RGL_ACCESS_TURNING_RADIUS_MM,Curtain Systems,Type,True
+RGL_KCCA_APPROVAL_REQ_BOOL,Curtain Systems,Type,True
+RGL_NEMA_APPROVAL_REQ_BOOL,Curtain Systems,Type,True
+RGL_NWSC_APPROVAL_BOOL,Curtain Systems,Type,True
+RGL_OCCUPANCY_CERT_REQ_BOOL,Curtain Systems,Type,True
+RGL_PERIODIC_INSP_FREQ_TXT,Curtain Systems,Type,True
+RGL_QA_APVD_VENDOR_TXT,Curtain Systems,Type,True
+RGL_QA_CERTIFICATION_TXT,Curtain Systems,Type,True
+RGL_QA_COMMISSIONING_REQ_TXT,Curtain Systems,Type,True
+RGL_QA_INSP_BOOL,Curtain Systems,Type,True
+RGL_QA_STD_COMPLY_TXT,Curtain Systems,Type,True
+RGL_QA_TST_REPORT_REF_TXT,Curtain Systems,Type,True
+RGL_STD_TXT,Curtain Systems,Type,True
+RGL_UMEME_APPROVAL_BOOL,Curtain Systems,Type,True
+RGL_UNBS_STD_TXT,Curtain Systems,Type,True
+SPARE_PARAM_01_TXT,Curtain Systems,Type,True
+SPARE_PARAM_02_TXT,Curtain Systems,Type,True
+SPARE_PARAM_03_TXT,Curtain Systems,Type,True
+SPARE_PARAM_04_NR,Curtain Systems,Type,True
+SPARE_PARAM_05_INT,Curtain Systems,Type,True
+USAGE_TXT,Curtain Systems,Type,True
+MAT_EPD_REF_TXT,Curtain Systems,Type,True
+MAT_TAG_6_TXT,Curtain Systems,Type,True
+SUST_MAT_TAG_1_TXT,Curtain Systems,Type,True
+SUST_MAT_TAG_2_TXT,Curtain Systems,Type,True
+ASS_INST_DETAIL_NUM_TXT,Curtain Systems,Type,True
+ASS_TAG_4_TXT,Curtain Systems,Type,True
+ASS_TAG_5_TXT,Curtain Systems,Type,True
+ASS_TAG_6_TXT,Curtain Systems,Type,True
+BLE_ELES_SPARE_01_TXT,Curtain Systems,Type,True
+BLE_ELES_SPARE_02_TXT,Curtain Systems,Type,True
+BLE_ELES_SPARE_03_TXT,Curtain Systems,Type,True
+CST_PERCENTAGE_OF_TOTAL_PCT,Curtain Systems,Type,True
+CST_S_EAR_CST_TOTAL_UGX_NR,Curtain Systems,Type,True
+CST_S_EAR_DISPOSAL_VOLUME_CU_M,Curtain Systems,Type,True
+CST_S_FRM_BEAM_LENGTH_M,Curtain Systems,Type,True
+CST_TOTAL_EQUIPMENT_COST,Curtain Systems,Type,True
+ASS_LVL_COD_TXT,Curtain Systems,Type,True
+ASS_MANUFACTURER_TXT,Curtain Systems,Type,True
+ASS_MODEL_NR_TXT,Curtain Systems,Type,True
+ASS_RM_COD_TXT,Curtain Systems,Type,True
+FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Curtain Systems,Type,True
+BLE_ROOM_NUMBER_TXT,Curtain Systems,Type,True
+BLE_FACADE_TYPE_TXT,Curtain Systems,Type,True
+BLE_CEILING_TYPE_CLASSIFICATION_TXT,Curtain Systems,Type,True
+BLE_FACADE_INS_BOOL,Curtain Systems,Type,True
+BLE_WINDOW_WIDTH_MM,Curtain Systems,Type,True
+BLE_STRUCT_SLAB_THICKNESS_MM,Curtain Systems,Type,True
+BLE_WALL_THICKNESS_MM,Curtain Systems,Type,True
+BLE_ROOF_CLR_TXT,Curtain Systems,Type,True
+BLE_FACADE_PNL_SZ_TXT,Curtain Systems,Type,True
+BLE_STRUCT_SEISMIC_DESIGN_BOOL,Curtain Systems,Type,True
+BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT,Curtain Systems,Type,True
+BLE_FLR_FINISH_TXT,Curtain Systems,Type,True
+BLE_CEILING_FINISH_TXT,Curtain Systems,Type,True
+BLE_CEILING_LIGHT_REFLECTANCE_PCT,Curtain Systems,Type,True
+BLE_STRUCT_FOUNDATION_TYPE_TXT,Curtain Systems,Type,True
+BLE_ROOM_NAME_TXT,Curtain Systems,Type,True
+BLE_ROOF_INS_R_VALUE_M_2K_W,Curtain Systems,Type,True
+BLE_ROOF_WATERPROOFING_SYSTEM_TXT,Curtain Systems,Type,True
+BLE_ROOF_DOWNPPE_SZ_MM,Curtain Systems,Type,True
+BLE_CEILING_GRID_SZ_MM,Curtain Systems,Type,True
+BLE_FLR_FINISH_THICKNESS_MM,Curtain Systems,Type,True
+BLE_WALL_TYPE_CLASSIFICATION_TXT,Curtain Systems,Type,True
+BLE_FINISH_PAINT_VOLUME_L,Curtain Systems,Type,True
+BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Curtain Systems,Type,True
+BLE_ELE_AREA_SQ_M,Curtain Systems,Type,True
+BLE_WALL_INTERIOR_FINISH_TXT,Curtain Systems,Type,True
+BLE_WINDOW_OPERATION_TYPE_TXT,Curtain Systems,Type,True
+BLE_STRUCT_CONCRETE_GRADE_TXT,Curtain Systems,Type,True
+BLE_ROOF_TYPE_TXT,Curtain Systems,Type,True
+BLE_FLR_MOISTURE_BARRIER_REQUIRED_BOOL,Curtain Systems,Type,True
+BLE_FLR_THICKNESS_MM,Curtain Systems,Type,True
+BLE_CEILING_HEIGHT_MM,Curtain Systems,Type,True
+BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR,Curtain Systems,Type,True
+BLE_WALL_HEIGHT_MM,Curtain Systems,Type,True
+BLE_STRUCT_REINFORCEMENT_TXT,Curtain Systems,Type,True
+BLE_FINISH_PLASTER_AREA_SQ_M,Curtain Systems,Type,True
+BLE_RAMP_SLOPE_PCT,Curtain Systems,Type,True
+BLE_WALL_EXTERIOR_FINISH_TXT,Curtain Systems,Type,True
+BLE_FLR_RAISED_FLR_HEIGHT_MM,Curtain Systems,Type,True
+BLE_RAMP_SURFACE_FINISH_TXT,Curtain Systems,Type,True
+BLE_FLR_STRUCTURAL_SYSTEM_TXT,Curtain Systems,Type,True
+CST_ENERGY_ANNUAL_UGX_NUM_NR,Curtain Systems,Type,True
+BLE_FLR_PERIMETER_DETAIL_TYPE_TXT,Curtain Systems,Type,True
+BLE_CEILING_PLENUM_HEIGHT_MM,Curtain Systems,Type,True
+BLE_STRUCT_ELE_TYPE_TXT,Curtain Systems,Type,True
+BLE_STRUCT_COLUMN_SZ_TXT,Curtain Systems,Type,True
+BLE_ROOF_SLOPE_DEG,Curtain Systems,Type,True
+BLE_FLR_UNDERFLR_HEATING_SYSTEM_TXT,Curtain Systems,Type,True
+BLE_ROOF_SOLAR_REFLECTANCE_INDEX_NR,Curtain Systems,Type,True
+BLE_FINISH_PAINT_COATS_NR,Curtain Systems,Type,True
+BLE_FACADE_FIX_SYSTEM_TXT,Curtain Systems,Type,True
+BLE_STRUCT_STEEL_GRADE_TXT,Curtain Systems,Type,True
+BLE_FLR_RAISED_ACCESS_FLR_TXT,Curtain Systems,Type,True
+BLE_WALL_MOISTURE_BARRIER_INCLUDED_TXT,Curtain Systems,Type,True
+BLE_FACADE_FINISH_TXT,Curtain Systems,Type,True
+BLE_WINDOW_TYPE_CLASSIFICATION_TXT,Curtain Systems,Type,True
+BLE_FLR_TYPE_CLASSIFICATION_TXT,Curtain Systems,Type,True
+BLE_WINDOW_HEIGHT_MM,Curtain Systems,Type,True
+BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,Curtain Systems,Type,True
+BLE_FLR_LD_CAP_KPA,Curtain Systems,Type,True
+BLE_ROOF_RAINWTR_HARVESTING_INTEGRATION_BOOL,Curtain Systems,Type,True
+BLE_CEILING_NOISE_REDCTION_COEFFICIENT_NRC_NR,Curtain Systems,Type,True
+BLE_FINISH_ADHESIVE_WEIGHT_KG,Curtain Systems,Type,True
+BLE_WALL_FUNCTION_TXT,Curtain Systems,Type,True
+BLE_ROOF_GUTTER_SZ_MM,Curtain Systems,Type,True
+BLE_FINISH_PLASTER_THICKNESS_MM,Curtain Systems,Type,True
+BLE_RAMP_HANDRAIL_BOTH_SIDES_TXT,Curtain Systems,Type,True
+BLE_LOAD_BEARING_ELE_BOOL,Curtain Systems,Type,True
+BLE_FINISH_TILE_QUANTITY_NR,Curtain Systems,Type,True
+BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,Curtain Systems,Type,True
+BLE_STRUCT_BEAM_SZ_TXT,Curtain Systems,Type,True
+BLE_FLR_SLIP_RESISTANCE_RATING_NR,Curtain Systems,Type,True
+BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,Curtain Systems,Type,True
+BLE_ROOF_OVERHANG_MM,Curtain Systems,Type,True
+BLE_FLR_IMPACT_SOUND_INS_DB,Curtain Systems,Type,True
+BLE_FINISH_TILE_SZ_TXT,Curtain Systems,Type,True
+BLE_STRUCT_LD_CAP_KN_NR,Curtain Systems,Type,True
+BLE_FINISH_GROUT_WEIGHT_KG,Curtain Systems,Type,True
+BLE_ROOF_STRUCTURE_TYPE_TXT,Curtain Systems,Type,True
+BLE_WINDOW_VISIBLE_LIGHT_TRANSMITTANCE_PCT,Curtain Systems,Type,True
+BLE_WALL_FINISH_TXT,Curtain Systems,Type,True
+BLE_WINDOW_MOSQUITO_SCREEN_INCLUDED_TXT,Curtain Systems,Type,True
+BLE_FLR_LVL_NR,Curtain Systems,Instance,True
+BLE_WINDOW_BURGLAR_BARS_REQUIRED_UGANDA_BOOL,Curtain Systems,Type,True
+BLE_FINISH_PAINT_AREA_SQ_M,Curtain Systems,Type,True
+BLE_FACADE_VENTILATED_TXT,Curtain Systems,Type,True
+BLE_FINISH_TILE_AREA_SQ_M,Curtain Systems,Type,True
+BLE_CEILING_SYSTEM_TXT,Curtain Systems,Type,True
+BLE_FINISH_PLASTER_RATIO_NR,Curtain Systems,Type,True
+BLE_RAMP_WIDTH_MM,Curtain Systems,Type,True
+BLE_WALL_CST_METHOD_TXT,Curtain Systems,Type,True
+BLE_CEILING_ACCESS_PNLS_INCLUDED_TXT,Curtain Systems,Type,True
+BLE_WALL_LENGTH_MM,Curtain Systems,Type,True
+BLE_WINDOW_U_VALUE_W_M_2K_NR,Curtain Systems,Type,True
+BLE_FINISH_TYPE_TXT,Curtain Systems,Type,True
+BLE_FACADE_CLR_TXT,Curtain Systems,Type,True
+WS_DESCRIPTION_TXT,Curtain Systems,Type,True
+WS_OWNER_TXT,Curtain Systems,Type,True
+WS_VISIBLE_DEFAULT_BOOL,Curtain Systems,Type,True
+WS_DISCIPLINE_TXT,Curtain Systems,Type,True
+WS_TYPE_TXT,Curtain Systems,Type,True
+WS_NAME_TXT,Curtain Systems,Type,True
+WS_EDITABLE_DEFAULT_BOOL,Curtain Systems,Type,True
+PH_NUMBER_INT,Curtain Systems,Type,True
+PH_DESCRIPTION_TXT,Curtain Systems,Type,True
+PH_END_DATE_TXT,Curtain Systems,Type,True
+PH_STATUS_TXT,Curtain Systems,Type,True
+PH_START_DATE_TXT,Curtain Systems,Type,True
+PH_NAME_TXT,Curtain Systems,Type,True
+ASS_CAT_TXT,Flex Pipes,Type,True
+ASS_DESCRIPTION_TXT,Flex Pipes,Type,True
+ASS_ID_TXT,Flex Pipes,Type,True
+ASS_LOC_TXT,Flex Pipes,Type,True
+ASS_TAG_1_TXT,Flex Pipes,Type,True
+ASS_TAG_2_TXT,Flex Pipes,Type,True
+ASS_TAG_3_TXT,Flex Pipes,Type,True
+BLE_DOOR_ACOUSTIC_RATING_DB,Flex Pipes,Type,True
+BLE_DOOR_CLOSER_REQUIRED_BOOL,Flex Pipes,Type,True
+BLE_DOOR_GLAZING_PCT,Flex Pipes,Type,True
+BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Flex Pipes,Type,True
+BLE_DOOR_HEIGHT_MM,Flex Pipes,Type,True
+BLE_DOOR_MAT_TXT,Flex Pipes,Type,True
+BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,Flex Pipes,Type,True
+BLE_DOOR_PANIC_HARDWARE_REQUIRED_BOOL,Flex Pipes,Type,True
+BLE_DOOR_SECURITY_RATING_GRADE_TXT,Flex Pipes,Type,True
+BLE_DOOR_WIDTH_MM,Flex Pipes,Type,True
+CST_CALC_ADHESIVE_KG,Flex Pipes,Type,True
+CST_CALC_AGGREGATE_M3,Flex Pipes,Type,True
+CST_CALC_AREA_M2,Flex Pipes,Type,True
+CST_CALC_BLOCKS_NR,Flex Pipes,Type,True
+CST_CALC_CEMENT_BAGS_NR,Flex Pipes,Type,True
+CST_CALC_CEMENT_PLASTER_BAGS,Flex Pipes,Type,True
+CST_CALC_CONCRETE_M3,Flex Pipes,Type,True
+CST_CALC_FASTENERS_NR,Flex Pipes,Type,True
+CST_CALC_GROUT_KG,Flex Pipes,Type,True
+CST_CALC_LENGTH_M,Flex Pipes,Type,True
+CST_CALC_MORTAR_M3,Flex Pipes,Type,True
+CST_CALC_PAINT_LITERS,Flex Pipes,Type,True
+CST_CALC_PLASTER_M3,Flex Pipes,Type,True
+CST_CALC_PRIMER_LITERS,Flex Pipes,Type,True
+CST_CALC_PURLINS_M,Flex Pipes,Type,True
+CST_CALC_PUTTY_KG,Flex Pipes,Type,True
+CST_CALC_RIDGE_CAP_M,Flex Pipes,Type,True
+CST_CALC_SAND_M3,Flex Pipes,Type,True
+CST_CALC_SAND_PLASTER_M3,Flex Pipes,Type,True
+CST_CALC_SHEETS_NR,Flex Pipes,Type,True
+CST_CALC_STEEL_KG,Flex Pipes,Type,True
+CST_CALC_TILE_M2,Flex Pipes,Type,True
+CST_CALC_VOLUME_M3,Flex Pipes,Type,True
+CST_CALC_WATER_M3,Flex Pipes,Type,True
+CST_S_CON_ADMIXTURE_TXT,Flex Pipes,Type,True
+CST_S_CON_AGGREGATE_VOLUME_CU_M,Flex Pipes,Type,True
+CST_S_CON_CEMENT_BAGS_NR,Flex Pipes,Type,True
+CST_S_CON_CST_TOTAL_UGX_NR,Flex Pipes,Type,True
+CST_S_CON_CURING_DAYS_NR,Flex Pipes,Type,True
+CST_S_CON_GRADE_TXT,Flex Pipes,Type,True
+CST_S_CON_MIX_RATIO_TXT,Flex Pipes,Type,True
+CST_S_CON_POUR_SEQUENCE_TXT,Flex Pipes,Type,True
+CST_S_CON_SAND_VOLUME_CU_M,Flex Pipes,Type,True
+CST_S_CON_SLUMP_MM,Flex Pipes,Type,True
+CST_S_CON_STRENGTH_MPA,Flex Pipes,Type,True
+CST_S_CON_TYPE_TXT,Flex Pipes,Type,True
+CST_S_CON_VOLUME_CU_M,Flex Pipes,Type,True
+CST_S_CON_VOLUME_WASTAGE_CU_M,Flex Pipes,Type,True
+CST_S_CON_WTR_VOLUME_L,Flex Pipes,Type,True
+CST_S_EAR_BACKFILL_VOLUME_CU_M,Flex Pipes,Type,True
+CST_S_EAR_BLINDING_VOLUME_CU_M,Flex Pipes,Type,True
+CST_S_EAR_COMPACTION_NR,Flex Pipes,Type,True
+CST_S_EAR_EXCAVATION_DEPTH_M,Flex Pipes,Type,True
+CST_S_EAR_EXCAVATION_METHOD_TXT,Flex Pipes,Type,True
+CST_S_EAR_EXCAVATION_VOLUME_CU_M,Flex Pipes,Type,True
+CST_S_EAR_FILL_MAT_TXT,Flex Pipes,Type,True
+CST_S_EAR_GEOTEXTILE_AREA_SQ_M,Flex Pipes,Type,True
+CST_S_EAR_HARDCORE_THICKNESS_MM,Flex Pipes,Type,True
+CST_S_EAR_HARDCORE_VOLUME_CU_M,Flex Pipes,Type,True
+CST_S_EAR_SOIL_TYPE_TXT,Flex Pipes,Type,True
+CST_S_FRM_BEAM_AREA_SQ_M,Flex Pipes,Type,True
+CST_S_FRM_COLUMN_AREA_SQ_M,Flex Pipes,Type,True
+CST_S_FRM_CST_TOTAL_UGX_NR,Flex Pipes,Type,True
+CST_S_FRM_PLYWOOD_SHEETS_NR,Flex Pipes,Type,True
+CST_S_FRM_PROPS_QUANTITY_NR,Flex Pipes,Type,True
+CST_S_FRM_RELEASE_AGENT_L,Flex Pipes,Type,True
+CST_S_FRM_REUSE_CYCLES_NR,Flex Pipes,Type,True
+CST_S_FRM_SLAB_AREA_SQ_M,Flex Pipes,Type,True
+CST_S_FRM_STRIPPING_TIME_DAYS,Flex Pipes,Type,True
+CST_S_FRM_TIMBER_VOLUME_CU_M,Flex Pipes,Type,True
+CST_S_FRM_TYPE_TXT,Flex Pipes,Type,True
+CST_S_MAS_BRICK_QUANTITY_NR,Flex Pipes,Type,True
+CST_S_MAS_BRICK_STRENGTH_TXT,Flex Pipes,Type,True
+CST_S_MAS_BRICK_TYPE_TXT,Flex Pipes,Type,True
+CST_S_MAS_BRICK_WASTAGE_NR,Flex Pipes,Type,True
+CST_S_MAS_CEMENT_BAGS_NR,Flex Pipes,Type,True
+CST_S_MAS_CST_TOTAL_UGX_NR,Flex Pipes,Type,True
+CST_S_MAS_MORTAR_RATIO_TXT,Flex Pipes,Type,True
+CST_S_MAS_MORTAR_TYPE_TXT,Flex Pipes,Type,True
+CST_S_MAS_MORTAR_VOLUME_CU_M,Flex Pipes,Type,True
+CST_S_MAS_NET_AREA_SQ_M,Flex Pipes,Type,True
+CST_S_MAS_OPENING_AREA_SQ_M,Flex Pipes,Type,True
+CST_S_MAS_SAND_VOLUME_CU_M,Flex Pipes,Type,True
+CST_S_MAS_WALL_AREA_SQ_M,Flex Pipes,Type,True
+CST_S_MAS_WALL_THICKNESS_MM,Flex Pipes,Type,True
+CST_S_MAS_WASTAGE_FCT_PCT,Flex Pipes,Type,True
+CST_S_REI_COVER_MM,Flex Pipes,Type,True
+CST_S_REI_CST_TOTAL_UGX_NR,Flex Pipes,Type,True
+CST_S_REI_DIAMETER_MM,Flex Pipes,Type,True
+CST_S_REI_GRADE_TXT,Flex Pipes,Type,True
+CST_S_REI_LENGTH_M,Flex Pipes,Type,True
+CST_S_REI_MARK_PREFIX_TXT,Flex Pipes,Type,True
+CST_S_REI_OVERLAP_LENGTH_MM,Flex Pipes,Type,True
+CST_S_REI_SCHEDULE_REF_TXT,Flex Pipes,Type,True
+CST_S_REI_SPACING_MM,Flex Pipes,Type,True
+CST_S_REI_TYPE_TXT,Flex Pipes,Type,True
+CST_S_REI_WEIGHT_KG,Flex Pipes,Type,True
+CST_S_REI_WEIGHT_WASTAGE_KG,Flex Pipes,Type,True
+CST_S_REI_WIRE_WEIGHT_KG,Flex Pipes,Type,True
+PER_ACOUSTICS_BACKGROUND_NOISE_DB,Flex Pipes,Type,True
+PER_ACOUSTICS_IIC_RATING_TXT,Flex Pipes,Type,True
+PER_ACOUSTICS_ISOLATION_REQ_BOOL,Flex Pipes,Type,True
+PER_ACOUSTICS_REVERBERATION_TIME_SEC_NR,Flex Pipes,Type,True
+PER_ACOUSTICS_STC_RATING_TXT,Flex Pipes,Type,True
+PER_ACOUSTICS_TREATMENT_TYPE_TXT,Flex Pipes,Type,True
+PER_ENVIRONMENTAL_ALTITUDE_M,Flex Pipes,Type,True
+PER_ENVIRONMENTAL_CLIMATE_ZONE_TXT,Flex Pipes,Type,True
+PER_ENVIRONMENTAL_CORROSION_PROT_TXT,Flex Pipes,Type,True
+PER_ENVIRONMENTAL_DUST_PROT_REQ_BOOL,Flex Pipes,Type,True
+PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT,Flex Pipes,Type,True
+PER_ENVIRONMENTAL_RAINFALL_ANNUAL_MM,Flex Pipes,Type,True
+PER_ENVIRONMENTAL_TEMP_DESIGN_C,Flex Pipes,Type,True
+PER_ENVIRONMENTAL_TERMITE_PROT_BOOL,Flex Pipes,Type,True
+PER_SUST_CARBON_FOOTPRINT_KG,Flex Pipes,Type,True
+PER_SUST_EDGE_CONTRIB_TXT,Flex Pipes,Type,True
+PER_SUST_ENERGY_RATING_TXT,Flex Pipes,Type,True
+PER_SUST_LEED_CONTRIB_TXT,Flex Pipes,Type,True
+PER_SUST_RECYCLABLE_BOOL,Flex Pipes,Type,True
+PER_SUST_RECYCLED_CONTENT_PCT,Flex Pipes,Type,True
+PER_SUST_WTR_RATING_NR,Flex Pipes,Type,True
+PER_THERM_CONDENSATION_RISK_TXT,Flex Pipes,Type,True
+PER_THERM_NATURAL_VENT_TXT,Flex Pipes,Type,True
+PER_THERM_PASSIVE_DESIGN_TXT,Flex Pipes,Type,True
+PER_THERM_R_VALUE_M2K_W,Flex Pipes,Type,True
+PER_THERM_SHADING_DEVICE_TXT,Flex Pipes,Type,True
+PER_THERM_SOLAR_ABSORPTANCE_NR,Flex Pipes,Type,True
+PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Flex Pipes,Type,True
+PER_THERM_U_VALUE_W_M2K_NR,Flex Pipes,Type,True
+PRJ_COMMENTS_TXT,Flex Pipes,Type,True
+RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Flex Pipes,Type,True
+RGL_ACCESS_CLEAR_WIDTH_MM,Flex Pipes,Type,True
+RGL_ACCESS_CMPL_STD_TXT,Flex Pipes,Type,True
+RGL_ACCESS_HEARING_LOOP_BOOL,Flex Pipes,Type,True
+RGL_ACCESS_REFUGE_AREA_TXT,Flex Pipes,Type,True
+RGL_ACCESS_TACTILE_WARNING_TXT,Flex Pipes,Type,True
+RGL_ACCESS_THRESHOLD_HEIGHT_MM,Flex Pipes,Type,True
+RGL_ACCESS_TURNING_RADIUS_MM,Flex Pipes,Type,True
+RGL_KCCA_APPROVAL_REQ_BOOL,Flex Pipes,Type,True
+RGL_NEMA_APPROVAL_REQ_BOOL,Flex Pipes,Type,True
+RGL_NWSC_APPROVAL_BOOL,Flex Pipes,Type,True
+RGL_OCCUPANCY_CERT_REQ_BOOL,Flex Pipes,Type,True
+RGL_PERIODIC_INSP_FREQ_TXT,Flex Pipes,Type,True
+RGL_QA_APVD_VENDOR_TXT,Flex Pipes,Type,True
+RGL_QA_CERTIFICATION_TXT,Flex Pipes,Type,True
+RGL_QA_COMMISSIONING_REQ_TXT,Flex Pipes,Type,True
+RGL_QA_INSP_BOOL,Flex Pipes,Type,True
+RGL_QA_STD_COMPLY_TXT,Flex Pipes,Type,True
+RGL_QA_TST_REPORT_REF_TXT,Flex Pipes,Type,True
+RGL_STD_TXT,Flex Pipes,Type,True
+RGL_UMEME_APPROVAL_BOOL,Flex Pipes,Type,True
+RGL_UNBS_STD_TXT,Flex Pipes,Type,True
+SPARE_PARAM_01_TXT,Flex Pipes,Type,True
+SPARE_PARAM_02_TXT,Flex Pipes,Type,True
+SPARE_PARAM_03_TXT,Flex Pipes,Type,True
+SPARE_PARAM_04_NR,Flex Pipes,Type,True
+SPARE_PARAM_05_INT,Flex Pipes,Type,True
+USAGE_TXT,Flex Pipes,Type,True
+MAT_EPD_REF_TXT,Flex Pipes,Type,True
+MAT_TAG_6_TXT,Flex Pipes,Type,True
+SUST_MAT_TAG_1_TXT,Flex Pipes,Type,True
+SUST_MAT_TAG_2_TXT,Flex Pipes,Type,True
+ASS_INST_DETAIL_NUM_TXT,Flex Pipes,Type,True
+ASS_TAG_4_TXT,Flex Pipes,Type,True
+ASS_TAG_5_TXT,Flex Pipes,Type,True
+ASS_TAG_6_TXT,Flex Pipes,Type,True
+BLE_ELES_SPARE_01_TXT,Flex Pipes,Type,True
+BLE_ELES_SPARE_02_TXT,Flex Pipes,Type,True
+BLE_ELES_SPARE_03_TXT,Flex Pipes,Type,True
+CST_PERCENTAGE_OF_TOTAL_PCT,Flex Pipes,Type,True
+CST_S_EAR_CST_TOTAL_UGX_NR,Flex Pipes,Type,True
+CST_S_EAR_DISPOSAL_VOLUME_CU_M,Flex Pipes,Type,True
+CST_S_FRM_BEAM_LENGTH_M,Flex Pipes,Type,True
+CST_TOTAL_EQUIPMENT_COST,Flex Pipes,Type,True
+ASS_LVL_COD_TXT,Flex Pipes,Type,True
+ASS_MANUFACTURER_TXT,Flex Pipes,Type,True
+ASS_MODEL_NR_TXT,Flex Pipes,Type,True
+ASS_RM_COD_TXT,Flex Pipes,Type,True
+FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Flex Pipes,Type,True
+BLE_ROOM_NUMBER_TXT,Flex Pipes,Type,True
+BLE_FACADE_TYPE_TXT,Flex Pipes,Type,True
+BLE_CEILING_TYPE_CLASSIFICATION_TXT,Flex Pipes,Type,True
+BLE_FACADE_INS_BOOL,Flex Pipes,Type,True
+BLE_WINDOW_WIDTH_MM,Flex Pipes,Type,True
+BLE_STRUCT_SLAB_THICKNESS_MM,Flex Pipes,Type,True
+BLE_WALL_THICKNESS_MM,Flex Pipes,Type,True
+BLE_ROOF_CLR_TXT,Flex Pipes,Type,True
+BLE_FACADE_PNL_SZ_TXT,Flex Pipes,Type,True
+BLE_STRUCT_SEISMIC_DESIGN_BOOL,Flex Pipes,Type,True
+BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT,Flex Pipes,Type,True
+BLE_FLR_FINISH_TXT,Flex Pipes,Type,True
+BLE_CEILING_FINISH_TXT,Flex Pipes,Type,True
+BLE_CEILING_LIGHT_REFLECTANCE_PCT,Flex Pipes,Type,True
+BLE_STRUCT_FOUNDATION_TYPE_TXT,Flex Pipes,Type,True
+BLE_ROOM_NAME_TXT,Flex Pipes,Type,True
+BLE_ROOF_INS_R_VALUE_M_2K_W,Flex Pipes,Type,True
+BLE_ROOF_WATERPROOFING_SYSTEM_TXT,Flex Pipes,Type,True
+BLE_ROOF_DOWNPPE_SZ_MM,Flex Pipes,Type,True
+BLE_CEILING_GRID_SZ_MM,Flex Pipes,Type,True
+BLE_FLR_FINISH_THICKNESS_MM,Flex Pipes,Type,True
+BLE_WALL_TYPE_CLASSIFICATION_TXT,Flex Pipes,Type,True
+BLE_FINISH_PAINT_VOLUME_L,Flex Pipes,Type,True
+BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Flex Pipes,Type,True
+BLE_ELE_AREA_SQ_M,Flex Pipes,Type,True
+BLE_WALL_INTERIOR_FINISH_TXT,Flex Pipes,Type,True
+BLE_WINDOW_OPERATION_TYPE_TXT,Flex Pipes,Type,True
+BLE_STRUCT_CONCRETE_GRADE_TXT,Flex Pipes,Type,True
+BLE_ROOF_TYPE_TXT,Flex Pipes,Type,True
+BLE_FLR_MOISTURE_BARRIER_REQUIRED_BOOL,Flex Pipes,Type,True
+BLE_FLR_THICKNESS_MM,Flex Pipes,Type,True
+BLE_CEILING_HEIGHT_MM,Flex Pipes,Type,True
+BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR,Flex Pipes,Type,True
+BLE_WALL_HEIGHT_MM,Flex Pipes,Type,True
+BLE_STRUCT_REINFORCEMENT_TXT,Flex Pipes,Type,True
+BLE_FINISH_PLASTER_AREA_SQ_M,Flex Pipes,Type,True
+BLE_RAMP_SLOPE_PCT,Flex Pipes,Type,True
+BLE_WALL_EXTERIOR_FINISH_TXT,Flex Pipes,Type,True
+BLE_FLR_RAISED_FLR_HEIGHT_MM,Flex Pipes,Type,True
+BLE_RAMP_SURFACE_FINISH_TXT,Flex Pipes,Type,True
+BLE_FLR_STRUCTURAL_SYSTEM_TXT,Flex Pipes,Type,True
+CST_ENERGY_ANNUAL_UGX_NUM_NR,Flex Pipes,Type,True
+BLE_FLR_PERIMETER_DETAIL_TYPE_TXT,Flex Pipes,Type,True
+BLE_CEILING_PLENUM_HEIGHT_MM,Flex Pipes,Type,True
+BLE_STRUCT_ELE_TYPE_TXT,Flex Pipes,Type,True
+BLE_STRUCT_COLUMN_SZ_TXT,Flex Pipes,Type,True
+BLE_ROOF_SLOPE_DEG,Flex Pipes,Type,True
+BLE_FLR_UNDERFLR_HEATING_SYSTEM_TXT,Flex Pipes,Type,True
+BLE_ROOF_SOLAR_REFLECTANCE_INDEX_NR,Flex Pipes,Type,True
+BLE_FINISH_PAINT_COATS_NR,Flex Pipes,Type,True
+BLE_FACADE_FIX_SYSTEM_TXT,Flex Pipes,Type,True
+BLE_STRUCT_STEEL_GRADE_TXT,Flex Pipes,Type,True
+BLE_FLR_RAISED_ACCESS_FLR_TXT,Flex Pipes,Type,True
+BLE_WALL_MOISTURE_BARRIER_INCLUDED_TXT,Flex Pipes,Type,True
+BLE_FACADE_FINISH_TXT,Flex Pipes,Type,True
+BLE_WINDOW_TYPE_CLASSIFICATION_TXT,Flex Pipes,Type,True
+BLE_FLR_TYPE_CLASSIFICATION_TXT,Flex Pipes,Type,True
+BLE_WINDOW_HEIGHT_MM,Flex Pipes,Type,True
+BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,Flex Pipes,Type,True
+BLE_FLR_LD_CAP_KPA,Flex Pipes,Type,True
+BLE_ROOF_RAINWTR_HARVESTING_INTEGRATION_BOOL,Flex Pipes,Type,True
+BLE_CEILING_NOISE_REDCTION_COEFFICIENT_NRC_NR,Flex Pipes,Type,True
+BLE_FINISH_ADHESIVE_WEIGHT_KG,Flex Pipes,Type,True
+BLE_WALL_FUNCTION_TXT,Flex Pipes,Type,True
+BLE_ROOF_GUTTER_SZ_MM,Flex Pipes,Type,True
+BLE_FINISH_PLASTER_THICKNESS_MM,Flex Pipes,Type,True
+BLE_RAMP_HANDRAIL_BOTH_SIDES_TXT,Flex Pipes,Type,True
+BLE_LOAD_BEARING_ELE_BOOL,Flex Pipes,Type,True
+BLE_FINISH_TILE_QUANTITY_NR,Flex Pipes,Type,True
+BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,Flex Pipes,Type,True
+BLE_STRUCT_BEAM_SZ_TXT,Flex Pipes,Type,True
+BLE_FLR_SLIP_RESISTANCE_RATING_NR,Flex Pipes,Type,True
+BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,Flex Pipes,Type,True
+BLE_ROOF_OVERHANG_MM,Flex Pipes,Type,True
+BLE_FLR_IMPACT_SOUND_INS_DB,Flex Pipes,Type,True
+BLE_FINISH_TILE_SZ_TXT,Flex Pipes,Type,True
+BLE_STRUCT_LD_CAP_KN_NR,Flex Pipes,Type,True
+BLE_FINISH_GROUT_WEIGHT_KG,Flex Pipes,Type,True
+BLE_ROOF_STRUCTURE_TYPE_TXT,Flex Pipes,Type,True
+BLE_WINDOW_VISIBLE_LIGHT_TRANSMITTANCE_PCT,Flex Pipes,Type,True
+BLE_WALL_FINISH_TXT,Flex Pipes,Type,True
+BLE_WINDOW_MOSQUITO_SCREEN_INCLUDED_TXT,Flex Pipes,Type,True
+BLE_FLR_LVL_NR,Flex Pipes,Instance,True
+BLE_WINDOW_BURGLAR_BARS_REQUIRED_UGANDA_BOOL,Flex Pipes,Type,True
+BLE_FINISH_PAINT_AREA_SQ_M,Flex Pipes,Type,True
+BLE_FACADE_VENTILATED_TXT,Flex Pipes,Type,True
+BLE_FINISH_TILE_AREA_SQ_M,Flex Pipes,Type,True
+BLE_CEILING_SYSTEM_TXT,Flex Pipes,Type,True
+BLE_FINISH_PLASTER_RATIO_NR,Flex Pipes,Type,True
+BLE_RAMP_WIDTH_MM,Flex Pipes,Type,True
+BLE_WALL_CST_METHOD_TXT,Flex Pipes,Type,True
+BLE_CEILING_ACCESS_PNLS_INCLUDED_TXT,Flex Pipes,Type,True
+BLE_WALL_LENGTH_MM,Flex Pipes,Type,True
+BLE_WINDOW_U_VALUE_W_M_2K_NR,Flex Pipes,Type,True
+BLE_FINISH_TYPE_TXT,Flex Pipes,Type,True
+BLE_FACADE_CLR_TXT,Flex Pipes,Type,True
+WS_DESCRIPTION_TXT,Flex Pipes,Type,True
+WS_OWNER_TXT,Flex Pipes,Type,True
+WS_VISIBLE_DEFAULT_BOOL,Flex Pipes,Type,True
+WS_DISCIPLINE_TXT,Flex Pipes,Type,True
+WS_TYPE_TXT,Flex Pipes,Type,True
+WS_NAME_TXT,Flex Pipes,Type,True
+WS_EDITABLE_DEFAULT_BOOL,Flex Pipes,Type,True
+PH_NUMBER_INT,Flex Pipes,Type,True
+PH_DESCRIPTION_TXT,Flex Pipes,Type,True
+PH_END_DATE_TXT,Flex Pipes,Type,True
+PH_STATUS_TXT,Flex Pipes,Type,True
+PH_START_DATE_TXT,Flex Pipes,Type,True
+PH_NAME_TXT,Flex Pipes,Type,True
+ASS_CAT_TXT,Furniture Systems,Type,True
+ASS_DESCRIPTION_TXT,Furniture Systems,Type,True
+ASS_ID_TXT,Furniture Systems,Type,True
+ASS_LOC_TXT,Furniture Systems,Type,True
+ASS_TAG_1_TXT,Furniture Systems,Type,True
+ASS_TAG_2_TXT,Furniture Systems,Type,True
+ASS_TAG_3_TXT,Furniture Systems,Type,True
+BLE_DOOR_ACOUSTIC_RATING_DB,Furniture Systems,Type,True
+BLE_DOOR_CLOSER_REQUIRED_BOOL,Furniture Systems,Type,True
+BLE_DOOR_GLAZING_PCT,Furniture Systems,Type,True
+BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Furniture Systems,Type,True
+BLE_DOOR_HEIGHT_MM,Furniture Systems,Type,True
+BLE_DOOR_MAT_TXT,Furniture Systems,Type,True
+BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,Furniture Systems,Type,True
+BLE_DOOR_PANIC_HARDWARE_REQUIRED_BOOL,Furniture Systems,Type,True
+BLE_DOOR_SECURITY_RATING_GRADE_TXT,Furniture Systems,Type,True
+BLE_DOOR_WIDTH_MM,Furniture Systems,Type,True
+CST_CALC_ADHESIVE_KG,Furniture Systems,Type,True
+CST_CALC_AGGREGATE_M3,Furniture Systems,Type,True
+CST_CALC_AREA_M2,Furniture Systems,Type,True
+CST_CALC_BLOCKS_NR,Furniture Systems,Type,True
+CST_CALC_CEMENT_BAGS_NR,Furniture Systems,Type,True
+CST_CALC_CEMENT_PLASTER_BAGS,Furniture Systems,Type,True
+CST_CALC_CONCRETE_M3,Furniture Systems,Type,True
+CST_CALC_FASTENERS_NR,Furniture Systems,Type,True
+CST_CALC_GROUT_KG,Furniture Systems,Type,True
+CST_CALC_LENGTH_M,Furniture Systems,Type,True
+CST_CALC_MORTAR_M3,Furniture Systems,Type,True
+CST_CALC_PAINT_LITERS,Furniture Systems,Type,True
+CST_CALC_PLASTER_M3,Furniture Systems,Type,True
+CST_CALC_PRIMER_LITERS,Furniture Systems,Type,True
+CST_CALC_PURLINS_M,Furniture Systems,Type,True
+CST_CALC_PUTTY_KG,Furniture Systems,Type,True
+CST_CALC_RIDGE_CAP_M,Furniture Systems,Type,True
+CST_CALC_SAND_M3,Furniture Systems,Type,True
+CST_CALC_SAND_PLASTER_M3,Furniture Systems,Type,True
+CST_CALC_SHEETS_NR,Furniture Systems,Type,True
+CST_CALC_STEEL_KG,Furniture Systems,Type,True
+CST_CALC_TILE_M2,Furniture Systems,Type,True
+CST_CALC_VOLUME_M3,Furniture Systems,Type,True
+CST_CALC_WATER_M3,Furniture Systems,Type,True
+CST_S_CON_ADMIXTURE_TXT,Furniture Systems,Type,True
+CST_S_CON_AGGREGATE_VOLUME_CU_M,Furniture Systems,Type,True
+CST_S_CON_CEMENT_BAGS_NR,Furniture Systems,Type,True
+CST_S_CON_CST_TOTAL_UGX_NR,Furniture Systems,Type,True
+CST_S_CON_CURING_DAYS_NR,Furniture Systems,Type,True
+CST_S_CON_GRADE_TXT,Furniture Systems,Type,True
+CST_S_CON_MIX_RATIO_TXT,Furniture Systems,Type,True
+CST_S_CON_POUR_SEQUENCE_TXT,Furniture Systems,Type,True
+CST_S_CON_SAND_VOLUME_CU_M,Furniture Systems,Type,True
+CST_S_CON_SLUMP_MM,Furniture Systems,Type,True
+CST_S_CON_STRENGTH_MPA,Furniture Systems,Type,True
+CST_S_CON_TYPE_TXT,Furniture Systems,Type,True
+CST_S_CON_VOLUME_CU_M,Furniture Systems,Type,True
+CST_S_CON_VOLUME_WASTAGE_CU_M,Furniture Systems,Type,True
+CST_S_CON_WTR_VOLUME_L,Furniture Systems,Type,True
+CST_S_EAR_BACKFILL_VOLUME_CU_M,Furniture Systems,Type,True
+CST_S_EAR_BLINDING_VOLUME_CU_M,Furniture Systems,Type,True
+CST_S_EAR_COMPACTION_NR,Furniture Systems,Type,True
+CST_S_EAR_EXCAVATION_DEPTH_M,Furniture Systems,Type,True
+CST_S_EAR_EXCAVATION_METHOD_TXT,Furniture Systems,Type,True
+CST_S_EAR_EXCAVATION_VOLUME_CU_M,Furniture Systems,Type,True
+CST_S_EAR_FILL_MAT_TXT,Furniture Systems,Type,True
+CST_S_EAR_GEOTEXTILE_AREA_SQ_M,Furniture Systems,Type,True
+CST_S_EAR_HARDCORE_THICKNESS_MM,Furniture Systems,Type,True
+CST_S_EAR_HARDCORE_VOLUME_CU_M,Furniture Systems,Type,True
+CST_S_EAR_SOIL_TYPE_TXT,Furniture Systems,Type,True
+CST_S_FRM_BEAM_AREA_SQ_M,Furniture Systems,Type,True
+CST_S_FRM_COLUMN_AREA_SQ_M,Furniture Systems,Type,True
+CST_S_FRM_CST_TOTAL_UGX_NR,Furniture Systems,Type,True
+CST_S_FRM_PLYWOOD_SHEETS_NR,Furniture Systems,Type,True
+CST_S_FRM_PROPS_QUANTITY_NR,Furniture Systems,Type,True
+CST_S_FRM_RELEASE_AGENT_L,Furniture Systems,Type,True
+CST_S_FRM_REUSE_CYCLES_NR,Furniture Systems,Type,True
+CST_S_FRM_SLAB_AREA_SQ_M,Furniture Systems,Type,True
+CST_S_FRM_STRIPPING_TIME_DAYS,Furniture Systems,Type,True
+CST_S_FRM_TIMBER_VOLUME_CU_M,Furniture Systems,Type,True
+CST_S_FRM_TYPE_TXT,Furniture Systems,Type,True
+CST_S_MAS_BRICK_QUANTITY_NR,Furniture Systems,Type,True
+CST_S_MAS_BRICK_STRENGTH_TXT,Furniture Systems,Type,True
+CST_S_MAS_BRICK_TYPE_TXT,Furniture Systems,Type,True
+CST_S_MAS_BRICK_WASTAGE_NR,Furniture Systems,Type,True
+CST_S_MAS_CEMENT_BAGS_NR,Furniture Systems,Type,True
+CST_S_MAS_CST_TOTAL_UGX_NR,Furniture Systems,Type,True
+CST_S_MAS_MORTAR_RATIO_TXT,Furniture Systems,Type,True
+CST_S_MAS_MORTAR_TYPE_TXT,Furniture Systems,Type,True
+CST_S_MAS_MORTAR_VOLUME_CU_M,Furniture Systems,Type,True
+CST_S_MAS_NET_AREA_SQ_M,Furniture Systems,Type,True
+CST_S_MAS_OPENING_AREA_SQ_M,Furniture Systems,Type,True
+CST_S_MAS_SAND_VOLUME_CU_M,Furniture Systems,Type,True
+CST_S_MAS_WALL_AREA_SQ_M,Furniture Systems,Type,True
+CST_S_MAS_WALL_THICKNESS_MM,Furniture Systems,Type,True
+CST_S_MAS_WASTAGE_FCT_PCT,Furniture Systems,Type,True
+CST_S_REI_COVER_MM,Furniture Systems,Type,True
+CST_S_REI_CST_TOTAL_UGX_NR,Furniture Systems,Type,True
+CST_S_REI_DIAMETER_MM,Furniture Systems,Type,True
+CST_S_REI_GRADE_TXT,Furniture Systems,Type,True
+CST_S_REI_LENGTH_M,Furniture Systems,Type,True
+CST_S_REI_MARK_PREFIX_TXT,Furniture Systems,Type,True
+CST_S_REI_OVERLAP_LENGTH_MM,Furniture Systems,Type,True
+CST_S_REI_SCHEDULE_REF_TXT,Furniture Systems,Type,True
+CST_S_REI_SPACING_MM,Furniture Systems,Type,True
+CST_S_REI_TYPE_TXT,Furniture Systems,Type,True
+CST_S_REI_WEIGHT_KG,Furniture Systems,Type,True
+CST_S_REI_WEIGHT_WASTAGE_KG,Furniture Systems,Type,True
+CST_S_REI_WIRE_WEIGHT_KG,Furniture Systems,Type,True
+PER_ACOUSTICS_BACKGROUND_NOISE_DB,Furniture Systems,Type,True
+PER_ACOUSTICS_IIC_RATING_TXT,Furniture Systems,Type,True
+PER_ACOUSTICS_ISOLATION_REQ_BOOL,Furniture Systems,Type,True
+PER_ACOUSTICS_REVERBERATION_TIME_SEC_NR,Furniture Systems,Type,True
+PER_ACOUSTICS_STC_RATING_TXT,Furniture Systems,Type,True
+PER_ACOUSTICS_TREATMENT_TYPE_TXT,Furniture Systems,Type,True
+PER_ENVIRONMENTAL_ALTITUDE_M,Furniture Systems,Type,True
+PER_ENVIRONMENTAL_CLIMATE_ZONE_TXT,Furniture Systems,Type,True
+PER_ENVIRONMENTAL_CORROSION_PROT_TXT,Furniture Systems,Type,True
+PER_ENVIRONMENTAL_DUST_PROT_REQ_BOOL,Furniture Systems,Type,True
+PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT,Furniture Systems,Type,True
+PER_ENVIRONMENTAL_RAINFALL_ANNUAL_MM,Furniture Systems,Type,True
+PER_ENVIRONMENTAL_TEMP_DESIGN_C,Furniture Systems,Type,True
+PER_ENVIRONMENTAL_TERMITE_PROT_BOOL,Furniture Systems,Type,True
+PER_SUST_CARBON_FOOTPRINT_KG,Furniture Systems,Type,True
+PER_SUST_EDGE_CONTRIB_TXT,Furniture Systems,Type,True
+PER_SUST_ENERGY_RATING_TXT,Furniture Systems,Type,True
+PER_SUST_LEED_CONTRIB_TXT,Furniture Systems,Type,True
+PER_SUST_RECYCLABLE_BOOL,Furniture Systems,Type,True
+PER_SUST_RECYCLED_CONTENT_PCT,Furniture Systems,Type,True
+PER_SUST_WTR_RATING_NR,Furniture Systems,Type,True
+PER_THERM_CONDENSATION_RISK_TXT,Furniture Systems,Type,True
+PER_THERM_NATURAL_VENT_TXT,Furniture Systems,Type,True
+PER_THERM_PASSIVE_DESIGN_TXT,Furniture Systems,Type,True
+PER_THERM_R_VALUE_M2K_W,Furniture Systems,Type,True
+PER_THERM_SHADING_DEVICE_TXT,Furniture Systems,Type,True
+PER_THERM_SOLAR_ABSORPTANCE_NR,Furniture Systems,Type,True
+PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Furniture Systems,Type,True
+PER_THERM_U_VALUE_W_M2K_NR,Furniture Systems,Type,True
+PRJ_COMMENTS_TXT,Furniture Systems,Type,True
+RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Furniture Systems,Type,True
+RGL_ACCESS_CLEAR_WIDTH_MM,Furniture Systems,Type,True
+RGL_ACCESS_CMPL_STD_TXT,Furniture Systems,Type,True
+RGL_ACCESS_HEARING_LOOP_BOOL,Furniture Systems,Type,True
+RGL_ACCESS_REFUGE_AREA_TXT,Furniture Systems,Type,True
+RGL_ACCESS_TACTILE_WARNING_TXT,Furniture Systems,Type,True
+RGL_ACCESS_THRESHOLD_HEIGHT_MM,Furniture Systems,Type,True
+RGL_ACCESS_TURNING_RADIUS_MM,Furniture Systems,Type,True
+RGL_KCCA_APPROVAL_REQ_BOOL,Furniture Systems,Type,True
+RGL_NEMA_APPROVAL_REQ_BOOL,Furniture Systems,Type,True
+RGL_NWSC_APPROVAL_BOOL,Furniture Systems,Type,True
+RGL_OCCUPANCY_CERT_REQ_BOOL,Furniture Systems,Type,True
+RGL_PERIODIC_INSP_FREQ_TXT,Furniture Systems,Type,True
+RGL_QA_APVD_VENDOR_TXT,Furniture Systems,Type,True
+RGL_QA_CERTIFICATION_TXT,Furniture Systems,Type,True
+RGL_QA_COMMISSIONING_REQ_TXT,Furniture Systems,Type,True
+RGL_QA_INSP_BOOL,Furniture Systems,Type,True
+RGL_QA_STD_COMPLY_TXT,Furniture Systems,Type,True
+RGL_QA_TST_REPORT_REF_TXT,Furniture Systems,Type,True
+RGL_STD_TXT,Furniture Systems,Type,True
+RGL_UMEME_APPROVAL_BOOL,Furniture Systems,Type,True
+RGL_UNBS_STD_TXT,Furniture Systems,Type,True
+SPARE_PARAM_01_TXT,Furniture Systems,Type,True
+SPARE_PARAM_02_TXT,Furniture Systems,Type,True
+SPARE_PARAM_03_TXT,Furniture Systems,Type,True
+SPARE_PARAM_04_NR,Furniture Systems,Type,True
+SPARE_PARAM_05_INT,Furniture Systems,Type,True
+USAGE_TXT,Furniture Systems,Type,True
+MAT_EPD_REF_TXT,Furniture Systems,Type,True
+MAT_TAG_6_TXT,Furniture Systems,Type,True
+SUST_MAT_TAG_1_TXT,Furniture Systems,Type,True
+SUST_MAT_TAG_2_TXT,Furniture Systems,Type,True
+ASS_INST_DETAIL_NUM_TXT,Furniture Systems,Type,True
+ASS_TAG_4_TXT,Furniture Systems,Type,True
+ASS_TAG_5_TXT,Furniture Systems,Type,True
+ASS_TAG_6_TXT,Furniture Systems,Type,True
+BLE_ELES_SPARE_01_TXT,Furniture Systems,Type,True
+BLE_ELES_SPARE_02_TXT,Furniture Systems,Type,True
+BLE_ELES_SPARE_03_TXT,Furniture Systems,Type,True
+CST_PERCENTAGE_OF_TOTAL_PCT,Furniture Systems,Type,True
+CST_S_EAR_CST_TOTAL_UGX_NR,Furniture Systems,Type,True
+CST_S_EAR_DISPOSAL_VOLUME_CU_M,Furniture Systems,Type,True
+CST_S_FRM_BEAM_LENGTH_M,Furniture Systems,Type,True
+CST_TOTAL_EQUIPMENT_COST,Furniture Systems,Type,True
+ASS_LVL_COD_TXT,Furniture Systems,Type,True
+ASS_MANUFACTURER_TXT,Furniture Systems,Type,True
+ASS_MODEL_NR_TXT,Furniture Systems,Type,True
+ASS_RM_COD_TXT,Furniture Systems,Type,True
+FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Furniture Systems,Type,True
+BLE_ROOM_NUMBER_TXT,Furniture Systems,Type,True
+BLE_FACADE_TYPE_TXT,Furniture Systems,Type,True
+BLE_CEILING_TYPE_CLASSIFICATION_TXT,Furniture Systems,Type,True
+BLE_FACADE_INS_BOOL,Furniture Systems,Type,True
+BLE_WINDOW_WIDTH_MM,Furniture Systems,Type,True
+BLE_STRUCT_SLAB_THICKNESS_MM,Furniture Systems,Type,True
+BLE_WALL_THICKNESS_MM,Furniture Systems,Type,True
+BLE_ROOF_CLR_TXT,Furniture Systems,Type,True
+BLE_FACADE_PNL_SZ_TXT,Furniture Systems,Type,True
+BLE_STRUCT_SEISMIC_DESIGN_BOOL,Furniture Systems,Type,True
+BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT,Furniture Systems,Type,True
+BLE_FLR_FINISH_TXT,Furniture Systems,Type,True
+BLE_CEILING_FINISH_TXT,Furniture Systems,Type,True
+BLE_CEILING_LIGHT_REFLECTANCE_PCT,Furniture Systems,Type,True
+BLE_STRUCT_FOUNDATION_TYPE_TXT,Furniture Systems,Type,True
+BLE_ROOM_NAME_TXT,Furniture Systems,Type,True
+BLE_ROOF_INS_R_VALUE_M_2K_W,Furniture Systems,Type,True
+BLE_ROOF_WATERPROOFING_SYSTEM_TXT,Furniture Systems,Type,True
+BLE_ROOF_DOWNPPE_SZ_MM,Furniture Systems,Type,True
+BLE_CEILING_GRID_SZ_MM,Furniture Systems,Type,True
+BLE_FLR_FINISH_THICKNESS_MM,Furniture Systems,Type,True
+BLE_WALL_TYPE_CLASSIFICATION_TXT,Furniture Systems,Type,True
+BLE_FINISH_PAINT_VOLUME_L,Furniture Systems,Type,True
+BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Furniture Systems,Type,True
+BLE_ELE_AREA_SQ_M,Furniture Systems,Type,True
+BLE_WALL_INTERIOR_FINISH_TXT,Furniture Systems,Type,True
+BLE_WINDOW_OPERATION_TYPE_TXT,Furniture Systems,Type,True
+BLE_STRUCT_CONCRETE_GRADE_TXT,Furniture Systems,Type,True
+BLE_ROOF_TYPE_TXT,Furniture Systems,Type,True
+BLE_FLR_MOISTURE_BARRIER_REQUIRED_BOOL,Furniture Systems,Type,True
+BLE_FLR_THICKNESS_MM,Furniture Systems,Type,True
+BLE_CEILING_HEIGHT_MM,Furniture Systems,Type,True
+BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR,Furniture Systems,Type,True
+BLE_WALL_HEIGHT_MM,Furniture Systems,Type,True
+BLE_STRUCT_REINFORCEMENT_TXT,Furniture Systems,Type,True
+BLE_FINISH_PLASTER_AREA_SQ_M,Furniture Systems,Type,True
+BLE_RAMP_SLOPE_PCT,Furniture Systems,Type,True
+BLE_WALL_EXTERIOR_FINISH_TXT,Furniture Systems,Type,True
+BLE_FLR_RAISED_FLR_HEIGHT_MM,Furniture Systems,Type,True
+BLE_RAMP_SURFACE_FINISH_TXT,Furniture Systems,Type,True
+BLE_FLR_STRUCTURAL_SYSTEM_TXT,Furniture Systems,Type,True
+CST_ENERGY_ANNUAL_UGX_NUM_NR,Furniture Systems,Type,True
+BLE_FLR_PERIMETER_DETAIL_TYPE_TXT,Furniture Systems,Type,True
+BLE_CEILING_PLENUM_HEIGHT_MM,Furniture Systems,Type,True
+BLE_STRUCT_ELE_TYPE_TXT,Furniture Systems,Type,True
+BLE_STRUCT_COLUMN_SZ_TXT,Furniture Systems,Type,True
+BLE_ROOF_SLOPE_DEG,Furniture Systems,Type,True
+BLE_FLR_UNDERFLR_HEATING_SYSTEM_TXT,Furniture Systems,Type,True
+BLE_ROOF_SOLAR_REFLECTANCE_INDEX_NR,Furniture Systems,Type,True
+BLE_FINISH_PAINT_COATS_NR,Furniture Systems,Type,True
+BLE_FACADE_FIX_SYSTEM_TXT,Furniture Systems,Type,True
+BLE_STRUCT_STEEL_GRADE_TXT,Furniture Systems,Type,True
+BLE_FLR_RAISED_ACCESS_FLR_TXT,Furniture Systems,Type,True
+BLE_WALL_MOISTURE_BARRIER_INCLUDED_TXT,Furniture Systems,Type,True
+BLE_FACADE_FINISH_TXT,Furniture Systems,Type,True
+BLE_WINDOW_TYPE_CLASSIFICATION_TXT,Furniture Systems,Type,True
+BLE_FLR_TYPE_CLASSIFICATION_TXT,Furniture Systems,Type,True
+BLE_WINDOW_HEIGHT_MM,Furniture Systems,Type,True
+BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,Furniture Systems,Type,True
+BLE_FLR_LD_CAP_KPA,Furniture Systems,Type,True
+BLE_ROOF_RAINWTR_HARVESTING_INTEGRATION_BOOL,Furniture Systems,Type,True
+BLE_CEILING_NOISE_REDCTION_COEFFICIENT_NRC_NR,Furniture Systems,Type,True
+BLE_FINISH_ADHESIVE_WEIGHT_KG,Furniture Systems,Type,True
+BLE_WALL_FUNCTION_TXT,Furniture Systems,Type,True
+BLE_ROOF_GUTTER_SZ_MM,Furniture Systems,Type,True
+BLE_FINISH_PLASTER_THICKNESS_MM,Furniture Systems,Type,True
+BLE_RAMP_HANDRAIL_BOTH_SIDES_TXT,Furniture Systems,Type,True
+BLE_LOAD_BEARING_ELE_BOOL,Furniture Systems,Type,True
+BLE_FINISH_TILE_QUANTITY_NR,Furniture Systems,Type,True
+BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,Furniture Systems,Type,True
+BLE_STRUCT_BEAM_SZ_TXT,Furniture Systems,Type,True
+BLE_FLR_SLIP_RESISTANCE_RATING_NR,Furniture Systems,Type,True
+BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,Furniture Systems,Type,True
+BLE_ROOF_OVERHANG_MM,Furniture Systems,Type,True
+BLE_FLR_IMPACT_SOUND_INS_DB,Furniture Systems,Type,True
+BLE_FINISH_TILE_SZ_TXT,Furniture Systems,Type,True
+BLE_STRUCT_LD_CAP_KN_NR,Furniture Systems,Type,True
+BLE_FINISH_GROUT_WEIGHT_KG,Furniture Systems,Type,True
+BLE_ROOF_STRUCTURE_TYPE_TXT,Furniture Systems,Type,True
+BLE_WINDOW_VISIBLE_LIGHT_TRANSMITTANCE_PCT,Furniture Systems,Type,True
+BLE_WALL_FINISH_TXT,Furniture Systems,Type,True
+BLE_WINDOW_MOSQUITO_SCREEN_INCLUDED_TXT,Furniture Systems,Type,True
+BLE_FLR_LVL_NR,Furniture Systems,Instance,True
+BLE_WINDOW_BURGLAR_BARS_REQUIRED_UGANDA_BOOL,Furniture Systems,Type,True
+BLE_FINISH_PAINT_AREA_SQ_M,Furniture Systems,Type,True
+BLE_FACADE_VENTILATED_TXT,Furniture Systems,Type,True
+BLE_FINISH_TILE_AREA_SQ_M,Furniture Systems,Type,True
+BLE_CEILING_SYSTEM_TXT,Furniture Systems,Type,True
+BLE_FINISH_PLASTER_RATIO_NR,Furniture Systems,Type,True
+BLE_RAMP_WIDTH_MM,Furniture Systems,Type,True
+BLE_WALL_CST_METHOD_TXT,Furniture Systems,Type,True
+BLE_CEILING_ACCESS_PNLS_INCLUDED_TXT,Furniture Systems,Type,True
+BLE_WALL_LENGTH_MM,Furniture Systems,Type,True
+BLE_WINDOW_U_VALUE_W_M_2K_NR,Furniture Systems,Type,True
+BLE_FINISH_TYPE_TXT,Furniture Systems,Type,True
+BLE_FACADE_CLR_TXT,Furniture Systems,Type,True
+WS_DESCRIPTION_TXT,Furniture Systems,Type,True
+WS_OWNER_TXT,Furniture Systems,Type,True
+WS_VISIBLE_DEFAULT_BOOL,Furniture Systems,Type,True
+WS_DISCIPLINE_TXT,Furniture Systems,Type,True
+WS_TYPE_TXT,Furniture Systems,Type,True
+WS_NAME_TXT,Furniture Systems,Type,True
+WS_EDITABLE_DEFAULT_BOOL,Furniture Systems,Type,True
+PH_NUMBER_INT,Furniture Systems,Type,True
+PH_DESCRIPTION_TXT,Furniture Systems,Type,True
+PH_END_DATE_TXT,Furniture Systems,Type,True
+PH_STATUS_TXT,Furniture Systems,Type,True
+PH_START_DATE_TXT,Furniture Systems,Type,True
+PH_NAME_TXT,Furniture Systems,Type,True
+ASS_CAT_TXT,Medical Equipment,Type,True
+ASS_DESCRIPTION_TXT,Medical Equipment,Type,True
+ASS_ID_TXT,Medical Equipment,Type,True
+ASS_LOC_TXT,Medical Equipment,Type,True
+ASS_TAG_1_TXT,Medical Equipment,Type,True
+ASS_TAG_2_TXT,Medical Equipment,Type,True
+ASS_TAG_3_TXT,Medical Equipment,Type,True
+BLE_DOOR_ACOUSTIC_RATING_DB,Medical Equipment,Type,True
+BLE_DOOR_CLOSER_REQUIRED_BOOL,Medical Equipment,Type,True
+BLE_DOOR_GLAZING_PCT,Medical Equipment,Type,True
+BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Medical Equipment,Type,True
+BLE_DOOR_HEIGHT_MM,Medical Equipment,Type,True
+BLE_DOOR_MAT_TXT,Medical Equipment,Type,True
+BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,Medical Equipment,Type,True
+BLE_DOOR_PANIC_HARDWARE_REQUIRED_BOOL,Medical Equipment,Type,True
+BLE_DOOR_SECURITY_RATING_GRADE_TXT,Medical Equipment,Type,True
+BLE_DOOR_WIDTH_MM,Medical Equipment,Type,True
+CST_CALC_ADHESIVE_KG,Medical Equipment,Type,True
+CST_CALC_AGGREGATE_M3,Medical Equipment,Type,True
+CST_CALC_AREA_M2,Medical Equipment,Type,True
+CST_CALC_BLOCKS_NR,Medical Equipment,Type,True
+CST_CALC_CEMENT_BAGS_NR,Medical Equipment,Type,True
+CST_CALC_CEMENT_PLASTER_BAGS,Medical Equipment,Type,True
+CST_CALC_CONCRETE_M3,Medical Equipment,Type,True
+CST_CALC_FASTENERS_NR,Medical Equipment,Type,True
+CST_CALC_GROUT_KG,Medical Equipment,Type,True
+CST_CALC_LENGTH_M,Medical Equipment,Type,True
+CST_CALC_MORTAR_M3,Medical Equipment,Type,True
+CST_CALC_PAINT_LITERS,Medical Equipment,Type,True
+CST_CALC_PLASTER_M3,Medical Equipment,Type,True
+CST_CALC_PRIMER_LITERS,Medical Equipment,Type,True
+CST_CALC_PURLINS_M,Medical Equipment,Type,True
+CST_CALC_PUTTY_KG,Medical Equipment,Type,True
+CST_CALC_RIDGE_CAP_M,Medical Equipment,Type,True
+CST_CALC_SAND_M3,Medical Equipment,Type,True
+CST_CALC_SAND_PLASTER_M3,Medical Equipment,Type,True
+CST_CALC_SHEETS_NR,Medical Equipment,Type,True
+CST_CALC_STEEL_KG,Medical Equipment,Type,True
+CST_CALC_TILE_M2,Medical Equipment,Type,True
+CST_CALC_VOLUME_M3,Medical Equipment,Type,True
+CST_CALC_WATER_M3,Medical Equipment,Type,True
+CST_S_CON_ADMIXTURE_TXT,Medical Equipment,Type,True
+CST_S_CON_AGGREGATE_VOLUME_CU_M,Medical Equipment,Type,True
+CST_S_CON_CEMENT_BAGS_NR,Medical Equipment,Type,True
+CST_S_CON_CST_TOTAL_UGX_NR,Medical Equipment,Type,True
+CST_S_CON_CURING_DAYS_NR,Medical Equipment,Type,True
+CST_S_CON_GRADE_TXT,Medical Equipment,Type,True
+CST_S_CON_MIX_RATIO_TXT,Medical Equipment,Type,True
+CST_S_CON_POUR_SEQUENCE_TXT,Medical Equipment,Type,True
+CST_S_CON_SAND_VOLUME_CU_M,Medical Equipment,Type,True
+CST_S_CON_SLUMP_MM,Medical Equipment,Type,True
+CST_S_CON_STRENGTH_MPA,Medical Equipment,Type,True
+CST_S_CON_TYPE_TXT,Medical Equipment,Type,True
+CST_S_CON_VOLUME_CU_M,Medical Equipment,Type,True
+CST_S_CON_VOLUME_WASTAGE_CU_M,Medical Equipment,Type,True
+CST_S_CON_WTR_VOLUME_L,Medical Equipment,Type,True
+CST_S_EAR_BACKFILL_VOLUME_CU_M,Medical Equipment,Type,True
+CST_S_EAR_BLINDING_VOLUME_CU_M,Medical Equipment,Type,True
+CST_S_EAR_COMPACTION_NR,Medical Equipment,Type,True
+CST_S_EAR_EXCAVATION_DEPTH_M,Medical Equipment,Type,True
+CST_S_EAR_EXCAVATION_METHOD_TXT,Medical Equipment,Type,True
+CST_S_EAR_EXCAVATION_VOLUME_CU_M,Medical Equipment,Type,True
+CST_S_EAR_FILL_MAT_TXT,Medical Equipment,Type,True
+CST_S_EAR_GEOTEXTILE_AREA_SQ_M,Medical Equipment,Type,True
+CST_S_EAR_HARDCORE_THICKNESS_MM,Medical Equipment,Type,True
+CST_S_EAR_HARDCORE_VOLUME_CU_M,Medical Equipment,Type,True
+CST_S_EAR_SOIL_TYPE_TXT,Medical Equipment,Type,True
+CST_S_FRM_BEAM_AREA_SQ_M,Medical Equipment,Type,True
+CST_S_FRM_COLUMN_AREA_SQ_M,Medical Equipment,Type,True
+CST_S_FRM_CST_TOTAL_UGX_NR,Medical Equipment,Type,True
+CST_S_FRM_PLYWOOD_SHEETS_NR,Medical Equipment,Type,True
+CST_S_FRM_PROPS_QUANTITY_NR,Medical Equipment,Type,True
+CST_S_FRM_RELEASE_AGENT_L,Medical Equipment,Type,True
+CST_S_FRM_REUSE_CYCLES_NR,Medical Equipment,Type,True
+CST_S_FRM_SLAB_AREA_SQ_M,Medical Equipment,Type,True
+CST_S_FRM_STRIPPING_TIME_DAYS,Medical Equipment,Type,True
+CST_S_FRM_TIMBER_VOLUME_CU_M,Medical Equipment,Type,True
+CST_S_FRM_TYPE_TXT,Medical Equipment,Type,True
+CST_S_MAS_BRICK_QUANTITY_NR,Medical Equipment,Type,True
+CST_S_MAS_BRICK_STRENGTH_TXT,Medical Equipment,Type,True
+CST_S_MAS_BRICK_TYPE_TXT,Medical Equipment,Type,True
+CST_S_MAS_BRICK_WASTAGE_NR,Medical Equipment,Type,True
+CST_S_MAS_CEMENT_BAGS_NR,Medical Equipment,Type,True
+CST_S_MAS_CST_TOTAL_UGX_NR,Medical Equipment,Type,True
+CST_S_MAS_MORTAR_RATIO_TXT,Medical Equipment,Type,True
+CST_S_MAS_MORTAR_TYPE_TXT,Medical Equipment,Type,True
+CST_S_MAS_MORTAR_VOLUME_CU_M,Medical Equipment,Type,True
+CST_S_MAS_NET_AREA_SQ_M,Medical Equipment,Type,True
+CST_S_MAS_OPENING_AREA_SQ_M,Medical Equipment,Type,True
+CST_S_MAS_SAND_VOLUME_CU_M,Medical Equipment,Type,True
+CST_S_MAS_WALL_AREA_SQ_M,Medical Equipment,Type,True
+CST_S_MAS_WALL_THICKNESS_MM,Medical Equipment,Type,True
+CST_S_MAS_WASTAGE_FCT_PCT,Medical Equipment,Type,True
+CST_S_REI_COVER_MM,Medical Equipment,Type,True
+CST_S_REI_CST_TOTAL_UGX_NR,Medical Equipment,Type,True
+CST_S_REI_DIAMETER_MM,Medical Equipment,Type,True
+CST_S_REI_GRADE_TXT,Medical Equipment,Type,True
+CST_S_REI_LENGTH_M,Medical Equipment,Type,True
+CST_S_REI_MARK_PREFIX_TXT,Medical Equipment,Type,True
+CST_S_REI_OVERLAP_LENGTH_MM,Medical Equipment,Type,True
+CST_S_REI_SCHEDULE_REF_TXT,Medical Equipment,Type,True
+CST_S_REI_SPACING_MM,Medical Equipment,Type,True
+CST_S_REI_TYPE_TXT,Medical Equipment,Type,True
+CST_S_REI_WEIGHT_KG,Medical Equipment,Type,True
+CST_S_REI_WEIGHT_WASTAGE_KG,Medical Equipment,Type,True
+CST_S_REI_WIRE_WEIGHT_KG,Medical Equipment,Type,True
+PER_ACOUSTICS_BACKGROUND_NOISE_DB,Medical Equipment,Type,True
+PER_ACOUSTICS_IIC_RATING_TXT,Medical Equipment,Type,True
+PER_ACOUSTICS_ISOLATION_REQ_BOOL,Medical Equipment,Type,True
+PER_ACOUSTICS_REVERBERATION_TIME_SEC_NR,Medical Equipment,Type,True
+PER_ACOUSTICS_STC_RATING_TXT,Medical Equipment,Type,True
+PER_ACOUSTICS_TREATMENT_TYPE_TXT,Medical Equipment,Type,True
+PER_ENVIRONMENTAL_ALTITUDE_M,Medical Equipment,Type,True
+PER_ENVIRONMENTAL_CLIMATE_ZONE_TXT,Medical Equipment,Type,True
+PER_ENVIRONMENTAL_CORROSION_PROT_TXT,Medical Equipment,Type,True
+PER_ENVIRONMENTAL_DUST_PROT_REQ_BOOL,Medical Equipment,Type,True
+PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT,Medical Equipment,Type,True
+PER_ENVIRONMENTAL_RAINFALL_ANNUAL_MM,Medical Equipment,Type,True
+PER_ENVIRONMENTAL_TEMP_DESIGN_C,Medical Equipment,Type,True
+PER_ENVIRONMENTAL_TERMITE_PROT_BOOL,Medical Equipment,Type,True
+PER_SUST_CARBON_FOOTPRINT_KG,Medical Equipment,Type,True
+PER_SUST_EDGE_CONTRIB_TXT,Medical Equipment,Type,True
+PER_SUST_ENERGY_RATING_TXT,Medical Equipment,Type,True
+PER_SUST_LEED_CONTRIB_TXT,Medical Equipment,Type,True
+PER_SUST_RECYCLABLE_BOOL,Medical Equipment,Type,True
+PER_SUST_RECYCLED_CONTENT_PCT,Medical Equipment,Type,True
+PER_SUST_WTR_RATING_NR,Medical Equipment,Type,True
+PER_THERM_CONDENSATION_RISK_TXT,Medical Equipment,Type,True
+PER_THERM_NATURAL_VENT_TXT,Medical Equipment,Type,True
+PER_THERM_PASSIVE_DESIGN_TXT,Medical Equipment,Type,True
+PER_THERM_R_VALUE_M2K_W,Medical Equipment,Type,True
+PER_THERM_SHADING_DEVICE_TXT,Medical Equipment,Type,True
+PER_THERM_SOLAR_ABSORPTANCE_NR,Medical Equipment,Type,True
+PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Medical Equipment,Type,True
+PER_THERM_U_VALUE_W_M2K_NR,Medical Equipment,Type,True
+PRJ_COMMENTS_TXT,Medical Equipment,Type,True
+RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Medical Equipment,Type,True
+RGL_ACCESS_CLEAR_WIDTH_MM,Medical Equipment,Type,True
+RGL_ACCESS_CMPL_STD_TXT,Medical Equipment,Type,True
+RGL_ACCESS_HEARING_LOOP_BOOL,Medical Equipment,Type,True
+RGL_ACCESS_REFUGE_AREA_TXT,Medical Equipment,Type,True
+RGL_ACCESS_TACTILE_WARNING_TXT,Medical Equipment,Type,True
+RGL_ACCESS_THRESHOLD_HEIGHT_MM,Medical Equipment,Type,True
+RGL_ACCESS_TURNING_RADIUS_MM,Medical Equipment,Type,True
+RGL_KCCA_APPROVAL_REQ_BOOL,Medical Equipment,Type,True
+RGL_NEMA_APPROVAL_REQ_BOOL,Medical Equipment,Type,True
+RGL_NWSC_APPROVAL_BOOL,Medical Equipment,Type,True
+RGL_OCCUPANCY_CERT_REQ_BOOL,Medical Equipment,Type,True
+RGL_PERIODIC_INSP_FREQ_TXT,Medical Equipment,Type,True
+RGL_QA_APVD_VENDOR_TXT,Medical Equipment,Type,True
+RGL_QA_CERTIFICATION_TXT,Medical Equipment,Type,True
+RGL_QA_COMMISSIONING_REQ_TXT,Medical Equipment,Type,True
+RGL_QA_INSP_BOOL,Medical Equipment,Type,True
+RGL_QA_STD_COMPLY_TXT,Medical Equipment,Type,True
+RGL_QA_TST_REPORT_REF_TXT,Medical Equipment,Type,True
+RGL_STD_TXT,Medical Equipment,Type,True
+RGL_UMEME_APPROVAL_BOOL,Medical Equipment,Type,True
+RGL_UNBS_STD_TXT,Medical Equipment,Type,True
+SPARE_PARAM_01_TXT,Medical Equipment,Type,True
+SPARE_PARAM_02_TXT,Medical Equipment,Type,True
+SPARE_PARAM_03_TXT,Medical Equipment,Type,True
+SPARE_PARAM_04_NR,Medical Equipment,Type,True
+SPARE_PARAM_05_INT,Medical Equipment,Type,True
+USAGE_TXT,Medical Equipment,Type,True
+MAT_EPD_REF_TXT,Medical Equipment,Type,True
+MAT_TAG_6_TXT,Medical Equipment,Type,True
+SUST_MAT_TAG_1_TXT,Medical Equipment,Type,True
+SUST_MAT_TAG_2_TXT,Medical Equipment,Type,True
+ASS_INST_DETAIL_NUM_TXT,Medical Equipment,Type,True
+ASS_TAG_4_TXT,Medical Equipment,Type,True
+ASS_TAG_5_TXT,Medical Equipment,Type,True
+ASS_TAG_6_TXT,Medical Equipment,Type,True
+BLE_ELES_SPARE_01_TXT,Medical Equipment,Type,True
+BLE_ELES_SPARE_02_TXT,Medical Equipment,Type,True
+BLE_ELES_SPARE_03_TXT,Medical Equipment,Type,True
+CST_PERCENTAGE_OF_TOTAL_PCT,Medical Equipment,Type,True
+CST_S_EAR_CST_TOTAL_UGX_NR,Medical Equipment,Type,True
+CST_S_EAR_DISPOSAL_VOLUME_CU_M,Medical Equipment,Type,True
+CST_S_FRM_BEAM_LENGTH_M,Medical Equipment,Type,True
+CST_TOTAL_EQUIPMENT_COST,Medical Equipment,Type,True
+ASS_LVL_COD_TXT,Medical Equipment,Type,True
+ASS_MANUFACTURER_TXT,Medical Equipment,Type,True
+ASS_MODEL_NR_TXT,Medical Equipment,Type,True
+ASS_RM_COD_TXT,Medical Equipment,Type,True
+FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Medical Equipment,Type,True
+BLE_ROOM_NUMBER_TXT,Medical Equipment,Type,True
+BLE_FACADE_TYPE_TXT,Medical Equipment,Type,True
+BLE_CEILING_TYPE_CLASSIFICATION_TXT,Medical Equipment,Type,True
+BLE_FACADE_INS_BOOL,Medical Equipment,Type,True
+BLE_WINDOW_WIDTH_MM,Medical Equipment,Type,True
+BLE_STRUCT_SLAB_THICKNESS_MM,Medical Equipment,Type,True
+BLE_WALL_THICKNESS_MM,Medical Equipment,Type,True
+BLE_ROOF_CLR_TXT,Medical Equipment,Type,True
+BLE_FACADE_PNL_SZ_TXT,Medical Equipment,Type,True
+BLE_STRUCT_SEISMIC_DESIGN_BOOL,Medical Equipment,Type,True
+BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT,Medical Equipment,Type,True
+BLE_FLR_FINISH_TXT,Medical Equipment,Type,True
+BLE_CEILING_FINISH_TXT,Medical Equipment,Type,True
+BLE_CEILING_LIGHT_REFLECTANCE_PCT,Medical Equipment,Type,True
+BLE_STRUCT_FOUNDATION_TYPE_TXT,Medical Equipment,Type,True
+BLE_ROOM_NAME_TXT,Medical Equipment,Type,True
+BLE_ROOF_INS_R_VALUE_M_2K_W,Medical Equipment,Type,True
+BLE_ROOF_WATERPROOFING_SYSTEM_TXT,Medical Equipment,Type,True
+BLE_ROOF_DOWNPPE_SZ_MM,Medical Equipment,Type,True
+BLE_CEILING_GRID_SZ_MM,Medical Equipment,Type,True
+BLE_FLR_FINISH_THICKNESS_MM,Medical Equipment,Type,True
+BLE_WALL_TYPE_CLASSIFICATION_TXT,Medical Equipment,Type,True
+BLE_FINISH_PAINT_VOLUME_L,Medical Equipment,Type,True
+BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Medical Equipment,Type,True
+BLE_ELE_AREA_SQ_M,Medical Equipment,Type,True
+BLE_WALL_INTERIOR_FINISH_TXT,Medical Equipment,Type,True
+BLE_WINDOW_OPERATION_TYPE_TXT,Medical Equipment,Type,True
+BLE_STRUCT_CONCRETE_GRADE_TXT,Medical Equipment,Type,True
+BLE_ROOF_TYPE_TXT,Medical Equipment,Type,True
+BLE_FLR_MOISTURE_BARRIER_REQUIRED_BOOL,Medical Equipment,Type,True
+BLE_FLR_THICKNESS_MM,Medical Equipment,Type,True
+BLE_CEILING_HEIGHT_MM,Medical Equipment,Type,True
+BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR,Medical Equipment,Type,True
+BLE_WALL_HEIGHT_MM,Medical Equipment,Type,True
+BLE_STRUCT_REINFORCEMENT_TXT,Medical Equipment,Type,True
+BLE_FINISH_PLASTER_AREA_SQ_M,Medical Equipment,Type,True
+BLE_RAMP_SLOPE_PCT,Medical Equipment,Type,True
+BLE_WALL_EXTERIOR_FINISH_TXT,Medical Equipment,Type,True
+BLE_FLR_RAISED_FLR_HEIGHT_MM,Medical Equipment,Type,True
+BLE_RAMP_SURFACE_FINISH_TXT,Medical Equipment,Type,True
+BLE_FLR_STRUCTURAL_SYSTEM_TXT,Medical Equipment,Type,True
+CST_ENERGY_ANNUAL_UGX_NUM_NR,Medical Equipment,Type,True
+BLE_FLR_PERIMETER_DETAIL_TYPE_TXT,Medical Equipment,Type,True
+BLE_CEILING_PLENUM_HEIGHT_MM,Medical Equipment,Type,True
+BLE_STRUCT_ELE_TYPE_TXT,Medical Equipment,Type,True
+BLE_STRUCT_COLUMN_SZ_TXT,Medical Equipment,Type,True
+BLE_ROOF_SLOPE_DEG,Medical Equipment,Type,True
+BLE_FLR_UNDERFLR_HEATING_SYSTEM_TXT,Medical Equipment,Type,True
+BLE_ROOF_SOLAR_REFLECTANCE_INDEX_NR,Medical Equipment,Type,True
+BLE_FINISH_PAINT_COATS_NR,Medical Equipment,Type,True
+BLE_FACADE_FIX_SYSTEM_TXT,Medical Equipment,Type,True
+BLE_STRUCT_STEEL_GRADE_TXT,Medical Equipment,Type,True
+BLE_FLR_RAISED_ACCESS_FLR_TXT,Medical Equipment,Type,True
+BLE_WALL_MOISTURE_BARRIER_INCLUDED_TXT,Medical Equipment,Type,True
+BLE_FACADE_FINISH_TXT,Medical Equipment,Type,True
+BLE_WINDOW_TYPE_CLASSIFICATION_TXT,Medical Equipment,Type,True
+BLE_FLR_TYPE_CLASSIFICATION_TXT,Medical Equipment,Type,True
+BLE_WINDOW_HEIGHT_MM,Medical Equipment,Type,True
+BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,Medical Equipment,Type,True
+BLE_FLR_LD_CAP_KPA,Medical Equipment,Type,True
+BLE_ROOF_RAINWTR_HARVESTING_INTEGRATION_BOOL,Medical Equipment,Type,True
+BLE_CEILING_NOISE_REDCTION_COEFFICIENT_NRC_NR,Medical Equipment,Type,True
+BLE_FINISH_ADHESIVE_WEIGHT_KG,Medical Equipment,Type,True
+BLE_WALL_FUNCTION_TXT,Medical Equipment,Type,True
+BLE_ROOF_GUTTER_SZ_MM,Medical Equipment,Type,True
+BLE_FINISH_PLASTER_THICKNESS_MM,Medical Equipment,Type,True
+BLE_RAMP_HANDRAIL_BOTH_SIDES_TXT,Medical Equipment,Type,True
+BLE_LOAD_BEARING_ELE_BOOL,Medical Equipment,Type,True
+BLE_FINISH_TILE_QUANTITY_NR,Medical Equipment,Type,True
+BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,Medical Equipment,Type,True
+BLE_STRUCT_BEAM_SZ_TXT,Medical Equipment,Type,True
+BLE_FLR_SLIP_RESISTANCE_RATING_NR,Medical Equipment,Type,True
+BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,Medical Equipment,Type,True
+BLE_ROOF_OVERHANG_MM,Medical Equipment,Type,True
+BLE_FLR_IMPACT_SOUND_INS_DB,Medical Equipment,Type,True
+BLE_FINISH_TILE_SZ_TXT,Medical Equipment,Type,True
+BLE_STRUCT_LD_CAP_KN_NR,Medical Equipment,Type,True
+BLE_FINISH_GROUT_WEIGHT_KG,Medical Equipment,Type,True
+BLE_ROOF_STRUCTURE_TYPE_TXT,Medical Equipment,Type,True
+BLE_WINDOW_VISIBLE_LIGHT_TRANSMITTANCE_PCT,Medical Equipment,Type,True
+BLE_WALL_FINISH_TXT,Medical Equipment,Type,True
+BLE_WINDOW_MOSQUITO_SCREEN_INCLUDED_TXT,Medical Equipment,Type,True
+BLE_FLR_LVL_NR,Medical Equipment,Instance,True
+BLE_WINDOW_BURGLAR_BARS_REQUIRED_UGANDA_BOOL,Medical Equipment,Type,True
+BLE_FINISH_PAINT_AREA_SQ_M,Medical Equipment,Type,True
+BLE_FACADE_VENTILATED_TXT,Medical Equipment,Type,True
+BLE_FINISH_TILE_AREA_SQ_M,Medical Equipment,Type,True
+BLE_CEILING_SYSTEM_TXT,Medical Equipment,Type,True
+BLE_FINISH_PLASTER_RATIO_NR,Medical Equipment,Type,True
+BLE_RAMP_WIDTH_MM,Medical Equipment,Type,True
+BLE_WALL_CST_METHOD_TXT,Medical Equipment,Type,True
+BLE_CEILING_ACCESS_PNLS_INCLUDED_TXT,Medical Equipment,Type,True
+BLE_WALL_LENGTH_MM,Medical Equipment,Type,True
+BLE_WINDOW_U_VALUE_W_M_2K_NR,Medical Equipment,Type,True
+BLE_FINISH_TYPE_TXT,Medical Equipment,Type,True
+BLE_FACADE_CLR_TXT,Medical Equipment,Type,True
+WS_DESCRIPTION_TXT,Medical Equipment,Type,True
+WS_OWNER_TXT,Medical Equipment,Type,True
+WS_VISIBLE_DEFAULT_BOOL,Medical Equipment,Type,True
+WS_DISCIPLINE_TXT,Medical Equipment,Type,True
+WS_TYPE_TXT,Medical Equipment,Type,True
+WS_NAME_TXT,Medical Equipment,Type,True
+WS_EDITABLE_DEFAULT_BOOL,Medical Equipment,Type,True
+PH_NUMBER_INT,Medical Equipment,Type,True
+PH_DESCRIPTION_TXT,Medical Equipment,Type,True
+PH_END_DATE_TXT,Medical Equipment,Type,True
+PH_STATUS_TXT,Medical Equipment,Type,True
+PH_START_DATE_TXT,Medical Equipment,Type,True
+PH_NAME_TXT,Medical Equipment,Type,True
+ASS_CAT_TXT,Plumbing Equipment,Type,True
+ASS_DESCRIPTION_TXT,Plumbing Equipment,Type,True
+ASS_ID_TXT,Plumbing Equipment,Type,True
+ASS_LOC_TXT,Plumbing Equipment,Type,True
+ASS_TAG_1_TXT,Plumbing Equipment,Type,True
+ASS_TAG_2_TXT,Plumbing Equipment,Type,True
+ASS_TAG_3_TXT,Plumbing Equipment,Type,True
+BLE_DOOR_ACOUSTIC_RATING_DB,Plumbing Equipment,Type,True
+BLE_DOOR_CLOSER_REQUIRED_BOOL,Plumbing Equipment,Type,True
+BLE_DOOR_GLAZING_PCT,Plumbing Equipment,Type,True
+BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Plumbing Equipment,Type,True
+BLE_DOOR_HEIGHT_MM,Plumbing Equipment,Type,True
+BLE_DOOR_MAT_TXT,Plumbing Equipment,Type,True
+BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,Plumbing Equipment,Type,True
+BLE_DOOR_PANIC_HARDWARE_REQUIRED_BOOL,Plumbing Equipment,Type,True
+BLE_DOOR_SECURITY_RATING_GRADE_TXT,Plumbing Equipment,Type,True
+BLE_DOOR_WIDTH_MM,Plumbing Equipment,Type,True
+CST_CALC_ADHESIVE_KG,Plumbing Equipment,Type,True
+CST_CALC_AGGREGATE_M3,Plumbing Equipment,Type,True
+CST_CALC_AREA_M2,Plumbing Equipment,Type,True
+CST_CALC_BLOCKS_NR,Plumbing Equipment,Type,True
+CST_CALC_CEMENT_BAGS_NR,Plumbing Equipment,Type,True
+CST_CALC_CEMENT_PLASTER_BAGS,Plumbing Equipment,Type,True
+CST_CALC_CONCRETE_M3,Plumbing Equipment,Type,True
+CST_CALC_FASTENERS_NR,Plumbing Equipment,Type,True
+CST_CALC_GROUT_KG,Plumbing Equipment,Type,True
+CST_CALC_LENGTH_M,Plumbing Equipment,Type,True
+CST_CALC_MORTAR_M3,Plumbing Equipment,Type,True
+CST_CALC_PAINT_LITERS,Plumbing Equipment,Type,True
+CST_CALC_PLASTER_M3,Plumbing Equipment,Type,True
+CST_CALC_PRIMER_LITERS,Plumbing Equipment,Type,True
+CST_CALC_PURLINS_M,Plumbing Equipment,Type,True
+CST_CALC_PUTTY_KG,Plumbing Equipment,Type,True
+CST_CALC_RIDGE_CAP_M,Plumbing Equipment,Type,True
+CST_CALC_SAND_M3,Plumbing Equipment,Type,True
+CST_CALC_SAND_PLASTER_M3,Plumbing Equipment,Type,True
+CST_CALC_SHEETS_NR,Plumbing Equipment,Type,True
+CST_CALC_STEEL_KG,Plumbing Equipment,Type,True
+CST_CALC_TILE_M2,Plumbing Equipment,Type,True
+CST_CALC_VOLUME_M3,Plumbing Equipment,Type,True
+CST_CALC_WATER_M3,Plumbing Equipment,Type,True
+CST_S_CON_ADMIXTURE_TXT,Plumbing Equipment,Type,True
+CST_S_CON_AGGREGATE_VOLUME_CU_M,Plumbing Equipment,Type,True
+CST_S_CON_CEMENT_BAGS_NR,Plumbing Equipment,Type,True
+CST_S_CON_CST_TOTAL_UGX_NR,Plumbing Equipment,Type,True
+CST_S_CON_CURING_DAYS_NR,Plumbing Equipment,Type,True
+CST_S_CON_GRADE_TXT,Plumbing Equipment,Type,True
+CST_S_CON_MIX_RATIO_TXT,Plumbing Equipment,Type,True
+CST_S_CON_POUR_SEQUENCE_TXT,Plumbing Equipment,Type,True
+CST_S_CON_SAND_VOLUME_CU_M,Plumbing Equipment,Type,True
+CST_S_CON_SLUMP_MM,Plumbing Equipment,Type,True
+CST_S_CON_STRENGTH_MPA,Plumbing Equipment,Type,True
+CST_S_CON_TYPE_TXT,Plumbing Equipment,Type,True
+CST_S_CON_VOLUME_CU_M,Plumbing Equipment,Type,True
+CST_S_CON_VOLUME_WASTAGE_CU_M,Plumbing Equipment,Type,True
+CST_S_CON_WTR_VOLUME_L,Plumbing Equipment,Type,True
+CST_S_EAR_BACKFILL_VOLUME_CU_M,Plumbing Equipment,Type,True
+CST_S_EAR_BLINDING_VOLUME_CU_M,Plumbing Equipment,Type,True
+CST_S_EAR_COMPACTION_NR,Plumbing Equipment,Type,True
+CST_S_EAR_EXCAVATION_DEPTH_M,Plumbing Equipment,Type,True
+CST_S_EAR_EXCAVATION_METHOD_TXT,Plumbing Equipment,Type,True
+CST_S_EAR_EXCAVATION_VOLUME_CU_M,Plumbing Equipment,Type,True
+CST_S_EAR_FILL_MAT_TXT,Plumbing Equipment,Type,True
+CST_S_EAR_GEOTEXTILE_AREA_SQ_M,Plumbing Equipment,Type,True
+CST_S_EAR_HARDCORE_THICKNESS_MM,Plumbing Equipment,Type,True
+CST_S_EAR_HARDCORE_VOLUME_CU_M,Plumbing Equipment,Type,True
+CST_S_EAR_SOIL_TYPE_TXT,Plumbing Equipment,Type,True
+CST_S_FRM_BEAM_AREA_SQ_M,Plumbing Equipment,Type,True
+CST_S_FRM_COLUMN_AREA_SQ_M,Plumbing Equipment,Type,True
+CST_S_FRM_CST_TOTAL_UGX_NR,Plumbing Equipment,Type,True
+CST_S_FRM_PLYWOOD_SHEETS_NR,Plumbing Equipment,Type,True
+CST_S_FRM_PROPS_QUANTITY_NR,Plumbing Equipment,Type,True
+CST_S_FRM_RELEASE_AGENT_L,Plumbing Equipment,Type,True
+CST_S_FRM_REUSE_CYCLES_NR,Plumbing Equipment,Type,True
+CST_S_FRM_SLAB_AREA_SQ_M,Plumbing Equipment,Type,True
+CST_S_FRM_STRIPPING_TIME_DAYS,Plumbing Equipment,Type,True
+CST_S_FRM_TIMBER_VOLUME_CU_M,Plumbing Equipment,Type,True
+CST_S_FRM_TYPE_TXT,Plumbing Equipment,Type,True
+CST_S_MAS_BRICK_QUANTITY_NR,Plumbing Equipment,Type,True
+CST_S_MAS_BRICK_STRENGTH_TXT,Plumbing Equipment,Type,True
+CST_S_MAS_BRICK_TYPE_TXT,Plumbing Equipment,Type,True
+CST_S_MAS_BRICK_WASTAGE_NR,Plumbing Equipment,Type,True
+CST_S_MAS_CEMENT_BAGS_NR,Plumbing Equipment,Type,True
+CST_S_MAS_CST_TOTAL_UGX_NR,Plumbing Equipment,Type,True
+CST_S_MAS_MORTAR_RATIO_TXT,Plumbing Equipment,Type,True
+CST_S_MAS_MORTAR_TYPE_TXT,Plumbing Equipment,Type,True
+CST_S_MAS_MORTAR_VOLUME_CU_M,Plumbing Equipment,Type,True
+CST_S_MAS_NET_AREA_SQ_M,Plumbing Equipment,Type,True
+CST_S_MAS_OPENING_AREA_SQ_M,Plumbing Equipment,Type,True
+CST_S_MAS_SAND_VOLUME_CU_M,Plumbing Equipment,Type,True
+CST_S_MAS_WALL_AREA_SQ_M,Plumbing Equipment,Type,True
+CST_S_MAS_WALL_THICKNESS_MM,Plumbing Equipment,Type,True
+CST_S_MAS_WASTAGE_FCT_PCT,Plumbing Equipment,Type,True
+CST_S_REI_COVER_MM,Plumbing Equipment,Type,True
+CST_S_REI_CST_TOTAL_UGX_NR,Plumbing Equipment,Type,True
+CST_S_REI_DIAMETER_MM,Plumbing Equipment,Type,True
+CST_S_REI_GRADE_TXT,Plumbing Equipment,Type,True
+CST_S_REI_LENGTH_M,Plumbing Equipment,Type,True
+CST_S_REI_MARK_PREFIX_TXT,Plumbing Equipment,Type,True
+CST_S_REI_OVERLAP_LENGTH_MM,Plumbing Equipment,Type,True
+CST_S_REI_SCHEDULE_REF_TXT,Plumbing Equipment,Type,True
+CST_S_REI_SPACING_MM,Plumbing Equipment,Type,True
+CST_S_REI_TYPE_TXT,Plumbing Equipment,Type,True
+CST_S_REI_WEIGHT_KG,Plumbing Equipment,Type,True
+CST_S_REI_WEIGHT_WASTAGE_KG,Plumbing Equipment,Type,True
+CST_S_REI_WIRE_WEIGHT_KG,Plumbing Equipment,Type,True
+PER_ACOUSTICS_BACKGROUND_NOISE_DB,Plumbing Equipment,Type,True
+PER_ACOUSTICS_IIC_RATING_TXT,Plumbing Equipment,Type,True
+PER_ACOUSTICS_ISOLATION_REQ_BOOL,Plumbing Equipment,Type,True
+PER_ACOUSTICS_REVERBERATION_TIME_SEC_NR,Plumbing Equipment,Type,True
+PER_ACOUSTICS_STC_RATING_TXT,Plumbing Equipment,Type,True
+PER_ACOUSTICS_TREATMENT_TYPE_TXT,Plumbing Equipment,Type,True
+PER_ENVIRONMENTAL_ALTITUDE_M,Plumbing Equipment,Type,True
+PER_ENVIRONMENTAL_CLIMATE_ZONE_TXT,Plumbing Equipment,Type,True
+PER_ENVIRONMENTAL_CORROSION_PROT_TXT,Plumbing Equipment,Type,True
+PER_ENVIRONMENTAL_DUST_PROT_REQ_BOOL,Plumbing Equipment,Type,True
+PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT,Plumbing Equipment,Type,True
+PER_ENVIRONMENTAL_RAINFALL_ANNUAL_MM,Plumbing Equipment,Type,True
+PER_ENVIRONMENTAL_TEMP_DESIGN_C,Plumbing Equipment,Type,True
+PER_ENVIRONMENTAL_TERMITE_PROT_BOOL,Plumbing Equipment,Type,True
+PER_SUST_CARBON_FOOTPRINT_KG,Plumbing Equipment,Type,True
+PER_SUST_EDGE_CONTRIB_TXT,Plumbing Equipment,Type,True
+PER_SUST_ENERGY_RATING_TXT,Plumbing Equipment,Type,True
+PER_SUST_LEED_CONTRIB_TXT,Plumbing Equipment,Type,True
+PER_SUST_RECYCLABLE_BOOL,Plumbing Equipment,Type,True
+PER_SUST_RECYCLED_CONTENT_PCT,Plumbing Equipment,Type,True
+PER_SUST_WTR_RATING_NR,Plumbing Equipment,Type,True
+PER_THERM_CONDENSATION_RISK_TXT,Plumbing Equipment,Type,True
+PER_THERM_NATURAL_VENT_TXT,Plumbing Equipment,Type,True
+PER_THERM_PASSIVE_DESIGN_TXT,Plumbing Equipment,Type,True
+PER_THERM_R_VALUE_M2K_W,Plumbing Equipment,Type,True
+PER_THERM_SHADING_DEVICE_TXT,Plumbing Equipment,Type,True
+PER_THERM_SOLAR_ABSORPTANCE_NR,Plumbing Equipment,Type,True
+PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Plumbing Equipment,Type,True
+PER_THERM_U_VALUE_W_M2K_NR,Plumbing Equipment,Type,True
+PRJ_COMMENTS_TXT,Plumbing Equipment,Type,True
+RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Plumbing Equipment,Type,True
+RGL_ACCESS_CLEAR_WIDTH_MM,Plumbing Equipment,Type,True
+RGL_ACCESS_CMPL_STD_TXT,Plumbing Equipment,Type,True
+RGL_ACCESS_HEARING_LOOP_BOOL,Plumbing Equipment,Type,True
+RGL_ACCESS_REFUGE_AREA_TXT,Plumbing Equipment,Type,True
+RGL_ACCESS_TACTILE_WARNING_TXT,Plumbing Equipment,Type,True
+RGL_ACCESS_THRESHOLD_HEIGHT_MM,Plumbing Equipment,Type,True
+RGL_ACCESS_TURNING_RADIUS_MM,Plumbing Equipment,Type,True
+RGL_KCCA_APPROVAL_REQ_BOOL,Plumbing Equipment,Type,True
+RGL_NEMA_APPROVAL_REQ_BOOL,Plumbing Equipment,Type,True
+RGL_NWSC_APPROVAL_BOOL,Plumbing Equipment,Type,True
+RGL_OCCUPANCY_CERT_REQ_BOOL,Plumbing Equipment,Type,True
+RGL_PERIODIC_INSP_FREQ_TXT,Plumbing Equipment,Type,True
+RGL_QA_APVD_VENDOR_TXT,Plumbing Equipment,Type,True
+RGL_QA_CERTIFICATION_TXT,Plumbing Equipment,Type,True
+RGL_QA_COMMISSIONING_REQ_TXT,Plumbing Equipment,Type,True
+RGL_QA_INSP_BOOL,Plumbing Equipment,Type,True
+RGL_QA_STD_COMPLY_TXT,Plumbing Equipment,Type,True
+RGL_QA_TST_REPORT_REF_TXT,Plumbing Equipment,Type,True
+RGL_STD_TXT,Plumbing Equipment,Type,True
+RGL_UMEME_APPROVAL_BOOL,Plumbing Equipment,Type,True
+RGL_UNBS_STD_TXT,Plumbing Equipment,Type,True
+SPARE_PARAM_01_TXT,Plumbing Equipment,Type,True
+SPARE_PARAM_02_TXT,Plumbing Equipment,Type,True
+SPARE_PARAM_03_TXT,Plumbing Equipment,Type,True
+SPARE_PARAM_04_NR,Plumbing Equipment,Type,True
+SPARE_PARAM_05_INT,Plumbing Equipment,Type,True
+USAGE_TXT,Plumbing Equipment,Type,True
+MAT_EPD_REF_TXT,Plumbing Equipment,Type,True
+MAT_TAG_6_TXT,Plumbing Equipment,Type,True
+SUST_MAT_TAG_1_TXT,Plumbing Equipment,Type,True
+SUST_MAT_TAG_2_TXT,Plumbing Equipment,Type,True
+ASS_INST_DETAIL_NUM_TXT,Plumbing Equipment,Type,True
+ASS_TAG_4_TXT,Plumbing Equipment,Type,True
+ASS_TAG_5_TXT,Plumbing Equipment,Type,True
+ASS_TAG_6_TXT,Plumbing Equipment,Type,True
+BLE_ELES_SPARE_01_TXT,Plumbing Equipment,Type,True
+BLE_ELES_SPARE_02_TXT,Plumbing Equipment,Type,True
+BLE_ELES_SPARE_03_TXT,Plumbing Equipment,Type,True
+CST_PERCENTAGE_OF_TOTAL_PCT,Plumbing Equipment,Type,True
+CST_S_EAR_CST_TOTAL_UGX_NR,Plumbing Equipment,Type,True
+CST_S_EAR_DISPOSAL_VOLUME_CU_M,Plumbing Equipment,Type,True
+CST_S_FRM_BEAM_LENGTH_M,Plumbing Equipment,Type,True
+CST_TOTAL_EQUIPMENT_COST,Plumbing Equipment,Type,True
+ASS_LVL_COD_TXT,Plumbing Equipment,Type,True
+ASS_MANUFACTURER_TXT,Plumbing Equipment,Type,True
+ASS_MODEL_NR_TXT,Plumbing Equipment,Type,True
+ASS_RM_COD_TXT,Plumbing Equipment,Type,True
+FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Plumbing Equipment,Type,True
+BLE_ROOM_NUMBER_TXT,Plumbing Equipment,Type,True
+BLE_FACADE_TYPE_TXT,Plumbing Equipment,Type,True
+BLE_CEILING_TYPE_CLASSIFICATION_TXT,Plumbing Equipment,Type,True
+BLE_FACADE_INS_BOOL,Plumbing Equipment,Type,True
+BLE_WINDOW_WIDTH_MM,Plumbing Equipment,Type,True
+BLE_STRUCT_SLAB_THICKNESS_MM,Plumbing Equipment,Type,True
+BLE_WALL_THICKNESS_MM,Plumbing Equipment,Type,True
+BLE_ROOF_CLR_TXT,Plumbing Equipment,Type,True
+BLE_FACADE_PNL_SZ_TXT,Plumbing Equipment,Type,True
+BLE_STRUCT_SEISMIC_DESIGN_BOOL,Plumbing Equipment,Type,True
+BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT,Plumbing Equipment,Type,True
+BLE_FLR_FINISH_TXT,Plumbing Equipment,Type,True
+BLE_CEILING_FINISH_TXT,Plumbing Equipment,Type,True
+BLE_CEILING_LIGHT_REFLECTANCE_PCT,Plumbing Equipment,Type,True
+BLE_STRUCT_FOUNDATION_TYPE_TXT,Plumbing Equipment,Type,True
+BLE_ROOM_NAME_TXT,Plumbing Equipment,Type,True
+BLE_ROOF_INS_R_VALUE_M_2K_W,Plumbing Equipment,Type,True
+BLE_ROOF_WATERPROOFING_SYSTEM_TXT,Plumbing Equipment,Type,True
+BLE_ROOF_DOWNPPE_SZ_MM,Plumbing Equipment,Type,True
+BLE_CEILING_GRID_SZ_MM,Plumbing Equipment,Type,True
+BLE_FLR_FINISH_THICKNESS_MM,Plumbing Equipment,Type,True
+BLE_WALL_TYPE_CLASSIFICATION_TXT,Plumbing Equipment,Type,True
+BLE_FINISH_PAINT_VOLUME_L,Plumbing Equipment,Type,True
+BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Plumbing Equipment,Type,True
+BLE_ELE_AREA_SQ_M,Plumbing Equipment,Type,True
+BLE_WALL_INTERIOR_FINISH_TXT,Plumbing Equipment,Type,True
+BLE_WINDOW_OPERATION_TYPE_TXT,Plumbing Equipment,Type,True
+BLE_STRUCT_CONCRETE_GRADE_TXT,Plumbing Equipment,Type,True
+BLE_ROOF_TYPE_TXT,Plumbing Equipment,Type,True
+BLE_FLR_MOISTURE_BARRIER_REQUIRED_BOOL,Plumbing Equipment,Type,True
+BLE_FLR_THICKNESS_MM,Plumbing Equipment,Type,True
+BLE_CEILING_HEIGHT_MM,Plumbing Equipment,Type,True
+BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR,Plumbing Equipment,Type,True
+BLE_WALL_HEIGHT_MM,Plumbing Equipment,Type,True
+BLE_STRUCT_REINFORCEMENT_TXT,Plumbing Equipment,Type,True
+BLE_FINISH_PLASTER_AREA_SQ_M,Plumbing Equipment,Type,True
+BLE_RAMP_SLOPE_PCT,Plumbing Equipment,Type,True
+BLE_WALL_EXTERIOR_FINISH_TXT,Plumbing Equipment,Type,True
+BLE_FLR_RAISED_FLR_HEIGHT_MM,Plumbing Equipment,Type,True
+BLE_RAMP_SURFACE_FINISH_TXT,Plumbing Equipment,Type,True
+BLE_FLR_STRUCTURAL_SYSTEM_TXT,Plumbing Equipment,Type,True
+CST_ENERGY_ANNUAL_UGX_NUM_NR,Plumbing Equipment,Type,True
+BLE_FLR_PERIMETER_DETAIL_TYPE_TXT,Plumbing Equipment,Type,True
+BLE_CEILING_PLENUM_HEIGHT_MM,Plumbing Equipment,Type,True
+BLE_STRUCT_ELE_TYPE_TXT,Plumbing Equipment,Type,True
+BLE_STRUCT_COLUMN_SZ_TXT,Plumbing Equipment,Type,True
+BLE_ROOF_SLOPE_DEG,Plumbing Equipment,Type,True
+BLE_FLR_UNDERFLR_HEATING_SYSTEM_TXT,Plumbing Equipment,Type,True
+BLE_ROOF_SOLAR_REFLECTANCE_INDEX_NR,Plumbing Equipment,Type,True
+BLE_FINISH_PAINT_COATS_NR,Plumbing Equipment,Type,True
+BLE_FACADE_FIX_SYSTEM_TXT,Plumbing Equipment,Type,True
+BLE_STRUCT_STEEL_GRADE_TXT,Plumbing Equipment,Type,True
+BLE_FLR_RAISED_ACCESS_FLR_TXT,Plumbing Equipment,Type,True
+BLE_WALL_MOISTURE_BARRIER_INCLUDED_TXT,Plumbing Equipment,Type,True
+BLE_FACADE_FINISH_TXT,Plumbing Equipment,Type,True
+BLE_WINDOW_TYPE_CLASSIFICATION_TXT,Plumbing Equipment,Type,True
+BLE_FLR_TYPE_CLASSIFICATION_TXT,Plumbing Equipment,Type,True
+BLE_WINDOW_HEIGHT_MM,Plumbing Equipment,Type,True
+BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,Plumbing Equipment,Type,True
+BLE_FLR_LD_CAP_KPA,Plumbing Equipment,Type,True
+BLE_ROOF_RAINWTR_HARVESTING_INTEGRATION_BOOL,Plumbing Equipment,Type,True
+BLE_CEILING_NOISE_REDCTION_COEFFICIENT_NRC_NR,Plumbing Equipment,Type,True
+BLE_FINISH_ADHESIVE_WEIGHT_KG,Plumbing Equipment,Type,True
+BLE_WALL_FUNCTION_TXT,Plumbing Equipment,Type,True
+BLE_ROOF_GUTTER_SZ_MM,Plumbing Equipment,Type,True
+BLE_FINISH_PLASTER_THICKNESS_MM,Plumbing Equipment,Type,True
+BLE_RAMP_HANDRAIL_BOTH_SIDES_TXT,Plumbing Equipment,Type,True
+BLE_LOAD_BEARING_ELE_BOOL,Plumbing Equipment,Type,True
+BLE_FINISH_TILE_QUANTITY_NR,Plumbing Equipment,Type,True
+BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,Plumbing Equipment,Type,True
+BLE_STRUCT_BEAM_SZ_TXT,Plumbing Equipment,Type,True
+BLE_FLR_SLIP_RESISTANCE_RATING_NR,Plumbing Equipment,Type,True
+BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,Plumbing Equipment,Type,True
+BLE_ROOF_OVERHANG_MM,Plumbing Equipment,Type,True
+BLE_FLR_IMPACT_SOUND_INS_DB,Plumbing Equipment,Type,True
+BLE_FINISH_TILE_SZ_TXT,Plumbing Equipment,Type,True
+BLE_STRUCT_LD_CAP_KN_NR,Plumbing Equipment,Type,True
+BLE_FINISH_GROUT_WEIGHT_KG,Plumbing Equipment,Type,True
+BLE_ROOF_STRUCTURE_TYPE_TXT,Plumbing Equipment,Type,True
+BLE_WINDOW_VISIBLE_LIGHT_TRANSMITTANCE_PCT,Plumbing Equipment,Type,True
+BLE_WALL_FINISH_TXT,Plumbing Equipment,Type,True
+BLE_WINDOW_MOSQUITO_SCREEN_INCLUDED_TXT,Plumbing Equipment,Type,True
+BLE_FLR_LVL_NR,Plumbing Equipment,Instance,True
+BLE_WINDOW_BURGLAR_BARS_REQUIRED_UGANDA_BOOL,Plumbing Equipment,Type,True
+BLE_FINISH_PAINT_AREA_SQ_M,Plumbing Equipment,Type,True
+BLE_FACADE_VENTILATED_TXT,Plumbing Equipment,Type,True
+BLE_FINISH_TILE_AREA_SQ_M,Plumbing Equipment,Type,True
+BLE_CEILING_SYSTEM_TXT,Plumbing Equipment,Type,True
+BLE_FINISH_PLASTER_RATIO_NR,Plumbing Equipment,Type,True
+BLE_RAMP_WIDTH_MM,Plumbing Equipment,Type,True
+BLE_WALL_CST_METHOD_TXT,Plumbing Equipment,Type,True
+BLE_CEILING_ACCESS_PNLS_INCLUDED_TXT,Plumbing Equipment,Type,True
+BLE_WALL_LENGTH_MM,Plumbing Equipment,Type,True
+BLE_WINDOW_U_VALUE_W_M_2K_NR,Plumbing Equipment,Type,True
+BLE_FINISH_TYPE_TXT,Plumbing Equipment,Type,True
+BLE_FACADE_CLR_TXT,Plumbing Equipment,Type,True
+WS_DESCRIPTION_TXT,Plumbing Equipment,Type,True
+WS_OWNER_TXT,Plumbing Equipment,Type,True
+WS_VISIBLE_DEFAULT_BOOL,Plumbing Equipment,Type,True
+WS_DISCIPLINE_TXT,Plumbing Equipment,Type,True
+WS_TYPE_TXT,Plumbing Equipment,Type,True
+WS_NAME_TXT,Plumbing Equipment,Type,True
+WS_EDITABLE_DEFAULT_BOOL,Plumbing Equipment,Type,True
+PH_NUMBER_INT,Plumbing Equipment,Type,True
+PH_DESCRIPTION_TXT,Plumbing Equipment,Type,True
+PH_END_DATE_TXT,Plumbing Equipment,Type,True
+PH_STATUS_TXT,Plumbing Equipment,Type,True
+PH_START_DATE_TXT,Plumbing Equipment,Type,True
+PH_NAME_TXT,Plumbing Equipment,Type,True
+ASS_CAT_TXT,Railings,Type,True
+ASS_DESCRIPTION_TXT,Railings,Type,True
+ASS_ID_TXT,Railings,Type,True
+ASS_LOC_TXT,Railings,Type,True
+ASS_TAG_1_TXT,Railings,Type,True
+ASS_TAG_2_TXT,Railings,Type,True
+ASS_TAG_3_TXT,Railings,Type,True
+BLE_DOOR_ACOUSTIC_RATING_DB,Railings,Type,True
+BLE_DOOR_CLOSER_REQUIRED_BOOL,Railings,Type,True
+BLE_DOOR_GLAZING_PCT,Railings,Type,True
+BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Railings,Type,True
+BLE_DOOR_HEIGHT_MM,Railings,Type,True
+BLE_DOOR_MAT_TXT,Railings,Type,True
+BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,Railings,Type,True
+BLE_DOOR_PANIC_HARDWARE_REQUIRED_BOOL,Railings,Type,True
+BLE_DOOR_SECURITY_RATING_GRADE_TXT,Railings,Type,True
+BLE_DOOR_WIDTH_MM,Railings,Type,True
+CST_CALC_ADHESIVE_KG,Railings,Type,True
+CST_CALC_AGGREGATE_M3,Railings,Type,True
+CST_CALC_AREA_M2,Railings,Type,True
+CST_CALC_BLOCKS_NR,Railings,Type,True
+CST_CALC_CEMENT_BAGS_NR,Railings,Type,True
+CST_CALC_CEMENT_PLASTER_BAGS,Railings,Type,True
+CST_CALC_CONCRETE_M3,Railings,Type,True
+CST_CALC_FASTENERS_NR,Railings,Type,True
+CST_CALC_GROUT_KG,Railings,Type,True
+CST_CALC_LENGTH_M,Railings,Type,True
+CST_CALC_MORTAR_M3,Railings,Type,True
+CST_CALC_PAINT_LITERS,Railings,Type,True
+CST_CALC_PLASTER_M3,Railings,Type,True
+CST_CALC_PRIMER_LITERS,Railings,Type,True
+CST_CALC_PURLINS_M,Railings,Type,True
+CST_CALC_PUTTY_KG,Railings,Type,True
+CST_CALC_RIDGE_CAP_M,Railings,Type,True
+CST_CALC_SAND_M3,Railings,Type,True
+CST_CALC_SAND_PLASTER_M3,Railings,Type,True
+CST_CALC_SHEETS_NR,Railings,Type,True
+CST_CALC_STEEL_KG,Railings,Type,True
+CST_CALC_TILE_M2,Railings,Type,True
+CST_CALC_VOLUME_M3,Railings,Type,True
+CST_CALC_WATER_M3,Railings,Type,True
+CST_S_CON_ADMIXTURE_TXT,Railings,Type,True
+CST_S_CON_AGGREGATE_VOLUME_CU_M,Railings,Type,True
+CST_S_CON_CEMENT_BAGS_NR,Railings,Type,True
+CST_S_CON_CST_TOTAL_UGX_NR,Railings,Type,True
+CST_S_CON_CURING_DAYS_NR,Railings,Type,True
+CST_S_CON_GRADE_TXT,Railings,Type,True
+CST_S_CON_MIX_RATIO_TXT,Railings,Type,True
+CST_S_CON_POUR_SEQUENCE_TXT,Railings,Type,True
+CST_S_CON_SAND_VOLUME_CU_M,Railings,Type,True
+CST_S_CON_SLUMP_MM,Railings,Type,True
+CST_S_CON_STRENGTH_MPA,Railings,Type,True
+CST_S_CON_TYPE_TXT,Railings,Type,True
+CST_S_CON_VOLUME_CU_M,Railings,Type,True
+CST_S_CON_VOLUME_WASTAGE_CU_M,Railings,Type,True
+CST_S_CON_WTR_VOLUME_L,Railings,Type,True
+CST_S_EAR_BACKFILL_VOLUME_CU_M,Railings,Type,True
+CST_S_EAR_BLINDING_VOLUME_CU_M,Railings,Type,True
+CST_S_EAR_COMPACTION_NR,Railings,Type,True
+CST_S_EAR_EXCAVATION_DEPTH_M,Railings,Type,True
+CST_S_EAR_EXCAVATION_METHOD_TXT,Railings,Type,True
+CST_S_EAR_EXCAVATION_VOLUME_CU_M,Railings,Type,True
+CST_S_EAR_FILL_MAT_TXT,Railings,Type,True
+CST_S_EAR_GEOTEXTILE_AREA_SQ_M,Railings,Type,True
+CST_S_EAR_HARDCORE_THICKNESS_MM,Railings,Type,True
+CST_S_EAR_HARDCORE_VOLUME_CU_M,Railings,Type,True
+CST_S_EAR_SOIL_TYPE_TXT,Railings,Type,True
+CST_S_FRM_BEAM_AREA_SQ_M,Railings,Type,True
+CST_S_FRM_COLUMN_AREA_SQ_M,Railings,Type,True
+CST_S_FRM_CST_TOTAL_UGX_NR,Railings,Type,True
+CST_S_FRM_PLYWOOD_SHEETS_NR,Railings,Type,True
+CST_S_FRM_PROPS_QUANTITY_NR,Railings,Type,True
+CST_S_FRM_RELEASE_AGENT_L,Railings,Type,True
+CST_S_FRM_REUSE_CYCLES_NR,Railings,Type,True
+CST_S_FRM_SLAB_AREA_SQ_M,Railings,Type,True
+CST_S_FRM_STRIPPING_TIME_DAYS,Railings,Type,True
+CST_S_FRM_TIMBER_VOLUME_CU_M,Railings,Type,True
+CST_S_FRM_TYPE_TXT,Railings,Type,True
+CST_S_MAS_BRICK_QUANTITY_NR,Railings,Type,True
+CST_S_MAS_BRICK_STRENGTH_TXT,Railings,Type,True
+CST_S_MAS_BRICK_TYPE_TXT,Railings,Type,True
+CST_S_MAS_BRICK_WASTAGE_NR,Railings,Type,True
+CST_S_MAS_CEMENT_BAGS_NR,Railings,Type,True
+CST_S_MAS_CST_TOTAL_UGX_NR,Railings,Type,True
+CST_S_MAS_MORTAR_RATIO_TXT,Railings,Type,True
+CST_S_MAS_MORTAR_TYPE_TXT,Railings,Type,True
+CST_S_MAS_MORTAR_VOLUME_CU_M,Railings,Type,True
+CST_S_MAS_NET_AREA_SQ_M,Railings,Type,True
+CST_S_MAS_OPENING_AREA_SQ_M,Railings,Type,True
+CST_S_MAS_SAND_VOLUME_CU_M,Railings,Type,True
+CST_S_MAS_WALL_AREA_SQ_M,Railings,Type,True
+CST_S_MAS_WALL_THICKNESS_MM,Railings,Type,True
+CST_S_MAS_WASTAGE_FCT_PCT,Railings,Type,True
+CST_S_REI_COVER_MM,Railings,Type,True
+CST_S_REI_CST_TOTAL_UGX_NR,Railings,Type,True
+CST_S_REI_DIAMETER_MM,Railings,Type,True
+CST_S_REI_GRADE_TXT,Railings,Type,True
+CST_S_REI_LENGTH_M,Railings,Type,True
+CST_S_REI_MARK_PREFIX_TXT,Railings,Type,True
+CST_S_REI_OVERLAP_LENGTH_MM,Railings,Type,True
+CST_S_REI_SCHEDULE_REF_TXT,Railings,Type,True
+CST_S_REI_SPACING_MM,Railings,Type,True
+CST_S_REI_TYPE_TXT,Railings,Type,True
+CST_S_REI_WEIGHT_KG,Railings,Type,True
+CST_S_REI_WEIGHT_WASTAGE_KG,Railings,Type,True
+CST_S_REI_WIRE_WEIGHT_KG,Railings,Type,True
+PER_ACOUSTICS_BACKGROUND_NOISE_DB,Railings,Type,True
+PER_ACOUSTICS_IIC_RATING_TXT,Railings,Type,True
+PER_ACOUSTICS_ISOLATION_REQ_BOOL,Railings,Type,True
+PER_ACOUSTICS_REVERBERATION_TIME_SEC_NR,Railings,Type,True
+PER_ACOUSTICS_STC_RATING_TXT,Railings,Type,True
+PER_ACOUSTICS_TREATMENT_TYPE_TXT,Railings,Type,True
+PER_ENVIRONMENTAL_ALTITUDE_M,Railings,Type,True
+PER_ENVIRONMENTAL_CLIMATE_ZONE_TXT,Railings,Type,True
+PER_ENVIRONMENTAL_CORROSION_PROT_TXT,Railings,Type,True
+PER_ENVIRONMENTAL_DUST_PROT_REQ_BOOL,Railings,Type,True
+PER_ENVIRONMENTAL_HUMIDITY_DESIGN_PCT,Railings,Type,True
+PER_ENVIRONMENTAL_RAINFALL_ANNUAL_MM,Railings,Type,True
+PER_ENVIRONMENTAL_TEMP_DESIGN_C,Railings,Type,True
+PER_ENVIRONMENTAL_TERMITE_PROT_BOOL,Railings,Type,True
+PER_SUST_CARBON_FOOTPRINT_KG,Railings,Type,True
+PER_SUST_EDGE_CONTRIB_TXT,Railings,Type,True
+PER_SUST_ENERGY_RATING_TXT,Railings,Type,True
+PER_SUST_LEED_CONTRIB_TXT,Railings,Type,True
+PER_SUST_RECYCLABLE_BOOL,Railings,Type,True
+PER_SUST_RECYCLED_CONTENT_PCT,Railings,Type,True
+PER_SUST_WTR_RATING_NR,Railings,Type,True
+PER_THERM_CONDENSATION_RISK_TXT,Railings,Type,True
+PER_THERM_NATURAL_VENT_TXT,Railings,Type,True
+PER_THERM_PASSIVE_DESIGN_TXT,Railings,Type,True
+PER_THERM_R_VALUE_M2K_W,Railings,Type,True
+PER_THERM_SHADING_DEVICE_TXT,Railings,Type,True
+PER_THERM_SOLAR_ABSORPTANCE_NR,Railings,Type,True
+PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Railings,Type,True
+PER_THERM_U_VALUE_W_M2K_NR,Railings,Type,True
+PRJ_COMMENTS_TXT,Railings,Type,True
+RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Railings,Type,True
+RGL_ACCESS_CLEAR_WIDTH_MM,Railings,Type,True
+RGL_ACCESS_CMPL_STD_TXT,Railings,Type,True
+RGL_ACCESS_HEARING_LOOP_BOOL,Railings,Type,True
+RGL_ACCESS_REFUGE_AREA_TXT,Railings,Type,True
+RGL_ACCESS_TACTILE_WARNING_TXT,Railings,Type,True
+RGL_ACCESS_THRESHOLD_HEIGHT_MM,Railings,Type,True
+RGL_ACCESS_TURNING_RADIUS_MM,Railings,Type,True
+RGL_KCCA_APPROVAL_REQ_BOOL,Railings,Type,True
+RGL_NEMA_APPROVAL_REQ_BOOL,Railings,Type,True
+RGL_NWSC_APPROVAL_BOOL,Railings,Type,True
+RGL_OCCUPANCY_CERT_REQ_BOOL,Railings,Type,True
+RGL_PERIODIC_INSP_FREQ_TXT,Railings,Type,True
+RGL_QA_APVD_VENDOR_TXT,Railings,Type,True
+RGL_QA_CERTIFICATION_TXT,Railings,Type,True
+RGL_QA_COMMISSIONING_REQ_TXT,Railings,Type,True
+RGL_QA_INSP_BOOL,Railings,Type,True
+RGL_QA_STD_COMPLY_TXT,Railings,Type,True
+RGL_QA_TST_REPORT_REF_TXT,Railings,Type,True
+RGL_STD_TXT,Railings,Type,True
+RGL_UMEME_APPROVAL_BOOL,Railings,Type,True
+RGL_UNBS_STD_TXT,Railings,Type,True
+SPARE_PARAM_01_TXT,Railings,Type,True
+SPARE_PARAM_02_TXT,Railings,Type,True
+SPARE_PARAM_03_TXT,Railings,Type,True
+SPARE_PARAM_04_NR,Railings,Type,True
+SPARE_PARAM_05_INT,Railings,Type,True
+USAGE_TXT,Railings,Type,True
+MAT_EPD_REF_TXT,Railings,Type,True
+MAT_TAG_6_TXT,Railings,Type,True
+SUST_MAT_TAG_1_TXT,Railings,Type,True
+SUST_MAT_TAG_2_TXT,Railings,Type,True
+ASS_INST_DETAIL_NUM_TXT,Railings,Type,True
+ASS_TAG_4_TXT,Railings,Type,True
+ASS_TAG_5_TXT,Railings,Type,True
+ASS_TAG_6_TXT,Railings,Type,True
+BLE_ELES_SPARE_01_TXT,Railings,Type,True
+BLE_ELES_SPARE_02_TXT,Railings,Type,True
+BLE_ELES_SPARE_03_TXT,Railings,Type,True
+CST_PERCENTAGE_OF_TOTAL_PCT,Railings,Type,True
+CST_S_EAR_CST_TOTAL_UGX_NR,Railings,Type,True
+CST_S_EAR_DISPOSAL_VOLUME_CU_M,Railings,Type,True
+CST_S_FRM_BEAM_LENGTH_M,Railings,Type,True
+CST_TOTAL_EQUIPMENT_COST,Railings,Type,True
+ASS_LVL_COD_TXT,Railings,Type,True
+ASS_MANUFACTURER_TXT,Railings,Type,True
+ASS_MODEL_NR_TXT,Railings,Type,True
+ASS_RM_COD_TXT,Railings,Type,True
+FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Railings,Type,True
+BLE_ROOM_NUMBER_TXT,Railings,Type,True
+BLE_FACADE_TYPE_TXT,Railings,Type,True
+BLE_CEILING_TYPE_CLASSIFICATION_TXT,Railings,Type,True
+BLE_FACADE_INS_BOOL,Railings,Type,True
+BLE_WINDOW_WIDTH_MM,Railings,Type,True
+BLE_STRUCT_SLAB_THICKNESS_MM,Railings,Type,True
+BLE_WALL_THICKNESS_MM,Railings,Type,True
+BLE_ROOF_CLR_TXT,Railings,Type,True
+BLE_FACADE_PNL_SZ_TXT,Railings,Type,True
+BLE_STRUCT_SEISMIC_DESIGN_BOOL,Railings,Type,True
+BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT,Railings,Type,True
+BLE_FLR_FINISH_TXT,Railings,Type,True
+BLE_CEILING_FINISH_TXT,Railings,Type,True
+BLE_CEILING_LIGHT_REFLECTANCE_PCT,Railings,Type,True
+BLE_STRUCT_FOUNDATION_TYPE_TXT,Railings,Type,True
+BLE_ROOM_NAME_TXT,Railings,Type,True
+BLE_ROOF_INS_R_VALUE_M_2K_W,Railings,Type,True
+BLE_ROOF_WATERPROOFING_SYSTEM_TXT,Railings,Type,True
+BLE_ROOF_DOWNPPE_SZ_MM,Railings,Type,True
+BLE_CEILING_GRID_SZ_MM,Railings,Type,True
+BLE_FLR_FINISH_THICKNESS_MM,Railings,Type,True
+BLE_WALL_TYPE_CLASSIFICATION_TXT,Railings,Type,True
+BLE_FINISH_PAINT_VOLUME_L,Railings,Type,True
+BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Railings,Type,True
+BLE_ELE_AREA_SQ_M,Railings,Type,True
+BLE_WALL_INTERIOR_FINISH_TXT,Railings,Type,True
+BLE_WINDOW_OPERATION_TYPE_TXT,Railings,Type,True
+BLE_STRUCT_CONCRETE_GRADE_TXT,Railings,Type,True
+BLE_ROOF_TYPE_TXT,Railings,Type,True
+BLE_FLR_MOISTURE_BARRIER_REQUIRED_BOOL,Railings,Type,True
+BLE_FLR_THICKNESS_MM,Railings,Type,True
+BLE_CEILING_HEIGHT_MM,Railings,Type,True
+BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR,Railings,Type,True
+BLE_WALL_HEIGHT_MM,Railings,Type,True
+BLE_STRUCT_REINFORCEMENT_TXT,Railings,Type,True
+BLE_FINISH_PLASTER_AREA_SQ_M,Railings,Type,True
+BLE_RAMP_SLOPE_PCT,Railings,Type,True
+BLE_WALL_EXTERIOR_FINISH_TXT,Railings,Type,True
+BLE_FLR_RAISED_FLR_HEIGHT_MM,Railings,Type,True
+BLE_RAMP_SURFACE_FINISH_TXT,Railings,Type,True
+BLE_FLR_STRUCTURAL_SYSTEM_TXT,Railings,Type,True
+CST_ENERGY_ANNUAL_UGX_NUM_NR,Railings,Type,True
+BLE_FLR_PERIMETER_DETAIL_TYPE_TXT,Railings,Type,True
+BLE_CEILING_PLENUM_HEIGHT_MM,Railings,Type,True
+BLE_STRUCT_ELE_TYPE_TXT,Railings,Type,True
+BLE_STRUCT_COLUMN_SZ_TXT,Railings,Type,True
+BLE_ROOF_SLOPE_DEG,Railings,Type,True
+BLE_FLR_UNDERFLR_HEATING_SYSTEM_TXT,Railings,Type,True
+BLE_ROOF_SOLAR_REFLECTANCE_INDEX_NR,Railings,Type,True
+BLE_FINISH_PAINT_COATS_NR,Railings,Type,True
+BLE_FACADE_FIX_SYSTEM_TXT,Railings,Type,True
+BLE_STRUCT_STEEL_GRADE_TXT,Railings,Type,True
+BLE_FLR_RAISED_ACCESS_FLR_TXT,Railings,Type,True
+BLE_WALL_MOISTURE_BARRIER_INCLUDED_TXT,Railings,Type,True
+BLE_FACADE_FINISH_TXT,Railings,Type,True
+BLE_WINDOW_TYPE_CLASSIFICATION_TXT,Railings,Type,True
+BLE_FLR_TYPE_CLASSIFICATION_TXT,Railings,Type,True
+BLE_WINDOW_HEIGHT_MM,Railings,Type,True
+BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,Railings,Type,True
+BLE_FLR_LD_CAP_KPA,Railings,Type,True
+BLE_ROOF_RAINWTR_HARVESTING_INTEGRATION_BOOL,Railings,Type,True
+BLE_CEILING_NOISE_REDCTION_COEFFICIENT_NRC_NR,Railings,Type,True
+BLE_FINISH_ADHESIVE_WEIGHT_KG,Railings,Type,True
+BLE_WALL_FUNCTION_TXT,Railings,Type,True
+BLE_ROOF_GUTTER_SZ_MM,Railings,Type,True
+BLE_FINISH_PLASTER_THICKNESS_MM,Railings,Type,True
+BLE_RAMP_HANDRAIL_BOTH_SIDES_TXT,Railings,Type,True
+BLE_LOAD_BEARING_ELE_BOOL,Railings,Type,True
+BLE_FINISH_TILE_QUANTITY_NR,Railings,Type,True
+BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,Railings,Type,True
+BLE_STRUCT_BEAM_SZ_TXT,Railings,Type,True
+BLE_FLR_SLIP_RESISTANCE_RATING_NR,Railings,Type,True
+BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,Railings,Type,True
+BLE_ROOF_OVERHANG_MM,Railings,Type,True
+BLE_FLR_IMPACT_SOUND_INS_DB,Railings,Type,True
+BLE_FINISH_TILE_SZ_TXT,Railings,Type,True
+BLE_STRUCT_LD_CAP_KN_NR,Railings,Type,True
+BLE_FINISH_GROUT_WEIGHT_KG,Railings,Type,True
+BLE_ROOF_STRUCTURE_TYPE_TXT,Railings,Type,True
+BLE_WINDOW_VISIBLE_LIGHT_TRANSMITTANCE_PCT,Railings,Type,True
+BLE_WALL_FINISH_TXT,Railings,Type,True
+BLE_WINDOW_MOSQUITO_SCREEN_INCLUDED_TXT,Railings,Type,True
+BLE_FLR_LVL_NR,Railings,Instance,True
+BLE_WINDOW_BURGLAR_BARS_REQUIRED_UGANDA_BOOL,Railings,Type,True
+BLE_FINISH_PAINT_AREA_SQ_M,Railings,Type,True
+BLE_FACADE_VENTILATED_TXT,Railings,Type,True
+BLE_FINISH_TILE_AREA_SQ_M,Railings,Type,True
+BLE_CEILING_SYSTEM_TXT,Railings,Type,True
+BLE_FINISH_PLASTER_RATIO_NR,Railings,Type,True
+BLE_RAMP_WIDTH_MM,Railings,Type,True
+BLE_WALL_CST_METHOD_TXT,Railings,Type,True
+BLE_CEILING_ACCESS_PNLS_INCLUDED_TXT,Railings,Type,True
+BLE_WALL_LENGTH_MM,Railings,Type,True
+BLE_WINDOW_U_VALUE_W_M_2K_NR,Railings,Type,True
+BLE_FINISH_TYPE_TXT,Railings,Type,True
+BLE_FACADE_CLR_TXT,Railings,Type,True
+WS_DESCRIPTION_TXT,Railings,Type,True
+WS_OWNER_TXT,Railings,Type,True
+WS_VISIBLE_DEFAULT_BOOL,Railings,Type,True
+WS_DISCIPLINE_TXT,Railings,Type,True
+WS_TYPE_TXT,Railings,Type,True
+WS_NAME_TXT,Railings,Type,True
+WS_EDITABLE_DEFAULT_BOOL,Railings,Type,True
+PH_NUMBER_INT,Railings,Type,True
+PH_DESCRIPTION_TXT,Railings,Type,True
+PH_END_DATE_TXT,Railings,Type,True
+PH_STATUS_TXT,Railings,Type,True
+PH_START_DATE_TXT,Railings,Type,True
+PH_NAME_TXT,Railings,Type,True

@@ -58,7 +58,10 @@ namespace StingTools.Tags
                 // 4. Check for name divergence in MR_PARAMETERS.txt
                 CheckSharedParamFile(report);
 
-                // 5. Summary
+                // 5. GAP-007: Detect renames (same GUID, different param name)
+                DetectRenames(report);
+
+                // 6. Summary
                 report.AppendLine();
                 report.AppendLine($"═══ Total changes written: {totalChanges} ═══");
                 if (totalChanges == 0)
@@ -337,6 +340,90 @@ namespace StingTools.Tags
             }
             else
                 report.AppendLine("  No issues found");
+        }
+
+        /// <summary>
+        /// GAP-007: Detect parameter renames — same GUID exists in MR_PARAMETERS.csv
+        /// and PARAMETER_REGISTRY.json but with different names. Generates SCHEDULE_FIELD_REMAP
+        /// entries so schedules using the old name continue to work after the rename.
+        /// </summary>
+        private void DetectRenames(StringBuilder report)
+        {
+            string csvPath = StingToolsApp.FindDataFile("MR_PARAMETERS.csv");
+            if (csvPath == null) return;
+
+            report.AppendLine("[Rename Detection]");
+
+            // Build CSV GUID→name index
+            var csvGuidToName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var lines = File.ReadAllLines(csvPath)
+                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
+                .Skip(1); // skip header
+            foreach (string line in lines)
+            {
+                string[] cols = StingToolsApp.ParseCsvLine(line);
+                if (cols.Length >= 3)
+                {
+                    string name = cols[1].Trim();
+                    string guid = cols[2].Trim();
+                    if (!string.IsNullOrEmpty(guid) && !csvGuidToName.ContainsKey(guid))
+                        csvGuidToName[guid] = name;
+                }
+            }
+
+            // Compare registry GUIDs against CSV names
+            var renames = new List<(string guid, string oldName, string newName)>();
+            foreach (var kvp in ParamRegistry.AllParamGuids)
+            {
+                string registryName = kvp.Key;
+                string guidStr = kvp.Value.ToString();
+
+                if (csvGuidToName.TryGetValue(guidStr, out string csvName))
+                {
+                    if (!string.Equals(csvName, registryName, StringComparison.Ordinal))
+                        renames.Add((guidStr, csvName, registryName));
+                }
+            }
+
+            if (renames.Count == 0)
+            {
+                report.AppendLine("  No renames detected");
+                return;
+            }
+
+            report.AppendLine($"  {renames.Count} rename(s) detected (same GUID, different name):");
+            foreach (var (guid, oldName, newName) in renames)
+                report.AppendLine($"    {oldName} → {newName} (GUID: {guid})");
+
+            // Auto-add remap entries to SCHEDULE_FIELD_REMAP.csv
+            string remapPath = StingToolsApp.FindDataFile("SCHEDULE_FIELD_REMAP.csv");
+            if (remapPath != null)
+            {
+                int added = 0;
+                var existingRemaps = new HashSet<string>(StringComparer.Ordinal);
+                foreach (string rl in File.ReadAllLines(remapPath)
+                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#")))
+                {
+                    string[] cols = StingToolsApp.ParseCsvLine(rl);
+                    if (cols.Length >= 2) existingRemaps.Add(cols[0].Trim());
+                }
+
+                var newEntries = new List<string>();
+                string date = DateTime.Now.ToString("yyyy-MM-dd");
+                foreach (var (guid, oldName, newName) in renames)
+                {
+                    if (existingRemaps.Contains(oldName)) continue;
+                    newEntries.Add($"{oldName},{newName},RENAMED,{date},Auto-Sync,{DateTime.Now.AddMonths(6):yyyy-MM-dd},Auto-detected rename (GUID {guid})");
+                    added++;
+                }
+
+                if (added > 0)
+                {
+                    File.AppendAllLines(remapPath, newEntries);
+                    report.AppendLine($"  Added {added} remap entries to SCHEDULE_FIELD_REMAP.csv");
+                    StingLog.Info($"SyncSchema: added {added} rename remaps");
+                }
+            }
         }
 
         /// <summary>

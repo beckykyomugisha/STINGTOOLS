@@ -290,7 +290,6 @@ namespace StingTools.Organise
                         // Update containers and TAG7 + sub-sections with the new tag
                         try
                         {
-                            string catName = ParameterHelpers.GetCategoryName(elem);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
                             if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
                             {
@@ -309,9 +308,28 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
+            // GAP-010: Post-fix duplicate scan to verify all tags are now unique
+            var postIndex = TagConfig.BuildExistingTagIndex(doc);
+            var postTagMap = new Dictionary<string, int>();
+            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(elem);
+                if (!known.Contains(cat)) continue;
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag)) continue;
+                if (!postTagMap.ContainsKey(tag)) postTagMap[tag] = 0;
+                postTagMap[tag]++;
+            }
+            int remainingDupes = postTagMap.Count(kvp => kvp.Value > 1);
+
+            string dupeNote = remainingDupes > 0
+                ? $"\nWARNING: {remainingDupes} tag value(s) still have duplicates — check log for details."
+                : "\nAll tags are now unique.";
+            if (remainingDupes > 0)
+                StingLog.Warn($"FixDuplicates: post-fix scan found {remainingDupes} remaining duplicate tag values");
+
             TaskDialog.Show("Fix Duplicates",
-                $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.\n" +
-                "All tags are now unique.");
+                $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.{dupeNote}");
             return Result.Succeeded;
         }
     }

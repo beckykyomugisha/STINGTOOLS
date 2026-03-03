@@ -58,11 +58,19 @@ namespace StingTools.Temp
             int remapped = 0;
             int matTakeoffs = 0;
             int formatted = 0;
+            int viewFiltersCreated = 0;
             var existingNames = new HashSet<string>(
                 new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSchedule))
                     .Cast<ViewSchedule>()
                     .Select(s => s.Name));
+
+            // DAT-004: Collect existing view filter names
+            var existingFilterNames = new HashSet<string>(
+                new FilteredElementCollector(doc)
+                    .OfClass(typeof(ParameterFilterElement))
+                    .Cast<ParameterFilterElement>()
+                    .Select(f => f.Name));
 
             using (Transaction tx = new Transaction(doc, "STING Batch Create Schedules"))
             {
@@ -76,6 +84,44 @@ namespace StingTools.Temp
                 {
                     string[] cols = StingToolsApp.ParseCsvLine(line);
                     if (cols.Length < 4) continue;
+
+                    // DAT-004: Handle VIEW_FILTER records
+                    string recordType = cols[0].Trim();
+                    if (recordType.Equals("VIEW_FILTER", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string filterName = cols.Length > 3 ? cols[3].Trim() : "";
+                        string filterCats = cols.Length > 4 ? cols[4].Trim() : "";
+                        if (string.IsNullOrEmpty(filterName) || existingFilterNames.Contains(filterName))
+                            continue;
+
+                        try
+                        {
+                            // Parse category names to BuiltInCategory set
+                            var catIds = new List<ElementId>();
+                            string[] catNames = filterCats.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            foreach (string catStr in catNames)
+                            {
+                                string cn = catStr.Trim();
+                                Category cat = doc.Settings.Categories.Cast<Category>()
+                                    .FirstOrDefault(c => c.Name.Equals(cn, StringComparison.OrdinalIgnoreCase));
+                                if (cat != null)
+                                    catIds.Add(cat.Id);
+                            }
+
+                            if (catIds.Count > 0)
+                            {
+                                ParameterFilterElement.Create(doc, filterName, catIds);
+                                viewFiltersCreated++;
+                                existingFilterNames.Add(filterName);
+                                StingLog.Info($"Created view filter: {filterName} ({catIds.Count} categories)");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"View filter create failed '{filterName}': {ex.Message}");
+                        }
+                        continue;
+                    }
 
                     // Parse all 15 columns
                     string name = cols[2].Trim();
@@ -168,11 +214,13 @@ namespace StingTools.Temp
             var report = new StringBuilder();
             report.AppendLine($"Created {created} schedules ({matTakeoffs} material takeoffs).");
             report.AppendLine($"Skipped {skipped} (exist or failed).");
+            if (viewFiltersCreated > 0)
+                report.AppendLine($"Created {viewFiltersCreated} view filters from VIEW_FILTER records.");
             if (formatted > 0)
                 report.AppendLine($"Applied formatting (sort/group/totals/filters) to {formatted}.");
             if (remapped > 0)
                 report.AppendLine($"Remapped {remapped} deprecated field name(s).");
-            report.Append($"Source: MR_SCHEDULES.csv (168 definitions)");
+            report.Append($"Source: MR_SCHEDULES.csv");
 
             TaskDialog.Show("Batch Schedules", report.ToString());
 

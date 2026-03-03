@@ -387,11 +387,37 @@ namespace StingTools.Tags
             TaskDialog td = new TaskDialog("Validate Tags (ISO 19650)");
             td.MainInstruction = $"TAG_1: {tag1Pct:F1}% | Full: {fullPct:F1}% | STATUS: {statusPct:F0}% | Violations: {isoViolations} | Dupes: {duplicateTags}";
             td.MainContent = report.ToString();
-            td.FooterText = "Click 'Yes' below to create a validation status legend.";
-            td.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
-            td.DefaultButton = TaskDialogResult.No;
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Create Validation Legend", "Generate a validation status legend view");
+            // GAP-008: Add repair link
+            bool hasIssues = tag1Missing > 0 || tag1Incomplete > 0 || isoViolations > 0 || duplicateTags > 0;
+            if (hasIssues)
+            {
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Fix All Issues Now",
+                    "Run ResolveAllIssues to auto-fix missing tokens, duplicates, and violations");
+            }
+            td.CommonButtons = TaskDialogCommonButtons.Close;
 
-            if (td.Show() == TaskDialogResult.Yes)
+            TaskDialogResult tdResult = td.Show();
+
+            // GAP-008: Run resolve all issues if requested
+            if (tdResult == TaskDialogResult.CommandLink2 && hasIssues)
+            {
+                try
+                {
+                    var resolver = new ResolveAllIssuesCommand();
+                    string resolveMsg = "";
+                    resolver.Execute(commandData, ref resolveMsg, elements);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("ValidateTagsCommand: ResolveAllIssues invocation failed", ex);
+                    TaskDialog.Show("Validate Tags", $"Auto-fix failed: {ex.Message}");
+                }
+            }
+
+            if (tdResult == TaskDialogResult.CommandLink1)
             {
                 // Build validation legend entries from actual counts
                 var legendEntries = new List<LegendBuilder.LegendEntry>();
