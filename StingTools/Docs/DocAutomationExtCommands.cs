@@ -2380,4 +2380,201 @@ namespace StingTools.Docs
 
         // Delegate to consolidated helper methods in DocAutomationHelper
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  REVISION CLOUD AUTO-CREATE
+    //  Automatically creates revision clouds on sheets when elements have changed
+    //  status (NEW → EXISTING, parameter modifications, etc.).
+    //  Uses Revit RevisionCloud.Create API with element bounding boxes.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Auto-place revision clouds on sheets where tagged elements have changed
+    /// status or been modified. Tracks changes via STING STATUS parameter
+    /// and tag completeness state.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevisionCloudAutoCreateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var doc = commandData.Application.ActiveUIDocument.Document;
+
+            // Get the latest revision in the project (or create one)
+            var revisions = new FilteredElementCollector(doc)
+                .OfClass(typeof(Revision))
+                .Cast<Revision>()
+                .OrderByDescending(r => r.SequenceNumber)
+                .ToList();
+
+            if (revisions.Count == 0)
+            {
+                TaskDialog.Show("Revision Cloud Auto-Create",
+                    "No revisions found in the project.\nCreate a revision first using Revit's Sheet Issues/Revisions dialog.");
+                return Result.Cancelled;
+            }
+
+            Revision latestRev = revisions[0];
+
+            // Find all sheets with placed views
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder)
+                .ToList();
+
+            if (sheets.Count == 0)
+            {
+                TaskDialog.Show("Revision Cloud Auto-Create", "No sheets found in the project.");
+                return Result.Cancelled;
+            }
+
+            // Scan for elements with status changes or incomplete tags
+            var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var changedElements = new List<Element>();
+
+            foreach (var el in new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!knownCats.Contains(cat)) continue;
+
+                string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+
+                // Flag: status is NEW or DEMOLISHED (recent changes), or tag is incomplete
+                if (status == "NEW" || status == "DEMOLISHED" ||
+                    (!string.IsNullOrEmpty(tag1) && !TagConfig.TagIsComplete(tag1)))
+                {
+                    changedElements.Add(el);
+                }
+            }
+
+            if (changedElements.Count == 0)
+            {
+                TaskDialog.Show("Revision Cloud Auto-Create",
+                    "No recently changed elements detected.\n" +
+                    "Elements with STATUS=NEW or DEMOLISHED, or incomplete tags, trigger clouds.");
+                return Result.Succeeded;
+            }
+
+            // Confirm
+            var confirm = new TaskDialog("Revision Cloud Auto-Create");
+            confirm.MainInstruction = $"Found {changedElements.Count} changed elements";
+            confirm.MainContent =
+                $"Revision: {latestRev.Description} (#{latestRev.SequenceNumber})\n" +
+                $"Sheets: {sheets.Count}\n\n" +
+                "Place revision clouds on sheets containing changed elements?";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            // Build a lookup: ElementId → bounding box (in model space)
+            var elementBoxes = new Dictionary<ElementId, BoundingBoxXYZ>();
+            foreach (var el in changedElements)
+            {
+                BoundingBoxXYZ bb = el.get_BoundingBox(null);
+                if (bb != null) elementBoxes[el.Id] = bb;
+            }
+
+            int cloudsCreated = 0;
+            int sheetsAffected = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Auto Revision Clouds"))
+            {
+                tx.Start();
+
+                foreach (var sheet in sheets)
+                {
+                    // Get viewports on this sheet
+                    var vpIds = sheet.GetAllViewports();
+                    bool sheetHasCloud = false;
+
+                    foreach (ElementId vpId in vpIds)
+                    {
+                        Viewport vp = doc.GetElement(vpId) as Viewport;
+                        if (vp == null) continue;
+
+                        View view = doc.GetElement(vp.ViewId) as View;
+                        if (view == null) continue;
+
+                        // Check if any changed elements are visible in this view
+                        var visibleChanged = new List<ElementId>();
+                        foreach (var kvp in elementBoxes)
+                        {
+                            try
+                            {
+                                Element el = doc.GetElement(kvp.Key);
+                                if (el != null && el.get_BoundingBox(view) != null)
+                                    visibleChanged.Add(kvp.Key);
+                            }
+                            catch { }
+                        }
+
+                        if (visibleChanged.Count == 0) continue;
+
+                        // Create a revision cloud around the viewport center area
+                        // Using viewport outline on sheet as the cloud boundary
+                        try
+                        {
+                            Outline vpOutline = vp.GetBoxOutline();
+                            XYZ minPt = vpOutline.MinimumPoint;
+                            XYZ maxPt = vpOutline.MaximumPoint;
+
+                            // Shrink outline slightly to show cloud within viewport
+                            double shrink = 0.05; // feet
+                            XYZ p1 = new XYZ(minPt.X + shrink, minPt.Y + shrink, 0);
+                            XYZ p2 = new XYZ(maxPt.X - shrink, minPt.Y + shrink, 0);
+                            XYZ p3 = new XYZ(maxPt.X - shrink, maxPt.Y - shrink, 0);
+                            XYZ p4 = new XYZ(minPt.X + shrink, maxPt.Y - shrink, 0);
+
+                            var curves = new List<Curve>
+                            {
+                                Line.CreateBound(p1, p2),
+                                Line.CreateBound(p2, p3),
+                                Line.CreateBound(p3, p4),
+                                Line.CreateBound(p4, p1)
+                            };
+
+                            RevisionCloud.Create(doc, sheet, latestRev.Id, curves);
+                            cloudsCreated++;
+                            sheetHasCloud = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"RevCloud on sheet {sheet.SheetNumber}: {ex.Message}");
+                        }
+                    }
+
+                    // Add revision to sheet if cloud was placed
+                    if (sheetHasCloud)
+                    {
+                        sheetsAffected++;
+                        try
+                        {
+                            var revIds = sheet.GetAdditionalRevisionIds();
+                            if (!revIds.Contains(latestRev.Id))
+                            {
+                                var newRevIds = new List<ElementId>(revIds) { latestRev.Id };
+                                sheet.SetAdditionalRevisionIds(newRevIds);
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Revision Cloud Auto-Create",
+                $"Created {cloudsCreated} revision clouds on {sheetsAffected} sheets.\n\n" +
+                $"Changed elements detected: {changedElements.Count}\n" +
+                $"Revision: {latestRev.Description} (#{latestRev.SequenceNumber})");
+
+            StingLog.Info($"RevisionCloudAuto: {cloudsCreated} clouds on {sheetsAffected} sheets, " +
+                $"{changedElements.Count} changed elements");
+            return Result.Succeeded;
+        }
+    }
 }

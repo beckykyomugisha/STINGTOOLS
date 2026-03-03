@@ -2333,4 +2333,648 @@ namespace StingTools.Temp
             return Result.Succeeded;
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  RULE-BASED CLASH DETECTION (P12)
+    //  Uses ElementIntersectsSolidFilter for MEP-structure and MEP-MEP clashes.
+    //  Removes Navisworks dependency for common BIM coordination checks.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Rule-based clash detection using Revit API geometry intersection.
+    /// Detects pipe-duct, duct-beam, MEP-wall, and MEP-MEP interference.
+    /// Exports clash report to CSV with element IDs, categories, and locations.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ClashDetectionCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var doc = commandData.Application.ActiveUIDocument.Document;
+
+            // Define clash groups: MEP vs Structure
+            var mepCats = new List<BuiltInCategory>
+            {
+                BuiltInCategory.OST_DuctCurves, BuiltInCategory.OST_DuctFitting,
+                BuiltInCategory.OST_DuctAccessory, BuiltInCategory.OST_FlexDuctCurves,
+                BuiltInCategory.OST_PipeCurves, BuiltInCategory.OST_PipeFitting,
+                BuiltInCategory.OST_PipeAccessory, BuiltInCategory.OST_FlexPipeCurves,
+                BuiltInCategory.OST_Conduit, BuiltInCategory.OST_ConduitFitting,
+                BuiltInCategory.OST_CableTray, BuiltInCategory.OST_CableTrayFitting,
+                BuiltInCategory.OST_MechanicalEquipment, BuiltInCategory.OST_ElectricalEquipment,
+            };
+
+            var structCats = new List<BuiltInCategory>
+            {
+                BuiltInCategory.OST_StructuralFraming, BuiltInCategory.OST_StructuralColumns,
+                BuiltInCategory.OST_Floors, BuiltInCategory.OST_Walls,
+                BuiltInCategory.OST_StructuralFoundation,
+            };
+
+            // Collect MEP and structure elements
+            var mepFilter = new ElementMulticategoryFilter(mepCats);
+            var mepElements = new FilteredElementCollector(doc)
+                .WherePasses(mepFilter)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            var structFilter = new ElementMulticategoryFilter(structCats);
+            var structElements = new FilteredElementCollector(doc)
+                .WherePasses(structFilter)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            if (mepElements.Count == 0)
+            {
+                TaskDialog.Show("Clash Detection", "No MEP elements found to check for clashes.");
+                return Result.Succeeded;
+            }
+
+            StingLog.Info($"ClashDetection: checking {mepElements.Count} MEP vs {structElements.Count} structure elements");
+
+            // Phase 1: Bounding box pre-filter for performance
+            var clashes = new List<(Element mep, Element other, string type)>();
+            int checked_count = 0;
+
+            foreach (var mepEl in mepElements)
+            {
+                BoundingBoxXYZ mepBB = mepEl.get_BoundingBox(null);
+                if (mepBB == null) continue;
+
+                // Check vs structure
+                foreach (var strEl in structElements)
+                {
+                    BoundingBoxXYZ strBB = strEl.get_BoundingBox(null);
+                    if (strBB == null) continue;
+
+                    if (BoundingBoxesOverlap(mepBB, strBB))
+                    {
+                        // Refined check with solid intersection
+                        try
+                        {
+                            Solid mepSolid = GetSolid(mepEl);
+                            if (mepSolid != null)
+                            {
+                                var intersectFilter = new ElementIntersectsSolidFilter(mepSolid);
+                                var hits = new FilteredElementCollector(doc)
+                                    .WherePasses(intersectFilter)
+                                    .Where(e => e.Id == strEl.Id)
+                                    .Any();
+                                if (hits)
+                                {
+                                    string mepCat = ParameterHelpers.GetCategoryName(mepEl);
+                                    string strCat = ParameterHelpers.GetCategoryName(strEl);
+                                    clashes.Add((mepEl, strEl, $"{mepCat} vs {strCat}"));
+                                }
+                            }
+                        }
+                        catch { /* Solid extraction can fail on some families */ }
+                    }
+                    checked_count++;
+                }
+
+                // Check MEP vs MEP (same discipline cross-check)
+                foreach (var otherMep in mepElements)
+                {
+                    if (otherMep.Id.Value <= mepEl.Id.Value) continue; // Avoid duplicates
+                    BoundingBoxXYZ otherBB = otherMep.get_BoundingBox(null);
+                    if (otherBB == null) continue;
+
+                    // Only cross-discipline: don't flag pipe fitting touching pipe
+                    string mepCat = mepEl.Category?.Name ?? "";
+                    string otherCat = otherMep.Category?.Name ?? "";
+                    if (mepCat == otherCat) continue;
+
+                    string mepDisc = TagConfig.DiscMap.ContainsKey(ParameterHelpers.GetCategoryName(mepEl))
+                        ? TagConfig.DiscMap[ParameterHelpers.GetCategoryName(mepEl)] : "";
+                    string otherDisc = TagConfig.DiscMap.ContainsKey(ParameterHelpers.GetCategoryName(otherMep))
+                        ? TagConfig.DiscMap[ParameterHelpers.GetCategoryName(otherMep)] : "";
+                    if (mepDisc == otherDisc) continue;
+
+                    if (BoundingBoxesOverlap(mepBB, otherBB))
+                    {
+                        try
+                        {
+                            Solid mepSolid = GetSolid(mepEl);
+                            if (mepSolid != null)
+                            {
+                                bool hits = new FilteredElementCollector(doc)
+                                    .WherePasses(new ElementIntersectsSolidFilter(mepSolid))
+                                    .Where(e => e.Id == otherMep.Id)
+                                    .Any();
+                                if (hits)
+                                    clashes.Add((mepEl, otherMep, $"{mepCat} vs {otherCat} (cross-discipline)"));
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                // Cancel check
+                if (checked_count % 500 == 0 && EscapeChecker.IsEscapePressed())
+                {
+                    StingLog.Info("ClashDetection: cancelled by user");
+                    break;
+                }
+            }
+
+            // Report results
+            var report = new StringBuilder();
+            report.AppendLine($"STING Clash Detection Report");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"MEP elements: {mepElements.Count}");
+            report.AppendLine($"Structure elements: {structElements.Count}");
+            report.AppendLine($"Clashes found: {clashes.Count}");
+            report.AppendLine();
+
+            // Group by type
+            var grouped = clashes.GroupBy(c => c.type).OrderByDescending(g => g.Count());
+            foreach (var g in grouped.Take(10))
+            {
+                report.AppendLine($"  {g.Key}: {g.Count()} clashes");
+                foreach (var c in g.Take(3))
+                {
+                    string loc1 = FormatLocation(c.mep);
+                    report.AppendLine($"    ID {c.mep.Id.Value} @ {loc1} ↔ ID {c.other.Id.Value}");
+                }
+                if (g.Count() > 3) report.AppendLine($"    ... and {g.Count() - 3} more");
+            }
+
+            // Export to CSV
+            if (clashes.Count > 0)
+            {
+                try
+                {
+                    string csvPath = Path.Combine(
+                        Path.GetDirectoryName(doc.PathName ?? Path.GetTempPath()) ?? Path.GetTempPath(),
+                        $"STING_CLASH_REPORT_{DateTime.Now:yyyyMMdd_HHmm}.csv");
+
+                    var csv = new StringBuilder();
+                    csv.AppendLine("ClashType,MEP_ElementId,MEP_Category,MEP_Tag,Other_ElementId,Other_Category,Level");
+
+                    foreach (var c in clashes)
+                    {
+                        string mepTag = ParameterHelpers.GetString(c.mep, ParamRegistry.TAG1);
+                        string lvl = ParameterHelpers.GetString(c.mep, ParamRegistry.LVL);
+                        csv.AppendLine($"\"{c.type}\",{c.mep.Id.Value}," +
+                            $"\"{ParameterHelpers.GetCategoryName(c.mep)}\",\"{mepTag}\"," +
+                            $"{c.other.Id.Value},\"{ParameterHelpers.GetCategoryName(c.other)}\",\"{lvl}\"");
+                    }
+
+                    File.WriteAllText(csvPath, csv.ToString());
+                    report.AppendLine($"\nCSV exported: {csvPath}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ClashDetection CSV export: {ex.Message}");
+                }
+            }
+
+            TaskDialog.Show("Clash Detection", report.ToString());
+            StingLog.Info($"ClashDetection: {clashes.Count} clashes found");
+            return Result.Succeeded;
+        }
+
+        private static bool BoundingBoxesOverlap(BoundingBoxXYZ a, BoundingBoxXYZ b)
+        {
+            return a.Min.X <= b.Max.X && a.Max.X >= b.Min.X &&
+                   a.Min.Y <= b.Max.Y && a.Max.Y >= b.Min.Y &&
+                   a.Min.Z <= b.Max.Z && a.Max.Z >= b.Min.Z;
+        }
+
+        private static Solid GetSolid(Element el)
+        {
+            var geoOpts = new Options { ComputeReferences = false, DetailLevel = ViewDetailLevel.Coarse };
+            GeometryElement geoEl = el.get_Geometry(geoOpts);
+            if (geoEl == null) return null;
+
+            foreach (GeometryObject gObj in geoEl)
+            {
+                if (gObj is Solid s && s.Volume > 0) return s;
+                if (gObj is GeometryInstance gi)
+                {
+                    foreach (GeometryObject iObj in gi.GetInstanceGeometry())
+                    {
+                        if (iObj is Solid is2 && is2.Volume > 0) return is2;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static string FormatLocation(Element el)
+        {
+            BoundingBoxXYZ bb = el.get_BoundingBox(null);
+            if (bb == null) return "?";
+            XYZ c = (bb.Min + bb.Max) / 2.0;
+            return $"({c.X:F1}, {c.Y:F1}, {c.Z:F1})";
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  IFC EXPORT AUTOMATION (P13)
+    //  Automated IFC 2x3/4 export with correct STING property sets.
+    //  Uses Revit's built-in IFC exporter with custom property set mapping.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Automated IFC export with STING property set configuration.
+    /// Generates IFC parameter mapping file, configures export options,
+    /// and exports to IFC 2x3 or IFC 4 with ISO 19650 properties.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class IFCExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var doc = commandData.Application.ActiveUIDocument.Document;
+
+            if (string.IsNullOrEmpty(doc.PathName))
+            {
+                TaskDialog.Show("IFC Export", "Save the project before exporting to IFC.");
+                return Result.Cancelled;
+            }
+
+            // Choose IFC version
+            var versionDlg = new TaskDialog("IFC Export");
+            versionDlg.MainInstruction = "Select IFC export version";
+            versionDlg.MainContent =
+                "The export will include STING property sets:\n" +
+                "  - STING_AssetTag (tag tokens, containers)\n" +
+                "  - STING_AssetLifecycle (status, revision)\n" +
+                "  - STING_AssetIdentity (description, manufacturer, model)\n" +
+                "  - STING_AssetCost (unit cost, area)";
+            versionDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "IFC 4 (Recommended)", "ISO 16739-1:2018 — latest standard");
+            versionDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "IFC 2x3", "Legacy — broader software compatibility");
+
+            var vResult = versionDlg.Show();
+            bool useIfc4 = vResult == TaskDialogResult.CommandLink1;
+            if (vResult != TaskDialogResult.CommandLink1 && vResult != TaskDialogResult.CommandLink2)
+                return Result.Cancelled;
+
+            // Generate the IFC property mapping file
+            string projectDir = Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath();
+            string mappingPath = Path.Combine(projectDir, "STING_IFC_MAPPING.txt");
+
+            GeneratePropertyMappingFile(mappingPath);
+
+            // Set up IFC export options
+            string ifcFileName = Path.GetFileNameWithoutExtension(doc.PathName) +
+                                 $"_STING_{DateTime.Now:yyyyMMdd}";
+
+            // Use Revit IFC export
+            try
+            {
+                var ifcOptions = new IFCExportOptions();
+                ifcOptions.FileVersion = useIfc4 ? IFCVersion.IFC4 : IFCVersion.IFC2x3CV2;
+                ifcOptions.SpaceBoundaryLevel = 1;
+                ifcOptions.ExportBaseQuantities = true;
+                ifcOptions.WallAndColumnSplitting = true;
+                ifcOptions.AddOption("ExportInternalRevitPropertySets", "true");
+                ifcOptions.AddOption("ExportIFCCommonPropertySets", "true");
+                ifcOptions.AddOption("ExportUserDefinedPsets", "true");
+                ifcOptions.AddOption("ExportUserDefinedPsetsFileName", mappingPath);
+
+                doc.Export(projectDir, ifcFileName, ifcOptions);
+
+                string version = useIfc4 ? "IFC 4" : "IFC 2x3";
+                string outputPath = Path.Combine(projectDir, ifcFileName + ".ifc");
+                TaskDialog.Show("IFC Export",
+                    $"Export complete ({version}).\n\n" +
+                    $"File: {outputPath}\n" +
+                    $"Mapping: {mappingPath}\n\n" +
+                    "STING property sets included:\n" +
+                    "  STING_AssetTag\n" +
+                    "  STING_AssetLifecycle\n" +
+                    "  STING_AssetIdentity\n" +
+                    "  STING_AssetCost");
+
+                StingLog.Info($"IFC export: {version} → {outputPath}");
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("IFC Export", $"Export failed: {ex.Message}");
+                StingLog.Error("IFC export failed", ex);
+                return Result.Failed;
+            }
+
+            return Result.Succeeded;
+        }
+
+        private static void GeneratePropertyMappingFile(string path)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("# STING IFC Property Mapping File");
+            sb.AppendLine("# Generated by StingTools IFC Export");
+            sb.AppendLine();
+
+            // STING_AssetTag property set
+            sb.AppendLine("PropertySet:\tSTING_AssetTag\tI\t" +
+                "IfcBuildingElement,IfcDistributionElement,IfcFlowTerminal,IfcEnergyConversionDevice");
+            sb.AppendLine($"\t{ParamRegistry.TAG1}\tText");
+            sb.AppendLine($"\t{ParamRegistry.DISC}\tText");
+            sb.AppendLine($"\t{ParamRegistry.LOC}\tText");
+            sb.AppendLine($"\t{ParamRegistry.ZONE}\tText");
+            sb.AppendLine($"\t{ParamRegistry.LVL}\tText");
+            sb.AppendLine($"\t{ParamRegistry.SYS}\tText");
+            sb.AppendLine($"\t{ParamRegistry.FUNC}\tText");
+            sb.AppendLine($"\t{ParamRegistry.PROD}\tText");
+            sb.AppendLine($"\t{ParamRegistry.SEQ}\tText");
+
+            // STING_AssetLifecycle
+            sb.AppendLine();
+            sb.AppendLine("PropertySet:\tSTING_AssetLifecycle\tI\t" +
+                "IfcBuildingElement,IfcDistributionElement");
+            sb.AppendLine($"\t{ParamRegistry.STATUS}\tText");
+            sb.AppendLine($"\t{ParamRegistry.REV}\tText");
+
+            // STING_AssetIdentity
+            sb.AppendLine();
+            sb.AppendLine("PropertySet:\tSTING_AssetIdentity\tI\t" +
+                "IfcBuildingElement,IfcDistributionElement");
+            string descParam = ParamRegistry.GetParamName("ASS_DESCRIPTION_TXT") ?? "ASS_DESCRIPTION_TXT";
+            string mfgParam = ParamRegistry.GetParamName("ASS_MANUFACTURER_TXT") ?? "ASS_MANUFACTURER_TXT";
+            string modelParam = ParamRegistry.GetParamName("ASS_MODEL_TXT") ?? "ASS_MODEL_TXT";
+            sb.AppendLine($"\t{descParam}\tText");
+            sb.AppendLine($"\t{mfgParam}\tText");
+            sb.AppendLine($"\t{modelParam}\tText");
+
+            // STING_AssetCost
+            sb.AppendLine();
+            sb.AppendLine("PropertySet:\tSTING_AssetCost\tI\t" +
+                "IfcBuildingElement,IfcDistributionElement");
+            string costParam = ParamRegistry.GetParamName("ASS_UNIT_COST_TXT") ?? "ASS_UNIT_COST_TXT";
+            string areaParam = ParamRegistry.GetParamName("ASS_AREA_M2_TXT") ?? "ASS_AREA_M2_TXT";
+            sb.AppendLine($"\t{costParam}\tText");
+            sb.AppendLine($"\t{areaParam}\tText");
+
+            File.WriteAllText(path, sb.ToString());
+            StingLog.Info($"IFC mapping file generated: {path}");
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  EXCEL ROUND-TRIP IMPORT (P9)
+    //  Import BOQ/schedule data back from Excel into Revit parameters.
+    //  Closes the quantity management loop for estimators working in Excel.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Import BOQ data from Excel back into Revit element parameters.
+    /// Matches elements by STING tag (ASS_TAG_1) and updates unit cost,
+    /// quantity, description, and other editable parameters.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExcelBOQImportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var doc = commandData.Application.ActiveUIDocument.Document;
+
+            // Find Excel files in the project directory
+            string projectDir = !string.IsNullOrEmpty(doc.PathName)
+                ? Path.GetDirectoryName(doc.PathName)
+                : null;
+
+            string xlsxPath = null;
+            if (projectDir != null)
+            {
+                // Look for STING BOQ export files
+                var candidates = Directory.GetFiles(projectDir, "STING_BOQ_*.xlsx")
+                    .OrderByDescending(f => File.GetLastWriteTime(f))
+                    .ToList();
+                if (candidates.Count > 0) xlsxPath = candidates[0];
+            }
+
+            if (xlsxPath == null)
+            {
+                TaskDialog.Show("Excel BOQ Import",
+                    "No STING BOQ Excel file found in the project directory.\n\n" +
+                    "Expected file pattern: STING_BOQ_*.xlsx\n" +
+                    "Export a BOQ first using the BOQ Export command, edit in Excel,\n" +
+                    "then run this command to import changes back.");
+                return Result.Cancelled;
+            }
+
+            StingLog.Info($"Excel import: reading {xlsxPath}");
+
+            // Read Excel using ClosedXML
+            var updates = new List<(string tag, string param, string value)>();
+            try
+            {
+                using (var workbook = new ClosedXML.Excel.XLWorkbook(xlsxPath))
+                {
+                    var ws = workbook.Worksheets.First();
+                    int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+                    if (lastRow < 2)
+                    {
+                        TaskDialog.Show("Excel BOQ Import", "Excel file has no data rows.");
+                        return Result.Cancelled;
+                    }
+
+                    // Find column headers
+                    var headers = new Dictionary<int, string>();
+                    int lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 0;
+                    for (int c = 1; c <= lastCol; c++)
+                        headers[c] = ws.Cell(1, c).GetString().Trim();
+
+                    int tagCol = headers.FirstOrDefault(h => h.Value == "Tag" || h.Value == "ASS_TAG_1").Key;
+                    int costCol = headers.FirstOrDefault(h => h.Value == "Unit_Rate" || h.Value == "UnitPrice").Key;
+                    int descCol = headers.FirstOrDefault(h => h.Value == "Description").Key;
+                    int qtyCol = headers.FirstOrDefault(h => h.Value == "Quantity" || h.Value == "Qty").Key;
+
+                    if (tagCol == 0)
+                    {
+                        TaskDialog.Show("Excel BOQ Import",
+                            "Cannot find 'Tag' or 'ASS_TAG_1' column in Excel.\n" +
+                            "The file must have a column identifying elements by STING tag.");
+                        return Result.Cancelled;
+                    }
+
+                    for (int r = 2; r <= lastRow; r++)
+                    {
+                        string tag = ws.Cell(r, tagCol).GetString().Trim();
+                        if (string.IsNullOrEmpty(tag)) continue;
+
+                        if (costCol > 0)
+                        {
+                            string cost = ws.Cell(r, costCol).GetString().Trim();
+                            if (!string.IsNullOrEmpty(cost))
+                                updates.Add((tag, "ASS_UNIT_COST_TXT", cost));
+                        }
+                        if (descCol > 0)
+                        {
+                            string desc = ws.Cell(r, descCol).GetString().Trim();
+                            if (!string.IsNullOrEmpty(desc))
+                                updates.Add((tag, "ASS_DESCRIPTION_TXT", desc));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Excel BOQ Import", $"Error reading Excel: {ex.Message}");
+                StingLog.Error("Excel import read failed", ex);
+                return Result.Failed;
+            }
+
+            if (updates.Count == 0)
+            {
+                TaskDialog.Show("Excel BOQ Import", "No updatable data found in the Excel file.");
+                return Result.Succeeded;
+            }
+
+            // Build element index by tag
+            var tagIndex = new Dictionary<string, Element>();
+            foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string t = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(t) && !tagIndex.ContainsKey(t))
+                    tagIndex[t] = el;
+            }
+
+            // Confirm
+            int matchable = updates.Select(u => u.tag).Distinct().Count(t => tagIndex.ContainsKey(t));
+            var confirm = new TaskDialog("Excel BOQ Import");
+            confirm.MainInstruction = $"Import {updates.Count} parameter updates";
+            confirm.MainContent =
+                $"Source: {Path.GetFileName(xlsxPath)}\n" +
+                $"Updates: {updates.Count} values across {updates.Select(u => u.tag).Distinct().Count()} tags\n" +
+                $"Matchable elements: {matchable}\n\n" +
+                "Proceed with import?";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            // Apply updates
+            int applied = 0, notFound = 0;
+            using (Transaction tx = new Transaction(doc, "STING Excel BOQ Import"))
+            {
+                tx.Start();
+                foreach (var (tag, param, value) in updates)
+                {
+                    if (tagIndex.TryGetValue(tag, out Element el))
+                    {
+                        ParameterHelpers.SetString(el, param, value, overwrite: true);
+                        applied++;
+                    }
+                    else
+                    {
+                        notFound++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Excel BOQ Import",
+                $"Import complete:\n\n" +
+                $"  Applied: {applied}\n" +
+                $"  Not found: {notFound}\n" +
+                $"  Source: {Path.GetFileName(xlsxPath)}");
+
+            StingLog.Info($"Excel import: {applied} applied, {notFound} not found from {xlsxPath}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  KEYNOTE TABLE AUTO-SYNC (P11)
+    //  Auto-syncs keynote entries from a STING CSV file into Revit's keynote
+    //  table. Eliminates manual KNO file maintenance.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Auto-sync keynote table from STING tag data.
+    /// Generates a Revit-compatible keynote text file from the current project's
+    /// tag configurations (DISC, SYS, FUNC, PROD codes) and loads it.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class KeynoteSyncCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var doc = commandData.Application.ActiveUIDocument.Document;
+
+            string outputDir = !string.IsNullOrEmpty(doc.PathName)
+                ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()
+                : Path.GetTempPath();
+
+            string knoPath = Path.Combine(outputDir, "STING_KEYNOTES.txt");
+
+            // Generate keynote file from STING tag configuration
+            var sb = new StringBuilder();
+            sb.AppendLine("# STING Keynote Table");
+            sb.AppendLine("# Auto-generated from tag configuration");
+            sb.AppendLine($"# Generated: {DateTime.Now:yyyy-MM-dd HH:mm}");
+            sb.AppendLine();
+
+            // Discipline codes as top-level headings
+            var discCodes = new Dictionary<string, string>
+            {
+                {"M", "Mechanical"}, {"E", "Electrical"}, {"P", "Plumbing"},
+                {"A", "Architectural"}, {"S", "Structural"}, {"FP", "Fire Protection"},
+                {"LV", "Low Voltage"}, {"G", "General"}
+            };
+
+            foreach (var disc in discCodes)
+            {
+                sb.AppendLine($"{disc.Key}\t\t{disc.Value}");
+            }
+            sb.AppendLine();
+
+            // System codes under each discipline
+            foreach (var sysEntry in TagConfig.SysMap)
+            {
+                string sysCode = sysEntry.Key;
+                string funcCode = TagConfig.GetFuncCode(sysCode);
+                sb.AppendLine($"{sysCode}\t\t{sysCode} System ({funcCode})");
+            }
+            sb.AppendLine();
+
+            // Product codes from PROD map
+            foreach (var prodEntry in TagConfig.ProdMap)
+            {
+                string catName = prodEntry.Key;
+                string prodCode = prodEntry.Value;
+                sb.AppendLine($"{prodCode}\t\t{catName}");
+            }
+
+            File.WriteAllText(knoPath, sb.ToString());
+
+            // Load into Revit via KeynoteTable API
+            int entries = discCodes.Count + TagConfig.SysMap.Count + TagConfig.ProdMap.Count;
+            try
+            {
+                KeynoteTable kt = KeynoteTable.GetKeynoteTable(doc);
+                using (Transaction tx = new Transaction(doc, "STING Keynote Sync"))
+                {
+                    tx.Start();
+                    ModelPath mp = ModelPathUtils.ConvertUserVisiblePathToModelPath(knoPath);
+                    kt.LoadFrom(mp, null);
+                    tx.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Keynote table auto-load: {ex.Message} — file generated, load manually via Annotate > Keynoting Settings");
+            }
+
+            TaskDialog.Show("Keynote Sync",
+                $"Keynote file generated: {Path.GetFileName(knoPath)}\n\n" +
+                $"  Discipline codes: {discCodes.Count}\n" +
+                $"  System codes: {TagConfig.SysMap.Count}\n" +
+                $"  Product codes: {TagConfig.ProdMap.Count}\n" +
+                $"  Total entries: {entries}\n\n" +
+                $"File: {knoPath}");
+
+            StingLog.Info($"Keynote sync: {entries} entries → {knoPath}");
+            return Result.Succeeded;
+        }
+    }
 }

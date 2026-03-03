@@ -1144,6 +1144,22 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Val Tmpl" Tag="ValidateTemplate" Click="Cmd_Click" ToolTip="Validate template (45 checks)"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Dyn Bind" Tag="DynamicBindings" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Schema" Tag="SchemaValidate" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clash Detect" Tag="ClashDetect" Click="Cmd_Click" ToolTip="Rule-based MEP-structure clash detection"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="IFC Export" Tag="IFCExport" Click="Cmd_Click" ToolTip="Automated IFC 2x3/4 export with STING property sets"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Excel Import" Tag="ExcelImport" Click="Cmd_Click" ToolTip="Import BOQ data from Excel back to Revit"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Keynotes" Tag="KeynoteSync" Click="Cmd_Click" ToolTip="Auto-sync keynote table from STING tags"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="WORKFLOW AUTOMATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="Run Workflow" Tag="RunWorkflow" Click="Cmd_Click" ToolTip="Run a named workflow preset (Project Kickoff, Daily QA, Document Package)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="List Presets" Tag="ListWorkflows" Click="Cmd_Click" ToolTip="List all available workflow presets"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Create Preset" Tag="CreateWorkflow" Click="Cmd_Click" ToolTip="Create a new workflow preset from template"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Auto-Tagger" Tag="AutoTaggerToggle" Click="Cmd_Click" ToolTip="Toggle real-time auto-tagging on element placement"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Anomaly Fix" Tag="AnomalyAutoFix" Click="Cmd_Click" ToolTip="Auto-fix common parameter anomalies (empty DISC, wrong LOC, etc.)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Rev Clouds" Tag="RevisionCloudAuto" Click="Cmd_Click" ToolTip="Auto-place revision clouds on sheets with changed elements"/>
                             </WrapPanel>
                         </Border>
 

@@ -4161,4 +4161,209 @@ namespace StingTools.Organise
             return Result.Succeeded;
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  ANOMALY AUTO-FIX
+    //  Extends the detect-only HighlightInvalidCommand to automatically fix
+    //  common parameter anomalies: empty DISC, wrong LOC format, missing ZONE,
+    //  placeholder SEQ values, mismatched DISC/category.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Auto-fix common parameter anomalies rather than just detecting them.
+    /// Scans all taggable elements, identifies fixable issues, and corrects them.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AnomalyAutoFixCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = commandData.Application.ActiveUIDocument;
+            var doc = uidoc.Document;
+
+            // Scan all taggable elements
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var allElements = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .Where(e => known.Contains(ParameterHelpers.GetCategoryName(e)))
+                .ToList();
+
+            if (allElements.Count == 0)
+            {
+                TaskDialog.Show("Anomaly Auto-Fix", "No taggable elements found.");
+                return Result.Succeeded;
+            }
+
+            // Build spatial context for LOC/ZONE auto-detection
+            var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
+
+            // Identify anomalies
+            int emptyDisc = 0, wrongDisc = 0, emptyLoc = 0, emptyZone = 0;
+            int placeholderSeq = 0, emptyLvl = 0, emptySys = 0;
+            int totalAnomalies = 0;
+            var fixable = new List<(Element el, string[] issues)>();
+
+            foreach (var el in allElements)
+            {
+                string catName = ParameterHelpers.GetCategoryName(el);
+                var issues = new List<string>();
+
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string seq = ParameterHelpers.GetString(el, ParamRegistry.SEQ);
+
+                // Empty DISC — derive from category
+                if (string.IsNullOrEmpty(disc))
+                {
+                    issues.Add("DISC:empty");
+                    emptyDisc++;
+                }
+                // Wrong DISC — category says M but param says E
+                else if (TagConfig.DiscMap.TryGetValue(catName, out string expected) && disc != expected)
+                {
+                    issues.Add($"DISC:mismatch({disc}→{expected})");
+                    wrongDisc++;
+                }
+
+                if (string.IsNullOrEmpty(loc)) { issues.Add("LOC:empty"); emptyLoc++; }
+                if (string.IsNullOrEmpty(zone)) { issues.Add("ZONE:empty"); emptyZone++; }
+                if (string.IsNullOrEmpty(lvl)) { issues.Add("LVL:empty"); emptyLvl++; }
+                if (string.IsNullOrEmpty(sys)) { issues.Add("SYS:empty"); emptySys++; }
+                if (seq == "0000" || seq == "XX") { issues.Add("SEQ:placeholder"); placeholderSeq++; }
+
+                if (issues.Count > 0)
+                {
+                    fixable.Add((el, issues.ToArray()));
+                    totalAnomalies += issues.Count;
+                }
+            }
+
+            if (fixable.Count == 0)
+            {
+                TaskDialog.Show("Anomaly Auto-Fix",
+                    $"Scanned {allElements.Count} elements.\nNo anomalies detected — all parameters are healthy.");
+                return Result.Succeeded;
+            }
+
+            // Confirm before fixing
+            var confirm = new TaskDialog("Anomaly Auto-Fix");
+            confirm.MainInstruction = $"Found {totalAnomalies} anomalies on {fixable.Count} elements";
+            confirm.MainContent =
+                $"Scanned: {allElements.Count} taggable elements\n\n" +
+                $"  Empty DISC:    {emptyDisc}\n" +
+                $"  Wrong DISC:    {wrongDisc}\n" +
+                $"  Empty LOC:     {emptyLoc}\n" +
+                $"  Empty ZONE:    {emptyZone}\n" +
+                $"  Empty LVL:     {emptyLvl}\n" +
+                $"  Empty SYS:     {emptySys}\n" +
+                $"  Placeholder SEQ: {placeholderSeq}\n\n" +
+                "Fix all automatically?";
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Fix All", "Auto-fix all detected anomalies using spatial detection and category mapping");
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Cancel", "Review anomalies without fixing");
+
+            if (confirm.Show() != TaskDialogResult.CommandLink1)
+                return Result.Cancelled;
+
+            // Apply fixes
+            int fixed_disc = 0, fixed_loc = 0, fixed_zone = 0, fixed_lvl = 0, fixed_sys = 0;
+            int fixed_seq = 0, fixed_wrongDisc = 0;
+            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+
+            using (Transaction tx = new Transaction(doc, "STING Anomaly Auto-Fix"))
+            {
+                tx.Start();
+
+                foreach (var (el, issues) in fixable)
+                {
+                    string catName = ParameterHelpers.GetCategoryName(el);
+
+                    foreach (string issue in issues)
+                    {
+                        if (issue == "DISC:empty" && TagConfig.DiscMap.TryGetValue(catName, out string dCode))
+                        {
+                            ParameterHelpers.SetString(el, ParamRegistry.DISC, dCode, overwrite: true);
+                            fixed_disc++;
+                        }
+                        else if (issue.StartsWith("DISC:mismatch") && TagConfig.DiscMap.TryGetValue(catName, out string correctDisc))
+                        {
+                            ParameterHelpers.SetString(el, ParamRegistry.DISC, correctDisc, overwrite: true);
+                            fixed_wrongDisc++;
+                        }
+                        else if (issue == "LOC:empty")
+                        {
+                            string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
+                            if (!string.IsNullOrEmpty(loc))
+                            {
+                                ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true);
+                                fixed_loc++;
+                            }
+                        }
+                        else if (issue == "ZONE:empty")
+                        {
+                            string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
+                            if (!string.IsNullOrEmpty(zone))
+                            {
+                                ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true);
+                                fixed_zone++;
+                            }
+                        }
+                        else if (issue == "LVL:empty")
+                        {
+                            string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                            if (!string.IsNullOrEmpty(lvl) && lvl != "XX")
+                            {
+                                ParameterHelpers.SetString(el, ParamRegistry.LVL, lvl, overwrite: true);
+                                fixed_lvl++;
+                            }
+                        }
+                        else if (issue == "SYS:empty")
+                        {
+                            string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                            if (!string.IsNullOrEmpty(sys))
+                            {
+                                ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true);
+                                fixed_sys++;
+                            }
+                        }
+                        else if (issue == "SEQ:placeholder")
+                        {
+                            // Re-derive a unique SEQ from existing counters
+                            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                            string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                            string key = $"{disc}-{sys}-{lvl}";
+                            if (!seqCounters.ContainsKey(key)) seqCounters[key] = 0;
+                            seqCounters[key]++;
+                            string newSeq = seqCounters[key].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                            ParameterHelpers.SetString(el, ParamRegistry.SEQ, newSeq, overwrite: true);
+                            fixed_seq++;
+                        }
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            int totalFixed = fixed_disc + fixed_wrongDisc + fixed_loc + fixed_zone +
+                             fixed_lvl + fixed_sys + fixed_seq;
+            TaskDialog.Show("Anomaly Auto-Fix",
+                $"Fixed {totalFixed} of {totalAnomalies} anomalies:\n\n" +
+                $"  DISC (empty → derived):    {fixed_disc}\n" +
+                $"  DISC (mismatch → correct): {fixed_wrongDisc}\n" +
+                $"  LOC (spatial detect):      {fixed_loc}\n" +
+                $"  ZONE (spatial detect):     {fixed_zone}\n" +
+                $"  LVL (level derive):        {fixed_lvl}\n" +
+                $"  SYS (MEP system derive):   {fixed_sys}\n" +
+                $"  SEQ (unique reassign):     {fixed_seq}");
+
+            StingLog.Info($"AnomalyAutoFix: fixed {totalFixed}/{totalAnomalies} on {fixable.Count} elements");
+            return Result.Succeeded;
+        }
+    }
 }
