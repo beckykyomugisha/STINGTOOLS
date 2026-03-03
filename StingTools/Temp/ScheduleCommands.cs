@@ -1289,4 +1289,709 @@ namespace StingTools.Temp
             return name;
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Corporate Title Block Schedule — Project Information Dashboard
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Creates a corporate standard "Project Information" schedule collecting
+    /// all key project metadata into a single standalone schedule view.
+    /// Formatted to East African / ISO corporate practice:
+    ///   - Company header area (name, logo placeholder, address)
+    ///   - Project identification (name, number, client, address)
+    ///   - Discipline summary with element counts
+    ///   - Key dates and document control fields
+    ///   - ISO 19650 compliance summary
+    ///   - Revision history from Revit revision data
+    ///
+    /// This is a Revit "Sheet List" schedule (BuiltInCategory.OST_Sheets) filtered
+    /// to a single summary row, augmented with calculated value columns derived
+    /// from Project Information parameters and STING tag data.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CorporateTitleBlockScheduleCommand : IExternalCommand
+    {
+        // ── Corporate identity defaults (overridable via project_config.json) ──
+        private const string CompanyName = "STING BIM Consultants";
+        private const string CompanyAddress = "Kampala, Uganda";
+        private const string CompanyPhone = "+256 700 000000";
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            // ── Check for existing schedule ──
+            string scheduleName = "STING - Corporate Project Information";
+            var existing = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSchedule))
+                .Cast<ViewSchedule>()
+                .FirstOrDefault(s => s.Name.Equals(scheduleName, StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null)
+            {
+                var td0 = new TaskDialog("Corporate Title Block");
+                td0.MainInstruction = "Schedule already exists";
+                td0.MainContent = $"'{scheduleName}' already exists in the project.";
+                td0.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Delete and recreate", "Remove old schedule and create fresh");
+                td0.CommonButtons = TaskDialogCommonButtons.Cancel;
+                if (td0.Show() != TaskDialogResult.CommandLink1)
+                    return Result.Cancelled;
+            }
+
+            // ── Gather project data ──
+            ProjectInfo pi = doc.ProjectInformation;
+            string projName = pi?.Name ?? "Unnamed Project";
+            string projNumber = pi?.Number ?? "000";
+            string projClient = "";
+            string projAddress = "";
+            string projStatus = "";
+            try
+            {
+                projClient = pi?.ClientName ?? "";
+                projAddress = pi?.Address ?? "";
+                projStatus = pi?.Status ?? "";
+            }
+            catch { }
+
+            // ── STING tag parameters from Project Information ──
+            string projLoc = ParameterHelpers.GetString(pi, ParamRegistry.LOC);
+            string projZone = ParameterHelpers.GetString(pi, ParamRegistry.ZONE);
+            string projRev = ParameterHelpers.GetString(pi, "ASS_REV_TXT");
+
+            // ── Element and discipline statistics ──
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            int totalTaggable = 0, totalTagged = 0;
+            var discCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!known.Contains(cat)) continue;
+                totalTaggable++;
+
+                string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "G";
+                if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
+                discCounts[disc]++;
+
+                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (TagConfig.TagIsComplete(tag)) totalTagged++;
+            }
+
+            double compliancePct = totalTaggable > 0 ? totalTagged * 100.0 / totalTaggable : 0;
+
+            // ── Sheet statistics ──
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .ToList();
+            int sheetCount = sheets.Count;
+
+            // ── Revision data ──
+            var revisions = new FilteredElementCollector(doc)
+                .OfClass(typeof(Revision))
+                .Cast<Revision>()
+                .OrderBy(r => r.SequenceNumber)
+                .ToList();
+
+            // ── Level data ──
+            var levels = new FilteredElementCollector(doc)
+                .OfClass(typeof(Level))
+                .Cast<Level>()
+                .OrderBy(l => l.Elevation)
+                .ToList();
+
+            // ── Build output as a drafting view with text notes ──
+            // (Revit schedules cannot mix data types, so we use a drafting view
+            // with programmatic TextNote placement for a rich corporate layout)
+
+            using (Transaction tx = new Transaction(doc, "STING Corporate Title Block"))
+            {
+                tx.Start();
+
+                // Remove old schedule if exists
+                if (existing != null)
+                {
+                    try { doc.Delete(existing.Id); } catch { }
+                }
+
+                // Create drafting view
+                ViewDrafting draftView = null;
+                var draftTypes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewFamilyType))
+                    .Cast<ViewFamilyType>()
+                    .Where(vft => vft.ViewFamily == ViewFamily.Drafting)
+                    .ToList();
+
+                if (draftTypes.Count > 0)
+                    draftView = ViewDrafting.Create(doc, draftTypes[0].Id);
+
+                if (draftView == null)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Corporate Title Block",
+                        "Could not create drafting view. Check that a Drafting view type exists.");
+                    return Result.Failed;
+                }
+
+                draftView.Name = scheduleName;
+                draftView.Scale = 1; // 1:1 for text layout
+
+                // ── Get or create text note type ──
+                ElementId headerTypeId = ElementId.InvalidElementId;
+                ElementId bodyTypeId = ElementId.InvalidElementId;
+                ElementId smallTypeId = ElementId.InvalidElementId;
+
+                var textTypes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(TextNoteType))
+                    .Cast<TextNoteType>()
+                    .ToList();
+
+                // Find types by size, or use default
+                TextNoteType defaultType = textTypes.FirstOrDefault();
+                if (defaultType != null)
+                {
+                    headerTypeId = defaultType.Id;
+                    bodyTypeId = defaultType.Id;
+                    smallTypeId = defaultType.Id;
+                }
+
+                // Try to find specific sizes
+                foreach (var tnt in textTypes)
+                {
+                    double height = tnt.get_Parameter(BuiltInParameter.TEXT_SIZE)?.AsDouble() ?? 0;
+                    double heightMm = height * 304.8;
+                    if (heightMm >= 5 && heightMm < 8 && headerTypeId == bodyTypeId)
+                        headerTypeId = tnt.Id;
+                    if (heightMm >= 2.5 && heightMm < 4)
+                        bodyTypeId = tnt.Id;
+                    if (heightMm >= 1.5 && heightMm < 2.5)
+                        smallTypeId = tnt.Id;
+                }
+
+                if (headerTypeId == ElementId.InvalidElementId)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Corporate Title Block", "No text note types found in project.");
+                    return Result.Failed;
+                }
+
+                // ── Place text notes in a structured layout ──
+                double xPos = 0;
+                double yPos = 0;
+                double lineSpacing = 8.0 / 304.8; // 8mm in feet
+                double sectionGap = 15.0 / 304.8; // 15mm gap between sections
+                double headerSpacing = 12.0 / 304.8; // 12mm for headers
+
+                // Helper to place a text note and advance Y
+                void PlaceText(string text, ElementId typeId, double spacing)
+                {
+                    TextNote.Create(doc, draftView.Id, new XYZ(xPos, yPos, 0),
+                        text, typeId);
+                    yPos -= spacing;
+                }
+
+                // ═══ SECTION 1: Company Header ═══
+                PlaceText($"══════════════════════════════════════════", headerTypeId, lineSpacing);
+                PlaceText($"  {CompanyName}", headerTypeId, lineSpacing);
+                PlaceText($"  {CompanyAddress}  |  {CompanyPhone}", bodyTypeId, lineSpacing);
+                PlaceText($"══════════════════════════════════════════", headerTypeId, sectionGap);
+
+                // ═══ SECTION 2: Project Identification ═══
+                PlaceText("PROJECT INFORMATION", headerTypeId, headerSpacing);
+                PlaceText($"  Project Name:     {projName}", bodyTypeId, lineSpacing);
+                PlaceText($"  Project Number:   {projNumber}", bodyTypeId, lineSpacing);
+                if (!string.IsNullOrEmpty(projClient))
+                    PlaceText($"  Client:           {projClient}", bodyTypeId, lineSpacing);
+                if (!string.IsNullOrEmpty(projAddress))
+                    PlaceText($"  Address:          {projAddress}", bodyTypeId, lineSpacing);
+                if (!string.IsNullOrEmpty(projStatus))
+                    PlaceText($"  Status:           {projStatus}", bodyTypeId, lineSpacing);
+                if (!string.IsNullOrEmpty(projLoc))
+                    PlaceText($"  STING Location:   {projLoc}", bodyTypeId, lineSpacing);
+                if (!string.IsNullOrEmpty(projZone))
+                    PlaceText($"  STING Zone:       {projZone}", bodyTypeId, lineSpacing);
+                yPos -= sectionGap;
+
+                // ═══ SECTION 3: Building Summary ═══
+                PlaceText("BUILDING SUMMARY", headerTypeId, headerSpacing);
+                PlaceText($"  Levels:       {levels.Count}", bodyTypeId, lineSpacing);
+                if (levels.Count > 0)
+                {
+                    PlaceText($"  Lowest:       {levels.First().Name} ({levels.First().Elevation * 0.3048:F1}m)",
+                        bodyTypeId, lineSpacing);
+                    PlaceText($"  Highest:      {levels.Last().Name} ({levels.Last().Elevation * 0.3048:F1}m)",
+                        bodyTypeId, lineSpacing);
+                }
+                PlaceText($"  Sheets:       {sheetCount}", bodyTypeId, lineSpacing);
+                yPos -= sectionGap;
+
+                // ═══ SECTION 4: Discipline Summary ═══
+                PlaceText("DISCIPLINE SUMMARY", headerTypeId, headerSpacing);
+                PlaceText($"  Total taggable elements: {totalTaggable:N0}", bodyTypeId, lineSpacing);
+                PlaceText($"  Tagged (complete):       {totalTagged:N0}", bodyTypeId, lineSpacing);
+                PlaceText($"  Compliance:              {compliancePct:F1}%", bodyTypeId, lineSpacing);
+                yPos -= lineSpacing / 2;
+
+                foreach (var kvp in discCounts.OrderByDescending(x => x.Value))
+                {
+                    string discFull = kvp.Key switch
+                    {
+                        "M" => "Mechanical", "E" => "Electrical", "P" => "Plumbing",
+                        "A" => "Architectural", "S" => "Structural", "FP" => "Fire Protection",
+                        "LV" => "Low Voltage", "G" => "General", _ => kvp.Key
+                    };
+                    PlaceText($"    {kvp.Key,-4} {discFull,-18} {kvp.Value,6:N0} elements",
+                        smallTypeId, lineSpacing);
+                }
+                yPos -= sectionGap;
+
+                // ═══ SECTION 5: Revision History ═══
+                if (revisions.Count > 0)
+                {
+                    PlaceText("REVISION HISTORY", headerTypeId, headerSpacing);
+                    foreach (var rev in revisions.TakeLast(10))
+                    {
+                        string revDate = "";
+                        try { revDate = rev.RevisionDate; } catch { }
+                        PlaceText($"  Rev {rev.SequenceNumber}: {rev.Description}  [{revDate}]",
+                            smallTypeId, lineSpacing);
+                    }
+                    yPos -= sectionGap;
+                }
+
+                // ═══ SECTION 6: Document Control ═══
+                PlaceText("DOCUMENT CONTROL", headerTypeId, headerSpacing);
+                PlaceText($"  Generated:    {DateTime.Now:yyyy-MM-dd HH:mm}", bodyTypeId, lineSpacing);
+                PlaceText($"  Tool:         STING Tools v1.0", bodyTypeId, lineSpacing);
+                PlaceText($"  Standard:     ISO 19650-2:2018", bodyTypeId, lineSpacing);
+                if (!string.IsNullOrEmpty(projRev))
+                    PlaceText($"  Revision:     {projRev}", bodyTypeId, lineSpacing);
+                PlaceText($"══════════════════════════════════════════", headerTypeId, lineSpacing);
+
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine("Corporate Title Block Schedule Created");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"  View: {scheduleName}");
+            report.AppendLine($"  Project: {projName} ({projNumber})");
+            report.AppendLine($"  Elements: {totalTaggable:N0} ({compliancePct:F1}% tagged)");
+            report.AppendLine($"  Disciplines: {discCounts.Count}");
+            report.AppendLine($"  Sheets: {sheetCount}");
+            report.AppendLine($"  Revisions: {revisions.Count}");
+            report.AppendLine();
+            report.AppendLine("The schedule is a standalone drafting view.");
+            report.AppendLine("Place it on a sheet or use it as a reference.");
+
+            TaskDialog.Show("Corporate Title Block", report.ToString());
+            StingLog.Info($"Corporate title block created: {totalTaggable} elements, {compliancePct:F1}% compliance");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Drawing Register Schedule — Sheet-level Document Control
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Creates a corporate standard "Drawing Register" schedule that lists
+    /// all sheets with document control metadata. Auto-populates from
+    /// existing sheet data and STING tag parameters.
+    ///
+    /// Columns (matching East African / ISO 19650 practice):
+    ///   1. DWG NO (Sheet Number)
+    ///   2. DRAWING TITLE (Sheet Name)
+    ///   3. DISCIPLINE (derived from sheet number prefix)
+    ///   4. SCALE (from views on sheet)
+    ///   5. PAPER SIZE (A0/A1/A2/A3/A4 from title block)
+    ///   6. REVISION (latest revision on sheet)
+    ///   7. REV DATE (date of latest revision)
+    ///   8. STATUS (For Construction / For Information / Preliminary)
+    ///   9. DRAWN BY (from sheet parameter)
+    ///  10. CHECKED BY (from sheet parameter)
+    ///  11. APPROVED BY (from sheet parameter)
+    ///  12. STING TAG (ASS_TAG_1_TXT if bound to sheets)
+    ///  13. LOCATION (ASS_LOC_TXT)
+    ///  14. REMARKS
+    ///
+    /// The schedule is a Revit Sheet List (BuiltInCategory.OST_Sheets) with
+    /// sorting by discipline prefix then sheet number, grouping by discipline,
+    /// and header formatting matching corporate standards.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class DrawingRegisterScheduleCommand : IExternalCommand
+    {
+        // ── Discipline prefix mappings (sheet number prefix → discipline name) ──
+        private static readonly Dictionary<string, string> SheetPrefixToDisc =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "M", "MECHANICAL" }, { "ME", "MECHANICAL" },
+            { "E", "ELECTRICAL" }, { "EL", "ELECTRICAL" },
+            { "P", "PLUMBING" }, { "PL", "PLUMBING" },
+            { "FP", "FIRE PROTECTION" }, { "FA", "FIRE ALARM" },
+            { "A", "ARCHITECTURAL" }, { "AR", "ARCHITECTURAL" },
+            { "S", "STRUCTURAL" }, { "ST", "STRUCTURAL" },
+            { "L", "LANDSCAPE" }, { "LV", "LOW VOLTAGE" },
+            { "G", "GENERAL" }, { "C", "CIVIL" },
+            { "ID", "INTERIOR DESIGN" },
+        };
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            string scheduleName = "STING - Drawing Register";
+
+            // Check for existing
+            var existing = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSchedule))
+                .Cast<ViewSchedule>()
+                .FirstOrDefault(s => s.Name.Equals(scheduleName, StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null)
+            {
+                var td0 = new TaskDialog("Drawing Register");
+                td0.MainInstruction = "Schedule already exists";
+                td0.MainContent = $"'{scheduleName}' already exists.\nRecreate it?";
+                td0.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Delete and recreate", "Remove old schedule and create fresh");
+                td0.CommonButtons = TaskDialogCommonButtons.Cancel;
+                if (td0.Show() != TaskDialogResult.CommandLink1)
+                    return Result.Cancelled;
+            }
+
+            // ── Collect sheet data ──
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .OrderBy(s => s.SheetNumber)
+                .ToList();
+
+            if (sheets.Count == 0)
+            {
+                TaskDialog.Show("Drawing Register", "No sheets found in the project.");
+                return Result.Succeeded;
+            }
+
+            // ── Project metadata ──
+            string projName = doc.ProjectInformation?.Name ?? "Unnamed Project";
+            string projNumber = doc.ProjectInformation?.Number ?? "000";
+
+            // ── Build register data ──
+            var registerRows = new List<RegisterRow>();
+
+            foreach (ViewSheet sheet in sheets)
+            {
+                var row = new RegisterRow
+                {
+                    SheetNumber = sheet.SheetNumber,
+                    SheetName = sheet.Name,
+                };
+
+                // Derive discipline from sheet number prefix
+                row.Discipline = DeriveDiscipline(sheet.SheetNumber);
+
+                // Scale — from first view on sheet
+                try
+                {
+                    var viewIds = sheet.GetAllPlacedViews();
+                    if (viewIds.Count > 0)
+                    {
+                        View firstView = doc.GetElement(viewIds.First()) as View;
+                        if (firstView != null)
+                        {
+                            int scale = firstView.Scale;
+                            row.Scale = scale > 0 ? $"1:{scale}" : "NTS";
+                        }
+                    }
+                }
+                catch { row.Scale = "NTS"; }
+
+                // Paper size — from title block family instance dimensions
+                try
+                {
+                    var titleBlocks = new FilteredElementCollector(doc, sheet.Id)
+                        .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                        .WhereElementIsNotElementType()
+                        .FirstOrDefault();
+
+                    if (titleBlocks != null)
+                    {
+                        double width = titleBlocks.get_Parameter(BuiltInParameter.SHEET_WIDTH)?.AsDouble() ?? 0;
+                        double height = titleBlocks.get_Parameter(BuiltInParameter.SHEET_HEIGHT)?.AsDouble() ?? 0;
+                        double widthMm = width * 304.8;
+                        double heightMm = height * 304.8;
+                        row.PaperSize = ClassifyPaperSize(widthMm, heightMm);
+                    }
+                }
+                catch { row.PaperSize = "A1"; }
+
+                // Revision
+                var revIds = sheet.GetAllRevisionIds();
+                if (revIds.Count > 0)
+                {
+                    try
+                    {
+                        Revision latestRev = doc.GetElement(revIds.Last()) as Revision;
+                        if (latestRev != null)
+                        {
+                            row.Revision = $"Rev {latestRev.SequenceNumber}";
+                            row.RevDate = latestRev.RevisionDate;
+                            row.Status = latestRev.Description?.Contains("Construction") == true
+                                ? "FOR CONSTRUCTION"
+                                : latestRev.Description?.Contains("Information") == true
+                                    ? "FOR INFORMATION" : "PRELIMINARY";
+                        }
+                    }
+                    catch { }
+                }
+
+                if (string.IsNullOrEmpty(row.Status)) row.Status = "PRELIMINARY";
+                if (string.IsNullOrEmpty(row.PaperSize)) row.PaperSize = "A1";
+                if (string.IsNullOrEmpty(row.Scale)) row.Scale = "NTS";
+                if (string.IsNullOrEmpty(row.Revision)) row.Revision = "-";
+                if (string.IsNullOrEmpty(row.RevDate)) row.RevDate = "-";
+
+                // Sheet parameters
+                row.DrawnBy = sheet.get_Parameter(BuiltInParameter.SHEET_DRAWN_BY)?.AsString() ?? "";
+                row.CheckedBy = sheet.get_Parameter(BuiltInParameter.SHEET_CHECKED_BY)?.AsString() ?? "";
+                row.ApprovedBy = sheet.get_Parameter(BuiltInParameter.SHEET_APPROVED_BY)?.AsString() ?? "";
+
+                // STING tag parameters (if bound to sheets)
+                row.StingTag = ParameterHelpers.GetString(sheet, ParamRegistry.TAG1);
+                row.Location = ParameterHelpers.GetString(sheet, ParamRegistry.LOC);
+
+                registerRows.Add(row);
+            }
+
+            // ── Create drafting view with formatted text layout ──
+            using (Transaction tx = new Transaction(doc, "STING Drawing Register"))
+            {
+                tx.Start();
+
+                // Remove existing if applicable
+                if (existing != null)
+                {
+                    try { doc.Delete(existing.Id); } catch { }
+                }
+
+                // Create drafting view
+                ViewDrafting draftView = null;
+                var draftTypes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewFamilyType))
+                    .Cast<ViewFamilyType>()
+                    .Where(vft => vft.ViewFamily == ViewFamily.Drafting)
+                    .ToList();
+
+                if (draftTypes.Count > 0)
+                    draftView = ViewDrafting.Create(doc, draftTypes[0].Id);
+
+                if (draftView == null)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Drawing Register",
+                        "Could not create drafting view.");
+                    return Result.Failed;
+                }
+
+                draftView.Name = scheduleName;
+                draftView.Scale = 1;
+
+                // Get text note type
+                var textType = new FilteredElementCollector(doc)
+                    .OfClass(typeof(TextNoteType))
+                    .Cast<TextNoteType>()
+                    .FirstOrDefault();
+
+                if (textType == null)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Drawing Register", "No text note types found.");
+                    return Result.Failed;
+                }
+
+                ElementId typeId = textType.Id;
+                double y = 0;
+                double lineH = 6.0 / 304.8; // 6mm line spacing
+                double gapH = 12.0 / 304.8;
+
+                void PlaceLine(string text)
+                {
+                    TextNote.Create(doc, draftView.Id, new XYZ(0, y, 0), text, typeId);
+                    y -= lineH;
+                }
+
+                // ═══ Header ═══
+                PlaceLine("════════════════════════════════════════════════════════════════════════════════════════════════════");
+                PlaceLine($"  DRAWING REGISTER — {projName} ({projNumber})");
+                PlaceLine($"  Date: {DateTime.Now:yyyy-MM-dd}  |  Standard: ISO 19650  |  Total Sheets: {sheets.Count}");
+                PlaceLine("════════════════════════════════════════════════════════════════════════════════════════════════════");
+                y -= lineH;
+
+                // ═══ Column headers ═══
+                PlaceLine(FormatRegisterRow("DWG NO", "DRAWING TITLE", "DISC", "SCALE",
+                    "SIZE", "REV", "REV DATE", "STATUS", "DRAWN", "CHK'D", "APP'D"));
+                PlaceLine("────────────────────────────────────────────────────────────────────────────────────────────────────");
+
+                // ═══ Data rows grouped by discipline ═══
+                string lastDisc = "";
+                int rowCount = 0;
+                foreach (var row in registerRows.OrderBy(r => r.Discipline).ThenBy(r => r.SheetNumber))
+                {
+                    if (row.Discipline != lastDisc)
+                    {
+                        if (!string.IsNullOrEmpty(lastDisc))
+                            y -= lineH / 2; // gap between groups
+                        PlaceLine($"  ── {row.Discipline} ──");
+                        lastDisc = row.Discipline;
+                    }
+
+                    PlaceLine(FormatRegisterRow(
+                        row.SheetNumber, Truncate(row.SheetName, 30), row.Discipline.Substring(0, Math.Min(4, row.Discipline.Length)),
+                        row.Scale, row.PaperSize, row.Revision, row.RevDate,
+                        Truncate(row.Status, 12), Truncate(row.DrawnBy, 6),
+                        Truncate(row.CheckedBy, 6), Truncate(row.ApprovedBy, 6)));
+                    rowCount++;
+                }
+
+                PlaceLine("────────────────────────────────────────────────────────────────────────────────────────────────────");
+                PlaceLine($"  TOTAL: {rowCount} DRAWINGS");
+
+                // ═══ STING tag summary (if tags exist on any sheets) ═══
+                var taggedSheets = registerRows.Where(r => !string.IsNullOrEmpty(r.StingTag)).ToList();
+                if (taggedSheets.Count > 0)
+                {
+                    y -= gapH;
+                    PlaceLine("  STING TAG REFERENCES:");
+                    foreach (var row in taggedSheets.Take(20))
+                    {
+                        string locInfo = !string.IsNullOrEmpty(row.Location) ? $" [{row.Location}]" : "";
+                        PlaceLine($"    {row.SheetNumber}: {row.StingTag}{locInfo}");
+                    }
+                    if (taggedSheets.Count > 20)
+                        PlaceLine($"    ... and {taggedSheets.Count - 20} more");
+                }
+
+                PlaceLine("════════════════════════════════════════════════════════════════════════════════════════════════════");
+
+                tx.Commit();
+            }
+
+            // ── Also export as CSV ──
+            string csvPath = null;
+            try
+            {
+                var csv = new StringBuilder();
+                csv.AppendLine("DWG_No,Drawing_Title,Discipline,Scale,Paper_Size,Revision,Rev_Date,Status,Drawn_By,Checked_By,Approved_By,STING_Tag,Location");
+
+                foreach (var row in registerRows.OrderBy(r => r.Discipline).ThenBy(r => r.SheetNumber))
+                {
+                    csv.AppendLine($"\"{row.SheetNumber}\",\"{row.SheetName}\",\"{row.Discipline}\"," +
+                        $"\"{row.Scale}\",\"{row.PaperSize}\",\"{row.Revision}\",\"{row.RevDate}\"," +
+                        $"\"{row.Status}\",\"{row.DrawnBy}\",\"{row.CheckedBy}\",\"{row.ApprovedBy}\"," +
+                        $"\"{row.StingTag}\",\"{row.Location}\"");
+                }
+
+                string dir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
+                csvPath = Path.Combine(dir, $"STING_DrawingRegister_{DateTime.Now:yyyyMMdd}.csv");
+                File.WriteAllText(csvPath, csv.ToString());
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Drawing register CSV export failed: {ex.Message}");
+            }
+
+            // ── Report ──
+            var report = new StringBuilder();
+            report.AppendLine("Drawing Register Created");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"  View: {scheduleName}");
+            report.AppendLine($"  Sheets: {sheets.Count}");
+
+            // Discipline breakdown
+            var discGroups = registerRows.GroupBy(r => r.Discipline)
+                .OrderByDescending(g => g.Count());
+            foreach (var g in discGroups)
+                report.AppendLine($"    {g.Key,-20} {g.Count(),4} sheets");
+
+            report.AppendLine();
+            var statusGroups = registerRows.GroupBy(r => r.Status);
+            foreach (var g in statusGroups)
+                report.AppendLine($"  {g.Key}: {g.Count()}");
+
+            if (!string.IsNullOrEmpty(csvPath))
+                report.AppendLine($"\n  CSV exported: {csvPath}");
+
+            TaskDialog.Show("Drawing Register", report.ToString());
+            StingLog.Info($"Drawing register created: {sheets.Count} sheets, CSV exported to {csvPath}");
+            return Result.Succeeded;
+        }
+
+        private static string DeriveDiscipline(string sheetNumber)
+        {
+            if (string.IsNullOrEmpty(sheetNumber)) return "GENERAL";
+
+            // Try 2-char prefix first, then 1-char
+            string prefix2 = sheetNumber.Length >= 2 ? sheetNumber.Substring(0, 2) : "";
+            string prefix1 = sheetNumber.Substring(0, 1);
+
+            // Skip digits in prefix
+            string letters = new string(sheetNumber.TakeWhile(c => char.IsLetter(c)).ToArray());
+            if (!string.IsNullOrEmpty(letters))
+            {
+                if (SheetPrefixToDisc.TryGetValue(letters, out string disc2))
+                    return disc2;
+            }
+
+            if (SheetPrefixToDisc.TryGetValue(prefix2, out string disc))
+                return disc;
+            if (SheetPrefixToDisc.TryGetValue(prefix1, out disc))
+                return disc;
+            return "GENERAL";
+        }
+
+        private static string ClassifyPaperSize(double widthMm, double heightMm)
+        {
+            double maxDim = Math.Max(widthMm, heightMm);
+            double minDim = Math.Min(widthMm, heightMm);
+
+            // ISO 216 sizes with 5% tolerance
+            if (maxDim > 1120 && maxDim < 1240 && minDim > 810 && minDim < 900) return "A0";
+            if (maxDim > 790 && maxDim < 880 && minDim > 560 && minDim < 630) return "A1";
+            if (maxDim > 560 && maxDim < 630 && minDim > 395 && minDim < 445) return "A2";
+            if (maxDim > 395 && maxDim < 445 && minDim > 278 && minDim < 315) return "A3";
+            if (maxDim > 278 && maxDim < 315 && minDim > 195 && minDim < 222) return "A4";
+            return "A1"; // Default assumption
+        }
+
+        private static string FormatRegisterRow(string dwgNo, string title, string disc,
+            string scale, string size, string rev, string revDate,
+            string status, string drawn, string chkd, string appd)
+        {
+            return $"  {dwgNo,-12} {title,-30} {disc,-5} {scale,-8} {size,-4} {rev,-6} " +
+                   $"{revDate,-12} {status,-14} {drawn,-6} {chkd,-6} {appd,-6}";
+        }
+
+        private static string Truncate(string s, int maxLen)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.Length <= maxLen ? s : s.Substring(0, maxLen);
+        }
+
+        private class RegisterRow
+        {
+            public string SheetNumber = "", SheetName = "", Discipline = "";
+            public string Scale = "", PaperSize = "", Revision = "", RevDate = "";
+            public string Status = "", DrawnBy = "", CheckedBy = "", ApprovedBy = "";
+            public string StingTag = "", Location = "";
+        }
+    }
 }

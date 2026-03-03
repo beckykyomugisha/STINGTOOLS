@@ -370,6 +370,10 @@ namespace StingTools.UI
                     case "FormulaEvaluator": RunCommand<Temp.FormulaEvaluatorCommand>(app); break;
                     case "ExportCSV": RunCommand<Temp.ExportCSVCommand>(app); break;
 
+                    // ── Corporate Schedules ──
+                    case "CorporateTitleBlock": RunCommand<Temp.CorporateTitleBlockScheduleCommand>(app); break;
+                    case "DrawingRegister": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
+
                     // ── Schedule Enhancements ──
                     case "ScheduleAudit": RunCommand<Temp.ScheduleAuditCommand>(app); break;
                     case "ScheduleCompare": RunCommand<Temp.ScheduleCompareCommand>(app); break;
