@@ -27,7 +27,13 @@
     { "param_name": "TAG_PARA_STATE_2_BOOL",   "guid": "b1080057-9890-5a0c-959a-46fb8847c766", "description": "Paragraph depth: standard (States 1+2)",         "binding": "universal", "param_type": "YESNO" },
     { "param_name": "TAG_PARA_STATE_3_BOOL",   "guid": "825a73c0-4b3b-5474-8db5-f54072ff40b8", "description": "Paragraph depth: comprehensive (States 1+2+3)", "binding": "universal", "param_type": "YESNO" },
     { "param_name": "TAG_WARN_VISIBLE_BOOL",   "guid": "11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f", "description": "Enable/disable warning text in tags",           "binding": "universal", "param_type": "YESNO" },
-    { "param_name": "TAG_WARN_SEVERITY_FILTER_TXT", "guid": "ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b", "description": "Warning filter: CRITICAL, HIGH, MEDIUM, ALL", "binding": "universal" }
+    { "param_name": "TAG_WARN_SEVERITY_FILTER_TXT", "guid": "ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b", "description": "Warning filter: CRITICAL, HIGH, MEDIUM, ALL", "binding": "universal" },
+    { "param_name": "TAG_7_SECTION_VISIBLE_A_BOOL", "guid": "a1b2c3d4-0001-5a01-b001-000000000001", "description": "Show/hide TAG7 Section A (Identity Header)",       "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_7_SECTION_VISIBLE_B_BOOL", "guid": "a1b2c3d4-0001-5a01-b001-000000000002", "description": "Show/hide TAG7 Section B (System & Function)",    "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_7_SECTION_VISIBLE_C_BOOL", "guid": "a1b2c3d4-0001-5a01-b001-000000000003", "description": "Show/hide TAG7 Section C (Spatial Context)",      "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_7_SECTION_VISIBLE_D_BOOL", "guid": "a1b2c3d4-0001-5a01-b001-000000000004", "description": "Show/hide TAG7 Section D (Lifecycle & Status)",    "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_7_SECTION_VISIBLE_E_BOOL", "guid": "a1b2c3d4-0001-5a01-b001-000000000005", "description": "Show/hide TAG7 Section E (Technical Specs)",       "binding": "universal", "param_type": "YESNO" },
+    { "param_name": "TAG_7_SECTION_VISIBLE_F_BOOL", "guid": "a1b2c3d4-0001-5a01-b001-000000000006", "description": "Show/hide TAG7 Section F (Classification)",        "binding": "universal", "param_type": "YESNO" }
   ],
 
   "token_presets": {
