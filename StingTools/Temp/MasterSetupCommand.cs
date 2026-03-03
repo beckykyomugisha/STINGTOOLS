@@ -11,16 +11,23 @@ namespace StingTools.Temp
     /// <summary>
     /// One-click "Master Setup" command for maximum automation workflow.
     /// Runs the full STING template setup sequence in order:
-    ///   1. Load shared parameters (Pass 1 + Pass 2)
-    ///   2. Create BLE materials (815 building elements)
-    ///   3. Create MEP materials (464 MEP elements)
-    ///   4. Create wall/floor/ceiling/roof types from CSV
-    ///   5. Create duct/pipe types from CSV
-    ///   6. Batch create schedules (168 definitions)
-    ///   7. Auto-populate tag tokens (DISC, PROD, SYS, FUNC, LVL)
-    ///   8. Create view filters (6 discipline filters)
-    ///   9. Create worksets (27 standard worksets)
-    ///  10. Create view templates (7 discipline templates)
+    ///   1.  Load shared parameters (Pass 1 + Pass 2)
+    ///   2.  Create BLE materials (815 building elements)
+    ///   3.  Create MEP materials (464 MEP elements)
+    ///   4.  Create wall/floor/ceiling/roof types from CSV
+    ///   5.  Create duct/pipe types from CSV
+    ///   6.  Batch create schedules (168 definitions)
+    ///   7.  Evaluate formulas (199 dependency-ordered formulas)
+    ///   8.  Tag &amp; Combine (full pipeline: populate + tag + combine all containers)
+    ///   9.  Create view filters (28+ with parameter rules)
+    ///  10.  Create worksets (35 ISO 19650)
+    ///  11.  Create view templates (23 with VG overrides)
+    ///  12.  Fill patterns, line styles, object styles
+    ///  13.  Text styles, dimension styles
+    ///  14.  Apply filters + VG overrides (5-layer intelligence)
+    ///  15.  Batch family parameters (4,686 from CSV)
+    ///  16.  Auto-assign templates + auto-fix health
+    ///  17.  Auto-create legends (discipline + system + filter)
     ///
     /// Wrapped in a TransactionGroup for atomic rollback: if any critical step
     /// fails, the user can choose to rollback all changes or keep partial results.
@@ -43,15 +50,17 @@ namespace StingTools.Temp
                 "  4.  Create wall/floor/ceiling/roof types\n" +
                 "  5.  Create duct/pipe types\n" +
                 "  6.  Batch create schedules (168 definitions)\n" +
-                "  7.  Auto-populate tag tokens\n" +
-                "  8.  Create view filters (28+ with parameter rules)\n" +
-                "  9.  Create worksets (35 ISO 19650)\n" +
-                " 10.  Create view templates (23 with VG overrides)\n" +
-                " 11.  Fill patterns, line styles, object styles\n" +
-                " 12.  Text styles, dimension styles\n" +
-                " 13.  Apply filters + VG overrides (5-layer intelligence)\n" +
-                " 14.  Batch family parameters (4,686 from CSV)\n" +
-                " 15.  Auto-assign templates + auto-fix health\n\n" +
+                "  7.  Evaluate formulas (199 dependency-ordered)\n" +
+                "  8.  Tag & Combine (full pipeline + TAG7 narrative)\n" +
+                "  9.  Create view filters (28+ with parameter rules)\n" +
+                " 10.  Create worksets (35 ISO 19650)\n" +
+                " 11.  Create view templates (23 with VG overrides)\n" +
+                " 12.  Fill patterns, line styles, object styles\n" +
+                " 13.  Text styles, dimension styles\n" +
+                " 14.  Apply filters + VG overrides (5-layer intelligence)\n" +
+                " 15.  Batch family parameters (4,686 from CSV)\n" +
+                " 16.  Auto-assign templates + auto-fix health\n" +
+                " 17.  Auto-create legends (discipline + system)\n\n" +
                 "All steps are grouped atomically — if critical steps fail,\n" +
                 "you can rollback all changes.\n\n" +
                 "This may take several minutes for a new project.";
@@ -127,15 +136,19 @@ namespace StingTools.Temp
                 passed += RunStep(ref stepNum, report, "Batch Create Schedules",
                     () => RunCommand(new BatchSchedulesCommand(), commandData, elements));
 
-                // Step 7: Auto-populate tag tokens
-                passed += RunStep(ref stepNum, report, "Auto-Populate Tags",
-                    () => RunCommand(new AutoPopulateCommand(), commandData, elements));
+                // Step 7: Evaluate formulas (199 dependency-ordered formulas)
+                passed += RunStep(ref stepNum, report, "Evaluate Formulas (199 definitions)",
+                    () => RunCommand(new FormulaEvaluatorCommand(), commandData, elements));
 
-                // Step 8: Create view filters
+                // Step 8: Tag & Combine (full pipeline: populate + tag + combine + TAG7 narrative)
+                passed += RunStep(ref stepNum, report, "Tag & Combine (full pipeline + TAG7)",
+                    () => RunCommand(new Tags.TagAndCombineCommand(), commandData, elements));
+
+                // Step 9: Create view filters
                 passed += RunStep(ref stepNum, report, "Create View Filters",
                     () => RunCommand(new CreateFiltersCommand(), commandData, elements));
 
-                // Step 9: Create worksets (only if worksharing enabled)
+                // Step 10: Create worksets (only if worksharing enabled)
                 if (doc.IsWorkshared)
                 {
                     passed += RunStep(ref stepNum, report, "Create Worksets",
@@ -147,11 +160,11 @@ namespace StingTools.Temp
                     report.AppendLine($"  {stepNum,2}. Create Worksets — SKIPPED (not workshared)");
                 }
 
-                // Step 10: Create view templates
+                // Step 11: Create view templates
                 passed += RunStep(ref stepNum, report, "Create View Templates",
                     () => RunCommand(new ViewTemplatesCommand(), commandData, elements));
 
-                // Step 11: Fill patterns + line styles + object styles
+                // Step 12: Fill patterns + line styles + object styles
                 passed += RunStep(ref stepNum, report, "Create Fill Patterns",
                     () => RunCommand(new CreateFillPatternsCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Create Line Styles",
@@ -159,27 +172,31 @@ namespace StingTools.Temp
                 passed += RunStep(ref stepNum, report, "Configure Object Styles",
                     () => RunCommand(new CreateObjectStylesCommand(), commandData, elements));
 
-                // Step 12: Text styles + dimension styles
+                // Step 13: Text styles + dimension styles
                 passed += RunStep(ref stepNum, report, "Create Text Styles",
                     () => RunCommand(new CreateTextStylesCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Create Dimension Styles",
                     () => RunCommand(new CreateDimensionStylesCommand(), commandData, elements));
 
-                // Step 13: Apply filters to templates + VG overrides
+                // Step 14: Apply filters to templates + VG overrides
                 passed += RunStep(ref stepNum, report, "Apply Filters to Templates",
                     () => RunCommand(new ApplyFiltersToViewsCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Apply VG Overrides (5-layer)",
                     () => RunCommand(new CreateVGOverridesCommand(), commandData, elements));
 
-                // Step 14: Batch family parameters from CSV
+                // Step 15: Batch family parameters from CSV
                 passed += RunStep(ref stepNum, report, "Batch Family Params (CSV-driven)",
                     () => RunCommand(new BatchAddFamilyParamsCommand(), commandData, elements));
 
-                // Step 15: Auto-assign templates + auto-fix
+                // Step 16: Auto-assign templates + auto-fix
                 passed += RunStep(ref stepNum, report, "Auto-Assign Templates (5-layer)",
                     () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
                 passed += RunStep(ref stepNum, report, "Auto-Fix Template Health",
                     () => RunCommand(new AutoFixTemplateCommand(), commandData, elements));
+
+                // Step 17: Auto-create legends (discipline, system, filter)
+                passed += RunStep(ref stepNum, report, "Auto-Create Legends (discipline + system)",
+                    () => RunCommand(new Tags.AutoCreateLegendsCommand(), commandData, elements));
 
                 failed = stepNum - passed;
                 totalSw.Stop();

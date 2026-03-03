@@ -225,17 +225,19 @@ namespace StingTools.Tags
                     string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
                     if (string.IsNullOrEmpty(disc))
                     {
-                        disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "XX";
+                        disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
                         ParameterHelpers.SetIfEmpty(elem, ParamRegistry.DISC, disc);
                     }
                     if (string.IsNullOrEmpty(sys))
                     {
                         sys = TagConfig.GetMepSystemAwareSysCode(elem, cat);
+                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
                         ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys);
                     }
                     if (string.IsNullOrEmpty(lvl))
                     {
                         lvl = ParameterHelpers.GetLevelCode(doc, elem);
+                        if (lvl == "XX") lvl = "L00";
                         ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
                     }
 
@@ -320,15 +322,13 @@ namespace StingTools.Tags
                         ParameterHelpers.SetIfEmpty(elem, ParamRegistry.DISC, disc);
                     }
 
-                    // Auto-derive SYS if missing (MEP-aware 6-layer detection)
+                    // Auto-derive SYS if missing (MEP-aware 6-layer detection, guaranteed default)
                     if (string.IsNullOrEmpty(tokenValues[4]))
                     {
                         string sys = TagConfig.GetMepSystemAwareSysCode(elem, catName);
-                        if (!string.IsNullOrEmpty(sys))
-                        {
-                            tokenValues[4] = sys;
-                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys);
-                        }
+                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                        tokenValues[4] = sys;
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys);
                     }
 
                     // Auto-derive LOC if missing (spatial detection from rooms / project info)
@@ -365,26 +365,43 @@ namespace StingTools.Tags
                         }
                     }
 
-                    // Auto-derive FUNC if missing (smart subsystem differentiation)
+                    // Auto-derive FUNC if missing (smart subsystem, guaranteed default)
                     if (string.IsNullOrEmpty(tokenValues[5]))
                     {
                         string func = TagConfig.GetSmartFuncCode(elem, tokenValues[4]);
-                        if (!string.IsNullOrEmpty(func))
-                        {
-                            tokenValues[5] = func;
-                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func);
-                        }
+                        if (string.IsNullOrEmpty(func))
+                            func = TagConfig.FuncMap.TryGetValue(tokenValues[4], out string fv) ? fv : "GEN";
+                        tokenValues[5] = func;
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func);
                     }
 
-                    // Auto-derive PROD if missing (family-aware product code)
+                    // Auto-derive LVL if missing (guaranteed default)
+                    if (string.IsNullOrEmpty(tokenValues[3]))
+                    {
+                        string lvl = ParameterHelpers.GetLevelCode(doc, elem);
+                        if (lvl == "XX") lvl = "L00";
+                        tokenValues[3] = lvl;
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
+                    }
+
+                    // Auto-derive LOC/ZONE if missing (guaranteed defaults)
+                    if (string.IsNullOrEmpty(tokenValues[1]))
+                    {
+                        tokenValues[1] = "BLD1";
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LOC, "BLD1");
+                    }
+                    if (string.IsNullOrEmpty(tokenValues[2]))
+                    {
+                        tokenValues[2] = "Z01";
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.ZONE, "Z01");
+                    }
+
+                    // Auto-derive PROD if missing (family-aware product code, guaranteed default)
                     if (string.IsNullOrEmpty(tokenValues[6]))
                     {
                         string prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
-                        if (!string.IsNullOrEmpty(prod))
-                        {
-                            tokenValues[6] = prod;
-                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.PROD, prod);
-                        }
+                        tokenValues[6] = prod;
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.PROD, prod);
                     }
 
                     string seq = tokenValues[7]; // SEQ
@@ -425,6 +442,9 @@ namespace StingTools.Tags
                     containerWrites += ParamRegistry.WriteContainers(
                         elem, tokenValues, catName, overwrite: true,
                         skipParam: ParamRegistry.TAG1);
+
+                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                    containerWrites += TagConfig.WriteTag7All(doc, elem, catName, tokenValues, overwrite: true);
                 }
                 tx.Commit();
             }
@@ -448,7 +468,8 @@ namespace StingTools.Tags
     /// Shows both standard compliance (tag has 8 non-empty segments) and strict
     /// compliance (no XX/ZZ placeholder segments = fully resolved tags).
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class CompletenessDashboardCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -457,14 +478,19 @@ namespace StingTools.Tags
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             var stats = new Dictionary<string, (int total, int valid, int resolved, int incomplete, int missing)>();
+            int emptyStatus = 0, emptyRev = 0;
 
             foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
 
-                string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "XX";
+                string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
                 if (!stats.ContainsKey(disc)) stats[disc] = (0, 0, 0, 0, 0);
+
+                // Track STATUS/REV completeness
+                if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.STATUS))) emptyStatus++;
+                if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.REV))) emptyRev++;
 
                 var s = stats[disc];
                 string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
@@ -505,11 +531,50 @@ namespace StingTools.Tags
             report.AppendLine();
             report.AppendLine("Valid = tag has 8 non-empty segments");
             report.AppendLine("Resolved = no placeholders (XX/ZZ/0000)");
+            if (emptyStatus > 0)
+                report.AppendLine($"Empty STATUS: {emptyStatus} elements (run Tag & Combine to auto-detect)");
+            if (emptyRev > 0)
+                report.AppendLine($"Empty REV: {emptyRev} elements (run Tag & Combine to auto-set)");
 
             TaskDialog td = new TaskDialog("ISO Completeness Dashboard");
             td.MainInstruction = $"Compliance: {grandPct:F1}% | Strict: {grandStrictPct:F1}% ({grandResolved}/{grandTotal})";
             td.MainContent = report.ToString();
-            td.Show();
+            td.FooterText = "Click 'Yes' to create a discipline compliance legend.";
+            td.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+            td.DefaultButton = TaskDialogResult.No;
+
+            if (td.Show() == TaskDialogResult.Yes)
+            {
+                var legendEntries = new List<LegendBuilder.LegendEntry>();
+                foreach (var kvp in stats.OrderBy(x => x.Key))
+                {
+                    var s = kvp.Value;
+                    double pct2 = s.total > 0 ? s.valid * 100.0 / s.total : 0;
+                    legendEntries.Add(new LegendBuilder.LegendEntry
+                    {
+                        Color = StingColorRegistry.GetDisciplineColor(kvp.Key),
+                        Label = $"{kvp.Key} — {pct2:F0}%",
+                        Description = $"{s.valid}/{s.total} valid ({s.missing} missing)",
+                        Bold = pct2 >= 90,
+                    });
+                }
+
+                if (legendEntries.Count > 0)
+                {
+                    using (Transaction ltx = new Transaction(doc, "STING Compliance Legend"))
+                    {
+                        ltx.Start();
+                        var legendConfig = new LegendBuilder.LegendConfig
+                        {
+                            Title = "Discipline Compliance",
+                            Subtitle = $"Overall: {grandPct:F1}% | Strict: {grandStrictPct:F1}%",
+                            Footer = "STING Tools — ISO 19650 Completeness Dashboard",
+                        };
+                        LegendBuilder.CreateLegendView(doc, legendEntries, legendConfig);
+                        ltx.Commit();
+                    }
+                }
+            }
 
             return Result.Succeeded;
         }

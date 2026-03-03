@@ -338,6 +338,10 @@ namespace StingTools.Core
                             return "EXT";
                     }
                 }
+
+                // Workset-based fallback: check workset name for LOC patterns
+                string wsLoc = DetectLocFromWorkset(el);
+                if (!string.IsNullOrEmpty(wsLoc)) return wsLoc;
             }
             catch (Exception ex)
             {
@@ -378,6 +382,10 @@ namespace StingTools.Core
                     string zoneFromNum = ParseZoneCode(roomNum);
                     if (!string.IsNullOrEmpty(zoneFromNum)) return zoneFromNum;
                 }
+
+                // Workset-based fallback: check workset name for ZONE patterns
+                string wsZone = DetectZoneFromWorkset(el);
+                if (!string.IsNullOrEmpty(wsZone)) return wsZone;
             }
             catch (Exception ex)
             {
@@ -451,6 +459,585 @@ namespace StingTools.Core
                 idx = text.IndexOf(word, idx + 1);
             }
             return false;
+        }
+
+        /// <summary>
+        /// Detect LOC from workset name patterns when room-based detection fails.
+        /// Worksets often follow naming like "M-BLD1-Mechanical", "A-BLD2-Architecture",
+        /// "EXT-External Works" per AEC UK BIM Protocol and ISO 19650-2.
+        /// </summary>
+        public static string DetectLocFromWorkset(Element el)
+        {
+            try
+            {
+                if (!el.Document.IsWorkshared) return null;
+                WorksetId wsId = el.WorksetId;
+                if (wsId == null || wsId == WorksetId.InvalidWorksetId) return null;
+
+                WorksetTable table = el.Document.GetWorksetTable();
+                Workset ws = table.GetWorkset(wsId);
+                if (ws == null) return null;
+
+                string loc = ParseLocCode(ws.Name);
+                if (!string.IsNullOrEmpty(loc)) return loc;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DetectLocFromWorkset: {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Detect ZONE from workset name patterns when room-based detection fails.
+        /// Worksets may contain zone designators like "M-Z01-Mechanical", "E-Z02-Electrical".
+        /// </summary>
+        public static string DetectZoneFromWorkset(Element el)
+        {
+            try
+            {
+                if (!el.Document.IsWorkshared) return null;
+                WorksetId wsId = el.WorksetId;
+                if (wsId == null || wsId == WorksetId.InvalidWorksetId) return null;
+
+                WorksetTable table = el.Document.GetWorksetTable();
+                Workset ws = table.GetWorkset(wsId);
+                if (ws == null) return null;
+
+                string zone = ParseZoneCode(ws.Name);
+                if (!string.IsNullOrEmpty(zone)) return zone;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DetectZoneFromWorkset: {ex.Message}");
+            }
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Auto-derives construction STATUS from Revit's native phase system and workset
+    /// naming conventions. The Revit Phase model (CreatedPhaseId / DemolishedPhaseId)
+    /// provides authoritative construction status that previously required manual input
+    /// via the SetStatus command.
+    ///
+    /// Intelligence layers (evaluated in order, first non-null wins):
+    ///   1. Element DemolishedPhaseId — if set, the element is DEMOLISHED
+    ///   2. Created Phase name patterns — "Existing", "As-Built" → EXISTING;
+    ///      "New Construction", "New" → NEW; "Temporary" → TEMPORARY
+    ///   3. Workset name patterns — "EXISTING_*", "DEMO_*", "TEMP_*", "NEW_*"
+    ///   4. Phase filter context — element phase status relative to the project's
+    ///      current/active phase
+    ///
+    /// Also derives REV (revision code) from the most recent Revit sheet revision
+    /// associated with the project, providing automatic revision tracking.
+    /// </summary>
+    public static class PhaseAutoDetect
+    {
+        /// <summary>Valid STATUS values per ISO 19650.</summary>
+        public static readonly string[] ValidStatuses =
+            { "EXISTING", "NEW", "DEMOLISHED", "TEMPORARY" };
+
+        /// <summary>
+        /// Detect the construction STATUS for an element from its Revit phase assignments.
+        /// Returns one of: EXISTING, NEW, DEMOLISHED, TEMPORARY, or null if uncertain.
+        ///
+        /// Layer 1: If the element has a DemolishedPhaseId, it is explicitly demolished.
+        /// Layer 2: The CreatedPhase name is matched against status patterns — elements
+        ///          created in an "Existing" phase are existing infrastructure, those
+        ///          created in "New Construction" are new work.
+        /// Layer 3: Workset name patterns provide a fallback when phase data is absent
+        ///          or when the project does not use phasing.
+        /// Layer 4: If the project has a defined active phase and the element was created
+        ///          in an earlier phase, it is treated as EXISTING relative to current work.
+        /// </summary>
+        public static string DetectStatus(Document doc, Element el)
+        {
+            try
+            {
+                // Layer 1: Demolished phase — definitive
+                Parameter demolParam = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
+                if (demolParam != null && demolParam.HasValue)
+                {
+                    ElementId demolPhaseId = demolParam.AsElementId();
+                    if (demolPhaseId != null && demolPhaseId != ElementId.InvalidElementId)
+                        return "DEMOLISHED";
+                }
+
+                // Layer 2: Created phase name pattern matching
+                Parameter createdParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                if (createdParam != null && createdParam.HasValue)
+                {
+                    ElementId createdPhaseId = createdParam.AsElementId();
+                    if (createdPhaseId != null && createdPhaseId != ElementId.InvalidElementId)
+                    {
+                        Phase phase = doc.GetElement(createdPhaseId) as Phase;
+                        if (phase != null)
+                        {
+                            string phaseName = (phase.Name ?? "").ToUpperInvariant();
+                            string status = ParseStatusFromPhaseName(phaseName);
+                            if (!string.IsNullOrEmpty(status)) return status;
+
+                            // Layer 4: Compare created phase against active/last phase
+                            // If the element was created in a phase earlier than the last
+                            // defined phase, treat it as EXISTING relative to current work.
+                            var phases = new FilteredElementCollector(doc)
+                                .OfClass(typeof(Phase))
+                                .Cast<Phase>()
+                                .ToList();
+                            if (phases.Count > 1)
+                            {
+                                Phase lastPhase = phases.Last();
+                                if (createdPhaseId != lastPhase.Id)
+                                    return "EXISTING";
+                            }
+                        }
+                    }
+                }
+
+                // Layer 3: Workset name patterns
+                string fromWorkset = DetectStatusFromWorkset(el);
+                if (!string.IsNullOrEmpty(fromWorkset)) return fromWorkset;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PhaseAutoDetect.DetectStatus: {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Detect STATUS from workset naming conventions.
+        /// Common patterns: "EXISTING_Walls", "DEMO_Mechanical", "NEW_Electrical",
+        /// "TEMP_Hoarding", "01-Existing Structure", "02-New Build".
+        /// </summary>
+        public static string DetectStatusFromWorkset(Element el)
+        {
+            try
+            {
+                if (!el.Document.IsWorkshared) return null;
+                WorksetId wsId = el.WorksetId;
+                if (wsId == null || wsId == WorksetId.InvalidWorksetId) return null;
+
+                WorksetTable table = el.Document.GetWorksetTable();
+                Workset ws = table.GetWorkset(wsId);
+                if (ws == null) return null;
+
+                string wsName = (ws.Name ?? "").ToUpperInvariant();
+                return ParseStatusFromText(wsName);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DetectStatusFromWorkset: {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Parse a phase name into a STATUS value.
+        /// Recognizes standard Revit phase names and ISO 19650 naming conventions.
+        /// </summary>
+        private static string ParseStatusFromPhaseName(string phaseName)
+        {
+            if (string.IsNullOrEmpty(phaseName)) return null;
+
+            if (phaseName.Contains("EXISTING") || phaseName.Contains("AS-BUILT") ||
+                phaseName.Contains("AS BUILT") || phaseName.Contains("SURVEY") ||
+                phaseName.Contains("CURRENT") || phaseName.Contains("RETAINED"))
+                return "EXISTING";
+
+            if (phaseName.Contains("DEMOLITION") || phaseName.Contains("DEMOLISHED") ||
+                phaseName.Contains("DEMO") || phaseName.Contains("REMOVAL") ||
+                phaseName.Contains("STRIP OUT") || phaseName.Contains("STRIP-OUT"))
+                return "DEMOLISHED";
+
+            if (phaseName.Contains("TEMPORARY") || phaseName.Contains("TEMP WORKS") ||
+                phaseName.Contains("ENABLEMENT") || phaseName.Contains("HOARDING") ||
+                phaseName.Contains("PROPPING"))
+                return "TEMPORARY";
+
+            if (phaseName.Contains("NEW CONSTRUCTION") || phaseName.Contains("NEW BUILD") ||
+                phaseName.Contains("PROPOSED") || phaseName.Contains("NEW WORK") ||
+                phaseName == "NEW")
+                return "NEW";
+
+            return null;
+        }
+
+        /// <summary>
+        /// Parse a text string (workset name, parameter value) for STATUS patterns.
+        /// </summary>
+        private static string ParseStatusFromText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return null;
+
+            if (text.StartsWith("EXISTING") || text.Contains("_EXISTING") ||
+                text.Contains("-EXISTING") || text.Contains(" EXISTING"))
+                return "EXISTING";
+
+            if (text.StartsWith("DEMO") || text.Contains("_DEMO") ||
+                text.Contains("-DEMO") || text.Contains(" DEMOLISHED"))
+                return "DEMOLISHED";
+
+            if (text.StartsWith("TEMP") || text.Contains("_TEMP") ||
+                text.Contains("-TEMP") || text.Contains(" TEMPORARY"))
+                return "TEMPORARY";
+
+            if (text.StartsWith("NEW") || text.Contains("_NEW") ||
+                text.Contains("-NEW") || text.Contains(" NEW"))
+                return "NEW";
+
+            return null;
+        }
+
+        /// <summary>
+        /// Detect the current project revision code from the most recent Revision element.
+        /// Revit maintains a built-in revision sequence; this reads the latest revision's
+        /// numbering value to auto-populate the REV token on elements.
+        /// Returns null if no revisions are defined or the project has no revision history.
+        /// </summary>
+        public static string DetectProjectRevision(Document doc)
+        {
+            try
+            {
+                var revisions = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Revision))
+                    .Cast<Revision>()
+                    .Where(r => r.Issued || r.RevisionNumber != null)
+                    .OrderByDescending(r => r.SequenceNumber)
+                    .ToList();
+
+                if (revisions.Count > 0)
+                {
+                    Revision latest = revisions[0];
+                    string revNum = latest.RevisionNumber;
+                    if (!string.IsNullOrEmpty(revNum))
+                        return revNum;
+                    // Fallback: use sequence number formatted as letter code
+                    return SequenceToRevCode(latest.SequenceNumber);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DetectProjectRevision: {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Convert a numeric sequence to a revision letter code (1→A, 2→B, ..., 26→Z, 27→AA).
+        /// Follows standard ISO 19650 / BS 1192 revision numbering conventions.
+        /// </summary>
+        private static string SequenceToRevCode(int seq)
+        {
+            if (seq <= 0) return "P01"; // Pre-revision = Planning issue 01
+            if (seq <= 26) return ((char)('A' + seq - 1)).ToString();
+            // Beyond Z: AA, AB, AC...
+            int first = (seq - 1) / 26;
+            int second = (seq - 1) % 26;
+            return ((char)('A' + first - 1)).ToString() + ((char)('A' + second)).ToString();
+        }
+
+        /// <summary>
+        /// Build a phase-index mapping for efficient batch operations.
+        /// Maps each phase name to its ordinal position in the project's phase sequence.
+        /// Returns a dictionary of phase ElementId to phase ordinal (0-based).
+        /// </summary>
+        public static Dictionary<ElementId, int> BuildPhaseIndex(Document doc)
+        {
+            var index = new Dictionary<ElementId, int>();
+            try
+            {
+                int ordinal = 0;
+                foreach (Phase phase in new FilteredElementCollector(doc)
+                    .OfClass(typeof(Phase))
+                    .Cast<Phase>()
+                    .OrderBy(p => p.Id.Value))
+                {
+                    index[phase.Id] = ordinal++;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildPhaseIndex: {ex.Message}");
+            }
+            return index;
+        }
+    }
+
+    /// <summary>
+    /// Shared token auto-population logic used by all tagging commands.
+    /// Eliminates code duplication across AutoTag, BatchTag, TagNewOnly,
+    /// TagAndCombine, FullAutoPopulate, and BulkParamWrite.
+    ///
+    /// Populates all 9 tokens: DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS, REV.
+    /// Each token uses the highest-intelligence detection available:
+    ///   - DISC: category-based with system-aware correction for pipes
+    ///   - LOC: spatial auto-detect (room → project info → workset)
+    ///   - ZONE: spatial auto-detect (room department → room name → workset)
+    ///   - LVL: deterministic from element level
+    ///   - SYS: 6-layer MEP system-aware detection
+    ///   - FUNC: smart subsystem differentiation (SUP/RTN/EXH, HTG/DHW)
+    ///   - PROD: family-aware (35+ specific codes)
+    ///   - STATUS: phase-aware (4-layer: demolished → phase name → workset → ordinal)
+    ///   - REV: project revision sequence
+    /// </summary>
+    public static class TokenAutoPopulator
+    {
+        /// <summary>
+        /// Pre-built context for batch operations. Build once, reuse for all elements.
+        /// Wraps all the indexes and project-level values needed for token population.
+        /// </summary>
+        public class PopulationContext
+        {
+            public Dictionary<ElementId, Room> RoomIndex { get; set; }
+            public string ProjectLoc { get; set; }
+            public string ProjectRev { get; set; }
+            public HashSet<string> KnownCategories { get; set; }
+
+            /// <summary>
+            /// Build a PopulationContext once for a batch operation.
+            /// </summary>
+            public static PopulationContext Build(Document doc)
+            {
+                return new PopulationContext
+                {
+                    RoomIndex = SpatialAutoDetect.BuildRoomIndex(doc),
+                    ProjectLoc = SpatialAutoDetect.DetectProjectLoc(doc),
+                    ProjectRev = PhaseAutoDetect.DetectProjectRevision(doc),
+                    KnownCategories = new HashSet<string>(TagConfig.DiscMap.Keys),
+                };
+            }
+        }
+
+        /// <summary>
+        /// Result of populating tokens on a single element.
+        /// Provides granular counts for reporting.
+        /// </summary>
+        public class PopulationResult
+        {
+            public int TokensSet { get; set; }
+            public bool LocDetected { get; set; }
+            public bool ZoneDetected { get; set; }
+            public bool StatusDetected { get; set; }
+            public bool RevSet { get; set; }
+            public bool FamilyProdUsed { get; set; }
+        }
+
+        /// <summary>
+        /// Populate all 9 tokens on a single element using the highest-intelligence
+        /// detection available. Only fills empty values (non-destructive) unless
+        /// overwrite is true.
+        /// </summary>
+        public static PopulationResult PopulateAll(Document doc, Element el,
+            PopulationContext ctx, bool overwrite = false)
+        {
+            var result = new PopulationResult();
+            string catName = ParameterHelpers.GetCategoryName(el);
+            if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
+                return result;
+
+            // DISC — deterministic from category (default "A" for unmapped categories)
+            string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
+
+            // SYS — 6-layer MEP system-aware detection (must come before DISC correction)
+            string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+            // Guaranteed SYS default: derive from discipline when MEP detection returns empty
+            if (string.IsNullOrEmpty(sys))
+                sys = TagConfig.GetDiscDefaultSysCode(disc);
+
+            // DISC correction — system-aware override for pipes
+            disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
+
+            if (overwrite)
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true)) result.TokensSet++;
+            }
+            else
+            {
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) result.TokensSet++;
+            }
+
+            // LOC — from spatial context (room → project info → workset)
+            // Guaranteed default: "BLD1" when detection returns empty
+            string existingLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+            if (string.IsNullOrEmpty(existingLoc) || overwrite)
+            {
+                string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
+                if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                if (overwrite)
+                {
+                    if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true)) result.TokensSet++;
+                }
+                else
+                {
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) result.TokensSet++;
+                }
+                result.LocDetected = true;
+            }
+
+            // ZONE — from room data (department → name → workset)
+            // Guaranteed default: "Z01" when detection returns empty
+            string existingZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+            if (string.IsNullOrEmpty(existingZone) || overwrite)
+            {
+                string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
+                if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                if (overwrite)
+                {
+                    if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true)) result.TokensSet++;
+                }
+                else
+                {
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) result.TokensSet++;
+                }
+                result.ZoneDetected = true;
+            }
+
+            // LVL — deterministic from element level
+            // Guaranteed default: replace unresolved "XX" with "L00" for levelless elements
+            string lvl = ParameterHelpers.GetLevelCode(doc, el);
+            if (lvl == "XX") lvl = "L00";
+            if (overwrite)
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.LVL, lvl, overwrite: true)) result.TokensSet++;
+            }
+            else
+            {
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) result.TokensSet++;
+            }
+
+            // SYS — always write a guaranteed value (never empty)
+            if (overwrite)
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true)) result.TokensSet++;
+            }
+            else
+            {
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) result.TokensSet++;
+            }
+
+            // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
+            // Guaranteed default: derive from SYS via FuncMap when smart detection is empty
+            string func = TagConfig.GetSmartFuncCode(el, sys);
+            if (string.IsNullOrEmpty(func))
+                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+            if (overwrite)
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true)) result.TokensSet++;
+            }
+            else
+            {
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) result.TokensSet++;
+            }
+
+            // PROD — family-aware (35+ specific codes)
+            string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+            string catProd = TagConfig.ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+            if (prod != catProd) result.FamilyProdUsed = true;
+            if (overwrite)
+            {
+                if (ParameterHelpers.SetString(el, ParamRegistry.PROD, prod, overwrite: true)) result.TokensSet++;
+            }
+            else
+            {
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) result.TokensSet++;
+            }
+
+            // STATUS — phase-aware (4-layer detection from Revit phases/worksets)
+            string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+            if (string.IsNullOrEmpty(existingStatus) || overwrite)
+            {
+                string status = PhaseAutoDetect.DetectStatus(doc, el);
+                if (string.IsNullOrEmpty(status)) status = "NEW";
+                if (overwrite)
+                {
+                    if (ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true))
+                    {
+                        result.TokensSet++;
+                        result.StatusDetected = true;
+                    }
+                }
+                else
+                {
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, status))
+                    {
+                        result.TokensSet++;
+                        result.StatusDetected = true;
+                    }
+                }
+            }
+
+            // REV — from project revision sequence
+            // Guaranteed default: "P01" when no project revisions exist
+            {
+                string rev = !string.IsNullOrEmpty(ctx.ProjectRev) ? ctx.ProjectRev : "P01";
+                if (overwrite)
+                {
+                    if (ParameterHelpers.SetString(el, ParamRegistry.REV, rev, overwrite: true))
+                    {
+                        result.TokensSet++;
+                        result.RevSet = true;
+                    }
+                }
+                else
+                {
+                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, rev))
+                    {
+                        result.TokensSet++;
+                        result.RevSet = true;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Populate only the core 7 tag tokens (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD)
+        /// without STATUS and REV. Used when only tag-building tokens are needed.
+        /// </summary>
+        public static int PopulateTagTokens(Document doc, Element el,
+            PopulationContext ctx)
+        {
+            int count = 0;
+            string catName = ParameterHelpers.GetCategoryName(el);
+            if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
+                return count;
+
+            string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
+            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) count++;
+
+            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
+            {
+                string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
+                if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) count++;
+            }
+
+            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
+            {
+                string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
+                if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) count++;
+            }
+
+            string lvl = ParameterHelpers.GetLevelCode(doc, el);
+            if (lvl == "XX") lvl = "L00";
+            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) count++;
+
+            string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+            if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) count++;
+
+            string func = TagConfig.GetSmartFuncCode(el, sys);
+            if (string.IsNullOrEmpty(func)) func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) count++;
+
+            string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) count++;
+
+            return count;
         }
     }
 
@@ -527,7 +1114,7 @@ namespace StingTools.Core
             written += MapMepParams(el);
 
             // ── Default values ─────────────────────────────────────────────────
-            written += MapDefaults(el);
+            written += MapDefaults(doc, el);
 
             // ── Type parameter fallback ────────────────────────────────────────
             // If instance params are still empty, try reading from the element type
@@ -883,42 +1470,37 @@ namespace StingTools.Core
         /// STATUS is derived from the element's phase (PHASE_CREATED / PHASE_DEMOLISHED)
         /// when available, falling back to "NEW" if no phase data exists.
         /// </summary>
-        private static int MapDefaults(Element el)
+        private static int MapDefaults(Document doc, Element el)
         {
             int written = 0;
 
-            // Derive STATUS from element phase lifecycle
-            string status = "NEW";
+            // STATUS: auto-detect from Revit phase/workset, fallback to "NEW"
+            string status = PhaseAutoDetect.DetectStatus(doc, el);
+            if (string.IsNullOrEmpty(status)) status = "NEW";
+            written += SetIfEmptyInt(el, ParamRegistry.STATUS, status);
+
+            // REV: auto-detect from project revision sequence
+            string rev = PhaseAutoDetect.DetectProjectRevision(doc);
+            if (!string.IsNullOrEmpty(rev))
+                written += SetIfEmptyInt(el, ParamRegistry.REV, rev);
+
+            // ORIGIN: set from project originator field if available
             try
             {
-                var phaseCreated = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
-                var phaseDemolished = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
-
-                if (phaseDemolished != null && phaseDemolished.AsElementId() != ElementId.InvalidElementId)
-                {
-                    // Element has a demolition phase — it's demolished
-                    status = "DEMOLISHED";
-                }
-                else if (phaseCreated != null && phaseCreated.AsElementId() != ElementId.InvalidElementId)
-                {
-                    var doc = el.Document;
-                    var phase = doc.GetElement(phaseCreated.AsElementId());
-                    if (phase != null)
-                    {
-                        string phaseName = phase.Name.ToUpperInvariant();
-                        if (phaseName.Contains("EXIST"))
-                            status = "EXISTING";
-                        else if (phaseName.Contains("DEMO"))
-                            status = "DEMOLISHED";
-                        else if (phaseName.Contains("TEMP"))
-                            status = "TEMPORARY";
-                        // else remains "NEW" (for "New Construction" etc.)
-                    }
-                }
+                string origin = doc.ProjectInformation?.OrganizationName;
+                if (!string.IsNullOrEmpty(origin))
+                    written += SetIfEmptyInt(el, ParamRegistry.ORIGIN, origin);
             }
-            catch { /* Phase parameters may not exist on all element types */ }
+            catch { }
 
-            written += SetIfEmptyInt(el, ParamRegistry.STATUS, status);
+            // PROJECT: set from project name if available
+            try
+            {
+                string projName = doc.ProjectInformation?.Name;
+                if (!string.IsNullOrEmpty(projName))
+                    written += SetIfEmptyInt(el, ParamRegistry.PROJECT, projName);
+            }
+            catch { }
             return written;
         }
 

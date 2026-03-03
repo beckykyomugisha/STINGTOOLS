@@ -97,6 +97,11 @@ namespace StingTools.Organise
                         existingTags: tagIndex,
                         collisionMode: collisionMode,
                         stats: stats);
+
+                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                    string catTag7 = ParameterHelpers.GetCategoryName(elem);
+                    string[] tVals = ParamRegistry.ReadTokenValues(elem);
+                    TagConfig.WriteTag7All(doc, elem, catTag7, tVals, overwrite: true);
                 }
                 tx.Commit();
             }
@@ -165,6 +170,11 @@ namespace StingTools.Organise
                         existingTags: tagIndex,
                         collisionMode: TagCollisionMode.Overwrite))
                         retagged++;
+
+                    // Rebuild TAG7 + sub-sections with updated tokens
+                    string catRT = ParameterHelpers.GetCategoryName(elem);
+                    string[] tvRT = ParamRegistry.ReadTokenValues(elem);
+                    TagConfig.WriteTag7All(doc, elem, catRT, tvRT, overwrite: true);
                 }
                 tx.Commit();
             }
@@ -221,7 +231,7 @@ namespace StingTools.Organise
 
             var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
             var tagIndex = new HashSet<string>(tagMap.Keys, StringComparer.Ordinal);
-            int fixed_ = 0;
+            int fixedCount = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Fix Duplicates"))
             {
@@ -232,6 +242,7 @@ namespace StingTools.Organise
                     for (int i = 1; i < kvp.Value.Count; i++)
                     {
                         Element elem = kvp.Value[i];
+                        string catName = ParameterHelpers.GetCategoryName(elem);
                         string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                         string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
                         string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
@@ -239,6 +250,22 @@ namespace StingTools.Organise
                         string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
                         string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
                         string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+
+                        // Guaranteed defaults for empty tokens
+                        if (string.IsNullOrEmpty(disc))
+                            disc = TagConfig.DiscMap.TryGetValue(catName, out string dd) ? dd : "A";
+                        if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                        if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                        if (string.IsNullOrEmpty(lvl)) lvl = "L00";
+                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                        if (string.IsNullOrEmpty(func))
+                        {
+                            func = TagConfig.GetSmartFuncCode(elem, sys);
+                            if (string.IsNullOrEmpty(func))
+                                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                        }
+                        if (string.IsNullOrEmpty(prod))
+                            prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
 
                         if (string.IsNullOrEmpty(disc)) continue;
 
@@ -260,27 +287,30 @@ namespace StingTools.Organise
                         ParameterHelpers.SetString(elem, ParamRegistry.SEQ, newSeq, overwrite: true);
                         ParameterHelpers.SetString(elem, ParamRegistry.TAG1, newTag, overwrite: true);
 
-                        // Update containers with the new tag
+                        // Update containers and TAG7 + sub-sections with the new tag
                         try
                         {
                             string catName = ParameterHelpers.GetCategoryName(elem);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
                             if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                            {
                                 ParamRegistry.WriteContainers(elem, tokenVals, catName, overwrite: true);
+                                TagConfig.WriteTag7All(doc, elem, catName, tokenVals, overwrite: true);
+                            }
                         }
                         catch (Exception ex)
                         {
                             StingLog.Warn($"FixDuplicates: container write failed for {elem.Id}: {ex.Message}");
                         }
 
-                        fixed_++;
+                        fixedCount++;
                     }
                 }
                 tx.Commit();
             }
 
             TaskDialog.Show("Fix Duplicates",
-                $"Fixed {fixed_} duplicate tags across {duplicates.Count} tag values.\n" +
+                $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.\n" +
                 "All tags are now unique.");
             return Result.Succeeded;
         }
@@ -403,7 +433,8 @@ namespace StingTools.Organise
                         string seqStr = seq.ToString().PadLeft(ParamRegistry.NumPad, '0');
                         ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seqStr, overwrite: true);
 
-                        // Rebuild assembled tag
+                        // Rebuild assembled tag with guaranteed defaults for empty tokens
+                        string catName = ParameterHelpers.GetCategoryName(elem);
                         string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                         string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
                         string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
@@ -411,17 +442,36 @@ namespace StingTools.Organise
                         string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
                         string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
                         string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+
+                        if (string.IsNullOrEmpty(disc))
+                            disc = TagConfig.DiscMap.TryGetValue(catName, out string dd) ? dd : "A";
+                        if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                        if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                        if (string.IsNullOrEmpty(lvl)) lvl = "L00";
+                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                        if (string.IsNullOrEmpty(func))
+                        {
+                            func = TagConfig.GetSmartFuncCode(elem, sys);
+                            if (string.IsNullOrEmpty(func))
+                                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                        }
+                        if (string.IsNullOrEmpty(prod))
+                            prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
+
                         string tag = string.Join(ParamRegistry.Separator,
                             disc, loc, zone, lvl, sys, func, prod, seqStr);
                         ParameterHelpers.SetString(elem, ParamRegistry.TAG1, tag, overwrite: true);
 
-                        // Update containers with the new tag
+                        // Update containers and TAG7 + sub-sections with the new tag
                         try
                         {
                             string catName = ParameterHelpers.GetCategoryName(elem);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
                             if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                            {
                                 ParamRegistry.WriteContainers(elem, tokenVals, catName, overwrite: true);
+                                TagConfig.WriteTag7All(doc, elem, catName, tokenVals, overwrite: true);
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -450,7 +500,7 @@ namespace StingTools.Organise
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             var sb = new StringBuilder();
-            sb.AppendLine("ElementId,Category,Tag,DISC,LOC,ZONE,LVL,SYS,FUNC,PROD,SEQ,STATUS,Valid");
+            sb.AppendLine("ElementId,Category,Tag,DISC,LOC,ZONE,LVL,SYS,FUNC,PROD,SEQ,STATUS,REV,Valid,FullyResolved");
 
             int total = 0;
             foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
@@ -469,9 +519,11 @@ namespace StingTools.Organise
                 string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
                 string seq = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
                 string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
+                string rev = ParameterHelpers.GetString(elem, ParamRegistry.REV);
                 bool valid = TagConfig.TagIsComplete(tag);
+                bool resolved = TagConfig.TagIsFullyResolved(tag);
 
-                sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{valid}");
+                sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{rev},{valid},{resolved}");
             }
 
             // Write to file
@@ -654,12 +706,38 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
-            TaskDialog.Show("Highlight Invalid",
+            var resultDlg = new TaskDialog("Highlight Invalid");
+            resultDlg.MainContent =
                 $"Red (missing tag):     {missing}\n" +
                 $"Orange (incomplete):   {incomplete}\n" +
                 $"Purple (placeholders): {unresolved}\n" +
                 $"Yellow (ISO issues):   {isoInvalid}\n\n" +
-                "Use 'Clear Overrides' to reset.");
+                "Use 'Clear Overrides' to reset.\n\n" +
+                "Create a persistent color legend?";
+            resultDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+            resultDlg.DefaultButton = TaskDialogResult.No;
+
+            if (resultDlg.Show() == TaskDialogResult.Yes)
+            {
+                var entries = Tags.LegendBuilder.FromHighlightInvalid(missing, incomplete, unresolved, isoInvalid);
+                var config = new Tags.LegendBuilder.LegendConfig
+                {
+                    Title = "Tag Validation Status",
+                    Subtitle = "Highlight Invalid Results",
+                    Footer = $"View: {view.Name} | Generated by STING Tools",
+                };
+
+                using (Transaction ltx = new Transaction(doc, "STING Validation Legend"))
+                {
+                    ltx.Start();
+                    var legendView = Tags.LegendBuilder.CreateLegendView(doc, entries, config);
+                    ltx.Commit();
+
+                    if (legendView != null)
+                        TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
+                }
+            }
+
             return Result.Succeeded;
         }
     }
@@ -742,7 +820,7 @@ namespace StingTools.Organise
                 Element target = doc.GetElement(selected[i]);
                 if (target == null) continue;
                 string targetCat = ParameterHelpers.GetCategoryName(target);
-                string expectedDisc = TagConfig.DiscMap.TryGetValue(targetCat, out string td2) ? td2 : "XX";
+                string expectedDisc = TagConfig.DiscMap.TryGetValue(targetCat, out string td2) ? td2 : "A";
                 if (!string.IsNullOrEmpty(sourceDisc) && sourceDisc != expectedDisc)
                     discMismatches++;
             }
@@ -1261,8 +1339,36 @@ namespace StingTools.Organise
                 var c = AnnotationColorHelper.DisciplineColors[kvp.Key];
                 report.AppendLine($"  {kvp.Key}: {kvp.Value} tags (RGB {c.Red},{c.Green},{c.Blue})");
             }
+            report.AppendLine();
+            report.AppendLine("Create a persistent color legend?");
 
-            TaskDialog.Show("Color Tags by Discipline", report.ToString());
+            var resultDlg = new TaskDialog("Color Tags by Discipline");
+            resultDlg.MainContent = report.ToString();
+            resultDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+            resultDlg.DefaultButton = TaskDialogResult.No;
+
+            if (resultDlg.Show() == TaskDialogResult.Yes)
+            {
+                var entries = Tags.LegendBuilder.FromDisciplineColors(
+                    AnnotationColorHelper.DisciplineColors, discCounts);
+                var config = new Tags.LegendBuilder.LegendConfig
+                {
+                    Title = "Discipline Color Coding",
+                    Subtitle = "Annotation Tags by Discipline",
+                    Footer = $"View: {view.Name} | Generated by STING Tools",
+                };
+
+                using (Transaction ltx = new Transaction(doc, "STING Discipline Legend"))
+                {
+                    ltx.Start();
+                    var legendView = Tags.LegendBuilder.CreateLegendView(doc, entries, config);
+                    ltx.Commit();
+
+                    if (legendView != null)
+                        TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
+                }
+            }
+
             StingLog.Info($"ColorTagsByDiscipline: colored={colored}");
             return Result.Succeeded;
         }
@@ -2436,7 +2542,7 @@ namespace StingTools.Organise
                 // Validation
                 "TagValid", "TagResolved", "TagComplete", "ValidationIssues",
                 // Status & Classification
-                "STATUS", "Mark", "Description", "Manufacturer", "Model",
+                "STATUS", "REV", "Mark", "Description", "Manufacturer", "Model",
                 // Spatial
                 "Level", "RoomName", "RoomNumber", "Department", "GridRef",
                 // Dimensional
@@ -2509,6 +2615,7 @@ namespace StingTools.Organise
                 string familyName = ParameterHelpers.GetFamilyName(el);
                 string typeName = ParameterHelpers.GetFamilySymbolName(el);
                 string status = Gs(el, ParamRegistry.STATUS);
+                string rev = Gs(el, ParamRegistry.REV);
                 string mark = Gp(el, BuiltInParameter.ALL_MODEL_MARK);
                 string desc = Gs(el, ParamRegistry.DESC);
                 if (string.IsNullOrEmpty(desc)) desc = Gp(el, BuiltInParameter.ALL_MODEL_DESCRIPTION);
@@ -2583,6 +2690,7 @@ namespace StingTools.Organise
                 sb.Append(isComplete).Append(',');
                 sb.Append(Esc(issueStr)).Append(',');
                 sb.Append(status).Append(',');
+                sb.Append(rev).Append(',');
                 sb.Append(Esc(mark)).Append(',');
                 sb.Append(Esc(desc)).Append(',');
                 sb.Append(Esc(mfr)).Append(',');

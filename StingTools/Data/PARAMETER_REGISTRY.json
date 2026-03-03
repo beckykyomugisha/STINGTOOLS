@@ -51,7 +51,14 @@
         { "param_name": "ASS_TAG_3_TXT", "guid": "068abd3b-650e-4a7c-ac07-82e556160de0", "tokens": "location",  "separator": "-", "prefix": "", "suffix": "", "description": "Location (LOC-ZONE-LVL)" },
         { "param_name": "ASS_TAG_4_TXT", "guid": "9432c6e4-8912-4a0b-bf04-2ee1cf3afadf", "tokens": "system",    "separator": "-", "prefix": "", "suffix": "", "description": "System (SYS-FUNC)" },
         { "param_name": "ASS_TAG_5_TXT", "guid": "c875d795-d764-4a8b-826a-2677635b15b9", "tokens": "line1",     "separator": "-", "prefix": "", "suffix": "", "description": "Multi-line top (DISC-LOC-ZONE-LVL)" },
-        { "param_name": "ASS_TAG_6_TXT", "guid": "6fcfc27b-a42d-4f54-92ad-66c875f9be38", "tokens": "line2",     "separator": "-", "prefix": "", "suffix": "", "description": "Multi-line bottom (SYS-FUNC-PROD-SEQ)" }
+        { "param_name": "ASS_TAG_6_TXT", "guid": "6fcfc27b-a42d-4f54-92ad-66c875f9be38", "tokens": "line2",     "separator": "-", "prefix": "", "suffix": "", "description": "Multi-line bottom (SYS-FUNC-PROD-SEQ)" },
+        { "param_name": "ASS_TAG_7_TXT", "guid": "a3e7b2c1-9d45-4f8a-b6c2-1e8f0a5d3b7c", "tokens": "all",       "separator": " | ", "prefix": "", "suffix": "", "description": "Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup tokens for rich rendering" },
+        { "param_name": "ASS_TAG_7A_TXT", "guid": "b4f8c3d2-ae56-4f9b-c7d3-2f9g1b6e4c8d", "tokens": "all", "separator": " | ", "prefix": "", "suffix": "", "description": "TAG7 Section A: Identity Header — asset name, product, manufacturer, model (styled as BOLD in tag families)" },
+        { "param_name": "ASS_TAG_7B_TXT", "guid": "c5g9d4e3-bf67-5ga0-d8e4-3g0h2c7f5d9e", "tokens": "all", "separator": " | ", "prefix": "", "suffix": "", "description": "TAG7 Section B: System & Function Context — full system/function descriptions (styled as ITALIC in tag families)" },
+        { "param_name": "ASS_TAG_7C_TXT", "guid": "d6h0e5f4-cg78-6hb1-e9f5-4h1i3d8g6e0f", "tokens": "all", "separator": " | ", "prefix": "", "suffix": "", "description": "TAG7 Section C: Spatial Context — room, department, grid reference" },
+        { "param_name": "ASS_TAG_7D_TXT", "guid": "e7i1f6g5-dh89-7ic2-f0g6-5i2j4e9h7f1g", "tokens": "all", "separator": " | ", "prefix": "", "suffix": "", "description": "TAG7 Section D: Lifecycle & Status — status, revision, origin, maintenance" },
+        { "param_name": "ASS_TAG_7E_TXT", "guid": "f8j2g7h6-ei90-8jd3-g1h7-6j3k5f0i8g2h", "tokens": "all", "separator": " | ", "prefix": "", "suffix": "", "description": "TAG7 Section E: Technical Specifications — discipline-specific MEP/BLE performance data" },
+        { "param_name": "ASS_TAG_7F_TXT", "guid": "g9k3h8i7-fj01-9ke4-h2i8-7k4l6g1j9h3i", "tokens": "all", "separator": " | ", "prefix": "", "suffix": "", "description": "TAG7 Section F: Classification & Reference — Uniformat, OmniClass, keynote, cost, ISO tag" }
       ]
     },
     {

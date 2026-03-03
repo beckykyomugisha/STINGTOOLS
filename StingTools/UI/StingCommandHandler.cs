@@ -151,6 +151,54 @@ namespace StingTools.UI
                     case "BatchTagTextSize": RunCommand<Tags.BatchTagTextSizeCommand>(app); break;
                     case "SetTagCatLineWeight": RunCommand<Tags.SetTagCategoryLineWeightCommand>(app); break;
 
+                    // ── Rich TAG7 display ──
+                    case "RichTagNote": RunCommand<Tags.RichTagNoteCommand>(app); break;
+                    case "ExportRichTagReport": RunCommand<Tags.ExportRichTagReportCommand>(app); break;
+                    case "ViewTag7Sections": RunCommand<Tags.ViewTag7SectionsCommand>(app); break;
+                    case "SwitchTag7Preset": RunCommand<Tags.SwitchTag7PresetCommand>(app); break;
+
+                    // ── TAG1-TAG6 segment display ──
+                    case "RichSegmentNote": RunCommand<Tags.RichSegmentNoteCommand>(app); break;
+                    case "ViewSegments": RunCommand<Tags.ViewSegmentsCommand>(app); break;
+
+                    // ── Legend builder ──
+                    case "CreateColorLegend": RunCommand<Tags.CreateColorLegendCommand>(app); break;
+                    case "ExportColorLegendHtml": RunCommand<Tags.ExportColorLegendHtmlCommand>(app); break;
+                    case "AutoCreateLegends": RunCommand<Tags.AutoCreateLegendsCommand>(app); break;
+                    case "LegendFromView": RunCommand<Tags.LegendFromViewCommand>(app); break;
+                    case "PlaceLegendOnSheet": RunCommand<Tags.PlaceLegendOnSheetCommand>(app); break;
+                    case "SheetContextLegend": RunCommand<Tags.SheetContextLegendCommand>(app); break;
+                    case "PlaceLegendOnAllSheets": RunCommand<Tags.PlaceLegendOnAllSheetsCommand>(app); break;
+                    case "BatchSheetContextLegends": RunCommand<Tags.BatchSheetContextLegendsCommand>(app); break;
+                    case "CreateTagLegend": RunCommand<Tags.CreateTagLegendCommand>(app); break;
+                    case "SheetTagLegend": RunCommand<Tags.SheetTagLegendCommand>(app); break;
+                    case "BatchTagLegends": RunCommand<Tags.BatchTagLegendsCommand>(app); break;
+                    case "UpdateLegend": RunCommand<Tags.UpdateLegendCommand>(app); break;
+                    case "DeleteStaleLegend": RunCommand<Tags.DeleteStaleLegendCommand>(app); break;
+                    case "OneClickLegendPipeline": RunCommand<Tags.OneClickLegendPipelineCommand>(app); break;
+                    case "MepSystemLegend": RunCommand<Tags.MepSystemLegendCommand>(app); break;
+                    case "MaterialLegend": RunCommand<Tags.MaterialLegendCommand>(app); break;
+                    case "CompoundTypeLegend": RunCommand<Tags.CompoundTypeLegendCommand>(app); break;
+                    case "EquipmentLegend": RunCommand<Tags.EquipmentLegendCommand>(app); break;
+                    case "FireRatingLegend": RunCommand<Tags.FireRatingLegendCommand>(app); break;
+                    case "MasterLegendPipeline": RunCommand<Tags.MasterLegendPipelineCommand>(app); break;
+                    case "FilterLegend": RunCommand<Tags.FilterLegendCommand>(app); break;
+                    case "TemplateLegend": RunCommand<Tags.TemplateLegendCommand>(app); break;
+                    case "VGCategoryLegend": RunCommand<Tags.VGCategoryLegendCommand>(app); break;
+                    case "BatchTemplateLegend": RunCommand<Tags.BatchTemplateLegendCommand>(app); break;
+                    case "FlexibleLegend": RunCommand<Tags.FlexibleLegendCommand>(app); break;
+                    case "LegendFromPreset": RunCommand<Tags.LegendFromPresetCommand>(app); break;
+                    case "ComponentTypeLegend": RunCommand<Tags.ComponentTypeLegendCommand>(app); break;
+                    case "ColorReferenceLegend": RunCommand<Tags.ColorReferenceLegendCommand>(app); break;
+                    case "LegendSyncAudit": RunCommand<Tags.LegendSyncAuditCommand>(app); break;
+                    case "StatusLegend": RunCommand<Tags.StatusLegendCommand>(app); break;
+                    case "WorksetLegend": RunCommand<Tags.WorksetLegendCommand>(app); break;
+
+                    // ── System Parameter Push ──
+                    case "SystemParamPush": RunCommand<Tags.SystemParamPushCommand>(app); break;
+                    case "BatchSystemPush": RunCommand<Tags.BatchSystemPushCommand>(app); break;
+                    case "SelectSystemElements": RunCommand<Tags.SelectSystemElementsCommand>(app); break;
+
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
                     case "FlipTags":
@@ -221,6 +269,7 @@ namespace StingTools.UI
                     case "ClearOverrides": RunCommand<Organise.ClearOverridesCommand>(app); break;
                     case "CompletenessDashboard": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
                     case "PreTagAudit": RunCommand<Tags.PreTagAuditCommand>(app); break;
+                    case "ResolveAllIssues": RunCommand<Tags.ResolveAllIssuesCommand>(app); break;
 
                     // ── Paragraph & Warning controls (v4.2) ──
                     case "SetParagraphDepth": RunCommand<Tags.SetParagraphDepthCommand>(app); break;
@@ -2047,12 +2096,33 @@ namespace StingTools.UI
                 var vp = doc.GetElement(vpId) as Viewport;
                 if (vp == null) continue;
                 var vpView = doc.GetElement(vp.ViewId) as View;
-                if (vpView?.ViewType == ViewType.Legend)
+                if (vpView != null && (vpView.ViewType == ViewType.Legend ||
+                    (vpView.ViewType == ViewType.DraftingView && vpView.Name.Contains("STING"))))
                     legendVps.Add((vp, vpView));
             }
 
             if (legendVps.Count < 2)
-            { TaskDialog.Show("Legend Uniform", "Need 2+ legend viewports."); return; }
+            { TaskDialog.Show("Legend Uniform", "Need 2+ legend/STING viewports on sheet."); return; }
+
+            // Set all legend views to scale 1 (1:1) for uniform sizing
+            int updated = 0;
+            using (var tx = new Transaction(doc, "STING Legend Uniform Scale"))
+            {
+                tx.Start();
+                foreach (var (vp, view) in legendVps)
+                {
+                    try
+                    {
+                        if (view.Scale != 1)
+                        {
+                            view.Scale = 1;
+                            updated++;
+                        }
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
 
             // Find the most common scale among legend views
             var scaleCounts = legendVps.GroupBy(lv => lv.view.Scale)

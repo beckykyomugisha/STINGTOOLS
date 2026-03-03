@@ -154,6 +154,22 @@ namespace StingTools.Temp
                     : $"Missing: {string.Join(", ", missing)}"));
         }
 
+        /// <summary>Safe file reader — returns null and records error on IO failure.</summary>
+        private string[] SafeReadAllLines(string path, string checkName, List<ValidationResult> results)
+        {
+            try
+            {
+                return File.ReadAllLines(path);
+            }
+            catch (Exception ex)
+            {
+                results.Add(new ValidationResult(checkName, "CRITICAL", false,
+                    $"Failed to read file: {ex.Message}"));
+                StingLog.Error($"SafeReadAllLines({path}): {ex.Message}", ex);
+                return null;
+            }
+        }
+
         private void CheckParameterFile(string dataPath, List<ValidationResult> results)
         {
             string path = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
@@ -163,7 +179,8 @@ namespace StingTools.Temp
                 return;
             }
 
-            var lines = File.ReadAllLines(path);
+            var lines = SafeReadAllLines(path, "Parameter file read", results);
+            if (lines == null) return;
             int paramCount = lines.Count(l => !string.IsNullOrWhiteSpace(l) && !l.TrimStart().StartsWith("#") && !l.TrimStart().StartsWith("*"));
             results.Add(new ValidationResult("Parameter count", "MODERATE",
                 paramCount >= 50,
@@ -197,7 +214,9 @@ namespace StingTools.Temp
                 return;
             }
 
-            var lines = File.ReadAllLines(path).Where(l => !l.StartsWith("#")).ToArray();
+            var rawLines = SafeReadAllLines(path, Path.GetFileName(path), results);
+            if (rawLines == null) return;
+            var lines = rawLines.Where(l => !l.StartsWith("#")).ToArray();
             if (lines.Length < 2)
             {
                 results.Add(new ValidationResult("BCM row count", "MODERATE", false, "Too few rows"));
@@ -240,7 +259,9 @@ namespace StingTools.Temp
                 return;
             }
 
-            var lines = File.ReadAllLines(path).Where(l => !l.StartsWith("#")).ToArray();
+            var rawLines = SafeReadAllLines(path, Path.GetFileName(path), results);
+            if (rawLines == null) return;
+            var lines = rawLines.Where(l => !l.StartsWith("#")).ToArray();
             int rowCount = lines.Length - 1; // exclude header
 
             results.Add(new ValidationResult($"{fileName} row count", "MODERATE",
@@ -289,7 +310,9 @@ namespace StingTools.Temp
                 return;
             }
 
-            var lines = File.ReadAllLines(path).Where(l => !l.StartsWith("#")).ToArray();
+            var rawLines = SafeReadAllLines(path, Path.GetFileName(path), results);
+            if (rawLines == null) return;
+            var lines = rawLines.Where(l => !l.StartsWith("#")).ToArray();
             int schedCount = lines.Length - 1;
 
             results.Add(new ValidationResult("Schedule count", "MODERATE",
@@ -319,7 +342,9 @@ namespace StingTools.Temp
                 return;
             }
 
-            var lines = File.ReadAllLines(path).Where(l => !l.StartsWith("#")).ToArray();
+            var rawLines = SafeReadAllLines(path, Path.GetFileName(path), results);
+            if (rawLines == null) return;
+            var lines = rawLines.Where(l => !l.StartsWith("#")).ToArray();
             int formulaCount = lines.Length - 1;
 
             results.Add(new ValidationResult("Formula count", "MODERATE",
@@ -407,7 +432,9 @@ namespace StingTools.Temp
                 return;
             }
 
-            var lines = File.ReadAllLines(path).Where(l => !l.StartsWith("#")).ToArray();
+            var rawLines = SafeReadAllLines(path, Path.GetFileName(path), results);
+            if (rawLines == null) return;
+            var lines = rawLines.Where(l => !l.StartsWith("#")).ToArray();
             int bindingCount = lines.Length - 1;
 
             results.Add(new ValidationResult("Binding count", "MODERATE",
@@ -441,7 +468,9 @@ namespace StingTools.Temp
                 return;
             }
 
-            var lines = File.ReadAllLines(path).Where(l => !l.StartsWith("#")).ToArray();
+            var rawLines = SafeReadAllLines(path, Path.GetFileName(path), results);
+            if (rawLines == null) return;
+            var lines = rawLines.Where(l => !l.StartsWith("#")).ToArray();
             int remapCount = lines.Length - 1;
 
             results.Add(new ValidationResult("Remap entries", "LOW",
@@ -550,7 +579,18 @@ namespace StingTools.Temp
             }
 
             // Parse binding definitions
-            var lines = File.ReadAllLines(bindingsPath)
+            string[] rawBindingLines;
+            try
+            {
+                rawBindingLines = File.ReadAllLines(bindingsPath);
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Dynamic Bindings", $"Failed to read file: {ex.Message}");
+                StingLog.Error($"DynamicBindings: {ex.Message}", ex);
+                return Result.Failed;
+            }
+            var lines = rawBindingLines
                 .Where(l => !l.StartsWith("#") && !string.IsNullOrWhiteSpace(l))
                 .ToArray();
 
@@ -840,7 +880,18 @@ namespace StingTools.Temp
                 return 1;
             }
 
-            var lines = File.ReadAllLines(path).Where(l => !l.StartsWith("#")).ToArray();
+            string[] rawLines;
+            try
+            {
+                rawLines = File.ReadAllLines(path);
+            }
+            catch (Exception ex)
+            {
+                report.AppendLine($"── {fileName}: READ ERROR — {ex.Message} ──");
+                StingLog.Error($"ValidateFile({fileName}): {ex.Message}", ex);
+                return 1;
+            }
+            var lines = rawLines.Where(l => !l.StartsWith("#")).ToArray();
             if (lines.Length < 2)
             {
                 report.AppendLine($"── {fileName}: EMPTY ──");
