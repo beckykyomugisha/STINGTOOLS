@@ -931,6 +931,28 @@ namespace StingTools.Core
                 { "PARA_STR_BEAM", "STR_TAG_7_PARA_BEAM_TXT" },
                 { "PARA_HVC_SPEC", "HVC_TAG_7_PARA_SPEC_TXT" }, { "PARA_HVC_DUCT", "HVC_TAG_7_PARA_DUCT_TXT" },
                 { "PARA_HVC_AT", "HVC_TAG_7_PARA_AT_TXT" },
+                // MEP paragraph containers
+                { "PARA_ELC_PANEL", "ELC_TAG_7_PARA_PANEL_TXT" }, { "PARA_ELC_CIRCUIT", "ELC_TAG_7_PARA_CIRCUIT_TXT" },
+                { "PARA_LTG_SPEC", "LTG_TAG_7_PARA_SPEC_TXT" },
+                { "PARA_PLM_FIXTURE", "PLM_TAG_7_PARA_FIXTURE_TXT" }, { "PARA_PLM_PIPE", "PLM_TAG_7_PARA_PIPE_TXT" },
+                { "PARA_FLS_FA", "FLS_TAG_7_PARA_FA_TXT" }, { "PARA_FLS_SPR", "FLS_TAG_7_PARA_SPR_TXT" },
+                { "PARA_COM_BMS", "COM_TAG_7_PARA_BMS_TXT" },
+                // Extended paragraph containers (v4.3)
+                { "PARA_HVC_FLEXDUCT", "HVC_TAG_7_PARA_FLEXDUCT_TXT" }, { "PARA_HVC_DCTACC", "HVC_TAG_7_PARA_DCTACC_TXT" },
+                { "PARA_ELC_CONDUIT", "ELC_TAG_7_PARA_CONDUIT_TXT" }, { "PARA_ELC_TRAY", "ELC_TAG_7_PARA_TRAY_TXT" },
+                { "PARA_ELC_CABLE", "ELC_TAG_7_PARA_CABLE_TXT" },
+                { "PARA_PLM_EQUIP", "PLM_TAG_7_PARA_EQUIP_TXT" }, { "PARA_PLM_PIPEACC", "PLM_TAG_7_PARA_PIPEACC_TXT" },
+                { "PARA_PLM_DRAIN", "PLM_TAG_7_PARA_DRAIN_TXT" },
+                { "PARA_ICT_DATA", "ICT_TAG_7_PARA_DATA_TXT" }, { "PARA_NCL", "NCL_TAG_7_PARA_TXT" },
+                { "PARA_SEC", "SEC_TAG_7_PARA_TXT" }, { "PARA_ASS_EQUIP", "ASS_TAG_7_PARA_EQUIP_TXT" },
+                { "PARA_RGL_CMPL", "RGL_TAG_7_PARA_CMPL_TXT" }, { "PARA_PER_ENV", "PER_TAG_7_PARA_ENV_TXT" },
+                { "PARA_CST_CONC", "CST_TAG_7_PARA_CONC_TXT" },
+                // Warning threshold
+                { "ELC_PNL_RATED", "ELC_PNL_RATED_BOOL" },
+                // ISO 19650 naming
+                { "PROJECT_COD", "PRJ_PROJECT_COD_TXT" }, { "ORIGINATOR_COD", "PRJ_ORIGINATOR_COD_TXT" },
+                { "VOLUME_COD", "PRJ_VOLUME_COD_TXT" }, { "STATUS_COD", "PRJ_STATUS_COD_TXT" },
+                { "REV_COD", "PRJ_REV_COD_TXT" },
             };
 
             ContainerGroups = Array.Empty<ContainerGroupDef>();

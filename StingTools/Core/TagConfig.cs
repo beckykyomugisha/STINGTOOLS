@@ -275,8 +275,8 @@ namespace StingTools.Core
                     return $"SEQ '{value}' is not a valid number";
                 if (seqVal < 0)
                     return $"SEQ '{value}' must be a positive number";
-                if (value.Length > NumPad + 1)
-                    return $"SEQ '{value}' exceeds {NumPad}-digit format";
+                if (value.Length > TagConfig.NumPad + 1)
+                    return $"SEQ '{value}' exceeds {TagConfig.NumPad}-digit format";
             }
             return null; // valid
         }
@@ -315,13 +315,7 @@ namespace StingTools.Core
                 if (expectedDisc != null && !string.IsNullOrEmpty(sys))
                     expectedDisc = TagConfig.GetSystemAwareDisc(expectedDisc, sys, catName);
                 if (expectedDisc != null && expectedDisc != disc)
-                {
-                    // Allow system-aware correction: pipes/pipe fittings can be P instead of M
-                    string sysVal = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                    string correctedDisc = GetSystemAwareDisc(expectedDisc, sysVal, catName);
-                    if (correctedDisc != disc)
-                        errors.Add($"DISC mismatch: element category '{catName}' expects '{correctedDisc}' but has '{disc}'");
-                }
+                    errors.Add($"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'");
             }
 
             // Cross-validate: SYS should be valid for this category
@@ -331,20 +325,20 @@ namespace StingTools.Core
             {
                 bool sysValidForCategory = false;
                 // Check if this SYS code lists this category in SysMap
-                if (SysMap.TryGetValue(sys, out var sysCats) && sysCats.Contains(catName))
+                if (TagConfig.SysMap.TryGetValue(sys, out var sysCats) && sysCats.Contains(catName))
                     sysValidForCategory = true;
                 // Also accept discipline-default SYS codes (ARC, STR, GEN, etc.)
-                string discForCat = DiscMap.TryGetValue(catName, out string dc) ? dc : "A";
-                if (sys == GetDiscDefaultSysCode(discForCat))
+                string discForCat = TagConfig.DiscMap.TryGetValue(catName, out string dc) ? dc : "A";
+                if (sys == TagConfig.GetDiscDefaultSysCode(discForCat))
                     sysValidForCategory = true;
                 if (!sysValidForCategory)
                 {
                     // Find what SYS codes ARE valid for this category
-                    var validSysForCat = SysMap.Where(kvp => kvp.Value.Contains(catName))
+                    var validSysForCat = TagConfig.SysMap.Where(kvp => kvp.Value.Contains(catName))
                         .Select(kvp => kvp.Key).ToList();
                     string validList = validSysForCat.Count > 0
                         ? string.Join("/", validSysForCat)
-                        : GetDiscDefaultSysCode(discForCat);
+                        : TagConfig.GetDiscDefaultSysCode(discForCat);
                     errors.Add($"SYS mismatch: category '{catName}' expects '{validList}' but has '{sys}'");
                 }
             }
@@ -511,25 +505,30 @@ namespace StingTools.Core
         public static string ConfigSource { get; private set; }
 
         /// <summary>Reverse lookup: category name → SYS code. Built lazily from SysMap.</summary>
-        private static Dictionary<string, string> _reverseSysMap;
+        private static Dictionary<string, List<string>> _reverseSysMap;
 
         static TagConfig()
         {
             LoadDefaults();
         }
 
-        /// <summary>Build or return the cached reverse SysMap (category → SYS code).</summary>
-        private static Dictionary<string, string> GetReverseSysMap()
+        /// <summary>Build or return the cached reverse SysMap (category → list of valid SYS codes).</summary>
+        private static Dictionary<string, List<string>> GetReverseSysMap()
         {
             if (_reverseSysMap == null)
             {
-                _reverseSysMap = new Dictionary<string, string>(StringComparer.Ordinal);
+                _reverseSysMap = new Dictionary<string, List<string>>(StringComparer.Ordinal);
                 foreach (var kvp in SysMap)
                 {
                     foreach (string cat in kvp.Value)
                     {
-                        if (!_reverseSysMap.ContainsKey(cat))
-                            _reverseSysMap[cat] = kvp.Key;
+                        if (!_reverseSysMap.TryGetValue(cat, out var list))
+                        {
+                            list = new List<string>();
+                            _reverseSysMap[cat] = list;
+                        }
+                        if (!list.Contains(kvp.Key))
+                            list.Add(kvp.Key);
                     }
                 }
             }
@@ -563,6 +562,14 @@ namespace StingTools.Core
                 ZoneCodes = TryDeserialize<List<string>>(data, "ZONE_CODES") ?? DefaultZoneCodes();
                 _reverseSysMap = null; // Invalidate cache
                 ConfigSource = "project_config.json";
+
+                // GAP-009: Restore persisted active preset
+                if (data.TryGetValue("ACTIVE_PRESET", out object presetObj) && presetObj is string presetStr)
+                {
+                    _activePresetName = presetStr;
+                    // Defer actual SetActivePreset since BuiltInPresets may not be loaded yet
+                    // — will be applied when first accessed
+                }
             }
             catch (Exception ex)
             {
@@ -583,11 +590,53 @@ namespace StingTools.Core
             ConfigSource = "built-in defaults";
         }
 
-        /// <summary>Get the SYS code for a category name. O(1) via cached reverse lookup.</summary>
+        /// <summary>
+        /// GAP-006: Persist current TagConfig state to project_config.json.
+        /// Called by ProjectSetupWizard to ensure settings survive Revit restart.
+        /// </summary>
+        public static bool SaveToFile(string path)
+        {
+            try
+            {
+                var data = new Dictionary<string, object>
+                {
+                    ["DISC_MAP"] = DiscMap,
+                    ["SYS_MAP"] = SysMap,
+                    ["PROD_MAP"] = ProdMap,
+                    ["FUNC_MAP"] = FuncMap,
+                    ["LOC_CODES"] = LocCodes,
+                    ["ZONE_CODES"] = ZoneCodes
+                };
+
+                string json = JsonConvert.SerializeObject(data, Formatting.Indented);
+                string dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllText(path, json);
+                StingLog.Info($"TagConfig saved to {path}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"TagConfig save failed to {path}: {ex.Message}", ex);
+                return false;
+            }
+        }
+
+        /// <summary>Get the first valid SYS code for a category name. O(1) via cached reverse lookup.
+        /// For categories with multiple valid systems (e.g., Pipes), returns the first match.
+        /// Use <see cref="GetAllSysCodes"/> when the full list is needed.</summary>
         public static string GetSysCode(string categoryName)
         {
             var reverse = GetReverseSysMap();
-            return reverse.TryGetValue(categoryName, out string sys) ? sys : string.Empty;
+            return reverse.TryGetValue(categoryName, out var list) && list.Count > 0 ? list[0] : string.Empty;
+        }
+
+        /// <summary>Get ALL valid SYS codes for a category (e.g., Pipes → DCW, DHW, SAN, RWD, GAS, FP, HWS).</summary>
+        public static List<string> GetAllSysCodes(string categoryName)
+        {
+            var reverse = GetReverseSysMap();
+            return reverse.TryGetValue(categoryName, out var list) ? list : new List<string>();
         }
 
         /// <summary>Get the FUNC code for a SYS code (basic lookup).</summary>
@@ -600,7 +649,7 @@ namespace StingTools.Core
         /// Get a guaranteed default SYS code from a discipline code.
         /// Used as a fallback when MEP system detection returns empty —
         /// ensures every element gets a valid SYS token.
-        /// M→HVAC, E→LV, P→DHW, A→ARC, S→STR, FP→FP, LV→LV, G→GAS, else GEN.
+        /// M→HVAC, E→LV, P→DCW (cold water bias), A→ARC, S→STR, FP→FP, LV→LV, G→GEN, else GEN.
         /// </summary>
         public static string GetDiscDefaultSysCode(string disc)
         {
@@ -608,12 +657,12 @@ namespace StingTools.Core
             {
                 case "M":  return "HVAC";
                 case "E":  return "LV";
-                case "P":  return "DHW";
+                case "P":  return "DCW"; // Cold water is more prevalent than DHW for unconnected pipes
                 case "A":  return "ARC";
                 case "S":  return "STR";
                 case "FP": return "FP";
                 case "LV": return "LV";
-                case "G":  return "GAS";
+                case "G":  return "GEN"; // Generic Models/Specialty Equipment — not gas-specific
                 default:   return "GEN";
             }
         }
@@ -1025,9 +1074,9 @@ namespace StingTools.Core
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
-                // Always remove old tag from index before adding new one —
-                // prevents stale entries even when not overwriting tokens
-                if (!string.IsNullOrEmpty(existingTag))
+                // Only remove old tag from index when overwriting — prevents
+                // stale removal when multiple elements share the same existing tag
+                if (overwriteTokens && !string.IsNullOrEmpty(existingTag))
                     existingTags.Remove(existingTag);
                 existingTags.Add(tag);
             }
@@ -1125,11 +1174,11 @@ namespace StingTools.Core
         public static string GetMepSystemAwareSysCode(Element el, string categoryName)
         {
             // Layer 1: Connected MEP system name (most reliable for piping and ductwork)
-            string fromConnector = GetSysFromConnector(el);
+            string fromConnector = GetSysFromConnector(el, categoryName);
             if (!string.IsNullOrEmpty(fromConnector)) return fromConnector;
 
             // Layer 2: Duct/Pipe system type built-in parameter
-            string fromSysType = GetSysFromSystemTypeParam(el);
+            string fromSysType = GetSysFromSystemTypeParam(el, categoryName);
             if (!string.IsNullOrEmpty(fromSysType)) return fromSysType;
 
             // Layer 3: Electrical circuit panel name
@@ -1149,7 +1198,7 @@ namespace StingTools.Core
         }
 
         /// <summary>Layer 1: Read connected MEP system name via connectors.</summary>
-        private static string GetSysFromConnector(Element el)
+        private static string GetSysFromConnector(Element el, string categoryName = null)
         {
             try
             {
@@ -1161,7 +1210,7 @@ namespace StingTools.Core
                         if (conn.MEPSystem != null)
                         {
                             string sysName = conn.MEPSystem.Name?.ToUpperInvariant() ?? "";
-                            string mapped = MapSystemNameToCode(sysName);
+                            string mapped = MapSystemNameToCode(sysName, categoryName);
                             if (!string.IsNullOrEmpty(mapped)) return mapped;
                         }
                     }
@@ -1172,7 +1221,7 @@ namespace StingTools.Core
         }
 
         /// <summary>Layer 2: Read RBS_DUCT_SYSTEM_TYPE or RBS_PIPING_SYSTEM_TYPE parameter.</summary>
-        private static string GetSysFromSystemTypeParam(Element el)
+        private static string GetSysFromSystemTypeParam(Element el, string categoryName = null)
         {
             try
             {
@@ -1191,7 +1240,7 @@ namespace StingTools.Core
                 if (pipeSys != null && pipeSys.HasValue)
                 {
                     string val = pipeSys.AsValueString()?.ToUpperInvariant() ?? "";
-                    string mapped = MapSystemNameToCode(val);
+                    string mapped = MapSystemNameToCode(val, categoryName);
                     if (!string.IsNullOrEmpty(mapped)) return mapped;
                 }
             }
@@ -1443,7 +1492,7 @@ namespace StingTools.Core
         /// Map a system name string to a SYS code. Used by Layer 1 (connector) and Layer 2 (parameter).
         /// Centralised mapping for all MEP system naming conventions.
         /// </summary>
-        private static string MapSystemNameToCode(string sysName)
+        private static string MapSystemNameToCode(string sysName, string categoryName = null)
         {
             if (string.IsNullOrEmpty(sysName)) return null;
 
@@ -1460,7 +1509,17 @@ namespace StingTools.Core
             if (sysName == "EA" || sysName.StartsWith("EA ") || sysName.Contains(" EA ")) return "HVAC";
             if (sysName == "OA" || sysName.StartsWith("OA ") || sysName.Contains(" OA ")) return "HVAC";
             if (sysName == "CHW" || sysName.StartsWith("CHW ") || sysName.Contains(" CHW ")) return "HVAC";
-            if (sysName == "CW" || sysName.StartsWith("CW ") || sysName.Contains(" CW ")) return "HVAC";
+            // BUG-010: "CW" is ambiguous — Condenser Water (HVAC) vs Cold Water (Plumbing)
+            // If the element is a pipe category, map to DCW; otherwise HVAC (Condenser Water)
+            if (sysName == "CW" || sysName.StartsWith("CW ") || sysName.Contains(" CW "))
+            {
+                if (!string.IsNullOrEmpty(categoryName) &&
+                    (categoryName == "Pipes" || categoryName == "Pipe Fittings" ||
+                     categoryName == "Pipe Accessories" || categoryName == "Flex Pipes" ||
+                     categoryName == "Plumbing Fixtures" || categoryName == "Plumbing Equipment"))
+                    return "DCW";
+                return "HVAC";
+            }
             if (sysName == "FCU" || sysName.StartsWith("FCU ")) return "HVAC";
 
             // Heating / hot water systems
@@ -1825,13 +1884,17 @@ namespace StingTools.Core
         {
             return new Dictionary<string, List<string>>
             {
-                { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Flex Ducts", "Mechanical Equipment" } },
-                // Pipes default to DCW (Domestic Cold Water per CIBSE/CAWS S10); runtime MEP
-                // system detection in GetMepSystemAwareSysCode overrides to HWS/SAN/GAS as needed
-                { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories" } },
-                { "SAN", new List<string> { "Plumbing Fixtures" } },
-                { "DHW", new List<string> { "Flex Pipes" } },
-                { "FP", new List<string> { "Sprinklers" } },
+                { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Flex Ducts", "Mechanical Equipment", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                // Pipes default to DCW (cold water bias); runtime MEP detection overrides.
+                // All pipe categories appear in every applicable system entry so
+                // GetAllSysCodes() returns the full list for validation (BUG-001 fix).
+                { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" } },
+                { "DHW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                { "HWS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                { "SAN", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" } },
+                { "RWD", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                { "GAS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                { "FP", new List<string> { "Sprinklers", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
                 { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings" } },
                 { "FLS", new List<string> { "Fire Alarm Devices" } },
                 { "COM", new List<string> { "Communication Devices", "Telephone Devices" } },
@@ -2190,8 +2253,24 @@ namespace StingTools.Core
             public Tag7DisplayStyle DefaultStyle { get; set; }
         }
 
-        /// <summary>Active preset (changed by user via command or panel).</summary>
-        public static Tag7DisplayPreset ActivePreset { get; set; }
+        /// <summary>Active preset (changed by user via command or panel).
+        /// GAP-009: Lazily restores from persisted name on first access.</summary>
+        private static Tag7DisplayPreset _activePreset;
+        public static Tag7DisplayPreset ActivePreset
+        {
+            get
+            {
+                if (_activePreset == null && !string.IsNullOrEmpty(_activePresetName))
+                {
+                    var preset = BuiltInPresets.FirstOrDefault(p =>
+                        p.Name.Equals(_activePresetName, StringComparison.OrdinalIgnoreCase));
+                    if (preset != null) _activePreset = preset;
+                    else _activePresetName = null; // Invalid preset name, clear it
+                }
+                return _activePreset;
+            }
+            set { _activePreset = value; }
+        }
 
         /// <summary>Get the display style for an element based on the active preset.</summary>
         public static Tag7DisplayStyle GetDisplayStyle(Element el)
@@ -2421,7 +2500,8 @@ namespace StingTools.Core
             return ActivePreset.DefaultStyle;
         }
 
-        /// <summary>Set the active preset by name. Returns true if found.</summary>
+        /// <summary>Set the active preset by name. Returns true if found.
+        /// GAP-009: Also persists the preset name so it survives Revit restart.</summary>
         public static bool SetActivePreset(string presetName)
         {
             var preset = BuiltInPresets.FirstOrDefault(p =>
@@ -2429,9 +2509,42 @@ namespace StingTools.Core
             if (preset != null)
             {
                 ActivePreset = preset;
+                _activePresetName = presetName;
+                PersistPresetName(presetName);
                 return true;
             }
             return false;
+        }
+
+        /// <summary>The stored preset name for config persistence.</summary>
+        private static string _activePresetName;
+
+        /// <summary>GAP-009: Persist preset name to project_config.json.</summary>
+        private static void PersistPresetName(string presetName)
+        {
+            try
+            {
+                string configPath = StingToolsApp.FindDataFile("project_config.json");
+                if (string.IsNullOrEmpty(configPath)) return;
+
+                Dictionary<string, object> data;
+                if (File.Exists(configPath))
+                {
+                    string json = File.ReadAllText(configPath);
+                    data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
+                        ?? new Dictionary<string, object>();
+                }
+                else
+                {
+                    data = new Dictionary<string, object>();
+                }
+                data["ACTIVE_PRESET"] = presetName;
+                File.WriteAllText(configPath, JsonConvert.SerializeObject(data, Formatting.Indented));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Failed to persist preset name: {ex.Message}");
+            }
         }
 
         /// <summary>Strip all markup tokens from a string, returning plain text.</summary>
@@ -3358,6 +3471,70 @@ namespace StingTools.Core
             return null;
         }
 
+        // ── Layer 9: Adjacent Element SYS Inference ──────────────────────────
+
+        /// <summary>
+        /// ENH-004: Infer SYS from adjacent elements within a 500mm radius.
+        /// Uses BoundingBoxIntersectsFilter to find nearby elements with confirmed SYS values.
+        /// If 80%+ of adjacent elements agree on a SYS code, returns that code with confidence 0.3.
+        /// Useful for unconnected light fittings, generic models, and equipment placed near systems.
+        /// </summary>
+        public static InferenceResult InferSysFromAdjacentElements(Document doc, Element el)
+        {
+            try
+            {
+                BoundingBoxXYZ bb = el.get_BoundingBox(null);
+                if (bb == null) return null;
+
+                // Expand bounding box by 500mm (≈1.64 ft) in all directions
+                double expandFt = 500.0 / 304.8; // mm to feet
+                XYZ min = new XYZ(bb.Min.X - expandFt, bb.Min.Y - expandFt, bb.Min.Z - expandFt);
+                XYZ max = new XYZ(bb.Max.X + expandFt, bb.Max.Y + expandFt, bb.Max.Z + expandFt);
+                Outline outline = new Outline(min, max);
+
+                var bbFilter = new BoundingBoxIntersectsFilter(outline);
+                var nearby = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(bbFilter)
+                    .Where(e => e.Id != el.Id && e.Category != null)
+                    .ToList();
+
+                if (nearby.Count == 0) return null;
+
+                // Count SYS values on nearby elements
+                var sysCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                int withSys = 0;
+
+                foreach (Element adj in nearby)
+                {
+                    string adjSys = ParameterHelpers.GetString(adj, ParamRegistry.SYS);
+                    if (string.IsNullOrEmpty(adjSys)) continue;
+
+                    withSys++;
+                    if (!sysCounts.ContainsKey(adjSys))
+                        sysCounts[adjSys] = 0;
+                    sysCounts[adjSys]++;
+                }
+
+                if (withSys < 2) return null; // Need at least 2 neighbours with SYS
+
+                // Find dominant SYS
+                var dominant = sysCounts.OrderByDescending(x => x.Value).First();
+                double agreement = (double)dominant.Value / withSys;
+
+                if (agreement >= 0.8)
+                {
+                    return new InferenceResult(dominant.Key, 0.3,
+                        $"Adjacent element inference: {dominant.Value}/{withSys} neighbours have SYS={dominant.Key}");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"InferSysFromAdjacentElements: {ex.Message}");
+            }
+            return null;
+        }
+
         // ── Layer 10: Cross-Validation ───────────────────────────────────────
 
         /// <summary>
@@ -3450,6 +3627,14 @@ namespace StingTools.Core
                 var sizeResult = InferSysFromSize(el);
                 if (sizeResult != null)
                     results["SYS"] = sizeResult;
+            }
+
+            // ENH-004: Layer 9 — adjacent element inference (lowest confidence, last resort)
+            if (!results.ContainsKey("SYS") || results["SYS"].Confidence < 0.3)
+            {
+                var adjResult = InferSysFromAdjacentElements(doc, el);
+                if (adjResult != null)
+                    results["SYS"] = adjResult;
             }
 
             // FUNC — smart detection

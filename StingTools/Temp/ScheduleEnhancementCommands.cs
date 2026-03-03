@@ -91,7 +91,10 @@ namespace StingTools.Temp
                         emptySchedules++;
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ScheduleAudit: cannot read body of '{name}': {ex.Message}");
+                }
 
                 // Check filters
                 if (def.GetFilterCount() > 0) hasFilters++;
@@ -1004,13 +1007,42 @@ namespace StingTools.Temp
                 var headerSection = tableData?.GetSectionData(SectionType.Header);
                 var bodySection = tableData?.GetSectionData(SectionType.Body);
 
-                // Apply header color
-                if (headerSection != null && TryParseHexColor(def.HeaderColor, out Color headerColor))
+                // BUG-009: Apply CSV-defined header color (was a no-op before)
+                if (TryParseHexColor(def.HeaderColor, out Color headerColor))
                 {
-                    // Header formatting is limited in the API — we set what's available
-                    // TableSectionData doesn't expose background color directly
-                    // but we can use OverrideGraphicSettings for the schedule on a sheet
-                    StingLog.Info($"Schedule '{sched.Name}': header color #{def.HeaderColor} noted");
+                    // White text for readability on colored background
+                    Color textColor = new Color(255, 255, 255);
+
+                    if (headerSection != null && headerSection.NumberOfRows > 0)
+                    {
+                        int cols = headerSection.NumberOfColumns;
+                        for (int col = 0; col < cols; col++)
+                        {
+                            try
+                            {
+                                headerSection.SetCellBackgroundColor(0, col, headerColor);
+                                headerSection.SetCellTextColor(0, col, textColor);
+                            }
+                            catch { }
+                        }
+                    }
+
+                    // Also apply to first body row (column headers)
+                    if (bodySection != null && bodySection.NumberOfRows > 0)
+                    {
+                        int cols = bodySection.NumberOfColumns;
+                        for (int col = 0; col < cols; col++)
+                        {
+                            try
+                            {
+                                bodySection.SetCellBackgroundColor(0, col, headerColor);
+                                bodySection.SetCellTextColor(0, col, textColor);
+                            }
+                            catch { }
+                        }
+                    }
+
+                    StingLog.Info($"Schedule '{sched.Name}': applied header color #{def.HeaderColor}");
                 }
 
                 return 1;
@@ -1227,7 +1259,10 @@ namespace StingTools.Temp
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ScheduleReport: data stats failed for '{sched.Name}': {ex.Message}");
+            }
 
             // Field details
             report.AppendLine();

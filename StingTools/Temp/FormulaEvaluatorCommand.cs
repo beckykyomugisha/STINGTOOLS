@@ -51,6 +51,10 @@ namespace StingTools.Temp
             // Sort by dependency level (level 0 first, then 1, 2, ... 6)
             formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
 
+            // DAT-005: Validate dependency DAG — check that formulas only depend on
+            // parameters written at equal or lower dependency levels
+            ValidateFormulaDag(formulas);
+
             // Collect taggable elements only (skip views, sheets, annotations, etc.)
             var collector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
@@ -62,6 +66,10 @@ namespace StingTools.Temp
             int totalWritten = 0;
             int totalErrors = 0;
             int elementsProcessed = 0;
+
+            // BUG-006: Per-formula error tracking
+            var formulaErrorCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            var formulaSampleFailures = new Dictionary<string, List<ElementId>>(StringComparer.Ordinal);
 
             using (Transaction tx = new Transaction(doc, "STING Evaluate Formulas"))
             {
@@ -124,6 +132,17 @@ namespace StingTools.Temp
                         catch (Exception ex)
                         {
                             totalErrors++;
+                            // Per-formula error tracking
+                            string fKey = formula.ParameterName;
+                            if (!formulaErrorCounts.ContainsKey(fKey))
+                            {
+                                formulaErrorCounts[fKey] = 0;
+                                formulaSampleFailures[fKey] = new List<ElementId>();
+                            }
+                            formulaErrorCounts[fKey]++;
+                            if (formulaSampleFailures[fKey].Count < 5)
+                                formulaSampleFailures[fKey].Add(el.Id);
+
                             if (totalErrors <= 10)
                                 StingLog.Warn($"Formula '{formula.ParameterName}' on element {el.Id}: {ex.Message}");
                         }
@@ -146,11 +165,69 @@ namespace StingTools.Temp
             report.AppendLine($"Values written: {totalWritten}");
             report.AppendLine($"Evaluations attempted: {totalEvaluated}");
             if (totalErrors > 0)
+            {
                 report.AppendLine($"Errors: {totalErrors} (see log for details)");
+
+                // Report top-5 failing formulas
+                var topFailures = formulaErrorCounts
+                    .OrderByDescending(kvp => kvp.Value)
+                    .Take(5);
+                report.AppendLine();
+                report.AppendLine("Top failing formulas:");
+                foreach (var kvp in topFailures)
+                {
+                    string sampleIds = string.Join(", ",
+                        formulaSampleFailures[kvp.Key].Select(id => id.ToString()));
+                    report.AppendLine($"  {kvp.Key}: {kvp.Value} errors (samples: {sampleIds})");
+                    StingLog.Warn($"Formula summary: '{kvp.Key}' failed {kvp.Value} times, " +
+                        $"sample elements: {sampleIds}");
+                }
+            }
 
             TaskDialog.Show("Formula Evaluator", report.ToString());
 
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// DAT-005: Validate dependency DAG — each formula should only reference
+        /// parameters written at equal or lower dependency levels. Log warnings
+        /// for any violations.
+        /// </summary>
+        private static void ValidateFormulaDag(List<FormulaEngine.FormulaDefinition> formulas)
+        {
+            // Build output-to-level map: parameter name → dependency level it's written at
+            var outputLevel = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in formulas)
+            {
+                if (!outputLevel.ContainsKey(f.ParameterName))
+                    outputLevel[f.ParameterName] = f.DependencyLevel;
+            }
+
+            int violations = 0;
+            foreach (var f in formulas)
+            {
+                foreach (string input in f.InputParameters)
+                {
+                    if (string.IsNullOrEmpty(input)) continue;
+                    if (outputLevel.TryGetValue(input, out int inputLevel))
+                    {
+                        if (inputLevel > f.DependencyLevel)
+                        {
+                            violations++;
+                            if (violations <= 10)
+                                StingLog.Warn($"Formula DAG violation: '{f.ParameterName}' (level {f.DependencyLevel}) " +
+                                    $"reads '{input}' which is written at level {inputLevel}");
+                        }
+                    }
+                }
+            }
+
+            if (violations > 0)
+                StingLog.Warn($"Formula DAG: {violations} dependency violation(s) detected — " +
+                    "some formulas may read stale values from a previous session");
+            else
+                StingLog.Info("Formula DAG: all dependencies validated — no violations");
         }
     }
 

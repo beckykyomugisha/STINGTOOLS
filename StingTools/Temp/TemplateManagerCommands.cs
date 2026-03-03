@@ -2457,14 +2457,16 @@ namespace StingTools.Temp
                 return Result.Failed;
             }
 
-            // Build definition lookup by name
+            // Build definition lookup by name AND by GUID (GAP-004)
             var defLookup = new Dictionary<string, ExternalDefinition>(
                 StringComparer.OrdinalIgnoreCase);
+            var defByGuid = new Dictionary<Guid, ExternalDefinition>();
             foreach (DefinitionGroup group in defFile.Groups)
             {
                 foreach (ExternalDefinition def in group.Definitions)
                 {
                     defLookup[def.Name] = def;
+                    defByGuid[def.GUID] = def;
                 }
             }
 
@@ -2477,6 +2479,7 @@ namespace StingTools.Temp
             int totalSkipped = 0;
             int totalFailed = 0;
             int paramsProcessed = 0;
+            int guidResolved = 0;
             var perCategory = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
             using (Transaction tx = new Transaction(doc, "STING Batch Add Family Parameters"))
@@ -2487,11 +2490,25 @@ namespace StingTools.Temp
                 {
                     string paramName = paramGroup.Key;
 
-                    // Find the external definition
+                    // Find the external definition — try name first, then GUID fallback (GAP-004)
                     if (!defLookup.TryGetValue(paramName, out ExternalDefinition extDef))
                     {
-                        totalSkipped += paramGroup.Count();
-                        continue;
+                        // GAP-004: Try GUID-based resolution from CSV sharedGuid column
+                        string guidStr = paramGroup.First().sharedGuid;
+                        if (string.IsNullOrEmpty(guidStr))
+                            guidStr = paramGroup.First().guid;
+
+                        if (!string.IsNullOrEmpty(guidStr) && Guid.TryParse(guidStr, out Guid g)
+                            && defByGuid.TryGetValue(g, out extDef))
+                        {
+                            guidResolved++;
+                            StingLog.Info($"GAP-004: Resolved '{paramName}' via GUID {g} → '{extDef.Name}'");
+                        }
+                        else
+                        {
+                            totalSkipped += paramGroup.Count();
+                            continue;
+                        }
                     }
 
                     paramsProcessed++;
@@ -2589,6 +2606,8 @@ namespace StingTools.Temp
             report.AppendLine($"\nCSV entries: {bindings.Count}");
             report.AppendLine($"Unique parameters: {paramGroups.Count}");
             report.AppendLine($"Parameters processed: {paramsProcessed}");
+            if (guidResolved > 0)
+                report.AppendLine($"Resolved by GUID: {guidResolved}");
             report.AppendLine($"Bindings created: {totalBound}");
             report.AppendLine($"Skipped (exist/missing): {totalSkipped}");
             report.AppendLine($"Failed: {totalFailed}");

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Interop;
@@ -464,6 +465,22 @@ namespace StingTools.Temp
                 }
 
                 tg.Assimilate();
+            }
+
+            // GAP-006: Persist wizard settings to project_config.json
+            // Update TagConfig with wizard LOC/ZONE codes before saving
+            if (data.LocCodes.Count > 0)
+                TagConfig.LocCodes = data.LocCodes;
+            if (data.ZoneCodes.Count > 0)
+                TagConfig.ZoneCodes = data.ZoneCodes;
+
+            string configPath = Path.Combine(StingToolsApp.DataPath ?? "", "project_config.json");
+            if (TagConfig.SaveToFile(configPath))
+            {
+                // ENH-002: Immediately reload settings so TagConfig uses persisted values
+                TagConfig.LoadFromFile(configPath);
+                report.AppendLine($"\n  Settings saved and reloaded from project_config.json");
+                StingLog.Info($"Project Setup: config persisted and reloaded from {configPath}");
             }
 
             report.AppendLine(new string('═', 55));

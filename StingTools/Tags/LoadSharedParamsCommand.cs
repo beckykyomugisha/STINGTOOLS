@@ -94,24 +94,70 @@ namespace StingTools.Tags
                     }
                 }
 
+                // GAP-003: Load CSV-driven category bindings to supplement hardcoded DisciplineBindings
+                var csvBindings = Temp.TemplateManager.LoadCategoryBindings();
+                int csvExtras = 0;
+
                 // Pass 2: Discipline-specific parameters → correct category subsets
-                foreach (var kvp in SharedParamGuids.DisciplineBindings)
+                // Merge hardcoded DisciplineBindings with any extra categories from CSV
+                var allDisciplineParams = new HashSet<string>(
+                    SharedParamGuids.DisciplineBindings.Keys, StringComparer.OrdinalIgnoreCase);
+                foreach (string csvParam in csvBindings.Keys)
+                    allDisciplineParams.Add(csvParam);
+
+                foreach (string paramName in allDisciplineParams)
                 {
-                    ExternalDefinition extDef = FindDefinition(defFile, kvp.Key);
+                    ExternalDefinition extDef = FindDefinition(defFile, paramName);
                     if (extDef == null)
                     {
                         pass2Skipped++;
-                        StingLog.Warn($"Pass 2: Definition not found: {kvp.Key}");
+                        StingLog.Warn($"Pass 2: Definition not found: {paramName}");
                         continue;
                     }
 
                     try
                     {
-                        CategorySet cats = SharedParamGuids.BuildCategorySet(doc, kvp.Value);
+                        // Start with hardcoded categories
+                        CategorySet cats;
+                        if (SharedParamGuids.DisciplineBindings.TryGetValue(paramName,
+                            out BuiltInCategory[] hardcodedCats))
+                        {
+                            cats = SharedParamGuids.BuildCategorySet(doc, hardcodedCats);
+                        }
+                        else
+                        {
+                            cats = new CategorySet();
+                        }
+
+                        // Merge CSV categories (GAP-003: data-driven supplement)
+                        if (csvBindings.TryGetValue(paramName, out var csvEntries))
+                        {
+                            foreach (var entry in csvEntries)
+                            {
+                                if (Temp.TemplateManager.CategoryNameToEnum.TryGetValue(
+                                    entry.category, out BuiltInCategory bic))
+                                {
+                                    try
+                                    {
+                                        Category cat = doc.Settings.Categories.get_Item(bic);
+                                        if (cat != null && cat.AllowsBoundParameters)
+                                        {
+                                            if (!cats.Contains(cat))
+                                            {
+                                                cats.Insert(cat);
+                                                csvExtras++;
+                                            }
+                                        }
+                                    }
+                                    catch { }
+                                }
+                            }
+                        }
+
                         if (cats.Size == 0)
                         {
                             pass2Skipped++;
-                            StingLog.Warn($"Pass 2: No valid categories for {kvp.Key}");
+                            StingLog.Warn($"Pass 2: No valid categories for {paramName}");
                             continue;
                         }
 
@@ -131,8 +177,8 @@ namespace StingTools.Tags
                     catch (Exception ex)
                     {
                         pass2Skipped++;
-                        errors.Add($"P2 {kvp.Key}: {ex.Message}");
-                        StingLog.Error($"Pass 2 bind failed: {kvp.Key}", ex);
+                        errors.Add($"P2 {paramName}: {ex.Message}");
+                        StingLog.Error($"Pass 2 bind failed: {paramName}", ex);
                     }
                 }
 
@@ -141,8 +187,9 @@ namespace StingTools.Tags
 
             string report = $"Shared parameter binding complete.\n\n" +
                 $"Pass 1 (Universal):   {pass1Bound} bound, {pass1Skipped} skipped\n" +
-                $"Pass 2 (Discipline):  {pass2Bound} bound, {pass2Skipped} skipped\n\n" +
-                $"Source: {spFile}";
+                $"Pass 2 (Discipline):  {pass2Bound} bound, {pass2Skipped} skipped\n" +
+                (csvExtras > 0 ? $"  CSV extras: {csvExtras} categories added from CATEGORY_BINDINGS.csv\n" : "") +
+                $"\nSource: {spFile}";
             if (errors.Count > 0)
                 report += $"\n\nErrors ({errors.Count}):\n" +
                     string.Join("\n", errors.Take(10));

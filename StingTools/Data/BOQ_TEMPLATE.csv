@@ -118,3 +118,34 @@ TotalCost,ASS_CST_TOTAL_UGX_NR,Total cost (fallback: UnitPrice × Quantity)
 MeasuredLength_m,GEOMETRY,Measured length in metres
 MeasuredArea_m2,GEOMETRY,Measured area in square metres
 Volume_m3,GEOMETRY,Measured volume in cubic metres
+##
+## SECTION 8: RATE DEFAULTS (representative unit rates by PROD code)
+## Used as fallback when ASS_CST_UNIT_PRICE_UGX_NR is empty on an element
+SECTION,RATE_DEFAULTS
+PROD_CODE,UNIT_RATE_UGX,UNIT,DESCRIPTION
+LUM,450000,NO,Luminaire (general)
+DB,3500000,NO,Distribution board
+AHU,85000000,NO,Air handling unit
+FCU,12000000,NO,Fan coil unit
+WC,1800000,NO,Water closet
+WHB,950000,NO,Wash hand basin
+SPR,185000,NO,Sprinkler head
+GRL,350000,NO,Grille/diffuser
+DMP,780000,NO,Damper
+VLV,450000,NO,Valve (general)
+PMP,25000000,NO,Pump
+BLR,45000000,NO,Boiler
+CLR,65000000,NO,Chiller
+CT,35000000,NO,Cooling tower
+TRF,28000000,NO,Transformer
+UPS,42000000,NO,UPS system
+GEN,120000000,NO,Generator
+SWG,18000000,NO,Switchgear
+ACC,950000,NO,Access panel
+DR,2500000,NO,Door (general)
+WDW,3500000,NO,Window (general)
+PNL,850000,SM,Panel (per sqm)
+PPE,120000,LM,Pipe (per linear metre)
+DCT,185000,LM,Duct (per linear metre)
+CDT,65000,LM,Conduit (per linear metre)
+CTY,125000,LM,Cable tray (per linear metre)

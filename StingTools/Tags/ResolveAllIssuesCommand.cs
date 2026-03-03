@@ -162,11 +162,20 @@ namespace StingTools.Tags
             sw.Stop();
             duplicatesResolved = stats.TotalCollisions;
 
-            // Phase 4: Post-fix verification scan
+            // Phase 4: Post-fix verification scan (fresh collector to capture any elements
+            // added during Phase 3 and ensure compliance % reflects actual post-fix state)
             int postNoTag = 0, postIncomplete = 0, postUnresolved = 0;
             int postEmptyStatus = 0, postEmptyRev = 0, postEmptyTokens = 0;
 
-            foreach (Element e in taggableElements)
+            var postFixElements = new List<Element>();
+            foreach (Element e in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(e);
+                if (known.Contains(cat)) postFixElements.Add(e);
+            }
+            int postTotalTaggable = postFixElements.Count;
+
+            foreach (Element e in postFixElements)
             {
                 string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag)) postNoTag++;
@@ -185,13 +194,8 @@ namespace StingTools.Tags
             }
 
             int postTotalIssues = postNoTag + postIncomplete + postUnresolved + postEmptyStatus + postEmptyRev + postEmptyTokens;
-            // Compliance = percentage of elements with zero issues
-            // An element is compliant if: has tag + tag complete + tag resolved + STATUS set + REV set + all 7 tokens filled
-            int compliantElements = totalTaggable - postNoTag - postIncomplete - postUnresolved;
-            // Also subtract elements with empty STATUS/REV/tokens (but avoid double-counting with tag issues)
-            // Simple metric: element-level compliance = (elements with no issues) / total
             int elementsWithIssues = 0;
-            foreach (Element e in taggableElements)
+            foreach (Element e in postFixElements)
             {
                 string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
                 bool hasIssue = string.IsNullOrEmpty(tag) || !TagConfig.TagIsComplete(tag) ||
@@ -210,8 +214,8 @@ namespace StingTools.Tags
                 }
                 if (hasIssue) elementsWithIssues++;
             }
-            double complianceRate = totalTaggable > 0
-                ? (totalTaggable - elementsWithIssues) * 100.0 / totalTaggable : 100.0;
+            double complianceRate = postTotalTaggable > 0
+                ? (postTotalTaggable - elementsWithIssues) * 100.0 / postTotalTaggable : 100.0;
 
             // Phase 5: Rich report
             var report = new StringBuilder();
@@ -263,7 +267,7 @@ namespace StingTools.Tags
 
             TaskDialog td = new TaskDialog("Resolve All Issues");
             td.MainInstruction = postTotalIssues == 0
-                ? $"100% Compliance — All {totalTaggable:N0} elements fully resolved"
+                ? $"100% Compliance — All {postTotalTaggable:N0} elements fully resolved"
                 : $"Resolved {totalIssues - postTotalIssues:N0} of {totalIssues:N0} issues ({complianceRate:F1}%)";
             td.MainContent = report.ToString();
             td.Show();
