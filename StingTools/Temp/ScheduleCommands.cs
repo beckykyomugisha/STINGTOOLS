@@ -214,8 +214,84 @@ namespace StingTools.Temp
             var report = new StringBuilder();
             report.AppendLine($"Created {created} schedules ({matTakeoffs} material takeoffs).");
             report.AppendLine($"Skipped {skipped} (exist or failed).");
+            // ENH-010: Auto-link created filters to matching STING view templates
+            int filtersLinked = 0;
             if (viewFiltersCreated > 0)
+            {
                 report.AppendLine($"Created {viewFiltersCreated} view filters from VIEW_FILTER records.");
+
+                try
+                {
+                    // Get all STING view templates
+                    var stingTemplates = new FilteredElementCollector(doc)
+                        .OfClass(typeof(View))
+                        .Cast<View>()
+                        .Where(v => v.IsTemplate && v.Name.StartsWith("STING"))
+                        .ToList();
+
+                    // Get all filters we just created (by name)
+                    var newFilters = new FilteredElementCollector(doc)
+                        .OfClass(typeof(ParameterFilterElement))
+                        .Cast<ParameterFilterElement>()
+                        .Where(f => existingFilterNames.Contains(f.Name))
+                        .ToList();
+
+                    // Discipline keywords for matching filters to templates
+                    var disciplineKeywords = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["Mechanical"] = new[] { "Mech", "HVAC", "Mechanical" },
+                        ["Electrical"] = new[] { "Elec", "Electrical", "Lighting" },
+                        ["Plumbing"] = new[] { "Plumb", "Plumbing", "Hydraulic" },
+                        ["Fire"] = new[] { "Fire", "Sprinkler" },
+                        ["Architectural"] = new[] { "Arch", "Architectural" },
+                        ["Structural"] = new[] { "Struct", "Structural" },
+                    };
+
+                    using (Transaction linkTx = new Transaction(doc, "STING Link Filters to Templates"))
+                    {
+                        linkTx.Start();
+                        foreach (var filter in newFilters)
+                        {
+                            foreach (var template in stingTemplates)
+                            {
+                                // Match filter to template by discipline keyword
+                                bool shouldLink = false;
+                                foreach (var kvp in disciplineKeywords)
+                                {
+                                    bool filterMatches = kvp.Value.Any(k =>
+                                        filter.Name.Contains(k, StringComparison.OrdinalIgnoreCase));
+                                    bool templateMatches = kvp.Value.Any(k =>
+                                        template.Name.Contains(k, StringComparison.OrdinalIgnoreCase));
+                                    if (filterMatches && templateMatches)
+                                    {
+                                        shouldLink = true;
+                                        break;
+                                    }
+                                }
+
+                                if (shouldLink)
+                                {
+                                    try
+                                    {
+                                        template.AddFilter(filter.Id);
+                                        template.SetFilterVisibility(filter.Id, true);
+                                        filtersLinked++;
+                                    }
+                                    catch { /* Filter may already be on template */ }
+                                }
+                            }
+                        }
+                        linkTx.Commit();
+                    }
+
+                    if (filtersLinked > 0)
+                        report.AppendLine($"Auto-linked {filtersLinked} filters to STING view templates.");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Filter auto-linking failed: {ex.Message}");
+                }
+            }
             if (formatted > 0)
                 report.AppendLine($"Applied formatting (sort/group/totals/filters) to {formatted}.");
             if (remapped > 0)

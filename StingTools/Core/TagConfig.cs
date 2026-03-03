@@ -3471,6 +3471,70 @@ namespace StingTools.Core
             return null;
         }
 
+        // ── Layer 9: Adjacent Element SYS Inference ──────────────────────────
+
+        /// <summary>
+        /// ENH-004: Infer SYS from adjacent elements within a 500mm radius.
+        /// Uses BoundingBoxIntersectsFilter to find nearby elements with confirmed SYS values.
+        /// If 80%+ of adjacent elements agree on a SYS code, returns that code with confidence 0.3.
+        /// Useful for unconnected light fittings, generic models, and equipment placed near systems.
+        /// </summary>
+        public static InferenceResult InferSysFromAdjacentElements(Document doc, Element el)
+        {
+            try
+            {
+                BoundingBoxXYZ bb = el.get_BoundingBox(null);
+                if (bb == null) return null;
+
+                // Expand bounding box by 500mm (≈1.64 ft) in all directions
+                double expandFt = 500.0 / 304.8; // mm to feet
+                XYZ min = new XYZ(bb.Min.X - expandFt, bb.Min.Y - expandFt, bb.Min.Z - expandFt);
+                XYZ max = new XYZ(bb.Max.X + expandFt, bb.Max.Y + expandFt, bb.Max.Z + expandFt);
+                Outline outline = new Outline(min, max);
+
+                var bbFilter = new BoundingBoxIntersectsFilter(outline);
+                var nearby = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(bbFilter)
+                    .Where(e => e.Id != el.Id && e.Category != null)
+                    .ToList();
+
+                if (nearby.Count == 0) return null;
+
+                // Count SYS values on nearby elements
+                var sysCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                int withSys = 0;
+
+                foreach (Element adj in nearby)
+                {
+                    string adjSys = ParameterHelpers.GetString(adj, ParamRegistry.SYS);
+                    if (string.IsNullOrEmpty(adjSys)) continue;
+
+                    withSys++;
+                    if (!sysCounts.ContainsKey(adjSys))
+                        sysCounts[adjSys] = 0;
+                    sysCounts[adjSys]++;
+                }
+
+                if (withSys < 2) return null; // Need at least 2 neighbours with SYS
+
+                // Find dominant SYS
+                var dominant = sysCounts.OrderByDescending(x => x.Value).First();
+                double agreement = (double)dominant.Value / withSys;
+
+                if (agreement >= 0.8)
+                {
+                    return new InferenceResult(dominant.Key, 0.3,
+                        $"Adjacent element inference: {dominant.Value}/{withSys} neighbours have SYS={dominant.Key}");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"InferSysFromAdjacentElements: {ex.Message}");
+            }
+            return null;
+        }
+
         // ── Layer 10: Cross-Validation ───────────────────────────────────────
 
         /// <summary>
@@ -3563,6 +3627,14 @@ namespace StingTools.Core
                 var sizeResult = InferSysFromSize(el);
                 if (sizeResult != null)
                     results["SYS"] = sizeResult;
+            }
+
+            // ENH-004: Layer 9 — adjacent element inference (lowest confidence, last resort)
+            if (!results.ContainsKey("SYS") || results["SYS"].Confidence < 0.3)
+            {
+                var adjResult = InferSysFromAdjacentElements(doc, el);
+                if (adjResult != null)
+                    results["SYS"] = adjResult;
             }
 
             // FUNC — smart detection

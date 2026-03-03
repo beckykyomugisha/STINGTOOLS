@@ -58,16 +58,45 @@ namespace StingTools.Docs
             report.AppendLine("───────────────────────────────────────────────");
             report.AppendLine($"  Total: {sheets.Count} documents");
 
+            // ENH-005: Auto-populate transmittal with STING tag parameters
+            // Map ASS_ID_TXT → Document Number, ASS_TAG_1_TXT → Description, ASS_LOC_TXT → Building/Zone
+            string projLoc = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.LOC);
+            string projZone = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.ZONE);
+            string projId = ParameterHelpers.GetString(doc.ProjectInformation, "ASS_ID_TXT");
+
+            if (!string.IsNullOrEmpty(projLoc) || !string.IsNullOrEmpty(projZone) || !string.IsNullOrEmpty(projId))
+            {
+                report.AppendLine();
+                report.AppendLine("  STING Parameters:");
+                if (!string.IsNullOrEmpty(projId))
+                    report.AppendLine($"    Document ID:    {projId}");
+                if (!string.IsNullOrEmpty(projLoc))
+                    report.AppendLine($"    Location:       {projLoc}");
+                if (!string.IsNullOrEmpty(projZone))
+                    report.AppendLine($"    Zone:           {projZone}");
+            }
+
             // Export CSV
             string csvPath = null;
             try
             {
                 var csv = new StringBuilder();
-                csv.AppendLine("Sheet_Number,Sheet_Name,Revision_Status,Project,Date");
+                csv.AppendLine("Sheet_Number,Sheet_Name,Revision_Status,Document_ID,Location,Zone,Project,Date");
                 foreach (var sheet in sheets)
                 {
                     string revStatus = sheet.GetAllRevisionIds().Count > 0 ? "Revised" : "Current";
-                    csv.AppendLine($"\"{sheet.SheetNumber}\",\"{sheet.Name}\",{revStatus},\"{projectName}\",{DateTime.Now:yyyy-MM-dd}");
+                    // ENH-005: Read STING tag values from sheet parameters
+                    string sheetTag = ParameterHelpers.GetString(sheet, ParamRegistry.TAG1);
+                    string sheetLoc = ParameterHelpers.GetString(sheet, ParamRegistry.LOC);
+                    string sheetZone = ParameterHelpers.GetString(sheet, ParamRegistry.ZONE);
+                    // Fallback to project-level values
+                    if (string.IsNullOrEmpty(sheetLoc)) sheetLoc = projLoc ?? "";
+                    if (string.IsNullOrEmpty(sheetZone)) sheetZone = projZone ?? "";
+                    string docId = !string.IsNullOrEmpty(sheetTag) ? sheetTag : (projId ?? "");
+
+                    csv.AppendLine($"\"{sheet.SheetNumber}\",\"{sheet.Name}\",{revStatus}," +
+                        $"\"{docId}\",\"{sheetLoc}\",\"{sheetZone}\"," +
+                        $"\"{projectName}\",{DateTime.Now:yyyy-MM-dd}");
                 }
 
                 string dir = Path.GetDirectoryName(doc.PathName);

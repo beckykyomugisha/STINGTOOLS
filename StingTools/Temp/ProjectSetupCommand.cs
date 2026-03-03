@@ -477,8 +477,10 @@ namespace StingTools.Temp
             string configPath = Path.Combine(StingToolsApp.DataPath ?? "", "project_config.json");
             if (TagConfig.SaveToFile(configPath))
             {
-                report.AppendLine($"\n  Settings saved to project_config.json");
-                StingLog.Info($"Project Setup: config persisted to {configPath}");
+                // ENH-002: Immediately reload settings so TagConfig uses persisted values
+                TagConfig.LoadFromFile(configPath);
+                report.AppendLine($"\n  Settings saved and reloaded from project_config.json");
+                StingLog.Info($"Project Setup: config persisted and reloaded from {configPath}");
             }
 
             report.AppendLine(new string('═', 55));

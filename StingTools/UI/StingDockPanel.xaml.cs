@@ -17,6 +17,7 @@ namespace StingTools.UI
         private static ExternalEvent _externalEvent;
         private static StingCommandHandler _handler;
         private static UIApplication _uiApp;
+        private static StingDockPanel _instance;
 
         private static readonly Dictionary<string, List<int>> SelectionMemory =
             new Dictionary<string, List<int>>();
@@ -25,6 +26,7 @@ namespace StingTools.UI
         {
             InitializeComponent();
             BuildColorSwatches();
+            _instance = this;
         }
 
         /// <summary>Initialise the external event handler — called once from OnStartup.</summary>
@@ -183,6 +185,39 @@ namespace StingTools.UI
                 return;
             }
             txtBulkStatus.Text = message;
+        }
+
+        /// <summary>
+        /// ENH-003: Static method to update compliance status bar from command handler.
+        /// </summary>
+        public static void UpdateComplianceStatus(string statusText, string ragStatus)
+        {
+            if (_instance?.txtStatus == null) return;
+            try
+            {
+                var brush = ragStatus switch
+                {
+                    "GREEN" => new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                    "AMBER" => new SolidColorBrush(Color.FromRgb(255, 152, 0)),
+                    "RED" => new SolidColorBrush(Color.FromRgb(244, 67, 54)),
+                    _ => new SolidColorBrush(Color.FromRgb(206, 147, 216)),
+                };
+
+                if (!_instance.txtStatus.Dispatcher.CheckAccess())
+                {
+                    _instance.txtStatus.Dispatcher.Invoke(() =>
+                    {
+                        _instance.txtStatus.Text = statusText;
+                        _instance.txtStatus.Foreground = brush;
+                    });
+                }
+                else
+                {
+                    _instance.txtStatus.Text = statusText;
+                    _instance.txtStatus.Foreground = brush;
+                }
+            }
+            catch { /* Non-critical UI update */ }
         }
     }
 }

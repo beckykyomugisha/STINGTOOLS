@@ -2080,4 +2080,257 @@ namespace StingTools.Temp
             return Result.Succeeded;
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  ENH-006: IFC Property Set Export Mapping
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Generates an IFC property set mapping table from PARAMETER_REGISTRY.json
+    /// ifc_property_mapping section. Outputs a Revit-compatible IFC export
+    /// parameter mapping file (.txt) that maps STING shared parameters to
+    /// IFC IfcPropertySingleValue entries within named property sets.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExportIfcPropertyMapCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument?.Document;
+            if (doc == null) return Result.Failed;
+
+            // Load IFC mapping from PARAMETER_REGISTRY.json
+            string regPath = StingToolsApp.FindDataFile("PARAMETER_REGISTRY.json");
+            if (string.IsNullOrEmpty(regPath) || !File.Exists(regPath))
+            {
+                TaskDialog.Show("IFC Property Map", "PARAMETER_REGISTRY.json not found.");
+                return Result.Failed;
+            }
+
+            JObject registry;
+            try
+            {
+                registry = JObject.Parse(File.ReadAllText(regPath));
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("IFC Property Map", $"Failed to parse registry: {ex.Message}");
+                return Result.Failed;
+            }
+
+            var ifcSection = registry["ifc_property_mapping"]?["mappings"] as JArray;
+            if (ifcSection == null || ifcSection.Count == 0)
+            {
+                TaskDialog.Show("IFC Property Map",
+                    "No ifc_property_mapping section found in PARAMETER_REGISTRY.json.\n" +
+                    "Add mappings to enable IFC export.");
+                return Result.Failed;
+            }
+
+            // Build the IFC parameter mapping file (Revit format)
+            // Format: SubElement[TAB]PropertySet[TAB]RevitParamName[TAB]IfcParamName[TAB]Type
+            var sb = new StringBuilder();
+            sb.AppendLine("# STING Tools — IFC Property Set Mapping");
+            sb.AppendLine($"# Generated: {DateTime.Now:yyyy-MM-dd HH:mm}");
+            sb.AppendLine($"# Mappings: {ifcSection.Count}");
+            sb.AppendLine("#");
+            sb.AppendLine("# Format: SubElement<TAB>PropertySet<TAB>RevitParamName<TAB>IfcParamName<TAB>Type");
+            sb.AppendLine();
+
+            int mapped = 0;
+            var propertySets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (JToken mapping in ifcSection)
+            {
+                string paramName = mapping["param_name"]?.ToString() ?? "";
+                string pset = mapping["ifc_property_set"]?.ToString() ?? "";
+                string ifcName = mapping["ifc_property_name"]?.ToString() ?? "";
+
+                if (string.IsNullOrEmpty(paramName) || string.IsNullOrEmpty(pset)) continue;
+
+                // Determine type (text vs number)
+                string ifcType = paramName.EndsWith("_NR") ? "Real" : "Text";
+
+                sb.AppendLine($"\t{pset}\t{paramName}\t{ifcName}\t{ifcType}");
+                mapped++;
+                propertySets.Add(pset);
+            }
+
+            // Save the mapping file
+            string dir = Path.GetDirectoryName(doc.PathName);
+            if (string.IsNullOrEmpty(dir)) dir = StingToolsApp.DataPath ?? Path.GetTempPath();
+            string outputPath = Path.Combine(dir, "STING_IFC_PropertyMap.txt");
+
+            try
+            {
+                File.WriteAllText(outputPath, sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("IFC property map export failed", ex);
+                TaskDialog.Show("IFC Property Map", $"Export failed: {ex.Message}");
+                return Result.Failed;
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine("IFC Property Set Mapping Export");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"  Parameters mapped: {mapped}");
+            report.AppendLine($"  Property sets: {propertySets.Count}");
+            foreach (string ps in propertySets.OrderBy(x => x))
+                report.AppendLine($"    • {ps}");
+            report.AppendLine();
+            report.AppendLine($"  Output: {outputPath}");
+            report.AppendLine();
+            report.AppendLine("To use: In Revit IFC Export dialog → Modify Setup →");
+            report.AppendLine("Property Sets → Load this file as custom mapping.");
+
+            TaskDialog.Show("IFC Property Map", report.ToString());
+            StingLog.Info($"IFC property map exported: {mapped} mappings to {outputPath}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  ENH-008: BEP (BIM Execution Plan) Validation
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates tag token values against a project BEP JSON file that defines
+    /// allowed LOC/ZONE/DISC codes. Catches wrong discipline abbreviations,
+    /// non-standard zone codes, and codes inconsistent with the project BEP.
+    /// BEP file: project_bep.json in data directory with structure:
+    ///   { "allowed_loc": ["BLD1","BLD2"], "allowed_zone": ["Z01","Z02"],
+    ///     "allowed_disc": ["M","E","P","A","S"], "project_name": "..." }
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ValidateBepComplianceCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument?.Document;
+            if (doc == null) return Result.Failed;
+
+            // Load BEP from data directory
+            string bepPath = StingToolsApp.FindDataFile("project_bep.json");
+            if (string.IsNullOrEmpty(bepPath) || !File.Exists(bepPath))
+            {
+                TaskDialog.Show("BEP Validation",
+                    "No project_bep.json found in data directory.\n\n" +
+                    "Create a BEP file with allowed codes:\n" +
+                    "{\n  \"allowed_loc\": [\"BLD1\", \"BLD2\"],\n" +
+                    "  \"allowed_zone\": [\"Z01\", \"Z02\", \"Z03\"],\n" +
+                    "  \"allowed_disc\": [\"M\", \"E\", \"P\", \"A\", \"S\"]\n}");
+                return Result.Succeeded;
+            }
+
+            JObject bep;
+            try
+            {
+                bep = JObject.Parse(File.ReadAllText(bepPath));
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("BEP Validation", $"Failed to parse BEP file: {ex.Message}");
+                return Result.Failed;
+            }
+
+            var allowedLoc = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var allowedZone = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var allowedDisc = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (bep["allowed_loc"] is JArray locArr)
+                foreach (string v in locArr) allowedLoc.Add(v);
+            if (bep["allowed_zone"] is JArray zoneArr)
+                foreach (string v in zoneArr) allowedZone.Add(v);
+            if (bep["allowed_disc"] is JArray discArr)
+                foreach (string v in discArr) allowedDisc.Add(v);
+
+            if (allowedLoc.Count == 0 && allowedZone.Count == 0 && allowedDisc.Count == 0)
+            {
+                TaskDialog.Show("BEP Validation", "BEP file contains no allowed code lists.");
+                return Result.Succeeded;
+            }
+
+            // Scan all tagged elements
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            int scanned = 0;
+            int violations = 0;
+            var violationsByType = new Dictionary<string, int>
+            {
+                ["LOC"] = 0, ["ZONE"] = 0, ["DISC"] = 0
+            };
+            var sampleViolations = new List<string>();
+
+            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!known.Contains(cat)) continue;
+
+                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag)) continue;
+                scanned++;
+
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+
+                bool hasViolation = false;
+
+                if (allowedDisc.Count > 0 && !string.IsNullOrEmpty(disc) && !allowedDisc.Contains(disc))
+                {
+                    violationsByType["DISC"]++;
+                    hasViolation = true;
+                }
+                if (allowedLoc.Count > 0 && !string.IsNullOrEmpty(loc) && loc != "XX" && !allowedLoc.Contains(loc))
+                {
+                    violationsByType["LOC"]++;
+                    hasViolation = true;
+                }
+                if (allowedZone.Count > 0 && !string.IsNullOrEmpty(zone) && zone != "XX" && zone != "ZZ" && !allowedZone.Contains(zone))
+                {
+                    violationsByType["ZONE"]++;
+                    hasViolation = true;
+                }
+
+                if (hasViolation)
+                {
+                    violations++;
+                    if (sampleViolations.Count < 10)
+                        sampleViolations.Add($"  {el.Id}: {tag} (DISC={disc}, LOC={loc}, ZONE={zone})");
+                }
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine("BEP Compliance Validation");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"  BEP file: {Path.GetFileName(bepPath)}");
+            report.AppendLine($"  Scanned: {scanned} tagged elements");
+            report.AppendLine($"  Violations: {violations}");
+            report.AppendLine();
+
+            if (allowedDisc.Count > 0)
+                report.AppendLine($"  Allowed DISC: {string.Join(", ", allowedDisc)} — violations: {violationsByType["DISC"]}");
+            if (allowedLoc.Count > 0)
+                report.AppendLine($"  Allowed LOC:  {string.Join(", ", allowedLoc)} — violations: {violationsByType["LOC"]}");
+            if (allowedZone.Count > 0)
+                report.AppendLine($"  Allowed ZONE: {string.Join(", ", allowedZone)} — violations: {violationsByType["ZONE"]}");
+
+            if (sampleViolations.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("Sample violations:");
+                foreach (string s in sampleViolations) report.AppendLine(s);
+            }
+
+            string status = violations == 0 ? "COMPLIANT" : $"{violations} VIOLATIONS";
+            TaskDialog.Show("BEP Validation", report.ToString());
+            StingLog.Info($"BEP validation: {scanned} scanned, {violations} violations");
+            return Result.Succeeded;
+        }
+    }
 }

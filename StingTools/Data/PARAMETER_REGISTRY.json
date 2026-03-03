@@ -487,5 +487,24 @@
     "Ramps", "Curtain Panels", "Curtain Wall Mullions", "Curtain Systems",
     "Generic Models", "Specialty Equipment", "Parking", "Site",
     "Mass", "Parts", "Assemblies", "Detail Components"
-  ]
+  ],
+
+  "ifc_property_mapping": {
+    "description": "ENH-006: Maps STING parameters to IFC property sets and names for IFC export",
+    "mappings": [
+      { "param_name": "ASS_TAG_1_TXT",           "ifc_property_set": "STING_AssetTag",      "ifc_property_name": "AssetTag" },
+      { "param_name": "ASS_DISCIPLINE_COD_TXT",   "ifc_property_set": "STING_AssetTag",      "ifc_property_name": "Discipline" },
+      { "param_name": "ASS_LOC_TXT",              "ifc_property_set": "STING_AssetTag",      "ifc_property_name": "Location" },
+      { "param_name": "ASS_ZONE_TXT",             "ifc_property_set": "STING_AssetTag",      "ifc_property_name": "Zone" },
+      { "param_name": "ASS_LVL_COD_TXT",          "ifc_property_set": "STING_AssetTag",      "ifc_property_name": "Level" },
+      { "param_name": "ASS_SYSTEM_TYPE_TXT",       "ifc_property_set": "STING_AssetTag",      "ifc_property_name": "SystemType" },
+      { "param_name": "ASS_FUNC_TXT",             "ifc_property_set": "STING_AssetTag",      "ifc_property_name": "Function" },
+      { "param_name": "ASS_PRODCT_COD_TXT",       "ifc_property_set": "STING_AssetTag",      "ifc_property_name": "ProductCode" },
+      { "param_name": "ASS_SEQ_NUM_TXT",          "ifc_property_set": "STING_AssetTag",      "ifc_property_name": "SequenceNumber" },
+      { "param_name": "ASS_STATUS_TXT",           "ifc_property_set": "STING_AssetLifecycle","ifc_property_name": "Status" },
+      { "param_name": "ASS_DESCRIPTION_TXT",      "ifc_property_set": "STING_AssetIdentity", "ifc_property_name": "Description" },
+      { "param_name": "ASS_CST_UNIT_PRICE_UGX_NR","ifc_property_set": "STING_AssetCost",     "ifc_property_name": "UnitPrice_UGX" },
+      { "param_name": "ASS_CST_TOTAL_UGX_NR",     "ifc_property_set": "STING_AssetCost",     "ifc_property_name": "TotalCost_UGX" }
+    ]
+  }
 }

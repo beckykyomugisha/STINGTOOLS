@@ -132,6 +132,8 @@ namespace StingTools.UI
                     case "TagAndCombine": RunCommand<Tags.TagAndCombineCommand>(app); break;
                     case "TagSelected": RunCommand<Organise.TagSelectedCommand>(app); break;
                     case "TagNewOnly": RunCommand<Tags.TagNewOnlyCommand>(app); break;
+                    case "TagChanged": RunCommand<Tags.TagChangedCommand>(app); break;
+                    case "TagFormatMigration": RunCommand<Tags.TagFormatMigrationCommand>(app); break;
                     case "ReTag": RunCommand<Organise.ReTagCommand>(app); break;
                     case "DeleteTags": RunCommand<Organise.DeleteTagsCommand>(app); break;
                     case "RenumberTags": RunCommand<Organise.RenumberTagsCommand>(app); break;
@@ -414,6 +416,8 @@ namespace StingTools.UI
                     case "SchemaValidate": RunCommand<Temp.SchemaValidateCommand>(app); break;
                     case "BOQExport": RunCommand<Temp.BOQExportCommand>(app); break;
                     case "TemplateVGAudit": RunCommand<Temp.TemplateVGAuditCommand>(app); break;
+                    case "ExportIfcPropertyMap": RunCommand<Temp.ExportIfcPropertyMapCommand>(app); break;
+                    case "ValidateBepCompliance": RunCommand<Temp.ValidateBepComplianceCommand>(app); break;
 
                     // ════════════════════════════════════════════════════════
                     // CREATE TAB (ISO 19650 tag creation)
@@ -708,6 +712,19 @@ namespace StingTools.UI
                 StingLog.Error($"DockPanel command '{_commandTag}' failed", ex);
                 TaskDialog.Show("STING Tools", $"Command failed: {ex.Message}");
             }
+
+            // ENH-003: Refresh compliance status bar after any command completes
+            try
+            {
+                var doc = app.ActiveUIDocument?.Document;
+                if (doc != null)
+                {
+                    ComplianceScan.InvalidateCache();
+                    var scan = ComplianceScan.Scan(doc);
+                    StingDockPanel.UpdateComplianceStatus(scan.StatusBarText, scan.RAGStatus);
+                }
+            }
+            catch { /* Non-critical — don't interrupt user */ }
         }
 
         // ── Generic command runner ────────────────────────────────────
