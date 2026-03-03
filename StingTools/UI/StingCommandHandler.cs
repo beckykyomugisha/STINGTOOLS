@@ -423,6 +423,20 @@ namespace StingTools.UI
                     case "ExportIfcPropertyMap": RunCommand<Temp.ExportIfcPropertyMapCommand>(app); break;
                     case "ValidateBepCompliance": RunCommand<Temp.ValidateBepComplianceCommand>(app); break;
 
+                    // ── Workflow Orchestration ──
+                    case "RunWorkflow": RunCommand<Core.WorkflowPresetCommand>(app); break;
+                    case "ListWorkflows": RunCommand<Core.ListWorkflowPresetsCommand>(app); break;
+                    case "CreateWorkflow": RunCommand<Core.CreateWorkflowPresetCommand>(app); break;
+
+                    // ── Advanced Automation ──
+                    case "AnomalyAutoFix": RunCommand<Organise.AnomalyAutoFixCommand>(app); break;
+                    case "RevisionCloudAuto": RunCommand<Docs.RevisionCloudAutoCreateCommand>(app); break;
+                    case "ClashDetect": RunCommand<Temp.ClashDetectionCommand>(app); break;
+                    case "IFCExport": RunCommand<Temp.IFCExportCommand>(app); break;
+                    case "ExcelImport": RunCommand<Temp.ExcelBOQImportCommand>(app); break;
+                    case "KeynoteSync": RunCommand<Temp.KeynoteSyncCommand>(app); break;
+                    case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
+
                     // ════════════════════════════════════════════════════════
                     // CREATE TAB (ISO 19650 tag creation)
                     // ════════════════════════════════════════════════════════
@@ -474,11 +488,8 @@ namespace StingTools.UI
                     case "AISimilarSelect": AISimilarSelect(app); break;
                     case "AIChainSelect": AIChainSelect(app); break;
                     case "AIClusterSelect": SelectNearby(app, 20.0); break;
-                    case "AIPatternSelect":
-                    case "AIBoundarySelect":
-                        StingLog.Info($"AI Smart Select: {_commandTag}");
-                        TaskDialog.Show("AI Select", $"AI selection mode '{_commandTag}' is under development.");
-                        break;
+                    case "AIPatternSelect": AIPatternSelect(app); break;
+                    case "AIBoundarySelect": AIBoundarySelect(app); break;
                     case "AIOutliersSelect": AIOutliersSelect(app); break;
                     case "AIDenseSelect": SelectNearby(app, 5.0); break;
 
@@ -3337,6 +3348,120 @@ namespace StingTools.UI
                 "  - Placeholder values (XX, 0000)\n" +
                 "  - Empty discipline codes");
             StingLog.Info($"AIOutliersSelect: {outliers.Count} outliers of {total} taggable");
+        }
+
+        /// <summary>
+        /// Select elements matching a spatial or parameter-value pattern.
+        /// Finds elements that share the same parameter values (DISC, SYS, LOC, ZONE)
+        /// as the selected seed elements — like "select all HVAC elements in zone Z01".
+        /// </summary>
+        private static void AIPatternSelect(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var selected = uidoc.Selection.GetElementIds();
+            if (selected.Count == 0)
+            {
+                TaskDialog.Show("Pattern Select", "Select seed elements first.\nThe tool will find elements sharing the same DISC + SYS + LOC + ZONE pattern.");
+                return;
+            }
+
+            // Extract parameter patterns from seed elements
+            var patterns = new HashSet<string>();
+            foreach (ElementId id in selected)
+            {
+                Element el = doc.GetElement(id);
+                if (el == null) continue;
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                string pattern = $"{disc}|{sys}|{loc}|{zone}";
+                if (pattern != "|||") patterns.Add(pattern);
+            }
+
+            if (patterns.Count == 0)
+            {
+                TaskDialog.Show("Pattern Select", "No STING tag patterns found on selected elements.\nEnsure elements have DISC/SYS/LOC/ZONE values.");
+                return;
+            }
+
+            // Find all view elements matching any seed pattern
+            var matches = new List<ElementId>();
+            foreach (Element el in new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .WhereElementIsNotElementType())
+            {
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                string pat = $"{disc}|{sys}|{loc}|{zone}";
+                if (patterns.Contains(pat))
+                    matches.Add(el.Id);
+            }
+
+            uidoc.Selection.SetElementIds(matches);
+            TaskDialog.Show("Pattern Select",
+                $"Found {matches.Count} elements matching {patterns.Count} pattern(s):\n" +
+                string.Join("\n", patterns.Take(5).Select(p => $"  {p.Replace("|", " / ")}")));
+            StingLog.Info($"AIPatternSelect: {patterns.Count} patterns → {matches.Count} elements");
+        }
+
+        /// <summary>
+        /// Select elements within a room/space boundary.
+        /// Uses the room that contains the first selected element, then selects
+        /// all taggable elements within that room's boundary.
+        /// </summary>
+        private static void AIBoundarySelect(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var selected = uidoc.Selection.GetElementIds();
+            if (selected.Count == 0)
+            {
+                TaskDialog.Show("Boundary Select", "Select an element inside a room.\nAll taggable elements in that room will be selected.");
+                return;
+            }
+
+            // Find the room containing the first selected element
+            Autodesk.Revit.DB.Architecture.Room targetRoom = null;
+            foreach (ElementId id in selected)
+            {
+                Element el = doc.GetElement(id);
+                if (el == null) continue;
+                targetRoom = ParameterHelpers.GetRoomAtElement(doc, el);
+                if (targetRoom != null) break;
+            }
+
+            if (targetRoom == null)
+            {
+                TaskDialog.Show("Boundary Select", "No room found at selected element position.\nEnsure rooms are placed and the element is within a room boundary.");
+                return;
+            }
+
+            // Select all taggable elements within this room
+            var matches = new List<ElementId>();
+            var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
+            foreach (Element el in new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!knownCats.Contains(cat)) continue;
+
+                var room = ParameterHelpers.GetRoomAtElement(doc, el);
+                if (room != null && room.Id == targetRoom.Id)
+                    matches.Add(el.Id);
+            }
+
+            uidoc.Selection.SetElementIds(matches);
+            string roomName = targetRoom.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
+            string roomNum = targetRoom.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? "";
+            TaskDialog.Show("Boundary Select",
+                $"Room: {roomName} ({roomNum})\n" +
+                $"Selected {matches.Count} taggable elements within room boundary.");
+            StingLog.Info($"AIBoundarySelect: room '{roomName}' ({roomNum}) → {matches.Count} elements");
         }
 
         /// <summary>

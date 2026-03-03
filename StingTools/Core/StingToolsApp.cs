@@ -32,6 +32,9 @@ namespace StingTools.Core
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
 
+                // Register the real-time auto-tagger (IUpdater) — starts disabled
+                StingAutoTagger.Register(application);
+
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
             }
@@ -47,6 +50,7 @@ namespace StingTools.Core
         public Result OnShutdown(UIControlledApplication application)
         {
             StingLog.Info("STING Tools shutting down");
+            StingAutoTagger.Unregister();
             StingLog.Shutdown();
             return Result.Succeeded;
         }
