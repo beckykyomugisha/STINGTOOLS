@@ -547,7 +547,16 @@ namespace StingTools.Core
             lock (_lock)
             {
                 if (_loaded) return;
-                LoadFromFile();
+                try
+                {
+                    LoadFromFile();
+                }
+                catch (Exception ex)
+                {
+                    // CRITICAL: Never let registry loading crash Revit
+                    StingLog.Error("ParamRegistry load failed — using minimal defaults", ex);
+                    LoadMinimalDefaults();
+                }
                 _loaded = true;
             }
         }
@@ -876,6 +885,57 @@ namespace StingTools.Core
         }
 
         /// <summary>Fallback defaults matching the original hardcoded values.</summary>
+        /// <summary>Absolute minimal defaults that cannot throw. Used as last-resort fallback.</summary>
+        private static void LoadMinimalDefaults()
+        {
+            Separator = "-";
+            NumPad = 4;
+            SegmentOrder = new[] { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+            AllTokenParams = new[]
+            {
+                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+            };
+            SourceTokens = new[]
+            {
+                new TokenDef { Slot = 0, Key = "DISC", ParamName = "ASS_DISCIPLINE_COD_TXT", GuidStr = "8c7dcfd7-f922-52d0-b859-81cae8d17dc0" },
+                new TokenDef { Slot = 1, Key = "LOC",  ParamName = "ASS_LOC_TXT",             GuidStr = "b7469c27-c80e-5b59-b999-1a99ba620cd1" },
+                new TokenDef { Slot = 2, Key = "ZONE", ParamName = "ASS_ZONE_TXT",            GuidStr = "dc0d940f-e4ce-5e73-a0a7-fc7094148c84" },
+                new TokenDef { Slot = 3, Key = "LVL",  ParamName = "ASS_LVL_COD_TXT",        GuidStr = "b1e51fab-fa88-50df-8b2f-bcdbe48e7c78" },
+                new TokenDef { Slot = 4, Key = "SYS",  ParamName = "ASS_SYSTEM_TYPE_TXT",     GuidStr = "2b3658d9-bfc6-56db-9df5-901337fde0f5" },
+                new TokenDef { Slot = 5, Key = "FUNC", ParamName = "ASS_FUNC_TXT",            GuidStr = "1ddff9a8-6e66-4a93-88fe-f3b94fbd5710" },
+                new TokenDef { Slot = 6, Key = "PROD", ParamName = "ASS_PRODCT_COD_TXT",      GuidStr = "082a2a05-3387-5501-b355-51dd45e23e9f" },
+                new TokenDef { Slot = 7, Key = "SEQ",  ParamName = "ASS_SEQ_NUM_TXT",         GuidStr = "bbe1cd55-247b-48bd-94ba-a08031f06d5b" },
+            };
+            TAG1 = "ASS_TAG_1_TXT"; TAG2 = "ASS_TAG_2_TXT"; TAG3 = "ASS_TAG_3_TXT";
+            TAG4 = "ASS_TAG_4_TXT"; TAG5 = "ASS_TAG_5_TXT"; TAG6 = "ASS_TAG_6_TXT";
+            TAG7 = "ASS_TAG_7_TXT";
+            TAG7A = "ASS_TAG_7A_TXT"; TAG7B = "ASS_TAG_7B_TXT"; TAG7C = "ASS_TAG_7C_TXT";
+            TAG7D = "ASS_TAG_7D_TXT"; TAG7E = "ASS_TAG_7E_TXT"; TAG7F = "ASS_TAG_7F_TXT";
+            STATUS = "ASS_STATUS_TXT"; DETAIL_NUM = "ASS_INST_DETAIL_NUM_TXT"; MNT_TYPE = "MNT_TYPE_TXT";
+            TokenPresets = new Dictionary<string, int[]>
+            {
+                { "all", new[] {0,1,2,3,4,5,6,7} },
+                { "short_id", new[] {0,6,7} },
+                { "location", new[] {1,2,3} },
+                { "system", new[] {4,5} },
+            };
+            _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
+            ContainerGroups = Array.Empty<ContainerGroupDef>();
+            UniversalParams = AllTokenParams;
+            _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
+            _nameByGuid = new Dictionary<Guid, string>();
+            foreach (var tok in SourceTokens)
+            {
+                if (Guid.TryParse(tok.GuidStr, out Guid g))
+                {
+                    _guidByName[tok.ParamName] = g;
+                    _nameByGuid[g] = tok.ParamName;
+                }
+            }
+        }
+
         private static void LoadDefaults()
         {
             Separator = "-";
