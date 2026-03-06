@@ -769,6 +769,44 @@ namespace StingTools.UI
                     case "DataReport": RunCommand<Temp.DataReportCommand>(app); break;
                     case "ExportUnifiedRegistry": RunCommand<Temp.ExportUnifiedRegistryCommand>(app); break;
 
+                    // ── STANDARDS COMPLIANCE ──
+                    case "Iso19650DeepCompliance": RunCommand<Temp.Iso19650DeepComplianceCommand>(app); break;
+                    case "CibseVelocityCheck": RunCommand<Temp.CibseVelocityCheckCommand>(app); break;
+                    case "Bs7671Compliance": RunCommand<Temp.Bs7671ComplianceCommand>(app); break;
+                    case "UniclassClassify": RunCommand<Temp.UniclassClassifyCommand>(app); break;
+                    case "Bs8300Accessibility": RunCommand<Temp.Bs8300AccessibilityCommand>(app); break;
+                    case "PartLCompliance": RunCommand<Temp.PartLComplianceCommand>(app); break;
+                    case "StandardsDashboard": RunCommand<Temp.StandardsDashboardCommand>(app); break;
+
+                    // ── OPERATIONS & AUTOMATION ──
+                    case "WorkflowPresets": RunCommand<Temp.WorkflowPresetCommand>(app); break;
+                    case "PdfExport": RunCommand<Temp.PDFExportCommand>(app); break;
+                    case "IfcExport": RunCommand<Temp.IFCExportCommand>(app); break;
+                    case "CobieExport": RunCommand<Temp.COBieExportCommand>(app); break;
+                    case "QuantityTakeoff": RunCommand<Temp.QuantityTakeoffCommand>(app); break;
+                    case "ClashDetection": RunCommand<Temp.ClashDetectionCommand>(app); break;
+                    case "ModelHealth": RunCommand<Temp.ModelHealthCheckCommand>(app); break;
+                    case "BatchParamExport": RunCommand<Temp.BatchParameterExportCommand>(app); break;
+                    case "ProjectDashboard": RunCommand<Temp.ProjectDashboardCommand>(app); break;
+                    case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
+
+                    // ── IoT / MAINTENANCE / FACILITY MANAGEMENT ──
+                    case "AssetCondition": RunCommand<Temp.AssetConditionCommand>(app); break;
+                    case "MaintenanceSchedule": RunCommand<Temp.MaintenanceScheduleCommand>(app); break;
+                    case "DigitalTwinExport": RunCommand<Temp.DigitalTwinExportCommand>(app); break;
+                    case "EnergyAnalysis": RunCommand<Temp.EnergyAnalysisCommand>(app); break;
+                    case "CommissioningChecklist": RunCommand<Temp.CommissioningChecklistCommand>(app); break;
+                    case "SpaceManagement": RunCommand<Temp.SpaceManagementCommand>(app); break;
+                    case "LifecycleCost": RunCommand<Temp.LifecycleCostCommand>(app); break;
+                    case "WarrantyTracker": RunCommand<Temp.WarrantyTrackerCommand>(app); break;
+                    case "HandoverPackage": RunCommand<Temp.HandoverPackageCommand>(app); break;
+                    case "SensorPointMapper": RunCommand<Temp.SensorPointMapperCommand>(app); break;
+
+                    // ── NLP / COMMAND INTELLIGENCE ──
+                    case "NLPCommandProcessor": RunCommand<Tags.NLPCommandProcessorCommand>(app); break;
+                    case "BimKnowledgeBase": RunCommand<Tags.BimKnowledgeBaseCommand>(app); break;
+                    case "CommandSuggestion": RunCommand<Tags.CommandSuggestionCommand>(app); break;
+
                     // ── Unmapped / placeholder ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {_commandTag}");
