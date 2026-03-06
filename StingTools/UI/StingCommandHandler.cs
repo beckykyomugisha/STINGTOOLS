@@ -372,7 +372,7 @@ namespace StingTools.UI
 
                     // ── Corporate Schedules ──
                     case "CorporateTitleBlock": RunCommand<Temp.CorporateTitleBlockScheduleCommand>(app); break;
-                    case "DrawingRegister": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
+                    case "DrawingRegisterSchedule": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
 
                     // ── Schedule Enhancements ──
                     case "ScheduleAudit": RunCommand<Temp.ScheduleAuditCommand>(app); break;
