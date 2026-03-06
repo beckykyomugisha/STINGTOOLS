@@ -762,8 +762,27 @@ namespace StingTools.UI
 
         // ── Generic command runner ────────────────────────────────────
 
+        // Cache the created ExternalCommandData to avoid repeated reflection + GC finalizer risk.
+        // One instance is reused across all command invocations (Application field updated each call).
+        private static ExternalCommandData _cachedCommandData;
+        private static FieldInfo _cachedAppField;
+
         private static void RunCommand<T>(UIApplication app) where T : IExternalCommand, new()
         {
+            if (app == null)
+            {
+                StingLog.Error($"RunCommand<{typeof(T).Name}>: UIApplication is null");
+                return;
+            }
+
+            // Verify we have an active document before attempting command
+            if (app.ActiveUIDocument == null)
+            {
+                TaskDialog.Show("STING Tools",
+                    $"No active document.\nPlease open a Revit project first.");
+                return;
+            }
+
             var cmd = new T();
             string message = "";
             var elements = new ElementSet();
@@ -802,29 +821,117 @@ namespace StingTools.UI
         {
             try
             {
-                var data = (ExternalCommandData)RuntimeHelpers
-                    .GetUninitializedObject(typeof(ExternalCommandData));
+                // Reuse cached instance to avoid GC finalizer issues with uninitialized objects.
+                // GetUninitializedObject skips constructors; if ExternalCommandData has a
+                // destructor/finalizer, the GC calling it on uninitialized native state causes
+                // delayed access violations that crash Revit. By caching one instance and
+                // suppressing its finalizer, we eliminate this risk entirely.
+                if (_cachedCommandData != null && _cachedAppField != null)
+                {
+                    _cachedAppField.SetValue(_cachedCommandData, app);
+                    return _cachedCommandData;
+                }
 
+                // First attempt: try non-public constructor (properly initializes native state)
+                ExternalCommandData data = null;
+                try
+                {
+                    data = (ExternalCommandData)Activator.CreateInstance(
+                        typeof(ExternalCommandData),
+                        BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.CreateInstance,
+                        null, null, null);
+                }
+                catch
+                {
+                    // Constructor not available — fall back to GetUninitializedObject
+                }
+
+                if (data == null)
+                {
+                    data = (ExternalCommandData)RuntimeHelpers
+                        .GetUninitializedObject(typeof(ExternalCommandData));
+
+                    // CRITICAL: Suppress finalizer to prevent GC from calling destructor
+                    // on the uninitialized native state, which causes delayed Revit crashes
+                    GC.SuppressFinalize(data);
+                }
+
+                // Find and set the UIApplication field
                 var fields = typeof(ExternalCommandData).GetFields(
                     BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
 
-                bool appSet = false;
+                FieldInfo appField = null;
                 foreach (var field in fields)
                 {
                     if (field.FieldType == typeof(UIApplication))
                     {
                         field.SetValue(data, app);
-                        appSet = true;
+                        appField = field;
                         break;
                     }
                 }
 
-                if (!appSet)
+                // Fallback: try auto-property backing field name
+                if (appField == null)
                 {
-                    var backingField = typeof(ExternalCommandData).GetField(
+                    appField = typeof(ExternalCommandData).GetField(
                         "<Application>k__BackingField",
                         BindingFlags.NonPublic | BindingFlags.Instance);
-                    backingField?.SetValue(data, app);
+                    appField?.SetValue(data, app);
+                }
+
+                // Fallback: try common Revit internal field naming patterns
+                if (appField == null)
+                {
+                    foreach (string name in new[] { "m_application", "m_uiApplication", "m_app", "application" })
+                    {
+                        appField = typeof(ExternalCommandData).GetField(name,
+                            BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                        if (appField != null)
+                        {
+                            appField.SetValue(data, app);
+                            break;
+                        }
+                    }
+                }
+
+                // Also try to initialize JournalData field (some internal Revit code may access it)
+                foreach (var field in fields)
+                {
+                    try
+                    {
+                        if (field.FieldType == typeof(IDictionary<string, string>) ||
+                            field.FieldType == typeof(Dictionary<string, string>))
+                        {
+                            if (field.GetValue(data) == null)
+                                field.SetValue(data, new Dictionary<string, string>());
+                        }
+                    }
+                    catch { }
+                }
+
+                // Verify the Application property actually returns our UIApplication
+                try
+                {
+                    var verify = data.Application;
+                    if (verify == null)
+                    {
+                        StingLog.Warn("CreateCommandData: Application property returned null after field set. " +
+                            $"Field found: {appField?.Name ?? "none"}, Fields available: {string.Join(", ", Array.ConvertAll(fields, f => $"{f.Name}:{f.FieldType.Name}"))}");
+                        return null;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"CreateCommandData: Application property threw {ex.GetType().Name}: {ex.Message}");
+                    return null;
+                }
+
+                // Cache for reuse
+                if (appField != null)
+                {
+                    _cachedCommandData = data;
+                    _cachedAppField = appField;
                 }
 
                 return data;
