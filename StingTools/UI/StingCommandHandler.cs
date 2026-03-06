@@ -2009,7 +2009,7 @@ namespace StingTools.UI
                             if (leaders.Count > 0)
                                 tn.RemoveLeaders();
                             else
-                                tn.AddLeader(LeaderAtachement.Midpoint);
+                                tn.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
                             toggled++;
                         }
                         catch { }
