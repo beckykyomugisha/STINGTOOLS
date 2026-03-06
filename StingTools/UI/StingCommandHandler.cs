@@ -710,6 +710,17 @@ namespace StingTools.UI
                     case "PatternApplyView": ApplyLinePattern(app); break;
                     case "ApplyLineWeight": ApplyLineWeightOverride(app); break;
 
+                    // ── Tag Style Engine ──
+                    case "ApplyTagStyle": RunCommand<Tags.ApplyTagStyleCommand>(app); break;
+                    case "ApplyColorScheme": RunCommand<Tags.ApplyColorSchemeCommand>(app); break;
+                    case "ClearColorScheme": RunCommand<Tags.ClearColorSchemeCommand>(app); break;
+                    case "SetParagraphDepthExt": RunCommand<Tags.SetParagraphDepthExtCommand>(app); break;
+                    case "TagStyleReport": RunCommand<Tags.TagStyleReportCommand>(app); break;
+                    case "SwitchTagStyleByDisc": RunCommand<Tags.SwitchTagStyleByDiscCommand>(app); break;
+                    case "BatchApplyColorScheme": RunCommand<Tags.BatchApplyColorSchemeCommand>(app); break;
+                    case "ColorByVariable": RunCommand<Tags.ColorByVariableCommand>(app); break;
+                    case "SetBoxColor": RunCommand<Tags.SetBoxColorCommand>(app); break;
+
                     // ════════════════════════════════════════════════════════
                     // MODEL TAB — Auto-Modeling Engine
                     // ════════════════════════════════════════════════════════

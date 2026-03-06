@@ -1584,6 +1584,35 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- TAG STYLE ENGINE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG STYLE ENGINE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <StackPanel>
+                                <TextBlock Text="Control tag size, style, and colour via shared BOOL parameters" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="TAG APPEARANCE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Apply Tag Style" Tag="ApplyTagStyle" Click="Cmd_Click" ToolTip="Pick size/style/colour for tag label visibility"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="By Discipline" Tag="SwitchTagStyleByDisc" Click="Cmd_Click" ToolTip="Auto-assign tag styles per discipline"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Style Report" Tag="TagStyleReport" Click="Cmd_Click" ToolTip="Audit current tag style usage"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="VIEW COLOUR SCHEME"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Apply Scheme" Tag="ApplyColorScheme" Click="Cmd_Click" ToolTip="Apply named colour scheme to view"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Batch Scheme" Tag="BatchApplyColorScheme" Click="Cmd_Click" ToolTip="Apply scheme to ALL views"/>
+                                    <Button Style="{StaticResource RedBtn}" Content="Clear Scheme" Tag="ClearColorScheme" Click="Cmd_Click" ToolTip="Remove all colour overrides"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="COLOUR BY VARIABLE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="By Variable" Tag="ColorByVariable" Click="Cmd_Click" ToolTip="Color by System/Status/Zone/Level/Function/Location"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Box Color" Tag="SetBoxColor" Click="Cmd_Click" ToolTip="Set tag bounding box fill colour (separate from text)"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="PARAGRAPH DEPTH"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Set Depth (1-10)" Tag="SetParagraphDepthExt" Click="Cmd_Click" ToolTip="Control TAG7 paragraph visibility tiers"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- VIEW CONTROLS -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="[Eye] VIEW CONTROLS"/>
                         <Border Style="{StaticResource GroupBorder}">

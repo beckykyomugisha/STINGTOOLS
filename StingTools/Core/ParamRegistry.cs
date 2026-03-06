@@ -177,17 +177,138 @@ namespace StingTools.Core
         public static string PLM_FLOW_RATE  => Ext("PLM_FLOW_RATE");
         public static string PLM_PIPE_LENGTH => Ext("PLM_PIPE_LENGTH");
 
-        // ── Paragraph visibility controls (v4.2) ────────────────────────
+        // ── Paragraph visibility controls (v4.2, expanded to 10 states) ──
         /// <summary>Compact paragraph depth (State 1 only).</summary>
         public static string PARA_STATE_1 { get; private set; } = "TAG_PARA_STATE_1_BOOL";
         /// <summary>Standard paragraph depth (States 1+2).</summary>
         public static string PARA_STATE_2 { get; private set; } = "TAG_PARA_STATE_2_BOOL";
         /// <summary>Comprehensive paragraph depth (States 1+2+3).</summary>
         public static string PARA_STATE_3 { get; private set; } = "TAG_PARA_STATE_3_BOOL";
+        /// <summary>State visibility control tier 4.</summary>
+        public static string PARA_STATE_4 { get; private set; } = "TAG_PARA_STATE_4_BOOL";
+        /// <summary>State visibility control tier 5.</summary>
+        public static string PARA_STATE_5 { get; private set; } = "TAG_PARA_STATE_5_BOOL";
+        /// <summary>State visibility control tier 6.</summary>
+        public static string PARA_STATE_6 { get; private set; } = "TAG_PARA_STATE_6_BOOL";
+        /// <summary>State visibility control tier 7.</summary>
+        public static string PARA_STATE_7 { get; private set; } = "TAG_PARA_STATE_7_BOOL";
+        /// <summary>State visibility control tier 8.</summary>
+        public static string PARA_STATE_8 { get; private set; } = "TAG_PARA_STATE_8_BOOL";
+        /// <summary>State visibility control tier 9.</summary>
+        public static string PARA_STATE_9 { get; private set; } = "TAG_PARA_STATE_9_BOOL";
+        /// <summary>State visibility control tier 10.</summary>
+        public static string PARA_STATE_10 { get; private set; } = "TAG_PARA_STATE_10_BOOL";
         /// <summary>Enable/disable warning text in tags.</summary>
         public static string WARN_VISIBLE { get; private set; } = "TAG_WARN_VISIBLE_BOOL";
         /// <summary>Warning severity filter: CRITICAL, HIGH, MEDIUM, ALL.</summary>
         public static string WARN_SEVERITY_FILTER { get; private set; } = "TAG_WARN_SEVERITY_FILTER_TXT";
+
+        /// <summary>All 10 paragraph state parameter names indexed by tier (1-based: index 0 = state 1).</summary>
+        public static string[] AllParaStates => new[]
+        {
+            PARA_STATE_1, PARA_STATE_2, PARA_STATE_3, PARA_STATE_4, PARA_STATE_5,
+            PARA_STATE_6, PARA_STATE_7, PARA_STATE_8, PARA_STATE_9, PARA_STATE_10
+        };
+
+        // ── Tag style visibility parameters (v5.0) ────────────────────────
+        // Controls which tag label row is visible via the {SIZE}{STYLE}_{COLOR}_BOOL pattern.
+        // In tag families, each label row has its Visible property bound to one of these.
+        // Setting e.g. TAG_2BOLD_RED_BOOL=true makes the "2pt bold red" label row visible.
+        // Sizes: 2, 2.5, 3, 3.5  |  Styles: NOM, BOLD, ITALIC  |  Colors: BLACK, BLUE, GREEN, RED
+        //
+        // The tag family has one Type per combination (e.g. type "2BOLD_RED") with its
+        // corresponding BOOL set to Yes; switching type switches visible label row.
+        //
+        // These are TEXT type names, resolved dynamically. Use TagStyleParamName() to build.
+        /// <summary>Tag text colour (Integer code for calculated value rendering).</summary>
+        public static string TAG_TEXT_COLOUR { get; private set; } = "TAG_TEXT_COLOUR_TEXT";
+        /// <summary>VG Projection/Surface visibility control.</summary>
+        public static string VGPS_VISIBLE { get; private set; } = "VGPS_VISIBLE_BOOL";
+
+        /// <summary>Available text sizes for tag style parameters.</summary>
+        public static readonly string[] TagStyleSizes = { "2", "2.5", "3", "3.5" };
+        /// <summary>Available text styles for tag style parameters.</summary>
+        public static readonly string[] TagStyleStyles = { "NOM", "BOLD", "ITALIC", "BOLDITALIC" };
+        /// <summary>Available text colors for tag style parameters.</summary>
+        public static readonly string[] TagStyleColors = { "BLACK", "BLUE", "GREEN", "RED", "ORANGE", "PURPLE", "GREY", "WHITE" };
+
+        /// <summary>Original 4-color subset (for backwards compatibility with 48-param projects).</summary>
+        public static readonly string[] TagStyleColorsCore = { "BLACK", "BLUE", "GREEN", "RED" };
+        /// <summary>Extended colors added in v2 expansion.</summary>
+        public static readonly string[] TagStyleColorsExtended = { "ORANGE", "PURPLE", "GREY", "WHITE" };
+        /// <summary>Original 3-style subset (for backwards compatibility).</summary>
+        public static readonly string[] TagStyleStylesCore = { "NOM", "BOLD", "ITALIC" };
+
+        /// <summary>
+        /// Build a tag style parameter name from size, style, and color.
+        /// E.g. TagStyleParamName("2.5", "BOLD", "RED") => "TAG_2.5BOLD_RED_BOOL"
+        /// </summary>
+        public static string TagStyleParamName(string size, string style, string color)
+            => $"TAG_{size}{style}_{color}_BOOL";
+
+        /// <summary>
+        /// Get ALL tag style parameter names (4 sizes x 4 styles x 8 colors = 128).
+        /// </summary>
+        public static string[] AllTagStyleParams
+        {
+            get
+            {
+                var list = new List<string>();
+                foreach (var sz in TagStyleSizes)
+                    foreach (var st in TagStyleStyles)
+                        foreach (var co in TagStyleColors)
+                            list.Add(TagStyleParamName(sz, st, co));
+                return list.ToArray();
+            }
+        }
+
+        /// <summary>
+        /// Get CORE tag style parameter names only (4 sizes x 3 styles x 4 colors = 48).
+        /// For projects that haven't loaded extended parameters yet.
+        /// </summary>
+        public static string[] CoreTagStyleParams
+        {
+            get
+            {
+                var list = new List<string>();
+                foreach (var sz in TagStyleSizes)
+                    foreach (var st in TagStyleStylesCore)
+                        foreach (var co in TagStyleColorsCore)
+                            list.Add(TagStyleParamName(sz, st, co));
+                return list.ToArray();
+            }
+        }
+
+        // ── Bounding box color parameters (separate from text color) ─────
+        /// <summary>Tag bounding box fill color — Red channel (0-255).</summary>
+        public static string TAG_BOX_COLOR_R { get; private set; } = "TAG_BOX_COLOR_R_INT";
+        /// <summary>Tag bounding box fill color — Green channel (0-255).</summary>
+        public static string TAG_BOX_COLOR_G { get; private set; } = "TAG_BOX_COLOR_G_INT";
+        /// <summary>Tag bounding box fill color — Blue channel (0-255).</summary>
+        public static string TAG_BOX_COLOR_B { get; private set; } = "TAG_BOX_COLOR_B_INT";
+        /// <summary>Tag bounding box visibility.</summary>
+        public static string TAG_BOX_VISIBLE { get; private set; } = "TAG_BOX_VISIBLE_BOOL";
+        /// <summary>Tag bounding box style (SOLID/DASHED/NONE/ROUND).</summary>
+        public static string TAG_BOX_STYLE { get; private set; } = "TAG_BOX_STYLE_TXT";
+        /// <summary>Tag leader line color — Red channel (0-255).</summary>
+        public static string TAG_LEADER_COLOR_R { get; private set; } = "TAG_LEADER_COLOR_R_INT";
+        /// <summary>Tag leader line color — Green channel (0-255).</summary>
+        public static string TAG_LEADER_COLOR_G { get; private set; } = "TAG_LEADER_COLOR_G_INT";
+        /// <summary>Tag leader line color — Blue channel (0-255).</summary>
+        public static string TAG_LEADER_COLOR_B { get; private set; } = "TAG_LEADER_COLOR_B_INT";
+
+        // ── Semantic color meaning registry ──────────────────────────────
+        // Maps colors to what they represent in each context:
+        //   DISC: M=BLUE, E=ORANGE, P=GREEN, A=GREY, S=RED, FP=ORANGE, LV=PURPLE, G=BLACK
+        //   STATUS: NEW=GREEN, EXISTING=BLUE, DEMOLISHED=RED, TEMPORARY=ORANGE
+        //   SYS: HVAC=BLUE, ELEC=ORANGE, PLUMB=GREEN, FIRE=RED, LV=PURPLE, STRUCT=RED, GEN=GREY
+        //   ZONE: Z01=BLUE, Z02=GREEN, Z03=ORANGE, Z04=RED
+        //   LEVEL: GF=GREEN, L01=BLUE, L02=PURPLE, B1=RED, RF=ORANGE
+
+        /// <summary>View color scheme parameter.</summary>
+        public static string VIEW_COLOR_SCHEME { get; private set; } = "VIEW_COLOR_SCHEME_TXT";
+        /// <summary>View discipline filter parameter.</summary>
+        public static string VIEW_DISC_FILTER { get; private set; } = "VIEW_DISC_FILTER_TXT";
 
         // ── Paragraph container parameter names (v4.2/v4.3) ─────────────
         public static string PARA_WALL      => Ext("PARA_WALL");

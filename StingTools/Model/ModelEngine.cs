@@ -1255,7 +1255,7 @@ namespace StingTools.Model
 
         /// <summary>
         /// Creates a complete building shell: walls → floor → ceiling → roof.
-        /// Single TransactionGroup for atomic rollback.
+        /// ME-03 FIX: Wrapped in TransactionGroup for atomic rollback on failure.
         /// </summary>
         public ModelResult CreateBuildingShell(
             double widthMm, double depthMm,
@@ -1271,44 +1271,56 @@ namespace StingTools.Model
             var allIds = new List<ElementId>();
             int step = 0;
 
-            try
+            using (var tg = new TransactionGroup(_doc, "STING MODEL: Building Shell"))
             {
-                // Walls
-                step = 1;
-                var wallResult = CreateRectangularRoom(widthMm, depthMm,
-                    "Building", levelName, wallHeightMm, wallTypeName, placeRoom: false);
-                if (!wallResult.Success) return wallResult;
-                results.Add($"  Walls: {wallResult.Message}");
-                allIds.AddRange(wallResult.CreatedElementIds);
+                tg.Start();
 
-                // Floor
-                step = 2;
-                var floorResult = CreateFloor(widthMm, depthMm, floorTypeName, levelName);
-                if (floorResult.Success)
+                try
                 {
-                    results.Add($"  Floor: {floorResult.Message}");
-                    allIds.Add(floorResult.CreatedElementId);
-                }
+                    // Walls
+                    step = 1;
+                    var wallResult = CreateRectangularRoom(widthMm, depthMm,
+                        "Building", levelName, wallHeightMm, wallTypeName, placeRoom: false);
+                    if (!wallResult.Success)
+                    {
+                        tg.RollBack();
+                        return wallResult;
+                    }
+                    results.Add($"  Walls: {wallResult.Message}");
+                    allIds.AddRange(wallResult.CreatedElementIds);
 
-                // Roof
-                step = 3;
-                var roofResult = CreateRoof(widthMm, depthMm, roofTypeName, levelName,
-                    roofSlopeDeg, overhangMm);
-                if (roofResult.Success)
+                    // Floor
+                    step = 2;
+                    var floorResult = CreateFloor(widthMm, depthMm, floorTypeName, levelName);
+                    if (floorResult.Success)
+                    {
+                        results.Add($"  Floor: {floorResult.Message}");
+                        allIds.Add(floorResult.CreatedElementId);
+                    }
+
+                    // Roof
+                    step = 3;
+                    var roofResult = CreateRoof(widthMm, depthMm, roofTypeName, levelName,
+                        roofSlopeDeg, overhangMm);
+                    if (roofResult.Success)
+                    {
+                        results.Add($"  Roof: {roofResult.Message}");
+                        allIds.Add(roofResult.CreatedElementId);
+                    }
+
+                    tg.Assimilate();
+
+                    return ModelResult.OkBatch(
+                        $"Created building shell ({widthMm / 1000:F1}m × {depthMm / 1000:F1}m):\n" +
+                        string.Join("\n", results),
+                        allIds);
+                }
+                catch (Exception ex)
                 {
-                    results.Add($"  Roof: {roofResult.Message}");
-                    allIds.Add(roofResult.CreatedElementId);
+                    StingLog.Error($"ModelEngine.CreateBuildingShell step {step}", ex);
+                    tg.RollBack();
+                    return ModelResult.Fail($"Building shell failed at step {step}: {ex.Message}");
                 }
-
-                return ModelResult.OkBatch(
-                    $"Created building shell ({widthMm / 1000:F1}m × {depthMm / 1000:F1}m):\n" +
-                    string.Join("\n", results),
-                    allIds);
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error($"ModelEngine.CreateBuildingShell step {step}", ex);
-                return ModelResult.Fail($"Building shell failed at step {step}: {ex.Message}");
             }
         }
 

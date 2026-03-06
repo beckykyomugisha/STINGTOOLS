@@ -294,6 +294,9 @@ namespace StingTools.Model
 
         /// <summary>
         /// Extracts all line geometry from an ImportInstance, classified by DWG layer.
+        /// Applies GetTotalTransform (DWG-02 fix) for correct coordinate mapping.
+        /// Detects import scale factor (DWG-03 fix) from the transform.
+        /// Recursively traverses nested GeometryInstances to extract block references (DWG-01 fix).
         /// </summary>
         private CADExtractionResult ExtractGeometry(ImportInstance importInstance)
         {
@@ -312,61 +315,127 @@ namespace StingTools.Model
             {
                 if (geomObj is GeometryInstance gInstance)
                 {
+                    // DWG-02 FIX: Apply GetTotalTransform for correct coordinate mapping
+                    var totalTransform = gInstance.Transform;
+
+                    // DWG-03 FIX: Detect scale factor from the transform
+                    double scaleFactor = totalTransform.BasisX.GetLength();
+                    if (Math.Abs(scaleFactor - 1.0) > 0.001)
+                        StingLog.Info($"  DWG scale factor detected: {scaleFactor:F4}");
+
+                    // Use GetInstanceGeometry() which applies the instance transform
+                    // This returns geometry already in the model coordinate space
                     var instanceGeom = gInstance.GetInstanceGeometry();
                     if (instanceGeom == null) continue;
 
-                    foreach (var obj in instanceGeom)
-                    {
-                        result.TotalEntities++;
-                        var layerName = GetLayerName(obj);
-                        var category = LayerMapper.InferCategory(layerName);
-
-                        // Track layer counts
-                        var key = layerName ?? "(unnamed)";
-                        if (!result.LayerCounts.ContainsKey(key))
-                            result.LayerCounts[key] = 0;
-                        result.LayerCounts[key]++;
-
-                        if (obj is Line line)
-                        {
-                            result.Lines.Add(new ExtractedLine
-                            {
-                                Start = line.GetEndPoint(0),
-                                End = line.GetEndPoint(1),
-                                LayerName = layerName,
-                                Category = category,
-                            });
-                        }
-                        else if (obj is PolyLine polyLine)
-                        {
-                            var pts = polyLine.GetCoordinates();
-                            for (int i = 0; i < pts.Count - 1; i++)
-                            {
-                                result.Lines.Add(new ExtractedLine
-                                {
-                                    Start = pts[i],
-                                    End = pts[i + 1],
-                                    LayerName = layerName,
-                                    Category = category,
-                                });
-                            }
-                        }
-                        else if (obj is Arc arc && !arc.IsCyclic)
-                        {
-                            // Approximate short arcs as lines for wall detection
-                            result.Lines.Add(new ExtractedLine
-                            {
-                                Start = arc.GetEndPoint(0),
-                                End = arc.GetEndPoint(1),
-                                LayerName = layerName,
-                                Category = category,
-                            });
-                        }
-                    }
+                    // DWG-01 FIX: Recursively process all geometry including nested blocks
+                    ProcessGeometryElement(instanceGeom, result, 0);
                 }
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Recursively processes geometry elements, handling nested GeometryInstances
+        /// (DWG block references). Max depth prevents infinite recursion.
+        /// </summary>
+        private void ProcessGeometryElement(GeometryElement geomElement,
+            CADExtractionResult result, int depth)
+        {
+            const int MaxRecursionDepth = 10;
+            if (depth > MaxRecursionDepth) return;
+
+            foreach (var obj in geomElement)
+            {
+                // DWG-01 FIX: Handle nested GeometryInstance (block references)
+                if (obj is GeometryInstance nestedInstance)
+                {
+                    var blockName = nestedInstance.Symbol?.Name;
+                    var nestedTransform = nestedInstance.Transform;
+                    var insertionPoint = nestedTransform.Origin;
+
+                    // Extract block insertion point for door/window/fixture placement
+                    if (!string.IsNullOrEmpty(blockName))
+                    {
+                        var layerName = GetLayerName(obj);
+                        var category = LayerMapper.InferCategory(layerName)
+                            ?? LayerMapper.InferCategory(blockName);
+
+                        if (category == "Doors" || category == "Windows" ||
+                            category == "Furniture" || category == "Electrical" ||
+                            category == "Plumbing" || category == "Columns")
+                        {
+                            // Extract rotation angle from transform
+                            double rotation = Math.Atan2(
+                                nestedTransform.BasisX.Y,
+                                nestedTransform.BasisX.X);
+
+                            result.Blocks.Add(new DetectedBlock
+                            {
+                                InsertionPoint = insertionPoint,
+                                BlockName = blockName,
+                                LayerName = layerName,
+                                InferredCategory = category,
+                                Rotation = rotation,
+                            });
+                        }
+                    }
+
+                    // Recurse into nested block geometry for line extraction
+                    var nestedGeom = nestedInstance.GetInstanceGeometry();
+                    if (nestedGeom != null)
+                        ProcessGeometryElement(nestedGeom, result, depth + 1);
+
+                    continue;
+                }
+
+                result.TotalEntities++;
+                var objLayerName = GetLayerName(obj);
+                var objCategory = LayerMapper.InferCategory(objLayerName);
+
+                // Track layer counts
+                var key = objLayerName ?? "(unnamed)";
+                if (!result.LayerCounts.ContainsKey(key))
+                    result.LayerCounts[key] = 0;
+                result.LayerCounts[key]++;
+
+                if (obj is Line line)
+                {
+                    result.Lines.Add(new ExtractedLine
+                    {
+                        Start = line.GetEndPoint(0),
+                        End = line.GetEndPoint(1),
+                        LayerName = objLayerName,
+                        Category = objCategory,
+                    });
+                }
+                else if (obj is PolyLine polyLine)
+                {
+                    var pts = polyLine.GetCoordinates();
+                    for (int i = 0; i < pts.Count - 1; i++)
+                    {
+                        result.Lines.Add(new ExtractedLine
+                        {
+                            Start = pts[i],
+                            End = pts[i + 1],
+                            LayerName = objLayerName,
+                            Category = objCategory,
+                        });
+                    }
+                }
+                else if (obj is Arc arc && !arc.IsCyclic)
+                {
+                    // Approximate short arcs as lines for wall detection
+                    result.Lines.Add(new ExtractedLine
+                    {
+                        Start = arc.GetEndPoint(0),
+                        End = arc.GetEndPoint(1),
+                        LayerName = objLayerName,
+                        Category = objCategory,
+                    });
+                }
+            }
         }
 
         private string GetLayerName(GeometryObject obj)
