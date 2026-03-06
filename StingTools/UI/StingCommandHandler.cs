@@ -439,6 +439,15 @@ namespace StingTools.UI
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
                     case "FamilyParamAudit": RunCommand<Temp.FamilyParameterAuditCommand>(app); break;
                     case "FamilyParamAutoBind": RunCommand<Temp.FamilyParameterAutoBindCommand>(app); break;
+                    // ── AutoModel — DWG to BIM ──
+                    case "AutoModel": RunCommand<Temp.AutoModelCommand>(app); break;
+                    case "LinkDWG": RunCommand<Temp.LinkDWGCommand>(app); break;
+                    case "TraceWalls": RunCommand<Temp.TraceWallsFromCADCommand>(app); break;
+                    case "ExtractRooms": RunCommand<Temp.ExtractRoomsFromCADCommand>(app); break;
+                    case "LayerMapping": RunCommand<Temp.LayerMappingCommand>(app); break;
+                    case "PlaceFamilies": RunCommand<Temp.PlaceFamiliesFromCADCommand>(app); break;
+                    case "CADInventory": RunCommand<Temp.CADInventoryCommand>(app); break;
+
                     case "COBieExport": RunCommand<Temp.COBieExportCommand>(app); break;
                     case "FMOMExport": RunCommand<Temp.FMOMExportCommand>(app); break;
                     case "AssetHandover": RunCommand<Temp.AssetHandoverReportCommand>(app); break;

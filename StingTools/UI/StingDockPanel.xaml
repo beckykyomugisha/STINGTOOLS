@@ -1076,6 +1076,27 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- AUTOMODEL — DWG to BIM -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="AUTOMODEL"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#E91E63">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="AutoModel" Tag="AutoModel" Click="Cmd_Click"
+                                        ToolTip="Full pipeline: Link DWG → Trace Walls → Rooms → Families"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Link DWG" Tag="LinkDWG" Click="Cmd_Click"
+                                        ToolTip="Link DWG/DXF files to Revit levels"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Trace Walls" Tag="TraceWalls" Click="Cmd_Click"
+                                        ToolTip="Create walls from CAD lines/polylines"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Rooms" Tag="ExtractRooms" Click="Cmd_Click"
+                                        ToolTip="Extract room names from CAD text"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Layers" Tag="LayerMapping" Click="Cmd_Click"
+                                        ToolTip="Map DWG layers to Revit categories"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Families" Tag="PlaceFamilies" Click="Cmd_Click"
+                                        ToolTip="Place families at CAD block locations"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Inventory" Tag="CADInventory" Click="Cmd_Click"
+                                        ToolTip="Report all CAD geometry, layers, blocks, text"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- SCHEDULES -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SCHEDULES"/>
                         <Border Style="{StaticResource GroupBorder}">
