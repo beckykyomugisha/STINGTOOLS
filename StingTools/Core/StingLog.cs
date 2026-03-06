@@ -39,15 +39,25 @@ namespace StingTools.Core
         private static string _logPath;
         private static StreamWriter _writer;
 
+        private static string _logDate;
+
         private static string LogPath
         {
             get
             {
-                if (_logPath == null)
+                // Daily log rotation: StingTools_20260306.log
+                string today = DateTime.Now.ToString("yyyyMMdd");
+                if (_logPath == null || _logDate != today)
                 {
                     string dir = StingToolsApp.DataPath ?? Path.GetTempPath();
                     string parent = Path.GetDirectoryName(dir) ?? dir;
-                    _logPath = Path.Combine(parent, "StingTools.log");
+                    _logPath = Path.Combine(parent, $"StingTools_{today}.log");
+                    if (_logDate != today)
+                    {
+                        // Date changed — close old writer so new file is opened
+                        DisposeWriter();
+                        _logDate = today;
+                    }
                 }
                 return _logPath;
             }

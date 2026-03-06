@@ -616,6 +616,144 @@ namespace StingTools.Core
             ZoneCodes = DefaultZoneCodes();
             _reverseSysMap = null; // Invalidate cache
             ConfigSource = "built-in defaults";
+
+            // ENH-P3: Overlay TAG_GUIDE_V3.csv if available (makes config data-driven)
+            LoadFromTagGuideV3();
+        }
+
+        /// <summary>
+        /// ENH-P3: Parse TAG_GUIDE_V3.csv at startup to populate TagConfig lookup tables
+        /// dynamically. This allows BIM Managers to update tag codes without recompiling.
+        /// Overlays on top of defaults — only replaces tables where CSV has data.
+        /// </summary>
+        private static void LoadFromTagGuideV3()
+        {
+            try
+            {
+                string csvPath = StingToolsApp.FindDataFile("TAG_GUIDE_V3.csv");
+                if (string.IsNullOrEmpty(csvPath) || !File.Exists(csvPath)) return;
+
+                string currentSection = "";
+                int loaded = 0;
+                var csvLocCodes = new List<string>();
+                var csvZoneCodes = new List<string>();
+                var csvFuncMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var csvProdMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (string rawLine in File.ReadAllLines(csvPath))
+                {
+                    string line = rawLine.Trim();
+                    if (string.IsNullOrEmpty(line) || line.StartsWith("##")) continue;
+
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 2) continue;
+
+                    // Track current section
+                    if (cols[0].Equals("SECTION", StringComparison.OrdinalIgnoreCase))
+                    {
+                        currentSection = cols[1].Trim().ToUpperInvariant();
+                        continue;
+                    }
+
+                    // Skip header rows (CODE,FULL_NAME,... or SEGMENT,POSITION,...)
+                    if (cols[0].Equals("CODE", StringComparison.OrdinalIgnoreCase) ||
+                        cols[0].Equals("SEGMENT", StringComparison.OrdinalIgnoreCase) ||
+                        cols[0].Equals("NOTE", StringComparison.OrdinalIgnoreCase) ||
+                        cols[0].Equals("GROUP", StringComparison.OrdinalIgnoreCase) ||
+                        cols[0].Equals("PARAMETER", StringComparison.OrdinalIgnoreCase) ||
+                        cols[0].Equals("MODE", StringComparison.OrdinalIgnoreCase) ||
+                        cols[0].Equals("STEP", StringComparison.OrdinalIgnoreCase) ||
+                        cols[0].Equals("OPERATION", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    string code = cols[0].Trim();
+                    if (string.IsNullOrEmpty(code)) continue;
+
+                    switch (currentSection)
+                    {
+                        case "DISCIPLINE_CODES":
+                            // cols: CODE,FULL_NAME,CATEGORIES,SYSTEM_AWARE_NOTE
+                            if (cols.Length >= 3)
+                            {
+                                string categories = cols[2].Trim();
+                                foreach (string cat in categories.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                                {
+                                    string catName = cat.Trim().TrimEnd(')');
+                                    // Remove conditional notes like "(when SYS=...)"
+                                    int parenIdx = catName.IndexOf('(');
+                                    if (parenIdx > 0) catName = catName.Substring(0, parenIdx).Trim();
+                                    if (!string.IsNullOrEmpty(catName) && !DiscMap.ContainsKey(catName))
+                                    {
+                                        DiscMap[catName] = code;
+                                        loaded++;
+                                    }
+                                }
+                            }
+                            break;
+
+                        case "FUNCTION_CODES":
+                            // cols: CODE,FULL_NAME,PARENT_SYS,...
+                            if (cols.Length >= 3)
+                            {
+                                string parentSys = cols[2].Trim();
+                                if (!string.IsNullOrEmpty(parentSys) && !csvFuncMap.ContainsKey(parentSys))
+                                    csvFuncMap[parentSys] = code;
+                            }
+                            break;
+
+                        case "PRODUCT_CODES":
+                            // cols: CODE,FULL_NAME,CATEGORIES,...
+                            if (cols.Length >= 3)
+                            {
+                                string prodCategories = cols[2].Trim();
+                                foreach (string cat in prodCategories.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                                {
+                                    string catName = cat.Trim();
+                                    if (!string.IsNullOrEmpty(catName) && !csvProdMap.ContainsKey(catName))
+                                    {
+                                        csvProdMap[catName] = code;
+                                        loaded++;
+                                    }
+                                }
+                            }
+                            break;
+
+                        case "LOCATION_CODES":
+                            // cols: CODE,DESCRIPTION,...
+                            if (!csvLocCodes.Contains(code))
+                                csvLocCodes.Add(code);
+                            break;
+
+                        case "ZONE_CODES":
+                            // cols: CODE,DESCRIPTION,...
+                            if (!csvZoneCodes.Contains(code))
+                                csvZoneCodes.Add(code);
+                            break;
+                    }
+                }
+
+                // Overlay CSV data only if we got meaningful results
+                if (csvLocCodes.Count > 0) LocCodes = csvLocCodes;
+                if (csvZoneCodes.Count > 0) ZoneCodes = csvZoneCodes;
+                if (csvFuncMap.Count > 0)
+                    foreach (var kvp in csvFuncMap)
+                        FuncMap[kvp.Key] = kvp.Value;
+                if (csvProdMap.Count > 0)
+                    foreach (var kvp in csvProdMap)
+                        ProdMap[kvp.Key] = kvp.Value;
+
+                if (loaded > 0)
+                {
+                    StingLog.Info($"TAG_GUIDE_V3.csv: loaded {loaded} code mappings, " +
+                        $"{csvLocCodes.Count} LOC codes, {csvZoneCodes.Count} ZONE codes, " +
+                        $"{csvFuncMap.Count} FUNC codes, {csvProdMap.Count} PROD codes");
+                    _reverseSysMap = null; // Invalidate cached reverse map
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TAG_GUIDE_V3.csv parse: {ex.Message}");
+            }
         }
 
         /// <summary>

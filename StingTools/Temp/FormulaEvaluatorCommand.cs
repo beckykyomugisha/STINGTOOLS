@@ -51,6 +51,9 @@ namespace StingTools.Temp
             // Sort by dependency level (level 0 first, then 1, 2, ... 6)
             formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
 
+            // ENH-P3: Validate formulas against parameter registry (warn on orphans)
+            FormulaEngine.ValidateAgainstRegistry(formulas);
+
             // DAT-005: Validate dependency DAG — check that formulas only depend on
             // parameters written at equal or lower dependency levels
             ValidateFormulaDag(formulas);
@@ -319,6 +322,47 @@ namespace StingTools.Temp
             }
 
             return formulas;
+        }
+
+        /// <summary>
+        /// ENH-P3: Validate loaded formulas against ParamRegistry.
+        /// Logs warnings for orphaned formulas (no matching GUID in registry) and
+        /// formulas referencing input parameters not in the registry.
+        /// </summary>
+        public static void ValidateAgainstRegistry(List<FormulaDefinition> formulas)
+        {
+            if (formulas == null || formulas.Count == 0) return;
+            int orphaned = 0;
+            int missingInputs = 0;
+
+            var knownParams = ParamRegistry.AllParamGuids;
+
+            foreach (var f in formulas)
+            {
+                // Check target parameter exists in registry
+                if (!knownParams.ContainsKey(f.ParameterName))
+                {
+                    orphaned++;
+                    if (orphaned <= 10) // Limit log spam
+                        StingLog.Warn($"Formula orphan: '{f.ParameterName}' has no GUID in ParamRegistry — values will be lost");
+                }
+
+                // Check input parameters exist
+                foreach (string input in f.InputParameters)
+                {
+                    if (!knownParams.ContainsKey(input) &&
+                        !input.StartsWith("BIP_") && // Built-in parameter refs
+                        !input.Equals("Element_Id", StringComparison.OrdinalIgnoreCase))
+                    {
+                        missingInputs++;
+                    }
+                }
+            }
+
+            if (orphaned > 0)
+                StingLog.Warn($"FormulaEngine: {orphaned} of {formulas.Count} formulas have no matching GUID in ParamRegistry — computed values will be lost for these");
+            if (missingInputs > 0)
+                StingLog.Info($"FormulaEngine: {missingInputs} input parameter references not found in ParamRegistry (may use built-in or type parameters)");
         }
 
         /// <summary>

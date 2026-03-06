@@ -449,6 +449,16 @@ namespace StingTools.Temp
                         && !string.IsNullOrEmpty(oldField)
                         && !string.IsNullOrEmpty(newField))
                     {
+                        // ENH-008: Sunset enforcement — skip expired remaps
+                        string sunsetStr = cols.Length > 5 ? cols[5].Trim() : "";
+                        if (!string.IsNullOrEmpty(sunsetStr) &&
+                            DateTime.TryParse(sunsetStr, out DateTime sunsetDate) &&
+                            DateTime.Now > sunsetDate)
+                        {
+                            StingLog.Warn($"SCHEDULE_FIELD_REMAP: '{oldField}' → '{newField}' expired on {sunsetStr} — skipping");
+                            continue;
+                        }
+
                         if (remaps.ContainsKey(oldField))
                             StingLog.Warn($"SCHEDULE_FIELD_REMAP: duplicate source key '{oldField}' — " +
                                 $"overwriting '{remaps[oldField]}' with '{newField}'");
@@ -862,7 +872,9 @@ namespace StingTools.Temp
                 formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
             }
 
-            // Grid lines for grid reference auto-detection
+            // Grid lines for grid reference auto-detection (ENH-005: pre-build spatial index)
+            _xGridsSorted = null;
+            _yGridsSorted = null;
             var gridLines = new FilteredElementCollector(doc)
                 .OfClass(typeof(Grid))
                 .Cast<Grid>()
@@ -1032,14 +1044,87 @@ namespace StingTools.Temp
             return Result.Succeeded;
         }
 
+        // ENH-005: Pre-classified grid index for O(1) grid reference lookup
+        // Avoids O(n×m) per-element scan by sorting grids once by coordinate
+        private static List<(string Name, double Coord)> _xGridsSorted; // vertical grids sorted by X
+        private static List<(string Name, double Coord)> _yGridsSorted; // horizontal grids sorted by Y
+
+        /// <summary>
+        /// Pre-classify grids into X (vertical) and Y (horizontal) lists sorted by coordinate.
+        /// Call once per batch; subsequent GetNearestGridRef calls use binary search O(log n).
+        /// </summary>
+        private static void BuildGridIndex(List<Grid> grids)
+        {
+            var xGrids = new List<(string Name, double Coord)>();
+            var yGrids = new List<(string Name, double Coord)>();
+
+            foreach (Grid grid in grids)
+            {
+                try
+                {
+                    Curve curve = grid.Curve;
+                    XYZ start = curve.GetEndPoint(0);
+                    XYZ end = curve.GetEndPoint(1);
+                    XYZ dir = (end - start).Normalize();
+                    double midCoord;
+
+                    if (Math.Abs(dir.X) > Math.Abs(dir.Y))
+                    {
+                        // Horizontal grid → Y reference; use average Y as coordinate
+                        midCoord = (start.Y + end.Y) / 2.0;
+                        yGrids.Add((grid.Name, midCoord));
+                    }
+                    else
+                    {
+                        // Vertical grid → X reference; use average X as coordinate
+                        midCoord = (start.X + end.X) / 2.0;
+                        xGrids.Add((grid.Name, midCoord));
+                    }
+                }
+                catch { }
+            }
+
+            xGrids.Sort((a, b) => a.Coord.CompareTo(b.Coord));
+            yGrids.Sort((a, b) => a.Coord.CompareTo(b.Coord));
+            _xGridsSorted = xGrids;
+            _yGridsSorted = yGrids;
+        }
+
+        /// <summary>Binary search for nearest grid in a sorted list by coordinate value.</summary>
+        private static string FindNearest(List<(string Name, double Coord)> sorted, double value)
+        {
+            if (sorted == null || sorted.Count == 0) return null;
+            int lo = 0, hi = sorted.Count - 1;
+            while (lo < hi)
+            {
+                int mid = (lo + hi) / 2;
+                if (sorted[mid].Coord < value) lo = mid + 1;
+                else hi = mid;
+            }
+            // Check lo and lo-1 for closest
+            string best = sorted[lo].Name;
+            double bestDist = Math.Abs(sorted[lo].Coord - value);
+            if (lo > 0)
+            {
+                double prevDist = Math.Abs(sorted[lo - 1].Coord - value);
+                if (prevDist < bestDist) best = sorted[lo - 1].Name;
+            }
+            return best;
+        }
+
         /// <summary>
         /// Find nearest grid intersection reference for an element.
         /// Returns grid reference like "A/3" (nearest X-grid / nearest Y-grid).
+        /// Uses pre-built grid index for O(log n) lookup per element.
         /// </summary>
         private static string GetNearestGridRef(Element el, List<Grid> grids)
         {
             try
             {
+                // Build index on first call (or if grids list changed)
+                if (_xGridsSorted == null || _yGridsSorted == null)
+                    BuildGridIndex(grids);
+
                 // Get element location point
                 LocationPoint lp = el.Location as LocationPoint;
                 LocationCurve lc = el.Location as LocationCurve;
@@ -1052,45 +1137,8 @@ namespace StingTools.Temp
                 else
                     return null;
 
-                string nearestX = null;
-                string nearestY = null;
-                double minDistX = double.MaxValue;
-                double minDistY = double.MaxValue;
-
-                foreach (Grid grid in grids)
-                {
-                    try
-                    {
-                        Curve curve = grid.Curve;
-                        XYZ start = curve.GetEndPoint(0);
-                        XYZ end = curve.GetEndPoint(1);
-                        XYZ dir = (end - start).Normalize();
-
-                        // Classify grid as X-direction or Y-direction
-                        bool isXGrid = Math.Abs(dir.X) > Math.Abs(dir.Y); // runs along X = horizontal
-                        double dist = curve.Distance(point);
-
-                        if (isXGrid)
-                        {
-                            // Horizontal grid → Y reference
-                            if (dist < minDistY)
-                            {
-                                minDistY = dist;
-                                nearestY = grid.Name;
-                            }
-                        }
-                        else
-                        {
-                            // Vertical grid → X reference
-                            if (dist < minDistX)
-                            {
-                                minDistX = dist;
-                                nearestX = grid.Name;
-                            }
-                        }
-                    }
-                    catch { }
-                }
+                string nearestX = FindNearest(_xGridsSorted, point.X);
+                string nearestY = FindNearest(_yGridsSorted, point.Y);
 
                 if (nearestX != null && nearestY != null)
                     return $"{nearestX}/{nearestY}";
@@ -1283,7 +1331,10 @@ namespace StingTools.Temp
 
             string outputDir = Path.GetDirectoryName(doc.PathName);
             if (string.IsNullOrEmpty(outputDir))
+            {
                 outputDir = Path.GetTempPath();
+                StingLog.Warn("ExportCSV: Document unsaved — exporting to Temp folder");
+            }
 
             string exportDir = Path.Combine(outputDir, "STING_Exports");
             Directory.CreateDirectory(exportDir);
