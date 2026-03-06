@@ -25,9 +25,10 @@ namespace StingTools.Core
             try
             {
                 AssemblyPath = Assembly.GetExecutingAssembly().Location;
-                DataPath = Path.Combine(
-                    Path.GetDirectoryName(AssemblyPath) ?? string.Empty,
-                    "data");
+                string dllDir = Path.GetDirectoryName(AssemblyPath) ?? string.Empty;
+
+                // Search multiple candidate data directories (first found wins)
+                DataPath = ResolveDataPath(dllDir);
 
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
@@ -35,7 +36,7 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
-                StingLog.Info("STING Tools dockable panel loaded successfully");
+                StingLog.Info($"STING Tools loaded. DataPath={DataPath}");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -94,27 +95,80 @@ namespace StingTools.Core
 
         // ── Data file utilities ───────────────────────────────────────
 
-        /// <summary>Find a data file by name, searching DataPath and subdirectories.</summary>
+        /// <summary>
+        /// Resolve the data directory by checking multiple candidate locations.
+        /// Priority: data/ alongside DLL → Data/ alongside DLL → StingTools/Data/ in repo →
+        /// parent directories with data/ or Data/.
+        /// </summary>
+        private static string ResolveDataPath(string dllDir)
+        {
+            // Candidate paths in priority order
+            string[] candidates = {
+                Path.Combine(dllDir, "data"),                    // Standard: data/ alongside DLL
+                Path.Combine(dllDir, "Data"),                    // Case variation
+                Path.Combine(dllDir, "StingTools", "Data"),      // Dev layout: repo root
+            };
+
+            foreach (string path in candidates)
+            {
+                if (Directory.Exists(path))
+                    return path;
+            }
+
+            // Walk up parent directories (max 4 levels) looking for Data/ or data/
+            string dir = dllDir;
+            for (int i = 0; i < 4; i++)
+            {
+                string parent = Path.GetDirectoryName(dir);
+                if (string.IsNullOrEmpty(parent) || parent == dir) break;
+                dir = parent;
+
+                string dataLower = Path.Combine(dir, "data");
+                if (Directory.Exists(dataLower)) return dataLower;
+
+                // Check for StingTools/Data inside the parent (source repo layout)
+                string stingData = Path.Combine(dir, "StingTools", "Data");
+                if (Directory.Exists(stingData)) return stingData;
+            }
+
+            // Fallback: return standard path even if it doesn't exist yet
+            return Path.Combine(dllDir, "data");
+        }
+
+        /// <summary>Find a data file by name, searching DataPath, subdirectories, and fallback locations.</summary>
         public static string FindDataFile(string fileName)
         {
-            if (string.IsNullOrEmpty(DataPath))
-                return null;
-
-            string direct = Path.Combine(DataPath, fileName);
-            if (File.Exists(direct)) return direct;
-
-            try
+            // Primary search: DataPath and subdirectories
+            if (!string.IsNullOrEmpty(DataPath) && Directory.Exists(DataPath))
             {
-                foreach (string f in Directory.GetFiles(
-                    DataPath, fileName, SearchOption.AllDirectories))
+                string direct = Path.Combine(DataPath, fileName);
+                if (File.Exists(direct)) return direct;
+
+                try
                 {
-                    return f;
+                    foreach (string f in Directory.GetFiles(
+                        DataPath, fileName, SearchOption.AllDirectories))
+                    {
+                        return f;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"FindDataFile '{fileName}': {ex.Message}");
                 }
             }
-            catch (Exception ex)
+
+            // Fallback: search alongside the DLL directly (flat layout)
+            if (!string.IsNullOrEmpty(AssemblyPath))
             {
-                StingLog.Warn($"FindDataFile '{fileName}': {ex.Message}");
+                string dllDir = Path.GetDirectoryName(AssemblyPath);
+                if (!string.IsNullOrEmpty(dllDir))
+                {
+                    string flat = Path.Combine(dllDir, fileName);
+                    if (File.Exists(flat)) return flat;
+                }
             }
+
             return null;
         }
 

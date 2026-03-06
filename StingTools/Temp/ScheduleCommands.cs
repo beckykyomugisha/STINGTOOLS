@@ -28,22 +28,16 @@ namespace StingTools.Temp
             ref string message, ElementSet elements)
         {
             Document doc = commandData.Application.ActiveUIDocument.Document;
-            string dataDir = StingToolsApp.DataPath;
-
-            if (string.IsNullOrEmpty(dataDir) || !Directory.Exists(dataDir))
-            {
-                TaskDialog.Show("Batch Schedules",
-                    "Data directory not found. Place schedule CSV files " +
-                    "in the 'data' folder alongside StingTools.dll.");
-                return Result.Failed;
-            }
 
             string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
             if (csvPath == null)
             {
                 TaskDialog.Show("Batch Schedules",
-                    "MR_SCHEDULES.csv not found in data directory.\n" +
-                    $"Searched: {dataDir}");
+                    "MR_SCHEDULES.csv not found.\n\n" +
+                    $"DLL: {StingToolsApp.AssemblyPath}\n" +
+                    $"Data path: {StingToolsApp.DataPath}\n\n" +
+                    "Place schedule CSV files in the 'data' folder " +
+                    "alongside StingTools.dll.");
                 return Result.Failed;
             }
 
