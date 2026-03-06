@@ -32,6 +32,12 @@ namespace StingTools.Core
         private static readonly HashSet<long> _recentlyProcessed = new HashSet<long>();
         private static int _processedCount;
 
+        // Throttling: cache tag index briefly to avoid full-project scans on rapid placement
+        private static HashSet<string> _cachedTagIndex;
+        private static Dictionary<string, int> _cachedSeqCounters;
+        private static DateTime _cacheTime = DateTime.MinValue;
+        private static readonly TimeSpan CacheLifetime = TimeSpan.FromSeconds(5);
+
         private readonly AddInId _addinId;
 
         public StingAutoTagger(AddInId addinId)
@@ -105,6 +111,9 @@ namespace StingTools.Core
                 UpdaterRegistry.EnableUpdater(_updaterId);
                 _enabled = true;
                 _recentlyProcessed.Clear();
+                _cachedTagIndex = null;
+                _cachedSeqCounters = null;
+                _cacheTime = DateTime.MinValue;
                 StingLog.Info("StingAutoTagger: enabled");
             }
             return _enabled;
@@ -113,6 +122,8 @@ namespace StingTools.Core
         /// <summary>
         /// Called by Revit when elements are added to tagged categories.
         /// Auto-populates tokens and builds ISO 19650 tag.
+        /// Uses cached tag index and throttling to minimize performance impact
+        /// during rapid element placement (e.g., paste/array operations).
         /// </summary>
         public void Execute(UpdaterData data)
         {
@@ -128,9 +139,18 @@ namespace StingTools.Core
             {
                 // Build context once for the batch
                 var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
-                var existingTags = TagConfig.BuildExistingTagIndex(doc);
-                var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
 
+                // Use cached tag index/seq counters if recent (avoids full-project scan
+                // on every Execute call during rapid placement)
+                bool cacheExpired = (DateTime.Now - _cacheTime) > CacheLifetime;
+                if (cacheExpired || _cachedTagIndex == null || _cachedSeqCounters == null)
+                {
+                    _cachedTagIndex = TagConfig.BuildExistingTagIndex(doc);
+                    _cachedSeqCounters = TagConfig.GetExistingSequenceCounters(doc);
+                    _cacheTime = DateTime.Now;
+                }
+
+                int batchTagged = 0;
                 foreach (ElementId id in addedIds)
                 {
                     // Skip recently processed (avoid re-trigger loops)
@@ -147,13 +167,18 @@ namespace StingTools.Core
                     TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: false);
 
                     // Build and write the tag
-                    TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                        skipComplete: true, existingTags: existingTags,
+                    TagConfig.BuildAndWriteTag(doc, el, _cachedSeqCounters,
+                        skipComplete: true, existingTags: _cachedTagIndex,
                         collisionMode: TagCollisionMode.AutoIncrement);
 
                     _recentlyProcessed.Add(id.Value);
                     _processedCount++;
+                    batchTagged++;
                 }
+
+                // Invalidate cache after tagging so next call picks up new tags
+                if (batchTagged > 0)
+                    _cacheTime = DateTime.MinValue;
 
                 // Trim processed cache to prevent unbounded growth
                 if (_recentlyProcessed.Count > 10000)

@@ -8,10 +8,10 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **58 source files** (55 C# + 2 XAML + 1 AssemblyInfo, ~56,030 lines of code) across 8 directories
-- **234 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider`
+- **62 source files** (59 C# + 2 XAML + 1 AssemblyInfo) across 8 directories
+- **234+ `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
 - **20 runtime data files** (CSV, JSON, TXT, XLSX, PY)
-- **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel + 1 WPF project setup wizard
+- **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel + 1 WPF project setup wizard + 1 WPF progress dialog
 
 ## Technology Stack
 
@@ -41,24 +41,28 @@ STINGTOOLS/
     ├── Properties/
     │   └── AssemblyInfo.cs             # Assembly metadata (v1.0.0.0)
     │
-    ├── Core/                           # Shared infrastructure (6 files, ~6,758 lines)
+    ├── Core/                           # Shared infrastructure (9 files)
     │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI + dockable panel registration + ToggleDockPanelCommand
-    │   ├── StingLog.cs                 # Thread-safe file logger (Info/Warn/Error)
+    │   ├── StingLog.cs                 # Thread-safe file logger (Info/Warn/Error) + EscapeChecker (Win32 Escape key polling)
     │   ├── ParamRegistry.cs            # Single source of truth for parameter names, GUIDs, containers, bindings (loads from PARAMETER_REGISTRY.json)
     │   ├── ParameterHelpers.cs         # Parameter read/write + SpatialAutoDetect + NativeParamMapper + TokenAutoPopulator + PhaseAutoDetect
     │   ├── SharedParamGuids.cs         # Backwards-compatible facade wrapping ParamRegistry (GUID lookups, category bindings)
-    │   └── TagConfig.cs               # ISO 19650 tag lookup tables, tag builder, TagIntelligence, TAG7 narrative builder
+    │   ├── TagConfig.cs               # ISO 19650 tag lookup tables, tag builder, TagIntelligence, TAG7 narrative builder
+    │   ├── ComplianceScan.cs           # ENH-003: Cached compliance scan with RAG status for live dashboard display
+    │   ├── WorkflowEngine.cs           # Workflow orchestration engine: JSON-based command chaining with 3 built-in presets
+    │   └── StingAutoTagger.cs          # IUpdater — real-time auto-tagging on element placement (22 categories, throttled)
     │
     ├── Select/                         # Element selection + color commands (3 files, 28 commands)
     │   ├── CategorySelectCommands.cs   # 14 category selectors + SelectAllTaggable + CategorySelector helper
     │   ├── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite
     │   └── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │
-    ├── UI/                             # WPF dockable panel UI + project wizard (4 C# files + 2 XAML, ~8,158 lines)
+    ├── UI/                             # WPF dockable panel UI + project wizard (5 C# files + 2 XAML)
     │   ├── StingDockPanel.xaml         # WPF markup for 6-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW)
     │   ├── StingDockPanel.xaml.cs      # Code-behind: button dispatch, colour swatches, status bar
     │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 400+ button tags to 234 command classes + inline helpers
     │   ├── StingDockPanelProvider.cs   # IDockablePaneProvider — registers panel with Revit
+    │   ├── StingProgressDialog.cs      # ENH-001: Modeless WPF progress window with cancel/ETA for batch operations
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
     │   └── ProjectSetupWizard.xaml.cs  # Code-behind: presets, validation, discipline config, review summary
     │
@@ -464,6 +468,37 @@ STINGTOOLS/
 - `ValidateBindingsFromCsv()` — compares CATEGORY_BINDINGS.csv against registry bindings (10,661 entries)
 - `InvalidateCache()` — called by `ParamRegistry.Reload()` to clear cached properties
 
+### `ComplianceScan` (static) — `Core/ComplianceScan.cs` (144 lines)
+- ENH-003: Lightweight cached compliance scan for live dashboard display
+- `Scan(doc, forceRefresh)` — quick tag completeness stats with 30-second cache
+- `ComplianceResult` — TotalElements, TaggedComplete, TaggedIncomplete, Untagged, FullyResolved
+- `RAGStatus` — Red (<50%), Amber (50-80%), Green (>80%)
+- `StatusBarText` — formatted string for WPF status bar display
+- `InvalidateCache()` — called after tagging operations to force refresh
+
+### `WorkflowEngine` (internal static) — `Core/WorkflowEngine.cs` (551 lines)
+- JSON-based command chain orchestration with cancel support and `TransactionGroup` rollback
+- `ExecutePreset(preset, commandData, elements)` — runs a workflow with per-step progress and timing
+- `GetAvailablePresets()` — returns built-in + user-defined JSON presets from data/ directory
+- `ResolveCommand(tag)` — maps ~40 command tags to `IExternalCommand` instances
+- 3 built-in presets: `ProjectKickoff` (26 steps), `DailyQA` (6 steps), `DocumentPackage` (6 steps)
+- Commands: `WorkflowPresetCommand`, `ListWorkflowPresetsCommand`, `CreateWorkflowPresetCommand`
+
+### `StingAutoTagger` (IUpdater) — `Core/StingAutoTagger.cs` (224 lines)
+- Real-time auto-tagging on element placement via Revit `IUpdater` API
+- Registers 22 category triggers (MEP, electrical, lighting, plumbing, fire, data, comms, doors, windows, etc.)
+- **Starts disabled** — user must enable via `AutoTaggerToggleCommand`
+- `Toggle()` — enable/disable with `UpdaterRegistry.EnableUpdater/DisableUpdater`
+- Performance: cached tag index (5s TTL), `_recentlyProcessed` HashSet to prevent re-trigger loops, 10K overflow trim
+- `Execute(UpdaterData)` — builds `PopulationContext` once per batch, auto-populates tokens + builds ISO tag
+
+### `StingProgressDialog` — `UI/StingProgressDialog.cs` (211 lines)
+- ENH-001: Modeless WPF progress window for batch operations
+- Progress bar, element count, ETA calculation, Cancel button
+- `Show(title, total)` — create and display dialog
+- `Increment(statusMessage)` — thread-safe increment with UI updates every 50 elements
+- `IsCancelled` — checks Cancel button + delegates to `EscapeChecker.IsEscapePressed()`
+
 ### `TagCollisionMode` (enum) — `Core/TagConfig.cs`
 - Controls how tag collisions are handled: `Skip`, `Overwrite`, `AutoIncrement`
 - Used by all tagging commands (AutoTag, BatchTag, TagSelected, ReTag, TagAndCombine)
@@ -540,6 +575,9 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `ColorHelper` | `Select/ColorCommands.cs` | 10 built-in colour palettes, `OverrideGraphicSettings` builder, solid fill pattern finder, preset save/load |
 | `TagPlacementEngine` | `Tags/SmartTagPlacementCommand.cs` | 8-position candidate offset generation, scale-aware placement, 2D AABB collision detection, leader auto-generation |
 | `TagPlacementPresets` | `Tags/SmartTagPlacementCommand.cs` | Per-category placement rules (`CategoryRule`), named presets (`PlacementPreset`), `LearnFromView` analysis |
+| `WorkflowEngine` | `Core/WorkflowEngine.cs` | JSON-based workflow orchestration: preset management, command resolution, TransactionGroup-wrapped execution |
+| `EscapeChecker` | `Core/StingLog.cs` | Win32 `GetAsyncKeyState` Escape key polling — single source of truth for all batch cancellation |
+| `ComplianceScan` | `Core/ComplianceScan.cs` | Cached compliance scan with RAG status, issue tracking, 30s TTL cache for live dashboard |
 
 ## ISO 19650 Tag Format
 
