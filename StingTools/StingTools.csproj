@@ -12,6 +12,9 @@
     <UseWindowsForms>false</UseWindowsForms>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- Suppress Revit API warnings: architecture mismatch (MSB3270) and duplicate refs (MSB3277) -->
+    <NoWarn>$(NoWarn);MSB3270;MSB3277</NoWarn>
+    <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
   </PropertyGroup>
 
   <!-- Default RevitApiPath when not passed via command line (e.g. Visual Studio) -->
