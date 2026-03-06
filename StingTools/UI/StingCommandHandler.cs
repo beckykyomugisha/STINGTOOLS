@@ -728,13 +728,24 @@ namespace StingTools.UI
                 TaskDialog.Show("STING Tools", $"Command failed: {ex.Message}");
             }
 
-            // ENH-003: Refresh compliance status bar after any command completes
+            // ENH-003: Refresh compliance status bar after any command completes.
+            // Only invalidate cache for commands that modify tag data.
             try
             {
                 var doc = app.ActiveUIDocument?.Document;
                 if (doc != null)
                 {
-                    ComplianceScan.InvalidateCache();
+                    switch (_commandTag)
+                    {
+                        case "AutoTag": case "BatchTag": case "TagAndCombine":
+                        case "TagNewOnly": case "FamilyStagePopulate": case "BuildTags":
+                        case "CombineParameters": case "ReTag": case "FixDuplicates":
+                        case "DeleteTags": case "CreateParameters": case "MasterSetup":
+                        case "LoadParams": case "TagSelected": case "Renumber":
+                        case "BulkParamWrite": case "ResolveAllIssues":
+                            ComplianceScan.InvalidateCache();
+                            break;
+                    }
                     var scan = ComplianceScan.Scan(doc);
                     StingDockPanel.UpdateComplianceStatus(scan.StatusBarText, scan.RAGStatus);
                 }
