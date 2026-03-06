@@ -188,7 +188,6 @@ namespace StingTools.Tags
             string report = $"Shared parameter binding complete.\n\n" +
                 $"Pass 1 (Universal):   {pass1Bound} bound, {pass1Skipped} skipped\n" +
                 $"Pass 2 (Discipline):  {pass2Bound} bound, {pass2Skipped} skipped\n" +
-                (csvExtras > 0 ? $"  CSV extras: {csvExtras} categories added from CATEGORY_BINDINGS.csv\n" : "") +
                 $"\nSource: {spFile}";
             if (errors.Count > 0)
                 report += $"\n\nErrors ({errors.Count}):\n" +

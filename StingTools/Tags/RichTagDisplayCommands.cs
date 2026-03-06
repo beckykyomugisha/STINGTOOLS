@@ -762,8 +762,6 @@ namespace StingTools.Tags
             {
                 TaskDialogResult.CommandLink1, TaskDialogResult.CommandLink2,
                 TaskDialogResult.CommandLink3, TaskDialogResult.CommandLink4,
-                TaskDialogResult.CommandLink5, TaskDialogResult.CommandLink6,
-                TaskDialogResult.CommandLink7,
             };
 
             for (int i = 0; i < presets.Length && i < links.Length; i++)

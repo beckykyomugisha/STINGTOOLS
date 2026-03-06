@@ -1923,7 +1923,6 @@ namespace StingTools.Docs
 
                         for (int i = 0; i < 4; i++)
                         {
-                            if (marker.HasElevation(i)) continue;
                             try
                             {
                                 ViewSection elev = marker.CreateElevation(doc, hostView.Id, i);
@@ -1996,7 +1995,6 @@ namespace StingTools.Docs
 
                             for (int i = 0; i < 4; i++)
                             {
-                                if (marker.HasElevation(i)) continue;
                                 try
                                 {
                                     ViewSection elev = marker.CreateElevation(doc, hostView.Id, i);

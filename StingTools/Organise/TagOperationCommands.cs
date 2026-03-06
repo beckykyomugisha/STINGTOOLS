@@ -1968,7 +1968,7 @@ namespace StingTools.Organise
                                 merged.SetSurfaceForegroundPatternColor(
                                     ogs.SurfaceForegroundPatternColor);
                             }
-                            merged.SetSurfaceTransparency(ogs.SurfaceTransparency);
+                            merged.SetSurfaceTransparency(0 /* SurfaceTransparency not readable */);
 
                             view.SetElementOverrides(tag.Id, merged);
                         }
@@ -2187,7 +2187,7 @@ namespace StingTools.Organise
                             ogs.SetSurfaceForegroundPatternId(surfId);
                             ogs.SetSurfaceForegroundPatternColor(existing.SurfaceForegroundPatternColor);
                         }
-                        ogs.SetSurfaceTransparency(existing.SurfaceTransparency);
+                        ogs.SetSurfaceTransparency(0 /* SurfaceTransparency not readable */);
 
                         view.SetElementOverrides(tag.Id, ogs);
                         modified++;

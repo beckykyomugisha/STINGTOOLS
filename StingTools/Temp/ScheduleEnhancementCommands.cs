@@ -1007,42 +1007,11 @@ namespace StingTools.Temp
                 var headerSection = tableData?.GetSectionData(SectionType.Header);
                 var bodySection = tableData?.GetSectionData(SectionType.Body);
 
-                // BUG-009: Apply CSV-defined header color (was a no-op before)
+                // Note: Revit API TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor.
+                // Header color from CSV definition is logged but cannot be applied programmatically.
                 if (TryParseHexColor(def.HeaderColor, out Color headerColor))
                 {
-                    // White text for readability on colored background
-                    Color textColor = new Color(255, 255, 255);
-
-                    if (headerSection != null && headerSection.NumberOfRows > 0)
-                    {
-                        int cols = headerSection.NumberOfColumns;
-                        for (int col = 0; col < cols; col++)
-                        {
-                            try
-                            {
-                                headerSection.SetCellBackgroundColor(0, col, headerColor);
-                                headerSection.SetCellTextColor(0, col, textColor);
-                            }
-                            catch { }
-                        }
-                    }
-
-                    // Also apply to first body row (column headers)
-                    if (bodySection != null && bodySection.NumberOfRows > 0)
-                    {
-                        int cols = bodySection.NumberOfColumns;
-                        for (int col = 0; col < cols; col++)
-                        {
-                            try
-                            {
-                                bodySection.SetCellBackgroundColor(0, col, headerColor);
-                                bodySection.SetCellTextColor(0, col, textColor);
-                            }
-                            catch { }
-                        }
-                    }
-
-                    StingLog.Info($"Schedule '{sched.Name}': applied header color #{def.HeaderColor}");
+                    StingLog.Info($"Schedule '{sched.Name}': header color #{def.HeaderColor} defined (manual application required)");
                 }
 
                 return 1;
@@ -1079,40 +1048,9 @@ namespace StingTools.Temp
                 else
                     color = new Color(128, 128, 128);     // Grey (architectural / general)
 
-                // Apply to header section background
-                var headerSection = tableData.GetSectionData(SectionType.Header);
-                if (headerSection != null && headerSection.NumberOfRows > 0)
-                {
-                    int cols = headerSection.NumberOfColumns;
-                    for (int col = 0; col < cols; col++)
-                    {
-                        try
-                        {
-                            headerSection.SetCellBackgroundColor(0, col, color);
-                            // White text on colored background
-                            headerSection.SetCellTextColor(0, col, new Color(255, 255, 255));
-                        }
-                        catch { }
-                    }
-                }
-
-                // Apply to column header row in body section
-                var bodySection = tableData.GetSectionData(SectionType.Body);
-                if (bodySection != null && bodySection.NumberOfRows > 0)
-                {
-                    int cols = bodySection.NumberOfColumns;
-                    for (int col = 0; col < cols; col++)
-                    {
-                        try
-                        {
-                            // First body row is typically column headers
-                            bodySection.SetCellBackgroundColor(0, col, color);
-                            bodySection.SetCellTextColor(0, col, new Color(255, 255, 255));
-                        }
-                        catch { }
-                    }
-                }
-
+                // Note: Revit API TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor.
+                // Discipline color determined but cannot be applied programmatically to schedule cells.
+                StingLog.Info($"Schedule '{sched.Name}': discipline color determined (manual application required)");
                 return 1;
             }
             catch (Exception ex)

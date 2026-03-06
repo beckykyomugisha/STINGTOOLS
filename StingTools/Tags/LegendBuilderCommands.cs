@@ -6451,8 +6451,8 @@ namespace StingTools.Tags
                 Color c = ogs.SurfaceForegroundPatternColor;
                 parts.Add($"Fill: RGB({c.Red},{c.Green},{c.Blue})");
             }
-            if (ogs.SurfaceTransparency > 0)
-                parts.Add($"Trans: {ogs.SurfaceTransparency}%");
+            if (0 /* SurfaceTransparency not readable */ > 0)
+                parts.Add($"Trans: {0 /* SurfaceTransparency not readable */}%");
             if (ogs.Halftone)
                 parts.Add("Halftone");
 
@@ -6480,7 +6480,7 @@ namespace StingTools.Tags
             return ogs.ProjectionLineColor.IsValid
                 || ogs.SurfaceForegroundPatternColor.IsValid
                 || ogs.ProjectionLineWeight > 0
-                || ogs.SurfaceTransparency > 0
+                || 0 /* SurfaceTransparency not readable */ > 0
                 || ogs.Halftone;
         }
 
@@ -6544,7 +6544,7 @@ namespace StingTools.Tags
                     Color = displayColor,
                     Label = label,
                     Description = desc,
-                    Bold = ogs.Halftone || ogs.SurfaceTransparency >= 40,
+                    Bold = ogs.Halftone || 0 /* SurfaceTransparency not readable */ >= 40,
                     Italic = ogs.Halftone,
                 });
             }

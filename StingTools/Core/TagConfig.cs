@@ -498,10 +498,10 @@ namespace StingTools.Core
         public static Dictionary<string, string> FuncMap { get; private set; }
 
         /// <summary>Available location codes.</summary>
-        public static List<string> LocCodes { get; private set; }
+        public static List<string> LocCodes { get; internal set; }
 
         /// <summary>Available zone codes.</summary>
-        public static List<string> ZoneCodes { get; private set; }
+        public static List<string> ZoneCodes { get; internal set; }
 
         public static string ConfigSource { get; private set; }
 
