@@ -75,51 +75,51 @@ fi
 
 echo "  Plugin package: $PLUGIN_DIR/"
 
-# ── Update .addin manifest ───────────────────────────────────────
+# ── Build Windows path for .addin manifest ───────────────────────
 echo "[2/4] Generating .addin manifest..."
 
-# Use CompiledPlugin path as default assembly location
-ASSEMBLY_PATH="$PLUGIN_DIR/StingTools.dll"
+# Convert to Windows path (e.g. C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll)
+# cygpath -w works in Git Bash / MSYS2; fallback to manual conversion
+if command -v cygpath &>/dev/null; then
+    WIN_DLL_PATH=$(cygpath -w "$PLUGIN_DIR/StingTools.dll")
+else
+    WIN_DLL_PATH=$(echo "$PLUGIN_DIR/StingTools.dll" | sed 's|^/\([a-zA-Z]\)/|\1:\\|; s|/|\\|g')
+fi
 
-cat > "$PLUGIN_DIR/StingTools.addin" << ADDIN_EOF
-<?xml version="1.0" encoding="utf-8"?>
-<RevitAddIns>
-  <AddIn Type="Application">
-    <Name>STING Tools</Name>
-    <Assembly>$(cygpath -w "$ASSEMBLY_PATH")</Assembly>
-    <AddInId>A1B2C3D4-5678-9ABC-DEF0-123456789ABC</AddInId>
-    <FullClassName>StingTools.Core.StingToolsApp</FullClassName>
-    <VendorId>StingBIM</VendorId>
-    <VendorDescription>StingBIM - ISO 19650 BIM Automation</VendorDescription>
-    <VendorEmail>support@stingbim.com</VendorEmail>
-  </AddIn>
-</RevitAddIns>
-ADDIN_EOF
+echo "  Assembly path: $WIN_DLL_PATH"
 
+# ── Write .addin manifest function ───────────────────────────────
+write_addin() {
+    local dest="$1"
+    printf '<?xml version="1.0" encoding="utf-8"?>\r\n' > "$dest"
+    printf '<RevitAddIns>\r\n' >> "$dest"
+    printf '  <AddIn Type="Application">\r\n' >> "$dest"
+    printf '    <Name>STING Tools</Name>\r\n' >> "$dest"
+    printf '    <Assembly>%s</Assembly>\r\n' "$WIN_DLL_PATH" >> "$dest"
+    printf '    <AddInId>A1B2C3D4-5678-9ABC-DEF0-123456789ABC</AddInId>\r\n' >> "$dest"
+    printf '    <FullClassName>StingTools.Core.StingToolsApp</FullClassName>\r\n' >> "$dest"
+    printf '    <VendorId>StingBIM</VendorId>\r\n' >> "$dest"
+    printf '    <VendorDescription>StingBIM - ISO 19650 BIM Automation</VendorDescription>\r\n' >> "$dest"
+    printf '    <VendorEmail>support@stingbim.com</VendorEmail>\r\n' >> "$dest"
+    printf '  </AddIn>\r\n' >> "$dest"
+    printf '</RevitAddIns>\r\n' >> "$dest"
+}
+
+write_addin "$PLUGIN_DIR/StingTools.addin"
 echo "  Generated StingTools.addin"
 
 # ── Deploy to ALL Revit addins folders ────────────────────────────
 echo "[3/4] Deploying to Revit..."
 
-WIN_PATH=$(cygpath -w "$PLUGIN_DIR/StingTools.dll")
-
 if [ ${#REVIT_VERSIONS[@]} -gt 0 ]; then
     for REVIT_VERSION in "${REVIT_VERSIONS[@]}"; do
         REVIT_DEST="$REVIT_ADDINS_BASE/$REVIT_VERSION"
-
-        # Copy .addin manifest
-        cp "$PLUGIN_DIR/StingTools.addin" "$REVIT_DEST/"
-
-        # Update assembly path in deployed .addin to point to CompiledPlugin
-        ADDIN_FILE="$REVIT_DEST/StingTools.addin"
-        sed -i "s|<Assembly>.*</Assembly>|<Assembly>$WIN_PATH</Assembly>|" "$ADDIN_FILE"
-
+        write_addin "$REVIT_DEST/StingTools.addin"
         echo "  Revit $REVIT_VERSION: deployed .addin to $REVIT_DEST/"
     done
-    echo "  Assembly path: $WIN_PATH"
 else
     echo "  SKIPPED: No Revit installation found."
-    echo "  Manually copy StingTools.addin to your Revit addins folder:"
+    echo "  Manually copy CompiledPlugin/StingTools.addin to:"
     echo "    %APPDATA%\\Autodesk\\Revit\\Addins\\2025\\"
 fi
 
