@@ -760,6 +760,11 @@ namespace StingTools.Tags
             var linkMap = new Dictionary<TaskDialogResult, string>();
             var links = new[]
             {
+                TaskDialogCommandLinkId.CommandLink1, TaskDialogCommandLinkId.CommandLink2,
+                TaskDialogCommandLinkId.CommandLink3, TaskDialogCommandLinkId.CommandLink4,
+            };
+            var resultMap = new[]
+            {
                 TaskDialogResult.CommandLink1, TaskDialogResult.CommandLink2,
                 TaskDialogResult.CommandLink3, TaskDialogResult.CommandLink4,
             };
@@ -768,7 +773,7 @@ namespace StingTools.Tags
             {
                 string active = TagConfig.ActivePreset?.Name == presets[i].Name ? " [ACTIVE]" : "";
                 dlg.AddCommandLink(links[i], $"{presets[i].Name}{active}", presets[i].Description);
-                linkMap[links[i]] = presets[i].Name;
+                linkMap[resultMap[i]] = presets[i].Name;
             }
 
             dlg.CommonButtons = TaskDialogCommonButtons.Cancel;

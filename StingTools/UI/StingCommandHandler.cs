@@ -1973,7 +1973,7 @@ namespace StingTools.UI
                             if (leaders.Count > 0)
                                 tn.RemoveLeaders();
                             else
-                                tn.AddLeader(TextNoteLeaderType.TNLT_STRAIGHT_L);
+                                tn.AddLeader();
                             toggled++;
                         }
                         catch { }

@@ -197,7 +197,7 @@ namespace StingTools.Tags
         /// Works with both Legend views and Drafting views.
         /// Must be called within an active Transaction.
         /// </summary>
-        private static void PopulateLegendContent(Document doc, View legendView,
+        internal static void PopulateLegendContent(Document doc, View legendView,
             List<LegendEntry> entries, LegendConfig config)
         {
             // Find solid fill pattern for filled regions
@@ -5142,7 +5142,7 @@ namespace StingTools.Tags
             foreach (var kvp in sysCounts.OrderByDescending(x => x.Value))
             {
                 var info = SystemColors.TryGetValue(kvp.Key, out var sc)
-                    ? sc : (new Color(160, 160, 160), kvp.Key);
+                    ? sc : (Color: new Color(160, 160, 160), Name: kvp.Key);
 
                 entries.Add(new LegendBuilder.LegendEntry
                 {
@@ -5200,7 +5200,7 @@ namespace StingTools.Tags
             foreach (var kvp in sysCounts.OrderByDescending(x => x.Value))
             {
                 var info = SystemColors.TryGetValue(kvp.Key, out var sc)
-                    ? sc : (new Color(160, 160, 160), kvp.Key);
+                    ? sc : (Color: new Color(160, 160, 160), Name: kvp.Key);
                 entries.Add(new LegendBuilder.LegendEntry
                 {
                     Color = info.Color,
@@ -6567,9 +6567,10 @@ namespace StingTools.Tags
             // Check all known taggable categories
             foreach (var bic in SharedParamGuids.AllCategoryEnums)
             {
+                Category cat = null;
                 try
                 {
-                    Category cat = doc.Settings.Categories.get_Item(bic);
+                    cat = doc.Settings.Categories.get_Item(bic);
                     if (cat == null) continue;
 
                     OverrideGraphicSettings ogs = view.GetCategoryOverrides(new ElementId(bic));
