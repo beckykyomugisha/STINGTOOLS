@@ -134,7 +134,7 @@ STINGTOOLS/
         ├── PARAMETER__CATEGORIES.csv   # Parameter-category cross-reference
         ├── PARAMETER_REGISTRY.json     # Master parameter registry (v4.3) — single source of truth for ParamRegistry.cs
         ├── LABEL_DEFINITIONS.json      # 3,623-line label/legend definition specs for all tag containers and display styles
-        ├── TAG_STYLE_RULES.json       # Tag style engine presets and rules (8 built-in presets: Discipline, QA, Presentation, Print, Large Format, Status, System, Zone)
+        ├── TAG_STYLE_RULES.json       # Tag style engine — 128 tag types (4 sizes × 4 weights × 8 colors) + 8 presets (Discipline, QA, Presentation, Print, Large Format, Status, System, Zone)
         ├── PYREVIT_SCRIPT_MANIFEST.csv # Legacy pyRevit script manifest
         ├── TAG_GUIDE.xlsx              # Tag reference guide (original)
         ├── TAG GUIDE V2.xlsx           # Tag reference guide (comprehensive update)

@@ -621,7 +621,8 @@ namespace StingTools.Tags
                 (typeNames.Count > 20 ? $"\n  ... and {typeNames.Count - 20} more" : "");
 
             // Show 4 most common/useful options
-            var preferredTypes = new[] { "2BOLD_BLUE", "2BOLD_RED", "2BOLD_GREEN", "2NOM_BLACK" };
+            var preferredTypes = new[] { "2BOLD_BLUE", "2BOLD_RED", "2BOLD_GREEN", "2NOM_BLACK",
+                "2BOLD_ORANGE", "2BOLD_PURPLE", "2NOM_GREY", "2BOLDITALIC_RED" };
             var available = preferredTypes.Where(t => typeIndex.ContainsKey(t)).ToList();
             if (available.Count < 4)
             {
