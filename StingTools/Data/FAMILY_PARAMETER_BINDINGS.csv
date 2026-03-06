@@ -4741,3 +4741,42 @@ TPL_TRACKING,VGPS_SURFACE_COLOR_R_INT,155c8ab9-9b05-5fda-aa79-0f80cc253571,INTEG
 TPL_TRACKING,VGPS_SURFACE_PATTERN_TXT,eb1fb315-1463-585b-a074-a79397a6fdd3,TEXT,Type,Vgps Surface Pattern Txt [ISO 19650-1:2018],Generic Models,eb1fb315-1463-585b-a074-a79397a6fdd3
 TPL_TRACKING,VGPS_TRANSPARENCY_NR,fd444244-3d16-5f0e-8948-8d0942392bf8,NUMBER,Type,Vgps Transparency Nr [ISO 19650-1:2018],Generic Models,fd444244-3d16-5f0e-8948-8d0942392bf8
 TPL_TRACKING,VGPS_VISIBLE_BOOL,49171f71-506c-583b-9756-571eaa84c560,YESNO,Type,Vgps Visible Bool [ISO 19650-1:2018],Generic Models,49171f71-506c-583b-9756-571eaa84c560
+BLE_ELES,ARCH_TAG_7_PARA_CASEWORK_TXT,e55db34e-129d-5ea8-83be-e09e5e65604f,TEXT,Type,Casework paragraph [ISO 19650-3:2020],Casework,e55db34e-129d-5ea8-83be-e09e5e65604f
+BLE_ELES,ARCH_TAG_7_PARA_CEIL_TXT,ec301803-ef10-50a5-8cd0-12c129155328,TEXT,Type,Ceiling paragraph container — NEW v4.3 [ISO 19650-3:2020],Ceilings,ec301803-ef10-50a5-8cd0-12c129155328
+BLE_ELES,ARCH_TAG_7_PARA_DOOR_TXT,86482d6d-49dc-5efc-adc3-16fdfd742ea3,TEXT,Type,Door paragraph container [ISO 19650-3:2020],Doors,86482d6d-49dc-5efc-adc3-16fdfd742ea3
+BLE_ELES,ARCH_TAG_7_PARA_FACADE_TXT,7a6fff97-e8fe-5ac2-a229-b375e9ae9eac,TEXT,Type,Facade/curtain wall paragraph [ISO 19650-3:2020],Curtain Panels,7a6fff97-e8fe-5ac2-a229-b375e9ae9eac
+BLE_ELES,ARCH_TAG_7_PARA_FLOOR_TXT,79f63378-cf89-53ed-8d08-b7ef224664bc,TEXT,Type,Floor paragraph container [ISO 19650-3:2020],Floors,79f63378-cf89-53ed-8d08-b7ef224664bc
+BLE_ELES,ARCH_TAG_7_PARA_FURNITURE_TXT,b1d47bbb-397e-520b-9610-b471226f9441,TEXT,Type,Furniture paragraph [ISO 19650-3:2020],Furniture,b1d47bbb-397e-520b-9610-b471226f9441
+BLE_ELES,ARCH_TAG_7_PARA_RAMP_TXT,ef02ada2-6d8c-5040-9cb7-700ac1cab810,TEXT,Type,Ramp paragraph [ISO 19650-3:2020],Ramps,ef02ada2-6d8c-5040-9cb7-700ac1cab810
+BLE_ELES,ARCH_TAG_7_PARA_ROOF_TXT,15306275-b3a6-509c-995a-d1a48b11f567,TEXT,Type,Roof paragraph container — NEW v4.3 [ISO 19650-3:2020],Roofs,15306275-b3a6-509c-995a-d1a48b11f567
+BLE_ELES,ARCH_TAG_7_PARA_ROOM_TXT,dc8a2075-2dfd-5f4c-9b4b-4cc938e87797,TEXT,Type,Room/space paragraph container [ISO 19650-3:2020],Rooms,dc8a2075-2dfd-5f4c-9b4b-4cc938e87797
+BLE_ELES,ARCH_TAG_7_PARA_STAIR_TXT,0eb59837-cbf1-5c91-a6c0-7bd8820e452a,TEXT,Type,Stair paragraph [ISO 19650-3:2020],Stairs,0eb59837-cbf1-5c91-a6c0-7bd8820e452a
+BLE_ELES,ARCH_TAG_7_PARA_WALL_TXT,c0ba10c1-c570-5f35-a932-5364aaccf367,TEXT,Type,Wall paragraph container [ISO 19650-3:2020],Walls,c0ba10c1-c570-5f35-a932-5364aaccf367
+BLE_ELES,ARCH_TAG_7_PARA_WIN_TXT,abae0302-a908-5e5c-8244-fac437ef2272,TEXT,Type,Window paragraph container [ISO 19650-3:2020],Windows,abae0302-a908-5e5c-8244-fac437ef2272
+ASS_MNG,ASS_TAG_7_PARA_EQUIPMENT_TXT,e9d487a5-e6d7-53f3-a5d8-280d247952d0,TEXT,Type,Specialty equipment paragraph [ISO 19650-3:2020],Specialty Equipment,e9d487a5-e6d7-53f3-a5d8-280d247952d0
+COM_DAT,COM_TAG_7_PARA_BMS_TXT,10c0be4c-8534-5a16-85a5-2c2c5335e6bf,TEXT,Type,BMS device paragraph [ISO 19650-3:2020],Communication Devices,10c0be4c-8534-5a16-85a5-2c2c5335e6bf
+ELC_PWR,ELC_PNL_RATED_KW,ce012518-4b1d-5cfd-b57d-fbfa5d9e2a23,NUMBER,Type,Panel rated capacity kW (for overload check) [ISO 19650-3:2020],Electrical Equipment,ce012518-4b1d-5cfd-b57d-fbfa5d9e2a23
+ELC_PWR,ELC_TAG_7_PARA_CABLE_TXT,447e7a85-0d13-5e3d-bd26-c5b8b0b16bc4,TEXT,Type,Cable paragraph (destination, source, cores, size, insulation, install method, tray fill, load) [ISO 19650-3:2020],Cable Trays,447e7a85-0d13-5e3d-bd26-c5b8b0b16bc4
+ELC_PWR,ELC_TAG_7_PARA_CIRCUIT_TXT,2f21931c-6b91-50e6-856d-dc2b138c965a,TEXT,Type,Circuit/point paragraph container [ISO 19650-3:2020],Electrical Fixtures,2f21931c-6b91-50e6-856d-dc2b138c965a
+ELC_PWR,ELC_TAG_7_PARA_CONDUIT_TXT,e035389f-58b4-567e-a820-0d674ee6c2b8,TEXT,Type,Conduit paragraph [ISO 19650-3:2020],Conduits,e035389f-58b4-567e-a820-0d674ee6c2b8
+ELC_PWR,ELC_TAG_7_PARA_PANEL_TXT,3f4684f4-9274-5275-993a-85c7b190fcac,TEXT,Type,DB panel paragraph container [ISO 19650-3:2020],Electrical Equipment,3f4684f4-9274-5275-993a-85c7b190fcac
+ELC_PWR,ELC_TAG_7_PARA_TRAY_TXT,a0837add-84a6-525b-9339-02d5d01105d6,TEXT,Type,Cable tray paragraph [ISO 19650-3:2020],Cable Trays,a0837add-84a6-525b-9339-02d5d01105d6
+FLS_LIFE_SFTY,FLS_TAG_7_PARA_FA_TXT,b4c8f661-0a7e-5763-8043-49a4647f023f,TEXT,Type,Fire alarm paragraph container — NEW v4.3 [ISO 19650-3:2020],Fire Alarm Devices,b4c8f661-0a7e-5763-8043-49a4647f023f
+FLS_LIFE_SFTY,FLS_TAG_7_PARA_SPR_TXT,3b1cbb9c-d07b-5ca4-95cd-8f178d555b1c,TEXT,Type,Sprinkler paragraph container — NEW v4.3 [ISO 19650-3:2020],Sprinklers,3b1cbb9c-d07b-5ca4-95cd-8f178d555b1c
+HVC_SYSTEMS,HVC_TAG_7_PARA_AT_TXT,d483bd8b-d73c-55d1-a4e9-a3fb23c9bf34,TEXT,Type,Air terminal paragraph container [ISO 19650-3:2020],Air Terminals,d483bd8b-d73c-55d1-a4e9-a3fb23c9bf34
+HVC_SYSTEMS,HVC_TAG_7_PARA_DCTACC_TXT,90cd5680-b46f-5438-8545-3d64496d3083,TEXT,Type,Duct accessory paragraph [ISO 19650-3:2020],Duct Accessories,90cd5680-b46f-5438-8545-3d64496d3083
+HVC_SYSTEMS,HVC_TAG_7_PARA_DUCT_TXT,afc99d4a-df1f-52e3-8e5a-3187771464af,TEXT,Type,Duct paragraph container [ISO 19650-3:2020],Ducts,afc99d4a-df1f-52e3-8e5a-3187771464af
+HVC_SYSTEMS,HVC_TAG_7_PARA_FLEXDUCT_TXT,330a9fed-2a9b-5e88-863f-b63fe6f59e3d,TEXT,Type,Flex duct paragraph [ISO 19650-3:2020],Flex Ducts,330a9fed-2a9b-5e88-863f-b63fe6f59e3d
+HVC_SYSTEMS,HVC_TAG_7_PARA_SPEC_TXT,b62dfc26-b575-5f57-8a51-15a0296eb912,TEXT,Type,HVAC equipment paragraph container [ISO 19650-3:2020],Mechanical Equipment,b62dfc26-b575-5f57-8a51-15a0296eb912
+COM_DAT,ICT_TAG_7_PARA_DATA_TXT,a5ee1f80-17ac-5088-a4bb-bd72bcb56cf8,TEXT,Type,Data/telephone outlet paragraph [ISO 19650-3:2020],Communication Devices,a5ee1f80-17ac-5088-a4bb-bd72bcb56cf8
+LTG_CONTROLS,LTG_TAG_7_PARA_SPEC_TXT,a3e34fde-ee41-57f0-aef6-f762cd0cee64,TEXT,Type,Lighting fixture paragraph container [ISO 19650-3:2020],Lighting Fixtures,a3e34fde-ee41-57f0-aef6-f762cd0cee64
+COM_DAT,NCL_TAG_7_PARA_NURSECALL_TXT,62c6c1c6-e901-5b2d-b61e-71e3ed9c9f1d,TEXT,Type,Nurse call paragraph [ISO 19650-3:2020],Nurse Call Devices,62c6c1c6-e901-5b2d-b61e-71e3ed9c9f1d
+PLM_DRN,PLM_TAG_7_PARA_DRAIN_TXT,399a3864-44ab-540f-bfdf-0b36cc9fe60b,TEXT,Type,Drainage paragraph (trap type, cleanout, vent terminals, expansion joints, strainers) [ISO 19650-3:2020],Plumbing Fixtures,399a3864-44ab-540f-bfdf-0b36cc9fe60b
+PLM_DRN,PLM_TAG_7_PARA_EQUIPMENT_TXT,bf7affae-dec5-5843-9cf1-a7253e9dd3b7,TEXT,Type,Plumbing equipment paragraph [ISO 19650-3:2020],Mechanical Equipment,bf7affae-dec5-5843-9cf1-a7253e9dd3b7
+PLM_DRN,PLM_TAG_7_PARA_FIXTURE_TXT,224e3954-97ca-5715-b935-bf9c4c124241,TEXT,Type,Sanitary fixture paragraph [ISO 19650-3:2020],Plumbing Fixtures,224e3954-97ca-5715-b935-bf9c4c124241
+PLM_DRN,PLM_TAG_7_PARA_PIPEACC_TXT,cc56afc1-ec0a-542f-9f9b-35fc7f6e982a,TEXT,Type,Pipe accessory paragraph [ISO 19650-3:2020],Pipe Accessories,cc56afc1-ec0a-542f-9f9b-35fc7f6e982a
+PLM_DRN,PLM_TAG_7_PARA_PIPE_TXT,80d8eccd-69a8-5a0d-915a-01d23118e0ab,TEXT,Type,Pipe paragraph container — NEW v4.3 [ISO 19650-3:2020],Pipes,80d8eccd-69a8-5a0d-915a-01d23118e0ab
+COM_DAT,SEC_TAG_7_PARA_SECURITY_TXT,d10b0b0c-12d1-55b8-9d48-feda6544696a,TEXT,Type,Security device paragraph [ISO 19650-3:2020],Security Devices,d10b0b0c-12d1-55b8-9d48-feda6544696a
+BLE_STRUCTURE,STR_TAG_7_PARA_BEAM_TXT,9406ea5b-766e-55bd-aeec-6dfced98a8ba,TEXT,Type,Beam/framing paragraph container [ISO 19650-3:2020],Structural Framing,9406ea5b-766e-55bd-aeec-6dfced98a8ba
+BLE_STRUCTURE,STR_TAG_7_PARA_COL_TXT,6742bedc-d054-5aba-bda9-e2ed8baa938e,TEXT,Type,Column paragraph container [ISO 19650-3:2020],Structural Columns,6742bedc-d054-5aba-bda9-e2ed8baa938e
+BLE_STRUCTURE,STR_TAG_7_PARA_FDN_TXT,2c89bf41-1688-5d19-9ab9-eff5b3b7a129,TEXT,Type,Foundation paragraph [ISO 19650-3:2020],Structural Foundations,2c89bf41-1688-5d19-9ab9-eff5b3b7a129

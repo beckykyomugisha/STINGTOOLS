@@ -12774,3 +12774,334 @@ PH_END_DATE_TXT,Railings,Type,True
 PH_STATUS_TXT,Railings,Type,True
 PH_START_DATE_TXT,Railings,Type,True
 PH_NAME_TXT,Railings,Type,True
+ARCH_TAG_7_PARA_CASEWORK_TXT,Casework,Type,True
+ARCH_TAG_7_PARA_CEIL_TXT,Ceilings,Type,True
+ARCH_TAG_7_PARA_DOOR_TXT,Doors,Type,True
+ARCH_TAG_7_PARA_FACADE_TXT,Curtain Panels,Type,True
+ARCH_TAG_7_PARA_FACADE_TXT,Curtain Wall Mullions,Type,True
+ARCH_TAG_7_PARA_FLOOR_TXT,Floors,Type,True
+ARCH_TAG_7_PARA_FURNITURE_TXT,Furniture,Type,True
+ARCH_TAG_7_PARA_FURNITURE_TXT,Furniture Systems,Type,True
+ARCH_TAG_7_PARA_RAMP_TXT,Ramps,Type,True
+ARCH_TAG_7_PARA_ROOF_TXT,Roofs,Type,True
+ARCH_TAG_7_PARA_ROOM_TXT,Rooms,Type,True
+ARCH_TAG_7_PARA_STAIR_TXT,Stairs,Type,True
+ARCH_TAG_7_PARA_WALL_TXT,Walls,Type,True
+ARCH_TAG_7_PARA_WIN_TXT,Windows,Type,True
+ASS_TAG_7_PARA_EQUIPMENT_TXT,Specialty Equipment,Type,True
+COM_TAG_7_PARA_BMS_TXT,Communication Devices,Type,True
+COM_TAG_7_PARA_BMS_TXT,Data Devices,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Air Terminals,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Cable Tray Fittings,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Cable Trays,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Casework,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Communication Devices,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Conduit Fittings,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Conduits,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Data Devices,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Duct Accessories,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Duct Fittings,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Ducts,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Electrical Equipment,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Electrical Fixtures,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Fire Alarm Devices,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Flex Ducts,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Flex Pipes,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Furniture,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Furniture Systems,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Generic Models,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Lighting Devices,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Lighting Fixtures,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Mechanical Equipment,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Nurse Call Devices,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Parking,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Pipe Accessories,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Pipe Fittings,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Pipes,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Planting,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Plumbing Equipment,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Plumbing Fixtures,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Security Devices,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Site,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Specialty Equipment,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Sprinklers,Type,True
+CST_TAG_7_PARA_CONCRETE_TXT,Telephone Devices,Type,True
+ELC_PNL_RATED_KW,Electrical Equipment,Type,True
+ELC_TAG_7_PARA_CABLE_TXT,Cable Trays,Type,True
+ELC_TAG_7_PARA_CIRCUIT_TXT,Electrical Fixtures,Type,True
+ELC_TAG_7_PARA_CONDUIT_TXT,Conduits,Type,True
+ELC_TAG_7_PARA_CONDUIT_TXT,Conduit Fittings,Type,True
+ELC_TAG_7_PARA_PANEL_TXT,Electrical Equipment,Type,True
+ELC_TAG_7_PARA_TRAY_TXT,Cable Trays,Type,True
+ELC_TAG_7_PARA_TRAY_TXT,Cable Tray Fittings,Type,True
+FLS_TAG_7_PARA_FA_TXT,Fire Alarm Devices,Type,True
+FLS_TAG_7_PARA_SPR_TXT,Sprinklers,Type,True
+HVC_TAG_7_PARA_AT_TXT,Air Terminals,Type,True
+HVC_TAG_7_PARA_DCTACC_TXT,Duct Accessories,Type,True
+HVC_TAG_7_PARA_DUCT_TXT,Ducts,Type,True
+HVC_TAG_7_PARA_DUCT_TXT,Duct Fittings,Type,True
+HVC_TAG_7_PARA_FLEXDUCT_TXT,Flex Ducts,Type,True
+HVC_TAG_7_PARA_SPEC_TXT,Mechanical Equipment,Type,True
+ICT_TAG_7_PARA_DATA_TXT,Communication Devices,Type,True
+ICT_TAG_7_PARA_DATA_TXT,Data Devices,Type,True
+ICT_TAG_7_PARA_DATA_TXT,Telephone Devices,Type,True
+LTG_TAG_7_PARA_SPEC_TXT,Lighting Fixtures,Type,True
+LTG_TAG_7_PARA_SPEC_TXT,Lighting Devices,Type,True
+NCL_TAG_7_PARA_NURSECALL_TXT,Nurse Call Devices,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Air Terminals,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Cable Tray Fittings,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Cable Trays,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Casework,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Communication Devices,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Conduit Fittings,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Conduits,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Data Devices,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Duct Accessories,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Duct Fittings,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Ducts,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Electrical Equipment,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Electrical Fixtures,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Fire Alarm Devices,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Flex Ducts,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Flex Pipes,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Furniture,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Furniture Systems,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Generic Models,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Lighting Devices,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Lighting Fixtures,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Mechanical Equipment,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Nurse Call Devices,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Parking,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Pipe Accessories,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Pipe Fittings,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Pipes,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Planting,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Plumbing Equipment,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Plumbing Fixtures,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Security Devices,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Site,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Specialty Equipment,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Sprinklers,Type,True
+PER_TAG_7_PARA_ENVIRONMENT_TXT,Telephone Devices,Type,True
+PLM_TAG_7_PARA_DRAIN_TXT,Plumbing Fixtures,Type,True
+PLM_TAG_7_PARA_DRAIN_TXT,Pipe Accessories,Type,True
+PLM_TAG_7_PARA_EQUIPMENT_TXT,Plumbing Equipment,Type,True
+PLM_TAG_7_PARA_EQUIPMENT_TXT,Mechanical Equipment,Type,True
+PLM_TAG_7_PARA_FIXTURE_TXT,Plumbing Fixtures,Type,True
+PLM_TAG_7_PARA_PIPEACC_TXT,Pipe Accessories,Type,True
+PLM_TAG_7_PARA_PIPE_TXT,Pipes,Type,True
+PLM_TAG_7_PARA_PIPE_TXT,Pipe Fittings,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Air Terminals,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Cable Tray Fittings,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Cable Trays,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Casework,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Communication Devices,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Conduit Fittings,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Conduits,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Data Devices,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Duct Accessories,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Duct Fittings,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Ducts,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Electrical Equipment,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Electrical Fixtures,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Fire Alarm Devices,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Flex Ducts,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Flex Pipes,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Furniture,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Furniture Systems,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Generic Models,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Lighting Devices,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Lighting Fixtures,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Mechanical Equipment,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Nurse Call Devices,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Parking,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Pipe Accessories,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Pipe Fittings,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Pipes,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Planting,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Plumbing Equipment,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Plumbing Fixtures,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Security Devices,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Site,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Specialty Equipment,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Sprinklers,Type,True
+RGL_TAG_7_PARA_COMPLIANCE_TXT,Telephone Devices,Type,True
+SEC_TAG_7_PARA_SECURITY_TXT,Security Devices,Type,True
+STR_TAG_7_PARA_BEAM_TXT,Structural Framing,Type,True
+STR_TAG_7_PARA_COL_TXT,Structural Columns,Type,True
+STR_TAG_7_PARA_FDN_TXT,Structural Foundations,Type,True
+TAG_PARA_STATE_1_BOOL,Air Terminals,Type,True
+TAG_PARA_STATE_1_BOOL,Cable Tray Fittings,Type,True
+TAG_PARA_STATE_1_BOOL,Cable Trays,Type,True
+TAG_PARA_STATE_1_BOOL,Casework,Type,True
+TAG_PARA_STATE_1_BOOL,Communication Devices,Type,True
+TAG_PARA_STATE_1_BOOL,Conduit Fittings,Type,True
+TAG_PARA_STATE_1_BOOL,Conduits,Type,True
+TAG_PARA_STATE_1_BOOL,Data Devices,Type,True
+TAG_PARA_STATE_1_BOOL,Duct Accessories,Type,True
+TAG_PARA_STATE_1_BOOL,Duct Fittings,Type,True
+TAG_PARA_STATE_1_BOOL,Ducts,Type,True
+TAG_PARA_STATE_1_BOOL,Electrical Equipment,Type,True
+TAG_PARA_STATE_1_BOOL,Electrical Fixtures,Type,True
+TAG_PARA_STATE_1_BOOL,Fire Alarm Devices,Type,True
+TAG_PARA_STATE_1_BOOL,Flex Ducts,Type,True
+TAG_PARA_STATE_1_BOOL,Flex Pipes,Type,True
+TAG_PARA_STATE_1_BOOL,Furniture,Type,True
+TAG_PARA_STATE_1_BOOL,Furniture Systems,Type,True
+TAG_PARA_STATE_1_BOOL,Generic Models,Type,True
+TAG_PARA_STATE_1_BOOL,Lighting Devices,Type,True
+TAG_PARA_STATE_1_BOOL,Lighting Fixtures,Type,True
+TAG_PARA_STATE_1_BOOL,Mechanical Equipment,Type,True
+TAG_PARA_STATE_1_BOOL,Nurse Call Devices,Type,True
+TAG_PARA_STATE_1_BOOL,Parking,Type,True
+TAG_PARA_STATE_1_BOOL,Pipe Accessories,Type,True
+TAG_PARA_STATE_1_BOOL,Pipe Fittings,Type,True
+TAG_PARA_STATE_1_BOOL,Pipes,Type,True
+TAG_PARA_STATE_1_BOOL,Planting,Type,True
+TAG_PARA_STATE_1_BOOL,Plumbing Equipment,Type,True
+TAG_PARA_STATE_1_BOOL,Plumbing Fixtures,Type,True
+TAG_PARA_STATE_1_BOOL,Security Devices,Type,True
+TAG_PARA_STATE_1_BOOL,Site,Type,True
+TAG_PARA_STATE_1_BOOL,Specialty Equipment,Type,True
+TAG_PARA_STATE_1_BOOL,Sprinklers,Type,True
+TAG_PARA_STATE_1_BOOL,Telephone Devices,Type,True
+TAG_PARA_STATE_2_BOOL,Air Terminals,Type,True
+TAG_PARA_STATE_2_BOOL,Cable Tray Fittings,Type,True
+TAG_PARA_STATE_2_BOOL,Cable Trays,Type,True
+TAG_PARA_STATE_2_BOOL,Casework,Type,True
+TAG_PARA_STATE_2_BOOL,Communication Devices,Type,True
+TAG_PARA_STATE_2_BOOL,Conduit Fittings,Type,True
+TAG_PARA_STATE_2_BOOL,Conduits,Type,True
+TAG_PARA_STATE_2_BOOL,Data Devices,Type,True
+TAG_PARA_STATE_2_BOOL,Duct Accessories,Type,True
+TAG_PARA_STATE_2_BOOL,Duct Fittings,Type,True
+TAG_PARA_STATE_2_BOOL,Ducts,Type,True
+TAG_PARA_STATE_2_BOOL,Electrical Equipment,Type,True
+TAG_PARA_STATE_2_BOOL,Electrical Fixtures,Type,True
+TAG_PARA_STATE_2_BOOL,Fire Alarm Devices,Type,True
+TAG_PARA_STATE_2_BOOL,Flex Ducts,Type,True
+TAG_PARA_STATE_2_BOOL,Flex Pipes,Type,True
+TAG_PARA_STATE_2_BOOL,Furniture,Type,True
+TAG_PARA_STATE_2_BOOL,Furniture Systems,Type,True
+TAG_PARA_STATE_2_BOOL,Generic Models,Type,True
+TAG_PARA_STATE_2_BOOL,Lighting Devices,Type,True
+TAG_PARA_STATE_2_BOOL,Lighting Fixtures,Type,True
+TAG_PARA_STATE_2_BOOL,Mechanical Equipment,Type,True
+TAG_PARA_STATE_2_BOOL,Nurse Call Devices,Type,True
+TAG_PARA_STATE_2_BOOL,Parking,Type,True
+TAG_PARA_STATE_2_BOOL,Pipe Accessories,Type,True
+TAG_PARA_STATE_2_BOOL,Pipe Fittings,Type,True
+TAG_PARA_STATE_2_BOOL,Pipes,Type,True
+TAG_PARA_STATE_2_BOOL,Planting,Type,True
+TAG_PARA_STATE_2_BOOL,Plumbing Equipment,Type,True
+TAG_PARA_STATE_2_BOOL,Plumbing Fixtures,Type,True
+TAG_PARA_STATE_2_BOOL,Security Devices,Type,True
+TAG_PARA_STATE_2_BOOL,Site,Type,True
+TAG_PARA_STATE_2_BOOL,Specialty Equipment,Type,True
+TAG_PARA_STATE_2_BOOL,Sprinklers,Type,True
+TAG_PARA_STATE_2_BOOL,Telephone Devices,Type,True
+TAG_PARA_STATE_3_BOOL,Air Terminals,Type,True
+TAG_PARA_STATE_3_BOOL,Cable Tray Fittings,Type,True
+TAG_PARA_STATE_3_BOOL,Cable Trays,Type,True
+TAG_PARA_STATE_3_BOOL,Casework,Type,True
+TAG_PARA_STATE_3_BOOL,Communication Devices,Type,True
+TAG_PARA_STATE_3_BOOL,Conduit Fittings,Type,True
+TAG_PARA_STATE_3_BOOL,Conduits,Type,True
+TAG_PARA_STATE_3_BOOL,Data Devices,Type,True
+TAG_PARA_STATE_3_BOOL,Duct Accessories,Type,True
+TAG_PARA_STATE_3_BOOL,Duct Fittings,Type,True
+TAG_PARA_STATE_3_BOOL,Ducts,Type,True
+TAG_PARA_STATE_3_BOOL,Electrical Equipment,Type,True
+TAG_PARA_STATE_3_BOOL,Electrical Fixtures,Type,True
+TAG_PARA_STATE_3_BOOL,Fire Alarm Devices,Type,True
+TAG_PARA_STATE_3_BOOL,Flex Ducts,Type,True
+TAG_PARA_STATE_3_BOOL,Flex Pipes,Type,True
+TAG_PARA_STATE_3_BOOL,Furniture,Type,True
+TAG_PARA_STATE_3_BOOL,Furniture Systems,Type,True
+TAG_PARA_STATE_3_BOOL,Generic Models,Type,True
+TAG_PARA_STATE_3_BOOL,Lighting Devices,Type,True
+TAG_PARA_STATE_3_BOOL,Lighting Fixtures,Type,True
+TAG_PARA_STATE_3_BOOL,Mechanical Equipment,Type,True
+TAG_PARA_STATE_3_BOOL,Nurse Call Devices,Type,True
+TAG_PARA_STATE_3_BOOL,Parking,Type,True
+TAG_PARA_STATE_3_BOOL,Pipe Accessories,Type,True
+TAG_PARA_STATE_3_BOOL,Pipe Fittings,Type,True
+TAG_PARA_STATE_3_BOOL,Pipes,Type,True
+TAG_PARA_STATE_3_BOOL,Planting,Type,True
+TAG_PARA_STATE_3_BOOL,Plumbing Equipment,Type,True
+TAG_PARA_STATE_3_BOOL,Plumbing Fixtures,Type,True
+TAG_PARA_STATE_3_BOOL,Security Devices,Type,True
+TAG_PARA_STATE_3_BOOL,Site,Type,True
+TAG_PARA_STATE_3_BOOL,Specialty Equipment,Type,True
+TAG_PARA_STATE_3_BOOL,Sprinklers,Type,True
+TAG_PARA_STATE_3_BOOL,Telephone Devices,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Air Terminals,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Cable Tray Fittings,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Cable Trays,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Casework,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Communication Devices,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Conduit Fittings,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Conduits,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Data Devices,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Duct Accessories,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Duct Fittings,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Ducts,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Electrical Equipment,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Electrical Fixtures,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Fire Alarm Devices,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Flex Ducts,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Flex Pipes,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Furniture,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Furniture Systems,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Generic Models,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Lighting Devices,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Lighting Fixtures,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Mechanical Equipment,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Nurse Call Devices,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Parking,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Pipe Accessories,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Pipe Fittings,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Pipes,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Planting,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Plumbing Equipment,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Plumbing Fixtures,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Security Devices,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Site,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Specialty Equipment,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Sprinklers,Type,True
+TAG_WARN_SEVERITY_FILTER_TXT,Telephone Devices,Type,True
+TAG_WARN_VISIBLE_BOOL,Air Terminals,Type,True
+TAG_WARN_VISIBLE_BOOL,Cable Tray Fittings,Type,True
+TAG_WARN_VISIBLE_BOOL,Cable Trays,Type,True
+TAG_WARN_VISIBLE_BOOL,Casework,Type,True
+TAG_WARN_VISIBLE_BOOL,Communication Devices,Type,True
+TAG_WARN_VISIBLE_BOOL,Conduit Fittings,Type,True
+TAG_WARN_VISIBLE_BOOL,Conduits,Type,True
+TAG_WARN_VISIBLE_BOOL,Data Devices,Type,True
+TAG_WARN_VISIBLE_BOOL,Duct Accessories,Type,True
+TAG_WARN_VISIBLE_BOOL,Duct Fittings,Type,True
+TAG_WARN_VISIBLE_BOOL,Ducts,Type,True
+TAG_WARN_VISIBLE_BOOL,Electrical Equipment,Type,True
+TAG_WARN_VISIBLE_BOOL,Electrical Fixtures,Type,True
+TAG_WARN_VISIBLE_BOOL,Fire Alarm Devices,Type,True
+TAG_WARN_VISIBLE_BOOL,Flex Ducts,Type,True
+TAG_WARN_VISIBLE_BOOL,Flex Pipes,Type,True
+TAG_WARN_VISIBLE_BOOL,Furniture,Type,True
+TAG_WARN_VISIBLE_BOOL,Furniture Systems,Type,True
+TAG_WARN_VISIBLE_BOOL,Generic Models,Type,True
+TAG_WARN_VISIBLE_BOOL,Lighting Devices,Type,True
+TAG_WARN_VISIBLE_BOOL,Lighting Fixtures,Type,True
+TAG_WARN_VISIBLE_BOOL,Mechanical Equipment,Type,True
+TAG_WARN_VISIBLE_BOOL,Nurse Call Devices,Type,True
+TAG_WARN_VISIBLE_BOOL,Parking,Type,True
+TAG_WARN_VISIBLE_BOOL,Pipe Accessories,Type,True
+TAG_WARN_VISIBLE_BOOL,Pipe Fittings,Type,True
+TAG_WARN_VISIBLE_BOOL,Pipes,Type,True
+TAG_WARN_VISIBLE_BOOL,Planting,Type,True
+TAG_WARN_VISIBLE_BOOL,Plumbing Equipment,Type,True
+TAG_WARN_VISIBLE_BOOL,Plumbing Fixtures,Type,True
+TAG_WARN_VISIBLE_BOOL,Security Devices,Type,True
+TAG_WARN_VISIBLE_BOOL,Site,Type,True
+TAG_WARN_VISIBLE_BOOL,Specialty Equipment,Type,True
+TAG_WARN_VISIBLE_BOOL,Sprinklers,Type,True
+TAG_WARN_VISIBLE_BOOL,Telephone Devices,Type,True

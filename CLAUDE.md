@@ -128,8 +128,8 @@ STINGTOOLS/
         ├── SCHEDULE_FIELD_REMAP.csv    # 50 field deprecation remaps
         ├── BINDING_COVERAGE_MATRIX.csv # Parameter-category coverage
         ├── BOQ_TEMPLATE.csv            # Bill of Quantities template structure
-        ├── CATEGORY_BINDINGS.csv       # 12,774 category bindings
-        ├── FAMILY_PARAMETER_BINDINGS.csv   # 4,741 family bindings
+        ├── CATEGORY_BINDINGS.csv       # 13,106 category bindings
+        ├── FAMILY_PARAMETER_BINDINGS.csv   # 4,781 family bindings
         ├── PARAMETER__CATEGORIES.csv   # Parameter-category cross-reference
         ├── PARAMETER_REGISTRY.json     # Master parameter registry (v4.3) — single source of truth for ParamRegistry.cs
         ├── LABEL_DEFINITIONS.json      # 3,623-line label/legend definition specs for all tag containers and display styles
@@ -473,7 +473,7 @@ STINGTOOLS/
 - `AllCategoryEnums` — cached lazy property delegating to `ParamRegistry`
 - `DisciplineBindings` — cached lazy property for Pass 2 discipline-specific bindings
 - `BuildCategorySet(doc, enums)` — type-safe category set builder
-- `ValidateBindingsFromCsv()` — compares CATEGORY_BINDINGS.csv against registry bindings (12,774 entries)
+- `ValidateBindingsFromCsv()` — compares CATEGORY_BINDINGS.csv against registry bindings (13,106 entries)
 - `InvalidateCache()` — called by `ParamRegistry.Reload()` to clear cached properties
 
 ### `ComplianceScan` (static) — `Core/ComplianceScan.cs` (144 lines)
@@ -850,7 +850,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | **Hardcoded category bindings** | `SharedParamGuids.cs:109-261` | 53 categories + discipline bindings hardcoded; adding a category requires code rebuild (BINDING_COVERAGE_MATRIX.csv exists but unused) | Medium |
 | ~~**No error recovery**~~ | `MasterSetupCommand.cs` | **DONE** — Wrapped in `TransactionGroup` for atomic rollback. If critical step 1 (Load Params) fails, user can rollback immediately. Per-step timing reported. | Done |
 | **Fixed tag format** | `TagConfig.cs:16-18` | `NumPad=4`, `Separator="-"` hardcoded — can't change segment count, order, or separator | Medium |
-| **Partially unused data files** | `Data/` directory | Most files now loaded. MATERIAL_SCHEMA.json used by `SchemaValidateCommand`. BINDING_COVERAGE_MATRIX.csv used by `DynamicBindingsCommand`. VALIDAT_BIM_TEMPLATE.py ported to C# (`ValidateTemplateCommand`). Remaining unused: CATEGORY_BINDINGS.csv (12,774 entries), FAMILY_PARAMETER_BINDINGS.csv (4,741 entries) | Low |
+| **Partially unused data files** | `Data/` directory | Most files now loaded. MATERIAL_SCHEMA.json used by `SchemaValidateCommand`. BINDING_COVERAGE_MATRIX.csv used by `DynamicBindingsCommand`. VALIDAT_BIM_TEMPLATE.py ported to C# (`ValidateTemplateCommand`). Remaining unused: CATEGORY_BINDINGS.csv (13,106 entries), FAMILY_PARAMETER_BINDINGS.csv (4,781 entries) | Low |
 
 #### B. Enhancement Opportunities
 
@@ -1063,8 +1063,8 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 |------|------|----------------|----------------|
 | ~~`MATERIAL_SCHEMA.json`~~ | 77 cols | **DONE** — loaded by `SchemaValidateCommand` | Validates BLE/MEP CSV columns match schema |
 | ~~`BINDING_COVERAGE_MATRIX.csv`~~ | Large | **DONE** — loaded by `DynamicBindingsCommand` | Replaces hardcoded category bindings |
-| `CATEGORY_BINDINGS.csv` | 12,774 | **Not yet loaded** | Replace hardcoded `DisciplineBindings` — data-driven parameter binding |
-| `FAMILY_PARAMETER_BINDINGS.csv` | 4,741 | **Not yet loaded** | Family-level parameter validation and auto-binding |
+| `CATEGORY_BINDINGS.csv` | 13,106 | **Not yet loaded** | Replace hardcoded `DisciplineBindings` — data-driven parameter binding |
+| `FAMILY_PARAMETER_BINDINGS.csv` | 4,781 | **Not yet loaded** | Family-level parameter validation and auto-binding |
 | ~~`VALIDAT_BIM_TEMPLATE.py`~~ | 45 checks | **DONE** — ported to C# `ValidateTemplateCommand` | 45 validation checks now in `DataPipelineCommands.cs` |
 
 ---
@@ -1126,8 +1126,8 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 #### Next Priorities
 
 41. **Configurable tag format** — Separator, padding, segments via project_config.json
-42. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (12,774 entries) to replace hardcoded `DisciplineBindings`
-43. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,741 entries) for family-level validation
+42. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (13,106 entries) to replace hardcoded `DisciplineBindings`
+43. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,781 entries) for family-level validation
 
 ### External Tool References
 

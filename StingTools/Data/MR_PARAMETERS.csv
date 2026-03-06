@@ -1030,3 +1030,50 @@ Generic Models,VGPS_SURFACE_COLOR_R_INT,155c8ab9-9b05-5fda-aa79-0f80cc253571,INT
 Generic Models,VGPS_SURFACE_PATTERN_TXT,eb1fb315-1463-585b-a074-a79397a6fdd3,TEXT,TPL_TRACKING,Type,Vgps Surface Pattern Txt [ISO 19650-1:2018],False,,,TEMPLATE_METADATA,1,0
 Generic Models,VGPS_TRANSPARENCY_NR,fd444244-3d16-5f0e-8948-8d0942392bf8,NUMBER,TPL_TRACKING,Type,Vgps Transparency Nr [ISO 19650-1:2018],False,,,TEMPLATE_METADATA,1,0
 Generic Models,VGPS_VISIBLE_BOOL,49171f71-506c-583b-9756-571eaa84c560,YESNO,TPL_TRACKING,Type,Vgps Visible Bool [ISO 19650-1:2018],False,,,TEMPLATE_METADATA,1,0
+Casework,ARCH_TAG_7_PARA_CASEWORK_TXT,e55db34e-129d-5ea8-83be-e09e5e65604f,TEXT,BLE_ELES,Type,Casework paragraph [ISO 19650-3:2020],False,,,ARCHITECTURAL,1,0
+Ceilings,ARCH_TAG_7_PARA_CEIL_TXT,ec301803-ef10-50a5-8cd0-12c129155328,TEXT,BLE_ELES,Type,Ceiling paragraph container — NEW v4.3 [ISO 19650-3:2020],False,,,ARCHITECTURAL,1,0
+Doors,ARCH_TAG_7_PARA_DOOR_TXT,86482d6d-49dc-5efc-adc3-16fdfd742ea3,TEXT,BLE_ELES,Type,Door paragraph container [ISO 19650-3:2020],False,,,ARCHITECTURAL,1,0
+Curtain Panels,ARCH_TAG_7_PARA_FACADE_TXT,7a6fff97-e8fe-5ac2-a229-b375e9ae9eac,TEXT,BLE_ELES,Type,Facade/curtain wall paragraph [ISO 19650-3:2020],False,,,ARCHITECTURAL,1,0
+Floors,ARCH_TAG_7_PARA_FLOOR_TXT,79f63378-cf89-53ed-8d08-b7ef224664bc,TEXT,BLE_ELES,Type,Floor paragraph container [ISO 19650-3:2020],False,,,ARCHITECTURAL,1,0
+Furniture,ARCH_TAG_7_PARA_FURNITURE_TXT,b1d47bbb-397e-520b-9610-b471226f9441,TEXT,BLE_ELES,Type,Furniture paragraph [ISO 19650-3:2020],False,,,ARCHITECTURAL,1,0
+Ramps,ARCH_TAG_7_PARA_RAMP_TXT,ef02ada2-6d8c-5040-9cb7-700ac1cab810,TEXT,BLE_ELES,Type,Ramp paragraph [ISO 19650-3:2020],False,,,ARCHITECTURAL,1,0
+Roofs,ARCH_TAG_7_PARA_ROOF_TXT,15306275-b3a6-509c-995a-d1a48b11f567,TEXT,BLE_ELES,Type,Roof paragraph container — NEW v4.3 [ISO 19650-3:2020],False,,,ARCHITECTURAL,1,0
+Rooms,ARCH_TAG_7_PARA_ROOM_TXT,dc8a2075-2dfd-5f4c-9b4b-4cc938e87797,TEXT,BLE_ELES,Type,Room/space paragraph container [ISO 19650-3:2020],False,,,ARCHITECTURAL,1,0
+Stairs,ARCH_TAG_7_PARA_STAIR_TXT,0eb59837-cbf1-5c91-a6c0-7bd8820e452a,TEXT,BLE_ELES,Type,Stair paragraph [ISO 19650-3:2020],False,,,ARCHITECTURAL,1,0
+Walls,ARCH_TAG_7_PARA_WALL_TXT,c0ba10c1-c570-5f35-a932-5364aaccf367,TEXT,BLE_ELES,Type,Wall paragraph container [ISO 19650-3:2020],False,,,ARCHITECTURAL,1,0
+Windows,ARCH_TAG_7_PARA_WIN_TXT,abae0302-a908-5e5c-8244-fac437ef2272,TEXT,BLE_ELES,Type,Window paragraph container [ISO 19650-3:2020],False,,,ARCHITECTURAL,1,0
+Specialty Equipment,ASS_TAG_7_PARA_EQUIPMENT_TXT,e9d487a5-e6d7-53f3-a5d8-280d247952d0,TEXT,ASS_MNG,Type,Specialty equipment paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Communication Devices,COM_TAG_7_PARA_BMS_TXT,10c0be4c-8534-5a16-85a5-2c2c5335e6bf,TEXT,COM_DAT,Type,BMS device paragraph [ISO 19650-3:2020],False,,,COMMS,1,0
+Generic Models,CST_TAG_7_PARA_CONCRETE_TXT,5e68d7eb-d7a9-5929-9825-1a82beb5d822,TEXT,CST_PROC,Type,Concrete/masonry specification paragraph (grade, strength, admixture, mix ratio) [ISO 19650-3:2020],False,,,CONSTRUCTION,1,0
+Electrical Equipment,ELC_PNL_RATED_KW,ce012518-4b1d-5cfd-b57d-fbfa5d9e2a23,NUMBER,ELC_PWR,Type,Panel rated capacity kW (for overload check) [ISO 19650-3:2020],False,,,ELECTRICAL,1,0
+Cable Trays,ELC_TAG_7_PARA_CABLE_TXT,447e7a85-0d13-5e3d-bd26-c5b8b0b16bc4,TEXT,ELC_PWR,Type,Cable paragraph (destination, source, cores, size, insulation, install method, tray fill, load) [ISO 19650-3:2020],False,,,ELECTRICAL,1,0
+Electrical Fixtures,ELC_TAG_7_PARA_CIRCUIT_TXT,2f21931c-6b91-50e6-856d-dc2b138c965a,TEXT,ELC_PWR,Type,Circuit/point paragraph container [ISO 19650-3:2020],False,,,ELECTRICAL,1,0
+Conduits,ELC_TAG_7_PARA_CONDUIT_TXT,e035389f-58b4-567e-a820-0d674ee6c2b8,TEXT,ELC_PWR,Type,Conduit paragraph [ISO 19650-3:2020],False,,,ELECTRICAL,1,0
+Electrical Equipment,ELC_TAG_7_PARA_PANEL_TXT,3f4684f4-9274-5275-993a-85c7b190fcac,TEXT,ELC_PWR,Type,DB panel paragraph container [ISO 19650-3:2020],False,,,ELECTRICAL,1,0
+Cable Trays,ELC_TAG_7_PARA_TRAY_TXT,a0837add-84a6-525b-9339-02d5d01105d6,TEXT,ELC_PWR,Type,Cable tray paragraph [ISO 19650-3:2020],False,,,ELECTRICAL,1,0
+Fire Alarm Devices,FLS_TAG_7_PARA_FA_TXT,b4c8f661-0a7e-5763-8043-49a4647f023f,TEXT,FLS_LIFE_SFTY,Type,Fire alarm paragraph container — NEW v4.3 [ISO 19650-3:2020],False,,,FIRE_SAFETY,1,0
+Sprinklers,FLS_TAG_7_PARA_SPR_TXT,3b1cbb9c-d07b-5ca4-95cd-8f178d555b1c,TEXT,FLS_LIFE_SFTY,Type,Sprinkler paragraph container — NEW v4.3 [ISO 19650-3:2020],False,,,FIRE_SAFETY,1,0
+Air Terminals,HVC_TAG_7_PARA_AT_TXT,d483bd8b-d73c-55d1-a4e9-a3fb23c9bf34,TEXT,HVC_SYSTEMS,Type,Air terminal paragraph container [ISO 19650-3:2020],False,,,HVAC,1,0
+Duct Accessories,HVC_TAG_7_PARA_DCTACC_TXT,90cd5680-b46f-5438-8545-3d64496d3083,TEXT,HVC_SYSTEMS,Type,Duct accessory paragraph [ISO 19650-3:2020],False,,,HVAC,1,0
+Ducts,HVC_TAG_7_PARA_DUCT_TXT,afc99d4a-df1f-52e3-8e5a-3187771464af,TEXT,HVC_SYSTEMS,Type,Duct paragraph container [ISO 19650-3:2020],False,,,HVAC,1,0
+Flex Ducts,HVC_TAG_7_PARA_FLEXDUCT_TXT,330a9fed-2a9b-5e88-863f-b63fe6f59e3d,TEXT,HVC_SYSTEMS,Type,Flex duct paragraph [ISO 19650-3:2020],False,,,HVAC,1,0
+Mechanical Equipment,HVC_TAG_7_PARA_SPEC_TXT,b62dfc26-b575-5f57-8a51-15a0296eb912,TEXT,HVC_SYSTEMS,Type,HVAC equipment paragraph container [ISO 19650-3:2020],False,,,HVAC,1,0
+Communication Devices,ICT_TAG_7_PARA_DATA_TXT,a5ee1f80-17ac-5088-a4bb-bd72bcb56cf8,TEXT,COM_DAT,Type,Data/telephone outlet paragraph [ISO 19650-3:2020],False,,,COMMS,1,0
+Lighting Fixtures,LTG_TAG_7_PARA_SPEC_TXT,a3e34fde-ee41-57f0-aef6-f762cd0cee64,TEXT,LTG_CONTROLS,Type,Lighting fixture paragraph container [ISO 19650-3:2020],False,,,ELECTRICAL,1,0
+Nurse Call Devices,NCL_TAG_7_PARA_NURSECALL_TXT,62c6c1c6-e901-5b2d-b61e-71e3ed9c9f1d,TEXT,COM_DAT,Type,Nurse call paragraph [ISO 19650-3:2020],False,,,COMMS,1,0
+Generic Models,PER_TAG_7_PARA_ENVIRONMENT_TXT,7c7edc8b-e63e-546b-bcbd-90940a4b61d0,TEXT,PER_SUST,Type,Environmental context paragraph (climate zone, humidity, altitude, rainfall, termite protection) [ISO 19650-3:2020],False,,,PERFORMANCE,1,0
+Plumbing Fixtures,PLM_TAG_7_PARA_DRAIN_TXT,399a3864-44ab-540f-bfdf-0b36cc9fe60b,TEXT,PLM_DRN,Type,Drainage paragraph (trap type, cleanout, vent terminals, expansion joints, strainers) [ISO 19650-3:2020],False,,,PLUMBING,1,0
+Mechanical Equipment,PLM_TAG_7_PARA_EQUIPMENT_TXT,bf7affae-dec5-5843-9cf1-a7253e9dd3b7,TEXT,PLM_DRN,Type,Plumbing equipment paragraph [ISO 19650-3:2020],False,,,PLUMBING,1,0
+Plumbing Fixtures,PLM_TAG_7_PARA_FIXTURE_TXT,224e3954-97ca-5715-b935-bf9c4c124241,TEXT,PLM_DRN,Type,Sanitary fixture paragraph [ISO 19650-3:2020],False,,,PLUMBING,1,0
+Pipe Accessories,PLM_TAG_7_PARA_PIPEACC_TXT,cc56afc1-ec0a-542f-9f9b-35fc7f6e982a,TEXT,PLM_DRN,Type,Pipe accessory paragraph [ISO 19650-3:2020],False,,,PLUMBING,1,0
+Pipes,PLM_TAG_7_PARA_PIPE_TXT,80d8eccd-69a8-5a0d-915a-01d23118e0ab,TEXT,PLM_DRN,Type,Pipe paragraph container — NEW v4.3 [ISO 19650-3:2020],False,,,PLUMBING,1,0
+Generic Models,RGL_TAG_7_PARA_COMPLIANCE_TXT,e1767286-98d9-56e5-8794-81a59a9f023f,TEXT,RGL_CMPL,Type,Regulatory compliance paragraph (KCCA, UMEME, NWSC, NEMA approvals, QA) [ISO 19650-3:2020],False,,,REGULATORY,1,0
+Security Devices,SEC_TAG_7_PARA_SECURITY_TXT,d10b0b0c-12d1-55b8-9d48-feda6544696a,TEXT,COM_DAT,Type,Security device paragraph [ISO 19650-3:2020],False,,,COMMS,1,0
+Structural Framing,STR_TAG_7_PARA_BEAM_TXT,9406ea5b-766e-55bd-aeec-6dfced98a8ba,TEXT,BLE_STRUCTURE,Type,Beam/framing paragraph container [ISO 19650-3:2020],False,,,STRUCTURAL,1,0
+Structural Columns,STR_TAG_7_PARA_COL_TXT,6742bedc-d054-5aba-bda9-e2ed8baa938e,TEXT,BLE_STRUCTURE,Type,Column paragraph container [ISO 19650-3:2020],False,,,STRUCTURAL,1,0
+Structural Foundations,STR_TAG_7_PARA_FDN_TXT,2c89bf41-1688-5d19-9ab9-eff5b3b7a129,TEXT,BLE_STRUCTURE,Type,Foundation paragraph [ISO 19650-3:2020],False,,,STRUCTURAL,1,0
+Generic Models,TAG_PARA_STATE_1_BOOL,e26e01ef-33d8-5a57-9ab7-fa30faa4ceff,YESNO,STINGTags_ISO19650,Type,Compact mode (tier 1 only) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_2_BOOL,b1080057-9890-5a0c-959a-46fb8847c766,YESNO,STINGTags_ISO19650,Type,Standard mode (tiers 1+2) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_3_BOOL,825a73c0-4b3b-5474-8db5-f54072ff40b8,YESNO,STINGTags_ISO19650,Type,Comprehensive mode (tiers 1+2+3) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,STINGTags_ISO19650,Type,Filter: CRITICAL, HIGH, MEDIUM, ALL [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,YESNO,STINGTags_ISO19650,Type,Enable/disable warning text in tags [ISO 19650-3:2020],False,,,MULTI,1,0
