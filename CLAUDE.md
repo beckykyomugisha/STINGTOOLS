@@ -8,9 +8,9 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **62 source files** (59 C# + 2 XAML + 1 AssemblyInfo, ~60,882 lines of code) across 8 directories
-- **250 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
-- **20 runtime data files** (CSV, JSON, TXT, XLSX, PY)
+- **63 source files** (60 C# + 2 XAML + 1 AssemblyInfo, ~61,462 lines of code) across 8 directories
+- **255 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
+- **21 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel + 1 WPF project setup wizard + 1 WPF progress dialog
 
 ## Technology Stack
@@ -97,7 +97,8 @@ STINGTOOLS/
     │   ├── SystemParamPushCommand.cs   # 3 MEP system push commands: SystemParamPush, BatchSystemPush, SelectSystemElements
     │   ├── ResolveAllIssuesCommand.cs  # 1 one-click ISO 19650 compliance resolution
     │   ├── PresentationModeCommand.cs  # 4 presentation commands: SetMode, ViewLabelSpec, ExportLabelGuide, SetTag7HeadingStyle
-    │   └── ParagraphDepthCommand.cs    # 2 commands: SetParagraphDepth, ToggleWarningVisibility
+    │   ├── ParagraphDepthCommand.cs    # 2 commands: SetParagraphDepth, ToggleWarningVisibility
+    │   └── TagStyleEngineCommands.cs   # 5 tag style engine commands: ApplyTagStyles, PreviewTagStyles, SetTagStyleRule, SaveTagStylePreset, LoadTagStylePreset + TagStyleEngine
     │
     ├── Organise/                       # Tag management commands (1 file, 39 commands)
     │   └── TagOperationCommands.cs     # Tag Ops (7), Leaders (14), Analysis (7), Annotation Color (5), Tag Appearance (5), Tag Type (1) + LeaderHelper + AnnotationColorHelper
@@ -117,7 +118,7 @@ STINGTOOLS/
     │   ├── TemplateManagerCommands.cs  # 17 template intelligence commands + TemplateManager engine (~3,415 lines)
     │   └── DataPipelineCommands.cs     # ValidateTemplate (45 checks), DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit
     │
-    └── Data/                           # Runtime data files (20 files)
+    └── Data/                           # Runtime data files (21 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
         ├── MR_PARAMETERS.txt           # Shared parameter file (1,077 params)
@@ -133,6 +134,7 @@ STINGTOOLS/
         ├── PARAMETER__CATEGORIES.csv   # Parameter-category cross-reference
         ├── PARAMETER_REGISTRY.json     # Master parameter registry (v4.3) — single source of truth for ParamRegistry.cs
         ├── LABEL_DEFINITIONS.json      # 3,623-line label/legend definition specs for all tag containers and display styles
+        ├── TAG_STYLE_RULES.json       # Tag style engine presets and rules (8 built-in presets: Discipline, QA, Presentation, Print, Large Format, Status, System, Zone)
         ├── PYREVIT_SCRIPT_MANIFEST.csv # Legacy pyRevit script manifest
         ├── TAG_GUIDE.xlsx              # Tag reference guide (original)
         ├── TAG GUIDE V2.xlsx           # Tag reference guide (comprehensive update)
@@ -376,6 +378,7 @@ STINGTOOLS/
 | `Tags/ResolveAllIssuesCommand.cs` | 1 (one-click ISO 19650 resolution) | 278 |
 | `Tags/PresentationModeCommand.cs` | 4 (SetPresentationMode, ViewLabelSpec, ExportLabelGuide, SetTag7HeadingStyle) | 924 |
 | `Tags/ParagraphDepthCommand.cs` | 2 (SetParagraphDepth, ToggleWarningVisibility) | 209 |
+| `Tags/TagStyleEngineCommands.cs` | 5 (ApplyTagStyles, PreviewTagStyles, SetTagStyleRule, SaveTagStylePreset, LoadTagStylePreset) + TagStyleEngine | 580 |
 | `Organise/TagOperationCommands.cs` | 40 (7 Tag Ops + 14 Leaders + 7 Analysis + 5 Annotation Color + 5 Tag Appearance + 1 SwapTagType + 1 additional + LeaderHelper + AnnotationColorHelper) | 4,369 |
 | `Temp/CreateParametersCommand.cs` | 1 | 27 |
 | `Temp/CheckDataCommand.cs` | 1 | 296 |
@@ -397,7 +400,7 @@ STINGTOOLS/
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
 | `UI/StingDockPanel.xaml` | — (WPF markup, 6-tab panel with ~413 buttons) | 1,651 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
-| **Total** | **250 commands** | **~60,882** |
+| **Total** | **255 commands** | **~61,462** |
 
 ## Core Classes
 
@@ -602,6 +605,7 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `StingAutoTagger` | `Core/StingAutoTagger.cs` | IUpdater real-time auto-tagger: 22-category trigger, TokenAutoPopulator + BuildAndWriteTag inline, toggle on/off |
 | `EscapeChecker` | `Core/StingLog.cs` | Win32 GetAsyncKeyState wrapper for Escape key detection in batch operations |
 | `StingProgressDialog` | `UI/StingProgressDialog.cs` | Reusable modeless WPF progress dialog: progress bar, ETA, cancel, Dispatcher-based thread-safe updates |
+| `TagStyleEngine` | `Tags/TagStyleEngineCommands.cs` | Rule-based tag family type switching: JSON preset loading, condition evaluation, type index building, preview/dry-run, 8 built-in presets |
 
 ## ISO 19650 Tag Format
 
@@ -1122,12 +1126,13 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 38. **Tag format migration** — `TagFormatMigrationCommand` for migrating tags between format versions
 39. **Tag changed detection** — `TagChangedCommand` for updating tags on modified elements
 40. **Revision cloud automation** — `RevisionCloudAutoCreateCommand` for automatic revision cloud creation
+41. **Tag Style Engine** — `TagStyleEngineCommands.cs`: 5 commands + `TagStyleEngine` rule-based tag family type switching with 8 JSON presets (Discipline, QA Check, Presentation, Print, Large Format, Status, System, Zone Highlight), condition evaluation, learn-from-view, preview/dry-run
 
 #### Next Priorities
 
-41. **Configurable tag format** — Separator, padding, segments via project_config.json
-42. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (13,106 entries) to replace hardcoded `DisciplineBindings`
-43. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,781 entries) for family-level validation
+43. **Configurable tag format** — Separator, padding, segments via project_config.json
+44. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (13,106 entries) to replace hardcoded `DisciplineBindings`
+45. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,781 entries) for family-level validation
 
 ### External Tool References
 

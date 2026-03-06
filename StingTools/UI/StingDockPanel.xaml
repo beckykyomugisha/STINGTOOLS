@@ -683,6 +683,13 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="By Param" Tag="ColorTagsByParam" Click="Cmd_Click" ToolTip="Color tags by parameter value"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Swap Type" Tag="SwapTagType" Click="Cmd_Click" ToolTip="Swap tag family type"/>
                                 </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Apply Styles" Tag="ApplyTagStyles" Click="Cmd_Click" ToolTip="Apply tag style preset (rule-based type switching)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Preview" Tag="PreviewTagStyles" Click="Cmd_Click" ToolTip="Preview tag style changes (dry-run)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Add Rule" Tag="SetTagStyleRule" Click="Cmd_Click" ToolTip="Add a tag style rule (parameter → type)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Save Preset" Tag="SaveTagStylePreset" Click="Cmd_Click" ToolTip="Learn and save current tag styles as preset"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Preset" Tag="LoadTagStylePreset" Click="Cmd_Click" ToolTip="Load and apply a saved style preset"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 

@@ -283,6 +283,13 @@ namespace StingTools.UI
                     case "ExportLabelGuide": RunCommand<Tags.ExportLabelGuideCommand>(app); break;
                     case "SetTag7HeadingStyle": RunCommand<Tags.SetTag7HeadingStyleCommand>(app); break;
 
+                    // ── Tag Style Engine commands ──
+                    case "ApplyTagStyles": RunCommand<Tags.ApplyTagStylesCommand>(app); break;
+                    case "PreviewTagStyles": RunCommand<Tags.PreviewTagStylesCommand>(app); break;
+                    case "SetTagStyleRule": RunCommand<Tags.SetTagStyleRuleCommand>(app); break;
+                    case "SaveTagStylePreset": RunCommand<Tags.SaveTagStylePresetCommand>(app); break;
+                    case "LoadTagStylePreset": RunCommand<Tags.LoadTagStylePresetCommand>(app); break;
+
                     // ── Color By Parameter commands ──
                     case "ColorByParameter": RunCommand<Select.ColorByParameterCommand>(app); break;
                     case "ClearColorOverrides": RunCommand<Select.ClearColorOverridesCommand>(app); break;
