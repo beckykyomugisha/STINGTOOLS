@@ -382,8 +382,9 @@ namespace StingTools.Core
 
             char sepChar = !string.IsNullOrEmpty(TagConfig.Separator) ? TagConfig.Separator[0] : '-';
             string[] parts = tag.Split(sepChar);
-            if (parts.Length != 8)
-                return $"Tag has {parts.Length} segments (expected 8): {tag}";
+            int expectedSegments = ParamRegistry.SegmentOrder.Length;
+            if (parts.Length != expectedSegments)
+                return $"Tag has {parts.Length} segments (expected {expectedSegments}): {tag}";
 
             for (int i = 0; i < parts.Length; i++)
             {
@@ -563,6 +564,33 @@ namespace StingTools.Core
                 _reverseSysMap = null; // Invalidate cache
                 ConfigSource = "project_config.json";
 
+                // Tag format overrides from project_config.json
+                if (data.TryGetValue("TAG_FORMAT", out object tagFmtObj))
+                {
+                    try
+                    {
+                        var tagFmt = JsonConvert.DeserializeObject<Dictionary<string, object>>(tagFmtObj.ToString());
+                        if (tagFmt != null)
+                        {
+                            if (tagFmt.TryGetValue("SEPARATOR", out object sepObj))
+                                ParamRegistry.OverrideSeparator(sepObj.ToString());
+                            if (tagFmt.TryGetValue("NUM_PAD", out object padObj) && int.TryParse(padObj.ToString(), out int pad))
+                                ParamRegistry.OverrideNumPad(pad);
+                            if (tagFmt.TryGetValue("SEGMENT_ORDER", out object segObj))
+                            {
+                                var segments = JsonConvert.DeserializeObject<string[]>(segObj.ToString());
+                                if (segments != null && segments.Length > 0)
+                                    ParamRegistry.OverrideSegmentOrder(segments);
+                            }
+                            StingLog.Info($"Tag format override from project_config.json: sep='{ParamRegistry.Separator}' pad={ParamRegistry.NumPad} segments={ParamRegistry.SegmentOrder.Length}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"TAG_FORMAT parse error: {ex.Message}");
+                    }
+                }
+
                 // GAP-009: Restore persisted active preset
                 if (data.TryGetValue("ACTIVE_PRESET", out object presetObj) && presetObj is string presetStr)
                 {
@@ -605,7 +633,13 @@ namespace StingTools.Core
                     ["PROD_MAP"] = ProdMap,
                     ["FUNC_MAP"] = FuncMap,
                     ["LOC_CODES"] = LocCodes,
-                    ["ZONE_CODES"] = ZoneCodes
+                    ["ZONE_CODES"] = ZoneCodes,
+                    ["TAG_FORMAT"] = new Dictionary<string, object>
+                    {
+                        ["SEPARATOR"] = ParamRegistry.Separator,
+                        ["NUM_PAD"] = ParamRegistry.NumPad,
+                        ["SEGMENT_ORDER"] = ParamRegistry.SegmentOrder
+                    }
                 };
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);

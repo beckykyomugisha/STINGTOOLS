@@ -105,6 +105,7 @@ namespace StingTools.Tags
             int populated = 0;
 
             StingLog.Info($"Batch Tag: starting — {totalTaggable} taggable, {alreadyTagged} tagged, mode={collisionMode}");
+            using var _perfOp = PerformanceTracker.Track("BatchTag");
 
             bool cancelled = false;
 

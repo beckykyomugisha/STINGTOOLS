@@ -1163,6 +1163,24 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- FAMILY PARAMETER MANAGEMENT -->
+                        <TextBlock Text="FAMILY PARAMETERS" Style="{StaticResource SectionLabel}"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#FF5722">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Family Audit" Tag="FamilyParamAudit" Click="Cmd_Click" ToolTip="Audit family parameter coverage against FAMILY_PARAMETER_BINDINGS.csv"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Auto-Bind" Tag="FamilyParamAutoBind" Click="Cmd_Click" ToolTip="Auto-bind missing family parameters from CSV"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- PERFORMANCE PROFILING -->
+                        <TextBlock Text="PERFORMANCE" Style="{StaticResource SectionLabel}"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#607D8B">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Perf Report" Tag="PerformanceReport" Click="Cmd_Click" ToolTip="View performance profiling report for all tracked operations"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Reset Stats" Tag="PerformanceReset" Click="Cmd_Click" ToolTip="Clear performance tracking data"/>
+                            </WrapPanel>
+                        </Border>
+
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

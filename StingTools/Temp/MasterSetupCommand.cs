@@ -78,6 +78,7 @@ namespace StingTools.Temp
             int passed = 0;
             int failed = 0;
             var totalSw = Stopwatch.StartNew();
+            using var _perfOp = PerformanceTracker.Track("MasterSetup");
 
             // Step 0: Load project_config.json so tag format, LOC/ZONE codes,
             // and discipline mappings reflect user's project settings

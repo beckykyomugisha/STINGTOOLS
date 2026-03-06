@@ -2977,4 +2977,294 @@ namespace StingTools.Temp
             return Result.Succeeded;
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  FAMILY PARAMETER AUDIT — validates element parameters against
+    //  FAMILY_PARAMETER_BINDINGS.csv (4,686 entries) to identify missing or
+    //  mismatched parameter bindings at the family/category level.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class FamilyParameterAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+
+            // Load expected bindings from CSV
+            var bindings = TemplateManager.LoadFamilyParameterBindings();
+            if (bindings.Count == 0)
+            {
+                TaskDialog.Show("Family Parameter Audit",
+                    "FAMILY_PARAMETER_BINDINGS.csv not found or empty.\n" +
+                    "Place it in the data directory alongside the DLL.");
+                return Result.Failed;
+            }
+
+            // Group by category → parameter names expected
+            var expectedByCategory = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in bindings)
+            {
+                if (!expectedByCategory.TryGetValue(entry.category, out var paramSet))
+                {
+                    paramSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    expectedByCategory[entry.category] = paramSet;
+                }
+                paramSet.Add(entry.name);
+            }
+
+            // Collect unique categories present in the document
+            var catElements = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null)
+                .GroupBy(e => e.Category.Name)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            int categoriesAudited = 0;
+            int totalExpected = 0;
+            int totalBound = 0;
+            int totalMissing = 0;
+            var missingReport = new StringBuilder();
+
+            foreach (var kvp in expectedByCategory)
+            {
+                string catName = kvp.Key;
+                var expectedParams = kvp.Value;
+
+                if (!catElements.TryGetValue(catName, out Element sampleEl))
+                    continue; // No elements of this category in the model
+
+                categoriesAudited++;
+                var boundParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                // Check which expected parameters are actually bound
+                foreach (string paramName in expectedParams)
+                {
+                    totalExpected++;
+                    Parameter p = sampleEl.LookupParameter(paramName);
+                    if (p != null)
+                    {
+                        totalBound++;
+                        boundParams.Add(paramName);
+                    }
+                    else
+                    {
+                        totalMissing++;
+                    }
+                }
+
+                var missing = expectedParams.Except(boundParams, StringComparer.OrdinalIgnoreCase).ToList();
+                if (missing.Count > 0)
+                {
+                    missingReport.AppendLine($"\n{catName} ({missing.Count} missing):");
+                    foreach (string m in missing.Take(10))
+                        missingReport.AppendLine($"  • {m}");
+                    if (missing.Count > 10)
+                        missingReport.AppendLine($"  ... and {missing.Count - 10} more");
+                }
+            }
+
+            double coverage = totalExpected > 0 ? (double)totalBound / totalExpected * 100 : 0;
+
+            string report = $"Family Parameter Audit Complete\n\n" +
+                $"CSV source: FAMILY_PARAMETER_BINDINGS.csv ({bindings.Count} entries)\n" +
+                $"Categories in model: {catElements.Count}\n" +
+                $"Categories audited: {categoriesAudited}\n\n" +
+                $"Expected bindings: {totalExpected}\n" +
+                $"  Bound: {totalBound}\n" +
+                $"  Missing: {totalMissing}\n" +
+                $"  Coverage: {coverage:F1}%";
+
+            if (missingReport.Length > 0)
+                report += $"\n\nMissing Parameters:{missingReport}";
+
+            // Export CSV report
+            string csvPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                $"STING_FamilyParamAudit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            try
+            {
+                using (var sw = new StreamWriter(csvPath))
+                {
+                    sw.WriteLine("Category,ParameterName,Status,BindingType,GUID");
+                    foreach (var entry in bindings)
+                    {
+                        if (!catElements.TryGetValue(entry.category, out Element el)) continue;
+                        Parameter p = el.LookupParameter(entry.name);
+                        string status = p != null ? "Bound" : "Missing";
+                        sw.WriteLine($"\"{entry.category}\",\"{entry.name}\",{status},{entry.bindingType},{entry.guid}");
+                    }
+                }
+                report += $"\n\nCSV exported: {csvPath}";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Family param audit CSV export: {ex.Message}");
+            }
+
+            TaskDialog.Show("Family Parameter Audit", report);
+            StingLog.Info($"FamilyParamAudit: {categoriesAudited} cats, {totalBound}/{totalExpected} bound ({coverage:F1}%), {totalMissing} missing");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Auto-bind missing family parameters from FAMILY_PARAMETER_BINDINGS.csv.
+    /// Reads the CSV, identifies parameters not yet bound to their target categories,
+    /// and creates the bindings in a single transaction.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class FamilyParameterAutoBindCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var app = commandData.Application.Application;
+
+            var bindings = TemplateManager.LoadFamilyParameterBindings();
+            if (bindings.Count == 0)
+            {
+                TaskDialog.Show("Family Parameter Auto-Bind",
+                    "FAMILY_PARAMETER_BINDINGS.csv not found or empty.");
+                return Result.Failed;
+            }
+
+            var defFile = app.OpenSharedParameterFile();
+            if (defFile == null)
+            {
+                TaskDialog.Show("Family Parameter Auto-Bind",
+                    "No shared parameter file set.\nSet it in Manage → Shared Parameters first.");
+                return Result.Failed;
+            }
+
+            // Build definition lookup
+            var defLookup = new Dictionary<string, ExternalDefinition>(StringComparer.OrdinalIgnoreCase);
+            var defByGuid = new Dictionary<Guid, ExternalDefinition>();
+            foreach (DefinitionGroup group in defFile.Groups)
+            {
+                foreach (ExternalDefinition def in group.Definitions)
+                {
+                    defLookup[def.Name] = def;
+                    defByGuid[def.GUID] = def;
+                }
+            }
+
+            // Group by parameter → categories
+            var paramGroups = bindings
+                .GroupBy(b => b.name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            int bound = 0, skipped = 0, failed = 0;
+
+            TaskDialog confirm = new TaskDialog("Family Parameter Auto-Bind");
+            confirm.MainInstruction = $"Bind {paramGroups.Count} parameters from CSV";
+            confirm.MainContent = $"Source: FAMILY_PARAMETER_BINDINGS.csv\n" +
+                $"Total entries: {bindings.Count}\n" +
+                $"Unique parameters: {paramGroups.Count}\n\n" +
+                "This will create missing parameter bindings.\nExisting bindings are augmented, not replaced.";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            using (Transaction tx = new Transaction(doc, "STING Family Parameter Auto-Bind"))
+            {
+                tx.Start();
+
+                foreach (var paramGroup in paramGroups)
+                {
+                    string paramName = paramGroup.Key;
+
+                    // Find definition by name or GUID
+                    if (!defLookup.TryGetValue(paramName, out ExternalDefinition extDef))
+                    {
+                        string guidStr = paramGroup.First().sharedGuid;
+                        if (!string.IsNullOrEmpty(guidStr) && Guid.TryParse(guidStr, out Guid g)
+                            && defByGuid.TryGetValue(g, out extDef))
+                        {
+                            // resolved via GUID
+                        }
+                        else
+                        {
+                            skipped += paramGroup.Count();
+                            continue;
+                        }
+                    }
+
+                    // Build category set
+                    var catSet = app.Create.NewCategorySet();
+                    string bindingType = "Instance";
+
+                    foreach (var entry in paramGroup)
+                    {
+                        bindingType = entry.bindingType;
+                        if (TemplateManager.CategoryNameToEnum.TryGetValue(entry.category, out BuiltInCategory bic))
+                        {
+                            try
+                            {
+                                Category cat = doc.Settings.Categories.get_Item(bic);
+                                if (cat != null && cat.AllowsBoundParameters)
+                                    catSet.Insert(cat);
+                            }
+                            catch { }
+                        }
+                    }
+
+                    if (catSet.Size == 0) { skipped++; continue; }
+
+                    try
+                    {
+                        ElementBinding existing = doc.ParameterBindings.get_Item(extDef) as ElementBinding;
+                        if (existing != null)
+                        {
+                            bool modified = false;
+                            var iter = catSet.GetEnumerator();
+                            while (iter.MoveNext())
+                            {
+                                Category cat = iter.Current as Category;
+                                if (cat != null && !existing.Categories.Contains(cat))
+                                {
+                                    existing.Categories.Insert(cat);
+                                    modified = true;
+                                }
+                            }
+                            if (modified)
+                            {
+                                doc.ParameterBindings.ReInsert(extDef, existing);
+                                bound++;
+                            }
+                            else
+                                skipped++;
+                        }
+                        else
+                        {
+                            bool isType = bindingType.Equals("Type", StringComparison.OrdinalIgnoreCase);
+                            ElementBinding newBinding = isType
+                                ? (ElementBinding)app.Create.NewTypeBinding(catSet)
+                                : (ElementBinding)app.Create.NewInstanceBinding(catSet);
+                            if (doc.ParameterBindings.Insert(extDef, newBinding))
+                                bound++;
+                            else
+                                failed++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        StingLog.Warn($"FamilyBind '{paramName}': {ex.Message}");
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Family Parameter Auto-Bind",
+                $"Bound: {bound}\nSkipped: {skipped}\nFailed: {failed}");
+            StingLog.Info($"FamilyParamAutoBind: bound={bound}, skipped={skipped}, failed={failed}");
+            return Result.Succeeded;
+        }
+    }
 }

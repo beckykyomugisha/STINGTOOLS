@@ -443,21 +443,85 @@ namespace StingTools.Core
 
         /// <summary>
         /// Build the discipline bindings dictionary in the format SharedParamGuids expects:
-        /// paramName → BuiltInCategory[]. Derived from container_groups.
+        /// paramName → BuiltInCategory[]. Derived from container_groups, then merged with
+        /// CATEGORY_BINDINGS.csv (10,661 entries) as the primary data-driven source.
+        /// CSV categories augment (never reduce) the container_group base bindings.
         /// </summary>
         public static Dictionary<string, BuiltInCategory[]> BuildDisciplineBindings()
         {
             EnsureLoaded();
-            var bindings = new Dictionary<string, BuiltInCategory[]>();
+            // Phase 1: Base bindings from container_groups (PARAMETER_REGISTRY.json)
+            var bindingSets = new Dictionary<string, HashSet<BuiltInCategory>>(StringComparer.OrdinalIgnoreCase);
             foreach (var group in ContainerGroups)
             {
                 if (group.Categories == null) continue; // universal — handled by Pass 1
                 var enums = ResolveCategoryEnums(group.Categories);
                 foreach (var param in group.Params)
-                    bindings[param.ParamName] = enums;
+                {
+                    if (!bindingSets.TryGetValue(param.ParamName, out var set))
+                    {
+                        set = new HashSet<BuiltInCategory>();
+                        bindingSets[param.ParamName] = set;
+                    }
+                    foreach (var e in enums) set.Add(e);
+                }
             }
+
+            // Phase 2: Merge CATEGORY_BINDINGS.csv (data-driven primary source)
+            int csvAdded = 0;
+            try
+            {
+                string csvPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
+                if (!string.IsNullOrEmpty(csvPath) && File.Exists(csvPath))
+                {
+                    bool headerSkipped = false;
+                    foreach (string line in File.ReadAllLines(csvPath))
+                    {
+                        if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                        if (!headerSkipped) { headerSkipped = true; continue; }
+
+                        string[] cols = StingToolsApp.ParseCsvLine(line);
+                        if (cols.Length < 2) continue;
+
+                        string paramName = cols[0].Trim();
+                        string catName = cols[1].Trim();
+                        if (string.IsNullOrEmpty(paramName) || string.IsNullOrEmpty(catName)) continue;
+
+                        // Resolve category name to enum
+                        if (!CategoryEnumMap.TryGetValue(catName, out string enumStr)) continue;
+                        if (!Enum.TryParse(enumStr, out BuiltInCategory bic)) continue;
+
+                        if (!bindingSets.TryGetValue(paramName, out var set))
+                        {
+                            set = new HashSet<BuiltInCategory>();
+                            bindingSets[paramName] = set;
+                        }
+                        if (set.Add(bic)) csvAdded++;
+                    }
+                    if (csvAdded > 0)
+                        StingLog.Info($"DisciplineBindings: {csvAdded} categories added from CATEGORY_BINDINGS.csv");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CATEGORY_BINDINGS.csv merge: {ex.Message}");
+            }
+
+            // Convert to final format
+            var bindings = new Dictionary<string, BuiltInCategory[]>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in bindingSets)
+                bindings[kvp.Key] = kvp.Value.ToArray();
             return bindings;
         }
+
+        /// <summary>Override separator from project_config.json (takes precedence over PARAMETER_REGISTRY.json).</summary>
+        public static void OverrideSeparator(string sep) { if (!string.IsNullOrEmpty(sep)) Separator = sep; }
+
+        /// <summary>Override SEQ padding width from project_config.json.</summary>
+        public static void OverrideNumPad(int pad) { if (pad >= 1 && pad <= 8) NumPad = pad; }
+
+        /// <summary>Override segment order from project_config.json.</summary>
+        public static void OverrideSegmentOrder(string[] order) { if (order != null && order.Length > 0) SegmentOrder = order; }
 
         /// <summary>Force reload from disk. Call after editing PARAMETER_REGISTRY.json.</summary>
         public static void Reload()

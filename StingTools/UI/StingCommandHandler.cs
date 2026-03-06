@@ -436,6 +436,23 @@ namespace StingTools.UI
                     case "ExcelImport": RunCommand<Temp.ExcelBOQImportCommand>(app); break;
                     case "KeynoteSync": RunCommand<Temp.KeynoteSyncCommand>(app); break;
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
+                    case "FamilyParamAudit": RunCommand<Temp.FamilyParameterAuditCommand>(app); break;
+                    case "FamilyParamAutoBind": RunCommand<Temp.FamilyParameterAutoBindCommand>(app); break;
+                    case "PerformanceReport":
+                    {
+                        string report = Core.PerformanceTracker.GetReport();
+                        string csvPath = Core.PerformanceTracker.ExportCsv();
+                        string msg = report;
+                        if (csvPath != null) msg += $"\n\nCSV exported: {csvPath}";
+                        TaskDialog.Show("Performance Report", msg);
+                        break;
+                    }
+                    case "PerformanceReset":
+                    {
+                        Core.PerformanceTracker.Reset();
+                        TaskDialog.Show("Performance", "Performance tracking data cleared.");
+                        break;
+                    }
 
                     // ════════════════════════════════════════════════════════
                     // CREATE TAB (ISO 19650 tag creation)
