@@ -1,0 +1,534 @@
+2026-03-06 20:48:57 [INFO] Dockable panel registered successfully
+2026-03-06 20:48:57 [INFO] StingAutoTagger: registered (disabled by default)
+2026-03-06 20:48:57 [INFO] STING Tools dockable panel loaded successfully
+2026-03-06 20:51:00 [INFO] Dockable panel registered successfully
+2026-03-06 20:51:00 [INFO] StingAutoTagger: registered (disabled by default)
+2026-03-06 20:51:00 [INFO] STING Tools dockable panel loaded successfully
+2026-03-06 20:52:45 [INFO] Dockable panel registered successfully
+2026-03-06 20:52:45 [INFO] StingAutoTagger: registered (disabled by default)
+2026-03-06 20:52:45 [INFO] STING Tools dockable panel loaded successfully
+2026-03-06 20:54:54 [INFO] Material 'GYPSUM BOARD STANDARD 9.5MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'GYPSUM BOARD STANDARD 12.5MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'GYPSUM BOARD STANDARD 15MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'FIRE-RATED GYPSUM TYPE X 12.5MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'FIRE-RATED GYPSUM TYPE X 15MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'MOISTURE RESISTANT GYPSUM 12.5MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'MOISTURE RESISTANT GYPSUM 15MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'MOLD RESISTANT GYPSUM 12.5MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'IMPACT RESISTANT GYPSUM 12.5MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'ACOUSTIC GYPSUM BOARD 12.5MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'ACOUSTIC GYPSUM BOARD 15MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'THERMAL GYPSUM BOARD 12.5MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'FLEXIBLE GYPSUM BOARD 6MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'BLUE BOARD GYPSUM 12.5MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'FOIL BACKED GYPSUM 12.5MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CEMENT PLASTER FINISH 12MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CEMENT PLASTER HEAVY 15MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'GYPSUM PLASTER SMOOTH 10MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'GYPSUM PLASTER STANDARD 12MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'LIME PLASTER TRADITIONAL 12MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'VENETIAN PLASTER 3MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'ACOUSTIC PLASTER 15MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'SKIM COAT PLASTER 2MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [WARN] Base material 'Acoustic Ceiling Tile 600 x 600' not found for 'MINERAL FIBER TILE 15MM 600X600' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Acoustic Ceiling Tile 600 x 600' not found for 'MINERAL FIBER TILE 19MM 600X600' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Acoustic Ceiling Tile 600 x 600' not found for 'MINERAL FIBER TILE 25MM 600X600' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'FIBERGLASS ACOUSTIC TILE 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'FIBERGLASS ACOUSTIC TILE 20MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Acoustic Ceiling Tile 600 x 600' not found for 'WOOD FIBER ACOUSTIC TILE 25MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'PERFORATED METAL ACOUSTIC 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Textile - Slate Blue' not found for 'FABRIC WRAPPED PANEL 25MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Textile - Slate Blue' not found for 'FABRIC WRAPPED PANEL 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Acoustic Ceiling Tile 600 x 600' not found for 'ACOUSTIC BAFFLES 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Acoustic Ceiling Tile 600 x 600' not found for 'ACOUSTIC CLOUDS 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'METAL GRID ACOUSTIC 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Aluminum' not found for 'ALUMINUM PAN CEILING 0.5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Aluminum' not found for 'ALUMINUM STRIP CEILING 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Aluminum' not found for 'ALUMINUM PLANK CEILING 0.7MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'STEEL CEILING TILE 0.6MM 600X600' duplicated from base 'Steel'
+2026-03-06 20:54:54 [WARN] Base material 'Aluminum' not found for 'PERFORATED ALUMINUM PANEL 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'EXPANDED METAL MESH CEILING 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'METAL BAFFLE CEILING 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'OPEN METAL GRID CEILING 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'METAL CASSETTE CEILING 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'CLIP-IN METAL PANEL 0.6MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'PVC CEILING PANEL 10MM' duplicated from base 'Polyvinyl Chloride - Rigid'
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'PVC TONGUE & GROOVE 8MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Laminate, Ivory, Matte' not found for 'PVC LAMINATED PANEL 8MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'PVC STRETCH CEILING 0.2MM' duplicated from base 'Polyvinyl Chloride - Rigid'
+2026-03-06 20:54:54 [INFO] Material 'TRANSLUCENT PVC PANEL 10MM' duplicated from base 'Polyvinyl Chloride - Rigid'
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER BOARD CEILING 12MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER T&G CEILING 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER PLANK CEILING 20MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Cherry' not found for 'WOOD VENEER PANEL 6MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER SLAT CEILING 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER BAFFLE CEILING 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'ACOUSTIC TIMBER PANEL 25MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'PLYWOOD CEILING PANEL 9MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'MDF CEILING PANEL 12MM' duplicated from base 'Plywood, Sheathing'
+2026-03-06 20:54:54 [INFO] Material 'HARDBOARD CEILING PANEL 3MM' duplicated from base 'Steel'
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'EXPOSED T-GRID 25MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'EXPOSED T-GRID 38MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'CONCEALED SPLINE GRID 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'CONCEALED EDGE GRID 20MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'SEISMIC RATED GRID 25MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'HEAVY DUTY GRID 40MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'CEILING HANGER WIRE 4MM' duplicated from base 'Steel'
+2026-03-06 20:54:54 [INFO] Material 'CEILING HANGER ROD 6MM' duplicated from base 'Steel'
+2026-03-06 20:54:54 [INFO] Material 'FIBER CEMENT CEILING 6MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'FIBER CEMENT CEILING 9MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'CALCIUM SILICATE BOARD 10MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'GRP CEILING PANEL 12MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'TRANSLUCENT CEILING PANEL 10MM' duplicated from base 'Glass, Clear Glazing'
+2026-03-06 20:54:54 [INFO] Material 'MIRROR CEILING PANEL 4MM' duplicated from base 'Glass, Clear Glazing'
+2026-03-06 20:54:54 [INFO] Material 'GLASS CEILING PANEL 10MM' duplicated from base 'Glass, Clear Glazing'
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'METAL COMPOSITE PANEL 4MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Textile - Slate Blue' not found for 'FABRIC CEILING SYSTEM 1MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Acoustic Ceiling Tile 600 x 600' not found for 'CLOUD CEILING PANEL 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'FIBERGLASS BATT 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'FOAM BOARD INSULATION 25MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'REFLECTIVE FOIL INSULATION 5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'STANDARD CEMENT SCREED 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'HEAVY DUTY CEMENT SCREED 75MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'POLISHED CEMENT SCREED 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'GRANOLITHIC SCREED 40MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Aluminum' not found for 'LIGHTWEIGHT SCREED 40MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'FLOWING SELF-LEVELING SCREED 35MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'FAST DRYING SCREED 30MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'SELF LEVELING COMPOUND 5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Vinyl Composition Tile' not found for 'HOMOGENEOUS VINYL TILES 2MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Vinyl Composition Tile' not found for 'LUXURY VINYL TILE 5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Vinyl Composition Tile' not found for 'SHEET VINYL 2MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Laminate, Ivory, Matte' not found for 'STONE PLASTIC COMPOSITE 5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Vinyl Composition Tile' not found for 'SAFETY VINYL 3MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'CERAMIC TILES 200X200MM 8MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'CERAMIC TILES 300X300MM 10MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'PORCELAIN TILES 600X600MM 10MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'PORCELAIN TILES 600X1200MM 12MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'PORCELAIN SLABS 800X1600MM 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'VITRIFIED TILES 600X600MM 10MM' — created blank
+2026-03-06 20:54:54 [INFO] Create BLE Materials: 100 created, 0 skipped so far...
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'GRANITE TILES 20MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'MARBLE TILES 20MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'SLATE TILES 12MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'LIMESTONE TILES 20MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'TRAVERTINE TILES 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Laminate, Ivory, Matte' not found for 'LAMINATE FLOORING 8MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'ENGINEERED WOOD 15MM' duplicated from base 'Oak Flooring'
+2026-03-06 20:54:54 [INFO] Material 'SOLID HARDWOOD 18MM' duplicated from base 'Oak Flooring'
+2026-03-06 20:54:54 [INFO] Material 'SOLID BAMBOO 14MM' duplicated from base 'Oak Flooring'
+2026-03-06 20:54:54 [INFO] Material 'HERRINGBONE PARQUET 15MM' duplicated from base 'Oak Flooring'
+2026-03-06 20:54:54 [INFO] Material 'CHEVRON PARQUET 15MM' duplicated from base 'Oak Flooring'
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'CAST IN-SITU TERRAZZO 30MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'TERRAZZO TILES 20MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'EPOXY TERRAZZO 12MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'CONCRETE PAVER 50MM' duplicated from base 'Concrete, Precast'
+2026-03-06 20:54:54 [INFO] Material 'CONCRETE PAVER 60MM' duplicated from base 'Concrete, Precast'
+2026-03-06 20:54:54 [INFO] Material 'CONCRETE PAVER 80MM' duplicated from base 'Concrete, Precast'
+2026-03-06 20:54:54 [INFO] Material 'CONCRETE PAVER 100MM' duplicated from base 'Concrete, Precast'
+2026-03-06 20:54:54 [INFO] Material 'STANDARD INTERLOCKING PAVER 60MM' duplicated from base 'Concrete, Precast'
+2026-03-06 20:54:54 [INFO] Material 'ZIG-ZAG INTERLOCKING PAVER 60MM' duplicated from base 'Concrete, Precast'
+2026-03-06 20:54:54 [INFO] Material 'HEAVY DUTY INTERLOCKING 80MM' duplicated from base 'Concrete, Precast'
+2026-03-06 20:54:54 [INFO] Material 'PERMEABLE INTERLOCKING 80MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'GRASS GRID PAVER 100MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'SMALL COBBLESTONE 80MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'MEDIUM COBBLESTONE 100MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'LARGE COBBLESTONE 120MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'EXTRA LARGE COBBLESTONE 150MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'GRANITE COBBLESTONE 100MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'RECLAIMED GRANITE SETTS 100MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'CLAY BLOCK PAVING 60MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'HEAVY DUTY BLOCK PAVING 80MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'INDUSTRIAL BLOCK PAVING 100MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'HERRINGBONE BLOCK PAVING 65MM' duplicated from base 'Oak Flooring'
+2026-03-06 20:54:54 [INFO] Material 'CLAY BRICK PAVER 50MM' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [INFO] Material 'CLAY BRICK PAVER 65MM' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [INFO] Material 'HEAVY DUTY BRICK PAVER 80MM' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [INFO] Material 'ENGINEERING BRICK PAVER 100MM' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'GRANITE PAVING 30MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'GRANITE PAVING 40MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'GRANITE PAVING 50MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'SANDSTONE PAVING 40MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'LIMESTONE PAVING 40MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'SLATE PAVING 25MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'BLUESTONE PAVING 40MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'SANDSTONE FLAGSTONE 40MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'LIMESTONE FLAGSTONE 50MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'CRAZY PAVING 40MM' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [WARN] Base material 'Carpet (1)' not found for 'CARPET TILE 6MM 500X500MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Carpet (1)' not found for 'BROADLOOM CARPET 8MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Carpet (1)' not found for 'LOOP PILE CARPET 7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Carpet (1)' not found for 'LUXURY CUT PILE 10MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'RUBBER SHEET 3MM' duplicated from base 'Plastic, Opaque Black'
+2026-03-06 20:54:54 [INFO] Material 'RUBBER TILE 6MM 500X500MM' duplicated from base 'Plastic, Opaque Black'
+2026-03-06 20:54:54 [INFO] Material 'STUDDED RUBBER 8MM' duplicated from base 'Plastic, Opaque Black'
+2026-03-06 20:54:54 [INFO] Material 'SAFETY RUBBER 10MM' duplicated from base 'Plastic, Opaque Black'
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'SELF-LEVELING EPOXY 3MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'ANTI-SLIP EPOXY 5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'PU RESIN FLOOR 4MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'MMA RESIN 6MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Vinyl Composition Tile' not found for 'ANTI-STATIC FLOOR 5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'POLISHED CONCRETE 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'EXPOSED AGGREGATE POLISHED 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'MICROCEMENT 3MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'MICROCEMENT HEAVY DUTY 5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Carpet (1)' not found for 'CORK TILE 6MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Vinyl Composition Tile' not found for 'LINOLEUM SHEET 2.5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'PU SPORTS FLOOR 8MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'WOODEN SPORTS FLOOR 22MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'STANDARD ACCESS FLOOR 150MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'LOW PROFILE ACCESS FLOOR 100MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'GLASS MOSAIC 6MM' duplicated from base 'Glass, Clear Glazing'
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'CERAMIC MOSAIC 6MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'STAMPED CONCRETE 100MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'EXPOSED AGGREGATE 100MM' duplicated from base 'Concrete, Precast'
+2026-03-06 20:54:54 [INFO] Material 'HARDWOOD DECKING 25MM' duplicated from base 'Oak Flooring'
+2026-03-06 20:54:54 [WARN] Base material 'Laminate, Ivory, Matte' not found for 'COMPOSITE DECKING 25MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'IRON SHEET 30 GAUGE 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'IRON SHEET 28 GAUGE 0.9MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'IRON SHEET 26 GAUGE 1.2MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'ALUMINUM SHEET 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'ZINCALUME SHEET 0.8MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'STONE COATED STEEL 0.5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'STANDING SEAM 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'LONGSPAN PROFILE 0.5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'BOX PROFILE 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'TILE PROFILE METAL 0.5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'KLIP-LOK PROFILE 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'CUSTOM ORB 0.5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'CLAY ROOF TILES 12MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'CLAY TILES PREMIUM 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'SPANISH CLAY TILES 14MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CONCRETE ROOF TILES 10MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CONCRETE TILES PREMIUM 12MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'NATURAL SLATE 8MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'HEAVY SLATE 10MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'FIBER CEMENT TILES 6MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'PVC ROOF TILES 4MM' duplicated from base 'Polyvinyl Chloride - Rigid'
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'COMPOSITE TILES 8MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'BITUMEN MEMBRANE 4MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Material 'BITUMEN MEMBRANE 5MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Create BLE Materials: 200 created, 0 skipped so far...
+2026-03-06 20:54:54 [INFO] Material 'TORCH-ON MEMBRANE 3MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Material 'TORCH-ON MEMBRANE 4MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Material 'EPDM RUBBER MEMBRANE 1.5MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Material 'TPO MEMBRANE 1.2MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Material 'PVC SINGLE PLY 1.5MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Material 'APP MODIFIED BITUMEN 4MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Material 'SBS MODIFIED BITUMEN 4MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'GRP FIBERGLASS 3MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'LIQUID APPLIED MEMBRANE 2MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [WARN] Base material 'Grass' not found for 'GREEN ROOF MEMBRANE 6MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'ROOFING FELT 1MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Material 'SARKING FELT 0.2MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Material 'BREATHABLE MEMBRANE 0.4MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [WARN] Base material 'Vapor Retarder' not found for 'VAPOR BARRIER 0.15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Rigid insulation' not found for 'REFLECTIVE UNDERLAY 5MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'SYNTHETIC UNDERLAY 0.5MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Material 'SELF-ADHESIVE UNDERLAY 1MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Material 'ICE & WATER SHIELD 2MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'MINERAL WOOL 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'MINERAL WOOL 150MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'PIR BOARD 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'PIR BOARD 75MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'PIR BOARD 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Rigid insulation' not found for 'XPS BOARD 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Rigid insulation' not found for 'EPS BOARD 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'REFLECTIVE FOIL 5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'SPRAY FOAM INSULATION 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER BATTEN 25X50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER BATTEN 38X50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER BATTEN 50X50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER PURLIN 50X100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER PURLIN 50X150MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'STEEL C-SECTION PURLIN 75MM' duplicated from base 'Steel'
+2026-03-06 20:54:54 [INFO] Material 'STEEL Z-SECTION PURLIN 100MM' duplicated from base 'Steel'
+2026-03-06 20:54:54 [INFO] Material 'METAL BATTEN BRACKET 20MM' duplicated from base 'Steel'
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER TRUSS 100X50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER TRUSS 150X50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER RAFTER 100X50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER RAFTER 150X50MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'STEEL ROOF TRUSS 100MM' duplicated from base 'Steel'
+2026-03-06 20:54:54 [INFO] Material 'STEEL ROOF TRUSS 150MM' duplicated from base 'Steel'
+2026-03-06 20:54:54 [INFO] Material 'PLYWOOD DECK 12MM' duplicated from base 'Plywood, Sheathing'
+2026-03-06 20:54:54 [INFO] Material 'PLYWOOD DECK 18MM' duplicated from base 'Plywood, Sheathing'
+2026-03-06 20:54:54 [INFO] Material 'OSB DECK 12MM' duplicated from base 'Plywood, Sheathing'
+2026-03-06 20:54:54 [INFO] Material 'OSB DECK 18MM' duplicated from base 'Plywood, Sheathing'
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER BOARD DECK 25MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'CEMENT BOARD DECK 12MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'GYPSUM BOARD 12.5MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'GYPSUM BOARD 15MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'FIRE-RATED GYPSUM 15MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'MOISTURE RESISTANT BOARD 12.5MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [WARN] Base material 'Acoustic Ceiling Tile 600 x 600' not found for 'ACOUSTIC CEILING TILE 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Acoustic Ceiling Tile 600 x 600' not found for 'MINERAL FIBER TILE 19MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'METAL PAN CEILING 0.5MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'PVC CEILING PANEL 8MM' duplicated from base 'Polyvinyl Chloride - Rigid'
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER CEILING BOARD 12MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'DIRECT PLASTER CEILING 12MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'RIDGE FLASHING 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'VALLEY FLASHING 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'EAVE DRIP EDGE 0.5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'VERGE TRIM 0.5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'CHIMNEY FLASHING 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'PARAPET CAPPING 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'PIPE FLASHING 0.5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'LEAD SHEET FLASHING 4MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'INTERNAL PLASTER STANDARD 15MM + EMULSION' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'INTERNAL PLASTER PREMIUM 20MM + PAINT' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'INTERNAL PLASTER SMOOTH 18MM + PAINT' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'INTERNAL PLASTER ECONOMY 12MM + PAINT' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'EXTERNAL RENDER 15MM + WEATHERGUARD' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'EXTERNAL RENDER TEXTURED 20MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'EXTERNAL ROUGH CAST 18MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'EMULSION PAINT DIRECT ON PLASTER' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'OIL PAINT SYSTEM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'WEATHERGUARD EXTERIOR PAINT' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'ACRYLIC PAINT PREMIUM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'GLOSS PAINT INTERIOR' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'MORAN PLASTERING PAINT 3MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'TYROLEAN RENDER 8MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'RUSTIC TEXTURE PAINT 4MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'SAND TEXTURE FINISH 5MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'STUCCO VENETIAN 3MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'CERAMIC TILE STANDARD 25MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'CERAMIC TILES ON PLASTER 13MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'PREMIUM PORCELAIN TILES 28MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'GLASS MOSAIC TILES 15MM' duplicated from base 'Glass, Clear Glazing'
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'NATURAL STONE TILES 30MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'GYPSUM PLASTER + PAINT 13MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'GYPSUM DRYWALL SYSTEM 25MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'GYPSUM SMOOTH FINISH 10MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'LIME PLASTER TRADITIONAL 20MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'LIME RENDER EXTERNAL 25MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [WARN] Base material 'Glass - White, High Luminance' not found for 'BATHROOM WALL COMPLETE 27MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'SHOWER AREA WATERPROOF 30MM' duplicated from base 'Glass, Clear Glazing'
+2026-03-06 20:54:54 [WARN] Base material 'Damp-proofing' not found for 'BITUMINOUS WATERPROOF 14MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'KITCHEN SPLASH BACK 20MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'STONE SLATE BLACK 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'ORDINARY WALL SLATE 45MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'EXPOSED BRICK VENEER 110MM' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [INFO] Material 'PVC WALL CLADDING 10MM' duplicated from base 'Polyvinyl Chloride - Rigid'
+2026-03-06 20:54:54 [INFO] Create BLE Materials: 300 created, 0 skipped so far...
+2026-03-06 20:54:54 [INFO] Material '3D PVC WALL PANELS 12MM' duplicated from base 'Polyvinyl Chloride - Rigid'
+2026-03-06 20:54:54 [INFO] Material 'FIBER CEMENT BOARD 15MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TIMBER WALL PANELING 32MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'EXTERIOR TIMBER CLADDING 35MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'WOOD VENEER PANELS 18MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'VINYL WALLPAPER SYSTEM 2MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [WARN] Base material 'Acoustic Ceiling Tile 600 x 600' not found for 'ACOUSTIC WALL PANELS 25MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'DESIGNER MIRROR WALL 8MM' duplicated from base 'Glass, Clear Glazing'
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'EPOXY WALL COATING 2MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'ANTI-FUNGAL PAINT SYSTEM 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'ULTRA THIN CEMENT PLASTER 10MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'HEAVY DUTY CEMENT PLASTER 25MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'HEAVY EXTERNAL PLASTER 30MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'TEXTURED EXTERNAL PLASTER 20MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'SMOOTH CEMENT RENDER EXTERNAL 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'ROUGHCAST RENDER 18MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'COMPLETE PRIMER + PAINT SYSTEM 2MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'EGGSHELL FINISH PAINT 1MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'SATIN FINISH PAINT 1MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'GLOSS FINISH PAINT 1MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'ACRYLIC EXTERNAL PAINT 2MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'SILICONE EXTERNAL PAINT 2MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'ANTI-GRAFFITI COATING 1MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'MAGNETIC PAINT 2MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'CHALKBOARD PAINT 1MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal - Paint Finish - Grey' not found for 'WHITEBOARD PAINT 1MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'SMALL FORMAT CERAMIC 200X200MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'MEDIUM FORMAT CERAMIC 300X450MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'LARGE FORMAT CERAMIC 600X600MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'LARGE FORMAT PORCELAIN 600X1200MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'EXTRA LARGE PORCELAIN 800X1600MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'CLASSIC SUBWAY TILES 75X150MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'HEXAGONAL TILES 150MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'PENNY ROUND MOSAIC TILES' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'TERRACOTTA CLAY TILES 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'HANDMADE ZELLIGE TILES 12MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'THIN GYPSUM BOARD 9MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'STANDARD GYPSUM BOARD 12MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'PERFORATED ACOUSTIC BOARD 15MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'EXTRA IMPACT RESISTANT 20MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'GYPSUM FIBER BOARD 12MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'EXTERNAL GYPSUM FIBER 15MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'MINERAL WOOL INSULATION 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'MINERAL WOOL INSULATION 75MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'MINERAL WOOL INSULATION 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'ROCKWOOL INSULATION 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'ROCKWOOL INSULATION 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Rigid insulation' not found for 'EXTRUDED POLYSTYRENE 25MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Rigid insulation' not found for 'EXTRUDED POLYSTYRENE 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Rigid insulation' not found for 'EXPANDED POLYSTYRENE 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Rigid insulation' not found for 'EXPANDED POLYSTYRENE 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'POLYISOCYANURATE BOARD 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Rigid insulation' not found for 'CLOSED CELL SPRAY FOAM 75MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Vapor Retarder' not found for 'POLYETHYLENE VAPOR BARRIER 0.15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Vapor Retarder' not found for 'HEAVY DUTY VAPOR BARRIER 0.20MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'AIR BARRIER MEMBRANE 1MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [WARN] Base material 'Vapor Retarder' not found for 'BREATHABLE HOUSE WRAP 0.5MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'LIQUID APPLIED AIR BARRIER 2MM' duplicated from base 'Roofing, EPDM Membrane'
+2026-03-06 20:54:54 [INFO] Material 'EXTERIOR PLYWOOD 9MM' duplicated from base 'Plywood, Sheathing'
+2026-03-06 20:54:54 [INFO] Material 'EXTERIOR PLYWOOD 12MM' duplicated from base 'Plywood, Sheathing'
+2026-03-06 20:54:54 [INFO] Material 'ORIENTED STRAND BOARD 9MM' duplicated from base 'Plywood, Sheathing'
+2026-03-06 20:54:54 [INFO] Material 'ORIENTED STRAND BOARD 12MM' duplicated from base 'Plywood, Sheathing'
+2026-03-06 20:54:54 [INFO] Material 'EXTERIOR GYPSUM SHEATHING 12MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'CEMENT BOARD SHEATHING 12MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'SHIPLAP WOOD PANELS 20MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'TONGUE AND GROOVE 18MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'RECLAIMED WOOD PANELS 25MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Siding, Clapboard' not found for 'BARNWOOD SIDING 22MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'DECORATIVE WOOD SLATS 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for '3D DECORATIVE WOOD PANELS 18MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'TRAVERTINE STONE TILES 18MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'NATURAL SLATE TILES 12MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'LIMESTONE WALL TILES 15MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'QUARTZITE TILES 16MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'BACKLIT ONYX TILES 20MM' duplicated from base 'Glass, Clear Glazing'
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'DECORATIVE CEMENT TILES 12MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'METAL DECORATIVE TILES 3MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Textile - Slate Blue' not found for 'PREMIUM FABRIC WALL COVERING 2MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Vinyl Composition Tile' not found for 'VINYL WALL COVERING 1MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Textile - Slate Blue' not found for 'NATURAL GRASSCLOTH WALLPAPER 3MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Textile - Slate Blue' not found for 'SILK WALL COVERING 2MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'LEATHER WALL PANELS 4MM' duplicated from base 'Plastic, Opaque Black'
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'STANDING SEAM METAL 1MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'CORRUGATED METAL PANEL 0.7MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'TERRACOTTA RAIN SCREEN 30MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'THIN BRICK VENEER 100MM' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [WARN] Base material 'Laminate, Ivory, Matte' not found for 'HIGH PRESSURE LAMINATE 8MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Acoustic Ceiling Tile 600 x 600' not found for 'FABRIC WRAPPED ACOUSTIC 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'WOOD ACOUSTIC SLAT SYSTEM 40MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'PERFORATED GYPSUM ACOUSTIC 15MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material '3D SCULPTURED GYPSUM 20MM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material '3D DECORATIVE MDF 18MM' duplicated from base 'Plywood, Sheathing'
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for '3D CONCRETE PANELS 40MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Laminate, Ivory, Matte' not found for 'SOLID SURFACE PANELS 12MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Laminate, Ivory, Matte' not found for 'CORIAN WALL PANELS 12MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'BACKLIT RESIN PANELS 10MM' duplicated from base 'Glass, Clear Glazing'
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'CEMENT SKIRTING STANDARD 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'CEMENT SKIRTING PREMIUM 150MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'CEMENT SKIRTING ECONOMY 75MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'CERAMIC TILE SKIRTING 100MM' — created blank
+2026-03-06 20:54:54 [INFO] Create BLE Materials: 400 created, 0 skipped so far...
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'PORCELAIN TILE SKIRTING 150MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'GRANITE SKIRTING 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'MARBLE SKIRTING 150MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'HARDWOOD SKIRTING 100MM' duplicated from base 'Oak Flooring'
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'SOFTWOOD SKIRTING 75MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Pine' not found for 'MDF SKIRTING 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'PVC SKIRTING 80MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'PVC SKIRTING FLEXIBLE 60MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'ALUMINUM SKIRTING 100MM' duplicated from base 'Stainless Steel'
+2026-03-06 20:54:54 [INFO] Material 'STAINLESS STEEL SKIRTING 80MM' duplicated from base 'Stainless Steel'
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'TERRAZZO SKIRTING 150MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'CEMENT COVE SKIRTING 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'TILE COVE SKIRTING 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'SHADOW GAP SKIRTING 20MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'RUBBER SKIRTING 100MM' duplicated from base 'Plastic, Opaque Black'
+2026-03-06 20:54:54 [INFO] Material 'GLASS PANEL SKIRTING 150MM' duplicated from base 'Glass, Clear Glazing'
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'CEMENT + PAINT SKIRTING 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'PREMIUM CEMENT SKIRTING 150MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'ECONOMY CEMENT SKIRTING 75MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'CERAMIC TILES SKIRTING 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Tile, Mosaic, Gray' not found for 'PORCELAIN TILES SKIRTING 150MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'SOFTWOOD PAINTED SKIRTING 75MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'MDF PAINTED SKIRTING 100MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Wood - Birch' not found for 'FLEXIBLE PVC SKIRTING 60MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'GLASS SKIRTING 150MM' duplicated from base 'Glass, Clear Glazing'
+2026-03-06 20:54:54 [INFO] Material 'HOLLOW CONCRETE BLOCK 4IN (100MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'HOLLOW CONCRETE BLOCK 6IN (150MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'HOLLOW CONCRETE BLOCK 8IN (200MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'HOLLOW CONCRETE BLOCK 9IN (225MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'HOLLOW CONCRETE BLOCK 10IN (250MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'SOLID CONCRETE BLOCK 4IN (100MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'SOLID CONCRETE BLOCK 6IN (150MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'SOLID CONCRETE BLOCK 8IN (200MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'SOLID CONCRETE BLOCK 9IN (225MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'SOLID CONCRETE BLOCK 10IN (250MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'CLAY BRICK STANDARD (225×112.5×75MM)' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [INFO] Material 'CLAY BRICK VILLAGE-ARTISAN (220×110×65MM)' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [INFO] Material 'CLAY BRICK VILLAGE LARGE (295×150×130MM)' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [INFO] Material 'CLAY BRICK FACING (225×112.5×75MM)' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [INFO] Material 'CLAY BRICK ENGINEERING (225×112.5×75MM)' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [INFO] Material 'CLAY BRICK FIRE-REFRACTORY (225×112.5×75MM)' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [INFO] Material 'CLAY BRICK HALF (112.5×112.5×75MM)' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [INFO] Material 'CLAY BRICK PERFORATED (225×112.5×75MM)' duplicated from base 'Brick, Common'
+2026-03-06 20:54:54 [INFO] Material 'INTERLOCKING BLOCK STANDARD (300×150×100MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'INTERLOCKING BLOCK CLC (300×150×100MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'INTERLOCKING BLOCK HYDRAFORM (300×150×100MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'COMPRESSED EARTH BLOCK STANDARD (295×140×100MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'COMPRESSED EARTH BLOCK SMALL (220×105×75MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'COMPRESSED EARTH BLOCK LARGE (300×150×100MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'AAC BLOCK 4IN (600×200×100MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'AAC BLOCK 6IN (600×200×150MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'AAC BLOCK 8IN (600×200×200MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'AAC BLOCK 10IN (600×200×250MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'STONE RUBBLE MASONRY (VARIABLE)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [INFO] Material 'STONE ASHLAR DRESSED (450×200×200MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [WARN] Base material 'Metal Panel' not found for 'STONE SLATE CLADDING (VARIABLE)' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CONCRETE COLUMN BLOCK 9IN (225×225×200MM)' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CONCRETE COLUMN BLOCK 12IN (300×300×200MM)' — created blank
+2026-03-06 20:54:54 [INFO] Material 'BRICK PILLAR UNIT (225×225×75MM)' duplicated from base 'Concrete Masonry Units'
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CEMENT SAND PLASTER 1-2 (HIGH STRENGTH)' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CEMENT SAND PLASTER 1-3 (STRONG)' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CEMENT SAND PLASTER 1-4 (STANDARD)' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CEMENT SAND PLASTER 1-5 (ECONOMIC)' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CEMENT SAND PLASTER 1-6 (LIGHT)' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CEMENT SAND RENDER 1-2 (HEAVY DUTY)' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CEMENT SAND RENDER 1-3 (EXTERNAL BASE)' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CEMENT SAND RENDER 1-4 (EXTERNAL STANDARD)' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CEMENT SAND RENDER 1-5 (PROTECTED EXTERNAL)' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'CEMENT SAND RENDER 1-6 (INTERNAL BACKING)' — created blank
+2026-03-06 20:54:54 [INFO] Material 'GYPSUM PLASTER PREMIUM' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'LIME PLASTER HERITAGE (1-3)' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [WARN] Base material 'Concrete, Cast-in-Place gray' not found for 'TEXTURED-TYROLEAN RENDER' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Damp-proofing' not found for 'DPC POLYTHENE 1000 GAUGE' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Damp-proofing' not found for 'DPC POLYTHENE 1200 GAUGE' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Damp-proofing' not found for 'DPC BITUMEN SHEET 3MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Rigid insulation' not found for 'EPS INSULATION 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Rigid insulation' not found for 'EPS INSULATION 75MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'MINERAL WOOL 50MM' — created blank
+2026-03-06 20:54:54 [WARN] Base material 'Insulation - Fiberglass' not found for 'MINERAL WOOL 75MM' — created blank
+2026-03-06 20:54:54 [INFO] Material 'EXTERNAL WALL - STANDARD' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'EXTERNAL WALL - INSULATED' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'EXTERNAL WALL - CAVITY' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'EXTERNAL WALL - STONE' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'INTERNAL WALL - STANDARD' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'INTERNAL WALL - AAC' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'BASEMENT WALL' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'COMPOUND WALL' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'RETAINING WALL' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Material 'PARAPET WALL' duplicated from base 'Gypsum Wall Board'
+2026-03-06 20:54:54 [INFO] Create BLE Materials: 500 created, 0 skipped so far...
+2026-03-06 20:54:54 [INFO] Create BLE Materials: 600 created, 0 skipped so far...
+2026-03-06 20:54:54 [INFO] Create BLE Materials: 700 created, 0 skipped so far...
+2026-03-06 20:54:54 [INFO] Create BLE Materials: 800 created, 0 skipped so far...
+2026-03-06 20:55:08 [INFO] Create BLE Materials: Created 815 materials. |   Duplicated from base: 189 |   Created blank: 626 | Skipped 0 (already exist). | Source: BLE_MATERIALS.csv (815 rows)
+2026-03-06 20:56:12 [ERROR] DockPanel command 'FamilyParamAudit' failed: An item with the same key has already been added. Key: Center line
+2026-03-06 20:57:56 [INFO] Selected 9 Pipes elements
+2026-03-06 21:03:53 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:53 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:53 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:54 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:54 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:54 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:54 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:54 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:55 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:55 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:55 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:55 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:56 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:56 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:03:56 [INFO] Nudge LEFT: 3 tags
+2026-03-06 21:06:55 [INFO] Dockable panel registered successfully
+2026-03-06 21:06:55 [INFO] StingAutoTagger: registered (disabled by default)
+2026-03-06 21:06:55 [INFO] STING Tools dockable panel loaded successfully
+2026-03-06 21:08:36 [INFO] Dockable panel registered successfully
+2026-03-06 21:08:36 [INFO] StingAutoTagger: registered (disabled by default)
+2026-03-06 21:08:36 [INFO] STING Tools dockable panel loaded successfully
+2026-03-06 21:21:35 [INFO] AISimilarSelect: 1 types → 9 elements
+2026-03-06 21:21:56 [INFO] AISimilarSelect: 1 types → 9 elements
+2026-03-06 21:22:03 [INFO] AISimilarSelect: 1 types → 9 elements
+2026-03-06 21:22:45 [INFO] Selected 9 Pipes elements

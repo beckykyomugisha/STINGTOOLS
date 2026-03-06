@@ -1,0 +1,298 @@
+## STING TAG GUIDE V3 — Comprehensive Tag Configuration & Manual Input Reference
+## Version: 3.0 | Date: 2026-03-03 | Standard: ISO 19650 | Plugin: StingTools v1.0
+## Replaces: TAG GUIDE V2.xlsx and TAG_GUIDE.xlsx
+## Note: Naviate formulae and Dynamo workflows removed — all operations use STING CombineParameters
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 1: TAG FORMAT — 8-Segment ISO 19650 Tag Structure
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,TAG_FORMAT
+SEGMENT,POSITION,PARAMETER,EXAMPLE,MAX_LENGTH,VALIDATION,DESCRIPTION,AUTO_POPULATED,MANUAL_INPUT_GUIDE
+DISC,1,ASS_DISCIPLINE_COD_TXT,M,3,Must be in ValidDiscCodes set,Discipline code — identifies engineering discipline,YES — from category mapping via TagConfig.DiscMap,"Select from: M (Mechanical), E (Electrical), P (Plumbing), A (Architectural), S (Structural), FP (Fire Protection), LV (Low Voltage), G (Generic). System-aware correction applies for pipes."
+LOC,2,ASS_LOC_TXT,BLD1,4,Must be in TagConfig.LocCodes,Location/building code — identifies physical building or area,YES — from room name/number or Project Info via SpatialAutoDetect,"Enter building code: BLD1, BLD2, BLD3 for buildings. EXT for external. XX if unknown. Can also set via Project Information > ASS_LOC_TXT parameter."
+ZONE,3,ASS_ZONE_TXT,Z01,3,Must be in TagConfig.ZoneCodes,Zone code — identifies zone within a building,YES — from room Department field or name patterns,"Enter zone: Z01-Z04 for specific zones. ZZ for unzoned areas. XX if unknown. Set room Department field to auto-detect (e.g. 'Zone 1' → Z01)."
+LVL,4,ASS_LVL_COD_TXT,L02,4,Must match level code pattern,Level code — identifies floor level,"YES — from Revit level name via GetLevelCode (L01, GF, B1, RF)","Derived from level name. GF=Ground, B1-B9=Basement, L01-L99=Upper levels, RF=Roof, MZ=Mezzanine, PL=Plant, PH=Penthouse, AT=Attic, TR=Terrace, POD=Podium."
+SYS,5,ASS_SYSTEM_TYPE_TXT,HVAC,4,Must be in ValidSysCodes set,System type — CIBSE/Uniclass system classification,YES — from MEP system connector traversal or category mapping,"Select from valid CIBSE/Uniclass codes. See SYSTEM CODES section below. Auto-detected from connected MEP systems (6-layer detection)."
+FUNC,6,ASS_FUNC_TXT,SUP,4,Must be in ValidFuncCodes set,Function code — sub-system function classification,YES — from smart sub-function detection based on SYS,"Auto-derived from SYS code. HVAC: SUP/RTN/EXH/FRA. HWS: HTG/DHW. Electrical: PWR/LTG. Manual override available via SetFunc token command."
+PROD,7,ASS_PRODCT_COD_TXT,AHU,4,2-4 alphanumeric characters,Product code — identifies equipment/element type,YES — from family name matching (35+ specific codes),"Usually auto-detected from Revit family name. E.g. 'Air Handling Unit' → AHU, 'Distribution Board' → DB. Override manually if family name doesn't match standard codes."
+SEQ,8,ASS_SEQ_NUM_TXT,0003,4,Must be positive integer (zero-padded),Sequence number — unique identifier within group,YES — auto-assigned by AssignNumbers or BuildAndWriteTag,"Auto-incremented. Unique within DISC-SYS-LVL group. 4-digit zero-padded (0001-9999). Collision detection ensures uniqueness."
+##
+## COMPLETE TAG EXAMPLE: M-BLD1-Z01-L02-HVAC-SUP-AHU-0003
+## Reads as: Mechanical | Building 1 | Zone 01 | Level 02 | HVAC System | Supply | Air Handling Unit | Sequence 0003
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 2: DISCIPLINE CODES (DISC)
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,DISCIPLINE_CODES
+CODE,FULL_NAME,CATEGORIES,SYSTEM_AWARE_NOTE
+M,Mechanical,"Mechanical Equipment, Ducts, Duct Fittings, Duct Accessories, Duct Insulations, Air Terminals, Flex Ducts","Pipes can be M→P or M→FP via GetSystemAwareDisc when connected to plumbing/fire systems"
+E,Electrical,"Electrical Equipment, Electrical Fixtures, Lighting Fixtures, Lighting Devices, Conduits, Conduit Fittings, Cable Trays, Cable Tray Fittings",
+P,Plumbing,"Plumbing Fixtures, Plumbing Equipment, Pipes (when SYS=DCW/SAN/RWD/DHW), Pipe Fittings, Pipe Accessories","Auto-corrected from M when pipe is connected to plumbing system"
+A,Architectural,"Walls, Doors, Windows, Floors, Ceilings, Roofs, Stairs, Ramps, Railings, Curtain Panels, Curtain Wall Mullions, Furniture, Casework, Generic Models, Specialty Equipment",
+S,Structural,"Structural Columns, Structural Framing, Structural Foundations",
+FP,Fire Protection,"Fire Alarm Devices, Sprinklers, Pipes (when SYS=FP/FLS)","Auto-corrected from M when pipe is connected to fire protection system"
+LV,Low Voltage / Comms,"Communication Devices, Data Devices, Security Devices, Nurse Call Devices",
+G,General / Generic,"Topography, uncategorised elements",
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 3: SYSTEM CODES (SYS) — CIBSE/Uniclass 2015
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,SYSTEM_CODES
+CODE,FULL_NAME,DISCIPLINE,CATEGORIES,FUNCTION_CODES,MANUAL_INPUT_GUIDE
+HVAC,Heating Ventilation and Air Conditioning,M,"Mechanical Equipment, Ducts, Duct Fittings, Duct Accessories, Air Terminals, Flex Ducts","SUP, RTN, EXH, FRA","Select for all HVAC-related equipment. Sub-function auto-detected: SUP=supply, RTN=return, EXH=exhaust, FRA=fresh air."
+DCW,Domestic Cold Water,P,"Plumbing Fixtures, Pipes, Pipe Fittings",DCW,"Select for cold water supply pipework and fixtures."
+DHW,Domestic Hot Water,P,"Plumbing Fixtures, Pipes, Pipe Fittings",DHW,"Select for hot water pipework and fixtures."
+HWS,Hot Water Service,M/P,"Pipes, Pipe Fittings, Mechanical Equipment","HTG, DHW","Select for hot water heating systems. Sub-function: HTG=heating circuit, DHW=domestic hot water generation."
+SAN,Sanitary / Drainage,P,"Plumbing Fixtures, Pipes, Pipe Fittings",SAN,"Select for waste/drainage pipework and sanitary fixtures."
+RWD,Rainwater Drainage,P,"Pipes, Pipe Fittings",RWD,"Select for rainwater drainage systems."
+GAS,Gas Supply,M/P,"Pipes, Pipe Fittings, Mechanical Equipment",GAS,"Select for natural gas or LPG supply pipework."
+FP,Fire Protection,FP,"Fire Alarm Devices, Sprinklers, Pipes",FP,"Select for fire suppression systems (sprinklers, hydrants)."
+FLS,Fire Life Safety,FP/E,"Fire Alarm Devices, Sprinklers, Security Devices",FLS,"Select for fire alarm and life safety systems (detectors, call points, sounders)."
+LV,Low Voltage,E,"Electrical Equipment, Lighting Fixtures, Conduits, Cable Trays","PWR, LTG","Select for general electrical low-voltage distribution."
+COM,Communications,LV,"Communication Devices, Data Devices",COM,"Select for data/voice/WiFi communication systems."
+ICT,ICT Infrastructure,LV,"Communication Devices, Data Devices",ICT,"Select for structured cabling, server rooms, network infrastructure."
+SEC,Security Systems,LV,"Security Devices",SEC,"Select for CCTV, access control, intruder detection."
+NCL,Nurse Call / Life Safety,LV,"Nurse Call Devices",NCL,"Select for nurse call, patient monitoring, emergency call systems."
+ARC,Architectural,A,"Walls, Doors, Windows, Floors, Ceilings, Roofs",ARC,"Default for architectural elements."
+STR,Structural,S,"Structural Columns, Structural Framing, Structural Foundations",STR,"Default for structural elements."
+GEN,General,G,"Generic Models, Topography",GEN,"Default for unclassified elements."
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 4: FUNCTION CODES (FUNC) — CIBSE/Uniclass Sub-system Functions
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,FUNCTION_CODES
+CODE,FULL_NAME,PARENT_SYS,DESCRIPTION,DETECTION_METHOD
+SUP,Supply,HVAC,Supply air distribution — AHUs and supply ductwork,Auto-detected from MEP system name containing 'supply'
+RTN,Return,HVAC,Return air systems — return ductwork and grilles,Auto-detected from MEP system name containing 'return'
+EXH,Exhaust,HVAC,Exhaust/extract systems — fans and exhaust ductwork,Auto-detected from MEP system name containing 'exhaust' or 'extract'
+FRA,Fresh Air,HVAC,Fresh air intake systems,Auto-detected from MEP system name containing 'fresh' or 'outside'
+HTG,Heating,HWS,Heating circuit — boilers and LTHW pipework,Auto-detected from MEP system name containing 'heating' or 'LTHW'
+DHW,Domestic Hot Water,HWS/DHW,Hot water generation and distribution,Auto-detected from MEP system name containing 'hot water' or 'DHW'
+DCW,Domestic Cold Water,DCW,Cold water supply and distribution,Default function for DCW system
+SAN,Sanitary,SAN,Waste and soil drainage,Default function for SAN system
+RWD,Rainwater Drainage,RWD,Rainwater collection and disposal,Default function for RWD system
+GAS,Gas Supply,GAS,Natural gas or LPG distribution,Default function for GAS system
+FP,Fire Protection,FP,Fire suppression (sprinklers and hydrants),Default function for FP system
+FLS,Fire Life Safety,FLS,Fire detection and alarm,Default function for FLS system
+PWR,Power,LV,Electrical power distribution,Default function for LV system
+LTG,Lighting,LV,Lighting and lighting control,Auto-detected from Lighting Fixtures category
+COM,Communications,COM,Voice/data/WiFi systems,Default function for COM system
+SEC,Security,SEC,CCTV/access control/intruder,Default function for SEC system
+ICT,ICT,ICT,Structured cabling/network,Default function for ICT system
+NCL,Nurse Call,NCL,Nurse call and patient monitoring,Default function for NCL system
+ARC,Architectural,ARC,General architectural function,Default function for ARC system
+STR,Structural,STR,Structural support function,Default function for STR system
+GEN,General,GEN,Unclassified function,Fallback for all unmapped elements
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 5: PRODUCT CODES (PROD) — Family-Aware Mapping
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,PRODUCT_CODES
+CODE,FULL_NAME,CATEGORIES,FAMILY_NAME_KEYWORDS,MANUAL_INPUT_GUIDE
+AHU,Air Handling Unit,Mechanical Equipment,"Air Handling, AHU","Use for central air handling units, rooftop units."
+FCU,Fan Coil Unit,Mechanical Equipment,"Fan Coil, FCU","Use for fan coil units, cassette units."
+VAV,Variable Air Volume,Mechanical Equipment,"VAV, Variable Air","Use for VAV boxes and controllers."
+CHR,Chiller,Mechanical Equipment,"Chiller, Chilled Water","Use for chillers and chilled water plant."
+BLR,Boiler,Mechanical Equipment,"Boiler, Heating Plant","Use for boilers and heating plant."
+PMP,Pump,Mechanical Equipment,"Pump, Circulating","Use for all pump types (circulation, booster, sump)."
+VLV,Valve,Pipe Accessories,"Valve, Gate, Ball, Butterfly","Use for all valve types."
+DMP,Damper,Duct Accessories,"Damper, Fire, Volume","Use for fire and volume control dampers."
+GRL,Grille,Air Terminals,"Grille, Return Grille","Use for return air grilles."
+DIF,Diffuser,Air Terminals,"Diffuser, Supply Diffuser, Swirl","Use for supply air diffusers."
+FAN,Fan,Mechanical Equipment,"Fan, Extract Fan, Exhaust Fan","Use for standalone fans."
+DB,Distribution Board,Electrical Equipment,"Distribution Board, DB, Panel Board, Switchboard","Use for electrical distribution panels."
+SWT,Switch,Electrical Fixtures,"Switch, Light Switch, Isolator","Use for switches and isolators."
+SKT,Socket,Electrical Fixtures,"Socket, Power Point, GPO","Use for power outlets / socket outlets."
+LUM,Luminaire,Lighting Fixtures,"Luminaire, Light, Downlight, Fitting","Use for all lighting fixtures."
+DET,Detector,Fire Alarm Devices,"Detector, Smoke, Heat","Use for fire/smoke/heat detectors."
+SPK,Sprinkler,Sprinklers,"Sprinkler","Use for sprinkler heads."
+CPT,Call Point,Fire Alarm Devices,"Call Point, Break Glass, MCP","Use for manual call points."
+CAM,Camera,Security Devices,"Camera, CCTV","Use for CCTV cameras."
+ACR,Access Reader,Security Devices,"Access, Card Reader, Keypad","Use for access control readers."
+SEN,Sensor,Mechanical Equipment,"Sensor, Temperature, Humidity, Pressure","Use for sensors and meters."
+MET,Meter,Mechanical Equipment,"Meter, Flow Meter, Energy","Use for flow/energy meters."
+TNK,Tank,Plumbing Equipment,"Tank, Water Tank, Storage","Use for water storage tanks."
+WCL,WC / Toilet,Plumbing Fixtures,"WC, Toilet, Lavatory","Use for toilet fixtures."
+BSN,Basin,Plumbing Fixtures,"Basin, Wash Basin, Sink","Use for wash basins and sinks."
+SHW,Shower,Plumbing Fixtures,"Shower","Use for shower fixtures."
+WLL,Wall,Walls,,Use for wall elements.
+FLR,Floor,Floors,,Use for floor elements.
+CLG,Ceiling,Ceilings,,Use for ceiling elements.
+RFG,Roof,Roofs,,Use for roof elements.
+DR,Door,Doors,,Use for door elements.
+WND,Window,Windows,,Use for window elements.
+STR,Stairs,Stairs,,Use for stair elements.
+COL,Column,Structural Columns,,Use for structural columns.
+BM,Beam,Structural Framing,,Use for structural beams/framing.
+FND,Foundation,Structural Foundations,,Use for structural foundations.
+FRN,Furniture,Furniture,,Use for furniture elements.
+EQP,Equipment,Specialty Equipment,,Use for specialty/generic equipment.
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 6: LOCATION CODES (LOC)
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,LOCATION_CODES
+CODE,DESCRIPTION,DETECTION_SOURCE,MANUAL_INPUT_GUIDE
+BLD1,Building 1 (Main),Room name/number or Project Info,"Default for single-building projects. Set via Project Information > ASS_LOC_TXT or per-element via Set Location command."
+BLD2,Building 2,Room name/number,"Use for multi-building projects. Room names containing 'Building 2' or 'Block B' auto-detect to BLD2."
+BLD3,Building 3,Room name/number,"Use for multi-building projects. Room names containing 'Building 3' or 'Block C' auto-detect to BLD3."
+EXT,External / Site,Room name/number,"Use for external/site elements. Room names containing 'External' or 'Site' auto-detect to EXT."
+XX,Unknown / Not Set,Fallback,"Placeholder when location cannot be determined. Should be resolved before final documentation."
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 7: ZONE CODES (ZONE)
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,ZONE_CODES
+CODE,DESCRIPTION,DETECTION_SOURCE,MANUAL_INPUT_GUIDE
+Z01,Zone 01,Room Department field,"Set room Department to 'Zone 1' or 'Z01'. Auto-detected from department name patterns."
+Z02,Zone 02,Room Department field,"Set room Department to 'Zone 2' or 'Z02'."
+Z03,Zone 03,Room Department field,"Set room Department to 'Zone 3' or 'Z03'."
+Z04,Zone 04,Room Department field,"Set room Department to 'Zone 4' or 'Z04'."
+ZZ,Unzoned Area,Fallback for unzoned spaces,"Use for circulation, corridors, and shared spaces not in a specific zone."
+XX,Unknown / Not Set,Fallback,"Placeholder when zone cannot be determined. Should be resolved."
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 8: TAG CONTAINERS — 36 Discipline-Specific Parameters
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,TAG_CONTAINERS
+GROUP,PARAMETER,TOKEN_INDICES,SEPARATOR,DESCRIPTION,MANUAL_INPUT_NOTE
+Universal,ASS_TAG_1_TXT,"0,1,2,3,4,5,6,7",-,Full 8-segment tag (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ),Auto-populated by CombineParameters. Do NOT edit directly.
+Universal,ASS_TAG_2_TXT,"0,6,7",-,Short ID (DISC-PROD-SEQ),Auto-populated. For quick reference on drawings.
+Universal,ASS_TAG_3_TXT,"1,2,3",-,Location string (LOC-ZONE-LVL),Auto-populated. Spatial context only.
+Universal,ASS_TAG_4_TXT,"4,5",-,System string (SYS-FUNC),Auto-populated. System context only.
+Universal,ASS_TAG_5_TXT,"0,1,2,3,4,5,6,7",newline,Multi-line top (full tag line-broken),Auto-populated. For multi-line tag annotations.
+Universal,ASS_TAG_6_TXT,"0,1,2,3,4,5,6,7",newline,Multi-line bottom,Auto-populated.
+HVAC,HVC_EQP_TAG,"0,1,2,3,4,5,6,7",-,HVAC equipment tag,Auto-populated for Mechanical Equipment with SYS=HVAC.
+HVAC,HVC_DCT_TAG,"0,1,2,3,4,5,6,7",-,HVAC duct tag,Auto-populated for Ducts category.
+HVAC,HVC_FLX_TAG,"0,1,2,3,4,5,6,7",-,HVAC flex duct tag,Auto-populated for Flex Ducts category.
+Electrical,ELC_EQP_TAG,"0,1,2,3,4,5,6,7",-,Electrical equipment tag,Auto-populated for Electrical Equipment.
+Electrical,ELE_FIX_TAG,"0,1,2,3,4,5,6,7",-,Electrical fixture tag,Auto-populated for Electrical Fixtures.
+Electrical,LTG_FIX_TAG,"0,1,2,3,4,5,6,7",-,Lighting fixture tag,Auto-populated for Lighting Fixtures.
+Electrical,ELC_CDT_TAG,"0,1,2,3,4,5,6,7",-,Electrical conduit tag,Auto-populated for Conduits.
+Electrical,ELC_CTR_TAG,"0,1,2,3,4,5,6,7",-,Cable tray tag,Auto-populated for Cable Trays.
+Plumbing,PLM_EQP_TAG,"0,1,2,3,4,5,6,7",-,Plumbing equipment tag,Auto-populated for Plumbing Fixtures/Equipment.
+Fire/Safety,FLS_DEV_TAG,"0,1,2,3,4,5,6,7",-,Fire life safety device tag,Auto-populated for Fire Alarm Devices.
+Comms/LV,COM_DEV_TAG,"0,1,2,3,4,5,6,7",-,Communications device tag,Auto-populated for Communication Devices.
+Comms/LV,SEC_DEV_TAG,"0,1,2,3,4,5,6,7",-,Security device tag,Auto-populated for Security Devices.
+Comms/LV,NCL_DEV_TAG,"0,1,2,3,4,5,6,7",-,Nurse call device tag,Auto-populated for Nurse Call Devices.
+Comms/LV,ICT_DEV_TAG,"0,1,2,3,4,5,6,7",-,ICT device tag,Auto-populated for Data Devices.
+Material,MAT_TAG_1_TXT,"0,1,2,3,4,5,6,7",-,Material tag 1 (full),Auto-populated. Material-specific containers.
+Material,MAT_TAG_2_TXT,"0,6,7",-,Material tag 2 (short ID),Auto-populated.
+Material,MAT_TAG_3_TXT,"1,2,3",-,Material tag 3 (location),Auto-populated.
+Material,MAT_TAG_4_TXT,"4,5",-,Material tag 4 (system),Auto-populated.
+Material,MAT_TAG_5_TXT,"0,1,2,3,4,5,6,7",newline,Material tag 5 (multi-line),Auto-populated.
+Material,MAT_TAG_6_TXT,"0,1,2,3,4,5,6,7",newline,Material tag 6 (multi-line),Auto-populated.
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 9: TAG7 — Rich Descriptive Narrative Sections
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,TAG7_CONFIGURATION
+PARAMETER,SECTION,SECTION_NAME,CONTENT,STYLE_COLOR,STYLE_BOLD,STYLE_ITALIC,SEPARATOR,MANUAL_INPUT_GUIDE
+ASS_TAG_7_TXT,ALL,Full Narrative,"Complete narrative with markup tokens for all 6 sections",N/A,MIXED,MIXED," | ","Do NOT edit directly. Auto-assembled from sections A-F. Use Presentation Mode to control depth."
+ASS_TAG_7A_TXT,A,Identity Header,"Asset name | Product code | Manufacturer | Model number",#1565C0,YES,NO," | ","Auto-populated from family/type name and manufacturer parameter. Override for custom descriptions."
+ASS_TAG_7B_TXT,B,System & Function,"System type description | Function description | Sub-system context",#2E7D32,NO,YES," | ","Auto-populated from SYS/FUNC codes. Shows full descriptive names (e.g. 'Primary HVAC Supply')."
+ASS_TAG_7C_TXT,C,Spatial Context,"Room name/number | Department | Grid reference | Level description",#E65100,NO,NO," | ","Auto-populated from room/level data. Grid reference from nearest grid intersection."
+ASS_TAG_7D_TXT,D,Lifecycle & Status,"Status (NEW/EXISTING/DEMOLISHED/TEMPORARY) | Revision | Origin | Maintenance schedule",#C62828,NO,NO," | ","Status auto-detected from Revit phases. Revision from project info. Maintenance type manual input."
+ASS_TAG_7E_TXT,E,Technical Specs,"Discipline-specific performance data: capacity, flow, pressure, voltage, power",#6A1B9A,YES,NO," | ","Auto-populated from native Revit parameters (NativeParamMapper). Add manual specs for custom equipment."
+ASS_TAG_7F_TXT,F,Classification & Reference,"Uniformat code | OmniClass code | Keynote | Cost centre | ISO tag reference",#37474F,NO,YES," | ","Manual input for classification codes. OmniClass from family, Keynote from type."
+##
+## TAG7 PARAGRAPH DEPTH CONTROL
+SECTION,TAG7_PARAGRAPH_DEPTH
+PARAMETER,TYPE,DESCRIPTION,MANUAL_INPUT_GUIDE
+TAG_PARA_STATE_1_BOOL,YESNO,Compact mode — shows Identity Header (A) only,"Set to YES for minimal tag display. Suitable for small-scale drawings."
+TAG_PARA_STATE_2_BOOL,YESNO,Standard mode — shows Identity (A) + System (B),"Set to YES for standard engineering drawings."
+TAG_PARA_STATE_3_BOOL,YESNO,Comprehensive mode — shows all sections (A-F),"Set to YES for detailed documentation and asset registers."
+TAG_WARN_VISIBLE_BOOL,YESNO,Show/hide warning indicators in tags,"Set to YES to display ISO 19650 compliance warnings in tag annotations."
+TAG_WARN_SEVERITY_FILTER_TXT,TEXT,Warning severity filter,"Enter: CRITICAL, HIGH, MEDIUM, or ALL to control which warnings display."
+##
+## TAG7 PRESENTATION MODES
+SECTION,TAG7_PRESENTATION_MODES
+MODE,SECTIONS_SHOWN,PARAGRAPH_DEPTH,USE_CASE
+Compact,A only,State 1,"Quick identification on crowded drawings. Shows asset name and tag number only."
+Technical,A + B,State 2,"Standard engineering drawings. Shows identity and system context."
+Full Specification,A + B + C + D + E + F,State 3,"Detailed documentation. Complete asset profile with all technical data."
+Presentation,A + C,State 1,"Client presentations. Identity + location context, no technical detail."
+BOQ,A + E + F,State 2,"Bill of Quantities extraction. Identity + specs + cost classification."
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 10: VISIBILITY PARAMETERS — TAG7 Section Visibility Control
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,VISIBILITY_PARAMETERS
+PARAMETER,TYPE,DESCRIPTION,STATUS,MANUAL_INPUT_GUIDE
+TAG_PARA_STATE_1_BOOL,YESNO,Paragraph depth: compact (State 1 only),EXISTING,"Set via Presentation Mode command or manually. YES=enabled."
+TAG_PARA_STATE_2_BOOL,YESNO,Paragraph depth: standard (States 1+2),EXISTING,"Set via Presentation Mode command or manually."
+TAG_PARA_STATE_3_BOOL,YESNO,Paragraph depth: comprehensive (States 1+2+3),EXISTING,"Set via Presentation Mode command or manually."
+TAG_WARN_VISIBLE_BOOL,YESNO,Enable/disable warning text in tags,EXISTING,"YES to show ISO compliance warnings in tag annotations."
+TAG_WARN_SEVERITY_FILTER_TXT,TEXT,Warning filter: CRITICAL/HIGH/MEDIUM/ALL,EXISTING,"Filter warning display by severity level."
+TAG_7_SECTION_VISIBLE_A_BOOL,YESNO,Show/hide TAG7 Section A (Identity Header),PROPOSED,"Independent control for Identity section visibility. Add to MR_PARAMETERS.txt."
+TAG_7_SECTION_VISIBLE_B_BOOL,YESNO,Show/hide TAG7 Section B (System & Function),PROPOSED,"Independent control for System section visibility."
+TAG_7_SECTION_VISIBLE_C_BOOL,YESNO,Show/hide TAG7 Section C (Spatial Context),PROPOSED,"Independent control for Spatial section visibility."
+TAG_7_SECTION_VISIBLE_D_BOOL,YESNO,Show/hide TAG7 Section D (Lifecycle & Status),PROPOSED,"Independent control for Lifecycle section visibility."
+TAG_7_SECTION_VISIBLE_E_BOOL,YESNO,Show/hide TAG7 Section E (Technical Specs),PROPOSED,"Independent control for Technical section visibility."
+TAG_7_SECTION_VISIBLE_F_BOOL,YESNO,Show/hide TAG7 Section F (Classification),PROPOSED,"Independent control for Classification section visibility."
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 11: MANUAL INPUT PARAMETERS — All User-Editable Fields
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,MANUAL_INPUT_PARAMETERS
+PARAMETER,TYPE,GROUP,REQUIRED,DEFAULT,DESCRIPTION,WHERE_TO_ENTER,WHEN_TO_ENTER
+ASS_DISCIPLINE_COD_TXT,TEXT,Source Tokens,YES,Auto,"Discipline code (M/E/P/A/S/FP/LV/G)","Element properties panel or Set Discipline command","Before tagging. Override auto-detected value if needed."
+ASS_LOC_TXT,TEXT,Source Tokens,YES,Auto,"Location/building code","Element properties or Set Location command or Project Information","Before tagging. Set Project Information for project-wide default."
+ASS_ZONE_TXT,TEXT,Source Tokens,YES,Auto,"Zone code (Z01-Z04/ZZ/XX)","Element properties or Set Zone command or Room Department field","Before tagging. Set Room Department for auto-detection."
+ASS_LVL_COD_TXT,TEXT,Source Tokens,NO,Auto,"Level code — usually auto-derived from Revit level","Rarely needs manual input. Override only for special cases.","Only if level detection fails."
+ASS_SYSTEM_TYPE_TXT,TEXT,Source Tokens,YES,Auto,"System type code (CIBSE/Uniclass)","Element properties or auto-detected from MEP system","Override only if MEP system naming doesn't match STING conventions."
+ASS_FUNC_TXT,TEXT,Source Tokens,NO,Auto,"Function code — sub-system function","Element properties","Override only for non-standard sub-system functions."
+ASS_PRODCT_COD_TXT,TEXT,Source Tokens,YES,Auto,"Product code (2-4 chars)","Element properties","Override if family name doesn't map to correct PROD code."
+ASS_SEQ_NUM_TXT,TEXT,Source Tokens,NO,Auto,"Sequence number (4-digit zero-padded)","Auto-assigned. Do NOT manually set unless resolving specific collisions.","Never — always auto-assigned."
+ASS_STATUS_TXT,TEXT,Lifecycle,YES,NEW,"Element status: NEW/EXISTING/DEMOLISHED/TEMPORARY","Element properties or Set Status command","Before documentation. Auto-detected from Revit phase."
+ASS_REV_TXT,TEXT,Lifecycle,NO,P01,"Revision code (e.g. P01/P02/C01)","Element properties or auto-detected from Project Revisions","Set project-wide in Project Information."
+ASS_DESCRIPTION_TXT,TEXT,Identity,NO,Auto,"Element description for BOQ/schedules","Element properties panel","Enter meaningful descriptions for BOQ export. Auto-generated from family/type if empty."
+ASS_MANUFACTURER_TXT,TEXT,Identity,NO,""," Manufacturer name","Element properties panel","Enter for TAG7A section content and procurement schedules."
+ASS_MODEL_TXT,TEXT,Identity,NO,"","Model number/reference","Element properties panel","Enter for TAG7A section content and O&M documentation."
+ASS_CST_UNIT_PRICE_UGX_NR,NUMBER,Cost,NO,0,"Unit price in Ugandan Shillings (UGX)","Element properties panel","Enter for BOQ export. Required for accurate cost estimation."
+ASS_CST_QUANTITY_NR,NUMBER,Cost,NO,MEASURED,"Quantity override (overrides measured geometry)","Element properties panel","Enter only if measured quantity is incorrect."
+ASS_CST_TOTAL_UGX_NR,NUMBER,Cost,NO,CALCULATED,"Total cost override (overrides Unit Price × Quantity)","Element properties panel","Enter only for lump-sum items."
+ASS_PMT_INV_UNIT_TXT,TEXT,Cost,NO,Auto,"Measurement unit (NO/LM/SM/CM)","Element properties panel","Override auto-detected unit if needed. See UNIT MAPPING section."
+ASS_MNT_TYPE_TXT,TEXT,Maintenance,NO,"","Maintenance type/schedule","Element properties panel","Enter for TAG7D section. E.g. 'Quarterly service' or 'Annual inspection'."
+ASS_FIRE_RATING_TXT,TEXT,Fire,NO,"","Fire rating classification","Element properties panel","Enter for fire-rated elements. E.g. 'FRL 120/120/120' or '2HR'."
+ASS_KEYNOTE_TXT,TEXT,Classification,NO,"","Keynote reference","Element properties panel","Enter for TAG7F section and specification cross-reference."
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 12: TAGGING WORKFLOW — Step-by-Step Guide
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,TAGGING_WORKFLOW
+STEP,COMMAND,PANEL_TAB,DESCRIPTION,PREREQUISITE,MANUAL_INPUT_REQUIRED
+1,Load Shared Parameters,TEMP > Setup,Bind 200+ shared parameters to 53 categories (2-pass: universal + discipline-specific),None,"None — fully automatic. Run once per project."
+2,Project Setup Wizard,TEMP > Setup,7-page guided project configuration (info/levels/grids/disciplines/materials),Parameters loaded,"Project name, building code, disciplines, levels, grid spacing, material selections."
+3,Set Project Information,Manual Revit,Set Project Address/Name/Number for spatial auto-detection,None,"Enter Project Address (affects LOC detection), Project Name."
+4,Set Room Departments,Manual Revit,Assign Department field to rooms for zone auto-detection,Rooms placed,"Set Department to 'Zone 1'/'Zone 2' etc. or specific department names."
+5,Family-Stage Populate,CREATE > Tag Ops,Pre-populate all 7 tokens from category/spatial/family data,Steps 1-4,"None — uses auto-detection. Review results and override incorrect values."
+6,Pre-Tag Audit,CREATE > QA,Dry-run: predict tag assignments and identify issues before committing,Step 5,"Review audit report. Fix any highlighted issues before proceeding."
+7,Auto Tag or Batch Tag,CREATE > Tag Ops,Assign SEQ numbers and assemble 8-segment tags with collision detection,Step 5 (or 6),"Choose collision mode: Skip (default) / Overwrite / AutoIncrement."
+8,Validate Tags,CREATE > QA,ISO 19650 compliance check on all tokens and tag format,Step 7,"Review validation results. Fix any non-compliant tokens."
+9,Combine Parameters,CREATE > Tag Ops,Write tag to all 36 discipline-specific containers,Step 7,"None — automatic. Or use 'Tag & Combine' for steps 5-9 in one click."
+10,Legend Creation,DOCS > Legend,Create discipline/system/tag legends for drawing sheets,Step 9,"Select legend type and target sheet."
+##
+## ONE-CLICK ALTERNATIVES:
+## - Tag & Combine (Steps 5+7+9 in one click)
+## - Full Auto-Populate (Steps 5+7+9 + dimensions + formulas in one click)
+## - Master Setup (Steps 1+2 + materials + families + schedules + templates)
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 13: COMBINE PARAMETERS — Container Assembly (Replaces Naviate Formulae)
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,COMBINE_PARAMETERS
+NOTE,All tag container assembly is handled by STING CombineParameters command
+NOTE,No external tools (Naviate/Dynamo/pyRevit) required
+NOTE,ParamRegistry.WriteContainers() is the single source of truth for container assembly
+NOTE,Container definitions loaded from PARAMETER_REGISTRY.json at runtime
+OPERATION,SOURCE,DESTINATION,METHOD,DESCRIPTION
+Assemble Full Tag,8 source tokens,ASS_TAG_1,ParamRegistry.AssembleContainer(),Joins tokens with separator (dash)
+Assemble Short ID,"DISC, PROD, SEQ",ASS_TAG_2,ParamRegistry.AssembleContainer(),3-segment short identifier
+Assemble Location,"LOC, ZONE, LVL",ASS_TAG_3,ParamRegistry.AssembleContainer(),Spatial context only
+Assemble System,"SYS, FUNC",ASS_TAG_4,ParamRegistry.AssembleContainer(),System context only
+Multi-line Top,All 8 tokens,ASS_TAG_5,ParamRegistry.AssembleContainer(),Line-break separated
+Multi-line Bottom,All 8 tokens,ASS_TAG_6,ParamRegistry.AssembleContainer(),Line-break separated
+Discipline Containers,All 8 tokens,HVC_EQP_TAG etc.,ParamRegistry.WriteContainers(),Category-matched discipline containers
+TAG7 Narrative,Element data,ASS_TAG_7,TagConfig.WriteTag7All(),Rich descriptive narrative with markup
+TAG7 Sections,Element data,ASS_TAG_7A-F,TagConfig.WriteTag7All(),Individual section narratives
