@@ -120,8 +120,8 @@ STINGTOOLS/
     └── Data/                           # Runtime data files (20 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
-        ├── MR_PARAMETERS.txt           # Shared parameter file (200+ params)
-        ├── MR_PARAMETERS.csv           # Parameter definitions
+        ├── MR_PARAMETERS.txt           # Shared parameter file (1,077 params)
+        ├── MR_PARAMETERS.csv           # 1,031 parameter definitions
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
         ├── FORMULAS_WITH_DEPENDENCIES.csv  # 284 parameter formulas
@@ -651,7 +651,7 @@ Additionally, 39 **paragraph container parameters** exist for category-specific 
 
 The recommended tagging workflow is a multi-layered pipeline:
 
-1. **Load Parameters** (`LoadSharedParamsCommand`) — Bind 200+ shared parameters to 53 categories (2-pass: universal + discipline-specific)
+1. **Load Parameters** (`LoadSharedParamsCommand`) — Bind 1,077 shared parameters to 53 categories (2-pass: universal + discipline-specific)
 2. **Family-Stage Populate** (`FamilyStagePopulateCommand`) — Pre-populate all 7 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD) from category, spatial, and family data
 3. **Pre-Tag Audit** (`PreTagAuditCommand`) — Dry-run: predict tag assignments, collisions, ISO violations before committing
 4. **Tag** (`AutoTagCommand` / `BatchTagCommand` / `TagAndCombineCommand`) — Assign SEQ numbers and assemble final 8-segment tags with collision handling
