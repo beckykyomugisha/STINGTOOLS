@@ -6432,6 +6432,21 @@ namespace StingTools.Tags
     internal static class VGLinkedLegendBuilder
     {
         /// <summary>
+        /// Safely read SurfaceTransparency via reflection (property may not exist in all Revit API versions).
+        /// Returns 0 if the property is unavailable.
+        /// </summary>
+        private static int GetSurfaceTransparency(OverrideGraphicSettings ogs)
+        {
+            try
+            {
+                var prop = typeof(OverrideGraphicSettings).GetProperty("SurfaceTransparency");
+                if (prop != null) return (int)prop.GetValue(ogs);
+            }
+            catch { /* Property unavailable in this Revit version */ }
+            return 0;
+        }
+
+        /// <summary>
         /// Extract override info as a human-readable description.
         /// Shows line color, fill color, transparency, halftone, line weight.
         /// </summary>
@@ -6451,8 +6466,9 @@ namespace StingTools.Tags
                 Color c = ogs.SurfaceForegroundPatternColor;
                 parts.Add($"Fill: RGB({c.Red},{c.Green},{c.Blue})");
             }
-            if (ogs.SurfaceTransparency > 0)
-                parts.Add($"Trans: {ogs.SurfaceTransparency}%");
+            int transparency = GetSurfaceTransparency(ogs);
+            if (transparency > 0)
+                parts.Add($"Trans: {transparency}%");
             if (ogs.Halftone)
                 parts.Add("Halftone");
 
@@ -6480,7 +6496,7 @@ namespace StingTools.Tags
             return ogs.ProjectionLineColor.IsValid
                 || ogs.SurfaceForegroundPatternColor.IsValid
                 || ogs.ProjectionLineWeight > 0
-                || ogs.SurfaceTransparency > 0
+                || GetSurfaceTransparency(ogs) > 0
                 || ogs.Halftone;
         }
 
@@ -6544,7 +6560,7 @@ namespace StingTools.Tags
                     Color = displayColor,
                     Label = label,
                     Description = desc,
-                    Bold = ogs.Halftone || ogs.SurfaceTransparency >= 40,
+                    Bold = ogs.Halftone || GetSurfaceTransparency(ogs) >= 40,
                     Italic = ogs.Halftone,
                 });
             }

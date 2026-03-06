@@ -749,37 +749,71 @@ namespace StingTools.Tags
         {
             var presets = TagConfig.BuiltInPresets;
 
-            // Build selection dialog
-            var dlg = new TaskDialog("TAG7 Display Presets");
-            dlg.MainInstruction = "Select a TAG7 display preset";
-            dlg.MainContent = "Presets control how TAG7 sections are color-coded\n" +
-                "in Rich Notes, HTML reports, and the WPF panel.\n\n" +
-                "Active: " + (TagConfig.ActivePreset?.Name ?? "None (default section colors)");
-
-            // Add command links for each preset
-            var linkMap = new Dictionary<TaskDialogResult, string>();
-            var links = new[]
+            // TaskDialog supports max 4 command links — show presets in pages
+            // Page 1: first 3 presets + "More..." link; Page 2+: next 4 presets
+            var linkResults = new[]
             {
                 TaskDialogResult.CommandLink1, TaskDialogResult.CommandLink2,
                 TaskDialogResult.CommandLink3, TaskDialogResult.CommandLink4,
-                TaskDialogResult.CommandLink5, TaskDialogResult.CommandLink6,
-                TaskDialogResult.CommandLink7,
             };
 
-            for (int i = 0; i < presets.Length && i < links.Length; i++)
+            string selectedName = null;
+            int pageStart = 0;
+            const string moreToken = "__MORE__";
+
+            while (selectedName == null)
             {
-                string active = TagConfig.ActivePreset?.Name == presets[i].Name ? " [ACTIVE]" : "";
-                dlg.AddCommandLink(links[i], $"{presets[i].Name}{active}", presets[i].Description);
-                linkMap[links[i]] = presets[i].Name;
+                if (pageStart >= presets.Length) break;
+
+                int remaining = presets.Length - pageStart;
+                bool needMore = remaining > 4;
+                int slotsForPresets = needMore ? 3 : Math.Min(4, remaining);
+
+                var pageDlg = new TaskDialog("TAG7 Display Presets");
+                pageDlg.MainInstruction = "Select a TAG7 display preset";
+                pageDlg.MainContent = "Presets control how TAG7 sections are color-coded\n" +
+                    "in Rich Notes, HTML reports, and the WPF panel.\n\n" +
+                    "Active: " + (TagConfig.ActivePreset?.Name ?? "None (default section colors)") +
+                    (pageStart > 0 ? $"\n\n(Page {pageStart / 3 + 1})" : "");
+
+                var linkMap = new Dictionary<TaskDialogResult, string>();
+                for (int i = 0; i < slotsForPresets; i++)
+                {
+                    int presetIdx = pageStart + i;
+                    string active = TagConfig.ActivePreset?.Name == presets[presetIdx].Name ? " [ACTIVE]" : "";
+                    pageDlg.AddCommandLink(linkResults[i], $"{presets[presetIdx].Name}{active}", presets[presetIdx].Description);
+                    linkMap[linkResults[i]] = presets[presetIdx].Name;
+                }
+
+                if (needMore)
+                {
+                    pageDlg.AddCommandLink(linkResults[slotsForPresets], "More presets...",
+                        $"{remaining - slotsForPresets} more presets available");
+                    linkMap[linkResults[slotsForPresets]] = moreToken;
+                }
+
+                pageDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                pageDlg.FooterText = "Presets affect Rich Tag Notes, HTML Report export, and TAG7 Sections viewer.";
+
+                var result = pageDlg.Show();
+                if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+
+                if (linkMap.TryGetValue(result, out string name))
+                {
+                    if (name == moreToken)
+                    {
+                        pageStart += slotsForPresets;
+                        continue;
+                    }
+                    selectedName = name;
+                }
+                else
+                    break;
             }
 
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            dlg.FooterText = "Presets affect Rich Tag Notes, HTML Report export, and TAG7 Sections viewer.";
+            if (selectedName == null) return Result.Cancelled;
 
-            var result = dlg.Show();
-            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
-
-            if (linkMap.TryGetValue(result, out string selectedName))
+            if (selectedName != null)
             {
                 // Toggle: if already active, deactivate
                 if (TagConfig.ActivePreset?.Name == selectedName)

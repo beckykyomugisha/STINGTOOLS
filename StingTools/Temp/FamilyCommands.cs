@@ -445,28 +445,28 @@ namespace StingTools.Temp
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
-                        .FirstOrDefault();
+                        .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 case ElementKind.Pipe:
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
-                        .FirstOrDefault();
+                        .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 case ElementKind.CableTray:
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType))
-                        .FirstOrDefault();
+                        .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 case ElementKind.Conduit:
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType))
-                        .FirstOrDefault();
+                        .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 default:

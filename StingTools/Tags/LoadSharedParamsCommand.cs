@@ -49,6 +49,7 @@ namespace StingTools.Tags
             int pass1Skipped = 0;
             int pass2Bound = 0;
             int pass2Skipped = 0;
+            int csvExtras = 0;
             var errors = new List<string>();
 
             using (Transaction tx = new Transaction(doc, "STING Load Shared Params"))
@@ -96,7 +97,6 @@ namespace StingTools.Tags
 
                 // GAP-003: Load CSV-driven category bindings to supplement hardcoded DisciplineBindings
                 var csvBindings = Temp.TemplateManager.LoadCategoryBindings();
-                int csvExtras = 0;
 
                 // Pass 2: Discipline-specific parameters → correct category subsets
                 // Merge hardcoded DisciplineBindings with any extra categories from CSV
