@@ -111,7 +111,7 @@ STINGTOOLS/
     │   ├── FamilyCommands.cs           # Wall/Floor/Ceiling/Roof/Duct/Pipe types + CompoundTypeCreator
     │   ├── ScheduleCommands.cs         # FullAutoPopulate, BatchSchedules, AutoPopulate, ExportCSV + ScheduleHelper
     │   ├── ScheduleEnhancementCommands.cs # 9 schedule mgmt: Audit, Compare, Duplicate, Refresh, FieldMgr, Color, Stats, Delete, Report
-    │   ├── FormulaEvaluatorCommand.cs  # Formula engine (199 formulas) + FormulaEngine + ExpressionParser
+    │   ├── FormulaEvaluatorCommand.cs  # Formula engine (284 formulas) + FormulaEngine + ExpressionParser
     │   ├── TemplateCommands.cs         # Filters, worksets, view templates (23 template defs + VG configuration)
     │   ├── TemplateExtCommands.cs      # Line patterns, phases, apply filters, cable trays, conduits, material schedules
     │   ├── TemplateManagerCommands.cs  # 17 template intelligence commands + TemplateManager engine (~3,415 lines)
@@ -124,12 +124,12 @@ STINGTOOLS/
         ├── MR_PARAMETERS.csv           # Parameter definitions
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
-        ├── FORMULAS_WITH_DEPENDENCIES.csv  # 199 parameter formulas
+        ├── FORMULAS_WITH_DEPENDENCIES.csv  # 284 parameter formulas
         ├── SCHEDULE_FIELD_REMAP.csv    # 50 field deprecation remaps
         ├── BINDING_COVERAGE_MATRIX.csv # Parameter-category coverage
         ├── BOQ_TEMPLATE.csv            # Bill of Quantities template structure
-        ├── CATEGORY_BINDINGS.csv       # 10,661 category bindings
-        ├── FAMILY_PARAMETER_BINDINGS.csv   # 4,686 family bindings
+        ├── CATEGORY_BINDINGS.csv       # 12,774 category bindings
+        ├── FAMILY_PARAMETER_BINDINGS.csv   # 4,741 family bindings
         ├── PARAMETER__CATEGORIES.csv   # Parameter-category cross-reference
         ├── PARAMETER_REGISTRY.json     # Master parameter registry (v4.3) — single source of truth for ParamRegistry.cs
         ├── LABEL_DEFINITIONS.json      # 3,623-line label/legend definition specs for all tag containers and display styles
@@ -473,7 +473,7 @@ STINGTOOLS/
 - `AllCategoryEnums` — cached lazy property delegating to `ParamRegistry`
 - `DisciplineBindings` — cached lazy property for Pass 2 discipline-specific bindings
 - `BuildCategorySet(doc, enums)` — type-safe category set builder
-- `ValidateBindingsFromCsv()` — compares CATEGORY_BINDINGS.csv against registry bindings (10,661 entries)
+- `ValidateBindingsFromCsv()` — compares CATEGORY_BINDINGS.csv against registry bindings (12,774 entries)
 - `InvalidateCache()` — called by `ParamRegistry.Reload()` to clear cached properties
 
 ### `ComplianceScan` (static) — `Core/ComplianceScan.cs` (144 lines)
@@ -850,7 +850,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | **Hardcoded category bindings** | `SharedParamGuids.cs:109-261` | 53 categories + discipline bindings hardcoded; adding a category requires code rebuild (BINDING_COVERAGE_MATRIX.csv exists but unused) | Medium |
 | ~~**No error recovery**~~ | `MasterSetupCommand.cs` | **DONE** — Wrapped in `TransactionGroup` for atomic rollback. If critical step 1 (Load Params) fails, user can rollback immediately. Per-step timing reported. | Done |
 | **Fixed tag format** | `TagConfig.cs:16-18` | `NumPad=4`, `Separator="-"` hardcoded — can't change segment count, order, or separator | Medium |
-| **Partially unused data files** | `Data/` directory | Most files now loaded. MATERIAL_SCHEMA.json used by `SchemaValidateCommand`. BINDING_COVERAGE_MATRIX.csv used by `DynamicBindingsCommand`. VALIDAT_BIM_TEMPLATE.py ported to C# (`ValidateTemplateCommand`). Remaining unused: CATEGORY_BINDINGS.csv (10,661 entries), FAMILY_PARAMETER_BINDINGS.csv (4,686 entries) | Low |
+| **Partially unused data files** | `Data/` directory | Most files now loaded. MATERIAL_SCHEMA.json used by `SchemaValidateCommand`. BINDING_COVERAGE_MATRIX.csv used by `DynamicBindingsCommand`. VALIDAT_BIM_TEMPLATE.py ported to C# (`ValidateTemplateCommand`). Remaining unused: CATEGORY_BINDINGS.csv (12,774 entries), FAMILY_PARAMETER_BINDINGS.csv (4,741 entries) | Low |
 
 #### B. Enhancement Opportunities
 
@@ -866,7 +866,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | ~~**No template automation**~~ | **DONE** — `TemplateManagerCommands.cs` with 17 commands and `TemplateManager` intelligence engine: 5-layer auto-assignment, compliance scoring, VG diff, style definitions. `ViewTemplatesCommand` expanded to 23 template definitions with VG configuration. | Done |
 | ~~**No dockable panel UI**~~ | **DONE** — WPF dockable panel (`UI/` directory, 6 files) with 6-tab interface (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW), `IExternalEventHandler` dispatch for thread safety, ~413 buttons, colour swatches, bulk parameter controls. | Done |
 | ~~Cross-parameter validation~~ | **DONE** — `ISO19650Validator` validates all tokens, cross-validates DISC/SYS against category, validates tag format. `FixDuplicateTagsCommand` auto-resolves duplicates. | Done |
-| ~~Formula evaluation engine~~ | **DONE** — `FormulaEvaluatorCommand` + `FormulaEngine` reads 199 formulas from CSV, evaluates in dependency order (levels 0-6), supports arithmetic, conditionals, string concat, and Revit geometry inputs. | Done |
+| ~~Formula evaluation engine~~ | **DONE** — `FormulaEvaluatorCommand` + `FormulaEngine` reads 284 formulas from CSV, evaluates in dependency order (levels 0-6), supports arithmetic, conditionals, string concat, and Revit geometry inputs. | Done |
 | ~~Family-stage pre-population~~ | **DONE** — `FamilyStagePopulateCommand` pre-populates all 7 tokens before tagging (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD). | Done |
 | ~~Leader management commands~~ | **DONE** — 14 leader management commands: Toggle/Add/Remove Leaders, Align Tags, Reset Positions, Toggle Orientation, Snap Elbows, Auto-Align Leader Text, Flip Tags, Align Text, Pin/Unpin, Nudge, Attach/Free, Select by Leader. | Done |
 | ~~Tag register export~~ | **DONE** — `TagRegisterExportCommand` exports comprehensive 40+ column asset register (tags, identity, spatial, MEP, cost, validation) to CSV. | Done |
@@ -1063,8 +1063,8 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 |------|------|----------------|----------------|
 | ~~`MATERIAL_SCHEMA.json`~~ | 77 cols | **DONE** — loaded by `SchemaValidateCommand` | Validates BLE/MEP CSV columns match schema |
 | ~~`BINDING_COVERAGE_MATRIX.csv`~~ | Large | **DONE** — loaded by `DynamicBindingsCommand` | Replaces hardcoded category bindings |
-| `CATEGORY_BINDINGS.csv` | 10,661 | **Not yet loaded** | Replace hardcoded `DisciplineBindings` — data-driven parameter binding |
-| `FAMILY_PARAMETER_BINDINGS.csv` | 4,686 | **Not yet loaded** | Family-level parameter validation and auto-binding |
+| `CATEGORY_BINDINGS.csv` | 12,774 | **Not yet loaded** | Replace hardcoded `DisciplineBindings` — data-driven parameter binding |
+| `FAMILY_PARAMETER_BINDINGS.csv` | 4,741 | **Not yet loaded** | Family-level parameter validation and auto-binding |
 | ~~`VALIDAT_BIM_TEMPLATE.py`~~ | 45 checks | **DONE** — ported to C# `ValidateTemplateCommand` | 45 validation checks now in `DataPipelineCommands.cs` |
 
 ---
@@ -1126,8 +1126,8 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 #### Next Priorities
 
 41. **Configurable tag format** — Separator, padding, segments via project_config.json
-42. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (10,661 entries) to replace hardcoded `DisciplineBindings`
-43. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,686 entries) for family-level validation
+42. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (12,774 entries) to replace hardcoded `DisciplineBindings`
+43. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,741 entries) for family-level validation
 
 ### External Tool References
 
