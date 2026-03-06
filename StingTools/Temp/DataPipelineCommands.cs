@@ -2883,6 +2883,585 @@ namespace StingTools.Temp
     }
 
     // ════════════════════════════════════════════════════════════════════════════
+    //  COBie EXPORT (BS 1192-4 / ISO 19650 handover format)
+    //  Exports asset data in COBie-compliant spreadsheet format using ClosedXML.
+    //  Maps STING parameters to COBie worksheets (Facility, Floor, Space,
+    //  Type, Component, System, Zone, Attribute).
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Exports project data in COBie (Construction Operations Building
+    /// Information Exchange) spreadsheet format for FM handover.
+    /// Creates an Excel workbook with standard COBie worksheets.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class COBieExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var doc = commandData.Application.ActiveUIDocument.Document;
+
+            string outputDir = !string.IsNullOrEmpty(doc.PathName)
+                ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()
+                : Path.GetTempPath();
+            string outputPath = Path.Combine(outputDir,
+                $"STING_COBie_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+
+            try
+            {
+                using (var wb = new XLWorkbook())
+                {
+                    // ── Facility sheet ──
+                    var wsFacility = wb.AddWorksheet("Facility");
+                    COBieHelper.WriteHeaders(wsFacility,
+                        "Name", "ProjectName", "SiteName", "LinearUnits",
+                        "AreaUnits", "VolumeUnits", "CurrencyUnit", "AreaMeasurement",
+                        "Description", "ProjectDescription", "SiteDescription", "Phase");
+                    var pi = doc.ProjectInformation;
+                    string projName = pi?.Name ?? "Unnamed";
+                    string projNumber = pi?.Number ?? "";
+                    string buildingName = pi?.BuildingName ?? "";
+                    COBieHelper.WriteRow(wsFacility, 2,
+                        buildingName, projName, projName, "meters",
+                        "square meters", "cubic meters", "GBP", "NRM",
+                        $"STING exported {DateTime.Now:yyyy-MM-dd}", projNumber, "", "New Construction");
+
+                    // ── Floor sheet ──
+                    var wsFloor = wb.AddWorksheet("Floor");
+                    COBieHelper.WriteHeaders(wsFloor,
+                        "Name", "Category", "Elevation", "Height", "Description");
+
+                    var levels = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Level))
+                        .Cast<Level>()
+                        .OrderBy(l => l.Elevation)
+                        .ToList();
+
+                    int floorRow = 2;
+                    foreach (var level in levels)
+                    {
+                        double elevM = level.Elevation * 0.3048;
+                        COBieHelper.WriteRow(wsFloor, floorRow++,
+                            level.Name, "Floor", $"{elevM:F2}", "", level.Name);
+                    }
+
+                    // ── Space sheet (rooms) ──
+                    var wsSpace = wb.AddWorksheet("Space");
+                    COBieHelper.WriteHeaders(wsSpace,
+                        "Name", "FloorName", "Description", "Category",
+                        "RoomTag", "UsableHeight", "GrossArea", "NetArea");
+
+                    var rooms = new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_Rooms)
+                        .WhereElementIsNotElementType()
+                        .Cast<Autodesk.Revit.DB.Architecture.Room>()
+                        .Where(r => r.Location != null && r.Area > 0)
+                        .OrderBy(r => r.Level?.Name ?? "")
+                        .ThenBy(r => r.Number ?? "")
+                        .ToList();
+
+                    int spaceRow = 2;
+                    foreach (var room in rooms)
+                    {
+                        double areaSqM = room.Area * 0.092903;
+                        string roomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? room.Number;
+                        string dept = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "";
+                        COBieHelper.WriteRow(wsSpace, spaceRow++,
+                            roomName, room.Level?.Name ?? "", dept, "Room",
+                            room.Number ?? "", "", $"{areaSqM:F2}", $"{areaSqM:F2}");
+                    }
+
+                    // ── Type sheet (family types) ──
+                    var wsType = wb.AddWorksheet("Type");
+                    COBieHelper.WriteHeaders(wsType,
+                        "Name", "Category", "Description", "Manufacturer",
+                        "ModelNumber", "AssetType", "NominalLength", "NominalWidth", "NominalHeight");
+
+                    var taggableCategories = SharedParamGuids.AllCategoryEnums;
+                    var typeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    int typeRow = 2;
+
+                    foreach (var bic in taggableCategories)
+                    {
+                        try
+                        {
+                            var types = new FilteredElementCollector(doc)
+                                .OfCategory(bic)
+                                .WhereElementIsElementType()
+                                .ToList();
+
+                            foreach (var type in types)
+                            {
+                                string typeName = type.Name;
+                                if (typeNames.Contains(typeName)) continue;
+                                typeNames.Add(typeName);
+
+                                string catName = type.Category?.Name ?? "";
+                                string desc = ParameterHelpers.GetString(type, "ASS_DESCRIPTION_TXT");
+                                string mfg = ParameterHelpers.GetString(type, "ASS_MANUFACTURER_TXT");
+                                string model = ParameterHelpers.GetString(type, "ASS_MODEL_TXT");
+
+                                COBieHelper.WriteRow(wsType, typeRow++,
+                                    typeName, catName, desc, mfg, model, "Fixed", "", "", "");
+
+                                if (typeRow > 5000) break; // Safety limit
+                            }
+                        }
+                        catch { }
+                        if (typeRow > 5000) break;
+                    }
+
+                    // ── Component sheet (instances) ──
+                    var wsComponent = wb.AddWorksheet("Component");
+                    COBieHelper.WriteHeaders(wsComponent,
+                        "Name", "TypeName", "Space", "FloorName",
+                        "Description", "SerialNumber", "AssetIdentifier",
+                        "STING_Tag", "BarCode");
+
+                    int compRow = 2;
+                    foreach (var bic in taggableCategories)
+                    {
+                        try
+                        {
+                            var instances = new FilteredElementCollector(doc)
+                                .OfCategory(bic)
+                                .WhereElementIsNotElementType()
+                                .ToList();
+
+                            foreach (var el in instances)
+                            {
+                                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                string typeName = "";
+                                if (el is FamilyInstance fi && fi.Symbol != null)
+                                    typeName = fi.Symbol.Name;
+                                else
+                                    typeName = el.Name;
+
+                                string mark = el.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "";
+                                string desc = ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT");
+                                string levelName = "";
+                                try { levelName = (doc.GetElement(el.LevelId) as Level)?.Name ?? ""; }
+                                catch { }
+
+                                string roomName = "";
+                                try
+                                {
+                                    var room = ParameterHelpers.GetRoomAtElement(doc, el);
+                                    if (room != null) roomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
+                                }
+                                catch { }
+
+                                COBieHelper.WriteRow(wsComponent, compRow++,
+                                    $"{typeName}-{mark}", typeName, roomName, levelName,
+                                    desc, "", tag, tag, "");
+
+                                if (compRow > 10000) break;
+                            }
+                        }
+                        catch { }
+                        if (compRow > 10000) break;
+                    }
+
+                    // ── System sheet ──
+                    var wsSystem = wb.AddWorksheet("System");
+                    COBieHelper.WriteHeaders(wsSystem,
+                        "Name", "Category", "ComponentNames", "Description");
+
+                    var sysCodes = new HashSet<string>();
+                    foreach (var bic in taggableCategories)
+                    {
+                        try
+                        {
+                            foreach (var el in new FilteredElementCollector(doc).OfCategory(bic).WhereElementIsNotElementType())
+                            {
+                                string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                                if (!string.IsNullOrEmpty(sys)) sysCodes.Add(sys);
+                            }
+                        }
+                        catch { }
+                    }
+                    int sysRow = 2;
+                    foreach (string sys in sysCodes.OrderBy(s => s))
+                    {
+                        COBieHelper.WriteRow(wsSystem, sysRow++, sys, "System", "", $"{sys} System");
+                    }
+
+                    // ── Zone sheet ──
+                    var wsZone = wb.AddWorksheet("Zone");
+                    COBieHelper.WriteHeaders(wsZone,
+                        "Name", "Category", "SpaceNames", "Description");
+
+                    var zoneCodes = rooms
+                        .Select(r => ParameterHelpers.GetString(r, ParamRegistry.ZONE))
+                        .Where(z => !string.IsNullOrEmpty(z))
+                        .Distinct()
+                        .OrderBy(z => z);
+                    int zoneRow = 2;
+                    foreach (string zone in zoneCodes)
+                    {
+                        var zoneRooms = rooms.Where(r => ParameterHelpers.GetString(r, ParamRegistry.ZONE) == zone)
+                            .Select(r => r.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "")
+                            .Take(20);
+                        COBieHelper.WriteRow(wsZone, zoneRow++,
+                            zone, "Zone", string.Join(", ", zoneRooms), $"Zone {zone}");
+                    }
+
+                    wb.SaveAs(outputPath);
+                }
+
+                TaskDialog.Show("COBie Export",
+                    $"COBie export complete.\n\n" +
+                    $"File: {outputPath}\n\n" +
+                    "Worksheets:\n" +
+                    "  Facility, Floor, Space, Type, Component, System, Zone");
+
+                StingLog.Info($"COBie export: {outputPath}");
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("COBie Export", $"Export failed: {ex.Message}");
+                StingLog.Error("COBie export failed", ex);
+                return Result.Failed;
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    internal static class COBieHelper
+    {
+        public static void WriteHeaders(IXLWorksheet ws, params string[] headers)
+        {
+            for (int i = 0; i < headers.Length; i++)
+            {
+                ws.Cell(1, i + 1).Value = headers[i];
+                ws.Cell(1, i + 1).Style.Font.Bold = true;
+            }
+        }
+
+        public static void WriteRow(IXLWorksheet ws, int row, params string[] values)
+        {
+            for (int i = 0; i < values.Length; i++)
+                ws.Cell(row, i + 1).Value = values[i] ?? "";
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  JSON DATA EXPORT
+    //  Export element data, tags, compliance results, and project info as JSON
+    //  for data interchange with external tools, dashboards, and BIM platforms.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Exports all tagged element data as a structured JSON file for
+    /// data interchange. Includes tag tokens, spatial data, identity,
+    /// and compliance status for each element.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class JSONExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var doc = commandData.Application.ActiveUIDocument.Document;
+
+            // Scope dialog
+            var scopeDlg = new TaskDialog("JSON Export");
+            scopeDlg.MainInstruction = "Select export scope";
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Tagged elements only", "Export only elements with STING tags");
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "All taggable elements", "Export all elements in taggable categories");
+            var scopeResult = scopeDlg.Show();
+            bool taggedOnly = scopeResult == TaskDialogResult.CommandLink1;
+            if (scopeResult != TaskDialogResult.CommandLink1 && scopeResult != TaskDialogResult.CommandLink2)
+                return Result.Cancelled;
+
+            var taggableCategories = SharedParamGuids.AllCategoryEnums;
+            var allElements = new List<Element>();
+
+            foreach (var bic in taggableCategories)
+            {
+                try
+                {
+                    allElements.AddRange(new FilteredElementCollector(doc)
+                        .OfCategory(bic)
+                        .WhereElementIsNotElementType()
+                        .ToList());
+                }
+                catch { }
+            }
+
+            if (taggedOnly)
+                allElements = allElements.Where(e =>
+                    !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1))).ToList();
+
+            if (allElements.Count == 0)
+            {
+                TaskDialog.Show("JSON Export", "No elements found for export.");
+                return Result.Succeeded;
+            }
+
+            // Build JSON structure
+            var projectInfo = new JObject
+            {
+                ["name"] = doc.ProjectInformation?.Name ?? "",
+                ["number"] = doc.ProjectInformation?.Number ?? "",
+                ["exportDate"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                ["stingVersion"] = "1.0.0",
+                ["elementCount"] = allElements.Count
+            };
+
+            var elementArray = new JArray();
+
+            foreach (var el in allElements)
+            {
+                string catName = el.Category?.Name ?? "";
+                string familyName = ParameterHelpers.GetFamilyName(el);
+                string typeName = ParameterHelpers.GetFamilySymbolName(el);
+
+                var elObj = new JObject
+                {
+                    ["elementId"] = el.Id.IntegerValue,
+                    ["category"] = catName,
+                    ["family"] = familyName,
+                    ["type"] = typeName,
+                    ["mark"] = el.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "",
+                };
+
+                // Tag tokens
+                var tags = new JObject
+                {
+                    ["tag"] = ParameterHelpers.GetString(el, ParamRegistry.TAG1),
+                    ["disc"] = ParameterHelpers.GetString(el, ParamRegistry.DISC),
+                    ["loc"] = ParameterHelpers.GetString(el, ParamRegistry.LOC),
+                    ["zone"] = ParameterHelpers.GetString(el, ParamRegistry.ZONE),
+                    ["lvl"] = ParameterHelpers.GetString(el, ParamRegistry.LVL),
+                    ["sys"] = ParameterHelpers.GetString(el, ParamRegistry.SYS),
+                    ["func"] = ParameterHelpers.GetString(el, ParamRegistry.FUNC),
+                    ["prod"] = ParameterHelpers.GetString(el, ParamRegistry.PROD),
+                    ["seq"] = ParameterHelpers.GetString(el, ParamRegistry.SEQ),
+                    ["status"] = ParameterHelpers.GetString(el, ParamRegistry.STATUS),
+                };
+                elObj["tags"] = tags;
+
+                // Spatial data
+                var spatial = new JObject();
+                try
+                {
+                    var lvl = doc.GetElement(el.LevelId) as Level;
+                    if (lvl != null) spatial["level"] = lvl.Name;
+                }
+                catch { }
+
+                try
+                {
+                    var room = ParameterHelpers.GetRoomAtElement(doc, el);
+                    if (room != null)
+                    {
+                        spatial["room"] = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
+                        spatial["roomNumber"] = room.Number ?? "";
+                        spatial["department"] = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "";
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    var bb = el.get_BoundingBox(null);
+                    if (bb != null)
+                    {
+                        var center = (bb.Min + bb.Max) / 2.0;
+                        spatial["x"] = Math.Round(center.X * 0.3048, 3);
+                        spatial["y"] = Math.Round(center.Y * 0.3048, 3);
+                        spatial["z"] = Math.Round(center.Z * 0.3048, 3);
+                    }
+                }
+                catch { }
+                elObj["spatial"] = spatial;
+
+                // Identity data
+                var identity = new JObject
+                {
+                    ["description"] = ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT"),
+                    ["manufacturer"] = ParameterHelpers.GetString(el, "ASS_MANUFACTURER_TXT"),
+                    ["model"] = ParameterHelpers.GetString(el, "ASS_MODEL_TXT"),
+                };
+                elObj["identity"] = identity;
+
+                // Tag completeness
+                string tagValue = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                elObj["isTagComplete"] = TagConfig.TagIsComplete(tagValue);
+
+                elementArray.Add(elObj);
+            }
+
+            var root = new JObject
+            {
+                ["project"] = projectInfo,
+                ["tagFormat"] = new JObject
+                {
+                    ["separator"] = ParamRegistry.Separator,
+                    ["numPad"] = ParamRegistry.NumPad,
+                    ["segmentOrder"] = new JArray(ParamRegistry.SegmentOrder)
+                },
+                ["elements"] = elementArray
+            };
+
+            // Write JSON file
+            string outputDir = !string.IsNullOrEmpty(doc.PathName)
+                ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()
+                : Path.GetTempPath();
+            string jsonPath = Path.Combine(outputDir,
+                $"STING_Export_{DateTime.Now:yyyyMMdd_HHmm}.json");
+
+            File.WriteAllText(jsonPath, root.ToString(Formatting.Indented));
+
+            // Summary
+            var discCounts = allElements
+                .GroupBy(e => ParameterHelpers.GetString(e, ParamRegistry.DISC))
+                .Where(g => !string.IsNullOrEmpty(g.Key))
+                .OrderByDescending(g => g.Count());
+
+            var sb = new StringBuilder();
+            sb.AppendLine("JSON Export Complete");
+            sb.AppendLine(new string('═', 40));
+            sb.AppendLine($"  Elements exported: {allElements.Count}");
+            sb.AppendLine($"  File: {jsonPath}");
+            sb.AppendLine($"  Size: {new FileInfo(jsonPath).Length / 1024:N0} KB");
+            sb.AppendLine();
+            sb.AppendLine("By Discipline:");
+            foreach (var g in discCounts)
+                sb.AppendLine($"  {g.Key,-6} {g.Count(),5} elements");
+
+            TaskDialog.Show("JSON Export", sb.ToString());
+            StingLog.Info($"JSON export: {allElements.Count} elements → {jsonPath}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  CONFIGURE TAG FORMAT
+    //  Interactive command to set tag separator, sequence padding, and
+    //  segment order. Persists to project_config.json.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Interactively configure the ISO 19650 tag format: separator character,
+    /// sequence number padding, and segment order. Changes are persisted to
+    /// project_config.json and take effect immediately.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ConfigureTagFormatCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var doc = commandData.Application.ActiveUIDocument.Document;
+
+            string currentSep = ParamRegistry.Separator;
+            int currentPad = ParamRegistry.NumPad;
+            string currentOrder = string.Join(", ", ParamRegistry.SegmentOrder);
+
+            // Show current config
+            var dlg = new TaskDialog("Configure Tag Format");
+            dlg.MainInstruction = "Tag Format Configuration";
+            dlg.MainContent =
+                $"Current settings:\n" +
+                $"  Separator: '{currentSep}'\n" +
+                $"  Sequence padding: {currentPad} digits\n" +
+                $"  Segment order: {currentOrder}\n\n" +
+                $"Example tag: M{currentSep}BLD1{currentSep}Z01{currentSep}L02{currentSep}HVAC{currentSep}SUP{currentSep}AHU{currentSep}{"1".PadLeft(currentPad, '0')}";
+
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Use hyphen separator (-)", "Standard: M-BLD1-Z01-L02-HVAC-SUP-AHU-0001");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Use dot separator (.)", "Alternative: M.BLD1.Z01.L02.HVAC.SUP.AHU.0001");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Use underscore separator (_)", "Alternative: M_BLD1_Z01_L02_HVAC_SUP_AHU_0001");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Custom configuration", "Enter custom separator and padding");
+
+            var result = dlg.Show();
+            string newSep = currentSep;
+            int newPad = currentPad;
+
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1: newSep = "-"; break;
+                case TaskDialogResult.CommandLink2: newSep = "."; break;
+                case TaskDialogResult.CommandLink3: newSep = "_"; break;
+                case TaskDialogResult.CommandLink4:
+                    // Custom config — ask for padding
+                    var padDlg = new TaskDialog("Sequence Padding");
+                    padDlg.MainInstruction = "Select sequence number padding";
+                    padDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "3 digits", "Sequences: 001, 002, ..., 999");
+                    padDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "4 digits (standard)", "Sequences: 0001, 0002, ..., 9999");
+                    padDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                        "5 digits", "Sequences: 00001, 00002, ..., 99999");
+                    padDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                        "6 digits", "Sequences: 000001, 000002, ..., 999999");
+                    var padResult = padDlg.Show();
+                    switch (padResult)
+                    {
+                        case TaskDialogResult.CommandLink1: newPad = 3; break;
+                        case TaskDialogResult.CommandLink2: newPad = 4; break;
+                        case TaskDialogResult.CommandLink3: newPad = 5; break;
+                        case TaskDialogResult.CommandLink4: newPad = 6; break;
+                        default: return Result.Cancelled;
+                    }
+                    // Re-ask for separator
+                    var sepDlg = new TaskDialog("Separator");
+                    sepDlg.MainInstruction = "Select separator character";
+                    sepDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Hyphen (-)", "M-BLD1-Z01");
+                    sepDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Dot (.)", "M.BLD1.Z01");
+                    sepDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Underscore (_)", "M_BLD1_Z01");
+                    sepDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Slash (/)", "M/BLD1/Z01");
+                    var sepResult = sepDlg.Show();
+                    switch (sepResult)
+                    {
+                        case TaskDialogResult.CommandLink1: newSep = "-"; break;
+                        case TaskDialogResult.CommandLink2: newSep = "."; break;
+                        case TaskDialogResult.CommandLink3: newSep = "_"; break;
+                        case TaskDialogResult.CommandLink4: newSep = "/"; break;
+                        default: return Result.Cancelled;
+                    }
+                    break;
+                default: return Result.Cancelled;
+            }
+
+            // Apply changes
+            ParamRegistry.OverrideTagFormat(newSep, newPad, ParamRegistry.SegmentOrder);
+
+            // Persist to project_config.json
+            string configPath = StingToolsApp.FindDataFile("project_config.json");
+            if (string.IsNullOrEmpty(configPath))
+            {
+                string dataDir = StingToolsApp.DataPath;
+                if (!string.IsNullOrEmpty(dataDir))
+                    configPath = Path.Combine(dataDir, "project_config.json");
+            }
+            if (!string.IsNullOrEmpty(configPath))
+                TagConfig.SaveToFile(configPath);
+
+            // Show updated format
+            string example = $"M{newSep}BLD1{newSep}Z01{newSep}L02{newSep}HVAC{newSep}SUP{newSep}AHU{newSep}{"1".PadLeft(newPad, '0')}";
+            TaskDialog.Show("Tag Format Updated",
+                $"Tag format updated:\n\n" +
+                $"  Separator: '{newSep}'\n" +
+                $"  Padding: {newPad} digits\n\n" +
+                $"  Example: {example}\n\n" +
+                (configPath != null ? $"Saved to: {configPath}" : "Config file not found — changes apply for this session only."));
+
+            StingLog.Info($"Tag format configured: sep='{newSep}', pad={newPad}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
     //  KEYNOTE TABLE AUTO-SYNC (P11)
     //  Auto-syncs keynote entries from a STING CSV file into Revit's keynote
     //  table. Eliminates manual KNO file maintenance.

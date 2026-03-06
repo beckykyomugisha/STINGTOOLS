@@ -437,6 +437,27 @@ namespace StingTools.UI
                     case "KeynoteSync": RunCommand<Temp.KeynoteSyncCommand>(app); break;
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
 
+                    // ── MEP Schedules ──
+                    case "PanelSchedule": RunCommand<Temp.PanelScheduleCommand>(app); break;
+                    case "LightingFixtureSchedule": RunCommand<Temp.LightingFixtureScheduleCommand>(app); break;
+                    case "MechEquipSchedule": RunCommand<Temp.MechanicalEquipmentScheduleCommand>(app); break;
+                    case "PlumbingFixtureSchedule": RunCommand<Temp.PlumbingFixtureScheduleCommand>(app); break;
+                    case "FireDeviceSchedule": RunCommand<Temp.FireDeviceScheduleCommand>(app); break;
+                    case "ElectricalDeviceSchedule": RunCommand<Temp.ElectricalDeviceScheduleCommand>(app); break;
+                    case "BatchMEPSchedules": RunCommand<Temp.BatchMEPSchedulesCommand>(app); break;
+
+                    // ── Room / Space Management ──
+                    case "RoomAudit": RunCommand<Temp.RoomAuditCommand>(app); break;
+                    case "RoomZoneAssign": RunCommand<Temp.RoomZoneAssignCommand>(app); break;
+                    case "RoomSchedule": RunCommand<Temp.RoomScheduleCommand>(app); break;
+                    case "RoomDataExport": RunCommand<Temp.RoomDataExportCommand>(app); break;
+                    case "RoomParamPush": RunCommand<Temp.RoomBasedParamPushCommand>(app); break;
+
+                    // ── Data Export (COBie, JSON, Tag Format) ──
+                    case "COBieExport": RunCommand<Temp.COBieExportCommand>(app); break;
+                    case "JSONExport": RunCommand<Temp.JSONExportCommand>(app); break;
+                    case "ConfigureTagFormat": RunCommand<Temp.ConfigureTagFormatCommand>(app); break;
+
                     // ════════════════════════════════════════════════════════
                     // CREATE TAB (ISO 19650 tag creation)
                     // ════════════════════════════════════════════════════════

@@ -1091,6 +1091,32 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- MEP SCHEDULES -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="MEP SCHEDULES"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#2196F3">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="Batch MEP" Tag="BatchMEPSchedules" Click="Cmd_Click" ToolTip="Create all MEP schedules at once"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Panels" Tag="PanelSchedule" Click="Cmd_Click" ToolTip="Create panel schedules for electrical equipment"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Lighting" Tag="LightingFixtureSchedule" Click="Cmd_Click" ToolTip="Create lighting fixture schedule"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Mech Equip" Tag="MechEquipSchedule" Click="Cmd_Click" ToolTip="Create mechanical equipment schedule"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Plumbing" Tag="PlumbingFixtureSchedule" Click="Cmd_Click" ToolTip="Create plumbing fixture schedule"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Fire Dev" Tag="FireDeviceSchedule" Click="Cmd_Click" ToolTip="Create fire safety device schedule"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Elec Dev" Tag="ElectricalDeviceSchedule" Click="Cmd_Click" ToolTip="Create electrical device schedule"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- ROOM / SPACE MANAGEMENT -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="ROOM / SPACE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Room Audit" Tag="RoomAudit" Click="Cmd_Click" ToolTip="Audit rooms for completeness and issues"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Zone Assign" Tag="RoomZoneAssign" Click="Cmd_Click" ToolTip="Auto-assign ZONE codes from department names"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Room Sched" Tag="RoomSchedule" Click="Cmd_Click" ToolTip="Create room schedule with area, finishes, tags"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Room Export" Tag="RoomDataExport" Click="Cmd_Click" ToolTip="Export room data to CSV"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Room Push" Tag="RoomParamPush" Click="Cmd_Click" ToolTip="Push LOC/ZONE from rooms to contained elements"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- VIEW TEMPLATES -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="VIEW TEMPLATES"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -1146,6 +1172,9 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Schema" Tag="SchemaValidate" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Clash Detect" Tag="ClashDetect" Click="Cmd_Click" ToolTip="Rule-based MEP-structure clash detection"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="IFC Export" Tag="IFCExport" Click="Cmd_Click" ToolTip="Automated IFC 2x3/4 export with STING property sets"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="COBie" Tag="COBieExport" Click="Cmd_Click" ToolTip="Export COBie spreadsheet for FM handover"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="JSON" Tag="JSONExport" Click="Cmd_Click" ToolTip="Export element data as JSON for data interchange"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Tag Format" Tag="ConfigureTagFormat" Click="Cmd_Click" ToolTip="Configure tag separator, padding, segment order"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Excel Import" Tag="ExcelImport" Click="Cmd_Click" ToolTip="Import BOQ data from Excel back to Revit"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Keynotes" Tag="KeynoteSync" Click="Cmd_Click" ToolTip="Auto-sync keynote table from STING tags"/>
                             </WrapPanel>

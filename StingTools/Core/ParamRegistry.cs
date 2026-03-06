@@ -459,6 +459,17 @@ namespace StingTools.Core
             return bindings;
         }
 
+        /// <summary>
+        /// Override tag format settings from project_config.json.
+        /// Called by TagConfig.LoadFromFile when the config has TAG_FORMAT section.
+        /// </summary>
+        internal static void OverrideTagFormat(string separator, int numPad, string[] segmentOrder)
+        {
+            if (!string.IsNullOrEmpty(separator)) Separator = separator;
+            if (numPad > 0) NumPad = numPad;
+            if (segmentOrder != null && segmentOrder.Length > 0) SegmentOrder = segmentOrder;
+        }
+
         /// <summary>Force reload from disk. Call after editing PARAMETER_REGISTRY.json.</summary>
         public static void Reload()
         {

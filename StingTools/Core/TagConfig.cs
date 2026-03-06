@@ -563,6 +563,23 @@ namespace StingTools.Core
                 _reverseSysMap = null; // Invalidate cache
                 ConfigSource = "project_config.json";
 
+                // TAG_FORMAT: configurable separator, padding, segment order
+                var tagFmt = TryDeserialize<Dictionary<string, object>>(data, "TAG_FORMAT");
+                if (tagFmt != null)
+                {
+                    string sep = tagFmt.TryGetValue("SEPARATOR", out object sepObj) ? sepObj?.ToString() : null;
+                    int pad = tagFmt.TryGetValue("NUM_PAD", out object padObj) && padObj != null
+                        ? Convert.ToInt32(padObj) : 0;
+                    string[] order = null;
+                    if (tagFmt.TryGetValue("SEGMENT_ORDER", out object orderObj) && orderObj != null)
+                    {
+                        try { order = JsonConvert.DeserializeObject<string[]>(orderObj.ToString()); }
+                        catch { /* keep null */ }
+                    }
+                    ParamRegistry.OverrideTagFormat(sep, pad, order);
+                    StingLog.Info($"Tag format from config: sep='{ParamRegistry.Separator}', pad={ParamRegistry.NumPad}, segments={ParamRegistry.SegmentOrder.Length}");
+                }
+
                 // GAP-009: Restore persisted active preset
                 if (data.TryGetValue("ACTIVE_PRESET", out object presetObj) && presetObj is string presetStr)
                 {
@@ -605,7 +622,13 @@ namespace StingTools.Core
                     ["PROD_MAP"] = ProdMap,
                     ["FUNC_MAP"] = FuncMap,
                     ["LOC_CODES"] = LocCodes,
-                    ["ZONE_CODES"] = ZoneCodes
+                    ["ZONE_CODES"] = ZoneCodes,
+                    ["TAG_FORMAT"] = new Dictionary<string, object>
+                    {
+                        ["SEPARATOR"] = ParamRegistry.Separator,
+                        ["NUM_PAD"] = ParamRegistry.NumPad,
+                        ["SEGMENT_ORDER"] = ParamRegistry.SegmentOrder
+                    }
                 };
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);
