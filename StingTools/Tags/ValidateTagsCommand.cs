@@ -27,7 +27,7 @@ namespace StingTools.Tags
     /// Report style uses flowing narrative paragraphs for compliance summaries
     /// to provide context-rich feedback rather than bare statistics.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class ValidateTagsCommand : IExternalCommand
     {
