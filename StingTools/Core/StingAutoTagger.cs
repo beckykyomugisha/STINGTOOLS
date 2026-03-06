@@ -126,10 +126,9 @@ namespace StingTools.Core
 
             try
             {
-                // Build context once for the batch
+                // Build context once for the batch (single-pass for both indexes)
                 var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
-                var existingTags = TagConfig.BuildExistingTagIndex(doc);
-                var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+                var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
 
                 foreach (ElementId id in addedIds)
                 {

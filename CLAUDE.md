@@ -8,7 +8,7 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **58 source files** (55 C# + 2 XAML + 1 AssemblyInfo, ~56,030 lines of code) across 8 directories
+- **62 source files** (59 C# + 2 XAML + 1 AssemblyInfo, ~57,500 lines of code) across 8 directories
 - **234 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider`
 - **20 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel + 1 WPF project setup wizard
@@ -41,24 +41,28 @@ STINGTOOLS/
     ├── Properties/
     │   └── AssemblyInfo.cs             # Assembly metadata (v1.0.0.0)
     │
-    ├── Core/                           # Shared infrastructure (6 files, ~6,758 lines)
+    ├── Core/                           # Shared infrastructure (9 files, ~8,310 lines)
     │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI + dockable panel registration + ToggleDockPanelCommand
-    │   ├── StingLog.cs                 # Thread-safe file logger (Info/Warn/Error)
+    │   ├── StingLog.cs                 # Thread-safe file logger (Info/Warn/Error) + EscapeChecker (platform-guarded Win32 P/Invoke)
     │   ├── ParamRegistry.cs            # Single source of truth for parameter names, GUIDs, containers, bindings (loads from PARAMETER_REGISTRY.json)
     │   ├── ParameterHelpers.cs         # Parameter read/write + SpatialAutoDetect + NativeParamMapper + TokenAutoPopulator + PhaseAutoDetect
     │   ├── SharedParamGuids.cs         # Backwards-compatible facade wrapping ParamRegistry (GUID lookups, category bindings)
-    │   └── TagConfig.cs               # ISO 19650 tag lookup tables, tag builder, TagIntelligence, TAG7 narrative builder
+    │   ├── TagConfig.cs               # ISO 19650 tag lookup tables, tag builder, TagIntelligence, TAG7 narrative builder
+    │   ├── StingAutoTagger.cs         # IUpdater real-time auto-tagger — tags elements on placement (disabled by default)
+    │   ├── ComplianceScan.cs          # Cached compliance scanner with 30-second TTL and RAG status (RED/AMBER/GREEN)
+    │   └── WorkflowEngine.cs          # JSON-based command chain orchestration with TransactionGroup rollback (3 built-in presets)
     │
     ├── Select/                         # Element selection + color commands (3 files, 28 commands)
     │   ├── CategorySelectCommands.cs   # 14 category selectors + SelectAllTaggable + CategorySelector helper
     │   ├── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite
     │   └── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │
-    ├── UI/                             # WPF dockable panel UI + project wizard (4 C# files + 2 XAML, ~8,158 lines)
+    ├── UI/                             # WPF dockable panel UI + project wizard (5 C# files + 2 XAML, ~8,370 lines)
     │   ├── StingDockPanel.xaml         # WPF markup for 6-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW)
     │   ├── StingDockPanel.xaml.cs      # Code-behind: button dispatch, colour swatches, status bar
     │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 400+ button tags to 234 command classes + inline helpers
     │   ├── StingDockPanelProvider.cs   # IDockablePaneProvider — registers panel with Revit
+    │   ├── StingProgressDialog.cs      # Reusable modeless WPF progress dialog with ETA, cancel button, and EscapeChecker integration
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
     │   └── ProjectSetupWizard.xaml.cs  # Code-behind: presets, validation, discipline config, review summary
     │
@@ -400,7 +404,14 @@ STINGTOOLS/
 - Provides `ParseCsvLine(line)` — CSV parser respecting quoted fields
 - Contains `ToggleDockPanelCommand` — toggles the WPF dockable panel visibility
 
-### `StingLog` (static) — `Core/StingLog.cs` (93 lines)
+### `EscapeChecker` (static) — `Core/StingLog.cs`
+- Platform-guarded Win32 `GetAsyncKeyState` P/Invoke for Escape key cancellation
+- Returns `false` on non-Windows platforms (no crash)
+- Try/catch wraps P/Invoke call for safety
+- Bitmask `0x8001`: high bit = currently pressed, low bit = pressed since last call
+- Used by 6 batch commands and `StingProgressDialog`
+
+### `StingLog` (static) — `Core/StingLog.cs` (117 lines)
 - Thread-safe file logger (`StingTools.log` alongside the DLL)
 - Uses buffered `StreamWriter` with `FileShare.Read` for performance (replaces `File.AppendAllText`)
 - Methods: `Info(msg)`, `Warn(msg)`, `Error(msg, ex?)`, `Shutdown()`
@@ -505,6 +516,27 @@ STINGTOOLS/
 ### `TagIntelligence` (static) — `Core/TagConfig.cs`
 - Advanced tagging intelligence layer for complex inference
 - `InferenceResult` class for structured inference outputs
+
+### `StingAutoTagger` (IUpdater) — `Core/StingAutoTagger.cs` (224 lines)
+- Real-time auto-tagger using Revit `IUpdater` pattern — tags elements the moment they are placed
+- Starts **disabled** by default — user must toggle on via `AutoTaggerToggleCommand`
+- Monitors 22 `BuiltInCategory` types via `ElementMulticategoryFilter`
+- Execute() builds `PopulationContext` + `BuildTagIndexAndCounters()` once per batch, then auto-populates tokens and builds tags
+- Deduplication via `HashSet<long>` (capped at 10K entries to prevent unbounded growth)
+- Static methods: `Register(app)`, `Unregister()`, `Toggle()`, `IsEnabled`, `ProcessedCount`
+
+### `ComplianceScan` (static) — `Core/ComplianceScan.cs` (144 lines)
+- Cached compliance scanner with 30-second TTL to avoid expensive repeated project scans
+- RAG status thresholds: RED (<50%), AMBER (50-80%), GREEN (>80%)
+- Detects incomplete tags containing placeholder tokens (XX, ZZ)
+- Returns structured results with per-discipline breakdown
+
+### `WorkflowEngine` (static) — `Core/WorkflowEngine.cs` (551 lines)
+- JSON-based command chain orchestration for multi-step workflows
+- 3 built-in presets: `ProjectKickoff` (26 steps), `DailyQA` (6 steps), `DocumentPackage` (6 steps)
+- `ResolveCommand()` maps 40+ command tags to `IExternalCommand` instances
+- Wraps workflows in `TransactionGroup` for atomic rollback on failure/cancellation
+- Supports step-level error handling and progress reporting
 
 ### Internal Helper Classes
 
@@ -1000,8 +1032,8 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 |------|------|----------------|----------------|
 | ~~`MATERIAL_SCHEMA.json`~~ | 77 cols | **DONE** — loaded by `SchemaValidateCommand` | Validates BLE/MEP CSV columns match schema |
 | ~~`BINDING_COVERAGE_MATRIX.csv`~~ | Large | **DONE** — loaded by `DynamicBindingsCommand` | Replaces hardcoded category bindings |
-| `CATEGORY_BINDINGS.csv` | 10,661 | **Not yet loaded** | Replace hardcoded `DisciplineBindings` — data-driven parameter binding |
-| `FAMILY_PARAMETER_BINDINGS.csv` | 4,686 | **Not yet loaded** | Family-level parameter validation and auto-binding |
+| ~~`CATEGORY_BINDINGS.csv`~~ | 10,661 | **DONE** — loaded by `DynamicBindingsCommand`, `ValidateBindingsFromCsv()`, `SyncCategoryBindings()` | Data-driven parameter binding replacing hardcoded `DisciplineBindings` |
+| ~~`FAMILY_PARAMETER_BINDINGS.csv`~~ | 4,686 | **DONE** — loaded by `BatchAddFamilyParamsCommand`, `LoadFamilyParameterBindings()` | Family-level parameter validation and auto-binding |
 | ~~`VALIDAT_BIM_TEMPLATE.py`~~ | 45 checks | **DONE** — ported to C# `ValidateTemplateCommand` | 45 validation checks now in `DataPipelineCommands.cs` |
 
 ---
@@ -1048,13 +1080,21 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 30. **Tag appearance controls** — 5 commands in `TagOperationCommands.cs` (TagAppearance, SetTagBoxAppearance, QuickTagStyle, SetTagLineWeight, ColorTagsByParameter)
 31. **Tag type management** — `SwapTagTypeCommand` for swapping tag family types on annotations
 
+#### Completed (Phase 6)
+
+32. **Dynamic discipline bindings** — `DynamicBindingsCommand` + `ValidateBindingsFromCsv()` + `SyncCategoryBindings()` load CATEGORY_BINDINGS.csv (10,661 entries)
+33. **Family parameter auto-binding** — `BatchAddFamilyParamsCommand` + `LoadFamilyParameterBindings()` load FAMILY_PARAMETER_BINDINGS.csv (4,686 entries)
+34. **Workflow engine** — `WorkflowEngine` with JSON-based command chain orchestration, TransactionGroup rollback, 3 built-in presets (ProjectKickoff, DailyQA, DocumentPackage)
+35. **Real-time auto-tagger** — `StingAutoTagger` (IUpdater) auto-tags elements on placement, disabled by default, toggle on/off
+36. **Compliance scanner** — `ComplianceScan` with cached 30-second TTL and RAG status reporting
+37. **Progress dialog** — `StingProgressDialog` reusable modeless WPF progress window with ETA and EscapeChecker cancel
+38. **EscapeChecker platform safety** — Platform-guarded Win32 P/Invoke with try/catch, consolidated duplicate declarations
+
 #### Next Priorities
 
-32. **Configurable tag format** — Separator, padding, segments via project_config.json
-33. **Cancellation support** — Background worker with abort for batch operations
-34. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (10,661 entries) to replace hardcoded `DisciplineBindings`
-35. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,686 entries) for family-level validation
-36. **Batch command chaining / workflow presets** — Queue: AutoTag, Validate, Export
+39. **Configurable tag format** — Separator, padding, segments via project_config.json
+40. **Cancellation support** — Background worker with abort for batch operations
+41. **Batch command chaining / workflow presets** — Queue: AutoTag, Validate, Export
 
 ### External Tool References
 

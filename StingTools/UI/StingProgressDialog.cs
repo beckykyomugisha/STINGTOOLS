@@ -4,13 +4,14 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using StingTools.Core;
 
 namespace StingTools.UI
 {
     /// <summary>
     /// ENH-001: Reusable modeless WPF progress window for batch operations.
     /// Shows progress bar, element count, estimated time remaining, and cancel button.
-    /// Thread-safe updates via Dispatcher. Uses Win32 GetAsyncKeyState for Escape key.
+    /// Thread-safe updates via Dispatcher. Uses EscapeChecker for Escape key detection.
     ///
     /// Usage:
     ///   var progress = StingProgressDialog.Show("Batch Tag", totalElements);
@@ -34,17 +35,13 @@ namespace StingTools.UI
         private int _current;
         private volatile bool _cancelled;
 
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern short GetAsyncKeyState(int vKey);
-        private const int VK_ESCAPE = 0x1B;
-
         /// <summary>True if user clicked Cancel or pressed Escape.</summary>
         public bool IsCancelled
         {
             get
             {
-                // Check Escape key (Win32 — works even when Revit has focus)
-                if (!_cancelled && (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0)
+                // Delegate to centralized EscapeChecker (platform-safe, consistent bitmask)
+                if (!_cancelled && EscapeChecker.IsEscapePressed())
                     _cancelled = true;
                 return _cancelled;
             }
