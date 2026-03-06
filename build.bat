@@ -96,6 +96,10 @@ REM ── Report output ──────────────────�
 echo.
 echo [3/3] Locating output...
 set "OUTDIR=StingTools\bin\%CONFIG%"
+if not exist "%OUTDIR%\StingTools.dll" (
+    REM Fallback: some .NET SDK versions append TFM despite AppendTargetFrameworkToOutputPath=false
+    if exist "%OUTDIR%\net8.0-windows\StingTools.dll" set "OUTDIR=%OUTDIR%\net8.0-windows"
+)
 if exist "%OUTDIR%\StingTools.dll" (
     echo.
     echo ═══════════════════════════════════════════════
