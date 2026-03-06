@@ -1,5 +1,5 @@
 ## STING TAG GUIDE V3 — Comprehensive Tag Configuration & Manual Input Reference
-## Version: 3.0 | Date: 2026-03-03 | Standard: ISO 19650 | Plugin: StingTools v1.0
+## Version: 3.1 | Date: 2026-03-06 | Standard: ISO 19650 | Plugin: StingTools v1.0
 ## Replaces: TAG GUIDE V2.xlsx and TAG_GUIDE.xlsx
 ## Note: Naviate formulae and Dynamo workflows removed — all operations use STING CombineParameters
 ##
@@ -296,3 +296,399 @@ Multi-line Bottom,All 8 tokens,ASS_TAG_6,ParamRegistry.AssembleContainer(),Line-
 Discipline Containers,All 8 tokens,HVC_EQP_TAG etc.,ParamRegistry.WriteContainers(),Category-matched discipline containers
 TAG7 Narrative,Element data,ASS_TAG_7,TagConfig.WriteTag7All(),Rich descriptive narrative with markup
 TAG7 Sections,Element data,ASS_TAG_7A-F,TagConfig.WriteTag7All(),Individual section narratives
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 14: COMPLETE COMMAND REFERENCE — All 250 Commands by Panel Tab
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,COMMAND_REFERENCE
+## Updated: 2026-03-06 | Total: 250 IExternalCommand classes + 1 IExternalApplication + 1 IExternalEventHandler + 1 IDockablePaneProvider + 1 IUpdater
+##
+## --- SELECT TAB (28 commands) ---
+PANEL,COMMAND,CLASS,TRANSACTION,FILE,DESCRIPTION
+SELECT,Select Lighting,SelectLightingCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Lighting Fixtures in active view
+SELECT,Select Electrical,SelectElectricalCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Electrical Equipment in active view
+SELECT,Select Mechanical,SelectMechanicalCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Mechanical Equipment in active view
+SELECT,Select Plumbing,SelectPlumbingCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Plumbing Fixtures in active view
+SELECT,Select Air Terminals,SelectAirTerminalsCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Air Terminals in active view
+SELECT,Select Furniture,SelectFurnitureCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Furniture in active view
+SELECT,Select Doors,SelectDoorsCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Doors in active view
+SELECT,Select Windows,SelectWindowsCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Windows in active view
+SELECT,Select Rooms,SelectRoomsCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Rooms in active view
+SELECT,Select Sprinklers,SelectSprinklersCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Sprinklers in active view
+SELECT,Select Pipes,SelectPipesCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Pipes in active view
+SELECT,Select Ducts,SelectDuctsCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Ducts in active view
+SELECT,Select Conduits,SelectConduitsCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Conduits in active view
+SELECT,Select Cable Trays,SelectCableTraysCommand,ReadOnly,Select/CategorySelectCommands.cs,Select Cable Trays in active view
+SELECT,Select All Taggable,SelectAllTaggableCommand,ReadOnly,Select/CategorySelectCommands.cs,Select all taggable elements in active view
+SELECT,Select Untagged,SelectUntaggedCommand,ReadOnly,Select/StateSelectCommands.cs,Select elements with empty ASS_TAG_1
+SELECT,Select Tagged,SelectTaggedCommand,ReadOnly,Select/StateSelectCommands.cs,Select elements with populated ASS_TAG_1
+SELECT,Select Empty Mark,SelectEmptyMarkCommand,ReadOnly,Select/StateSelectCommands.cs,Select elements with empty Mark parameter
+SELECT,Select Pinned,SelectPinnedCommand,ReadOnly,Select/StateSelectCommands.cs,Select pinned elements
+SELECT,Select Unpinned,SelectUnpinnedCommand,ReadOnly,Select/StateSelectCommands.cs,Select unpinned elements
+SELECT,Select By Level,SelectByLevelCommand,ReadOnly,Select/StateSelectCommands.cs,Select elements on a specific level
+SELECT,Select By Room,SelectByRoomCommand,ReadOnly,Select/StateSelectCommands.cs,Select elements within a specific room
+SELECT,Bulk Param Write,BulkParamWriteCommand,Manual,Select/StateSelectCommands.cs,"Multi-page bulk operations: set LOC/ZONE/STATUS, auto-populate, clear tags, re-tag"
+SELECT,Color By Parameter,ColorByParameterCommand,Manual,Select/ColorCommands.cs,Color elements by any parameter value with 10 palettes
+SELECT,Clear Color Overrides,ClearColorOverridesCommand,Manual,Select/ColorCommands.cs,Remove all graphic overrides from active view
+SELECT,Save Color Preset,SaveColorPresetCommand,ReadOnly,Select/ColorCommands.cs,Save current color scheme as JSON preset
+SELECT,Load Color Preset,LoadColorPresetCommand,Manual,Select/ColorCommands.cs,Load and apply a saved color preset
+SELECT,Create Filters from Colors,CreateFiltersFromColorsCommand,Manual,Select/ColorCommands.cs,Convert color scheme into persistent Revit ParameterFilterElement rules
+##
+## --- ORGANISE TAB (40 commands) ---
+PANEL,COMMAND,CLASS,TRANSACTION,FILE,DESCRIPTION
+ORGANISE,Tag Selected,TagSelectedCommand,Manual,Organise/TagOperationCommands.cs,Tag selected elements only
+ORGANISE,Re-Tag,ReTagCommand,Manual,Organise/TagOperationCommands.cs,Force re-derive and overwrite tags on selected elements
+ORGANISE,Fix Duplicates,FixDuplicateTagsCommand,Manual,Organise/TagOperationCommands.cs,Auto-resolve duplicate tags by incrementing SEQ numbers
+ORGANISE,Delete Tags,DeleteTagsCommand,Manual,Organise/TagOperationCommands.cs,Clear all 15 tag params from selection (with confirmation)
+ORGANISE,Renumber,RenumberTagsCommand,Manual,Organise/TagOperationCommands.cs,"Re-sequence tags within (DISC, SYS, LVL) groups"
+ORGANISE,Copy Tags,CopyTagsCommand,Manual,Organise/TagOperationCommands.cs,Copy tag values from first selected to all others (excludes SEQ)
+ORGANISE,Swap Tags,SwapTagsCommand,Manual,Organise/TagOperationCommands.cs,Swap all tag values between exactly 2 selected elements
+ORGANISE,Audit to CSV,AuditTagsCSVCommand,ReadOnly,Organise/TagOperationCommands.cs,Export full tag audit to CSV file
+ORGANISE,Find Duplicates,FindDuplicateTagsCommand,ReadOnly,Organise/TagOperationCommands.cs,"Find duplicate tag values, select affected elements"
+ORGANISE,Highlight Invalid,HighlightInvalidCommand,Manual,Organise/TagOperationCommands.cs,Colour-code missing (red) and incomplete (orange) tags
+ORGANISE,Clear Overrides,ClearOverridesCommand,Manual,Organise/TagOperationCommands.cs,Reset graphic overrides in active view
+ORGANISE,Select by Discipline,SelectByDisciplineCommand,ReadOnly,Organise/TagOperationCommands.cs,Select all elements of a specific discipline code
+ORGANISE,Tag Statistics,TagStatsCommand,ReadOnly,Organise/TagOperationCommands.cs,Quick tag counts by discipline/system/level for active view
+ORGANISE,Tag Register Export,TagRegisterExportCommand,ReadOnly,Organise/TagOperationCommands.cs,"Comprehensive asset register export (40+ columns: tags, identity, spatial, MEP, cost, validation)"
+ORGANISE,Toggle Leaders,ToggleLeadersCommand,Manual,Organise/TagOperationCommands.cs,Toggle leaders on/off for selected tags (or all tags in view)
+ORGANISE,Add Leaders,AddLeadersCommand,Manual,Organise/TagOperationCommands.cs,Add leaders to all selected annotation tags
+ORGANISE,Remove Leaders,RemoveLeadersCommand,Manual,Organise/TagOperationCommands.cs,Remove leaders from all selected annotation tags
+ORGANISE,Align Tags,AlignTagsCommand,Manual,Organise/TagOperationCommands.cs,"Align tag heads horizontally, vertically, or in a row"
+ORGANISE,Reset Tag Positions,ResetTagPositionsCommand,Manual,Organise/TagOperationCommands.cs,Move tags back to element centers (remove manual offsets)
+ORGANISE,Toggle Orientation,ToggleTagOrientationCommand,Manual,Organise/TagOperationCommands.cs,Switch selected tags between horizontal and vertical
+ORGANISE,Snap Leader Elbows,SnapLeaderElbowCommand,Manual,Organise/TagOperationCommands.cs,Snap leader elbows to 45 or 90 degree angles for clean layout
+ORGANISE,Auto-Align Leader Text,AutoAlignLeaderTextCommand,Manual,Organise/TagOperationCommands.cs,Auto-align leader text to consistent positions
+ORGANISE,Flip Tags,FlipTagsCommand,Manual,Organise/TagOperationCommands.cs,"Mirror tag position across element center (left/right, up/down)"
+ORGANISE,Align Tag Text,AlignTagTextCommand,Manual,Organise/TagOperationCommands.cs,Align annotation text (left/center/right) for tags and text notes
+ORGANISE,Pin/Unpin Tags,PinTagsCommand,Manual,Organise/TagOperationCommands.cs,Lock tags in place to prevent accidental movement (or unlock)
+ORGANISE,Nudge Tags,NudgeTagsCommand,Manual,Organise/TagOperationCommands.cs,Fine-adjust tag positions by small increments
+ORGANISE,Attach/Free Leader,AttachLeaderCommand,Manual,Organise/TagOperationCommands.cs,Attach leader end to host element or set free
+ORGANISE,Select Tags By Leader,SelectTagsWithLeadersCommand,ReadOnly,Organise/TagOperationCommands.cs,Select tags with or without leaders in active view
+ORGANISE,Color Tags by Discipline,ColorTagsByDisciplineCommand,Manual,Organise/TagOperationCommands.cs,Colour-code annotation tags by discipline
+ORGANISE,Set Tag Text Color,SetTagTextColorCommand,Manual,Organise/TagOperationCommands.cs,Set text color for selected annotation tags
+ORGANISE,Set Leader Color,SetLeaderColorCommand,Manual,Organise/TagOperationCommands.cs,Set leader line color for selected tags
+ORGANISE,Split Tag/Leader Color,SplitTagLeaderColorCommand,Manual,Organise/TagOperationCommands.cs,Apply different colors to leader vs tag text
+ORGANISE,Clear Annotation Colors,ClearAnnotationColorsCommand,Manual,Organise/TagOperationCommands.cs,Clear all annotation color overrides in view
+ORGANISE,Tag Appearance,TagAppearanceCommand,Manual,Organise/TagOperationCommands.cs,Configure overall tag visual appearance
+ORGANISE,Set Tag Box Appearance,SetTagBoxAppearanceCommand,Manual,Organise/TagOperationCommands.cs,Set tag box/border appearance settings
+ORGANISE,Quick Tag Style,QuickTagStyleCommand,Manual,Organise/TagOperationCommands.cs,Apply quick tag style presets
+ORGANISE,Set Tag Line Weight,SetTagLineWeightCommand,Manual,Organise/TagOperationCommands.cs,Set line weight for tag annotations
+ORGANISE,Color Tags by Parameter,ColorTagsByParameterCommand,Manual,Organise/TagOperationCommands.cs,Color-code tags by any parameter value
+ORGANISE,Swap Tag Type,SwapTagTypeCommand,Manual,Organise/TagOperationCommands.cs,Swap tag family type on selected annotation tags
+ORGANISE,Anomaly Auto-Fix,AnomalyAutoFixCommand,Manual,Organise/TagOperationCommands.cs,Auto-fix common tag anomalies (empty tokens and duplicates)
+##
+## --- DOCS TAB (27 commands) ---
+PANEL,COMMAND,CLASS,TRANSACTION,FILE,DESCRIPTION
+DOCS,Sheet Organizer,SheetOrganizerCommand,Manual,Docs/SheetOrganizerCommand.cs,Group sheets by discipline prefix
+DOCS,View Organizer,ViewOrganizerCommand,ReadOnly,Docs/ViewOrganizerCommand.cs,"Organize views by type, report placed/unplaced"
+DOCS,Sheet Index,SheetIndexCommand,Manual,Docs/SheetIndexCommand.cs,"Create ""STING - Sheet Index"" schedule"
+DOCS,Document Transmittal,TransmittalCommand,ReadOnly,Docs/TransmittalCommand.cs,ISO 19650 transmittal report
+DOCS,Align Viewports,AlignViewportsCommand,Manual,Docs/ViewportCommands.cs,Align viewports on sheet (top/left/center H/V)
+DOCS,Renumber Viewports,RenumberViewportsCommand,Manual,Docs/ViewportCommands.cs,"Renumber viewports left-to-right, top-to-bottom"
+DOCS,Text Case,TextCaseCommand,Manual,Docs/ViewportCommands.cs,Convert text notes to UPPER/lower/Title case (preserves BIM acronyms)
+DOCS,Sum Areas,SumAreasCommand,ReadOnly,Docs/ViewportCommands.cs,Calculate total area of selected/all rooms
+DOCS,Delete Unused Views,DeleteUnusedViewsCommand,Manual,Docs/DocAutomationCommands.cs,Remove views not placed on any sheet (with confirmation and protection)
+DOCS,Sheet Naming Check,SheetNamingCheckCommand,ReadOnly,Docs/DocAutomationCommands.cs,ISO 19650 sheet naming compliance audit with correction suggestions
+DOCS,Auto-Number Sheets,AutoNumberSheetsCommand,Manual,Docs/DocAutomationCommands.cs,Sequentially renumber sheets within discipline groups
+DOCS,Batch Create Views,BatchCreateViewsCommand,Manual,Docs/DocAutomationExtCommands.cs,Create views for multiple families and levels
+DOCS,Batch Create Sheets,BatchCreateSheetsCommand,Manual,Docs/DocAutomationExtCommands.cs,Create sheets from discipline template definitions
+DOCS,Create Dependent Views,CreateDependentViewsCommand,Manual,Docs/DocAutomationExtCommands.cs,Create dependent views from scope boxes
+DOCS,Scope Box Manager,ScopeBoxManagerCommand,Manual,Docs/DocAutomationExtCommands.cs,Create and manage scope boxes from grid intersections
+DOCS,View Template Assigner,ViewTemplateAssignerCommand,Manual,Docs/DocAutomationExtCommands.cs,Assign view templates to views by name pattern matching
+DOCS,Documentation Package,DocumentationPackageCommand,Manual,Docs/DocAutomationExtCommands.cs,One-click full documentation package creation
+DOCS,Batch Create Sections,BatchCreateSectionsCommand,Manual,Docs/DocAutomationExtCommands.cs,Create section views through selected elements
+DOCS,Batch Create Elevations,BatchCreateElevationsCommand,Manual,Docs/DocAutomationExtCommands.cs,Create elevation views at room locations
+DOCS,Drawing Register,DrawingRegisterCommand,ReadOnly,Docs/DocAutomationExtCommands.cs,ISO 19650 drawing register export to CSV
+DOCS,Project Browser Organizer,ProjectBrowserOrganizerCommand,Manual,Docs/DocAutomationExtCommands.cs,Organize project browser by discipline and type
+DOCS,Revision Cloud Auto-Create,RevisionCloudAutoCreateCommand,Manual,Docs/DocAutomationExtCommands.cs,Auto-create revision clouds for changed elements
+DOCS,Duplicate View,DuplicateViewCommand,Manual,Docs/ViewAutomationCommands.cs,"Duplicate view with Detailing, View-only, or Dependent mode"
+DOCS,Batch Rename Views,BatchRenameViewsCommand,Manual,Docs/ViewAutomationCommands.cs,Bulk rename views with pattern templates
+DOCS,Copy View Settings,CopyViewSettingsCommand,Manual,Docs/ViewAutomationCommands.cs,"Copy filters, graphic overrides, and template from source view"
+DOCS,Auto-Place Viewports,AutoPlaceViewportsCommand,Manual,Docs/ViewAutomationCommands.cs,Auto-place and scale viewports on sheets
+DOCS,Crop to Content,CropToContentCommand,Manual,Docs/ViewAutomationCommands.cs,Smart crop region generation based on element extents
+DOCS,Batch Align Viewports,BatchAlignViewportsCommand,Manual,Docs/ViewAutomationCommands.cs,Multi-view alignment on sheets
+##
+## --- CREATE TAB (98 commands) ---
+PANEL,COMMAND,CLASS,TRANSACTION,FILE,DESCRIPTION
+CREATE,Auto Tag,AutoTagCommand,Manual,Tags/AutoTagCommand.cs,"Tag elements in active view with spatial auto-detect, collision mode selection"
+CREATE,Tag New Only,TagNewOnlyCommand,Manual,Tags/AutoTagCommand.cs,Tag only new/untagged elements with spatial auto-detect
+CREATE,Batch Tag,BatchTagCommand,Manual,Tags/BatchTagCommand.cs,Tag all elements in entire project with collision mode selection
+CREATE,Tag Format Migration,TagFormatMigrationCommand,Manual,Tags/BatchTagCommand.cs,Migrate tags between format versions
+CREATE,Tag Changed,TagChangedCommand,Manual,Tags/BatchTagCommand.cs,Delta update for stale spatial tokens (LVL/LOC/ZONE) on modified elements
+CREATE,Tag & Combine,TagAndCombineCommand,Manual,Tags/TagAndCombineCommand.cs,"One-click: auto-detect LOC/ZONE + populate tokens + tag + combine ALL 36 containers"
+CREATE,Pre-Tag Audit,PreTagAuditCommand,ReadOnly,Tags/PreTagAuditCommand.cs,"Dry-run audit: predict tag assignments, collisions, ISO violations"
+CREATE,Family-Stage Populate,FamilyStagePopulateCommand,Manual,Tags/FamilyStagePopulateCommand.cs,Pre-populate all 7 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD) from category and spatial data
+CREATE,Combine Parameters,CombineParametersCommand,Manual,Tags/CombineParametersCommand.cs,Interactive multi-container combine into all tag containers
+CREATE,Combine Pre-Flight,CombinePreFlightCommand,ReadOnly,Tags/CombineParametersCommand.cs,Pre-flight check before combine (shows what will be written)
+CREATE,Tag Config,TagConfigCommand,ReadOnly,Tags/TagConfigCommand.cs,Display tag configuration lookup tables
+CREATE,Load Params,LoadSharedParamsCommand,Manual,Tags/LoadSharedParamsCommand.cs,Bind shared parameters to categories (2-pass)
+CREATE,Configure,ConfigEditorCommand,ReadOnly,Tags/ConfigEditorCommand.cs,View/edit/save/reload project_config.json
+CREATE,Set Discipline,SetDiscCommand,Manual,Tags/TokenWriterCommands.cs,"Set DISC token (M, E, P, A)"
+CREATE,Set Location,SetLocCommand,Manual,Tags/TokenWriterCommands.cs,"Set LOC token (BLD1, BLD2, BLD3, EXT)"
+CREATE,Set Zone,SetZoneCommand,Manual,Tags/TokenWriterCommands.cs,Set ZONE token (Z01-Z04)
+CREATE,Set Status,SetStatusCommand,Manual,Tags/TokenWriterCommands.cs,"Set STATUS token (EXISTING, NEW, DEMOLISHED, TEMPORARY)"
+CREATE,Assign Numbers,AssignNumbersCommand,Manual,Tags/TokenWriterCommands.cs,Sequential numbering by DISC/SYS/LVL (continues from max existing)
+CREATE,Build Tags,BuildTagsCommand,Manual,Tags/TokenWriterCommands.cs,Rebuild ASS_TAG_1 from existing tokens
+CREATE,Completeness Dashboard,CompletenessDashboardCommand,ReadOnly,Tags/TokenWriterCommands.cs,Per-discipline compliance dashboard with percentage
+CREATE,Validate Tags,ValidateTagsCommand,ReadOnly,Tags/ValidateTagsCommand.cs,Validate tag completeness with ISO 19650 code validation
+CREATE,Resolve All Issues,ResolveAllIssuesCommand,Manual,Tags/ResolveAllIssuesCommand.cs,One-click ISO 19650 compliance resolution for all elements
+CREATE,Sync Parameter Schema,SyncParameterSchemaCommand,Manual,Tags/SyncParameterSchemaCommand.cs,Sync PARAMETER_REGISTRY.json to CSV/TXT data files
+CREATE,Add Param Remap,AddParamRemapCommand,Manual,Tags/SyncParameterSchemaCommand.cs,Add parameter field remap to SCHEDULE_FIELD_REMAP.csv
+CREATE,Audit Parameter Schema,AuditParameterSchemaCommand,ReadOnly,Tags/SyncParameterSchemaCommand.cs,Audit parameter consistency across all data files
+CREATE,Smart Place Tags,SmartPlaceTagsCommand,Manual,Tags/SmartTagPlacementCommand.cs,Priority-based IndependentTag placement with 8-position collision avoidance
+CREATE,Arrange Tags,ArrangeTagsCommand,Manual,Tags/SmartTagPlacementCommand.cs,Auto-arrange placed tags into aligned grid patterns
+CREATE,Remove Annotation Tags,RemoveAnnotationTagsCommand,Manual,Tags/SmartTagPlacementCommand.cs,Remove all IndependentTag annotations from view
+CREATE,Batch Place Tags,BatchPlaceTagsCommand,Manual,Tags/SmartTagPlacementCommand.cs,Place visual annotation tags across multiple views
+CREATE,Learn Placement,LearnTagPlacementCommand,ReadOnly,Tags/SmartTagPlacementCommand.cs,Analyze existing tag placements in view to learn rules
+CREATE,Apply Tag Template,ApplyTagTemplateCommand,Manual,Tags/SmartTagPlacementCommand.cs,Apply saved placement template to view
+CREATE,Tag Overlap Analysis,TagOverlapAnalysisCommand,ReadOnly,Tags/SmartTagPlacementCommand.cs,Detect and report overlapping tags in view
+CREATE,Batch Tag Text Size,BatchTagTextSizeCommand,Manual,Tags/SmartTagPlacementCommand.cs,Set text size for all tags in view/selection
+CREATE,Set Category Line Weight,SetTagCategoryLineWeightCommand,Manual,Tags/SmartTagPlacementCommand.cs,Set line weight for tag annotations by category
+CREATE,Create Tag Families,CreateTagFamiliesCommand,Manual,Tags/TagFamilyCreatorCommand.cs,Create tag family .rfa files from templates for 50 categories
+CREATE,Load Tag Families,LoadTagFamiliesCommand,Manual,Tags/TagFamilyCreatorCommand.cs,Load tag families into project
+CREATE,Configure Tag Labels,ConfigureTagLabelsCommand,Manual,Tags/TagFamilyCreatorCommand.cs,Set which parameters display in tag labels
+CREATE,Audit Tag Families,AuditTagFamiliesCommand,ReadOnly,Tags/TagFamilyCreatorCommand.cs,Audit tag family consistency across project
+CREATE,Create Color Legend,CreateColorLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Create discipline/status/system color legend
+CREATE,Export Color Legend HTML,ExportColorLegendHtmlCommand,ReadOnly,Tags/LegendBuilderCommands.cs,Export legend as HTML report
+CREATE,Auto Create Legends,AutoCreateLegendsCommand,Manual,Tags/LegendBuilderCommands.cs,Auto-create all relevant legends for project
+CREATE,Legend From View,LegendFromViewCommand,Manual,Tags/LegendBuilderCommands.cs,Create legend based on elements in current view
+CREATE,Place Legend On Sheet,PlaceLegendOnSheetCommand,Manual,Tags/LegendBuilderCommands.cs,Place a legend view on a sheet
+CREATE,Sheet Context Legend,SheetContextLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Create context-aware legend matching sheet discipline
+CREATE,Place Legend On All Sheets,PlaceLegendOnAllSheetsCommand,Manual,Tags/LegendBuilderCommands.cs,Place legends on all relevant sheets
+CREATE,Batch Sheet Context Legends,BatchSheetContextLegendsCommand,Manual,Tags/LegendBuilderCommands.cs,Create and place context legends for all sheets
+CREATE,Create Tag Legend,CreateTagLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Create tag format reference legend
+CREATE,Sheet Tag Legend,SheetTagLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Place tag legend on specific sheet
+CREATE,Batch Tag Legends,BatchTagLegendsCommand,Manual,Tags/LegendBuilderCommands.cs,Create and place tag legends on all sheets
+CREATE,Update Legend,UpdateLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Update existing legend with current data
+CREATE,Delete Stale Legend,DeleteStaleLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Remove outdated legend views
+CREATE,One-Click Legend Pipeline,OneClickLegendPipelineCommand,Manual,Tags/LegendBuilderCommands.cs,"Complete legend creation, placement, and sync pipeline"
+CREATE,Flexible Legend,FlexibleLegendCommand,Manual,Tags/LegendBuilderCommands.cs,User-configurable legend with parameter selection
+CREATE,Legend From Preset,LegendFromPresetCommand,Manual,Tags/LegendBuilderCommands.cs,Create legend from saved preset configuration
+CREATE,Component Type Legend,ComponentTypeLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Legend showing component types and families
+CREATE,Color Reference Legend,ColorReferenceLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Reference legend for color coding schemes
+CREATE,Legend Sync Audit,LegendSyncAuditCommand,ReadOnly,Tags/LegendBuilderCommands.cs,Audit legends for sync status with current data
+CREATE,Status Legend,StatusLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Legend for element status (NEW/EXISTING/DEMOLISHED)
+CREATE,Workset Legend,WorksetLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Legend for workset assignments
+CREATE,MEP System Legend,MepSystemLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Legend for MEP system types
+CREATE,Material Legend,MaterialLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Legend for material assignments
+CREATE,Compound Type Legend,CompoundTypeLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Legend for compound wall/floor/ceiling types
+CREATE,Equipment Legend,EquipmentLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Legend for equipment categories
+CREATE,Fire Rating Legend,FireRatingLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Legend for fire rating classifications
+CREATE,Master Legend Pipeline,MasterLegendPipelineCommand,Manual,Tags/LegendBuilderCommands.cs,Complete master legend creation for all types
+CREATE,Filter Legend,FilterLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Legend showing active view filters
+CREATE,Template Legend,TemplateLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Legend showing view template assignments
+CREATE,VG Category Legend,VGCategoryLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Legend showing VG category overrides
+CREATE,Batch Template Legend,BatchTemplateLegendCommand,Manual,Tags/LegendBuilderCommands.cs,Create template legends for all views
+CREATE,Rich Tag Note,RichTagNoteCommand,Manual,Tags/RichTagDisplayCommands.cs,Create rich TAG7 note annotation in view
+CREATE,Export Rich Tag Report,ExportRichTagReportCommand,ReadOnly,Tags/RichTagDisplayCommands.cs,Export TAG7 data as formatted report
+CREATE,View TAG7 Sections,ViewTag7SectionsCommand,ReadOnly,Tags/RichTagDisplayCommands.cs,View individual TAG7 sections for selected element
+CREATE,Switch TAG7 Preset,SwitchTag7PresetCommand,Manual,Tags/RichTagDisplayCommands.cs,Switch TAG7 presentation mode preset
+CREATE,Rich Segment Note,RichSegmentNoteCommand,Manual,Tags/RichTagDisplayCommands.cs,Create per-segment TAG7 annotation
+CREATE,View Segments,ViewSegmentsCommand,ReadOnly,Tags/RichTagDisplayCommands.cs,View all tag segments for selected element
+CREATE,System Param Push,SystemParamPushCommand,Manual,Tags/SystemParamPushCommand.cs,"Push parameters through MEP system (API, connector graph, spatial proximity)"
+CREATE,Batch System Push,BatchSystemPushCommand,Manual,Tags/SystemParamPushCommand.cs,Batch push parameters across all MEP systems
+CREATE,Select System Elements,SelectSystemElementsCommand,ReadOnly,Tags/SystemParamPushCommand.cs,Select all elements connected to an MEP system
+CREATE,Set Presentation Mode,SetPresentationModeCommand,Manual,Tags/PresentationModeCommand.cs,"Set TAG7 presentation mode (Compact, Technical, Full, Presentation, BOQ)"
+CREATE,View Label Spec,ViewLabelSpecCommand,ReadOnly,Tags/PresentationModeCommand.cs,View label specification from LABEL_DEFINITIONS.json
+CREATE,Export Label Guide,ExportLabelGuideCommand,ReadOnly,Tags/PresentationModeCommand.cs,Export label definition guide to CSV
+CREATE,Set TAG7 Heading Style,SetTag7HeadingStyleCommand,Manual,Tags/PresentationModeCommand.cs,Configure TAG7 section heading style
+CREATE,Set Paragraph Depth,SetParagraphDepthCommand,Manual,Tags/ParagraphDepthCommand.cs,"Set TAG7 paragraph depth (compact, standard, comprehensive)"
+CREATE,Toggle Warning Visibility,ToggleWarningVisibilityCommand,Manual,Tags/ParagraphDepthCommand.cs,Toggle ISO 19650 warning visibility in tags
+##
+## --- TEMP TAB (57 commands) ---
+PANEL,COMMAND,CLASS,TRANSACTION,FILE,DESCRIPTION
+TEMP,Create Parameters,CreateParametersCommand,Manual,Temp/CreateParametersCommand.cs,Delegates to LoadSharedParams for parameter binding
+TEMP,Check Data Files,CheckDataCommand,ReadOnly,Temp/CheckDataCommand.cs,Data file inventory with SHA-256 checksums
+TEMP,Master Setup,MasterSetupCommand,Manual,Temp/MasterSetupCommand.cs,"One-click full project setup (15 steps, atomic rollback)"
+TEMP,Project Setup Wizard,ProjectSetupCommand,Manual,Temp/ProjectSetupCommand.cs,"7-page WPF guided project setup (info, levels, grids, disciplines, materials)"
+TEMP,Create BLE Materials,CreateBLEMaterialsCommand,Manual,Temp/MaterialCommands.cs,Create 815 building-element materials from CSV
+TEMP,Create MEP Materials,CreateMEPMaterialsCommand,Manual,Temp/MaterialCommands.cs,Create 464 MEP materials from CSV
+TEMP,Create Walls,CreateWallsCommand,Manual,Temp/FamilyCommands.cs,Create wall types from CSV data
+TEMP,Create Floors,CreateFloorsCommand,Manual,Temp/FamilyCommands.cs,Create floor types from CSV data
+TEMP,Create Ceilings,CreateCeilingsCommand,Manual,Temp/FamilyCommands.cs,Create ceiling types from CSV data
+TEMP,Create Roofs,CreateRoofsCommand,Manual,Temp/FamilyCommands.cs,Create roof types from CSV data
+TEMP,Create Ducts,CreateDuctsCommand,Manual,Temp/FamilyCommands.cs,Create duct types from CSV data
+TEMP,Create Pipes,CreatePipesCommand,Manual,Temp/FamilyCommands.cs,Create pipe types from CSV data
+TEMP,Full Auto-Populate,FullAutoPopulateCommand,Manual,Temp/ScheduleCommands.cs,"Zero-input one-click: Tokens + Dimensions + MEP + Formulas + Tags + Combine + Grid"
+TEMP,Batch Create Schedules,BatchSchedulesCommand,Manual,Temp/ScheduleCommands.cs,Create 168 schedules from CSV definitions
+TEMP,Auto-Populate (Tokens Only),AutoPopulateCommand,Manual,Temp/ScheduleCommands.cs,Auto-populate token parameters only
+TEMP,Export CSV,ExportCSVCommand,ReadOnly,Temp/ScheduleCommands.cs,Export schedule data to CSV
+TEMP,Corporate Title Block Schedule,CorporateTitleBlockScheduleCommand,Manual,Temp/ScheduleCommands.cs,Create corporate title block data schedule
+TEMP,Drawing Register Schedule,DrawingRegisterScheduleCommand,Manual,Temp/ScheduleCommands.cs,Create drawing register schedule
+TEMP,Schedule Audit,ScheduleAuditCommand,ReadOnly,Temp/ScheduleEnhancementCommands.cs,Audit schedules against CSV definitions
+TEMP,Schedule Compare,ScheduleCompareCommand,ReadOnly,Temp/ScheduleEnhancementCommands.cs,Compare two schedules for differences
+TEMP,Schedule Duplicate,ScheduleDuplicateCommand,Manual,Temp/ScheduleEnhancementCommands.cs,Duplicate schedule with all settings
+TEMP,Schedule Refresh,ScheduleRefreshCommand,Manual,Temp/ScheduleEnhancementCommands.cs,Refresh schedule fields from CSV definitions
+TEMP,Schedule Field Manager,ScheduleFieldManagerCommand,Manual,Temp/ScheduleEnhancementCommands.cs,Add/remove/reorder schedule fields
+TEMP,Schedule Color,ScheduleColorCommand,Manual,Temp/ScheduleEnhancementCommands.cs,Apply conditional color formatting to schedule
+TEMP,Schedule Stats,ScheduleStatsCommand,ReadOnly,Temp/ScheduleEnhancementCommands.cs,Schedule statistics and coverage report
+TEMP,Schedule Delete,ScheduleDeleteCommand,Manual,Temp/ScheduleEnhancementCommands.cs,Delete schedules with confirmation
+TEMP,Schedule Report,ScheduleReportCommand,ReadOnly,Temp/ScheduleEnhancementCommands.cs,Generate comprehensive schedule report
+TEMP,Evaluate Formulas,FormulaEvaluatorCommand,Manual,Temp/FormulaEvaluatorCommand.cs,Evaluate 199 formulas from CSV in dependency order
+TEMP,Create Filters,CreateFiltersCommand,Manual,Temp/TemplateCommands.cs,Create 28 discipline-based view filters
+TEMP,Create Worksets,CreateWorksetsCommand,Manual,Temp/TemplateCommands.cs,Create 35 standard worksets
+TEMP,View Templates,ViewTemplatesCommand,Manual,Temp/TemplateCommands.cs,Create 23 view templates with full VG configuration
+TEMP,Create Line Patterns,CreateLinePatternsCommand,Manual,Temp/TemplateExtCommands.cs,Create 10 ISO-standard line patterns
+TEMP,Create Phases,CreatePhasesCommand,Manual,Temp/TemplateExtCommands.cs,Create 6 project phases
+TEMP,Apply Filters to Views,ApplyFiltersToViewsCommand,Manual,Temp/TemplateExtCommands.cs,Apply discipline filters to all views
+TEMP,Create Cable Trays,CreateCableTraysCommand,Manual,Temp/TemplateExtCommands.cs,Create cable tray types
+TEMP,Create Conduits,CreateConduitsCommand,Manual,Temp/TemplateExtCommands.cs,Create conduit types
+TEMP,Create Material Schedules,CreateMaterialSchedulesCommand,Manual,Temp/TemplateExtCommands.cs,Create material takeoff schedules
+TEMP,Auto-Assign Templates,AutoAssignTemplatesCommand,Manual,Temp/TemplateManagerCommands.cs,5-layer matching to assign templates to all unassigned views
+TEMP,Template Audit,TemplateAuditCommand,ReadOnly,Temp/TemplateManagerCommands.cs,Audit all views for template assignment status
+TEMP,Template Diff,TemplateDiffCommand,ReadOnly,Temp/TemplateManagerCommands.cs,Compare VG settings between two templates
+TEMP,Compliance Score,TemplateComplianceScoreCommand,ReadOnly,Temp/TemplateManagerCommands.cs,Score all views on 10-point compliance scale
+TEMP,Auto-Fix Template,AutoFixTemplateCommand,Manual,Temp/TemplateManagerCommands.cs,"Auto-repair template issues (missing filters, wrong detail level)"
+TEMP,Sync Template Overrides,SyncTemplateOverridesCommand,Manual,Temp/TemplateManagerCommands.cs,Push VG overrides from template to all views using it
+TEMP,Create Fill Patterns,CreateFillPatternsCommand,Manual,Temp/TemplateManagerCommands.cs,"Standard AEC fill patterns (hatching, crosshatch, etc.)"
+TEMP,Create Line Styles,CreateLineStylesCommand,Manual,Temp/TemplateManagerCommands.cs,ISO-compliant line styles
+TEMP,Create Object Styles,CreateObjectStylesCommand,Manual,Temp/TemplateManagerCommands.cs,Standard object style definitions
+TEMP,Create Text Styles,CreateTextStylesCommand,Manual,Temp/TemplateManagerCommands.cs,AEC standard text styles
+TEMP,Create Dimension Styles,CreateDimensionStylesCommand,Manual,Temp/TemplateManagerCommands.cs,AEC standard dimension styles
+TEMP,Create VG Overrides,CreateVGOverridesCommand,Manual,Temp/TemplateManagerCommands.cs,Apply comprehensive VG overrides to templates
+TEMP,Batch Add Family Params,BatchAddFamilyParamsCommand,Manual,Temp/TemplateManagerCommands.cs,Add shared parameters to family documents in batch
+TEMP,Create Template Schedules,CreateTemplateSchedulesCommand,Manual,Temp/TemplateManagerCommands.cs,Create standard schedule templates
+TEMP,Template Setup Wizard,TemplateSetupWizardCommand,Manual,Temp/TemplateManagerCommands.cs,Multi-step guided template setup
+TEMP,Clone Template,CloneTemplateCommand,Manual,Temp/TemplateManagerCommands.cs,"Deep clone template with VG, filters, and overrides"
+TEMP,Batch VG Reset,BatchVGResetCommand,Manual,Temp/TemplateManagerCommands.cs,Reset VG settings across multiple views
+TEMP,Validate Template,ValidateTemplateCommand,ReadOnly,Temp/DataPipelineCommands.cs,"45 validation checks (data files, parameters, materials, formulas, schedules)"
+TEMP,Dynamic Bindings,DynamicBindingsCommand,Manual,Temp/DataPipelineCommands.cs,Load category bindings from BINDING_COVERAGE_MATRIX.csv
+TEMP,Schema Validate,SchemaValidateCommand,ReadOnly,Temp/DataPipelineCommands.cs,Validate BLE/MEP CSV columns match MATERIAL_SCHEMA.json
+TEMP,BOQ Export,BOQExportCommand,Manual,Temp/DataPipelineCommands.cs,"Export Bill of Quantities to Excel (ClosedXML, NRM2 format)"
+TEMP,Template VG Audit,TemplateVGAuditCommand,ReadOnly,Temp/DataPipelineCommands.cs,Audit Visual Graphics overrides across templates
+TEMP,Export IFC Property Map,ExportIfcPropertyMapCommand,ReadOnly,Temp/DataPipelineCommands.cs,Export STING-to-IFC parameter mapping table
+TEMP,Validate BEP Compliance,ValidateBepComplianceCommand,ReadOnly,Temp/DataPipelineCommands.cs,Validate BIM Execution Plan compliance (25 checks)
+TEMP,Clash Detection,ClashDetectionCommand,ReadOnly,Temp/DataPipelineCommands.cs,"Element clash detection (hard, soft, clearance)"
+TEMP,IFC Export,IFCExportCommand,Manual,Temp/DataPipelineCommands.cs,Enhanced IFC export with STING property mapping
+TEMP,Excel BOQ Import,ExcelBOQImportCommand,Manual,Temp/DataPipelineCommands.cs,Import BOQ rates from external Excel file
+TEMP,Keynote Sync,KeynoteSyncCommand,Manual,Temp/DataPipelineCommands.cs,Synchronize keynotes across model from tag data
+##
+## --- CORE COMMANDS (5 commands) ---
+PANEL,COMMAND,CLASS,TRANSACTION,FILE,DESCRIPTION
+CORE,Toggle Dock Panel,ToggleDockPanelCommand,ReadOnly,Core/StingToolsApp.cs,Show/hide the STING Tools WPF dockable panel
+CORE,Toggle Auto-Tagger,AutoTaggerToggleCommand,ReadOnly,Core/StingAutoTagger.cs,Enable/disable real-time IUpdater auto-tagging on element placement
+CORE,Run Workflow Preset,WorkflowPresetCommand,Manual,Core/WorkflowEngine.cs,"Run a named workflow preset (JSON-based command chaining, atomic rollback)"
+CORE,List Workflow Presets,ListWorkflowPresetsCommand,ReadOnly,Core/WorkflowEngine.cs,"List available workflow presets (ProjectKickoff, DailyQA, DocumentPackage)"
+CORE,Create Workflow Preset,CreateWorkflowPresetCommand,Manual,Core/WorkflowEngine.cs,Create/edit workflow preset from current configuration
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 15: WORKFLOW PRESETS — Built-in Workflow Definitions
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,WORKFLOW_PRESETS
+## WorkflowEngine (Core/WorkflowEngine.cs) chains named command sequences with per-step progress and atomic rollback
+PRESET,STEPS,DESCRIPTION,USE_CASE
+ProjectKickoff,26,"Full project setup: Load params → Create materials → Create families → Create schedules → Create templates → Master setup","Run once at project start to configure all BIM standards"
+DailyQA,6,"Daily quality check: Pre-Tag Audit → Validate Tags → Completeness Dashboard → Highlight Invalid → Tag Stats → Schedule Audit","Run daily to monitor tag compliance and data quality"
+DocumentPackage,6,"Documentation output: Combine Parameters → Legend Creation → Sheet Naming Check → Drawing Register → Document Transmittal → BOQ Export","Run before issuing documents to ensure completeness"
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 16: REAL-TIME AUTO-TAGGER — IUpdater Configuration
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,AUTO_TAGGER
+## StingAutoTagger (Core/StingAutoTagger.cs) uses Revit IUpdater API for zero-touch tagging
+SETTING,VALUE,DESCRIPTION
+Default State,DISABLED,"Auto-tagger starts disabled. Toggle on/off via AutoTaggerToggleCommand."
+Trigger Event,Element Addition,"Tags newly placed elements immediately using DocumentChanged listener"
+Categories Monitored,22,"All taggable categories (Mechanical Equipment, Electrical Equipment, Lighting Fixtures, Plumbing Fixtures, etc.)"
+Tagging Method,TokenAutoPopulator + BuildAndWriteTag,"Uses same pipeline as manual tag commands"
+De-duplication,"HashSet of processed IDs (trims at 10,000)","Prevents re-trigger loops from tag writes"
+Registration,StingToolsApp.OnStartup(),Registered as IUpdater during plugin initialization
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 17: COMPLIANCE SCANNING — RAG Status Dashboard
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,COMPLIANCE_SCANNING
+## ComplianceScan (Core/ComplianceScan.cs) provides cached lightweight compliance metrics
+METRIC,DESCRIPTION,THRESHOLD
+TotalElements,Count of all taggable elements in project,N/A
+TaggedComplete,Elements with all 8 tag tokens populated,N/A
+TaggedIncomplete,Elements with some but not all tokens,N/A
+Untagged,Elements with no tag data,N/A
+CompliancePercent,TaggedComplete / TotalElements * 100,N/A
+RAG Status: GREEN,Compliance >= 80%,80%
+RAG Status: AMBER,Compliance 50-79%,50%
+RAG Status: RED,Compliance < 50%,50%
+Cache Duration,30 seconds before auto-refresh,"Call InvalidateCache() after tagging operations"
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 18: DATA PIPELINE — Validation & Integration Commands
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,DATA_PIPELINE
+COMMAND,CHECKS,DATA_SOURCE,DESCRIPTION
+Validate Template,45,"All data files (CSV/JSON/TXT/XLSX)","Comprehensive validation: file inventory, parameter consistency, material completeness, formula dependencies, schedule definitions, cross-references"
+Dynamic Bindings,N/A,BINDING_COVERAGE_MATRIX.csv,"Load category-parameter bindings from CSV instead of hardcoded SharedParamGuids.AllCategoryEnums"
+Schema Validate,77,MATERIAL_SCHEMA.json,"Validate BLE_MATERIALS.csv and MEP_MATERIALS.csv columns match canonical 77-column schema"
+BOQ Export,N/A,BOQ_TEMPLATE.csv,"Export Bill of Quantities to Excel (ClosedXML): discipline bills, NRM2 groups, 6-column format with subtotals"
+Template VG Audit,N/A,View templates,"Audit Visual Graphics overrides: category visibility, line styles, fill patterns across all templates"
+Export IFC Property Map,N/A,PARAMETER_REGISTRY.json,"Map STING shared parameters to IFC property sets for standards-compliant export"
+Validate BEP Compliance,25,Project data,"BIM Execution Plan validation: naming conventions, LOD requirements, responsibility matrix, deliverables"
+Clash Detection,N/A,Model geometry,"Element interference detection: hard clashes, soft clearance zones, discipline-crossover analysis"
+IFC Export,N/A,Revit model,"Enhanced IFC export with STING parameter mapping, property set configuration, and quality validation"
+Excel BOQ Import,N/A,External .xlsx,"Import unit rates and descriptions from external BOQ Excel file into STING cost parameters"
+Keynote Sync,N/A,Tag data + Keynote file,"Synchronize Revit keynotes from STING tag data: product codes, descriptions, classifications"
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 19: COLLISION MODES — Tag Collision Handling
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,COLLISION_MODES
+MODE,BEHAVIOUR,WHEN_TO_USE
+Skip,"If tag already exists, skip the element",Default mode. Preserves existing tags. Use for incremental tagging.
+Overwrite,"If tag exists, overwrite with new tag",Use when re-tagging after corrections. Destroys existing tag data.
+AutoIncrement,"If tag collision detected, auto-increment SEQ to find unique tag","Use for batch operations where uniqueness is critical. BuildExistingTagIndex() provides O(1) collision lookup."
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 20: DATA FILES — Runtime Data File Reference
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,DATA_FILES
+FILE,ROWS_OR_SIZE,FORMAT,LOADED_BY,DESCRIPTION
+BLE_MATERIALS.csv,815 materials,CSV,CreateBLEMaterialsCommand,"Building element materials: walls, floors, ceilings, roofs with layer definitions and properties"
+MEP_MATERIALS.csv,464 materials,CSV,CreateMEPMaterialsCommand,"MEP materials: ductwork, pipework, insulation, electrical with properties"
+MR_PARAMETERS.txt,200+ params,Shared Parameter File,LoadSharedParamsCommand,Revit shared parameter definitions (GUID + name + type + group)
+MR_PARAMETERS.csv,200+ params,CSV,SyncParameterSchemaCommand,Parameter definitions cross-reference for validation
+MR_SCHEDULES.csv,168 schedules,CSV,BatchSchedulesCommand,Schedule definitions with fields and formatting
+PARAMETER_REGISTRY.json,v4.3,JSON,ParamRegistry.cs,"Master parameter registry: names, GUIDs, containers, bindings, tag format config"
+MATERIAL_SCHEMA.json,77 columns,JSON,SchemaValidateCommand,Canonical material library column schema for BLE/MEP validation
+FORMULAS_WITH_DEPENDENCIES.csv,199 formulas,CSV,FormulaEvaluatorCommand,Parameter formulas with dependency levels (0-6)
+SCHEDULE_FIELD_REMAP.csv,50 remaps,CSV,ScheduleHelper,Deprecated field name remaps for schedule migration
+BINDING_COVERAGE_MATRIX.csv,Large,CSV,DynamicBindingsCommand,Parameter-to-category binding coverage matrix
+BOQ_TEMPLATE.csv,Multi-section,CSV,BOQExportCommand,"BOQ export configuration: bill mapping, column layout, unit mapping"
+CATEGORY_BINDINGS.csv,"10,661 entries",CSV,Not yet loaded,"Parameter-category bindings (planned: replace hardcoded DisciplineBindings)"
+FAMILY_PARAMETER_BINDINGS.csv,"4,686 entries",CSV,Not yet loaded,Family-level parameter validation and auto-binding
+PARAMETER__CATEGORIES.csv,Cross-reference,CSV,CheckDataCommand,Parameter-category cross-reference
+LABEL_DEFINITIONS.json,"3,623 lines",JSON,LabelDefinitionHelper,"Label and legend definitions: tag containers, display styles, presentation modes"
+TAG_GUIDE_V3.csv,This file,CSV,Reference,Comprehensive tag configuration and manual input reference
+TAG_GUIDE.xlsx,Original,XLSX,Reference,Original tag reference guide
+TAG GUIDE V2.xlsx,V2,XLSX,Reference,Comprehensive update tag reference guide
+PYREVIT_SCRIPT_MANIFEST.csv,12 scripts,CSV,Reference,"Legacy pyRevit script manifest (STINGDocs, STINGTags, STINGTemp)"
+VALIDAT_BIM_TEMPLATE.py,45 checks,Python,Ported to ValidateTemplateCommand,Original BIM template validation script (now ported to C#)
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 21: PROGRESS & CANCELLATION — Batch Operation Controls
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,PROGRESS_CANCELLATION
+## StingProgressDialog (UI/StingProgressDialog.cs) + EscapeChecker (Core/StingLog.cs)
+FEATURE,DESCRIPTION,USAGE
+Progress Dialog,"Modeless WPF progress window with progress bar, element count (N0 formatted), ETA, cancel button","Show(title, total) → Increment(message) → IsCancelled check → Close()"
+Escape Key Detection,"Win32 GetAsyncKeyState for Escape key (works even when Revit has focus)","EscapeChecker.IsEscapePressed() — checked between batch iterations"
+Thread Safety,"Dispatcher.Invoke for UI updates (every 50 elements for performance)","All UI updates marshalled to WPF thread"
+Cancel Support,"Both Cancel button and Escape key trigger IsCancelled flag","WorkflowEngine checks between steps; batch commands check per-element"
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 22: DOCKABLE PANEL — WPF UI Tab Reference
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,DOCKABLE_PANEL
+TAB,CONTENT,MIRRORS_RIBBON,APPROX_BUTTONS
+SELECT,"Category selectors, state selectors, spatial selectors, bulk parameter write, color commands",Select panel,28
+ORGANISE,"Tag operations, leader management, analysis/QA, annotation colors, tag appearance",Organise + Tags QA,40
+DOCS,"Sheet/view organization, viewports, document automation, view automation",Docs panel,27
+TEMP,"Materials, families, schedules, template setup, data pipeline, style commands",Temp panel,57
+CREATE,"Tagging commands, token writers, combine, setup, legends, smart placement, rich tags",Tags panel,98
+VIEW,"View templates, template manager, styles, presentation modes",Temp Templates,varies
+##
+## Thread safety: Button Click → StingDockPanel.Cmd_Click → StingCommandHandler.SetCommand(tag) → ExternalEvent.Raise()
+## → Revit calls StingCommandHandler.Execute(UIApplication) → RunCommand<T>(app)
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## END OF TAG GUIDE V3
+## Total: 22 sheets | 250 commands | 200+ parameters | 20 data files
+## ═══════════════════════════════════════════════════════════════════════════════
