@@ -1395,7 +1395,7 @@ namespace StingTools.Temp
                 ws.Cell(row, 2).Style.Font.Italic = true;
 
                 // Print settings
-                ws.PageSetup.PrintTitleRows = 1;
+                ws.PageSetup.SetRowsToRepeatAtTop(1, 1);
                 ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
                 ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
                 ws.PageSetup.FitToPages(1, 0); // fit width to 1 page

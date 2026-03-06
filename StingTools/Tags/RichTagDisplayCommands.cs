@@ -751,6 +751,11 @@ namespace StingTools.Tags
 
             // TaskDialog supports max 4 command links — show presets in pages
             // Page 1: first 3 presets + "More..." link; Page 2+: next 4 presets
+            var linkIds = new[]
+            {
+                TaskDialogCommandLinkId.CommandLink1, TaskDialogCommandLinkId.CommandLink2,
+                TaskDialogCommandLinkId.CommandLink3, TaskDialogCommandLinkId.CommandLink4,
+            };
             var linkResults = new[]
             {
                 TaskDialogResult.CommandLink1, TaskDialogResult.CommandLink2,
@@ -781,13 +786,13 @@ namespace StingTools.Tags
                 {
                     int presetIdx = pageStart + i;
                     string active = TagConfig.ActivePreset?.Name == presets[presetIdx].Name ? " [ACTIVE]" : "";
-                    pageDlg.AddCommandLink(linkResults[i], $"{presets[presetIdx].Name}{active}", presets[presetIdx].Description);
+                    pageDlg.AddCommandLink(linkIds[i], $"{presets[presetIdx].Name}{active}", presets[presetIdx].Description);
                     linkMap[linkResults[i]] = presets[presetIdx].Name;
                 }
 
                 if (needMore)
                 {
-                    pageDlg.AddCommandLink(linkResults[slotsForPresets], "More presets...",
+                    pageDlg.AddCommandLink(linkIds[slotsForPresets], "More presets...",
                         $"{remaining - slotsForPresets} more presets available");
                     linkMap[linkResults[slotsForPresets]] = moreToken;
                 }

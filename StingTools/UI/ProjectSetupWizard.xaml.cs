@@ -518,12 +518,12 @@ namespace StingTools.UI
 
             // Page 3: Grids
             data.CreateGrids = chkCreateGrids.IsChecked == true;
-            int.TryParse(txtGridHCount.Text, out data.GridHCount);
-            double.TryParse(txtGridHSpacing.Text, out data.GridHSpacing);
-            double.TryParse(txtGridHLength.Text, out data.GridHLength);
-            int.TryParse(txtGridVCount.Text, out data.GridVCount);
-            double.TryParse(txtGridVSpacing.Text, out data.GridVSpacing);
-            double.TryParse(txtGridVLength.Text, out data.GridVLength);
+            if (int.TryParse(txtGridHCount.Text, out int ghc)) data.GridHCount = ghc;
+            if (double.TryParse(txtGridHSpacing.Text, out double ghs)) data.GridHSpacing = ghs;
+            if (double.TryParse(txtGridHLength.Text, out double ghl)) data.GridHLength = ghl;
+            if (int.TryParse(txtGridVCount.Text, out int gvc)) data.GridVCount = gvc;
+            if (double.TryParse(txtGridVSpacing.Text, out double gvs)) data.GridVSpacing = gvs;
+            if (double.TryParse(txtGridVLength.Text, out double gvl)) data.GridVLength = gvl;
 
             // Page 4: Disciplines
             data.Disciplines = new List<string>();
@@ -549,7 +549,7 @@ namespace StingTools.UI
                 data.UnitSystem = "Imperial";
             else
                 data.UnitSystem = "Millimeters";
-            double.TryParse(txtTrueNorth.Text, out data.TrueNorthAngle);
+            if (double.TryParse(txtTrueNorth.Text, out double tnAngle)) data.TrueNorthAngle = tnAngle;
 
             // Page 5: Discipline-specific configuration
             CollectDisciplineConfig(data);
@@ -585,7 +585,7 @@ namespace StingTools.UI
                 mc.IncludeGAS = chkMechGAS.IsChecked == true;
                 mc.DuctMaterial = GetComboValue(cmbMechDuctMat);
                 mc.PipeMaterial = GetComboValue(cmbMechPipeMat);
-                int.TryParse(txtMechInsulation.Text, out mc.InsulationMm);
+                if (int.TryParse(txtMechInsulation.Text, out int insul)) mc.InsulationMm = insul;
             }
 
             // Electrical

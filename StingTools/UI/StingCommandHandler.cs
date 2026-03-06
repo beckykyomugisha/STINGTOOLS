@@ -2009,7 +2009,7 @@ namespace StingTools.UI
                             if (leaders.Count > 0)
                                 tn.RemoveLeaders();
                             else
-                                tn.AddLeader(Autodesk.Revit.DB.TextNoteLeaderType.TNLT_STRAIGHT_L);
+                                tn.AddLeader(LeaderAtachement.Midpoint);
                             toggled++;
                         }
                         catch { }

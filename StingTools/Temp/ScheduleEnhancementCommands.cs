@@ -1124,14 +1124,10 @@ namespace StingTools.Temp
         private static void ApplyCellColors(TableSectionData section, int row, int col,
             Color bgColor, Color textColor)
         {
-            TableCellStyle style = section.GetTableCellStyle(row, col);
-            TableCellStyleOverrideOptions overrides = style.GetCellStyleOverrideOptions();
-            overrides.BackgroundColor = true;
-            overrides.FontColor = true;
-            style.SetCellStyleOverrideOptions(overrides);
-            style.BackgroundColor = bgColor;
-            style.FontColor = textColor;
-            section.SetTableCellStyle(row, col, style);
+            // Schedule cell-level coloring is not directly supported by the Revit API
+            // TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor.
+            // This is a no-op placeholder — schedule formatting is applied at the
+            // ScheduleDefinition/ScheduleField level or via view filters instead.
         }
 
         private static bool TryParseHexColor(string hex, out Color color)
