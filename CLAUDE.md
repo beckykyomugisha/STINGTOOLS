@@ -8,10 +8,10 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **58 source files** (55 C# + 2 XAML + 1 AssemblyInfo, ~56,030 lines of code) across 8 directories
-- **234 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider`
-- **20 runtime data files** (CSV, JSON, TXT, XLSX, PY)
-- **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel + 1 WPF project setup wizard
+- **63 source files** (60 C# + 2 XAML + 1 AssemblyInfo, ~60,882 lines of code) across 8 directories
+- **251 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
+- **22 runtime data files** (CSV, JSON, TXT, XLSX, PY)
+- **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel + 1 WPF project setup wizard + 1 WPF progress dialog
 
 ## Technology Stack
 
@@ -41,38 +41,42 @@ STINGTOOLS/
     ├── Properties/
     │   └── AssemblyInfo.cs             # Assembly metadata (v1.0.0.0)
     │
-    ├── Core/                           # Shared infrastructure (6 files, ~6,758 lines)
+    ├── Core/                           # Shared infrastructure (9 files, ~9,261 lines)
     │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI + dockable panel registration + ToggleDockPanelCommand
     │   ├── StingLog.cs                 # Thread-safe file logger (Info/Warn/Error)
     │   ├── ParamRegistry.cs            # Single source of truth for parameter names, GUIDs, containers, bindings (loads from PARAMETER_REGISTRY.json)
     │   ├── ParameterHelpers.cs         # Parameter read/write + SpatialAutoDetect + NativeParamMapper + TokenAutoPopulator + PhaseAutoDetect
     │   ├── SharedParamGuids.cs         # Backwards-compatible facade wrapping ParamRegistry (GUID lookups, category bindings)
-    │   └── TagConfig.cs               # ISO 19650 tag lookup tables, tag builder, TagIntelligence, TAG7 narrative builder
+    │   ├── TagConfig.cs               # ISO 19650 tag lookup tables, tag builder, TagIntelligence, TAG7 narrative builder
+    │   ├── ComplianceScan.cs          # Cached compliance dashboard (RAG status, 30s cache, thread-safe)
+    │   ├── StingAutoTagger.cs         # IUpdater — real-time auto-tagging on element placement (22 category triggers)
+    │   └── WorkflowEngine.cs          # JSON workflow orchestration engine (presets, cancel, rollback)
     │
     ├── Select/                         # Element selection + color commands (3 files, 28 commands)
     │   ├── CategorySelectCommands.cs   # 14 category selectors + SelectAllTaggable + CategorySelector helper
     │   ├── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite
     │   └── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │
-    ├── UI/                             # WPF dockable panel UI + project wizard (4 C# files + 2 XAML, ~8,158 lines)
+    ├── UI/                             # WPF dockable panel UI + project wizard + progress dialog (5 C# files + 2 XAML, ~8,572 lines)
     │   ├── StingDockPanel.xaml         # WPF markup for 6-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW)
     │   ├── StingDockPanel.xaml.cs      # Code-behind: button dispatch, colour swatches, status bar
-    │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 400+ button tags to 234 command classes + inline helpers
+    │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 400+ button tags to 251 command classes + inline helpers
     │   ├── StingDockPanelProvider.cs   # IDockablePaneProvider — registers panel with Revit
+    │   ├── StingProgressDialog.cs     # Modeless WPF progress dialog (progress bar, ETA, Escape cancel, Dispatcher thread-safe)
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
     │   └── ProjectSetupWizard.xaml.cs  # Code-behind: presets, validation, discipline config, review summary
     │
-    ├── Docs/                           # Documentation commands (8 files, 27 commands)
+    ├── Docs/                           # Documentation commands (8 files, 29 commands)
     │   ├── SheetOrganizerCommand.cs    # Group sheets by discipline prefix
     │   ├── ViewOrganizerCommand.cs     # Organize views by type/level
     │   ├── SheetIndexCommand.cs        # Create sheet index schedule
     │   ├── TransmittalCommand.cs       # ISO 19650 transmittal report
     │   ├── ViewportCommands.cs         # Align, Renumber, TextCase, SumAreas
     │   ├── DocAutomationCommands.cs    # DeleteUnusedViews, SheetNamingCheck, AutoNumberSheets
-    │   ├── DocAutomationExtCommands.cs # Batch views/sheets/sections/elevations, doc package, scope boxes, templates, drawing register, browser organizer
+    │   ├── DocAutomationExtCommands.cs # Batch views/sheets/sections/elevations, doc package, scope boxes, templates, drawing register, browser organizer, revision clouds
     │   └── ViewAutomationCommands.cs   # DuplicateView, BatchRename, CopySettings, AutoPlace, Crop, BatchAlign
     │
-    ├── Tags/                           # Tagging commands (20 files, 82 commands)
+    ├── Tags/                           # Tagging commands (20 files, 85 commands)
     │   ├── AutoTagCommand.cs           # Tag elements in active view + TagNewOnly
     │   ├── BatchTagCommand.cs          # Tag all elements in project
     │   ├── TagAndCombineCommand.cs     # One-click: populate + tag + combine all
@@ -95,10 +99,10 @@ STINGTOOLS/
     │   ├── PresentationModeCommand.cs  # 4 presentation commands: SetMode, ViewLabelSpec, ExportLabelGuide, SetTag7HeadingStyle
     │   └── ParagraphDepthCommand.cs    # 2 commands: SetParagraphDepth, ToggleWarningVisibility
     │
-    ├── Organise/                       # Tag management commands (1 file, 39 commands)
-    │   └── TagOperationCommands.cs     # Tag Ops (7), Leaders (14), Analysis (7), Annotation Color (5), Tag Appearance (5), Tag Type (1) + LeaderHelper + AnnotationColorHelper
+    ├── Organise/                       # Tag management commands (1 file, 40 commands)
+    │   └── TagOperationCommands.cs     # Tag Ops (7), Leaders (14), Analysis (7), Annotation Color (5), Tag Appearance (5), Tag Type (1), Anomaly Fix (1) + LeaderHelper + AnnotationColorHelper
     │
-    ├── Temp/                           # Template commands (13 files, 57 commands)
+    ├── Temp/                           # Template commands (13 files, 65 commands)
     │   ├── CreateParametersCommand.cs  # Delegates to LoadSharedParams
     │   ├── CheckDataCommand.cs         # Data file inventory with SHA-256
     │   ├── MasterSetupCommand.cs       # One-click full project setup (15 steps)
@@ -310,18 +314,20 @@ STINGTOOLS/
 |---------|-------|-------------|-------------|
 | Swap Tag Type | `Organise.SwapTagTypeCommand` | Manual | Swap tag family type on selected annotation tags |
 
-### Temp Panel (9 pulldown groups, 57 commands)
+### Temp Panel (9 pulldown groups + Workflows + Auto-Tagger, 69 commands)
 | Group | Commands | Description |
 |-------|----------|-------------|
 | Setup | Create Parameters, Check Data Files, **Master Setup**, **★ Project Setup Wizard** | Project setup + one-click automation (15-step workflow) + 7-page WPF wizard (4 commands) |
 | Materials | Create BLE Materials, Create MEP Materials | Material creation from CSV (815 + 464) |
 | Families | Walls, Floors, Ceilings, Roofs, Ducts, Pipes (FamilyCommands.cs), Cable Trays, Conduits (TemplateExtCommands.cs) | Type creation from CSV data (8 commands) |
-| Schedules | **Full Auto-Populate**, Batch Create, Auto-Populate (Tokens Only), Evaluate Formulas, Export CSV | Schedule creation + zero-input automation (5 commands) |
+| Schedules | **Full Auto-Populate**, Batch Create, Auto-Populate (Tokens Only), Evaluate Formulas, Export CSV, Corporate Title Block, Drawing Register | Schedule creation + zero-input automation (7 commands) |
 | **Schedule Mgr** | Audit, Compare, Duplicate, Refresh, Field Manager, Colors, Stats, Delete, Report | Deep schedule management + formatting (9 commands) |
 | Templates | Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases, Material Schedules | Template pipeline + 28 filters, 35 worksets, 23 templates, 10 line patterns, 6 phases (7 commands) |
 | **Template Mgr** | Auto-Assign Templates, Template Audit, Template Diff, Compliance Scores, Auto-Fix Templates, Sync VG Overrides, Clone Template, Batch VG Reset, Batch Family Params, Template Schedules, Template Setup Wizard | 5-layer intelligence template management (11 commands) |
 | **Styles** | Fill Patterns, Line Styles, Object Styles, Text Styles, Dimension Styles, VG Overrides | ISO-standard style creation (6 commands) |
-| **Data Pipeline** | Validate Template, Dynamic Bindings, Schema Validate, BOQ Export, Template VG Audit | Data integrity validation + dynamic CSV-driven bindings + BOQ export (5 commands) |
+| **Data Pipeline** | Validate Template, Dynamic Bindings, Schema Validate, BOQ Export, Template VG Audit, IFC Property Map, BEP Compliance, Clash Detection, IFC Export, Excel BOQ Import, Keynote Sync | Data integrity, IFC integration, clash detection, BOQ round-trip (11 commands) |
+| **Workflows** | Workflow Preset, List Presets, Create Preset | JSON-based workflow orchestration with cancel + rollback (3 commands) |
+| **Auto-Tagger** | Toggle Auto-Tagger | Real-time IUpdater auto-tagging on element placement (1 command) |
 
 ### Panel Panel (1 button)
 | Button | Command Class | Transaction | Description |
@@ -332,66 +338,72 @@ STINGTOOLS/
 
 | File | Commands | Lines |
 |------|----------|-------|
-| `Core/StingToolsApp.cs` | 1 (ToggleDockPanelCommand) + IExternalApplication | 202 |
-| `Core/ParamRegistry.cs` | 0 (parameter registry infrastructure) | 1,048 |
-| `Core/ParameterHelpers.cs` | 0 (helpers + TokenAutoPopulator + PhaseAutoDetect) | 1,725 |
-| `Core/TagConfig.cs` | 0 (tag config + ISO validator + TAG7 builder) | 3,507 |
+| `Core/StingToolsApp.cs` | 1 (ToggleDockPanelCommand) + IExternalApplication | 206 |
+| `Core/ParamRegistry.cs` | 0 (parameter registry infrastructure) | 1,070 |
+| `Core/ParameterHelpers.cs` | 0 (helpers + TokenAutoPopulator + PhaseAutoDetect) | 1,758 |
+| `Core/TagConfig.cs` | 0 (tag config + ISO validator + TAG7 builder) | 3,692 |
+| `Core/StingLog.cs` | 0 (thread-safe file logger) | 117 |
+| `Core/SharedParamGuids.cs` | 0 (backwards-compatible facade) | 183 |
+| `Core/ComplianceScan.cs` | 0 (cached compliance dashboard) | 144 |
+| `Core/StingAutoTagger.cs` | 1 (AutoTaggerToggle) + IUpdater | 223 |
+| `Core/WorkflowEngine.cs` | 3 (WorkflowPreset, ListPresets, CreatePreset) + WorkflowEngine | 551 |
 | `Select/CategorySelectCommands.cs` | 15 (14 category selectors + SelectAllTaggable) | 168 |
 | `Select/StateSelectCommands.cs` | 8 (5 state + 2 spatial + BulkParamWrite) | 613 |
 | `Select/ColorCommands.cs` | 5 (ColorByParameter, ClearOverrides, SavePreset, LoadPreset, CreateFilters) + ColorHelper | 907 |
 | `Docs/SheetOrganizerCommand.cs` | 1 | 101 |
 | `Docs/ViewOrganizerCommand.cs` | 1 | 91 |
 | `Docs/SheetIndexCommand.cs` | 1 | 75 |
-| `Docs/TransmittalCommand.cs` | 1 | 93 |
+| `Docs/TransmittalCommand.cs` | 1 | 122 |
 | `Docs/ViewportCommands.cs` | 4 (Align, Renumber, TextCase, SumAreas) | 405 |
 | `Docs/DocAutomationCommands.cs` | 3 (DeleteUnusedViews, SheetNamingCheck, AutoNumberSheets) | 439 |
-| `Docs/DocAutomationExtCommands.cs` | 10 (BatchViews, BatchSheets, DependentViews, ScopeBox, ViewTemplate, DocPackage, Sections, Elevations, DrawingRegister, BrowserOrganizer) | 2,383 |
+| `Docs/DocAutomationExtCommands.cs` | 12 (BatchViews, BatchSheets, DependentViews, ScopeBox, ViewTemplate, DocPackage, Sections, Elevations, DrawingRegister, BrowserOrganizer, TitleBlockSchedule, RevisionCloudAutoCreate) | 2,580 |
 | `Docs/ViewAutomationCommands.cs` | 6 (DuplicateView, BatchRename, CopySettings, AutoPlace, CropToContent, BatchAlign) | 812 |
-| `Tags/AutoTagCommand.cs` | 2 (AutoTag, TagNewOnly) | 310 |
-| `Tags/BatchTagCommand.cs` | 1 | 225 |
-| `Tags/TagAndCombineCommand.cs` | 1 | 274 |
+| `Tags/AutoTagCommand.cs` | 2 (AutoTag, TagNewOnly) | 346 |
+| `Tags/BatchTagCommand.cs` | 3 (BatchTag, TagFormatMigration, TagChanged) | 534 |
+| `Tags/TagAndCombineCommand.cs` | 1 | 293 |
 | `Tags/PreTagAuditCommand.cs` | 1 | 441 |
-| `Tags/FamilyStagePopulateCommand.cs` | 1 | 344 |
+| `Tags/FamilyStagePopulateCommand.cs` | 1 | 362 |
 | `Tags/CombineParametersCommand.cs` | 2 (CombineParameters, CombinePreFlight) | 423 |
 | `Tags/ConfigEditorCommand.cs` | 1 | 194 |
 | `Tags/TagConfigCommand.cs` | 1 | 63 |
-| `Tags/LoadSharedParamsCommand.cs` | 1 | 169 |
+| `Tags/LoadSharedParamsCommand.cs` | 1 | 216 |
 | `Tags/TokenWriterCommands.cs` | 7 (SetDisc, SetLoc, SetZone, SetStatus, AssignNumbers, BuildTags, CompletenessDashboard) | 582 |
-| `Tags/ValidateTagsCommand.cs` | 1 | 471 |
+| `Tags/ValidateTagsCommand.cs` | 1 | 497 |
 | `Tags/SmartTagPlacementCommand.cs` | 9 (SmartPlace, Arrange, RemoveAnnotation, BatchPlace, LearnPlacement, ApplyTemplate, OverlapAnalysis, BatchTextSize, SetCategoryLineWeight) | 1,939 |
 | `Tags/TagFamilyCreatorCommand.cs` | 4 (CreateTagFamilies, LoadTagFamilies, ConfigureTagLabels, AuditTagFamilies) | 1,296 |
-| `Tags/SyncParameterSchemaCommand.cs` | 3 (SyncParameterSchema, AddParamRemap, AuditParameterSchema) | 574 |
-| `Tags/LegendBuilderCommands.cs` | 31 (color/tag/discipline/system/material/equipment/fire/template legends + master pipeline) + LegendEngine | 7,045 |
+| `Tags/SyncParameterSchemaCommand.cs` | 3 (SyncParameterSchema, AddParamRemap, AuditParameterSchema) | 661 |
+| `Tags/LegendBuilderCommands.cs` | 31 (color/tag/discipline/system/material/equipment/fire/template legends + master pipeline) + LegendEngine | 7,054 |
 | `Tags/RichTagDisplayCommands.cs` | 6 (RichTagNote, ExportReport, ViewSections, SwitchPreset, SegmentNote, ViewSegments) | 1,092 |
 | `Tags/SystemParamPushCommand.cs` | 3 (SystemParamPush, BatchSystemPush, SelectSystemElements) | 886 |
-| `Tags/ResolveAllIssuesCommand.cs` | 1 (one-click ISO 19650 resolution) | 274 |
+| `Tags/ResolveAllIssuesCommand.cs` | 1 (one-click ISO 19650 resolution) | 278 |
 | `Tags/PresentationModeCommand.cs` | 4 (SetPresentationMode, ViewLabelSpec, ExportLabelGuide, SetTag7HeadingStyle) | 924 |
 | `Tags/ParagraphDepthCommand.cs` | 2 (SetParagraphDepth, ToggleWarningVisibility) | 209 |
-| `Organise/TagOperationCommands.cs` | 39 (7 Tag Ops + 14 Leaders + 7 Analysis + 5 Annotation Color + 5 Tag Appearance + 1 SwapTagType + LeaderHelper + AnnotationColorHelper) | 4,111 |
+| `Organise/TagOperationCommands.cs` | 40 (7 Tag Ops + 14 Leaders + 7 Analysis + 5 Annotation Color + 5 Tag Appearance + 1 SwapTagType + 1 AnomalyAutoFix + LeaderHelper + AnnotationColorHelper) | 4,369 |
 | `Temp/CreateParametersCommand.cs` | 1 | 27 |
-| `Temp/CheckDataCommand.cs` | 1 | 101 |
-| `Temp/MasterSetupCommand.cs` | 1 | 280 |
-| `Temp/ProjectSetupCommand.cs` | 1 (ProjectSetup — launches 7-page WPF wizard) | 1,109 |
+| `Temp/CheckDataCommand.cs` | 1 | 296 |
+| `Temp/MasterSetupCommand.cs` | 1 | 345 |
+| `Temp/ProjectSetupCommand.cs` | 1 (ProjectSetup — launches 7-page WPF wizard) | 1,126 |
 | `Temp/MaterialCommands.cs` | 2 (BLE, MEP) + MaterialPropertyHelper | 429 |
 | `Temp/FamilyCommands.cs` | 6 (Walls, Floors, Ceilings, Roofs, Ducts, Pipes) + CompoundTypeCreator | 683 |
-| `Temp/ScheduleCommands.cs` | 4 (FullAutoPopulate, BatchSchedules, AutoPopulate, ExportCSV) + ScheduleHelper | 1,165 |
-| `Temp/ScheduleEnhancementCommands.cs` | 9 (Audit, Compare, Duplicate, Refresh, FieldMgr, Color, Stats, Delete, Report) | 1,579 |
-| `Temp/FormulaEvaluatorCommand.cs` | 1 (+ FormulaEngine + ExpressionParser) | 771 |
+| `Temp/ScheduleCommands.cs` | 6 (FullAutoPopulate, BatchSchedules, AutoPopulate, ExportCSV, CorporateTitleBlock, DrawingRegister) + ScheduleHelper | 1,997 |
+| `Temp/ScheduleEnhancementCommands.cs` | 9 (Audit, Compare, Duplicate, Refresh, FieldMgr, Color, Stats, Delete, Report) | 1,614 |
+| `Temp/FormulaEvaluatorCommand.cs` | 1 (+ FormulaEngine + ExpressionParser) | 848 |
 | `Temp/TemplateCommands.cs` | 3 (Filters, Worksets, ViewTemplates) | 1,299 |
 | `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 304 |
-| `Temp/TemplateManagerCommands.cs` | 17 (AutoAssign, Audit, Diff, Compliance, AutoFix, SyncOverrides, FillPatterns, LineStyles, ObjectStyles, TextStyles, DimStyles, VGOverrides, BatchFamilyParams, TemplateSchedules, SetupWizard, CloneTemplate, BatchVGReset) + TemplateManager engine | 3,415 |
-| `Temp/DataPipelineCommands.cs` | 5 (ValidateTemplate, DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit) | 2,007 |
-| `UI/StingCommandHandler.cs` | 0 (IExternalEventHandler — dispatches 400+ button tags to 234 commands + ~96 inline helpers) | 4,382 |
-| `UI/StingDockPanel.xaml.cs` | 0 (WPF code-behind) | 188 |
+| `Temp/TemplateManagerCommands.cs` | 17 (AutoAssign, Audit, Diff, Compliance, AutoFix, SyncOverrides, FillPatterns, LineStyles, ObjectStyles, TextStyles, DimStyles, VGOverrides, BatchFamilyParams, TemplateSchedules, SetupWizard, CloneTemplate, BatchVGReset) + TemplateManager engine | 3,434 |
+| `Temp/DataPipelineCommands.cs` | 11 (ValidateTemplate, DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit, ExportIfcPropertyMap, ValidateBepCompliance, ClashDetection, IFCExport, ExcelBOQImport, KeynoteSync) | 2,980 |
+| `UI/StingCommandHandler.cs` | 0 (IExternalEventHandler — dispatches 400+ button tags to 251 commands + ~96 inline helpers) | 4,533 |
+| `UI/StingDockPanel.xaml.cs` | 0 (WPF code-behind) | 223 |
 | `UI/StingDockPanelProvider.cs` | 0 (IDockablePaneProvider) | 37 |
+| `UI/StingProgressDialog.cs` | 0 (modeless WPF progress dialog with ETA + cancel) | 211 |
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
-| `UI/StingDockPanel.xaml` | — (WPF markup, 6-tab panel with ~413 buttons) | 1,634 |
+| `UI/StingDockPanel.xaml` | — (WPF markup, 6-tab panel with ~430 buttons) | 1,651 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
-| **Total** | **234 commands** | **~56,030** |
+| **Total** | **251 commands** | **~60,882** |
 
 ## Core Classes
 
-### `StingToolsApp` (IExternalApplication) — `Core/StingToolsApp.cs` (202 lines)
+### `StingToolsApp` (IExternalApplication) — `Core/StingToolsApp.cs` (206 lines)
 - Entry point registered in `StingTools.addin` (FullClassName: `StingTools.Core.StingToolsApp`)
 - Static properties: `AssemblyPath`, `DataPath` (set in `OnStartup`, relative to DLL location)
 - Registers WPF dockable panel (`StingDockPanelProvider`) — the primary user interface
@@ -400,7 +412,7 @@ STINGTOOLS/
 - Provides `ParseCsvLine(line)` — CSV parser respecting quoted fields
 - Contains `ToggleDockPanelCommand` — toggles the WPF dockable panel visibility
 
-### `StingLog` (static) — `Core/StingLog.cs` (93 lines)
+### `StingLog` (static) — `Core/StingLog.cs` (117 lines)
 - Thread-safe file logger (`StingTools.log` alongside the DLL)
 - Uses buffered `StreamWriter` with `FileShare.Read` for performance (replaces `File.AppendAllText`)
 - Methods: `Info(msg)`, `Warn(msg)`, `Error(msg, ex?)`, `Shutdown()`
@@ -506,6 +518,36 @@ STINGTOOLS/
 - Advanced tagging intelligence layer for complex inference
 - `InferenceResult` class for structured inference outputs
 
+### `ComplianceScan` (static) — `Core/ComplianceScan.cs` (144 lines)
+- Lightweight cached compliance dashboard for live status display
+- `ComplianceResult` class with RAG status (Red/Amber/Green), element counts, issue breakdown
+- Thread-safe cached results with 30-second stale duration (`CacheLifetime`)
+- Quick tag completeness stats without full ISO validation overhead
+- Used by dockable panel for live compliance status display
+
+### `StingAutoTagger` (IUpdater) — `Core/StingAutoTagger.cs` (223 lines)
+- Real-time auto-tagging via Revit `IUpdater` — tags elements the moment they are placed
+- Registers 22 category triggers (all taggable categories) on startup
+- Uses `SpatialAutoDetect` + `TokenAutoPopulator.PopulateAll` + `TagConfig.BuildAndWriteTag` inline
+- Deduplication via `HashSet` of processed element IDs to suppress redundant triggers
+- Toggle on/off via `AutoTaggerToggleCommand`
+- Registration: Called from `StingToolsApp.OnStartup()` via `StingAutoTagger.Register(app)`
+
+### `WorkflowEngine` (internal static) — `Core/WorkflowEngine.cs` (551 lines)
+- JSON-based workflow orchestration engine for zero-touch project delivery
+- Chains named command sequences from JSON preset files in `data/` directory
+- Each preset defines ordered list of command keys matching `StingCommandHandler` dispatch tags
+- Features: per-step progress reporting, Escape key cancellation, atomic `TransactionGroup` rollback
+- 3 built-in presets: `ProjectKickoff`, `DailyQA`, `DocumentPackage`
+- Commands: `WorkflowPresetCommand`, `ListWorkflowPresetsCommand`, `CreateWorkflowPresetCommand`
+
+### `StingProgressDialog` — `UI/StingProgressDialog.cs` (211 lines)
+- Reusable modeless WPF progress window for batch operations
+- Shows progress bar, element count, estimated time remaining (ETA), and cancel button
+- Thread-safe updates via `Dispatcher`; uses Win32 `GetAsyncKeyState` for Escape key detection
+- Usage: `var progress = StingProgressDialog.Show("Batch Tag", totalElements);`
+- Integrated with `BatchTagCommand`, `MasterSetupCommand`, and other batch operations
+
 ### Internal Helper Classes
 
 These `internal static` classes provide shared logic used by multiple commands within their respective files:
@@ -534,7 +576,8 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `LegendIntelligence` | `Tags/LegendBuilderCommands.cs` | Smart legend placement and sheet context determination |
 | `SystemParamPush` | `Tags/SystemParamPushCommand.cs` | MEP system parameter propagation: 3-layer traversal (MEP System API → Connector graph → Spatial proximity) |
 | `LabelDefinitionHelper` | `Tags/PresentationModeCommand.cs` | Load/parse presentation modes from LABEL_DEFINITIONS.json |
-| `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 400+ dockable panel button tags to 234 command classes + ~96 inline helpers on the Revit API thread |
+| `WorkflowEngine` | `Core/WorkflowEngine.cs` | JSON workflow orchestration: preset loading, step execution, cancel support, TransactionGroup rollback, 3 built-in presets |
+| `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 400+ dockable panel button tags to 251 command classes + ~96 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 6-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW) with colour swatches and status bar |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers dockable panel with Revit; PaneGuid for panel identification |
 | `ColorHelper` | `Select/ColorCommands.cs` | 10 built-in colour palettes, `OverrideGraphicSettings` builder, solid fill pattern finder, preset save/load |
@@ -608,7 +651,7 @@ The plugin's primary user interface is a **WPF dockable panel** that consolidate
 |-----------|------|---------|
 | `StingDockPanel.xaml` | `UI/StingDockPanel.xaml` (1,634 lines) | WPF markup: 6-tab layout (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW), ~413 buttons, colour swatches, bulk parameter controls |
 | `StingDockPanel.xaml.cs` | `UI/StingDockPanel.xaml.cs` (188 lines) | Code-behind: button dispatch via `IExternalEventHandler`, colour swatch builder, status bar |
-| `StingCommandHandler` | `UI/StingCommandHandler.cs` (4,382 lines) | `IExternalEventHandler` — maps 400+ button Tag strings to 234 command classes + ~96 inline helpers, ensures Revit API calls run on the main thread |
+| `StingCommandHandler` | `UI/StingCommandHandler.cs` (4,533 lines) | `IExternalEventHandler` — maps 400+ button Tag strings to 251 command classes + ~96 inline helpers, ensures Revit API calls run on the main thread |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` (37 lines) | `IDockablePaneProvider` — registers panel with Revit, sets initial dock position (Right, 320×400 min) |
 | `ToggleDockPanelCommand` | `Core/StingToolsApp.cs` (line 825) | `IExternalCommand` — toggles panel visibility from ribbon button |
 
@@ -783,7 +826,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 |-----|----------|---------|--------|
 | ~~**No tag collision detection**~~ | `TagConfig.cs` | **DONE** — `BuildAndWriteTag` accepts `existingTags` HashSet for O(1) collision detection; auto-increments SEQ on duplicate. `BuildExistingTagIndex()` builds the index once per batch. All callers updated. | Done |
 | ~~**No progress reporting**~~ | `BatchTagCommand`, `MasterSetupCommand` | **DONE** — BatchTag shows element count upfront, logs every 500 elements, reports duration. MasterSetup reports per-step timing. | Done |
-| **No cancellation support** | All batch commands | Once started, user must wait until completion — no abort mechanism | High |
+| ~~**No cancellation support**~~ | All batch commands | **DONE** — `StingProgressDialog` provides modeless progress UI with Escape key cancellation. `WorkflowEngine` supports per-step cancel. Integrated into batch tag, master setup, and workflow operations. | Done |
 | **Hardcoded category bindings** | `SharedParamGuids.cs:109-261` | 53 categories + discipline bindings hardcoded; adding a category requires code rebuild (BINDING_COVERAGE_MATRIX.csv exists but unused) | Medium |
 | ~~**No error recovery**~~ | `MasterSetupCommand.cs` | **DONE** — Wrapped in `TransactionGroup` for atomic rollback. If critical step 1 (Load Params) fails, user can rollback immediately. Per-step timing reported. | Done |
 | **Fixed tag format** | `TagConfig.cs:16-18` | `NumPad=4`, `Separator="-"` hardcoded — can't change segment count, order, or separator | Medium |
@@ -819,8 +862,17 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | ~~Annotation color management~~ | **DONE** — 5 commands in `TagOperationCommands.cs`: ColorTagsByDiscipline, SetTagTextColor, SetLeaderColor, SplitTagLeaderColor, ClearAnnotationColors. | Done |
 | ~~Schema validation~~ | **DONE** — `SchemaValidateCommand` validates BLE/MEP CSV columns match MATERIAL_SCHEMA.json (77-column schema). | Done |
 | ~~Schedule management system~~ | **DONE** — `ScheduleEnhancementCommands.cs` (1,579 lines) with 9 commands: Audit, Compare, Duplicate, Refresh, FieldManager, Color, Stats, Delete, Report. Plus ScheduleAutoFit, MatchWidest (functional), ToggleHidden inline operations. `ScheduleAuditHelper` engine loads CSV definitions for cross-reference. | Done |
+| ~~Batch command chaining / workflow presets~~ | **DONE** — `WorkflowEngine` with JSON presets, per-step progress, cancel, TransactionGroup rollback, 3 built-in presets (ProjectKickoff, DailyQA, DocumentPackage). | Done |
+| ~~Real-time auto-tagging~~ | **DONE** — `StingAutoTagger` IUpdater auto-tags elements on placement with 22 category triggers, deduplication via processed ID HashSet. | Done |
+| ~~IFC integration~~ | **DONE** — `IFCExportCommand` automated IFC export + `ExportIfcPropertyMapCommand` STING-to-IFC property mapping. | Done |
+| ~~Clash detection~~ | **DONE** — `ClashDetectionCommand` rule-based MEP-structure clash detection with CSV report. | Done |
+| ~~BOQ round-trip import~~ | **DONE** — `ExcelBOQImportCommand` matches by tag, updates cost/description from Excel. | Done |
+| ~~Keynote sync~~ | **DONE** — `KeynoteSyncCommand` generates Revit keynote file from STING tag configuration. | Done |
+| ~~BEP compliance~~ | **DONE** — `ValidateBepComplianceCommand` validates Built Environment Performance codes. | Done |
+| ~~Anomaly auto-fix~~ | **DONE** — `AnomalyAutoFixCommand` auto-fixes empty DISC, mismatched categories, empty LOC/ZONE/SYS. | Done |
+| ~~Cancellation support~~ | **DONE** — `StingProgressDialog` modeless WPF progress with Escape cancel + ETA. | Done |
+| ~~Compliance dashboard~~ | **DONE** — `ComplianceScan` cached RAG status for live dockable panel display. | Done |
 | Configurable tag format in project_config.json (separator, padding, segments) | Flexibility for different standards | Medium |
-| Batch command chaining / workflow presets | Queue: AutoTag, Validate, Export | Low |
 
 ---
 
@@ -1048,13 +1100,27 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 30. **Tag appearance controls** — 5 commands in `TagOperationCommands.cs` (TagAppearance, SetTagBoxAppearance, QuickTagStyle, SetTagLineWeight, ColorTagsByParameter)
 31. **Tag type management** — `SwapTagTypeCommand` for swapping tag family types on annotations
 
+#### Completed (Phase 6)
+
+32. **Cancellation support** — `StingProgressDialog` modeless WPF with progress bar, ETA, Escape cancel, Dispatcher thread-safe updates
+33. **Workflow orchestration** — `WorkflowEngine` with JSON presets, per-step progress, cancel, TransactionGroup rollback, 3 built-in presets
+34. **Real-time auto-tagging** — `StingAutoTagger` IUpdater with 22 category triggers, deduplication, toggle on/off
+35. **IFC integration** — `IFCExportCommand` automated export + `ExportIfcPropertyMapCommand` STING-to-IFC property mapping
+36. **Clash detection** — `ClashDetectionCommand` rule-based MEP-structure clash detection with CSV report
+37. **BOQ round-trip** — `ExcelBOQImportCommand` matches by tag, updates cost/description from STING_BOQ_*.xlsx
+38. **Keynote sync** — `KeynoteSyncCommand` generates Revit keynote file from STING tag configuration
+39. **BEP compliance** — `ValidateBepComplianceCommand` validates Built Environment Performance codes
+40. **Anomaly auto-fix** — `AnomalyAutoFixCommand` auto-fixes empty DISC, mismatched categories, empty LOC/ZONE/SYS
+41. **Revision cloud automation** — `RevisionCloudAutoCreateCommand` auto-places clouds on sheets with NEW/DEMOLISHED status
+42. **Corporate schedules** — `CorporateTitleBlockScheduleCommand` + `DrawingRegisterScheduleCommand` for standard metadata schedules
+43. **Compliance dashboard** — `ComplianceScan` cached RAG status for live dockable panel display
+
 #### Next Priorities
 
-32. **Configurable tag format** — Separator, padding, segments via project_config.json
-33. **Cancellation support** — Background worker with abort for batch operations
-34. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (10,661 entries) to replace hardcoded `DisciplineBindings`
-35. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,686 entries) for family-level validation
-36. **Batch command chaining / workflow presets** — Queue: AutoTag, Validate, Export
+44. **Configurable tag format** — Separator, padding, segments via project_config.json
+45. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (10,661 entries) to replace hardcoded `DisciplineBindings`
+46. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,686 entries) for family-level validation
+47. **Performance profiling** — Large project performance analysis and optimization
 
 ### External Tool References
 
