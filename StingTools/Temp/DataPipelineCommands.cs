@@ -3002,11 +3002,16 @@ namespace StingTools.Temp
             }
 
             // Collect unique categories present in the document
-            var catElements = new FilteredElementCollector(doc)
+            // Use case-insensitive grouping to avoid duplicate key crash (e.g. "Center line")
+            var catElements = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
+            foreach (Element e in new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null)
-                .GroupBy(e => e.Category.Name)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                .Where(el => el.Category != null))
+            {
+                string catName = e.Category.Name;
+                if (!catElements.ContainsKey(catName))
+                    catElements[catName] = e;
+            }
 
             int categoriesAudited = 0;
             int totalExpected = 0;

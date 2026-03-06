@@ -282,8 +282,14 @@ namespace StingTools.Temp
                         Unit = cols[6].Trim(),
                     };
 
-                    // Parse dependency level (column 9)
-                    int.TryParse(cols[9].Trim(), out int depLevel);
+                    // Parse dependency level (column 9) — default to 0 if missing/invalid
+                    string depStr = cols[9].Trim();
+                    if (!int.TryParse(depStr, out int depLevel))
+                    {
+                        depLevel = 0;
+                        if (!string.IsNullOrEmpty(depStr))
+                            StingLog.Warn($"Formula '{formula.ParameterName}': invalid Dependency_Level '{depStr}', defaulting to 0");
+                    }
                     formula.DependencyLevel = depLevel;
 
                     // Parse uses builtin geometry (column 10)
@@ -300,6 +306,9 @@ namespace StingTools.Temp
                     if (!string.IsNullOrEmpty(formula.ParameterName)
                         && !string.IsNullOrEmpty(formula.Expression))
                     {
+                        // Warn on corrupt discipline values (unescaped CSV commas)
+                        if (formula.Discipline.Contains("(") || formula.Discipline.Contains("="))
+                            StingLog.Warn($"Formula '{formula.ParameterName}': suspect Discipline value '{formula.Discipline}' — check CSV quoting");
                         formulas.Add(formula);
                     }
                 }

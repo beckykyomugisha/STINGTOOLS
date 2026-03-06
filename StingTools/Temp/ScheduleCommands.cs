@@ -136,6 +136,19 @@ namespace StingTools.Temp
                     string formulaSpec = cols.Length > 11 ? cols[11].Trim() : "";
 
                     if (string.IsNullOrEmpty(name)) continue;
+
+                    // P1-FIX: Disambiguate duplicate schedule names by prefixing with discipline
+                    string discipline = cols.Length > 1 ? cols[1].Trim() : "";
+                    if (existingNames.Contains(name) && !string.IsNullOrEmpty(discipline))
+                    {
+                        string prefixed = $"{discipline} - {name}";
+                        if (!existingNames.Contains(prefixed))
+                        {
+                            name = prefixed;
+                            StingLog.Info($"Schedule name collision: using '{name}' (discipline prefix)");
+                        }
+                    }
+
                     if (existingNames.Contains(name))
                     {
                         skipped++;
@@ -865,104 +878,124 @@ namespace StingTools.Temp
             int statusDetected = 0, revSet = 0;
             int totalElements = 0;
             int errors = 0;
+            int batchesCompleted = 0;
+            const int CHUNK_SIZE = 500;
 
-            // Container definitions loaded from ParamRegistry.ContainerGroups
-
-            using (Transaction tx = new Transaction(doc, "STING Full Auto-Populate"))
-            {
-                tx.Start();
-                foreach (Element el in allElements)
+            // Filter to taggable elements only
+            var taggable = allElements
+                .Where(el =>
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
-                    if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
-                        continue;
+                    return !string.IsNullOrEmpty(catName) && popCtx.KnownCategories.Contains(catName);
+                })
+                .ToList();
 
-                    totalElements++;
+            // Process in chunks of 500 for partial-save safety
+            for (int chunkStart = 0; chunkStart < taggable.Count; chunkStart += CHUNK_SIZE)
+            {
+                var chunk = taggable.Skip(chunkStart).Take(CHUNK_SIZE).ToList();
 
+                using (Transaction tx = new Transaction(doc, $"STING Auto-Populate batch {batchesCompleted + 1}"))
+                {
+                    tx.Start();
                     try
                     {
-                    // ── STEP 1: Full 9-token population via TokenAutoPopulator ──
-                    var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx);
-                    tokensFilled += popResult.TokensSet;
-                    if (popResult.StatusDetected) statusDetected++;
-                    if (popResult.RevSet) revSet++;
-
-                    // ── STEP 2: Native parameter mapping ───────────────────────
-                    nativesMapped += NativeParamMapper.MapAll(doc, el);
-
-                    // ── STEP 3: Formula evaluation ─────────────────────────────
-                    foreach (var formula in formulas)
-                    {
-                        try
+                        foreach (Element el in chunk)
                         {
-                            Parameter targetParam = el.LookupParameter(formula.ParameterName);
-                            if (targetParam == null || targetParam.IsReadOnly) continue;
+                            string catName = ParameterHelpers.GetCategoryName(el);
+                            totalElements++;
 
-                            var context = FormulaEngine.BuildContext(el, formula);
-                            if (context == null) continue;
-
-                            if (formula.DataType == "TEXT")
+                            try
                             {
-                                string result = FormulaEngine.EvaluateText(formula.Expression, context);
-                                if (result != null && targetParam.StorageType == StorageType.String)
+                                // ── STEP 1: Full 9-token population via TokenAutoPopulator ──
+                                var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx);
+                                tokensFilled += popResult.TokensSet;
+                                if (popResult.StatusDetected) statusDetected++;
+                                if (popResult.RevSet) revSet++;
+
+                                // ── STEP 2: Native parameter mapping ───────────────────────
+                                nativesMapped += NativeParamMapper.MapAll(doc, el);
+
+                                // ── STEP 3: Formula evaluation ─────────────────────────────
+                                foreach (var formula in formulas)
                                 {
-                                    if (string.IsNullOrEmpty(targetParam.AsString()))
+                                    try
                                     {
-                                        targetParam.Set(result);
-                                        formulasWritten++;
+                                        Parameter targetParam = el.LookupParameter(formula.ParameterName);
+                                        if (targetParam == null || targetParam.IsReadOnly) continue;
+
+                                        var context = FormulaEngine.BuildContext(el, formula);
+                                        if (context == null) continue;
+
+                                        if (formula.DataType == "TEXT")
+                                        {
+                                            string result = FormulaEngine.EvaluateText(formula.Expression, context);
+                                            if (result != null && targetParam.StorageType == StorageType.String)
+                                            {
+                                                if (string.IsNullOrEmpty(targetParam.AsString()))
+                                                {
+                                                    targetParam.Set(result);
+                                                    formulasWritten++;
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            double? result = FormulaEngine.EvaluateNumeric(formula.Expression, context);
+                                            if (result.HasValue && !double.IsNaN(result.Value) && !double.IsInfinity(result.Value))
+                                            {
+                                                if (FormulaEngine.WriteNumericResult(targetParam, result.Value))
+                                                    formulasWritten++;
+                                            }
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        StingLog.Warn($"Formula '{formula.ParameterName}' el {el.Id}: {ex.Message}");
                                     }
                                 }
-                            }
-                            else
-                            {
-                                double? result = FormulaEngine.EvaluateNumeric(formula.Expression, context);
-                                if (result.HasValue && !double.IsNaN(result.Value) && !double.IsInfinity(result.Value))
+
+                                // ── STEP 4: Build tag (with collision detection) ───────────
+                                if (TagConfig.BuildAndWriteTag(doc, el, seqCounters, existingTags: tagIndex))
+                                    tagged++;
+
+                                // ── STEP 5: Combine into all containers via ParamRegistry ───
+                                string[] tokenValues = ParamRegistry.ReadTokenValues(el);
+                                combined += ParamRegistry.WriteContainers(el, tokenValues, catName,
+                                    skipParam: ParamRegistry.TAG7);
+
+                                // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                                combined += TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
+
+                                // ── STEP 6: Grid Reference ─────────────────────────────────
+                                if (gridLines.Count > 0 &&
+                                    string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.GRID_REF)))
                                 {
-                                    if (FormulaEngine.WriteNumericResult(targetParam, result.Value))
-                                        formulasWritten++;
+                                    string gridRef = GetNearestGridRef(el, gridLines);
+                                    if (!string.IsNullOrEmpty(gridRef) &&
+                                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef))
+                                        gridRefSet++;
                                 }
                             }
+                            catch (Exception ex)
+                            {
+                                StingLog.Error($"FullAutoPopulate: element {el?.Id}: {ex.Message}", ex);
+                                errors++;
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            StingLog.Warn($"Formula '{formula.ParameterName}' el {el.Id}: {ex.Message}");
-                        }
+                        tx.Commit();
+                        batchesCompleted++;
                     }
-
-                    // ── STEP 4: Build tag (with collision detection) ───────────
-                    if (TagConfig.BuildAndWriteTag(doc, el, seqCounters, existingTags: tagIndex))
-                        tagged++;
-
-                    // ── STEP 5: Combine into all containers via ParamRegistry ───
-                    string[] tokenValues = ParamRegistry.ReadTokenValues(el);
-                    combined += ParamRegistry.WriteContainers(el, tokenValues, catName,
-                        skipParam: ParamRegistry.TAG7);
-
-                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    combined += TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
-
-                    // ── STEP 6: Grid Reference ─────────────────────────────────
-                    if (gridLines.Count > 0 &&
-                        string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.GRID_REF)))
+                    catch (Exception batchEx)
                     {
-                        string gridRef = GetNearestGridRef(el, gridLines);
-                        if (!string.IsNullOrEmpty(gridRef) &&
-                            ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef))
-                            gridRefSet++;
-                    }
-
-                    // Progress logging
-                    if (totalElements % 500 == 0)
-                        StingLog.Info($"FullAutoPopulate: {totalElements} elements processed...");
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Error($"FullAutoPopulate: element {el?.Id}: {ex.Message}", ex);
-                        errors++;
+                        StingLog.Error($"FullAutoPopulate batch {batchesCompleted + 1} failed, rolling back", batchEx);
+                        tx.RollBack();
+                        errors += chunk.Count;
                     }
                 }
 
-                tx.Commit();
+                // Progress logging per chunk
+                StingLog.Info($"FullAutoPopulate: {totalElements}/{taggable.Count} elements ({batchesCompleted} batches)...");
             }
 
             sw.Stop();

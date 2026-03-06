@@ -56,7 +56,7 @@ namespace StingTools.Select
                     string cat = ParameterHelpers.GetCategoryName(e);
                     if (!known.Contains(cat)) return false;
                     string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
-                    return TagConfig.TagIsComplete(tag);
+                    return !string.IsNullOrEmpty(tag);
                 })
                 .Select(e => e.Id).ToList();
 
