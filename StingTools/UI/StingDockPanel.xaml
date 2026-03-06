@@ -1088,6 +1088,10 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportCSV" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="Export BOQ" Tag="BOQExport" Click="Cmd_Click"
                                         ToolTip="Export grouped Bill of Quantities (NRM2 structure)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Corp Title" Tag="CorporateTitleBlock" Click="Cmd_Click"
+                                        ToolTip="Create corporate title block schedule"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Drg Register" Tag="DrawingRegisterSchedule" Click="Cmd_Click"
+                                        ToolTip="Create drawing register schedule"/>
                             </WrapPanel>
                         </Border>
 

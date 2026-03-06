@@ -35,8 +35,15 @@ namespace StingTools.UI
 
         public string GetName() => "STING Command Dispatcher";
 
+        /// <summary>
+        /// Current UIApplication reference — set each time Execute runs.
+        /// Commands can use this as a fallback when ExternalCommandData is unavailable.
+        /// </summary>
+        internal static UIApplication CurrentApp { get; private set; }
+
         public void Execute(UIApplication app)
         {
+            CurrentApp = app;
             try
             {
                 switch (_commandTag)
@@ -788,63 +795,123 @@ namespace StingTools.UI
             }
         }
 
+        /// <summary>
+        /// Creates ExternalCommandData for invoking IExternalCommand from the panel.
+        /// Strategy 1: Invoke internal constructor (safe — properly initializes native state).
+        /// Strategy 2: GetUninitializedObject + field reflection (fallback — may crash on native access).
+        /// </summary>
         private static ExternalCommandData CreateCommandData(UIApplication app)
         {
+            var flags = BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public;
+
+            // ── Strategy 1: Internal constructor (safe — native state properly initialized) ──
+            try
+            {
+                var ctors = typeof(ExternalCommandData).GetConstructors(flags);
+                foreach (var ctor in ctors)
+                {
+                    try
+                    {
+                        var prms = ctor.GetParameters();
+                        var args = new object[prms.Length];
+
+                        for (int i = 0; i < prms.Length; i++)
+                        {
+                            var pt = prms[i].ParameterType;
+                            if (pt == typeof(UIApplication) || pt.IsAssignableFrom(typeof(UIApplication)))
+                                args[i] = app;
+                            else if (pt == typeof(View) || pt.IsAssignableFrom(typeof(View)))
+                                args[i] = app.ActiveUIDocument?.ActiveView;
+                            else if (pt == typeof(ElementId))
+                                args[i] = app.ActiveUIDocument?.ActiveView?.Id ?? ElementId.InvalidElementId;
+                            else if (typeof(IDictionary<string, string>).IsAssignableFrom(pt))
+                                args[i] = new Dictionary<string, string>();
+                            else if (pt == typeof(bool))
+                                args[i] = false;
+                            else if (pt == typeof(int))
+                                args[i] = 0;
+                            else if (pt.IsValueType)
+                                args[i] = Activator.CreateInstance(pt);
+                            else
+                                args[i] = null;
+                        }
+
+                        var result = (ExternalCommandData)ctor.Invoke(args);
+                        if (result != null)
+                        {
+                            StingLog.Info($"CreateCommandData: constructor OK ({prms.Length} params)");
+                            return result;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"CreateCommandData: ctor failed: {ex.InnerException?.Message ?? ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CreateCommandData: ctor discovery failed: {ex.Message}");
+            }
+
+            // ── Strategy 2: GetUninitializedObject + reflection (fallback) ──
             try
             {
                 var data = (ExternalCommandData)RuntimeHelpers
                     .GetUninitializedObject(typeof(ExternalCommandData));
 
-                var flags = BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public;
                 var fields = typeof(ExternalCommandData).GetFields(flags);
+                bool appSet = false, journalSet = false;
 
-                // Track which critical fields we've set
-                bool appSet = false, viewSet = false, journalSet = false;
+                // Log all fields for diagnostics (first time only)
+                foreach (var f in fields)
+                    StingLog.Info($"  ExternalCommandData field: {f.Name} ({f.FieldType.Name})");
 
                 foreach (var field in fields)
                 {
-                    if (!appSet && field.FieldType == typeof(UIApplication))
+                    if (!appSet && (field.FieldType == typeof(UIApplication) ||
+                        typeof(UIApplication).IsAssignableFrom(field.FieldType)))
                     {
                         field.SetValue(data, app);
                         appSet = true;
                     }
-                    else if (!viewSet && field.FieldType == typeof(View))
-                    {
-                        // View must be set — Revit's native layer accesses it during
-                        // transaction management and journal recording
-                        field.SetValue(data, app.ActiveUIDocument?.ActiveView);
-                        viewSet = true;
-                    }
                     else if (!journalSet &&
-                        (field.FieldType == typeof(IDictionary<string, string>) ||
-                         field.FieldType == typeof(Dictionary<string, string>) ||
-                         typeof(IDictionary<string, string>).IsAssignableFrom(field.FieldType)))
+                        typeof(IDictionary<string, string>).IsAssignableFrom(field.FieldType))
                     {
-                        // JournalData must be non-null — Revit writes to it automatically
                         field.SetValue(data, new Dictionary<string, string>());
                         journalSet = true;
                     }
+                    else if (field.FieldType == typeof(ElementId))
+                    {
+                        // View may be stored as ElementId in Revit 2025+
+                        field.SetValue(data, app.ActiveUIDocument?.ActiveView?.Id ?? ElementId.InvalidElementId);
+                    }
+                    else if (field.FieldType == typeof(View))
+                    {
+                        field.SetValue(data, app.ActiveUIDocument?.ActiveView);
+                    }
                 }
 
-                // Fallback: try auto-property backing field names
+                // Try auto-property backing fields
                 if (!appSet)
                 {
-                    var bf = typeof(ExternalCommandData).GetField(
-                        "<Application>k__BackingField", flags);
-                    bf?.SetValue(data, app);
-                }
-                if (!viewSet)
-                {
-                    var bf = typeof(ExternalCommandData).GetField(
-                        "<View>k__BackingField", flags);
-                    bf?.SetValue(data, app.ActiveUIDocument?.ActiveView);
+                    foreach (string name in new[] { "<Application>k__BackingField", "m_application", "m_app" })
+                    {
+                        var bf = typeof(ExternalCommandData).GetField(name, flags);
+                        if (bf != null) { bf.SetValue(data, app); appSet = true; break; }
+                    }
                 }
                 if (!journalSet)
                 {
-                    var bf = typeof(ExternalCommandData).GetField(
-                        "<JournalData>k__BackingField", flags);
-                    bf?.SetValue(data, new Dictionary<string, string>());
+                    foreach (string name in new[] { "<JournalData>k__BackingField", "m_journalData", "m_data" })
+                    {
+                        var bf = typeof(ExternalCommandData).GetField(name, flags);
+                        if (bf != null) { bf.SetValue(data, new Dictionary<string, string>()); journalSet = true; break; }
+                    }
                 }
+
+                if (!appSet)
+                    StingLog.Error("CreateCommandData: FAILED to set Application field — commands WILL crash!");
 
                 return data;
             }
