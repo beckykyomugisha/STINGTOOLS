@@ -3664,6 +3664,13 @@ namespace StingTools.Temp
                     .Where(e => e.Category != null && known.Contains(e.Category.Name))
                     .ToList();
 
+                var rooms = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType()
+                    .Cast<Autodesk.Revit.DB.Architecture.Room>()
+                    .Where(r => r.Area > 0)
+                    .ToList();
+
                 int regRow = 2;
                 foreach (var el in allElements)
                 {
