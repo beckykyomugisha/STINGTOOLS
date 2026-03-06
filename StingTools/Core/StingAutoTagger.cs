@@ -31,6 +31,9 @@ namespace StingTools.Core
         private static bool _enabled;
         private static readonly HashSet<long> _recentlyProcessed = new HashSet<long>();
         private static int _processedCount;
+        private static DateTime _lastExecuteTime = DateTime.MinValue;
+        private static readonly HashSet<long> _pendingIds = new HashSet<long>();
+        private static readonly TimeSpan _debounceWindow = TimeSpan.FromMilliseconds(300);
 
         private readonly AddInId _addinId;
 
@@ -124,6 +127,22 @@ namespace StingTools.Core
             var addedIds = data.GetAddedElementIds();
             if (addedIds == null || addedIds.Count == 0) return;
 
+            // Debounce: coalesce rapid triggers into pending set
+            // Only process when debounce window has elapsed since last execution
+            DateTime now = DateTime.Now;
+            bool shouldProcess = (now - _lastExecuteTime) >= _debounceWindow;
+
+            foreach (ElementId id in addedIds)
+            {
+                if (!_recentlyProcessed.Contains(id.Value))
+                    _pendingIds.Add(id.Value);
+            }
+
+            // If within debounce window, just accumulate — next trigger will process
+            if (!shouldProcess && _pendingIds.Count < 50) return;
+
+            _lastExecuteTime = now;
+
             try
             {
                 // Build context once for the batch
@@ -131,12 +150,16 @@ namespace StingTools.Core
                 var existingTags = TagConfig.BuildExistingTagIndex(doc);
                 var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
 
-                foreach (ElementId id in addedIds)
+                // Process all pending IDs in one batch
+                var idsToProcess = new List<long>(_pendingIds);
+                _pendingIds.Clear();
+
+                foreach (long idValue in idsToProcess)
                 {
                     // Skip recently processed (avoid re-trigger loops)
-                    if (_recentlyProcessed.Contains(id.Value)) continue;
+                    if (_recentlyProcessed.Contains(idValue)) continue;
 
-                    Element el = doc.GetElement(id);
+                    Element el = doc.GetElement(new ElementId(idValue));
                     if (el == null) continue;
 
                     string catName = ParameterHelpers.GetCategoryName(el);
@@ -151,7 +174,7 @@ namespace StingTools.Core
                         skipComplete: true, existingTags: existingTags,
                         collisionMode: TagCollisionMode.AutoIncrement);
 
-                    _recentlyProcessed.Add(id.Value);
+                    _recentlyProcessed.Add(idValue);
                     _processedCount++;
                 }
 

@@ -770,7 +770,24 @@ namespace StingTools.UI
             ExternalCommandData cmdData = CreateCommandData(app);
             if (cmdData != null)
             {
-                cmd.Execute(cmdData, ref message, elements);
+                try
+                {
+                    cmd.Execute(cmdData, ref message, elements);
+                }
+                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                {
+                    // User cancelled — silent
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"Command {typeof(T).Name} failed", ex);
+                    try
+                    {
+                        TaskDialog.Show("STING Tools",
+                            $"Command {typeof(T).Name} failed:\n{ex.Message}");
+                    }
+                    catch { /* Last resort — don't let dialog failure crash Revit */ }
+                }
             }
             else
             {
