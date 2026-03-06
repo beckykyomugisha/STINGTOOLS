@@ -6451,8 +6451,7 @@ namespace StingTools.Tags
                 Color c = ogs.SurfaceForegroundPatternColor;
                 parts.Add($"Fill: RGB({c.Red},{c.Green},{c.Blue})");
             }
-            if (0 /* SurfaceTransparency not readable */ > 0)
-                parts.Add($"Trans: {0 /* SurfaceTransparency not readable */}%");
+            // SurfaceTransparency is not readable from OverrideGraphicSettings
             if (ogs.Halftone)
                 parts.Add("Halftone");
 

@@ -1069,7 +1069,7 @@ namespace StingTools.Temp
                     string catName = el.Category?.Name ?? "Uncategorised";
                     var item = new BOQItem
                     {
-                        ElementId = el.Id.IntegerValue,
+                        ElementId = (int)el.Id.Value,
                         Category = catName,
                         FamilyName = ParameterHelpers.GetFamilyName(el),
                         TypeName = ParameterHelpers.GetFamilySymbolName(el),
