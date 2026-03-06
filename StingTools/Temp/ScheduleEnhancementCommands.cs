@@ -1020,8 +1020,7 @@ namespace StingTools.Temp
                         {
                             try
                             {
-                                headerSection.SetCellBackgroundColor(0, col, headerColor);
-                                headerSection.SetCellTextColor(0, col, textColor);
+                                ApplyCellColors(headerSection, 0, col, headerColor, textColor);
                             }
                             catch { }
                         }
@@ -1035,8 +1034,7 @@ namespace StingTools.Temp
                         {
                             try
                             {
-                                bodySection.SetCellBackgroundColor(0, col, headerColor);
-                                bodySection.SetCellTextColor(0, col, textColor);
+                                ApplyCellColors(bodySection, 0, col, headerColor, textColor);
                             }
                             catch { }
                         }
@@ -1080,6 +1078,7 @@ namespace StingTools.Temp
                     color = new Color(128, 128, 128);     // Grey (architectural / general)
 
                 // Apply to header section background
+                Color whiteText = new Color(255, 255, 255);
                 var headerSection = tableData.GetSectionData(SectionType.Header);
                 if (headerSection != null && headerSection.NumberOfRows > 0)
                 {
@@ -1088,9 +1087,7 @@ namespace StingTools.Temp
                     {
                         try
                         {
-                            headerSection.SetCellBackgroundColor(0, col, color);
-                            // White text on colored background
-                            headerSection.SetCellTextColor(0, col, new Color(255, 255, 255));
+                            ApplyCellColors(headerSection, 0, col, color, whiteText);
                         }
                         catch { }
                     }
@@ -1105,9 +1102,7 @@ namespace StingTools.Temp
                     {
                         try
                         {
-                            // First body row is typically column headers
-                            bodySection.SetCellBackgroundColor(0, col, color);
-                            bodySection.SetCellTextColor(0, col, new Color(255, 255, 255));
+                            ApplyCellColors(bodySection, 0, col, color, whiteText);
                         }
                         catch { }
                     }
@@ -1120,6 +1115,23 @@ namespace StingTools.Temp
                 StingLog.Warn($"Discipline color failed '{sched.Name}': {ex.Message}");
                 return 0;
             }
+        }
+
+        /// <summary>
+        /// Applies background and text colors to a schedule cell using the
+        /// TableCellStyle API (TableSectionData has no SetCellBackgroundColor/SetCellTextColor).
+        /// </summary>
+        private static void ApplyCellColors(TableSectionData section, int row, int col,
+            Color bgColor, Color textColor)
+        {
+            TableCellStyle style = section.GetTableCellStyle(row, col);
+            TableCellStyleOverrideOptions overrides = style.GetCellStyleOverrideOptions();
+            overrides.BackgroundColor = true;
+            overrides.FontColor = true;
+            style.SetCellStyleOverrideOptions(overrides);
+            style.BackgroundColor = bgColor;
+            style.FontColor = textColor;
+            section.SetTableCellStyle(row, col, style);
         }
 
         private static bool TryParseHexColor(string hex, out Color color)

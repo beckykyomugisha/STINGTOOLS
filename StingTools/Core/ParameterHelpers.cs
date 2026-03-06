@@ -144,9 +144,9 @@ namespace StingTools.Core
                     return "L05";
 
                 // Try to extract a floor number from patterns like "L01", "L1", "Floor 3"
-                string digits = ExtractDigits(name);
-                if (digits.Length > 0 && digits.Length <= 2)
-                    return "L" + digits.PadLeft(2, '0');
+                string numDigits = ExtractDigits(name);
+                if (numDigits.Length > 0 && numDigits.Length <= 2)
+                    return "L" + numDigits.PadLeft(2, '0');
 
                 // Unrecognized pattern — return XX rather than truncating the name
                 // which could produce nonsensical level codes
@@ -258,6 +258,18 @@ namespace StingTools.Core
                     sb.Append(c);
             }
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Find the solid fill pattern element in the document.
+        /// Returns null if no solid fill pattern is found.
+        /// </summary>
+        public static FillPatternElement GetSolidFillPattern(Document doc)
+        {
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(FillPatternElement))
+                .Cast<FillPatternElement>()
+                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
         }
     }
 

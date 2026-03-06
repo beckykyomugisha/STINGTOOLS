@@ -232,9 +232,9 @@ namespace StingTools.UI
 
             btnBack.IsEnabled = _currentPage > 0;
             btnNext.Visibility = _currentPage < TotalPages - 1
-                ? Visibility.Visible : Visibility.Collapsed;
+                ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
             btnRun.Visibility = _currentPage == TotalPages - 1
-                ? Visibility.Visible : Visibility.Collapsed;
+                ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 
             txtPageInfo.Text = $"Step {_currentPage + 1} of {TotalPages} — {_stepTitles[_currentPage]}";
 
@@ -250,20 +250,20 @@ namespace StingTools.UI
         /// <summary>Show only discipline config sections for checked disciplines.</summary>
         private void UpdateDisciplineConfigVisibility()
         {
-            expMech.Visibility = chkDiscMech.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            expElec.Visibility = chkDiscElec.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            expPlumb.Visibility = chkDiscPlumb.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            expArch.Visibility = chkDiscArch.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            expStruct.Visibility = chkDiscStruct.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            expFire.Visibility = chkDiscFire.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            expLV.Visibility = chkDiscLV.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            expGen.Visibility = chkDiscGen.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            expMech.Visibility = chkDiscMech.IsChecked == true ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            expElec.Visibility = chkDiscElec.IsChecked == true ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            expPlumb.Visibility = chkDiscPlumb.IsChecked == true ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            expArch.Visibility = chkDiscArch.IsChecked == true ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            expStruct.Visibility = chkDiscStruct.IsChecked == true ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            expFire.Visibility = chkDiscFire.IsChecked == true ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            expLV.Visibility = chkDiscLV.IsChecked == true ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            expGen.Visibility = chkDiscGen.IsChecked == true ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 
             // Auto-expand the first visible discipline
             bool expanded = false;
             foreach (var exp in new[] { expMech, expElec, expPlumb, expArch, expStruct, expFire, expLV, expGen })
             {
-                if (exp.Visibility == Visibility.Visible && !expanded)
+                if (exp.Visibility == System.Windows.Visibility.Visible && !expanded)
                 {
                     exp.IsExpanded = true;
                     expanded = true;

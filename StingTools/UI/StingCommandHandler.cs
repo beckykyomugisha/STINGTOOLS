@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.IO;
 using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
@@ -372,7 +373,7 @@ namespace StingTools.UI
 
                     // ── Corporate Schedules ──
                     case "CorporateTitleBlock": RunCommand<Temp.CorporateTitleBlockScheduleCommand>(app); break;
-                    case "DrawingRegister": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
+                    case "DrawingRegisterSchedule": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
 
                     // ── Schedule Enhancements ──
                     case "ScheduleAudit": RunCommand<Temp.ScheduleAuditCommand>(app); break;
@@ -1334,18 +1335,15 @@ namespace StingTools.UI
 
         private static string[] GetTokenOptions(string paramName)
         {
-            return paramName switch
-            {
-                ParamRegistry.SYS => new[] { "HVAC", "DCW", "SAN" },
-                ParamRegistry.FUNC => new[] { "SUP", "HTG", "PWR" },
-                ParamRegistry.PROD => new[] { "AHU", "DB", "DR" },
-                ParamRegistry.LVL => new[] { "GF", "L01", "B1" },
-                ParamRegistry.ORIGIN => new[] { "NEW", "EXISTING", "DEMOLISHED" },
-                ParamRegistry.PROJECT => new[] { "PRJ001", "PRJ002", "PRJ003" },
-                ParamRegistry.REV => new[] { "P01", "P02", "C01" },
-                ParamRegistry.VOLUME => new[] { "V01", "V02", "V03" },
-                _ => new[] { "VALUE1", "VALUE2", "VALUE3" }
-            };
+            if (paramName == ParamRegistry.SYS) return new[] { "HVAC", "DCW", "SAN" };
+            if (paramName == ParamRegistry.FUNC) return new[] { "SUP", "HTG", "PWR" };
+            if (paramName == ParamRegistry.PROD) return new[] { "AHU", "DB", "DR" };
+            if (paramName == ParamRegistry.LVL) return new[] { "GF", "L01", "B1" };
+            if (paramName == ParamRegistry.ORIGIN) return new[] { "NEW", "EXISTING", "DEMOLISHED" };
+            if (paramName == ParamRegistry.PROJECT) return new[] { "PRJ001", "PRJ002", "PRJ003" };
+            if (paramName == ParamRegistry.REV) return new[] { "P01", "P02", "C01" };
+            if (paramName == ParamRegistry.VOLUME) return new[] { "V01", "V02", "V03" };
+            return new[] { "VALUE1", "VALUE2", "VALUE3" };
         }
 
         // ── Connected elements selector ─────────────────────────────
@@ -2011,7 +2009,7 @@ namespace StingTools.UI
                             if (leaders.Count > 0)
                                 tn.RemoveLeaders();
                             else
-                                tn.AddLeader(TextNoteLeaderType.TNLT_STRAIGHT_L);
+                                tn.AddLeader(Autodesk.Revit.DB.TextNoteLeaderType.TNLT_STRAIGHT_L);
                             toggled++;
                         }
                         catch { }
