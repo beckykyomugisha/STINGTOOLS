@@ -162,6 +162,10 @@ namespace StingTools.Tags
             sw.Stop();
             duplicatesResolved = stats.TotalCollisions;
 
+            // TAG-04: Invalidate compliance cache immediately after fixes
+            // so the dashboard shows updated GREEN status, not stale RED
+            ComplianceScan.InvalidateCache();
+
             // Phase 4: Post-fix verification scan (fresh collector to capture any elements
             // added during Phase 3 and ensure compliance % reflects actual post-fix state)
             int postNoTag = 0, postIncomplete = 0, postUnresolved = 0;

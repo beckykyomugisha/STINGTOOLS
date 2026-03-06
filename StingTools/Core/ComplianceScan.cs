@@ -14,7 +14,8 @@ namespace StingTools.Core
     {
         private static ComplianceResult _cached;
         private static DateTime _cacheTime = DateTime.MinValue;
-        private static readonly TimeSpan CacheLifetime = TimeSpan.FromSeconds(30);
+        // COMP-01: Reduced from 30s to 10s for more responsive dashboard
+        private static readonly TimeSpan CacheLifetime = TimeSpan.FromSeconds(10);
 
         /// <summary>
         /// Quick compliance scan results.
@@ -95,8 +96,18 @@ namespace StingTools.Core
                     }
                     else if (TagConfig.TagIsFullyResolved(tag))
                     {
-                        result.TaggedComplete++;
-                        result.FullyResolved++;
+                        // CORE-09: Also check SEQ=0000 — not truly resolved
+                        string[] resolvedParts = tag.Split(ParamRegistry.Separator[0]);
+                        if (resolvedParts.Length >= 8 && resolvedParts[7] == "0000")
+                        {
+                            result.TaggedComplete++;
+                            AddIssue(result, "SEQ=0000");
+                        }
+                        else
+                        {
+                            result.TaggedComplete++;
+                            result.FullyResolved++;
+                        }
                     }
                     else if (TagConfig.TagIsComplete(tag))
                     {

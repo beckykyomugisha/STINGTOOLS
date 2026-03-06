@@ -33,6 +33,13 @@ namespace StingTools.Tags
     {
         private static string[] TokenParams => ParamRegistry.AllTokenParams;
 
+        // TAG-01: Valid STATUS values — typos like 'DEMO' or 'EX' are caught
+        private static readonly HashSet<string> ValidStatuses = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase)
+        {
+            "NEW", "EXISTING", "DEMOLISHED", "TEMPORARY"
+        };
+
         private static string[] UniversalContainers => new[]
         {
             ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
@@ -126,6 +133,17 @@ namespace StingTools.Tags
                 else
                 {
                     IncrementDict(statusDistribution, statusVal);
+
+                    // TAG-01: Validate STATUS against allowed values
+                    // Catch typos like 'DEMO', 'EX', 'TEMP' etc.
+                    if (!ValidStatuses.Contains(statusVal))
+                    {
+                        isoViolations++;
+                        IncrementDict(isoIssueTypes,
+                            $"Invalid STATUS '{statusVal}' (expected: NEW/EXISTING/DEMOLISHED/TEMPORARY)");
+                        IncrementDict(issuesByCategory, catName);
+                    }
+
                     // Cross-validate STATUS against Revit phase
                     string phaseStatus = PhaseAutoDetect.DetectStatus(doc, el);
                     if (!string.IsNullOrEmpty(phaseStatus) &&

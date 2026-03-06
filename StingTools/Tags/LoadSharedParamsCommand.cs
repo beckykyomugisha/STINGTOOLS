@@ -185,6 +185,10 @@ namespace StingTools.Tags
                 tx.Commit();
             }
 
+            // CORE-03: Clear parameter lookup cache — null entries from before binding
+            // would persist and cause subsequent writes to silently fail
+            ParameterHelpers.ClearParamCache();
+
             string report = $"Shared parameter binding complete.\n\n" +
                 $"Pass 1 (Universal):   {pass1Bound} bound, {pass1Skipped} skipped\n" +
                 $"Pass 2 (Discipline):  {pass2Bound} bound, {pass2Skipped} skipped\n" +

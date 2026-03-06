@@ -241,7 +241,10 @@ namespace StingTools.Tags
                         ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
                     }
 
-                    string key = $"{disc}_{sys}_{lvl}";
+                    // LOGIC-04: Include ZONE in group key for distinct sequences per zone
+                    string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                    if (string.IsNullOrEmpty(zone)) zone = "ZZ";
+                    string key = $"{disc}_{sys}_{lvl}_{zone}";
                     if (!maxSeq.ContainsKey(key)) maxSeq[key] = 0;
                     maxSeq[key]++;
                     string seq = maxSeq[key].ToString().PadLeft(ParamRegistry.NumPad, '0');

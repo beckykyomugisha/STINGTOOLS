@@ -105,7 +105,12 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <TextBlock Text="STING TAGS v9.6" FontWeight="Bold" FontSize="13" Foreground="White"/>
-                    <TextBlock x:Name="txtStatus" Text="Always on top: ON" FontSize="9" Foreground="#CE93D8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="txtStatus" Text="Ready" FontSize="9" Foreground="#CE93D8"/>
+                        <Border x:Name="brdAutoTaggerLed" Width="8" Height="8" CornerRadius="4" Margin="6,0,2,0" VerticalAlignment="Center"
+                                Background="#9E9E9E" ToolTip="AutoTagger: OFF"/>
+                        <TextBlock x:Name="txtAutoTaggerState" Text="AT" FontSize="8" Foreground="#9E9E9E" VerticalAlignment="Center" ToolTip="AutoTagger status"/>
+                    </StackPanel>
                 </StackPanel>
                 <TextBlock Grid.Column="1" x:Name="txtSelCount" Text="sel 0" FontSize="9" Foreground="#CE93D8" VerticalAlignment="Center" Margin="0,0,6,0"/>
                 <Button x:Name="btnPin" Grid.Column="2" Content="Pin" Width="30" Height="20"

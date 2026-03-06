@@ -53,6 +53,10 @@ namespace StingTools.Temp
             int hasTotals = 0;
             int stingSchedules = 0;
             int orphanSchedules = 0;
+            // SCH-04: Track schedule types separately for accurate type-coverage reporting
+            int materialTakeoffCount = 0;
+            int keyScheduleCount = 0;
+            int elementScheduleCount = 0;
             var duplicateNames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var issues = new List<string>();
             var fieldCounts = new List<int>();
@@ -70,6 +74,18 @@ namespace StingTools.Temp
                 // Count STING schedules
                 if (name.StartsWith("STING", StringComparison.OrdinalIgnoreCase))
                     stingSchedules++;
+
+                // SCH-04: Classify schedule record type
+                try
+                {
+                    if (sched.Definition.IsItemized == false && sched.Definition.GetSortGroupFieldCount() > 0)
+                        keyScheduleCount++;
+                    else if (sched.IsMaterialTakeoff)
+                        materialTakeoffCount++;
+                    else
+                        elementScheduleCount++;
+                }
+                catch { elementScheduleCount++; }
 
                 var def = sched.Definition;
                 int fCount = def.GetFieldCount();
@@ -147,6 +163,10 @@ namespace StingTools.Temp
             report.AppendLine($"  With group headers:      {hasTotals}");
             report.AppendLine($"  Empty (no data rows):    {emptySchedules}");
             report.AppendLine($"  No fields defined:       {noFields}");
+            // SCH-04: Schedule type breakdown
+            report.AppendLine($"  Element schedules:       {elementScheduleCount}");
+            report.AppendLine($"  Material takeoffs:       {materialTakeoffCount}");
+            report.AppendLine($"  Key schedules:           {keyScheduleCount}");
             if (csvDefs.Count > 0)
                 report.AppendLine($"  Not in CSV definitions:  {orphanSchedules}");
             report.AppendLine();

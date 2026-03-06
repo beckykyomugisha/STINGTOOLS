@@ -19,17 +19,35 @@ namespace StingTools.Core
             = new ConcurrentDictionary<(ElementId, string), Definition>();
 
         /// <summary>Clear the parameter lookup cache. Call on document close or when
-        /// shared parameters change (e.g., after LoadSharedParams).</summary>
+        /// shared parameters change (e.g., after LoadSharedParams).
+        /// CORE-01/CORE-03: Prevents stale caches across documents.</summary>
         public static void ClearParamCache()
         {
             _paramCache.Clear();
         }
 
+        /// <summary>
+        /// CORE-01: Clear all caches when a document is closed.
+        /// Call from DocumentClosed event subscription (wired in StingToolsApp.OnStartup).
+        /// Prevents stale ElementIds from document A persisting into document B.
+        /// </summary>
+        public static void OnDocumentClosed()
+        {
+            ClearParamCache();
+            ComplianceScan.InvalidateCache();
+            StingLog.Info("ParameterHelpers: caches cleared on document close");
+        }
+
         /// <summary>Cached parameter lookup. Uses element's TypeId + paramName as cache key.
-        /// Falls back to LookupParameter on first access per type, then O(1) thereafter.</summary>
+        /// Falls back to LookupParameter on first access per type, then O(1) thereafter.
+        /// CORE-02: In-place families return InvalidElementId for GetTypeId() — use element's
+        /// own Id as fallback to prevent all in-place instances sharing one cache key.</summary>
         private static Parameter CachedLookup(Element el, string paramName)
         {
             ElementId typeId = el.GetTypeId();
+            // CORE-02: In-place families have no separate type — use element Id as cache key
+            if (typeId == ElementId.InvalidElementId)
+                typeId = el.Id;
             var key = (typeId, paramName);
 
             if (!_paramCache.TryGetValue(key, out Definition cachedDef))
@@ -128,7 +146,9 @@ namespace StingTools.Core
                     return "POD";
                 if (lower.StartsWith("mezzanine") || lower == "mezz")
                     return "MZ";
-                if (lower.StartsWith("plant") && lower.Contains("room"))
+                // CORE-04: Plant level detection — expanded to catch all variants
+                // (Plant, Plant Level, Plant Room, Plant Deck, Plant Floor, Plant Area)
+                if (lower.StartsWith("plant"))
                     return "PL";
 
                 // Extract digits for "1st floor", "2nd floor", "L01" etc.

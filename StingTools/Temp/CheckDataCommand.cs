@@ -83,7 +83,7 @@ namespace StingTools.Temp
                     "MR_PARAMETERS.csv", "MR_SCHEDULES.csv",
                     "FORMULAS_WITH_DEPENDENCIES.csv", "SCHEDULE_FIELD_REMAP.csv",
                     "BINDING_COVERAGE_MATRIX.csv", "CATEGORY_BINDINGS.csv",
-                    "FAMILY_PARAMETER_BINDINGS.csv", "PARAMETER__CATEGORIES.csv" };
+                    "FAMILY_PARAMETER_BINDINGS.csv", "PARAMETER_CATEGORIES.csv" };
                 foreach (string csvName in csvFiles)
                 {
                     string csvFilePath = Path.Combine(dataDir, csvName);

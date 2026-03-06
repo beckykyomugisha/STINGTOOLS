@@ -2062,6 +2062,21 @@ namespace StingTools.Docs
                 return Result.Succeeded;
             }
 
+            // TAG-08: Run SheetNamingCheck preflight before generating register
+            int namingIssues = 0;
+            foreach (var sheet in sheets)
+            {
+                string num = sheet.SheetNumber ?? "";
+                // Basic ISO 19650 sheet naming check: should contain discipline prefix and separator
+                if (num.Length < 3 || !num.Contains("-"))
+                    namingIssues++;
+            }
+            if (namingIssues > 0)
+            {
+                StingLog.Warn($"DrawingRegister: {namingIssues} of {sheets.Count} sheets may not comply with ISO 19650 naming. " +
+                    "Run 'Sheet Naming Check' for details.");
+            }
+
             // Collect all revisions
             var revisions = new FilteredElementCollector(doc)
                 .OfClass(typeof(Revision))

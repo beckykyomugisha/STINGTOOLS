@@ -58,7 +58,9 @@ namespace StingTools.UI
             _total = Math.Max(total, 1);
             _current = 0;
             _cancelled = false;
-            _stopwatch = Stopwatch.StartNew();
+            // UX-01: Always create a fresh stopwatch so ETA doesn't carry over
+            _stopwatch = new Stopwatch();
+            _stopwatch.Start();
 
             // Build WPF window programmatically (no XAML needed)
             _progressBar = new ProgressBar

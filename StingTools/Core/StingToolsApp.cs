@@ -35,6 +35,13 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
+                // CORE-01: Subscribe to DocumentClosed to clear all caches
+                // Prevents stale ElementIds from document A persisting into document B
+                application.ControlledApplication.DocumentClosed += (sender, args) =>
+                {
+                    ParameterHelpers.OnDocumentClosed();
+                };
+
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
             }

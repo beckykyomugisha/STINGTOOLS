@@ -219,5 +219,52 @@ namespace StingTools.UI
             }
             catch { /* Non-critical UI update */ }
         }
+
+        /// <summary>
+        /// UI-04: Update AutoTagger LED indicator in status bar.
+        /// Green = active, Grey = disabled.
+        /// </summary>
+        public static void UpdateAutoTaggerLed(bool isEnabled)
+        {
+            if (_instance?.brdAutoTaggerLed == null) return;
+            try
+            {
+                var ledBrush = isEnabled
+                    ? new SolidColorBrush(Color.FromRgb(76, 175, 80))   // Green
+                    : new SolidColorBrush(Color.FromRgb(158, 158, 158)); // Grey
+                string tooltip = isEnabled ? "AutoTagger: ON" : "AutoTagger: OFF";
+                string label = isEnabled ? "AT" : "AT";
+                var labelBrush = isEnabled
+                    ? new SolidColorBrush(Color.FromRgb(76, 175, 80))
+                    : new SolidColorBrush(Color.FromRgb(158, 158, 158));
+
+                if (!_instance.brdAutoTaggerLed.Dispatcher.CheckAccess())
+                {
+                    _instance.brdAutoTaggerLed.Dispatcher.Invoke(() =>
+                    {
+                        _instance.brdAutoTaggerLed.Background = ledBrush;
+                        _instance.brdAutoTaggerLed.ToolTip = tooltip;
+                        if (_instance.txtAutoTaggerState != null)
+                        {
+                            _instance.txtAutoTaggerState.Text = label;
+                            _instance.txtAutoTaggerState.Foreground = labelBrush;
+                            _instance.txtAutoTaggerState.ToolTip = tooltip;
+                        }
+                    });
+                }
+                else
+                {
+                    _instance.brdAutoTaggerLed.Background = ledBrush;
+                    _instance.brdAutoTaggerLed.ToolTip = tooltip;
+                    if (_instance.txtAutoTaggerState != null)
+                    {
+                        _instance.txtAutoTaggerState.Text = label;
+                        _instance.txtAutoTaggerState.Foreground = labelBrush;
+                        _instance.txtAutoTaggerState.ToolTip = tooltip;
+                    }
+                }
+            }
+            catch { /* Non-critical UI update */ }
+        }
     }
 }

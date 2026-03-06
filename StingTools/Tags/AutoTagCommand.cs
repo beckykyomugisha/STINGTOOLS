@@ -193,6 +193,26 @@ namespace StingTools.Tags
             if (revSet > 0)
                 report.AppendLine($"  REV:        {revSet} (revision '{popCtx.ProjectRev}')");
             report.AppendLine();
+
+            // TAG-07: Warn when >10% of FUNC or PROD tokens are empty after tagging
+            if (stats.TotalTagged > 0)
+            {
+                int emptyFunc = 0, emptyProd = 0;
+                foreach (Element el in viewElements)
+                {
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (!known.Contains(cat)) continue;
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.FUNC))) emptyFunc++;
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.PROD))) emptyProd++;
+                }
+                int pctFunc = emptyFunc * 100 / taggable;
+                int pctProd = emptyProd * 100 / taggable;
+                if (pctFunc > 10)
+                    report.AppendLine($"  WARNING: {emptyFunc} elements ({pctFunc}%) missing FUNC codes — run FamilyStagePopulate");
+                if (pctProd > 10)
+                    report.AppendLine($"  WARNING: {emptyProd} elements ({pctProd}%) missing PROD codes — run FamilyStagePopulate");
+            }
+
             report.Append(stats.BuildReport());
 
             TaskDialog td = new TaskDialog("Auto Tag");

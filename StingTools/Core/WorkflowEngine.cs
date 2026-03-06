@@ -351,79 +351,353 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Map command tags to IExternalCommand instances.
-        /// Covers the most commonly used pipeline commands.
+        /// DISP-01: Map ALL command tags to IExternalCommand instances.
+        /// Comprehensive dispatch covering all 234+ commands matching
+        /// StingCommandHandler tags for full workflow orchestration.
         /// </summary>
         private static IExternalCommand ResolveCommand(string tag)
         {
             switch (tag)
             {
-                // Setup
-                case "LoadParams": return new Tags.LoadSharedParamsCommand();
+                // ════════════════════════════════════════════════════════
+                // SELECT — Category selectors
+                // ════════════════════════════════════════════════════════
+                case "SelectLighting": return new Select.SelectLightingCommand();
+                case "SelectElectrical": return new Select.SelectElectricalCommand();
+                case "SelectMechanical": return new Select.SelectMechanicalCommand();
+                case "SelectPlumbing": return new Select.SelectPlumbingCommand();
+                case "SelectAirTerminals": return new Select.SelectAirTerminalsCommand();
+                case "SelectFurniture": return new Select.SelectFurnitureCommand();
+                case "SelectDoors": return new Select.SelectDoorsCommand();
+                case "SelectWindows": return new Select.SelectWindowsCommand();
+                case "SelectRooms": return new Select.SelectRoomsCommand();
+                case "SelectSprinklers": return new Select.SelectSprinklersCommand();
+                case "SelectPipes": return new Select.SelectPipesCommand();
+                case "SelectDucts": return new Select.SelectDuctsCommand();
+                case "SelectConduits": return new Select.SelectConduitsCommand();
+                case "SelectCableTrays": return new Select.SelectCableTraysCommand();
+                case "SelectAllTaggable": return new Select.SelectAllTaggableCommand();
+
+                // SELECT — State selectors
+                case "SelectUntagged": return new Select.SelectUntaggedCommand();
+                case "SelectTagged": return new Select.SelectTaggedCommand();
+                case "SelectEmptyMark": return new Select.SelectEmptyMarkCommand();
+                case "SelectPinned": return new Select.SelectPinnedCommand();
+                case "SelectUnpinned": return new Select.SelectUnpinnedCommand();
+
+                // SELECT — Spatial selectors
+                case "SelectByLevel": return new Select.SelectByLevelCommand();
+                case "SelectByRoom": return new Select.SelectByRoomCommand();
+
+                // SELECT — Bulk operations
+                case "BulkParamWrite": return new Select.BulkParamWriteCommand();
+
+                // SELECT — Color By Parameter
+                case "ColorByParameter": return new Select.ColorByParameterCommand();
+                case "ClearColorOverrides": return new Select.ClearColorOverridesCommand();
+                case "SaveColorPreset": return new Select.SaveColorPresetCommand();
+                case "LoadColorPreset": return new Select.LoadColorPresetCommand();
+                case "CreateFiltersFromColors": return new Select.CreateFiltersFromColorsCommand();
+
+                // ════════════════════════════════════════════════════════
+                // TAGS — Core tagging commands
+                // ════════════════════════════════════════════════════════
+                case "AutoTag": return new Tags.AutoTagCommand();
+                case "BatchTag": return new Tags.BatchTagCommand();
+                case "TagAndCombine": return new Tags.TagAndCombineCommand();
+                case "TagNewOnly": return new Tags.TagNewOnlyCommand();
+                case "TagChanged": return new Tags.TagChangedCommand();
+                case "TagFormatMigration": return new Tags.TagFormatMigrationCommand();
+                case "FamilyStagePopulate": return new Tags.FamilyStagePopulateCommand();
+                case "BuildTags": return new Tags.BuildTagsCommand();
+                case "AssignNumbers": return new Tags.AssignNumbersCommand();
+                case "CombineParams":
+                case "CombineParameters": return new Tags.CombineParametersCommand();
+                case "CombinePreFlight": return new Tags.CombinePreFlightCommand();
+
+                // TAGS — Setup / Config
+                case "LoadParams":
+                case "LoadSharedParams": return new Tags.LoadSharedParamsCommand();
+                case "ConfigEditor": return new Tags.ConfigEditorCommand();
+                case "TagConfig": return new Tags.TagConfigCommand();
+                case "SyncParamSchema": return new Tags.SyncParameterSchemaCommand();
+                case "AddParamRemap": return new Tags.AddParamRemapCommand();
+                case "AuditParamSchema": return new Tags.AuditParameterSchemaCommand();
+
+                // TAGS — Token writers
+                case "SetDisc": return new Tags.SetDiscCommand();
+                case "SetLoc": return new Tags.SetLocCommand();
+                case "SetZone": return new Tags.SetZoneCommand();
+                case "SetStatus": return new Tags.SetStatusCommand();
+
+                // TAGS — Validation / QA
+                case "ValidateTags": return new Tags.ValidateTagsCommand();
+                case "PreTagAudit": return new Tags.PreTagAuditCommand();
+                case "ResolveAllIssues": return new Tags.ResolveAllIssuesCommand();
+                case "CompletenessDashboard": return new Tags.CompletenessDashboardCommand();
+
+                // TAGS — Smart Tag Placement
+                case "SmartPlaceTags": return new Tags.SmartPlaceTagsCommand();
+                case "ArrangeTags": return new Tags.ArrangeTagsCommand();
+                case "BatchPlaceTags": return new Tags.BatchPlaceTagsCommand();
+                case "RemoveAnnotationTags": return new Tags.RemoveAnnotationTagsCommand();
+                case "LearnTagPlacement": return new Tags.LearnTagPlacementCommand();
+                case "ApplyTagTemplate": return new Tags.ApplyTagTemplateCommand();
+                case "TagOverlapAnalysis": return new Tags.TagOverlapAnalysisCommand();
+                case "BatchTagTextSize": return new Tags.BatchTagTextSizeCommand();
+                case "SetTagCatLineWeight": return new Tags.SetTagCategoryLineWeightCommand();
+
+                // TAGS — Rich TAG7 display
+                case "RichTagNote": return new Tags.RichTagNoteCommand();
+                case "ExportRichTagReport": return new Tags.ExportRichTagReportCommand();
+                case "ViewTag7Sections": return new Tags.ViewTag7SectionsCommand();
+                case "SwitchTag7Preset": return new Tags.SwitchTag7PresetCommand();
+                case "RichSegmentNote": return new Tags.RichSegmentNoteCommand();
+                case "ViewSegments": return new Tags.ViewSegmentsCommand();
+
+                // TAGS — Presentation Mode
+                case "SetPresentationMode": return new Tags.SetPresentationModeCommand();
+                case "ViewLabelSpec": return new Tags.ViewLabelSpecCommand();
+                case "ExportLabelGuide": return new Tags.ExportLabelGuideCommand();
+                case "SetTag7HeadingStyle": return new Tags.SetTag7HeadingStyleCommand();
+
+                // TAGS — Paragraph Depth
+                case "SetParagraphDepth": return new Tags.SetParagraphDepthCommand();
+                case "ToggleWarningVisibility": return new Tags.ToggleWarningVisibilityCommand();
+
+                // TAGS — System Param Push
+                case "SystemParamPush": return new Tags.SystemParamPushCommand();
+                case "BatchSystemPush": return new Tags.BatchSystemPushCommand();
+                case "SelectSystemElements": return new Tags.SelectSystemElementsCommand();
+
+                // TAGS — Tag Family Creator
+                case "CreateTagFamilies": return new Tags.CreateTagFamiliesCommand();
+                case "LoadTagFamilies": return new Tags.LoadTagFamiliesCommand();
+                case "ConfigureTagLabels": return new Tags.ConfigureTagLabelsCommand();
+                case "AuditTagFamilies": return new Tags.AuditTagFamiliesCommand();
+
+                // TAGS — Legend Builder (31 commands)
+                case "CreateColorLegend": return new Tags.CreateColorLegendCommand();
+                case "ExportColorLegendHtml": return new Tags.ExportColorLegendHtmlCommand();
+                case "AutoCreateLegends": return new Tags.AutoCreateLegendsCommand();
+                case "LegendFromView": return new Tags.LegendFromViewCommand();
+                case "PlaceLegendOnSheet": return new Tags.PlaceLegendOnSheetCommand();
+                case "SheetContextLegend": return new Tags.SheetContextLegendCommand();
+                case "PlaceLegendOnAllSheets": return new Tags.PlaceLegendOnAllSheetsCommand();
+                case "BatchSheetContextLegends": return new Tags.BatchSheetContextLegendsCommand();
+                case "CreateTagLegend": return new Tags.CreateTagLegendCommand();
+                case "SheetTagLegend": return new Tags.SheetTagLegendCommand();
+                case "BatchTagLegends": return new Tags.BatchTagLegendsCommand();
+                case "UpdateLegend": return new Tags.UpdateLegendCommand();
+                case "DeleteStaleLegend": return new Tags.DeleteStaleLegendCommand();
+                case "OneClickLegendPipeline": return new Tags.OneClickLegendPipelineCommand();
+                case "MepSystemLegend": return new Tags.MepSystemLegendCommand();
+                case "MaterialLegend": return new Tags.MaterialLegendCommand();
+                case "CompoundTypeLegend": return new Tags.CompoundTypeLegendCommand();
+                case "EquipmentLegend": return new Tags.EquipmentLegendCommand();
+                case "FireRatingLegend": return new Tags.FireRatingLegendCommand();
+                case "MasterLegendPipeline": return new Tags.MasterLegendPipelineCommand();
+                case "FilterLegend": return new Tags.FilterLegendCommand();
+                case "TemplateLegend": return new Tags.TemplateLegendCommand();
+                case "VGCategoryLegend": return new Tags.VGCategoryLegendCommand();
+                case "BatchTemplateLegend": return new Tags.BatchTemplateLegendCommand();
+                case "FlexibleLegend": return new Tags.FlexibleLegendCommand();
+                case "LegendFromPreset": return new Tags.LegendFromPresetCommand();
+                case "ComponentTypeLegend": return new Tags.ComponentTypeLegendCommand();
+                case "ColorReferenceLegend": return new Tags.ColorReferenceLegendCommand();
+                case "LegendSyncAudit": return new Tags.LegendSyncAuditCommand();
+                case "StatusLegend": return new Tags.StatusLegendCommand();
+                case "WorksetLegend": return new Tags.WorksetLegendCommand();
+
+                // ════════════════════════════════════════════════════════
+                // ORGANISE — Tag operations
+                // ════════════════════════════════════════════════════════
+                case "TagSelected": return new Organise.TagSelectedCommand();
+                case "ReTag": return new Organise.ReTagCommand();
+                case "DeleteTags": return new Organise.DeleteTagsCommand();
+                case "RenumberTags": return new Organise.RenumberTagsCommand();
+                case "CopyTags": return new Organise.CopyTagsCommand();
+                case "SwapTags": return new Organise.SwapTagsCommand();
+                case "FixDuplicates": return new Organise.FixDuplicateTagsCommand();
+                case "FindDuplicates": return new Organise.FindDuplicateTagsCommand();
+
+                // ORGANISE — Leaders
+                case "ToggleLeaders": return new Organise.ToggleLeadersCommand();
+                case "AddLeaders": return new Organise.AddLeadersCommand();
+                case "RemoveLeaders": return new Organise.RemoveLeadersCommand();
+                case "AlignTags":
+                case "AlignTagsH":
+                case "AlignTagsV": return new Organise.AlignTagsCommand();
+                case "ResetTagPositions": return new Organise.ResetTagPositionsCommand();
+                case "ToggleTagOrientation": return new Organise.ToggleTagOrientationCommand();
+                case "SnapLeaderElbow": return new Organise.SnapLeaderElbowCommand();
+                case "AutoAlignLeaderText": return new Organise.AutoAlignLeaderTextCommand();
+                case "FlipTags": return new Organise.FlipTagsCommand();
+                case "AlignTagText": return new Organise.AlignTagTextCommand();
+                case "PinTags": return new Organise.PinTagsCommand();
+                case "NudgeTags": return new Organise.NudgeTagsCommand();
+                case "AttachLeader": return new Organise.AttachLeaderCommand();
+                case "SelectTagsWithLeaders": return new Organise.SelectTagsWithLeadersCommand();
+
+                // ORGANISE — Appearance
+                case "ColorTagsByDiscipline": return new Organise.ColorTagsByDisciplineCommand();
+                case "SetTagTextColor": return new Organise.SetTagTextColorCommand();
+                case "SetLeaderColor": return new Organise.SetLeaderColorCommand();
+                case "SplitTagLeaderColor": return new Organise.SplitTagLeaderColorCommand();
+                case "ClearAnnotationColors": return new Organise.ClearAnnotationColorsCommand();
+                case "TagAppearance": return new Organise.TagAppearanceCommand();
+                case "SetTagBox": return new Organise.SetTagBoxAppearanceCommand();
+                case "QuickTagStyle": return new Organise.QuickTagStyleCommand();
+                case "SetTagLineWeight": return new Organise.SetTagLineWeightCommand();
+                case "ColorTagsByParam": return new Organise.ColorTagsByParameterCommand();
+                case "SwapTagType": return new Organise.SwapTagTypeCommand();
+
+                // ORGANISE — Analysis
+                case "TagStats": return new Organise.TagStatsCommand();
+                case "AuditTagsCSV": return new Organise.AuditTagsCSVCommand();
+                case "SelectByDiscipline": return new Organise.SelectByDisciplineCommand();
+                case "TagRegisterExport": return new Organise.TagRegisterExportCommand();
+                case "HighlightInvalid": return new Organise.HighlightInvalidCommand();
+                case "ClearOverrides": return new Organise.ClearOverridesCommand();
+
+                // ORGANISE — Advanced Automation
+                case "AnomalyAutoFix": return new Organise.AnomalyAutoFixCommand();
+
+                // ════════════════════════════════════════════════════════
+                // DOCS — Documentation commands
+                // ════════════════════════════════════════════════════════
+                case "SheetOrganizer": return new Docs.SheetOrganizerCommand();
+                case "ViewOrganizer": return new Docs.ViewOrganizerCommand();
+                case "SheetIndex": return new Docs.SheetIndexCommand();
+                case "Transmittal": return new Docs.TransmittalCommand();
+                case "DeleteUnusedViews": return new Docs.DeleteUnusedViewsCommand();
+                case "SheetNamingCheck": return new Docs.SheetNamingCheckCommand();
+                case "AutoNumberSheets": return new Docs.AutoNumberSheetsCommand();
+                case "AlignViewports": return new Docs.AlignViewportsCommand();
+                case "RenumberViewports": return new Docs.RenumberViewportsCommand();
+                case "TextCase": return new Docs.TextCaseCommand();
+                case "SumAreas": return new Docs.SumAreasCommand();
+
+                // DOCS — View Automation
+                case "DuplicateView": return new Docs.DuplicateViewCommand();
+                case "BatchRenameViews": return new Docs.BatchRenameViewsCommand();
+                case "CopyViewSettings": return new Docs.CopyViewSettingsCommand();
+                case "AutoPlaceViewports": return new Docs.AutoPlaceViewportsCommand();
+                case "CropToContent": return new Docs.CropToContentCommand();
+                case "BatchAlignViewports": return new Docs.BatchAlignViewportsCommand();
+
+                // DOCS — Documentation Automation
+                case "BatchCreateViews": return new Docs.BatchCreateViewsCommand();
+                case "BatchCreateSheets": return new Docs.BatchCreateSheetsCommand();
+                case "CreateDependentViews": return new Docs.CreateDependentViewsCommand();
+                case "ScopeBoxManager": return new Docs.ScopeBoxManagerCommand();
+                case "ViewTemplateAssigner": return new Docs.ViewTemplateAssignerCommand();
+                case "DocumentationPackage": return new Docs.DocumentationPackageCommand();
+                case "BatchCreateSections": return new Docs.BatchCreateSectionsCommand();
+                case "BatchCreateElevations": return new Docs.BatchCreateElevationsCommand();
+                case "DrawingRegister": return new Docs.DrawingRegisterCommand();
+                case "ProjectBrowserOrganizer": return new Docs.ProjectBrowserOrganizerCommand();
+                case "RevisionCloudAuto": return new Docs.RevisionCloudAutoCreateCommand();
+
+                // ════════════════════════════════════════════════════════
+                // TEMP — Setup
+                // ════════════════════════════════════════════════════════
                 case "MasterSetup": return new Temp.MasterSetupCommand();
                 case "ProjectSetup": return new Temp.ProjectSetupCommand();
+                case "CreateParameters": return new Temp.CreateParametersCommand();
+                case "CheckData": return new Temp.CheckDataCommand();
 
-                // Materials
+                // TEMP — Materials
                 case "CreateBLEMaterials": return new Temp.CreateBLEMaterialsCommand();
                 case "CreateMEPMaterials": return new Temp.CreateMEPMaterialsCommand();
 
-                // Families
+                // TEMP — Family types
                 case "CreateWalls": return new Temp.CreateWallsCommand();
                 case "CreateFloors": return new Temp.CreateFloorsCommand();
                 case "CreateCeilings": return new Temp.CreateCeilingsCommand();
                 case "CreateRoofs": return new Temp.CreateRoofsCommand();
                 case "CreateDucts": return new Temp.CreateDuctsCommand();
                 case "CreatePipes": return new Temp.CreatePipesCommand();
+                case "CreateCableTrays": return new Temp.CreateCableTraysCommand();
+                case "CreateConduits": return new Temp.CreateConduitsCommand();
 
-                // Schedules
+                // TEMP — Schedules
                 case "FullAutoPopulate": return new Temp.FullAutoPopulateCommand();
                 case "BatchSchedules": return new Temp.BatchSchedulesCommand();
-                case "EvaluateFormulas": return new Temp.FormulaEvaluatorCommand();
+                case "MaterialSchedules": return new Temp.CreateMaterialSchedulesCommand();
+                case "AutoPopulate": return new Temp.AutoPopulateCommand();
+                case "EvaluateFormulas":
+                case "FormulaEvaluator": return new Temp.FormulaEvaluatorCommand();
+                case "ExportCSV": return new Temp.ExportCSVCommand();
 
-                // Tagging
-                case "AutoTag": return new Tags.AutoTagCommand();
-                case "BatchTag": return new Tags.BatchTagCommand();
-                case "TagAndCombine": return new Tags.TagAndCombineCommand();
-                case "TagNewOnly": return new Tags.TagNewOnlyCommand();
-                case "TagChanged": return new Tags.TagChangedCommand();
-                case "FamilyStagePopulate": return new Tags.FamilyStagePopulateCommand();
-                case "CombineParams": return new Tags.CombineParametersCommand();
-                case "BuildTags": return new Tags.BuildTagsCommand();
+                // TEMP — Corporate Schedules
+                case "CorporateTitleBlock": return new Temp.CorporateTitleBlockScheduleCommand();
+                case "DrawingRegisterSchedule": return new Temp.DrawingRegisterScheduleCommand();
 
-                // Validation
-                case "ValidateTags": return new Tags.ValidateTagsCommand();
-                case "PreTagAudit": return new Tags.PreTagAuditCommand();
-                case "ValidateTemplate": return new Temp.ValidateTemplateCommand();
+                // TEMP — Schedule Enhancements
+                case "ScheduleAudit": return new Temp.ScheduleAuditCommand();
+                case "ScheduleCompare": return new Temp.ScheduleCompareCommand();
+                case "ScheduleDuplicate": return new Temp.ScheduleDuplicateCommand();
+                case "ScheduleRefresh": return new Temp.ScheduleRefreshCommand();
+                case "ScheduleFieldMgr": return new Temp.ScheduleFieldManagerCommand();
+                case "ScheduleColor": return new Temp.ScheduleColorCommand();
+                case "ScheduleStats": return new Temp.ScheduleStatsCommand();
+                case "ScheduleDelete": return new Temp.ScheduleDeleteCommand();
+                case "ScheduleReport": return new Temp.ScheduleReportCommand();
 
-                // Templates
+                // TEMP — Templates / Views
                 case "CreateFilters": return new Temp.CreateFiltersCommand();
+                case "ApplyFilters": return new Temp.ApplyFiltersToViewsCommand();
                 case "CreateWorksets": return new Temp.CreateWorksetsCommand();
                 case "ViewTemplates": return new Temp.ViewTemplatesCommand();
-                case "AutoAssignTemplates": return new Temp.AutoAssignTemplatesCommand();
-                case "AutoFixTemplate": return new Temp.AutoFixTemplateCommand();
+                case "CreateLinePatterns": return new Temp.CreateLinePatternsCommand();
+                case "CreatePhases": return new Temp.CreatePhasesCommand();
 
-                // Styles
+                // TEMP — Template Manager
+                case "TemplateSetupWizard": return new Temp.TemplateSetupWizardCommand();
+                case "AutoAssignTemplates": return new Temp.AutoAssignTemplatesCommand();
+                case "TemplateAudit": return new Temp.TemplateAuditCommand();
+                case "TemplateDiff": return new Temp.TemplateDiffCommand();
+                case "TemplateComplianceScore": return new Temp.TemplateComplianceScoreCommand();
+                case "AutoFixTemplate": return new Temp.AutoFixTemplateCommand();
+                case "SyncTemplateOverrides": return new Temp.SyncTemplateOverridesCommand();
+                case "CloneTemplate": return new Temp.CloneTemplateCommand();
+                case "BatchVGReset": return new Temp.BatchVGResetCommand();
+
+                // TEMP — Styles
                 case "CreateFillPatterns": return new Temp.CreateFillPatternsCommand();
                 case "CreateLineStyles": return new Temp.CreateLineStylesCommand();
                 case "CreateObjectStyles": return new Temp.CreateObjectStylesCommand();
                 case "CreateTextStyles": return new Temp.CreateTextStylesCommand();
-                case "CreateDimStyles": return new Temp.CreateDimensionStylesCommand();
+                case "CreateDimStyles":
+                case "CreateDimensionStyles": return new Temp.CreateDimensionStylesCommand();
                 case "CreateVGOverrides": return new Temp.CreateVGOverridesCommand();
-                case "ApplyFilters": return new Temp.ApplyFiltersToViewsCommand();
 
-                // Docs
-                case "BatchCreateViews": return new Docs.BatchCreateViewsCommand();
-                case "BatchCreateSheets": return new Docs.BatchCreateSheetsCommand();
-                case "DrawingRegister": return new Docs.DrawingRegisterCommand();
-                case "AutoNumberSheets": return new Docs.AutoNumberSheetsCommand();
-
-                // Data Pipeline
+                // TEMP — Data Pipeline
+                case "ValidateTemplate": return new Temp.ValidateTemplateCommand();
                 case "DynamicBindings": return new Temp.DynamicBindingsCommand();
+                case "SchemaValidate": return new Temp.SchemaValidateCommand();
                 case "BOQExport": return new Temp.BOQExportCommand();
-                case "BatchFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
+                case "TemplateVGAudit": return new Temp.TemplateVGAuditCommand();
+                case "ExportIfcPropertyMap": return new Temp.ExportIfcPropertyMapCommand();
+                case "ValidateBepCompliance": return new Temp.ValidateBepComplianceCommand();
+                case "BatchFamilyParams":
+                case "BatchAddFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
+                case "CreateTemplateSchedules": return new Temp.CreateTemplateSchedulesCommand();
 
-                // Legends
-                case "AutoCreateLegends": return new Tags.AutoCreateLegendsCommand();
+                // TEMP — Advanced Automation
+                case "ClashDetect": return new Temp.ClashDetectionCommand();
+                case "IFCExport": return new Temp.IFCExportCommand();
+                case "ExcelImport": return new Temp.ExcelBOQImportCommand();
+                case "KeynoteSync": return new Temp.KeynoteSyncCommand();
+
+                // ════════════════════════════════════════════════════════
+                // CORE — Workflow / AutoTagger
+                // ════════════════════════════════════════════════════════
+                case "RunWorkflow": return new Core.WorkflowPresetCommand();
+                case "ListWorkflows": return new Core.ListWorkflowPresetsCommand();
+                case "CreateWorkflow": return new Core.CreateWorkflowPresetCommand();
+                case "AutoTaggerToggle": return new Core.AutoTaggerToggleCommand();
 
                 default: return null;
             }
@@ -434,10 +708,11 @@ namespace StingTools.Core
         {
             var presets = new List<WorkflowPreset>();
 
-            // Built-in presets
+            // Built-in presets (WF-06: added ProjectHandover)
             presets.Add(GetBuiltInPreset("ProjectKickoff"));
             presets.Add(GetBuiltInPreset("DailyQA"));
             presets.Add(GetBuiltInPreset("DocumentPackage"));
+            presets.Add(GetBuiltInPreset("ProjectHandover"));
 
             // User-defined JSON files
             string dataDir = StingToolsApp.DataPath;
@@ -540,6 +815,27 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Assign View Templates" },
                             new WorkflowStep { CommandTag = "DrawingRegister", Label = "Generate Drawing Register" },
                             new WorkflowStep { CommandTag = "BOQExport", Label = "Export Bill of Quantities" },
+                        }
+                    };
+
+                // WF-06: ProjectHandover 9-step built-in preset
+                case "ProjectHandover":
+                    return new WorkflowPreset
+                    {
+                        Name = "Project Handover",
+                        Description = "Final handover: resolve all issues, validate, export registers and BOQ",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "Resolve All Tag Issues (100% compliance)" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "Validate ISO 19650 Compliance" },
+                            new WorkflowStep { CommandTag = "ValidateTemplate", Label = "Validate Data Integrity (45 checks)" },
+                            new WorkflowStep { CommandTag = "SheetNamingCheck", Label = "ISO 19650 Sheet Naming Check" },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "Export Asset Register (40+ columns)" },
+                            new WorkflowStep { CommandTag = "AuditTagsCSV", Label = "Export Full Tag Audit CSV" },
+                            new WorkflowStep { CommandTag = "BOQExport", Label = "Export Bill of Quantities (XLSX)" },
+                            new WorkflowStep { CommandTag = "DrawingRegister", Label = "Generate Drawing Register" },
+                            new WorkflowStep { CommandTag = "ValidateBepCompliance", Label = "Validate BEP Compliance" },
                         }
                     };
 

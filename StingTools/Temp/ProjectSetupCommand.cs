@@ -475,6 +475,28 @@ namespace StingTools.Temp
                 TagConfig.ZoneCodes = data.ZoneCodes;
 
             string configPath = Path.Combine(StingToolsApp.DataPath ?? "", "project_config.json");
+
+            // UX-02: Warn before overwriting existing project_config.json
+            if (File.Exists(configPath))
+            {
+                TaskDialog overwriteDlg = new TaskDialog("Overwrite Configuration?");
+                overwriteDlg.MainInstruction = "project_config.json already exists";
+                overwriteDlg.MainContent = $"Path: {configPath}\n\n" +
+                    "Overwriting will replace existing LOC codes, ZONE codes, and discipline settings.\n" +
+                    "The previous file will be backed up with a .bak extension.";
+                overwriteDlg.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+                if (overwriteDlg.Show() == TaskDialogResult.Cancel)
+                {
+                    report.AppendLine("\n  Config save skipped (user cancelled overwrite)");
+                }
+                else
+                {
+                    // Create backup before overwriting
+                    try { File.Copy(configPath, configPath + ".bak", true); }
+                    catch (Exception bex) { StingLog.Warn($"Config backup failed: {bex.Message}"); }
+                }
+            }
+
             if (TagConfig.SaveToFile(configPath))
             {
                 // ENH-002: Immediately reload settings so TagConfig uses persisted values
