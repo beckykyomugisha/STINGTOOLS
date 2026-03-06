@@ -710,6 +710,65 @@ namespace StingTools.UI
                     case "PatternApplyView": ApplyLinePattern(app); break;
                     case "ApplyLineWeight": ApplyLineWeightOverride(app); break;
 
+                    // ════════════════════════════════════════════════════════
+                    // DWG IMPORT (DWG-01 to DWG-09)
+                    // ════════════════════════════════════════════════════════
+                    case "ImportDWG": RunCommand<Temp.ImportDWGCommand>(app); break;
+                    case "PreviewDWGLayers": RunCommand<Temp.PreviewDWGLayersCommand>(app); break;
+                    case "BatchImportDWG": RunCommand<Temp.BatchImportDWGCommand>(app); break;
+                    case "ExportLayerMapping": RunCommand<Temp.ExportLayerMappingCommand>(app); break;
+                    case "ImportDWGWithMapping": RunCommand<Temp.ImportDWGWithMappingCommand>(app); break;
+                    case "DWGConversionPlan": RunCommand<Temp.DWGConversionPlanCommand>(app); break;
+                    case "LinkDWG": RunCommand<Temp.LinkDWGCommand>(app); break;
+                    case "AuditLinkedCAD": RunCommand<Temp.AuditLinkedCADCommand>(app); break;
+                    case "RemoveLinkedCAD": RunCommand<Temp.RemoveLinkedCADCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // MODEL CREATION (ME-01 to ME-10)
+                    // ════════════════════════════════════════════════════════
+                    case "CreateWalls": RunCommand<Temp.CreateWallsCommand>(app); break;
+                    case "CreateFloors": RunCommand<Temp.CreateFloorsCommand>(app); break;
+                    case "CreateCeilings": RunCommand<Temp.CreateCeilingsCommand>(app); break;
+                    case "PlaceDoors": RunCommand<Temp.PlaceDoorsCommand>(app); break;
+                    case "PlaceWindows": RunCommand<Temp.PlaceWindowsCommand>(app); break;
+                    case "CreateColumnsAtGrids": RunCommand<Temp.CreateColumnsAtGridsCommand>(app); break;
+                    case "AutoCreateRooms": RunCommand<Temp.AutoCreateRoomsCommand>(app); break;
+                    case "CreateGridsFromCSV": RunCommand<Temp.CreateGridsFromCSVCommand>(app); break;
+                    case "CreateLevelsFromCSV": RunCommand<Temp.CreateLevelsFromCSVCommand>(app); break;
+                    case "ModelElementAudit": RunCommand<Temp.ModelElementAuditCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // MEP CREATION + ANALYSIS
+                    // ════════════════════════════════════════════════════════
+                    case "PlaceMEPEquipment": RunCommand<Temp.PlaceMEPEquipmentCommand>(app); break;
+                    case "MEPSystemAudit": RunCommand<Temp.MEPSystemAuditCommand>(app); break;
+                    case "MEPSizingCheck": RunCommand<Temp.MEPSizingCheckCommand>(app); break;
+                    case "MEPConnectionAudit": RunCommand<Temp.MEPConnectionAuditCommand>(app); break;
+                    case "MEPSpaceAnalysis": RunCommand<Temp.MEPSpaceAnalysisCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // TAG INTELLIGENCE (Advanced)
+                    // ════════════════════════════════════════════════════════
+                    case "TagRuleEngine": RunCommand<Tags.TagRuleEngineCommand>(app); break;
+                    case "TagQualityAnalyzer": RunCommand<Tags.TagQualityAnalyzerCommand>(app); break;
+                    case "TagBatchChain": RunCommand<Tags.TagBatchChainCommand>(app); break;
+                    case "ConfigurableTagFormat": RunCommand<Tags.ConfigurableTagFormatCommand>(app); break;
+                    case "TagVersionControl": RunCommand<Tags.TagVersionControlCommand>(app); break;
+                    case "TagPropagation": RunCommand<Tags.TagPropagationCommand>(app); break;
+                    case "TagAnalyticsDashboard": RunCommand<Tags.TagAnalyticsDashboardCommand>(app); break;
+                    case "SmartTagSuggest": RunCommand<Tags.SmartTagSuggestCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // DATA PIPELINE ENHANCEMENTS (TEMP gaps)
+                    // ════════════════════════════════════════════════════════
+                    case "CrossValidateRegistry": RunCommand<Temp.CrossValidateRegistryCommand>(app); break;
+                    case "ValidateBindingMatrix": RunCommand<Temp.ValidateBindingMatrixCommand>(app); break;
+                    case "ViewParameterMetadata": RunCommand<Temp.ViewParameterMetadataCommand>(app); break;
+                    case "ValidateFamilyBindings": RunCommand<Temp.ValidateFamilyBindingsCommand>(app); break;
+                    case "DataIntegrityCheck": RunCommand<Temp.DataIntegrityCheckCommand>(app); break;
+                    case "DataReport": RunCommand<Temp.DataReportCommand>(app); break;
+                    case "ExportUnifiedRegistry": RunCommand<Temp.ExportUnifiedRegistryCommand>(app); break;
+
                     // ── Unmapped / placeholder ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {_commandTag}");
