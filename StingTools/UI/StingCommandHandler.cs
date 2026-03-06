@@ -1974,10 +1974,20 @@ namespace StingTools.UI
                         try
                         {
                             var leaders = tn.GetLeaders();
-                            if (leaders.Count > 0)
+                            if (leaders != null && leaders.Count > 0)
                                 tn.RemoveLeaders();
                             else
-                                tn.AddLeader(new TextNoteLeaderOptions());
+                            {
+                                // Revit 2025: set leader via type parameter
+                                var tnType = doc.GetElement(tn.GetTypeId()) as TextNoteType;
+                                if (tnType != null)
+                                {
+                                    Parameter showLeader = tnType.get_Parameter(
+                                        BuiltInParameter.LEADER_LINE);
+                                    if (showLeader != null && !showLeader.IsReadOnly)
+                                        showLeader.Set(1);
+                                }
+                            }
                             toggled++;
                         }
                         catch { }

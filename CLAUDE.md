@@ -718,12 +718,25 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 ### Building
 
 ```bash
-# Set Revit API path and build
+# Using build.bat (recommended — auto-detects Revit API)
+build.bat                                    # Release build, auto-detect Revit
+build.bat clean                              # Clean all build output
+build.bat debug                              # Debug build
+build.bat deploy                             # Build + auto-deploy to Revit addins
+build.bat "C:\Program Files\Autodesk\Revit 2025"  # Explicit API path
+
+# Using dotnet CLI directly
 dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Autodesk\Revit 2025"
 ```
 
 ### Deployment
 
+**Automated** (recommended):
+```bash
+build.bat deploy    # Builds, copies DLLs + data, installs .addin manifest
+```
+
+**Manual**:
 1. Build the project to produce `StingTools.dll`
 2. Copy `StingTools.addin` to Revit addins directory:
    - Per-machine: `C:\ProgramData\Autodesk\Revit\Addins\2025\`
@@ -773,6 +786,22 @@ dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Auto
 - For selection commands, use `uidoc.Selection.SetElementIds()` to set the selection
 - For new commands, use the shared helpers: `TagConfig.BuildAndWriteTag()`, `ParameterHelpers.SetIfEmpty()`, `CategorySelector.SelectByCategory()`, `SpatialAutoDetect.DetectLoc()/DetectZone()`
 
+### Revit 2025 API Compatibility Notes
+
+The following API patterns differ in Revit 2025 from earlier versions. Always use the 2025-compatible patterns:
+
+| Pattern | Wrong (pre-2025) | Correct (2025+) |
+|---------|-------------------|-----------------|
+| Command links | `dlg.AddCommandLink(TaskDialogResult.CommandLink1, ...)` | `dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, ...)` |
+| Schedule cell style | `section.SetCellBackgroundColor(r, c, color)` | `var style = section.GetTableCellStyle(r, c); var opts = style.GetCellStyleOverrideOptions(); opts.BackgroundColor = true; style.SetCellStyleOverrideOptions(opts); style.BackgroundColor = color; section.SetCellStyle(r, c, style);` |
+| Element duplicate | `element.Duplicate(name)` (on `Element`) | Cast to `ElementType`: `((ElementType)element).Duplicate(name)` |
+| Elevation marker | `marker.HasElevation(i)` | `!marker.IsAvailableIndex(i)` |
+| Transparency getter | `ogs.SurfaceTransparency` (getter) | No getter in 2025 — `SetSurfaceTransparency(int)` is write-only |
+| Panel schedule templates | `PanelScheduleTemplate.GetAllTemplates(doc)` | `new FilteredElementCollector(doc).OfClass(typeof(PanelScheduleTemplate))` |
+| Solid fill pattern | Inline collector each time | `ParameterHelpers.GetSolidFillPattern(doc)` (shared helper) |
+| WPF visibility | `Visibility.Visible` | `System.Windows.Visibility.Visible` (fully qualify in code-behind) |
+| Keynote table reload | `KeynoteTable.GetKeynoteExternalResourceReference(doc)` | Not available in 2025 — generate file, user sets via Annotate > Keynoting Settings |
+
 ### Multi-file Command Patterns
 
 The codebase uses two patterns for organising commands:
@@ -789,6 +818,38 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 - Data files are read at runtime from the `data/` directory alongside the DLL
 - Use `StingToolsApp.FindDataFile(fileName)` to locate data files
 - Use `StingToolsApp.ParseCsvLine(line)` to parse CSV lines with quoted fields
+
+### Material Data Files (BLE & MEP)
+
+**BLE_MATERIALS.csv** (815 rows, 66 columns) — Building element materials for walls, floors, ceilings, roofs, doors, windows. Columns include:
+- Identity: `SOURCE_SHEET`, `MAT_DISCIPLINE`, `MAT_ISO_19650_ID`, `MAT_CODE`, `MAT_ELEMENT_TYPE`, `MAT_CATEGORY`, `MAT_NAME`
+- Application: `MAT_APPLICATION`, `MAT_LOCATION`, `MAT_THICKNESS_MM`, `MAT_THICKNESS_INCH`
+- Cost: `MAT_COST_UNIT_USD`, `MAT_COST_UNIT_UGX`
+- Layers (1-5): `MAT_LAYER_N_MATERIAL`, `MAT_LAYER_N_THICKNESS_MM`, `MAT_LAYER_N_FUNCTION`
+- Revit appearance: `BLE_APP-REVIT-BASE-MATERIAL`, `BLE_APP-COLOR`, `BLE_APP-TRANSPARENCY`, `BLE_APP-SMOOTHNESS`, `BLE_APP-SHININESS`, surface/cut patterns and colors
+- Physical properties: `PROP_DENSITY_KG_M3`, `PROP_THERMAL_COND_W_MK`, `PROP_THERMAL_RES_M2K_W`, `PROP_SPECIFIC_HEAT_J_KGK`, `PROP_FIRE_RATING`, `PROP_ACOUSTIC_ABS`, `PROP_COMP_STRENGTH_MPA`
+
+**Thickness conventions** (critical for Revit wall/floor type creation):
+- **Concrete blocks**: Thickness = block width (100/150/200/225/250mm matching 4"/6"/8"/9"/10" sizes)
+- **Clay bricks**: Thickness = brick width in stretcher bond (102.5mm UK facing, 112.5mm standard/engineering)
+- **AAC blocks**: Thickness = block depth (100/150/200/250mm)
+- **Gypsum board**: 9.5/12.5/15mm standard thicknesses
+- **Insulation**: Varies by application (25-200mm)
+- **Thermal resistance**: R = thickness(m) / thermal_conductivity — must stay consistent when editing thicknesses
+
+**MEP_MATERIALS.csv** (464 rows, 66 columns) — MEP materials covering 164 categories:
+- HVAC: ductwork (galvanized, spiral, flat oval, stainless, aluminum, flexible), insulation, dampers, diffusers, AHUs, FCUs, VRF units, chillers
+- Plumbing: pipes (copper, PPR, PVC, HDPE, CPVC, cast iron, galvanized, black steel, stainless), valves, fixtures
+- Electrical: cables (XLPE, SWA, PVC), conduit (PVC, GI, EMT, HDPE, flexible), cable trays, distribution boards, transformers, generators
+- Fire: fire-rated cables/trays/ducts, fire alarm panels, detectors, sprinkler equipment
+- Low voltage: data cables (Cat6, Cat6A, fiber optic, coaxial), sockets, switches
+
+**When editing material CSVs**:
+- Always update `MAT_THICKNESS_INCH` when changing `MAT_THICKNESS_MM` (inch = mm / 25.4)
+- Update `PROP_THERMAL_RES_M2K_W` when changing thickness (R = thickness_m / conductivity)
+- Update `MAT_LAYER_1_THICKNESS_MM` if it matches the overall thickness
+- Preserve all 66 column positions — the `MaterialCommands.cs` CSV reader depends on column order
+- Use `MaterialPropertyHelper.CreateMaterialsFromCsv()` pattern for material creation
 
 ### Testing
 

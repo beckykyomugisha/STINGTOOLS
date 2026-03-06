@@ -758,18 +758,23 @@ namespace StingTools.Tags
 
             // Add command links for each preset
             var linkMap = new Dictionary<TaskDialogResult, string>();
-            // Revit only supports CommandLink1-4 (max 4 links)
-            var links = new[]
+            // Revit 2025: AddCommandLink takes TaskDialogCommandLinkId, Show() returns TaskDialogResult
+            var cmdIds = new[]
+            {
+                TaskDialogCommandLinkId.CommandLink1, TaskDialogCommandLinkId.CommandLink2,
+                TaskDialogCommandLinkId.CommandLink3, TaskDialogCommandLinkId.CommandLink4,
+            };
+            var resultIds = new[]
             {
                 TaskDialogResult.CommandLink1, TaskDialogResult.CommandLink2,
                 TaskDialogResult.CommandLink3, TaskDialogResult.CommandLink4,
             };
 
-            for (int i = 0; i < presets.Length && i < links.Length; i++)
+            for (int i = 0; i < presets.Length && i < cmdIds.Length; i++)
             {
                 string active = TagConfig.ActivePreset?.Name == presets[i].Name ? " [ACTIVE]" : "";
-                dlg.AddCommandLink(links[i], $"{presets[i].Name}{active}", presets[i].Description);
-                linkMap[links[i]] = presets[i].Name;
+                dlg.AddCommandLink(cmdIds[i], $"{presets[i].Name}{active}", presets[i].Description);
+                linkMap[resultIds[i]] = presets[i].Name;
             }
 
             dlg.CommonButtons = TaskDialogCommonButtons.Cancel;

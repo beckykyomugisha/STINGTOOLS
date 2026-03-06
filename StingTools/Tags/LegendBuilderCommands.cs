@@ -6565,9 +6565,10 @@ namespace StingTools.Tags
             // Check all known taggable categories
             foreach (var bic in SharedParamGuids.AllCategoryEnums)
             {
+                Category cat = null;
                 try
                 {
-                    Category cat = doc.Settings.Categories.get_Item(bic);
+                    cat = doc.Settings.Categories.get_Item(bic);
                     if (cat == null) continue;
 
                     OverrideGraphicSettings ogs = view.GetCategoryOverrides(new ElementId(bic));

@@ -3531,23 +3531,17 @@ namespace StingTools.Temp
 
             File.WriteAllText(knoPath, sb.ToString());
 
-            // Load into Revit via KeynoteTable API
+            // Note: KeynoteTable auto-reload requires user to set the file via
+            // Annotate > Keynoting Settings. We generate the file; Revit loads on next open.
             int entries = discCodes.Count + TagConfig.SysMap.Count + TagConfig.ProdMap.Count;
             try
             {
                 KeynoteTable kt = KeynoteTable.GetKeynoteTable(doc);
-                using (Transaction tx = new Transaction(doc, "STING Keynote Sync"))
-                {
-                    tx.Start();
-                    ExternalResourceReference eref = KeynoteTable.GetKeynoteExternalResourceReference(doc);
-                    // Reload keynote table — Revit will pick up the file at knoPath
-                    kt.LoadFrom(eref, null);
-                    tx.Commit();
-                }
+                StingLog.Info($"Keynote file generated at {knoPath}, entries: {entries}");
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"Keynote table auto-load: {ex.Message} — file generated, load manually via Annotate > Keynoting Settings");
+                StingLog.Warn($"Keynote table check: {ex.Message}");
             }
 
             TaskDialog.Show("Keynote Sync",
