@@ -530,7 +530,7 @@ namespace StingTools.UI
                     case "CondClear": ConditionClear(app); break;
                     case "CondPreview": ConditionPreview(app); break;
                     case "CondApply": ConditionApply(app); break;
-                    case "ShowHelp": TaskDialog.Show("STING Tools", "STING Tags v9.6\nISO 19650 BIM Asset Tagging\nhttps://stingbim.com"); break;
+                    case "ShowHelp": TaskDialog.Show("STING Tools", "STING Tools v9.6\nISO 19650 BIM Asset Management\nhttps://stingbim.com"); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)

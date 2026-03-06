@@ -104,7 +104,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="STING TAGS v9.6" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                    <TextBlock Text="STING Tools" FontSize="13" Foreground="White"/>
                     <TextBlock x:Name="txtStatus" Text="Always on top: ON" FontSize="9" Foreground="#CE93D8"/>
                 </StackPanel>
                 <TextBlock Grid.Column="1" x:Name="txtSelCount" Text="sel 0" FontSize="9" Foreground="#CE93D8" VerticalAlignment="Center" Margin="0,0,6,0"/>
