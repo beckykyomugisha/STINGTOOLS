@@ -375,6 +375,11 @@ ORGANISE,Quick Tag Style,QuickTagStyleCommand,Manual,Organise/TagOperationComman
 ORGANISE,Set Tag Line Weight,SetTagLineWeightCommand,Manual,Organise/TagOperationCommands.cs,Set line weight for tag annotations
 ORGANISE,Color Tags by Parameter,ColorTagsByParameterCommand,Manual,Organise/TagOperationCommands.cs,Color-code tags by any parameter value
 ORGANISE,Swap Tag Type,SwapTagTypeCommand,Manual,Organise/TagOperationCommands.cs,Swap tag family type on selected annotation tags
+ORGANISE,Apply Tag Styles,ApplyTagStylesCommand,Manual,Tags/TagStyleEngineCommands.cs,Apply tag style preset — rule-based type switching (128 types)
+ORGANISE,Preview Tag Styles,PreviewTagStylesCommand,ReadOnly,Tags/TagStyleEngineCommands.cs,Dry-run preview of tag style changes
+ORGANISE,Set Tag Style Rule,SetTagStyleRuleCommand,ReadOnly,Tags/TagStyleEngineCommands.cs,Add/edit a tag style rule (parameter → type mapping)
+ORGANISE,Save Tag Style Preset,SaveTagStylePresetCommand,ReadOnly,Tags/TagStyleEngineCommands.cs,Learn current tag type distribution and save as preset
+ORGANISE,Load Tag Style Preset,LoadTagStylePresetCommand,Manual,Tags/TagStyleEngineCommands.cs,Load and apply a saved style preset with preview
 ORGANISE,Anomaly Auto-Fix,AnomalyAutoFixCommand,Manual,Organise/TagOperationCommands.cs,Auto-fix common tag anomalies (empty tokens and duplicates)
 ##
 ## --- DOCS TAB (27 commands) ---
@@ -689,6 +694,210 @@ VIEW,"View templates, template manager, styles, presentation modes",Temp Templat
 ## → Revit calls StingCommandHandler.Execute(UIApplication) → RunCommand<T>(app)
 ##
 ## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 23: TAG STYLE ENGINE — Rule-Based Tag Family Type Switching
+## ═══════════════════════════════════════════════════════════════════════════════
+##
+## The Tag Style Engine automates tag family type switching via ChangeTypeId().
+## Instead of manual type selection in Type Properties, rules map element
+## conditions (discipline, status, zone, etc.) to tag type names that encode
+## text size, weight, and color (e.g. 2BOLD_RED = 2mm Bold Red).
+##
+## Tag types are family-internal — the TAG_2BOLD_RED_BOOL etc. parameters
+## live inside the .rfa tag family and control nested label visibility.
+## No shared parameters in MR_PARAMETERS.txt are needed for type switching.
+##
+## Data source: TAG_STYLE_RULES.json (128 types, 8 presets)
+##
+## ── TAG TYPE CATALOG — 128 Combinations ─────────────────────────────────────
+SECTION,TAG_STYLE_TYPE_CATALOG
+TYPE_NAME,SIZE_MM,WEIGHT,COLOR,FAMILY_PARAM,DESCRIPTION
+1.5NOM_BLACK,1.5,NOM,BLACK,TAG_1.5NOM_BLACK_BOOL,1.5mm Normal Black — detail annotations on dense drawings
+1.5NOM_BLUE,1.5,NOM,BLUE,TAG_1.5NOM_BLUE_BOOL,1.5mm Normal Blue
+1.5NOM_GREEN,1.5,NOM,GREEN,TAG_1.5NOM_GREEN_BOOL,1.5mm Normal Green
+1.5NOM_RED,1.5,NOM,RED,TAG_1.5NOM_RED_BOOL,1.5mm Normal Red
+1.5NOM_ORANGE,1.5,NOM,ORANGE,TAG_1.5NOM_ORANGE_BOOL,1.5mm Normal Orange
+1.5NOM_PURPLE,1.5,NOM,PURPLE,TAG_1.5NOM_PURPLE_BOOL,1.5mm Normal Purple
+1.5NOM_GREY,1.5,NOM,GREY,TAG_1.5NOM_GREY_BOOL,1.5mm Normal Grey
+1.5NOM_WHITE,1.5,NOM,WHITE,TAG_1.5NOM_WHITE_BOOL,1.5mm Normal White — dark background views
+1.5BOLD_BLACK,1.5,BOLD,BLACK,TAG_1.5BOLD_BLACK_BOOL,1.5mm Bold Black
+1.5BOLD_BLUE,1.5,BOLD,BLUE,TAG_1.5BOLD_BLUE_BOOL,1.5mm Bold Blue
+1.5BOLD_GREEN,1.5,BOLD,GREEN,TAG_1.5BOLD_GREEN_BOOL,1.5mm Bold Green
+1.5BOLD_RED,1.5,BOLD,RED,TAG_1.5BOLD_RED_BOOL,1.5mm Bold Red
+1.5BOLD_ORANGE,1.5,BOLD,ORANGE,TAG_1.5BOLD_ORANGE_BOOL,1.5mm Bold Orange
+1.5BOLD_PURPLE,1.5,BOLD,PURPLE,TAG_1.5BOLD_PURPLE_BOOL,1.5mm Bold Purple
+1.5BOLD_GREY,1.5,BOLD,GREY,TAG_1.5BOLD_GREY_BOOL,1.5mm Bold Grey
+1.5BOLD_WHITE,1.5,BOLD,WHITE,TAG_1.5BOLD_WHITE_BOOL,1.5mm Bold White
+1.5ITALIC_BLACK,1.5,ITALIC,BLACK,TAG_1.5ITALIC_BLACK_BOOL,1.5mm Italic Black
+1.5ITALIC_BLUE,1.5,ITALIC,BLUE,TAG_1.5ITALIC_BLUE_BOOL,1.5mm Italic Blue
+1.5ITALIC_GREEN,1.5,ITALIC,GREEN,TAG_1.5ITALIC_GREEN_BOOL,1.5mm Italic Green
+1.5ITALIC_RED,1.5,ITALIC,RED,TAG_1.5ITALIC_RED_BOOL,1.5mm Italic Red
+1.5ITALIC_ORANGE,1.5,ITALIC,ORANGE,TAG_1.5ITALIC_ORANGE_BOOL,1.5mm Italic Orange
+1.5ITALIC_PURPLE,1.5,ITALIC,PURPLE,TAG_1.5ITALIC_PURPLE_BOOL,1.5mm Italic Purple
+1.5ITALIC_GREY,1.5,ITALIC,GREY,TAG_1.5ITALIC_GREY_BOOL,1.5mm Italic Grey
+1.5ITALIC_WHITE,1.5,ITALIC,WHITE,TAG_1.5ITALIC_WHITE_BOOL,1.5mm Italic White
+1.5BOLDITALIC_BLACK,1.5,BOLDITALIC,BLACK,TAG_1.5BOLDITALIC_BLACK_BOOL,1.5mm Bold Italic Black
+1.5BOLDITALIC_BLUE,1.5,BOLDITALIC,BLUE,TAG_1.5BOLDITALIC_BLUE_BOOL,1.5mm Bold Italic Blue
+1.5BOLDITALIC_GREEN,1.5,BOLDITALIC,GREEN,TAG_1.5BOLDITALIC_GREEN_BOOL,1.5mm Bold Italic Green
+1.5BOLDITALIC_RED,1.5,BOLDITALIC,RED,TAG_1.5BOLDITALIC_RED_BOOL,1.5mm Bold Italic Red
+1.5BOLDITALIC_ORANGE,1.5,BOLDITALIC,ORANGE,TAG_1.5BOLDITALIC_ORANGE_BOOL,1.5mm Bold Italic Orange
+1.5BOLDITALIC_PURPLE,1.5,BOLDITALIC,PURPLE,TAG_1.5BOLDITALIC_PURPLE_BOOL,1.5mm Bold Italic Purple
+1.5BOLDITALIC_GREY,1.5,BOLDITALIC,GREY,TAG_1.5BOLDITALIC_GREY_BOOL,1.5mm Bold Italic Grey
+1.5BOLDITALIC_WHITE,1.5,BOLDITALIC,WHITE,TAG_1.5BOLDITALIC_WHITE_BOOL,1.5mm Bold Italic White
+2NOM_BLACK,2.0,NOM,BLACK,TAG_2NOM_BLACK_BOOL,2mm Normal Black — standard tag size
+2NOM_BLUE,2.0,NOM,BLUE,TAG_2NOM_BLUE_BOOL,2mm Normal Blue
+2NOM_GREEN,2.0,NOM,GREEN,TAG_2NOM_GREEN_BOOL,2mm Normal Green
+2NOM_RED,2.0,NOM,RED,TAG_2NOM_RED_BOOL,2mm Normal Red
+2NOM_ORANGE,2.0,NOM,ORANGE,TAG_2NOM_ORANGE_BOOL,2mm Normal Orange
+2NOM_PURPLE,2.0,NOM,PURPLE,TAG_2NOM_PURPLE_BOOL,2mm Normal Purple
+2NOM_GREY,2.0,NOM,GREY,TAG_2NOM_GREY_BOOL,2mm Normal Grey
+2NOM_WHITE,2.0,NOM,WHITE,TAG_2NOM_WHITE_BOOL,2mm Normal White
+2BOLD_BLACK,2.0,BOLD,BLACK,TAG_2BOLD_BLACK_BOOL,2mm Bold Black
+2BOLD_BLUE,2.0,BOLD,BLUE,TAG_2BOLD_BLUE_BOOL,2mm Bold Blue — Mechanical discipline default
+2BOLD_GREEN,2.0,BOLD,GREEN,TAG_2BOLD_GREEN_BOOL,2mm Bold Green — Plumbing discipline default
+2BOLD_RED,2.0,BOLD,RED,TAG_2BOLD_RED_BOOL,2mm Bold Red — Electrical discipline default
+2BOLD_ORANGE,2.0,BOLD,ORANGE,TAG_2BOLD_ORANGE_BOOL,2mm Bold Orange — Structural discipline default
+2BOLD_PURPLE,2.0,BOLD,PURPLE,TAG_2BOLD_PURPLE_BOOL,2mm Bold Purple
+2BOLD_GREY,2.0,BOLD,GREY,TAG_2BOLD_GREY_BOOL,2mm Bold Grey
+2BOLD_WHITE,2.0,BOLD,WHITE,TAG_2BOLD_WHITE_BOOL,2mm Bold White
+2ITALIC_BLACK,2.0,ITALIC,BLACK,TAG_2ITALIC_BLACK_BOOL,2mm Italic Black
+2ITALIC_BLUE,2.0,ITALIC,BLUE,TAG_2ITALIC_BLUE_BOOL,2mm Italic Blue
+2ITALIC_GREEN,2.0,ITALIC,GREEN,TAG_2ITALIC_GREEN_BOOL,2mm Italic Green
+2ITALIC_RED,2.0,ITALIC,RED,TAG_2ITALIC_RED_BOOL,2mm Italic Red
+2ITALIC_ORANGE,2.0,ITALIC,ORANGE,TAG_2ITALIC_ORANGE_BOOL,2mm Italic Orange — Temporary status
+2ITALIC_PURPLE,2.0,ITALIC,PURPLE,TAG_2ITALIC_PURPLE_BOOL,2mm Italic Purple — Low Voltage discipline
+2ITALIC_GREY,2.0,ITALIC,GREY,TAG_2ITALIC_GREY_BOOL,2mm Italic Grey
+2ITALIC_WHITE,2.0,ITALIC,WHITE,TAG_2ITALIC_WHITE_BOOL,2mm Italic White
+2BOLDITALIC_BLACK,2.0,BOLDITALIC,BLACK,TAG_2BOLDITALIC_BLACK_BOOL,2mm Bold Italic Black
+2BOLDITALIC_BLUE,2.0,BOLDITALIC,BLUE,TAG_2BOLDITALIC_BLUE_BOOL,2mm Bold Italic Blue
+2BOLDITALIC_GREEN,2.0,BOLDITALIC,GREEN,TAG_2BOLDITALIC_GREEN_BOOL,2mm Bold Italic Green
+2BOLDITALIC_RED,2.0,BOLDITALIC,RED,TAG_2BOLDITALIC_RED_BOOL,2mm Bold Italic Red — Fire Protection
+2BOLDITALIC_ORANGE,2.0,BOLDITALIC,ORANGE,TAG_2BOLDITALIC_ORANGE_BOOL,2mm Bold Italic Orange
+2BOLDITALIC_PURPLE,2.0,BOLDITALIC,PURPLE,TAG_2BOLDITALIC_PURPLE_BOOL,2mm Bold Italic Purple
+2BOLDITALIC_GREY,2.0,BOLDITALIC,GREY,TAG_2BOLDITALIC_GREY_BOOL,2mm Bold Italic Grey
+2BOLDITALIC_WHITE,2.0,BOLDITALIC,WHITE,TAG_2BOLDITALIC_WHITE_BOOL,2mm Bold Italic White
+2.5NOM_BLACK,2.5,NOM,BLACK,TAG_2.5NOM_BLACK_BOOL,2.5mm Normal Black — presentation size
+2.5NOM_BLUE,2.5,NOM,BLUE,TAG_2.5NOM_BLUE_BOOL,2.5mm Normal Blue
+2.5NOM_GREEN,2.5,NOM,GREEN,TAG_2.5NOM_GREEN_BOOL,2.5mm Normal Green
+2.5NOM_RED,2.5,NOM,RED,TAG_2.5NOM_RED_BOOL,2.5mm Normal Red
+2.5NOM_ORANGE,2.5,NOM,ORANGE,TAG_2.5NOM_ORANGE_BOOL,2.5mm Normal Orange
+2.5NOM_PURPLE,2.5,NOM,PURPLE,TAG_2.5NOM_PURPLE_BOOL,2.5mm Normal Purple
+2.5NOM_GREY,2.5,NOM,GREY,TAG_2.5NOM_GREY_BOOL,2.5mm Normal Grey
+2.5NOM_WHITE,2.5,NOM,WHITE,TAG_2.5NOM_WHITE_BOOL,2.5mm Normal White
+2.5BOLD_BLACK,2.5,BOLD,BLACK,TAG_2.5BOLD_BLACK_BOOL,2.5mm Bold Black
+2.5BOLD_BLUE,2.5,BOLD,BLUE,TAG_2.5BOLD_BLUE_BOOL,2.5mm Bold Blue
+2.5BOLD_GREEN,2.5,BOLD,GREEN,TAG_2.5BOLD_GREEN_BOOL,2.5mm Bold Green
+2.5BOLD_RED,2.5,BOLD,RED,TAG_2.5BOLD_RED_BOOL,2.5mm Bold Red
+2.5BOLD_ORANGE,2.5,BOLD,ORANGE,TAG_2.5BOLD_ORANGE_BOOL,2.5mm Bold Orange
+2.5BOLD_PURPLE,2.5,BOLD,PURPLE,TAG_2.5BOLD_PURPLE_BOOL,2.5mm Bold Purple
+2.5BOLD_GREY,2.5,BOLD,GREY,TAG_2.5BOLD_GREY_BOOL,2.5mm Bold Grey
+2.5BOLD_WHITE,2.5,BOLD,WHITE,TAG_2.5BOLD_WHITE_BOOL,2.5mm Bold White
+2.5ITALIC_BLACK,2.5,ITALIC,BLACK,TAG_2.5ITALIC_BLACK_BOOL,2.5mm Italic Black
+2.5ITALIC_BLUE,2.5,ITALIC,BLUE,TAG_2.5ITALIC_BLUE_BOOL,2.5mm Italic Blue
+2.5ITALIC_GREEN,2.5,ITALIC,GREEN,TAG_2.5ITALIC_GREEN_BOOL,2.5mm Italic Green
+2.5ITALIC_RED,2.5,ITALIC,RED,TAG_2.5ITALIC_RED_BOOL,2.5mm Italic Red
+2.5ITALIC_ORANGE,2.5,ITALIC,ORANGE,TAG_2.5ITALIC_ORANGE_BOOL,2.5mm Italic Orange
+2.5ITALIC_PURPLE,2.5,ITALIC,PURPLE,TAG_2.5ITALIC_PURPLE_BOOL,2.5mm Italic Purple
+2.5ITALIC_GREY,2.5,ITALIC,GREY,TAG_2.5ITALIC_GREY_BOOL,2.5mm Italic Grey
+2.5ITALIC_WHITE,2.5,ITALIC,WHITE,TAG_2.5ITALIC_WHITE_BOOL,2.5mm Italic White
+2.5BOLDITALIC_BLACK,2.5,BOLDITALIC,BLACK,TAG_2.5BOLDITALIC_BLACK_BOOL,2.5mm Bold Italic Black
+2.5BOLDITALIC_BLUE,2.5,BOLDITALIC,BLUE,TAG_2.5BOLDITALIC_BLUE_BOOL,2.5mm Bold Italic Blue
+2.5BOLDITALIC_GREEN,2.5,BOLDITALIC,GREEN,TAG_2.5BOLDITALIC_GREEN_BOOL,2.5mm Bold Italic Green
+2.5BOLDITALIC_RED,2.5,BOLDITALIC,RED,TAG_2.5BOLDITALIC_RED_BOOL,2.5mm Bold Italic Red
+2.5BOLDITALIC_ORANGE,2.5,BOLDITALIC,ORANGE,TAG_2.5BOLDITALIC_ORANGE_BOOL,2.5mm Bold Italic Orange
+2.5BOLDITALIC_PURPLE,2.5,BOLDITALIC,PURPLE,TAG_2.5BOLDITALIC_PURPLE_BOOL,2.5mm Bold Italic Purple
+2.5BOLDITALIC_GREY,2.5,BOLDITALIC,GREY,TAG_2.5BOLDITALIC_GREY_BOOL,2.5mm Bold Italic Grey
+2.5BOLDITALIC_WHITE,2.5,BOLDITALIC,WHITE,TAG_2.5BOLDITALIC_WHITE_BOOL,2.5mm Bold Italic White
+3.5NOM_BLACK,3.5,NOM,BLACK,TAG_3.5NOM_BLACK_BOOL,3.5mm Normal Black — large format (A0/A1)
+3.5NOM_BLUE,3.5,NOM,BLUE,TAG_3.5NOM_BLUE_BOOL,3.5mm Normal Blue
+3.5NOM_GREEN,3.5,NOM,GREEN,TAG_3.5NOM_GREEN_BOOL,3.5mm Normal Green
+3.5NOM_RED,3.5,NOM,RED,TAG_3.5NOM_RED_BOOL,3.5mm Normal Red
+3.5NOM_ORANGE,3.5,NOM,ORANGE,TAG_3.5NOM_ORANGE_BOOL,3.5mm Normal Orange
+3.5NOM_PURPLE,3.5,NOM,PURPLE,TAG_3.5NOM_PURPLE_BOOL,3.5mm Normal Purple
+3.5NOM_GREY,3.5,NOM,GREY,TAG_3.5NOM_GREY_BOOL,3.5mm Normal Grey
+3.5NOM_WHITE,3.5,NOM,WHITE,TAG_3.5NOM_WHITE_BOOL,3.5mm Normal White
+3.5BOLD_BLACK,3.5,BOLD,BLACK,TAG_3.5BOLD_BLACK_BOOL,3.5mm Bold Black
+3.5BOLD_BLUE,3.5,BOLD,BLUE,TAG_3.5BOLD_BLUE_BOOL,3.5mm Bold Blue
+3.5BOLD_GREEN,3.5,BOLD,GREEN,TAG_3.5BOLD_GREEN_BOOL,3.5mm Bold Green
+3.5BOLD_RED,3.5,BOLD,RED,TAG_3.5BOLD_RED_BOOL,3.5mm Bold Red — QA fail default
+3.5BOLD_ORANGE,3.5,BOLD,ORANGE,TAG_3.5BOLD_ORANGE_BOOL,3.5mm Bold Orange
+3.5BOLD_PURPLE,3.5,BOLD,PURPLE,TAG_3.5BOLD_PURPLE_BOOL,3.5mm Bold Purple
+3.5BOLD_GREY,3.5,BOLD,GREY,TAG_3.5BOLD_GREY_BOOL,3.5mm Bold Grey
+3.5BOLD_WHITE,3.5,BOLD,WHITE,TAG_3.5BOLD_WHITE_BOOL,3.5mm Bold White
+3.5ITALIC_BLACK,3.5,ITALIC,BLACK,TAG_3.5ITALIC_BLACK_BOOL,3.5mm Italic Black
+3.5ITALIC_BLUE,3.5,ITALIC,BLUE,TAG_3.5ITALIC_BLUE_BOOL,3.5mm Italic Blue
+3.5ITALIC_GREEN,3.5,ITALIC,GREEN,TAG_3.5ITALIC_GREEN_BOOL,3.5mm Italic Green
+3.5ITALIC_RED,3.5,ITALIC,RED,TAG_3.5ITALIC_RED_BOOL,3.5mm Italic Red
+3.5ITALIC_ORANGE,3.5,ITALIC,ORANGE,TAG_3.5ITALIC_ORANGE_BOOL,3.5mm Italic Orange
+3.5ITALIC_PURPLE,3.5,ITALIC,PURPLE,TAG_3.5ITALIC_PURPLE_BOOL,3.5mm Italic Purple
+3.5ITALIC_GREY,3.5,ITALIC,GREY,TAG_3.5ITALIC_GREY_BOOL,3.5mm Italic Grey
+3.5ITALIC_WHITE,3.5,ITALIC,WHITE,TAG_3.5ITALIC_WHITE_BOOL,3.5mm Italic White
+3.5BOLDITALIC_BLACK,3.5,BOLDITALIC,BLACK,TAG_3.5BOLDITALIC_BLACK_BOOL,3.5mm Bold Italic Black
+3.5BOLDITALIC_BLUE,3.5,BOLDITALIC,BLUE,TAG_3.5BOLDITALIC_BLUE_BOOL,3.5mm Bold Italic Blue
+3.5BOLDITALIC_GREEN,3.5,BOLDITALIC,GREEN,TAG_3.5BOLDITALIC_GREEN_BOOL,3.5mm Bold Italic Green
+3.5BOLDITALIC_RED,3.5,BOLDITALIC,RED,TAG_3.5BOLDITALIC_RED_BOOL,3.5mm Bold Italic Red
+3.5BOLDITALIC_ORANGE,3.5,BOLDITALIC,ORANGE,TAG_3.5BOLDITALIC_ORANGE_BOOL,3.5mm Bold Italic Orange
+3.5BOLDITALIC_PURPLE,3.5,BOLDITALIC,PURPLE,TAG_3.5BOLDITALIC_PURPLE_BOOL,3.5mm Bold Italic Purple
+3.5BOLDITALIC_GREY,3.5,BOLDITALIC,GREY,TAG_3.5BOLDITALIC_GREY_BOOL,3.5mm Bold Italic Grey
+3.5BOLDITALIC_WHITE,3.5,BOLDITALIC,WHITE,TAG_3.5BOLDITALIC_WHITE_BOOL,3.5mm Bold Italic White
+##
+## ── STYLE PRESETS — 8 Built-In Rule Sets ────────────────────────────────────
+SECTION,TAG_STYLE_PRESETS
+PRESET_NAME,DESCRIPTION,DEFAULT_TYPE,RULE_COUNT,USE_CASE,JSON_SOURCE
+Discipline,"Color by engineering discipline (M/E/P/A/S/FP/LV/G)",2NOM_BLACK,8,Visual discipline separation on coordinated drawings,TAG_STYLE_RULES.json
+QA Check,"Compliance check: complete=green partial=orange missing=large red",3.5BOLD_RED,2,Daily ISO 19650 compliance auditing,TAG_STYLE_RULES.json
+Presentation,"Clean uniform black-on-white for client presentation",2.5NOM_BLACK,0,Client-facing presentation views and exports,TAG_STYLE_RULES.json
+Print,"Monochrome standard black for printing",2NOM_BLACK,0,Print-ready documentation (1:100 scale),TAG_STYLE_RULES.json
+Large Format,"3.5mm discipline colors for A0/A1 sheets",3.5NOM_BLACK,6,Detailed drawings at 1:50 on large format sheets,TAG_STYLE_RULES.json
+Status,"Color by phase status: NEW/EXISTING/DEMOLISHED/TEMPORARY",2NOM_GREY,4,Phasing and renovation projects,TAG_STYLE_RULES.json
+System,"Color by MEP system: HVAC/DCW/SAN/LV/FP etc.",2NOM_BLACK,16,MEP coordination and system identification,TAG_STYLE_RULES.json
+Zone Highlight,"Color by zone code: Z01-Z04 + ZZ/XX",2NOM_BLACK,6,Zone isolation and spatial coordination,TAG_STYLE_RULES.json
+##
+## ── DISCIPLINE PRESET RULES ─────────────────────────────────────────────────
+SECTION,TAG_STYLE_DISCIPLINE_RULES
+DISCIPLINE,TAG_TYPE,SIZE,WEIGHT,COLOR,DESCRIPTION
+M,2BOLD_BLUE,2.0,BOLD,BLUE,Mechanical — Blue (CIBSE standard)
+E,2BOLD_RED,2.0,BOLD,RED,Electrical — Red
+P,2BOLD_GREEN,2.0,BOLD,GREEN,Plumbing — Green (CIBSE standard)
+A,2NOM_BLACK,2.0,NOM,BLACK,Architectural — Black (neutral)
+S,2BOLD_ORANGE,2.0,BOLD,ORANGE,Structural — Orange
+FP,2BOLDITALIC_RED,2.0,BOLDITALIC,RED,Fire Protection — Bold Italic Red (emphasis)
+LV,2ITALIC_PURPLE,2.0,ITALIC,PURPLE,Low Voltage — Italic Purple
+G,2NOM_GREY,2.0,NOM,GREY,General — Grey (de-emphasised)
+##
+## ── STATUS PRESET RULES ─────────────────────────────────────────────────────
+SECTION,TAG_STYLE_STATUS_RULES
+STATUS,TAG_TYPE,SIZE,WEIGHT,COLOR,DESCRIPTION
+NEW,2BOLD_BLUE,2.0,BOLD,BLUE,New elements — Bold Blue (prominent)
+EXISTING,2NOM_GREY,2.0,NOM,GREY,Existing — Grey (de-emphasised)
+DEMOLISHED,2BOLDITALIC_RED,2.0,BOLDITALIC,RED,Demolished — Bold Italic Red (critical)
+TEMPORARY,2ITALIC_ORANGE,2.0,ITALIC,ORANGE,Temporary — Italic Orange (transient)
+##
+## ── TAG STYLE ENGINE COMMANDS ───────────────────────────────────────────────
+SECTION,TAG_STYLE_COMMANDS
+COMMAND,CLASS,TRANSACTION,PANEL_TAB,DISPATCH_TAG,DESCRIPTION
+Apply Tag Styles,ApplyTagStylesCommand,Manual,ORGANISE,ApplyTagStyles,"Evaluate preset rules against host elements and switch IndependentTag.ChangeTypeId()"
+Preview Tag Styles,PreviewTagStylesCommand,ReadOnly,ORGANISE,PreviewTagStyles,"Dry-run showing type distribution and change count without modifying tags"
+Set Tag Style Rule,SetTagStyleRuleCommand,ReadOnly,ORGANISE,SetTagStyleRule,"3-step dialog: pick parameter → pick value → pick type. Saves to Custom preset"
+Save Tag Style Preset,SaveTagStylePresetCommand,ReadOnly,ORGANISE,SaveTagStylePreset,"Learn tag type distribution from current view and save as named preset"
+Load Tag Style Preset,LoadTagStylePresetCommand,Manual,ORGANISE,LoadTagStylePreset,"List presets with preview → confirm → apply in one workflow"
+##
+## ── HOW TAG TYPE SWITCHING WORKS ────────────────────────────────────────────
+##
+## 1. Tag families contain multiple nested labels with different formatting
+## 2. Each label has a visibility parameter (TAG_2BOLD_RED_BOOL etc.)
+## 3. Tag family TYPES pre-set these booleans (type 2BOLD_RED sets TAG_2BOLD_RED_BOOL=true)
+## 4. IndependentTag.ChangeTypeId() switches the type → all booleans flip automatically
+## 5. No shared parameters needed — TAG_*_BOOL are family-internal parameters
+##
+## The Tag Style Engine:
+##   a. Reads rules from TAG_STYLE_RULES.json
+##   b. For each annotation tag, finds the host element
+##   c. Reads host element parameters (DISC, STATUS, ZONE, etc.)
+##   d. Evaluates rules top-down (first match wins)
+##   e. Resolves target type name (e.g. 2BOLD_BLUE)
+##   f. Calls tag.ChangeTypeId(typeIndex[targetType]) if different
+##
+## ═══════════════════════════════════════════════════════════════════════════════
 ## END OF TAG GUIDE V3
-## Total: 22 sheets | 250 commands | 200+ parameters | 20 data files
+## Total: 23 sheets | 255 commands | 200+ parameters | 21 data files
 ## ═══════════════════════════════════════════════════════════════════════════════
