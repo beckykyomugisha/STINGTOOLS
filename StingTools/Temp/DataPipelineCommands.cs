@@ -3258,4 +3258,815 @@ namespace StingTools.Temp
             return Result.Succeeded;
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  COBie EXPORT — Construction Operations Building Information Exchange
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Exports project data in COBie (Construction Operations Building Information Exchange)
+    /// format for asset handover. Generates an Excel workbook with standard COBie sheets:
+    /// Facility, Floor, Space, Type, Component, System, Zone, Attribute.
+    /// Compliant with BS 1192-4 / ISO 19650 information handover requirements.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class COBieExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var doc = commandData.Application.ActiveUIDocument?.Document;
+            if (doc == null) return Result.Failed;
+
+            StingLog.Info("COBie Export starting...");
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            try
+            {
+                using var wb = new XLWorkbook();
+
+                // ── 1. Facility sheet ──
+                var facWs = wb.AddWorksheet("Facility");
+                WriteCOBieHeader(facWs, new[] {
+                    "Name", "CreatedBy", "CreatedOn", "Category",
+                    "ProjectName", "SiteName", "LinearUnits", "AreaUnits",
+                    "VolumeUnits", "CurrencyUnit", "AreaMeasurement", "Description"
+                });
+                string projName = "";
+                string siteName = "";
+                try
+                {
+                    var pi = doc.ProjectInformation;
+                    projName = pi?.Name ?? doc.Title;
+                    siteName = pi?.BuildingName ?? "";
+                }
+                catch { projName = doc.Title; }
+
+                facWs.Cell(2, 1).Value = projName;
+                facWs.Cell(2, 2).Value = Environment.UserName;
+                facWs.Cell(2, 3).Value = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
+                facWs.Cell(2, 4).Value = "Facility";
+                facWs.Cell(2, 5).Value = projName;
+                facWs.Cell(2, 6).Value = siteName;
+                facWs.Cell(2, 7).Value = "millimeters";
+                facWs.Cell(2, 8).Value = "square meters";
+                facWs.Cell(2, 9).Value = "cubic meters";
+                facWs.Cell(2, 10).Value = "UGX";
+                facWs.Cell(2, 11).Value = "Gross Internal Area";
+                facWs.Cell(2, 12).Value = projName;
+
+                // ── 2. Floor sheet ──
+                var floorWs = wb.AddWorksheet("Floor");
+                WriteCOBieHeader(floorWs, new[] {
+                    "Name", "CreatedBy", "CreatedOn", "Category",
+                    "ExtSystem", "ExtObject", "ExtIdentifier",
+                    "Description", "Elevation", "Height"
+                });
+
+                var levels = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Level))
+                    .Cast<Level>()
+                    .OrderBy(l => l.Elevation)
+                    .ToList();
+
+                int floorRow = 2;
+                foreach (var lvl in levels)
+                {
+                    floorWs.Cell(floorRow, 1).Value = lvl.Name;
+                    floorWs.Cell(floorRow, 2).Value = Environment.UserName;
+                    floorWs.Cell(floorRow, 3).Value = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
+                    floorWs.Cell(floorRow, 4).Value = "Floor";
+                    floorWs.Cell(floorRow, 5).Value = "Revit";
+                    floorWs.Cell(floorRow, 6).Value = "Level";
+                    floorWs.Cell(floorRow, 7).Value = lvl.Id.ToString();
+                    floorWs.Cell(floorRow, 8).Value = lvl.Name;
+                    floorWs.Cell(floorRow, 9).Value = Math.Round(lvl.Elevation * 304.8, 0);
+                    floorRow++;
+                }
+
+                // ── 3. Space sheet ──
+                var spaceWs = wb.AddWorksheet("Space");
+                WriteCOBieHeader(spaceWs, new[] {
+                    "Name", "CreatedBy", "CreatedOn", "Category",
+                    "FloorName", "Description", "ExtSystem", "ExtObject",
+                    "ExtIdentifier", "RoomTag", "UsableHeight", "GrossArea", "NetArea"
+                });
+
+                var rooms = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType()
+                    .Cast<Autodesk.Revit.DB.Architecture.Room>()
+                    .Where(r => r.Area > 0)
+                    .ToList();
+
+                int spaceRow = 2;
+                foreach (var room in rooms)
+                {
+                    string rmLevel = room.Level?.Name ?? "";
+                    spaceWs.Cell(spaceRow, 1).Value = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
+                    spaceWs.Cell(spaceRow, 2).Value = Environment.UserName;
+                    spaceWs.Cell(spaceRow, 3).Value = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
+                    spaceWs.Cell(spaceRow, 4).Value = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "Space";
+                    spaceWs.Cell(spaceRow, 5).Value = rmLevel;
+                    spaceWs.Cell(spaceRow, 6).Value = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
+                    spaceWs.Cell(spaceRow, 7).Value = "Revit";
+                    spaceWs.Cell(spaceRow, 8).Value = "Room";
+                    spaceWs.Cell(spaceRow, 9).Value = room.Id.ToString();
+                    spaceWs.Cell(spaceRow, 10).Value = room.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? "";
+                    spaceWs.Cell(spaceRow, 12).Value = Math.Round(room.Area * 0.092903, 2);
+                    spaceWs.Cell(spaceRow, 13).Value = Math.Round(room.Area * 0.092903, 2);
+                    spaceRow++;
+                }
+
+                // ── 4. Type sheet ──
+                var typeWs = wb.AddWorksheet("Type");
+                WriteCOBieHeader(typeWs, new[] {
+                    "Name", "CreatedBy", "CreatedOn", "Category",
+                    "Description", "AssetType", "Manufacturer", "ModelNumber",
+                    "WarrantyGuarantorParts", "WarrantyDurationParts",
+                    "WarrantyGuarantorLabor", "WarrantyDurationLabor",
+                    "ReplacementCost", "ExpectedLife", "NominalLength",
+                    "NominalWidth", "NominalHeight", "AccessibilityPerformance",
+                    "CodePerformance", "SustainabilityPerformance"
+                });
+
+                var typeElements = new FilteredElementCollector(doc)
+                    .WhereElementIsElementType()
+                    .Where(e => e.Category != null && known.Contains(e.Category.Name))
+                    .ToList();
+
+                int typeRow = 2;
+                var processedTypes = new HashSet<string>();
+                foreach (var eType in typeElements)
+                {
+                    string typeName = eType.Name ?? "";
+                    if (processedTypes.Contains(typeName)) continue;
+                    processedTypes.Add(typeName);
+
+                    string catName = eType.Category?.Name ?? "";
+                    typeWs.Cell(typeRow, 1).Value = typeName;
+                    typeWs.Cell(typeRow, 2).Value = Environment.UserName;
+                    typeWs.Cell(typeRow, 3).Value = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
+                    typeWs.Cell(typeRow, 4).Value = catName;
+                    typeWs.Cell(typeRow, 5).Value = eType.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION)?.AsString() ?? typeName;
+                    typeWs.Cell(typeRow, 6).Value = "Fixed";
+                    typeWs.Cell(typeRow, 7).Value = eType.get_Parameter(BuiltInParameter.ALL_MODEL_MANUFACTURER)?.AsString() ?? "";
+                    typeWs.Cell(typeRow, 8).Value = eType.get_Parameter(BuiltInParameter.ALL_MODEL_MODEL)?.AsString() ?? "";
+                    typeWs.Cell(typeRow, 9).Value = eType.get_Parameter(BuiltInParameter.ALL_MODEL_MANUFACTURER)?.AsString() ?? "";
+                    typeWs.Cell(typeRow, 13).Value = ParameterHelpers.GetString(eType, ParamRegistry.COST);
+                    typeRow++;
+                }
+
+                // ── 5. Component sheet ──
+                var compWs = wb.AddWorksheet("Component");
+                WriteCOBieHeader(compWs, new[] {
+                    "Name", "CreatedBy", "CreatedOn", "TypeName",
+                    "Space", "Description", "ExtSystem", "ExtObject",
+                    "ExtIdentifier", "SerialNumber", "InstallationDate",
+                    "WarrantyStartDate", "TagNumber", "BarCode",
+                    "AssetIdentifier"
+                });
+
+                var allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && known.Contains(e.Category.Name))
+                    .ToList();
+
+                int compRow = 2;
+                foreach (var el in allElements)
+                {
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    string roomName = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
+                    if (string.IsNullOrEmpty(roomName))
+                        roomName = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
+                    string elTypeName = "";
+                    var elType = doc.GetElement(el.GetTypeId()) as ElementType;
+                    if (elType != null) elTypeName = elType.Name;
+
+                    compWs.Cell(compRow, 1).Value = !string.IsNullOrEmpty(tag1) ? tag1 : $"{el.Category?.Name}-{el.Id}";
+                    compWs.Cell(compRow, 2).Value = Environment.UserName;
+                    compWs.Cell(compRow, 3).Value = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
+                    compWs.Cell(compRow, 4).Value = elTypeName;
+                    compWs.Cell(compRow, 5).Value = roomName;
+                    compWs.Cell(compRow, 6).Value = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+                    compWs.Cell(compRow, 7).Value = "Revit";
+                    compWs.Cell(compRow, 8).Value = el.Category?.Name ?? "";
+                    compWs.Cell(compRow, 9).Value = el.Id.ToString();
+                    compWs.Cell(compRow, 10).Value = el.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "";
+                    compWs.Cell(compRow, 13).Value = tag1;
+                    compWs.Cell(compRow, 15).Value = tag1;
+                    compRow++;
+                }
+
+                // ── 6. System sheet ──
+                var sysWs = wb.AddWorksheet("System");
+                WriteCOBieHeader(sysWs, new[] {
+                    "Name", "CreatedBy", "CreatedOn", "Category",
+                    "ComponentNames", "ExtSystem", "ExtObject", "ExtIdentifier",
+                    "Description"
+                });
+
+                var systemGroups = allElements
+                    .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.SYS)))
+                    .GroupBy(e => ParameterHelpers.GetString(e, ParamRegistry.SYS))
+                    .ToList();
+
+                int sysRow = 2;
+                foreach (var sg in systemGroups)
+                {
+                    string sysCode = sg.Key;
+                    var compNames = sg.Take(20).Select(e =>
+                    {
+                        string t = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
+                        return !string.IsNullOrEmpty(t) ? t : e.Id.ToString();
+                    });
+
+                    sysWs.Cell(sysRow, 1).Value = sysCode;
+                    sysWs.Cell(sysRow, 2).Value = Environment.UserName;
+                    sysWs.Cell(sysRow, 3).Value = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
+                    sysWs.Cell(sysRow, 4).Value = GetSysDesc(sysCode);
+                    sysWs.Cell(sysRow, 5).Value = string.Join(",", compNames);
+                    sysWs.Cell(sysRow, 6).Value = "Revit";
+                    sysWs.Cell(sysRow, 7).Value = "System";
+                    sysWs.Cell(sysRow, 8).Value = sysCode;
+                    sysWs.Cell(sysRow, 9).Value = GetSysDesc(sysCode);
+                    sysRow++;
+                }
+
+                // ── 7. Zone sheet ──
+                var zoneWs = wb.AddWorksheet("Zone");
+                WriteCOBieHeader(zoneWs, new[] {
+                    "Name", "CreatedBy", "CreatedOn", "Category",
+                    "SpaceNames", "ExtSystem", "ExtObject", "ExtIdentifier",
+                    "Description"
+                });
+
+                var zoneGroups = rooms
+                    .GroupBy(r => r.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "Unzoned")
+                    .ToList();
+
+                int zoneRow = 2;
+                foreach (var zg in zoneGroups)
+                {
+                    zoneWs.Cell(zoneRow, 1).Value = zg.Key;
+                    zoneWs.Cell(zoneRow, 2).Value = Environment.UserName;
+                    zoneWs.Cell(zoneRow, 3).Value = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
+                    zoneWs.Cell(zoneRow, 4).Value = "Zone";
+                    zoneWs.Cell(zoneRow, 5).Value = string.Join(",",
+                        zg.Take(20).Select(r => r.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? ""));
+                    zoneWs.Cell(zoneRow, 6).Value = "Revit";
+                    zoneWs.Cell(zoneRow, 7).Value = "Zone";
+                    zoneWs.Cell(zoneRow, 8).Value = zg.Key;
+                    zoneWs.Cell(zoneRow, 9).Value = $"Zone: {zg.Key}";
+                    zoneRow++;
+                }
+
+                // ── 8. Attribute sheet (extended properties) ──
+                var attrWs = wb.AddWorksheet("Attribute");
+                WriteCOBieHeader(attrWs, new[] {
+                    "Name", "CreatedBy", "CreatedOn", "Category",
+                    "SheetName", "RowName", "Value", "Unit",
+                    "ExtSystem", "ExtObject", "ExtIdentifier", "Description"
+                });
+
+                // Save workbook
+                string dir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string filePath = Path.Combine(dir, $"STING_COBie_{timestamp}.xlsx");
+
+                wb.SaveAs(filePath);
+
+                var report = new StringBuilder();
+                report.AppendLine("COBie Export Complete");
+                report.AppendLine(new string('═', 50));
+                report.AppendLine($"  Facility:    {projName}");
+                report.AppendLine($"  Floors:      {levels.Count}");
+                report.AppendLine($"  Spaces:      {rooms.Count}");
+                report.AppendLine($"  Types:       {processedTypes.Count}");
+                report.AppendLine($"  Components:  {allElements.Count}");
+                report.AppendLine($"  Systems:     {systemGroups.Count}");
+                report.AppendLine($"  Zones:       {zoneGroups.Count}");
+                report.AppendLine($"  Sheets:      8 (Facility, Floor, Space, Type, Component, System, Zone, Attribute)");
+                report.AppendLine();
+                report.AppendLine($"  Saved to: {filePath}");
+
+                TaskDialog.Show("COBie Export", report.ToString());
+                StingLog.Info($"COBie export: {allElements.Count} components, {processedTypes.Count} types → {filePath}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("COBie Export failed", ex);
+                TaskDialog.Show("COBie Export", $"Export failed: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+
+        private static string GetSysDesc(string code) => code switch
+        {
+            "HVAC" => "Heating, Ventilation & Air Conditioning",
+            "DCW" => "Domestic Cold Water", "DHW" => "Domestic Hot Water",
+            "HWS" => "Hot Water Supply", "SAN" => "Sanitary/Drainage",
+            "RWD" => "Rainwater Drainage", "GAS" => "Gas Supply",
+            "FP" => "Fire Protection", "LV" => "Low Voltage",
+            "FLS" => "Fire Life Safety", "COM" => "Communications",
+            "ICT" => "ICT Infrastructure", "NCL" => "Nurse Call",
+            "SEC" => "Security", "ARC" => "Architectural",
+            "STR" => "Structural", "GEN" => "General",
+            _ => code,
+        };
+
+        private static void WriteCOBieHeader(IXLWorksheet ws, string[] headers)
+        {
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var cell = ws.Cell(1, i + 1);
+                cell.Value = headers[i];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+            }
+            ws.Row(1).Style.Font.FontSize = 10;
+            ws.SheetView.FreezeRows(1);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  FM O&M MANUAL EXPORT — Facilities Management Operations & Maintenance
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Exports a comprehensive Facilities Management Operations &amp; Maintenance
+    /// manual in Excel format. Organises assets by system/discipline with
+    /// maintenance schedules, warranty info, manufacturer data, and spatial context.
+    /// Designed for BS 8210 / ISO 41001 FM handover compliance.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class FMOMExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var doc = commandData.Application.ActiveUIDocument?.Document;
+            if (doc == null) return Result.Failed;
+
+            StingLog.Info("FM O&M Manual Export starting...");
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            try
+            {
+                using var wb = new XLWorkbook();
+
+                // ── Project info ──
+                string projName = "";
+                try { projName = doc.ProjectInformation?.Name ?? doc.Title; } catch { projName = doc.Title; }
+
+                // ═══════════════════════════════════════════
+                //  COVER PAGE
+                // ═══════════════════════════════════════════
+                var coverWs = wb.AddWorksheet("Cover Page");
+                coverWs.Column(1).Width = 5;
+                coverWs.Column(2).Width = 60;
+                int cr = 3;
+                var titleCell = coverWs.Cell(cr, 2);
+                titleCell.Value = projName;
+                titleCell.Style.Font.Bold = true;
+                titleCell.Style.Font.FontSize = 18;
+                cr += 2;
+                coverWs.Cell(cr, 2).Value = "OPERATIONS & MAINTENANCE MANUAL";
+                coverWs.Cell(cr, 2).Style.Font.Bold = true;
+                coverWs.Cell(cr, 2).Style.Font.FontSize = 16;
+                cr += 2;
+                coverWs.Cell(cr, 2).Value = $"Generated: {DateTime.Now:dd MMMM yyyy}";
+                coverWs.Cell(cr, 2).Style.Font.FontSize = 12;
+                cr += 1;
+                coverWs.Cell(cr, 2).Value = $"Generated by: STING Tools — ISO 19650 BIM Asset Management";
+                cr += 2;
+                coverWs.Cell(cr, 2).Value = "Document Reference: O&M-001";
+                cr += 1;
+                coverWs.Cell(cr, 2).Value = $"Revision: {DateTime.Now:yyyy}.01";
+
+                // ═══════════════════════════════════════════
+                //  ASSET REGISTER (master list)
+                // ═══════════════════════════════════════════
+                var regWs = wb.AddWorksheet("Asset Register");
+                string[] regHeaders = {
+                    "Asset Tag", "Category", "Family", "Type", "Description",
+                    "Discipline", "System", "Function", "Location", "Zone",
+                    "Level", "Room", "Room No.", "Grid Ref",
+                    "Manufacturer", "Model", "Status",
+                    "Mark", "Uniformat", "OmniClass"
+                };
+                WriteFMHeader(regWs, regHeaders);
+
+                var allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && known.Contains(e.Category.Name))
+                    .ToList();
+
+                int regRow = 2;
+                foreach (var el in allElements)
+                {
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    string catName = el.Category?.Name ?? "";
+                    string familyName = ParameterHelpers.GetFamilyName(el);
+                    string typeName = ParameterHelpers.GetFamilySymbolName(el);
+                    string desc = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+                    if (string.IsNullOrEmpty(desc))
+                        desc = (doc.GetElement(el.GetTypeId()) as ElementType)
+                            ?.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION)?.AsString() ?? "";
+
+                    regWs.Cell(regRow, 1).Value = tag1;
+                    regWs.Cell(regRow, 2).Value = catName;
+                    regWs.Cell(regRow, 3).Value = familyName;
+                    regWs.Cell(regRow, 4).Value = typeName;
+                    regWs.Cell(regRow, 5).Value = desc;
+                    regWs.Cell(regRow, 6).Value = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    regWs.Cell(regRow, 7).Value = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    regWs.Cell(regRow, 8).Value = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                    regWs.Cell(regRow, 9).Value = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                    regWs.Cell(regRow, 10).Value = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                    regWs.Cell(regRow, 11).Value = ParameterHelpers.GetLevelCode(doc, el);
+                    regWs.Cell(regRow, 12).Value = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
+                    regWs.Cell(regRow, 13).Value = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NUM);
+                    regWs.Cell(regRow, 14).Value = ParameterHelpers.GetString(el, ParamRegistry.GRID_REF);
+                    regWs.Cell(regRow, 15).Value = ParameterHelpers.GetString(el, ParamRegistry.MFR);
+                    regWs.Cell(regRow, 16).Value = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
+                    regWs.Cell(regRow, 17).Value = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                    regWs.Cell(regRow, 18).Value = el.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "";
+                    regWs.Cell(regRow, 19).Value = ParameterHelpers.GetString(el, ParamRegistry.UNIFORMAT);
+                    regWs.Cell(regRow, 20).Value = ParameterHelpers.GetString(el, ParamRegistry.OMNICLASS);
+                    regRow++;
+                }
+
+                // ═══════════════════════════════════════════
+                //  SYSTEM SCHEDULES (per discipline)
+                // ═══════════════════════════════════════════
+                var discGroups = allElements
+                    .GroupBy(e => ParameterHelpers.GetString(e, ParamRegistry.DISC))
+                    .Where(g => !string.IsNullOrEmpty(g.Key))
+                    .OrderBy(g => g.Key)
+                    .ToList();
+
+                foreach (var dg in discGroups)
+                {
+                    string discCode = dg.Key;
+                    string discName = discCode switch
+                    {
+                        "M" => "Mechanical", "E" => "Electrical", "P" => "Plumbing",
+                        "A" => "Architectural", "S" => "Structural", "FP" => "Fire Protection",
+                        "LV" => "Low Voltage", "G" => "General",
+                        _ => discCode
+                    };
+
+                    string wsName = $"{discCode} - {discName}";
+                    if (wsName.Length > 31) wsName = wsName.Substring(0, 31);
+                    var ws = wb.AddWorksheet(wsName);
+
+                    string[] sysHeaders = {
+                        "Asset Tag", "System", "Function", "Product",
+                        "Family", "Type", "Description",
+                        "Level", "Room", "Manufacturer", "Model",
+                        "Size", "Status"
+                    };
+                    WriteFMHeader(ws, sysHeaders);
+
+                    int sysRow = 2;
+                    foreach (var el in dg.OrderBy(e => ParameterHelpers.GetString(e, ParamRegistry.SYS))
+                                        .ThenBy(e => ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
+                    {
+                        ws.Cell(sysRow, 1).Value = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                        ws.Cell(sysRow, 2).Value = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                        ws.Cell(sysRow, 3).Value = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                        ws.Cell(sysRow, 4).Value = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                        ws.Cell(sysRow, 5).Value = ParameterHelpers.GetFamilyName(el);
+                        ws.Cell(sysRow, 6).Value = ParameterHelpers.GetFamilySymbolName(el);
+                        ws.Cell(sysRow, 7).Value = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+                        ws.Cell(sysRow, 8).Value = ParameterHelpers.GetLevelCode(doc, el);
+                        ws.Cell(sysRow, 9).Value = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
+                        ws.Cell(sysRow, 10).Value = ParameterHelpers.GetString(el, ParamRegistry.MFR);
+                        ws.Cell(sysRow, 11).Value = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
+                        ws.Cell(sysRow, 12).Value = ParameterHelpers.GetString(el, ParamRegistry.SIZE);
+                        ws.Cell(sysRow, 13).Value = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                        sysRow++;
+                    }
+                }
+
+                // ═══════════════════════════════════════════
+                //  MAINTENANCE SCHEDULE
+                // ═══════════════════════════════════════════
+                var maintWs = wb.AddWorksheet("Maintenance Schedule");
+                string[] maintHeaders = {
+                    "Asset Tag", "Category", "Family", "Type",
+                    "Discipline", "System", "Location", "Level", "Room",
+                    "Manufacturer", "Model", "Description",
+                    "Maintenance Frequency", "Maintenance Notes"
+                };
+                WriteFMHeader(maintWs, maintHeaders);
+
+                // Maintenance frequency defaults by category
+                var maintFreq = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    { "Mechanical Equipment", "Quarterly" }, { "Electrical Equipment", "Bi-Annual" },
+                    { "Plumbing Equipment", "Annual" }, { "Plumbing Fixtures", "Annual" },
+                    { "Fire Alarm Devices", "Monthly" }, { "Sprinklers", "Quarterly" },
+                    { "Lighting Fixtures", "Annual" }, { "Air Terminals", "Quarterly" },
+                    { "Ducts", "Annual" }, { "Duct Accessories", "Annual" },
+                    { "Pipes", "Bi-Annual" }, { "Pipe Accessories", "Bi-Annual" },
+                    { "Communication Devices", "Annual" }, { "Security Devices", "Quarterly" },
+                    { "Conduits", "Bi-Annual" }, { "Cable Trays", "Bi-Annual" },
+                    { "Doors", "Annual" }, { "Windows", "Annual" },
+                };
+
+                int maintRow = 2;
+                foreach (var el in allElements)
+                {
+                    string catName = el.Category?.Name ?? "";
+                    string freq = maintFreq.TryGetValue(catName, out var f) ? f : "As Required";
+
+                    maintWs.Cell(maintRow, 1).Value = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    maintWs.Cell(maintRow, 2).Value = catName;
+                    maintWs.Cell(maintRow, 3).Value = ParameterHelpers.GetFamilyName(el);
+                    maintWs.Cell(maintRow, 4).Value = ParameterHelpers.GetFamilySymbolName(el);
+                    maintWs.Cell(maintRow, 5).Value = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    maintWs.Cell(maintRow, 6).Value = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    maintWs.Cell(maintRow, 7).Value = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                    maintWs.Cell(maintRow, 8).Value = ParameterHelpers.GetLevelCode(doc, el);
+                    maintWs.Cell(maintRow, 9).Value = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
+                    maintWs.Cell(maintRow, 10).Value = ParameterHelpers.GetString(el, ParamRegistry.MFR);
+                    maintWs.Cell(maintRow, 11).Value = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
+                    maintWs.Cell(maintRow, 12).Value = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+                    maintWs.Cell(maintRow, 13).Value = freq;
+                    maintWs.Cell(maintRow, 14).Value = $"Refer to manufacturer guidelines for {catName}";
+                    maintRow++;
+                }
+
+                // ═══════════════════════════════════════════
+                //  ROOM SCHEDULE
+                // ═══════════════════════════════════════════
+                var roomWs = wb.AddWorksheet("Room Schedule");
+                string[] roomHeaders = {
+                    "Room Number", "Room Name", "Department", "Level",
+                    "Area (m²)", "Asset Count", "Systems Present"
+                };
+                WriteFMHeader(roomWs, roomHeaders);
+
+                int roomRow = 2;
+                foreach (var room in rooms.OrderBy(r => r.Level?.Elevation ?? 0)
+                                         .ThenBy(r => r.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? ""))
+                {
+                    string rmNum = room.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? "";
+                    string rmName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
+
+                    // Count assets in this room
+                    int assetCount = allElements.Count(e =>
+                    {
+                        string n = ParameterHelpers.GetString(e, ParamRegistry.ROOM_NUM);
+                        if (string.IsNullOrEmpty(n))
+                            n = ParameterHelpers.GetString(e, ParamRegistry.BLE_ROOM_NUM);
+                        return n == rmNum;
+                    });
+
+                    // Systems in room
+                    var roomSystems = allElements
+                        .Where(e =>
+                        {
+                            string n = ParameterHelpers.GetString(e, ParamRegistry.ROOM_NUM);
+                            if (string.IsNullOrEmpty(n))
+                                n = ParameterHelpers.GetString(e, ParamRegistry.BLE_ROOM_NUM);
+                            return n == rmNum;
+                        })
+                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.SYS))
+                        .Where(s => !string.IsNullOrEmpty(s))
+                        .Distinct()
+                        .OrderBy(s => s);
+
+                    roomWs.Cell(roomRow, 1).Value = rmNum;
+                    roomWs.Cell(roomRow, 2).Value = rmName;
+                    roomWs.Cell(roomRow, 3).Value = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "";
+                    roomWs.Cell(roomRow, 4).Value = room.Level?.Name ?? "";
+                    roomWs.Cell(roomRow, 5).Value = Math.Round(room.Area * 0.092903, 2);
+                    roomWs.Cell(roomRow, 6).Value = assetCount;
+                    roomWs.Cell(roomRow, 7).Value = string.Join(", ", roomSystems);
+                    roomRow++;
+                }
+
+                // ═══════════════════════════════════════════
+                //  SUMMARY
+                // ═══════════════════════════════════════════
+                var sumWs = wb.AddWorksheet("Summary");
+                sumWs.Column(1).Width = 5;
+                sumWs.Column(2).Width = 30;
+                sumWs.Column(3).Width = 20;
+                int sr = 2;
+                sumWs.Cell(sr, 2).Value = "O&M MANUAL SUMMARY";
+                sumWs.Cell(sr, 2).Style.Font.Bold = true;
+                sumWs.Cell(sr, 2).Style.Font.FontSize = 14;
+                sr += 2;
+                sumWs.Cell(sr, 2).Value = "Project:"; sumWs.Cell(sr, 3).Value = projName; sr++;
+                sumWs.Cell(sr, 2).Value = "Date:"; sumWs.Cell(sr, 3).Value = DateTime.Now.ToString("dd/MM/yyyy"); sr++;
+                sumWs.Cell(sr, 2).Value = "Total Assets:"; sumWs.Cell(sr, 3).Value = allElements.Count; sr++;
+                sumWs.Cell(sr, 2).Value = "Levels:"; sumWs.Cell(sr, 3).Value = new FilteredElementCollector(doc).OfClass(typeof(Level)).GetElementCount(); sr++;
+                sumWs.Cell(sr, 2).Value = "Rooms:"; sumWs.Cell(sr, 3).Value = rooms.Count; sr++;
+                sumWs.Cell(sr, 2).Value = "Systems:"; sumWs.Cell(sr, 3).Value = allElements
+                    .Select(e => ParameterHelpers.GetString(e, ParamRegistry.SYS))
+                    .Where(s => !string.IsNullOrEmpty(s)).Distinct().Count(); sr++;
+                sr++;
+                sumWs.Cell(sr, 2).Value = "ASSETS BY DISCIPLINE";
+                sumWs.Cell(sr, 2).Style.Font.Bold = true;
+                sr++;
+                foreach (var dg in discGroups)
+                {
+                    sumWs.Cell(sr, 2).Value = dg.Key;
+                    sumWs.Cell(sr, 3).Value = dg.Count();
+                    sr++;
+                }
+
+                // Save workbook
+                string dir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string filePath = Path.Combine(dir, $"STING_OM_Manual_{timestamp}.xlsx");
+
+                wb.SaveAs(filePath);
+
+                var report = new StringBuilder();
+                report.AppendLine("FM O&M Manual Export Complete");
+                report.AppendLine(new string('═', 50));
+                report.AppendLine($"  Project:     {projName}");
+                report.AppendLine($"  Assets:      {allElements.Count}");
+                report.AppendLine($"  Disciplines: {discGroups.Count}");
+                report.AppendLine($"  Rooms:       {rooms.Count}");
+                report.AppendLine($"  Worksheets:  {wb.Worksheets.Count}");
+                report.AppendLine();
+                report.AppendLine("  Sheets: Cover Page, Asset Register, Maintenance Schedule,");
+                report.AppendLine("          Room Schedule, Summary + per-discipline system sheets");
+                report.AppendLine();
+                report.AppendLine($"  Saved to: {filePath}");
+
+                TaskDialog.Show("FM O&M Manual", report.ToString());
+                StingLog.Info($"FM O&M export: {allElements.Count} assets, {discGroups.Count} disciplines → {filePath}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("FM O&M Manual Export failed", ex);
+                TaskDialog.Show("FM O&M Manual", $"Export failed: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+
+        private static void WriteFMHeader(IXLWorksheet ws, string[] headers)
+        {
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var cell = ws.Cell(1, i + 1);
+                cell.Value = headers[i];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.BackgroundColor = XLColor.DarkBlue;
+                cell.Style.Font.FontColor = XLColor.White;
+            }
+            ws.Row(1).Style.Font.FontSize = 10;
+            ws.SheetView.FreezeRows(1);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  ASSET HANDOVER REPORT — Combined COBie + FM Summary
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Generates a combined asset handover report CSV that bridges the
+    /// Tag Register, COBie, and FM O&amp;M data into a single handover document.
+    /// Suitable for client handover per ISO 19650-3 operational phase requirements.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AssetHandoverReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var doc = commandData.Application.ActiveUIDocument?.Document;
+            if (doc == null) return Result.Failed;
+
+            StingLog.Info("Asset Handover Report starting...");
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            string[] columns = {
+                "Asset Tag", "Category", "Family", "Type", "Description",
+                "Discipline", "Location", "Zone", "Level", "System", "Function", "Product", "SEQ",
+                "Room Name", "Room Number", "Grid Ref",
+                "Manufacturer", "Model", "Status",
+                "Uniformat", "OmniClass", "Keynote",
+                "Unit Price", "Maintenance Frequency",
+                "Tag Valid", "ISO Compliant"
+            };
+
+            // Maintenance frequency defaults
+            var maintFreq = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Mechanical Equipment", "Quarterly" }, { "Electrical Equipment", "Bi-Annual" },
+                { "Plumbing Equipment", "Annual" }, { "Fire Alarm Devices", "Monthly" },
+                { "Sprinklers", "Quarterly" }, { "Lighting Fixtures", "Annual" },
+                { "Air Terminals", "Quarterly" }, { "Communication Devices", "Annual" },
+                { "Security Devices", "Quarterly" },
+            };
+
+            var sb = new StringBuilder();
+            sb.Append('\uFEFF');
+            sb.AppendLine(string.Join(",", columns));
+
+            int total = 0;
+            int validCount = 0;
+            int isoCompliant = 0;
+
+            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!known.Contains(cat)) continue;
+                total++;
+
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                bool isValid = TagConfig.TagIsComplete(tag1);
+                if (isValid) validCount++;
+
+                var isoErrors = ISO19650Validator.ValidateElement(el);
+                bool isIso = isoErrors.Count == 0;
+                if (isIso) isoCompliant++;
+
+                string freq = maintFreq.TryGetValue(cat, out var f) ? f : "As Required";
+
+                string desc = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+                if (string.IsNullOrEmpty(desc))
+                    desc = (doc.GetElement(el.GetTypeId()) as ElementType)
+                        ?.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION)?.AsString() ?? "";
+
+                sb.Append(Esc(tag1)).Append(',');
+                sb.Append(Esc(cat)).Append(',');
+                sb.Append(Esc(ParameterHelpers.GetFamilyName(el))).Append(',');
+                sb.Append(Esc(ParameterHelpers.GetFamilySymbolName(el))).Append(',');
+                sb.Append(Esc(desc)).Append(',');
+                sb.Append(ParameterHelpers.GetString(el, ParamRegistry.DISC)).Append(',');
+                sb.Append(ParameterHelpers.GetString(el, ParamRegistry.LOC)).Append(',');
+                sb.Append(ParameterHelpers.GetString(el, ParamRegistry.ZONE)).Append(',');
+                sb.Append(ParameterHelpers.GetLevelCode(doc, el)).Append(',');
+                sb.Append(ParameterHelpers.GetString(el, ParamRegistry.SYS)).Append(',');
+                sb.Append(ParameterHelpers.GetString(el, ParamRegistry.FUNC)).Append(',');
+                sb.Append(ParameterHelpers.GetString(el, ParamRegistry.PROD)).Append(',');
+                sb.Append(ParameterHelpers.GetString(el, ParamRegistry.SEQ)).Append(',');
+                sb.Append(Esc(ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME))).Append(',');
+                sb.Append(Esc(ParameterHelpers.GetString(el, ParamRegistry.ROOM_NUM))).Append(',');
+                sb.Append(ParameterHelpers.GetString(el, ParamRegistry.GRID_REF)).Append(',');
+                sb.Append(Esc(ParameterHelpers.GetString(el, ParamRegistry.MFR))).Append(',');
+                sb.Append(Esc(ParameterHelpers.GetString(el, ParamRegistry.MODEL))).Append(',');
+                sb.Append(ParameterHelpers.GetString(el, ParamRegistry.STATUS)).Append(',');
+                sb.Append(ParameterHelpers.GetString(el, ParamRegistry.UNIFORMAT)).Append(',');
+                sb.Append(ParameterHelpers.GetString(el, ParamRegistry.OMNICLASS)).Append(',');
+                sb.Append(Esc(ParameterHelpers.GetString(el, ParamRegistry.KEYNOTE))).Append(',');
+                sb.Append(ParameterHelpers.GetString(el, ParamRegistry.COST)).Append(',');
+                sb.Append(freq).Append(',');
+                sb.Append(isValid).Append(',');
+                sb.AppendLine(isIso.ToString());
+            }
+
+            string dir = Path.GetDirectoryName(doc.PathName);
+            if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string path = Path.Combine(dir, $"STING_Asset_Handover_{timestamp}.csv");
+
+            try
+            {
+                File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+
+                double validPct = total > 0 ? (validCount * 100.0 / total) : 0;
+                double isoPct = total > 0 ? (isoCompliant * 100.0 / total) : 0;
+
+                var report = new StringBuilder();
+                report.AppendLine("Asset Handover Report Complete");
+                report.AppendLine(new string('═', 50));
+                report.AppendLine($"  Total assets:    {total}");
+                report.AppendLine($"  Valid tags:      {validCount} ({validPct:F1}%)");
+                report.AppendLine($"  ISO compliant:   {isoCompliant} ({isoPct:F1}%)");
+                report.AppendLine($"  Columns:         {columns.Length}");
+                report.AppendLine();
+                report.AppendLine($"  Saved to: {path}");
+
+                TaskDialog.Show("Asset Handover Report", report.ToString());
+                StingLog.Info($"Asset Handover: {total} assets, {validPct:F1}% valid → {path}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Asset Handover Report failed", ex);
+                TaskDialog.Show("Asset Handover Report", $"Export failed: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+
+        private static string Esc(string val) =>
+            string.IsNullOrEmpty(val) ? "" :
+            val.Contains(',') || val.Contains('"') || val.Contains('\n')
+                ? $"\"{val.Replace("\"", "\"\"")}\""
+                : val;
+    }
 }

@@ -439,6 +439,9 @@ namespace StingTools.UI
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
                     case "FamilyParamAudit": RunCommand<Temp.FamilyParameterAuditCommand>(app); break;
                     case "FamilyParamAutoBind": RunCommand<Temp.FamilyParameterAutoBindCommand>(app); break;
+                    case "COBieExport": RunCommand<Temp.COBieExportCommand>(app); break;
+                    case "FMOMExport": RunCommand<Temp.FMOMExportCommand>(app); break;
+                    case "AssetHandover": RunCommand<Temp.AssetHandoverReportCommand>(app); break;
                     case "PerformanceReport":
                     {
                         string report = Core.PerformanceTracker.GetReport();

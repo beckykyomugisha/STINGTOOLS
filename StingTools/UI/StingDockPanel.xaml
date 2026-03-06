@@ -1156,6 +1156,25 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- HANDOVER / FM -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="HANDOVER / FM"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="COBie Export" Tag="COBieExport" Click="Cmd_Click"
+                                        ToolTip="Export COBie handover data (BS 1192-4 / ISO 19650)"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="FM O&amp;M" Tag="FMOMExport" Click="Cmd_Click"
+                                        ToolTip="Export FM Operations &amp; Maintenance manual (BS 8210 / ISO 41001)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Handover Report" Tag="AssetHandover" Click="Cmd_Click"
+                                        ToolTip="Combined asset handover report (CSV) for ISO 19650-3"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Export BOQ" Tag="BOQExport" Click="Cmd_Click"
+                                        ToolTip="Export Bill of Quantities (NRM2 structure)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Excel Import" Tag="ExcelImport" Click="Cmd_Click"
+                                        ToolTip="Import BOQ data from Excel back to Revit"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Tag Register" Tag="TagRegisterExport" Click="Cmd_Click"
+                                        ToolTip="Export comprehensive asset tag register"/>
+                            </WrapPanel>
+                        </Border>
+
                         <TextBlock Style="{StaticResource SectionLabel}" Text="WORKFLOW AUTOMATION"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
                             <WrapPanel>
