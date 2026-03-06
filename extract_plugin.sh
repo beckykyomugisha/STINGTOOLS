@@ -65,12 +65,21 @@ for dll in "$BUILD_DIR"/*.dll; do
     fi
 done
 
-# Copy data files
+# Copy data files — try build output first, then source directory as fallback
 if [ -d "$BUILD_DIR/data" ]; then
     cp -r "$BUILD_DIR/data/"* "$PLUGIN_DIR/data/"
-    echo "  Copied $(ls "$PLUGIN_DIR/data/" | wc -l) data files."
+    echo "  Copied $(ls "$PLUGIN_DIR/data/" | wc -l) data files from build output."
+elif [ -d "$SCRIPT_DIR/StingTools/Data" ]; then
+    # Fallback: copy directly from source Data/ directory
+    cp "$SCRIPT_DIR/StingTools/Data/"*.csv "$PLUGIN_DIR/data/" 2>/dev/null || true
+    cp "$SCRIPT_DIR/StingTools/Data/"*.json "$PLUGIN_DIR/data/" 2>/dev/null || true
+    cp "$SCRIPT_DIR/StingTools/Data/"*.txt "$PLUGIN_DIR/data/" 2>/dev/null || true
+    cp "$SCRIPT_DIR/StingTools/Data/"*.xlsx "$PLUGIN_DIR/data/" 2>/dev/null || true
+    cp "$SCRIPT_DIR/StingTools/Data/"*.py "$PLUGIN_DIR/data/" 2>/dev/null || true
+    echo "  Copied $(ls "$PLUGIN_DIR/data/" | wc -l) data files from source Data/ directory."
 else
-    echo "  WARNING: No data/ directory in build output."
+    echo "  WARNING: No data files found in build output or source directory."
+    echo "  Commands requiring data files will fail. Check StingTools/Data/ exists."
 fi
 
 echo "  Plugin package: $PLUGIN_DIR/"
