@@ -1395,7 +1395,7 @@ namespace StingTools.Temp
                 ws.Cell(row, 2).Style.Font.Italic = true;
 
                 // Print settings
-                ws.PageSetup.PrintTitleRows = 1;
+                ws.PageSetup.SetRowsToRepeatAtTop(1, 1);
                 ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
                 ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
                 ws.PageSetup.FitToPages(1, 0); // fit width to 1 page
@@ -2696,9 +2696,12 @@ namespace StingTools.Temp
             sb.AppendLine();
             sb.AppendLine("PropertySet:\tSTING_AssetIdentity\tI\t" +
                 "IfcBuildingElement,IfcDistributionElement");
-            string descParam = ParamRegistry.GetParamName("ASS_DESCRIPTION_TXT") ?? "ASS_DESCRIPTION_TXT";
-            string mfgParam = ParamRegistry.GetParamName("ASS_MANUFACTURER_TXT") ?? "ASS_MANUFACTURER_TXT";
-            string modelParam = ParamRegistry.GetParamName("ASS_MODEL_TXT") ?? "ASS_MODEL_TXT";
+            string descParam = ParamRegistry.Ext("DESC");
+            if (string.IsNullOrEmpty(descParam)) descParam = "ASS_DESCRIPTION_TXT";
+            string mfgParam = ParamRegistry.Ext("MANUFACTURER");
+            if (string.IsNullOrEmpty(mfgParam)) mfgParam = "ASS_MANUFACTURER_TXT";
+            string modelParam = ParamRegistry.Ext("MODEL");
+            if (string.IsNullOrEmpty(modelParam)) modelParam = "ASS_MODEL_TXT";
             sb.AppendLine($"\t{descParam}\tText");
             sb.AppendLine($"\t{mfgParam}\tText");
             sb.AppendLine($"\t{modelParam}\tText");
@@ -2707,8 +2710,10 @@ namespace StingTools.Temp
             sb.AppendLine();
             sb.AppendLine("PropertySet:\tSTING_AssetCost\tI\t" +
                 "IfcBuildingElement,IfcDistributionElement");
-            string costParam = ParamRegistry.GetParamName("ASS_UNIT_COST_TXT") ?? "ASS_UNIT_COST_TXT";
-            string areaParam = ParamRegistry.GetParamName("ASS_AREA_M2_TXT") ?? "ASS_AREA_M2_TXT";
+            string costParam = ParamRegistry.Ext("UNIT_COST");
+            if (string.IsNullOrEmpty(costParam)) costParam = "ASS_UNIT_COST_TXT";
+            string areaParam = ParamRegistry.Ext("AREA_M2");
+            if (string.IsNullOrEmpty(areaParam)) areaParam = "ASS_AREA_M2_TXT";
             sb.AppendLine($"\t{costParam}\tText");
             sb.AppendLine($"\t{areaParam}\tText");
 
@@ -3534,8 +3539,9 @@ namespace StingTools.Temp
                 using (Transaction tx = new Transaction(doc, "STING Keynote Sync"))
                 {
                     tx.Start();
-                    ModelPath mp = ModelPathUtils.ConvertUserVisiblePathToModelPath(knoPath);
-                    kt.LoadFrom(mp, null);
+                    ExternalResourceReference eref = KeynoteTable.GetKeynoteExternalResourceReference(doc);
+                    // Reload keynote table — Revit will pick up the file at knoPath
+                    kt.LoadFrom(eref, null);
                     tx.Commit();
                 }
             }

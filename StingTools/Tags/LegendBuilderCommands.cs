@@ -197,7 +197,7 @@ namespace StingTools.Tags
         /// Works with both Legend views and Drafting views.
         /// Must be called within an active Transaction.
         /// </summary>
-        private static void PopulateLegendContent(Document doc, View legendView,
+        internal static void PopulateLegendContent(Document doc, View legendView,
             List<LegendEntry> entries, LegendConfig config)
         {
             // Find solid fill pattern for filled regions
@@ -5142,7 +5142,7 @@ namespace StingTools.Tags
             foreach (var kvp in sysCounts.OrderByDescending(x => x.Value))
             {
                 var info = SystemColors.TryGetValue(kvp.Key, out var sc)
-                    ? sc : (new Color(160, 160, 160), kvp.Key);
+                    ? sc : (Color: new Color(160, 160, 160), Name: kvp.Key);
 
                 entries.Add(new LegendBuilder.LegendEntry
                 {
@@ -5200,7 +5200,7 @@ namespace StingTools.Tags
             foreach (var kvp in sysCounts.OrderByDescending(x => x.Value))
             {
                 var info = SystemColors.TryGetValue(kvp.Key, out var sc)
-                    ? sc : (new Color(160, 160, 160), kvp.Key);
+                    ? sc : (Color: new Color(160, 160, 160), Name: kvp.Key);
                 entries.Add(new LegendBuilder.LegendEntry
                 {
                     Color = info.Color,
@@ -6451,8 +6451,7 @@ namespace StingTools.Tags
                 Color c = ogs.SurfaceForegroundPatternColor;
                 parts.Add($"Fill: RGB({c.Red},{c.Green},{c.Blue})");
             }
-            if (ogs.SurfaceTransparency > 0)
-                parts.Add($"Trans: {ogs.SurfaceTransparency}%");
+            // SurfaceTransparency has no getter in Revit 2025
             if (ogs.Halftone)
                 parts.Add("Halftone");
 
@@ -6480,7 +6479,6 @@ namespace StingTools.Tags
             return ogs.ProjectionLineColor.IsValid
                 || ogs.SurfaceForegroundPatternColor.IsValid
                 || ogs.ProjectionLineWeight > 0
-                || ogs.SurfaceTransparency > 0
                 || ogs.Halftone;
         }
 
@@ -6544,7 +6542,7 @@ namespace StingTools.Tags
                     Color = displayColor,
                     Label = label,
                     Description = desc,
-                    Bold = ogs.Halftone || ogs.SurfaceTransparency >= 40,
+                    Bold = ogs.Halftone,
                     Italic = ogs.Halftone,
                 });
             }

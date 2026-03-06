@@ -106,15 +106,15 @@ namespace StingTools.Core
                     return "UG";
                 if (lower.StartsWith("sub-basement") || lower.StartsWith("sub basement") || lower == "sb")
                 {
-                    string digits = ExtractDigits(name);
-                    return "SB" + (digits.Length > 0 ? digits : "");
+                    string sbDigits = ExtractDigits(name);
+                    return "SB" + (sbDigits.Length > 0 ? sbDigits : "");
                 }
                 if (lower.StartsWith("basement") || lower == "b1" || lower == "b2" ||
                     lower == "b3" || lower == "b4" || lower == "b5" ||
                     (lower.Length >= 2 && lower[0] == 'b' && char.IsDigit(lower[1])))
                 {
-                    string digits = ExtractDigits(name);
-                    return "B" + (digits.Length > 0 ? digits : "1");
+                    string bDigits = ExtractDigits(name);
+                    return "B" + (bDigits.Length > 0 ? bDigits : "1");
                 }
                 if (lower.StartsWith("roof") || lower == "rf")
                     return "RF";
@@ -210,6 +210,18 @@ namespace StingTools.Core
                 StingLog.Warn($"GetFamilySymbolName failed for {el?.Id}: {ex.Message}");
                 return string.Empty;
             }
+        }
+
+        /// <summary>
+        /// Find the solid fill pattern element in the document.
+        /// Used by color override commands and template configuration.
+        /// </summary>
+        public static FillPatternElement GetSolidFillPattern(Document doc)
+        {
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(FillPatternElement))
+                .Cast<FillPatternElement>()
+                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
         }
 
         /// <summary>

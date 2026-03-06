@@ -445,6 +445,7 @@ namespace StingTools.Temp
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
+                        .Cast<ElementType>()
                         .FirstOrDefault();
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
@@ -452,6 +453,7 @@ namespace StingTools.Temp
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
+                        .Cast<ElementType>()
                         .FirstOrDefault();
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
@@ -459,6 +461,7 @@ namespace StingTools.Temp
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType))
+                        .Cast<ElementType>()
                         .FirstOrDefault();
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
@@ -466,6 +469,7 @@ namespace StingTools.Temp
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType))
+                        .Cast<ElementType>()
                         .FirstOrDefault();
                     return bt != null && bt.Duplicate(typeName) != null;
                 }

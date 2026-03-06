@@ -58,10 +58,13 @@ namespace StingTools.Temp
             {
                 tx.Start();
 
-                // Get panel schedule template IDs
-                var templateIds = PanelScheduleTemplate.GetAllTemplates(doc);
-                ElementId templateId = templateIds != null && templateIds.Count > 0
-                    ? templateIds[0] : ElementId.InvalidElementId;
+                // Get panel schedule templates via collector
+                var templateList = new FilteredElementCollector(doc)
+                    .OfClass(typeof(PanelScheduleTemplate))
+                    .ToElementIds()
+                    .ToList();
+                ElementId templateId = templateList.Count > 0
+                    ? templateList[0] : ElementId.InvalidElementId;
 
                 foreach (var panel in panels)
                 {
@@ -97,7 +100,9 @@ namespace StingTools.Temp
                         if (psv == null)
                         {
                             // Try without template — use first available template type
-                            var allTemplateIds = PanelScheduleTemplate.GetAllTemplates(doc);
+                            var allTemplateIds = new FilteredElementCollector(doc)
+                                .OfClass(typeof(PanelScheduleTemplate))
+                                .ToElementIds().ToList();
                             foreach (var tid in allTemplateIds)
                             {
                                 try

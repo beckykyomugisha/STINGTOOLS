@@ -1020,8 +1020,14 @@ namespace StingTools.Temp
                         {
                             try
                             {
-                                headerSection.SetCellBackgroundColor(0, col, headerColor);
-                                headerSection.SetCellTextColor(0, col, textColor);
+                                var hStyle = headerSection.GetTableCellStyle(0, col);
+                                var hOpts = hStyle.GetCellStyleOverrideOptions();
+                                hOpts.BackgroundColor = true;
+                                hOpts.FontColor = true;
+                                hStyle.SetCellStyleOverrideOptions(hOpts);
+                                hStyle.BackgroundColor = headerColor;
+                                hStyle.FontColor = textColor;
+                                headerSection.SetCellStyle(0, col, hStyle);
                             }
                             catch { }
                         }
@@ -1035,8 +1041,14 @@ namespace StingTools.Temp
                         {
                             try
                             {
-                                bodySection.SetCellBackgroundColor(0, col, headerColor);
-                                bodySection.SetCellTextColor(0, col, textColor);
+                                var bStyle = bodySection.GetTableCellStyle(0, col);
+                                var bOpts = bStyle.GetCellStyleOverrideOptions();
+                                bOpts.BackgroundColor = true;
+                                bOpts.FontColor = true;
+                                bStyle.SetCellStyleOverrideOptions(bOpts);
+                                bStyle.BackgroundColor = headerColor;
+                                bStyle.FontColor = textColor;
+                                bodySection.SetCellStyle(0, col, bStyle);
                             }
                             catch { }
                         }
@@ -1088,9 +1100,14 @@ namespace StingTools.Temp
                     {
                         try
                         {
-                            headerSection.SetCellBackgroundColor(0, col, color);
-                            // White text on colored background
-                            headerSection.SetCellTextColor(0, col, new Color(255, 255, 255));
+                            var cs = headerSection.GetTableCellStyle(0, col);
+                            var csOpts = cs.GetCellStyleOverrideOptions();
+                            csOpts.BackgroundColor = true;
+                            csOpts.FontColor = true;
+                            cs.SetCellStyleOverrideOptions(csOpts);
+                            cs.BackgroundColor = color;
+                            cs.FontColor = new Color(255, 255, 255);
+                            headerSection.SetCellStyle(0, col, cs);
                         }
                         catch { }
                     }
@@ -1106,8 +1123,14 @@ namespace StingTools.Temp
                         try
                         {
                             // First body row is typically column headers
-                            bodySection.SetCellBackgroundColor(0, col, color);
-                            bodySection.SetCellTextColor(0, col, new Color(255, 255, 255));
+                            var bs = bodySection.GetTableCellStyle(0, col);
+                            var bsOpts = bs.GetCellStyleOverrideOptions();
+                            bsOpts.BackgroundColor = true;
+                            bsOpts.FontColor = true;
+                            bs.SetCellStyleOverrideOptions(bsOpts);
+                            bs.BackgroundColor = color;
+                            bs.FontColor = new Color(255, 255, 255);
+                            bodySection.SetCellStyle(0, col, bs);
                         }
                         catch { }
                     }
