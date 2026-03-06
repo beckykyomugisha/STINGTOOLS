@@ -1013,10 +1013,10 @@ namespace StingTools.Core
                 { "PARA_CST_CONC", "CST_TAG_7_PARA_CONC_TXT" },
                 // Warning threshold
                 { "ELC_PNL_RATED", "ELC_PNL_RATED_BOOL" },
-                // ISO 19650 naming
-                { "PROJECT_COD", "PRJ_PROJECT_COD_TXT" }, { "ORIGINATOR_COD", "PRJ_ORIGINATOR_COD_TXT" },
-                { "VOLUME_COD", "PRJ_VOLUME_COD_TXT" }, { "STATUS_COD", "PRJ_STATUS_COD_TXT" },
-                { "REV_COD", "PRJ_REV_COD_TXT" },
+                // ISO 19650 project-level naming (PRJ_ prefix to avoid collision with ASS_ set above)
+                { "PRJ_PROJECT_COD", "PRJ_PROJECT_COD_TXT" }, { "PRJ_ORIGINATOR_COD", "PRJ_ORIGINATOR_COD_TXT" },
+                { "PRJ_VOLUME_COD", "PRJ_VOLUME_COD_TXT" }, { "PRJ_STATUS_COD", "PRJ_STATUS_COD_TXT" },
+                { "PRJ_REV_COD", "PRJ_REV_COD_TXT" },
             };
 
             ContainerGroups = Array.Empty<ContainerGroupDef>();
