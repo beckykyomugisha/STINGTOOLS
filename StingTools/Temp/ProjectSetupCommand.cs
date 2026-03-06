@@ -469,10 +469,17 @@ namespace StingTools.Temp
 
             // GAP-006: Persist wizard settings to project_config.json
             // Update TagConfig with wizard LOC/ZONE codes before saving
+            // (LocCodes/ZoneCodes have private setters — modify in-place then reload)
             if (data.LocCodes.Count > 0)
-                TagConfig.LocCodes = data.LocCodes;
+            {
+                TagConfig.LocCodes.Clear();
+                TagConfig.LocCodes.AddRange(data.LocCodes);
+            }
             if (data.ZoneCodes.Count > 0)
-                TagConfig.ZoneCodes = data.ZoneCodes;
+            {
+                TagConfig.ZoneCodes.Clear();
+                TagConfig.ZoneCodes.AddRange(data.ZoneCodes);
+            }
 
             string configPath = Path.Combine(StingToolsApp.DataPath ?? "", "project_config.json");
             if (TagConfig.SaveToFile(configPath))

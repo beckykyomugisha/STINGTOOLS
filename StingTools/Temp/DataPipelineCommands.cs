@@ -1069,7 +1069,7 @@ namespace StingTools.Temp
                     string catName = el.Category?.Name ?? "Uncategorised";
                     var item = new BOQItem
                     {
-                        ElementId = el.Id.IntegerValue,
+                        ElementId = el.Id.Value,
                         Category = catName,
                         FamilyName = ParameterHelpers.GetFamilyName(el),
                         TypeName = ParameterHelpers.GetFamilySymbolName(el),
@@ -1848,7 +1848,7 @@ namespace StingTools.Temp
 
         private class BOQItem
         {
-            public int ElementId;
+            public long ElementId;
             public string Category, FamilyName, TypeName, Description, Tag;
             public string Discipline, Level, Location, Zone, System, Unit;
             public double UnitPrice, Quantity, TotalCost;
@@ -2947,23 +2947,10 @@ namespace StingTools.Temp
 
             File.WriteAllText(knoPath, sb.ToString());
 
-            // Load into Revit via KeynoteTable API
+            // Keynote file generated — user must load via Annotate > Keynoting Settings
+            // (Revit 2025+ KeynoteTable API does not support direct LoadFrom with ModelPath)
             int entries = discCodes.Count + TagConfig.SysMap.Count + TagConfig.ProdMap.Count;
-            try
-            {
-                KeynoteTable kt = KeynoteTable.GetKeynoteTable(doc);
-                using (Transaction tx = new Transaction(doc, "STING Keynote Sync"))
-                {
-                    tx.Start();
-                    ModelPath mp = ModelPathUtils.ConvertUserVisiblePathToModelPath(knoPath);
-                    kt.LoadFrom(mp, null);
-                    tx.Commit();
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"Keynote table auto-load: {ex.Message} — file generated, load manually via Annotate > Keynoting Settings");
-            }
+            StingLog.Info($"Keynote file generated with {entries} entries: {knoPath}");
 
             TaskDialog.Show("Keynote Sync",
                 $"Keynote file generated: {Path.GetFileName(knoPath)}\n\n" +
