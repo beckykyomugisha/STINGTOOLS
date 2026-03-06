@@ -2696,9 +2696,9 @@ namespace StingTools.Temp
             sb.AppendLine();
             sb.AppendLine("PropertySet:\tSTING_AssetIdentity\tI\t" +
                 "IfcBuildingElement,IfcDistributionElement");
-            string descParam = ParamRegistry.GetParamName("ASS_DESCRIPTION_TXT") ?? "ASS_DESCRIPTION_TXT";
-            string mfgParam = ParamRegistry.GetParamName("ASS_MANUFACTURER_TXT") ?? "ASS_MANUFACTURER_TXT";
-            string modelParam = ParamRegistry.GetParamName("ASS_MODEL_TXT") ?? "ASS_MODEL_TXT";
+            string descParam = "ASS_DESCRIPTION_TXT";
+            string mfgParam = "ASS_MANUFACTURER_TXT";
+            string modelParam = "ASS_MODEL_TXT";
             sb.AppendLine($"\t{descParam}\tText");
             sb.AppendLine($"\t{mfgParam}\tText");
             sb.AppendLine($"\t{modelParam}\tText");
@@ -2707,8 +2707,8 @@ namespace StingTools.Temp
             sb.AppendLine();
             sb.AppendLine("PropertySet:\tSTING_AssetCost\tI\t" +
                 "IfcBuildingElement,IfcDistributionElement");
-            string costParam = ParamRegistry.GetParamName("ASS_UNIT_COST_TXT") ?? "ASS_UNIT_COST_TXT";
-            string areaParam = ParamRegistry.GetParamName("ASS_AREA_M2_TXT") ?? "ASS_AREA_M2_TXT";
+            string costParam = "ASS_UNIT_COST_TXT";
+            string areaParam = "ASS_AREA_M2_TXT";
             sb.AppendLine($"\t{costParam}\tText");
             sb.AppendLine($"\t{areaParam}\tText");
 
