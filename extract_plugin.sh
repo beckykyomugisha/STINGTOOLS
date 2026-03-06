@@ -15,16 +15,16 @@ PLUGIN_DIR="$SCRIPT_DIR/CompiledPlugin"
 # Revit addins directories (per-user)
 REVIT_ADDINS_BASE="$APPDATA/Autodesk/Revit/Addins"
 
-# ── Detect Revit version ─────────────────────────────────────────
-REVIT_VERSION=""
+# ── Detect all Revit versions ────────────────────────────────────
+REVIT_VERSIONS=()
 for V in 2025 2026 2027; do
     if [ -d "$REVIT_ADDINS_BASE/$V" ]; then
-        REVIT_VERSION="$V"
+        REVIT_VERSIONS+=("$V")
         echo "Found Revit $V addins directory."
     fi
 done
 
-if [ -z "$REVIT_VERSION" ]; then
+if [ ${#REVIT_VERSIONS[@]} -eq 0 ]; then
     echo "WARNING: No Revit addins directory found."
     echo "Will create CompiledPlugin folder only."
 fi
@@ -98,21 +98,24 @@ ADDIN_EOF
 
 echo "  Generated StingTools.addin"
 
-# ── Deploy to Revit addins folder ────────────────────────────────
+# ── Deploy to ALL Revit addins folders ────────────────────────────
 echo "[3/4] Deploying to Revit..."
 
-if [ -n "$REVIT_VERSION" ]; then
-    REVIT_DEST="$REVIT_ADDINS_BASE/$REVIT_VERSION"
+WIN_PATH=$(cygpath -w "$PLUGIN_DIR/StingTools.dll")
 
-    # Copy .addin manifest
-    cp "$PLUGIN_DIR/StingTools.addin" "$REVIT_DEST/"
-    echo "  Copied .addin to $REVIT_DEST/"
+if [ ${#REVIT_VERSIONS[@]} -gt 0 ]; then
+    for REVIT_VERSION in "${REVIT_VERSIONS[@]}"; do
+        REVIT_DEST="$REVIT_ADDINS_BASE/$REVIT_VERSION"
 
-    # Update assembly path in deployed .addin to point to CompiledPlugin
-    ADDIN_FILE="$REVIT_DEST/StingTools.addin"
-    WIN_PATH=$(cygpath -w "$PLUGIN_DIR/StingTools.dll")
-    sed -i "s|<Assembly>.*</Assembly>|<Assembly>$WIN_PATH</Assembly>|" "$ADDIN_FILE"
+        # Copy .addin manifest
+        cp "$PLUGIN_DIR/StingTools.addin" "$REVIT_DEST/"
 
+        # Update assembly path in deployed .addin to point to CompiledPlugin
+        ADDIN_FILE="$REVIT_DEST/StingTools.addin"
+        sed -i "s|<Assembly>.*</Assembly>|<Assembly>$WIN_PATH</Assembly>|" "$ADDIN_FILE"
+
+        echo "  Revit $REVIT_VERSION: deployed .addin to $REVIT_DEST/"
+    done
     echo "  Assembly path: $WIN_PATH"
 else
     echo "  SKIPPED: No Revit installation found."
@@ -132,8 +135,8 @@ echo "  Files:"
 ls -1 "$PLUGIN_DIR/"*.dll 2>/dev/null | while read f; do echo "    $(basename "$f")"; done
 echo "    data/ ($(ls "$PLUGIN_DIR/data/" 2>/dev/null | wc -l) files)"
 echo ""
-if [ -n "$REVIT_VERSION" ]; then
-    echo "  Restart Revit $REVIT_VERSION to load the updated plugin."
+if [ ${#REVIT_VERSIONS[@]} -gt 0 ]; then
+    echo "  Restart Revit (${REVIT_VERSIONS[*]}) to load the updated plugin."
 else
     echo "  Next steps:"
     echo "    1. Copy CompiledPlugin/StingTools.addin to Revit addins folder"
