@@ -746,20 +746,33 @@ namespace StingTools.UI
 
         private static void RunCommand<T>(UIApplication app) where T : IExternalCommand, new()
         {
-            var cmd = new T();
-            string message = "";
-            var elements = new ElementSet();
-            ExternalCommandData cmdData = CreateCommandData(app);
-            if (cmdData != null)
+            try
             {
-                cmd.Execute(cmdData, ref message, elements);
+                var cmd = new T();
+                string message = "";
+                var elements = new ElementSet();
+                ExternalCommandData cmdData = CreateCommandData(app);
+                if (cmdData != null)
+                {
+                    cmd.Execute(cmdData, ref message, elements);
+                }
+                else
+                {
+                    StingLog.Error($"Cannot create ExternalCommandData for {typeof(T).Name}");
+                    TaskDialog.Show("STING Tools",
+                        $"Cannot invoke {typeof(T).Name} from panel.\n" +
+                        "Please restart Revit and try again.");
+                }
             }
-            else
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
-                StingLog.Error($"Cannot create ExternalCommandData for {typeof(T).Name}");
+                // User cancelled — silent
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"RunCommand<{typeof(T).Name}> failed", ex);
                 TaskDialog.Show("STING Tools",
-                    $"Cannot invoke {typeof(T).Name} from panel.\n" +
-                    "Please restart Revit and try again.");
+                    $"{typeof(T).Name} failed:\n{ex.Message}");
             }
         }
 
@@ -770,26 +783,55 @@ namespace StingTools.UI
                 var data = (ExternalCommandData)RuntimeHelpers
                     .GetUninitializedObject(typeof(ExternalCommandData));
 
-                var fields = typeof(ExternalCommandData).GetFields(
-                    BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
+                var flags = BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public;
+                var fields = typeof(ExternalCommandData).GetFields(flags);
 
-                bool appSet = false;
+                // Track which critical fields we've set
+                bool appSet = false, viewSet = false, journalSet = false;
+
                 foreach (var field in fields)
                 {
-                    if (field.FieldType == typeof(UIApplication))
+                    if (!appSet && field.FieldType == typeof(UIApplication))
                     {
                         field.SetValue(data, app);
                         appSet = true;
-                        break;
+                    }
+                    else if (!viewSet && field.FieldType == typeof(View))
+                    {
+                        // View must be set — Revit's native layer accesses it during
+                        // transaction management and journal recording
+                        field.SetValue(data, app.ActiveUIDocument?.ActiveView);
+                        viewSet = true;
+                    }
+                    else if (!journalSet &&
+                        (field.FieldType == typeof(IDictionary<string, string>) ||
+                         field.FieldType == typeof(Dictionary<string, string>) ||
+                         typeof(IDictionary<string, string>).IsAssignableFrom(field.FieldType)))
+                    {
+                        // JournalData must be non-null — Revit writes to it automatically
+                        field.SetValue(data, new Dictionary<string, string>());
+                        journalSet = true;
                     }
                 }
 
+                // Fallback: try auto-property backing field names
                 if (!appSet)
                 {
-                    var backingField = typeof(ExternalCommandData).GetField(
-                        "<Application>k__BackingField",
-                        BindingFlags.NonPublic | BindingFlags.Instance);
-                    backingField?.SetValue(data, app);
+                    var bf = typeof(ExternalCommandData).GetField(
+                        "<Application>k__BackingField", flags);
+                    bf?.SetValue(data, app);
+                }
+                if (!viewSet)
+                {
+                    var bf = typeof(ExternalCommandData).GetField(
+                        "<View>k__BackingField", flags);
+                    bf?.SetValue(data, app.ActiveUIDocument?.ActiveView);
+                }
+                if (!journalSet)
+                {
+                    var bf = typeof(ExternalCommandData).GetField(
+                        "<JournalData>k__BackingField", flags);
+                    bf?.SetValue(data, new Dictionary<string, string>());
                 }
 
                 return data;
