@@ -189,6 +189,12 @@ namespace StingTools.Core
         /// <summary>Warning severity filter: CRITICAL, HIGH, MEDIUM, ALL.</summary>
         public static string WARN_SEVERITY_FILTER { get; private set; } = "TAG_WARN_SEVERITY_FILTER_TXT";
 
+        // ── Parameter-driven style controls (v4.4) ───────────────────────
+        /// <summary>Tag text size integer: 1=1.5mm, 2=2mm, 3=2.5mm, 4=3.5mm.</summary>
+        public static string STYLE_SIZE { get; private set; } = "TAG_STYLE_SIZE_INT";
+        /// <summary>Tag text weight integer: 1=Normal, 2=Bold, 3=Italic, 4=BoldItalic.</summary>
+        public static string STYLE_WEIGHT { get; private set; } = "TAG_STYLE_WEIGHT_INT";
+
         // ── Paragraph container parameter names (v4.2/v4.3) ─────────────
         public static string PARA_WALL      => Ext("PARA_WALL");
         public static string PARA_FLOOR     => Ext("PARA_FLOOR");
@@ -551,6 +557,8 @@ namespace StingTools.Core
                         else if (name == "TAG_PARA_STATE_3_BOOL") PARA_STATE_3 = name;
                         else if (name == "TAG_WARN_VISIBLE_BOOL") WARN_VISIBLE = name;
                         else if (name == "TAG_WARN_SEVERITY_FILTER_TXT") WARN_SEVERITY_FILTER = name;
+                        else if (name == "TAG_STYLE_SIZE_INT") STYLE_SIZE = name;
+                        else if (name == "TAG_STYLE_WEIGHT_INT") STYLE_WEIGHT = name;
                     }
                 }
 

@@ -290,6 +290,12 @@ namespace StingTools.UI
                     case "SaveTagStylePreset": RunCommand<Tags.SaveTagStylePresetCommand>(app); break;
                     case "LoadTagStylePreset": RunCommand<Tags.LoadTagStylePresetCommand>(app); break;
 
+                    // ── Parameter-driven styles (no type switching) ──
+                    case "ApplyParamStyles": RunCommand<Tags.ApplyParamDrivenStylesCommand>(app); break;
+                    case "PreviewParamStyles": RunCommand<Tags.PreviewParamDrivenStylesCommand>(app); break;
+                    case "ClearParamStyles": RunCommand<Tags.ClearParamDrivenStylesCommand>(app); break;
+                    case "BatchParamStyles": RunCommand<Tags.BatchApplyParamDrivenStylesCommand>(app); break;
+
                     // ── Color By Parameter commands ──
                     case "ColorByParameter": RunCommand<Select.ColorByParameterCommand>(app); break;
                     case "ClearColorOverrides": RunCommand<Select.ClearColorOverridesCommand>(app); break;

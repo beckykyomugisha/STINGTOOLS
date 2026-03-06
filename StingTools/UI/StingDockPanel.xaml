@@ -690,6 +690,13 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Save Preset" Tag="SaveTagStylePreset" Click="Cmd_Click" ToolTip="Learn and save current tag styles as preset"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Load Preset" Tag="LoadTagStylePreset" Click="Cmd_Click" ToolTip="Load and apply a saved style preset"/>
                                 </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <TextBlock Text="Param-Driven:" FontSize="9" Foreground="#888" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Apply" Tag="ApplyParamStyles" Click="Cmd_Click" ToolTip="Apply param-driven styles (size/weight integers + color overrides — no type switching)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Preview" Tag="PreviewParamStyles" Click="Cmd_Click" ToolTip="Preview param-driven style distribution (dry-run)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch" Tag="BatchParamStyles" Click="Cmd_Click" ToolTip="Apply param-driven styles to entire project"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clear" Tag="ClearParamStyles" Click="Cmd_Click" ToolTip="Reset style params and remove color overrides"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 

@@ -80,6 +80,28 @@ namespace StingTools.Core
             return SetString(el, paramName, value, overwrite: false);
         }
 
+        /// <summary>Return the integer value of a named parameter, or defaultValue on null/miss.</summary>
+        public static int GetInt(Element el, string paramName, int defaultValue = 0)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return defaultValue;
+            Parameter p = CachedLookup(el, paramName);
+            if (p != null && p.StorageType == StorageType.Integer)
+                return p.AsInteger();
+            return defaultValue;
+        }
+
+        /// <summary>Set an INTEGER parameter. Returns true if value was written.</summary>
+        public static bool SetInt(Element el, string paramName, int value, bool overwrite = true)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null || p.IsReadOnly || p.StorageType != StorageType.Integer)
+                return false;
+            if (!overwrite && p.AsInteger() != 0) return false;
+            p.Set(value);
+            return true;
+        }
+
         /// <summary>Return a short level code from the element's host level.</summary>
         public static string GetLevelCode(Document doc, Element el)
         {
