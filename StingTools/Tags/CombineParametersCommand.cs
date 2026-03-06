@@ -290,7 +290,7 @@ namespace StingTools.Tags
             var readyByDisc = new Dictionary<string, int>();
             var incompleteByDisc = new Dictionary<string, int>();
             var placeholderCount = 0;
-            var emptyTagCount = 0;
+            var incompleteTagCount = 0;
             var existingTagCount = 0;
 
             string[] tokenNames = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ", "STATUS", "REV" };
@@ -312,7 +312,7 @@ namespace StingTools.Tags
                 if (TagConfig.TagIsComplete(existingTag))
                     existingTagCount++;
                 else if (!string.IsNullOrEmpty(existingTag))
-                    emptyTagCount++;
+                    incompleteTagCount++;
 
                 // Check token completeness
                 int filledCount = 0;
@@ -366,11 +366,13 @@ namespace StingTools.Tags
             report.AppendLine("Combine Pre-Flight Check");
             report.AppendLine(new string('═', 50));
             report.AppendLine($"  Taggable elements:     {total}");
-            report.AppendLine($"  Fully ready (8/8):     {fullyReady}");
+            report.AppendLine($"  Fully ready ({tokenParams.Length}/{tokenParams.Length}):   {fullyReady}");
             report.AppendLine($"  Partial tokens:        {partial}");
             report.AppendLine($"  No tokens at all:      {empty}");
             report.AppendLine($"  With placeholders:     {placeholderCount}");
             report.AppendLine($"  Already have TAG1:     {existingTagCount}");
+            if (incompleteTagCount > 0)
+                report.AppendLine($"  Incomplete TAG1:       {incompleteTagCount}");
 
             double readyPct = total > 0 ? fullyReady * 100.0 / total : 0;
             report.AppendLine($"  Readiness:             {readyPct:F1}%");

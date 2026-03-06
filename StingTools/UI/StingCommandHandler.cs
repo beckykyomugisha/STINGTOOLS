@@ -532,6 +532,7 @@ namespace StingTools.UI
                     case "TagAll": RunCommand<Tags.BatchTagCommand>(app); break;
                     case "Orphans": FindOrphanedTags(app); break;
                     case "CloneTags": CloneTagLayout(app); break;
+                    case "ApplyClonedTags": ApplyClonedTagLayout(app); break;
                     case "AuditTags": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
                     case "MultiView": RunCommand<Tags.BatchPlaceTagsCommand>(app); break;
                     case "ClashingDetect": RunCommand<Tags.TagOverlapAnalysisCommand>(app); break;
@@ -2821,6 +2822,10 @@ namespace StingTools.UI
             }
         }
 
+        // Persisted clone layout: host element ID → (head offset from host center, hasLeader, orientation)
+        private static Dictionary<ElementId, (XYZ headOffset, bool hasLeader, TagOrientation orient)> _clonedTagLayout;
+        private static string _clonedSourceViewName;
+
         private static void CloneTagLayout(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
@@ -2840,8 +2845,9 @@ namespace StingTools.UI
                 return;
             }
 
-            // Build mapping: host element ID → tag head position + orientation
-            var tagLayout = new Dictionary<ElementId, (XYZ headPos, bool hasLeader, TagOrientation orient)>();
+            // Build mapping: host element ID → tag head offset from host center + orientation
+            // Store offsets (not absolute positions) so layout transfers across views at different zoom/pan
+            var layout = new Dictionary<ElementId, (XYZ headOffset, bool hasLeader, TagOrientation orient)>();
             foreach (var tag in sourceTags)
             {
                 try
@@ -2849,19 +2855,115 @@ namespace StingTools.UI
                     var hostIds = tag.GetTaggedLocalElementIds();
                     if (hostIds.Count > 0)
                     {
-                        tagLayout[hostIds.First()] = (tag.TagHeadPosition, tag.HasLeader, tag.TagOrientation);
+                        ElementId hostId = hostIds.First();
+                        Element host = doc.GetElement(hostId);
+                        XYZ hostCenter = (host?.Location is LocationPoint lp) ? lp.Point
+                            : (host?.Location is LocationCurve lc) ? (lc.Curve.GetEndPoint(0) + lc.Curve.GetEndPoint(1)) / 2.0
+                            : null;
+                        if (hostCenter != null)
+                        {
+                            XYZ offset = tag.TagHeadPosition - hostCenter;
+                            layout[hostId] = (offset, tag.HasLeader, tag.TagOrientation);
+                        }
                     }
                 }
                 catch { }
             }
 
+            _clonedTagLayout = layout;
+            _clonedSourceViewName = sourceView.Name;
+
             TaskDialog.Show("Clone Tag Layout",
-                $"Captured layout for {tagLayout.Count} tags in '{sourceView.Name}'.\n" +
-                "Navigate to target view and use 'Apply Cloned Layout' to apply.\n\n" +
-                "(Tag positions are stored relative to host elements. " +
+                $"Captured layout for {layout.Count} tags in '{sourceView.Name}'.\n" +
+                "Navigate to target view and click 'Apply Cloned Layout' to apply.\n\n" +
+                "(Tag positions are stored as offsets from host elements. " +
                 "Matching is by element ID — same elements must exist in target view.)");
 
-            StingLog.Info($"CloneTagLayout: captured {tagLayout.Count} positions from '{sourceView.Name}'");
+            StingLog.Info($"CloneTagLayout: captured {layout.Count} positions from '{sourceView.Name}'");
+        }
+
+        private static void ApplyClonedTagLayout(UIApplication app)
+        {
+            if (_clonedTagLayout == null || _clonedTagLayout.Count == 0)
+            {
+                TaskDialog.Show("Apply Cloned Layout", "No cloned layout stored.\nUse 'Clone Tag Layout' first.");
+                return;
+            }
+
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var targetView = doc.ActiveView;
+
+            // Get existing tags in target view
+            var targetTags = new FilteredElementCollector(doc, targetView.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            // Build lookup: host ID → tags in target view
+            var targetTagsByHost = new Dictionary<ElementId, List<IndependentTag>>();
+            foreach (var tag in targetTags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    if (hostIds.Count > 0)
+                    {
+                        ElementId hostId = hostIds.First();
+                        if (!targetTagsByHost.ContainsKey(hostId))
+                            targetTagsByHost[hostId] = new List<IndependentTag>();
+                        targetTagsByHost[hostId].Add(tag);
+                    }
+                }
+                catch { }
+            }
+
+            int applied = 0, notFound = 0;
+            using (Transaction tx = new Transaction(doc, "STING Apply Cloned Tag Layout"))
+            {
+                tx.Start();
+                foreach (var kvp in _clonedTagLayout)
+                {
+                    ElementId hostId = kvp.Key;
+                    var (headOffset, hasLeader, orient) = kvp.Value;
+
+                    if (!targetTagsByHost.TryGetValue(hostId, out var tags) || tags.Count == 0)
+                    {
+                        notFound++;
+                        continue;
+                    }
+
+                    Element host = doc.GetElement(hostId);
+                    XYZ hostCenter = (host?.Location is LocationPoint lp) ? lp.Point
+                        : (host?.Location is LocationCurve lc) ? (lc.Curve.GetEndPoint(0) + lc.Curve.GetEndPoint(1)) / 2.0
+                        : null;
+                    if (hostCenter == null) { notFound++; continue; }
+
+                    try
+                    {
+                        var tag = tags[0];
+                        tag.TagHeadPosition = hostCenter + headOffset;
+                        tag.TagOrientation = orient;
+                        if (hasLeader && !tag.HasLeader)
+                            tag.HasLeader = true;
+                        else if (!hasLeader && tag.HasLeader)
+                            tag.HasLeader = false;
+                        applied++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"ApplyClonedLayout: failed on host {hostId}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Apply Cloned Layout",
+                $"Applied {applied} tag positions from '{_clonedSourceViewName}'.\n" +
+                (notFound > 0 ? $"{notFound} host elements not found/tagged in this view." : "All elements matched."));
+
+            StingLog.Info($"ApplyClonedLayout: applied={applied}, notFound={notFound}, source='{_clonedSourceViewName}', target='{targetView.Name}'");
         }
 
         // ── Room tag placement ──────────────────────────────────────
@@ -3802,6 +3904,11 @@ namespace StingTools.UI
         /// Snap leader elbows to a specific angle without dialog.
         /// angleMode: "45", "90", "0" (straight), or "cycle" (detect current and rotate).
         /// </summary>
+        /// <summary>
+        /// Snap leader elbows to a specific angle or cycle through angles.
+        /// Delegates geometry to SnapLeaderElbowCommand.CalculateElbowPosition (single source of truth)
+        /// and angle detection to SnapLeaderElbowCommand.ClassifyElbowAngle (relative tolerance).
+        /// </summary>
         private static void SnapElbowDirect(UIApplication app, string angleMode)
         {
             var uidoc = app.ActiveUIDocument;
@@ -3843,32 +3950,32 @@ namespace StingTools.UI
                         string effectiveMode = angleMode;
                         if (effectiveMode == "cycle")
                         {
-                            // Detect current elbow angle from existing elbow position
-                            effectiveMode = DetectAndCycleElbowAngle(tag, host, doc, hostCenter, tagHead);
-                        }
-
-                        XYZ elbowPos;
-                        if (effectiveMode == "0")
-                        {
-                            elbowPos = (hostCenter + tagHead) / 2.0;
-                        }
-                        else if (effectiveMode == "45")
-                        {
-                            double absDx = Math.Abs(delta.X);
-                            double absDy = Math.Abs(delta.Y);
-                            double diag = Math.Min(absDx, absDy);
-                            double signX = delta.X >= 0 ? 1 : -1;
-                            double signY = delta.Y >= 0 ? 1 : -1;
-
-                            if (absDx > absDy)
-                                elbowPos = new XYZ(hostCenter.X + diag * signX, tagHead.Y, hostCenter.Z);
+                            var refs2 = tag.GetTaggedReferences();
+                            if (refs2 != null && refs2.Count > 0)
+                            {
+                                XYZ elbow = tag.GetLeaderElbow(refs2.First());
+                                if (elbow != null)
+                                {
+                                    // Use ClassifyElbowAngle (relative tolerance) to detect current angle
+                                    string current = Organise.SnapLeaderElbowCommand.ClassifyElbowAngle(
+                                        hostCenter, tagHead, elbow);
+                                    // Cycle: 90→45→0→90
+                                    effectiveMode = current == "90" ? "45" : current == "45" ? "0" : "90";
+                                }
+                                else
+                                {
+                                    effectiveMode = "90";
+                                }
+                            }
                             else
-                                elbowPos = new XYZ(tagHead.X, hostCenter.Y + diag * signY, hostCenter.Z);
+                            {
+                                effectiveMode = "90";
+                            }
                         }
-                        else // "90"
-                        {
-                            elbowPos = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
-                        }
+
+                        // Reuse CalculateElbowPosition from SnapLeaderElbowCommand (single source of truth)
+                        XYZ elbowPos = Organise.SnapLeaderElbowCommand.CalculateElbowPosition(
+                            hostCenter, tagHead, delta, effectiveMode);
 
                         var refs = tag.GetTaggedReferences();
                         if (refs != null && refs.Count > 0)
@@ -3886,44 +3993,9 @@ namespace StingTools.UI
                 tx.Commit();
             }
 
-            TaskDialog.Show("Snap Elbows", $"Snapped {snapped} leader elbows to {angleMode}°.");
-        }
-
-        /// <summary>
-        /// Detect current elbow angle and return the next angle in cycle: 90→45→0→90.
-        /// </summary>
-        private static string DetectAndCycleElbowAngle(IndependentTag tag, Element host,
-            Document doc, XYZ hostCenter, XYZ tagHead)
-        {
-            try
-            {
-                var refs = tag.GetTaggedReferences();
-                if (refs == null || refs.Count == 0) return "90";
-
-                XYZ elbow = tag.GetLeaderElbow(refs.First());
-                if (elbow == null) return "90";
-
-                XYZ delta = tagHead - hostCenter;
-                double absDx = Math.Abs(delta.X);
-                double absDy = Math.Abs(delta.Y);
-
-                // Check if elbow is at midpoint (straight/0°)
-                XYZ mid = (hostCenter + tagHead) / 2.0;
-                if (elbow.DistanceTo(mid) < 0.1)
-                    return "90"; // Cycle: 0 → 90
-
-                // Check if elbow is at orthogonal position (90°)
-                XYZ ortho90 = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
-                if (elbow.DistanceTo(ortho90) < 0.1)
-                    return "45"; // Cycle: 90 → 45
-
-                // Otherwise assume 45° or unknown → cycle to 0 (straight)
-                return "0"; // Cycle: 45 → 0
-            }
-            catch
-            {
-                return "90";
-            }
+            string label = angleMode == "0" ? "Straight" :
+                           angleMode == "cycle" ? "Next" : $"{angleMode}°";
+            TaskDialog.Show("Snap Elbows", $"Snapped {snapped} leader elbows to {label}.");
         }
 
         // ── Conditional selection builder ─────────────────────────────

@@ -312,6 +312,12 @@ namespace StingTools.Tags
 
                     // Read all 8 tokens, auto-deriving any empty ones
                     string[] tokenValues = ParamRegistry.ReadTokenValues(elem);
+                    if (tokenValues == null || tokenValues.Length < 8)
+                    {
+                        StingLog.Warn($"BuildTags: element {id} returned {tokenValues?.Length ?? 0} tokens (expected 8), skipping");
+                        skipped++;
+                        continue;
+                    }
 
                     string disc = tokenValues[0]; // DISC
                     if (string.IsNullOrEmpty(disc))
@@ -354,15 +360,13 @@ namespace StingTools.Tags
                         }
                     }
 
-                    // Auto-derive LVL if missing
+                    // Auto-derive LVL if missing (with guaranteed default L00 for levelless elements)
                     if (string.IsNullOrEmpty(tokenValues[3]))
                     {
                         string lvl = ParameterHelpers.GetLevelCode(doc, elem);
-                        if (!string.IsNullOrEmpty(lvl))
-                        {
-                            tokenValues[3] = lvl;
-                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
-                        }
+                        if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
+                        tokenValues[3] = lvl;
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
                     }
 
                     // Auto-derive FUNC if missing (smart subsystem, guaranteed default)
@@ -373,15 +377,6 @@ namespace StingTools.Tags
                             func = TagConfig.FuncMap.TryGetValue(tokenValues[4], out string fv) ? fv : "GEN";
                         tokenValues[5] = func;
                         ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func);
-                    }
-
-                    // Auto-derive LVL if missing (guaranteed default)
-                    if (string.IsNullOrEmpty(tokenValues[3]))
-                    {
-                        string lvl = ParameterHelpers.GetLevelCode(doc, elem);
-                        if (lvl == "XX") lvl = "L00";
-                        tokenValues[3] = lvl;
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
                     }
 
                     // Auto-derive LOC/ZONE if missing (guaranteed defaults)

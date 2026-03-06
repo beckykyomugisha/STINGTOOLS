@@ -146,7 +146,8 @@ namespace StingTools.Tags
                         // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                         string catName = ParameterHelpers.GetCategoryName(el);
                         string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                        TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
+                        if (tokenVals != null && tokenVals.Length >= 8)
+                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
                     }
                     catch (Exception ex)
                     {
@@ -294,20 +295,19 @@ namespace StingTools.Tags
             preview.AppendLine($"  Tagged elements:   {tagged.Count}");
             preview.AppendLine();
 
-            int wouldChange = 0;
             int sampleCount = Math.Min(tagged.Count, 10);
             preview.AppendLine("  Sample (first 10):");
             for (int i = 0; i < sampleCount; i++)
             {
                 var (el, currentTag) = tagged[i];
                 string[] tokens = ParamRegistry.ReadTokenValues(el);
+                if (tokens == null || tokens.Length < 8) { preview.AppendLine($"    {currentTag} (insufficient tokens)"); continue; }
                 string rebuilt = string.Join(ParamRegistry.Separator, tokens);
                 bool changed = !string.Equals(currentTag, rebuilt, StringComparison.Ordinal);
                 if (changed)
                 {
                     preview.AppendLine($"    {currentTag}");
                     preview.AppendLine($"  → {rebuilt}");
-                    wouldChange++;
                 }
                 else
                 {
@@ -315,10 +315,12 @@ namespace StingTools.Tags
                 }
             }
 
-            // Count total that would change
+            // Count total that would change (single pass — no double-counting)
+            int wouldChange = 0;
             foreach (var (el, currentTag) in tagged)
             {
                 string[] tokens = ParamRegistry.ReadTokenValues(el);
+                if (tokens == null || tokens.Length < 8) continue;
                 string rebuilt = string.Join(ParamRegistry.Separator, tokens);
                 if (!string.Equals(currentTag, rebuilt, StringComparison.Ordinal))
                     wouldChange++;

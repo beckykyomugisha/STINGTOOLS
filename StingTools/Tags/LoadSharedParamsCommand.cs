@@ -95,7 +95,16 @@ namespace StingTools.Tags
                 }
 
                 // GAP-003: Load CSV-driven category bindings to supplement hardcoded DisciplineBindings
-                var csvBindings = Temp.TemplateManager.LoadCategoryBindings();
+                Dictionary<string, List<BuiltInCategory>> csvBindings;
+                try
+                {
+                    csvBindings = Temp.TemplateManager.LoadCategoryBindings();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"LoadCategoryBindings failed, using hardcoded only: {ex.Message}");
+                    csvBindings = new Dictionary<string, List<BuiltInCategory>>();
+                }
                 int csvExtras = 0;
 
                 // Pass 2: Discipline-specific parameters → correct category subsets
@@ -149,7 +158,7 @@ namespace StingTools.Tags
                                             }
                                         }
                                     }
-                                    catch { }
+                                    catch (Exception ex) { StingLog.Warn($"CSV category bind {bic}: {ex.Message}"); }
                                 }
                             }
                         }

@@ -160,8 +160,9 @@ namespace StingTools.Tags
                         // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                         string catNameTag7 = ParameterHelpers.GetCategoryName(el);
                         string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
-                        TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7,
-                            overwrite: collisionMode == TagCollisionMode.Overwrite);
+                        if (tokenValsTag7 != null && tokenValsTag7.Length >= 8)
+                            TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7,
+                                overwrite: collisionMode == TagCollisionMode.Overwrite);
                     }
                     catch (Exception ex)
                     {
@@ -298,7 +299,8 @@ namespace StingTools.Tags
                         // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                         string catNameTag7 = ParameterHelpers.GetCategoryName(el);
                         string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
-                        TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7, overwrite: false);
+                        if (tokenValsTag7 != null && tokenValsTag7.Length >= 8)
+                            TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7, overwrite: false);
                     }
                     catch (Exception ex)
                     {

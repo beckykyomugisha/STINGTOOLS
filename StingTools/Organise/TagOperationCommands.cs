@@ -862,7 +862,9 @@ namespace StingTools.Organise
             foreach (string p in CopyParams)
                 values[p] = ParameterHelpers.GetString(source, p);
 
-            string sourceTag = values.TryGetValue(ParamRegistry.TAG1, out string t) ? t : "(empty)";
+            // Assemble source tag display from token values (TAG1 is not in CopyParams)
+            string sourceTag = ParameterHelpers.GetString(source, ParamRegistry.TAG1);
+            if (string.IsNullOrEmpty(sourceTag)) sourceTag = "(empty)";
 
             // Check for discipline mismatches between source and targets
             string sourceCat = ParameterHelpers.GetCategoryName(source);
@@ -3517,9 +3519,10 @@ namespace StingTools.Organise
 
             int snapped = SnapToAngle(doc, tags, targetAngle);
 
-            string angleLabel = targetAngle == "0" ? "Straight" : $"{targetAngle}°";
+            string angleLabel = targetAngle == "0" ? "Straight (0°)" : $"{targetAngle}°";
             TaskDialog.Show("Snap Elbows",
                 $"Snapped {snapped} of {tags.Count} leader elbows to {angleLabel}.\n" +
+                "Cycle order: 90° → 45° → Straight → 90°\n" +
                 "(Click again to cycle to next angle)");
             return Result.Succeeded;
         }
@@ -3527,6 +3530,8 @@ namespace StingTools.Organise
         /// <summary>
         /// Detect the predominant current elbow angle and return the next in cycle.
         /// Cycle: 90° → 45° → Straight (0°) → 90°
+        /// Uses a relative threshold (5% of leader length) to classify angles accurately
+        /// across different view scales and leader lengths.
         /// </summary>
         private static string DetectCurrentAngleAndCycle(Document doc, List<IndependentTag> tags)
         {
@@ -3550,16 +3555,10 @@ namespace StingTools.Organise
                     XYZ elbow = tag.GetLeaderElbow(refs.First());
                     if (elbow == null) { count90++; continue; }
 
-                    // Classify the elbow position
-                    XYZ mid = (hostCenter + tagHead) / 2.0;
-                    XYZ ortho90 = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
-
-                    if (elbow.DistanceTo(mid) < 0.2)
-                        count0++;       // Straight
-                    else if (elbow.DistanceTo(ortho90) < 0.2)
-                        count90++;      // 90°
-                    else
-                        count45++;      // 45° or other
+                    string detected = ClassifyElbowAngle(hostCenter, tagHead, elbow);
+                    if (detected == "90") count90++;
+                    else if (detected == "45") count45++;
+                    else count0++;
                 }
                 catch { count90++; }
             }
@@ -3570,6 +3569,47 @@ namespace StingTools.Organise
             if (count45 >= count90 && count45 >= count0)
                 return "0";     // Currently 45° → cycle to Straight
             return "90";        // Currently Straight → cycle to 90°
+        }
+
+        /// <summary>
+        /// Classify the current elbow angle as "0" (straight), "45", or "90" using a
+        /// relative tolerance (5% of leader length) so detection works at any view scale.
+        /// </summary>
+        public static string ClassifyElbowAngle(XYZ hostCenter, XYZ tagHead, XYZ elbow)
+        {
+            double leaderLen = hostCenter.DistanceTo(tagHead);
+            double tolerance = Math.Max(leaderLen * 0.05, 0.02); // 5% of leader length, min 0.02ft
+
+            // Reference positions for each angle
+            XYZ mid = (hostCenter + tagHead) / 2.0;
+            XYZ ortho90 = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+
+            // Also check the alternative 90° (vertical-first)
+            XYZ ortho90Alt = new XYZ(hostCenter.X, tagHead.Y, hostCenter.Z);
+
+            // Calculate expected 45° elbow position
+            XYZ delta = tagHead - hostCenter;
+            double absDx = Math.Abs(delta.X);
+            double absDy = Math.Abs(delta.Y);
+            double diag = Math.Min(absDx, absDy);
+            double signX = delta.X >= 0 ? 1 : -1;
+            double signY = delta.Y >= 0 ? 1 : -1;
+            XYZ expected45 = absDx > absDy
+                ? new XYZ(hostCenter.X + diag * signX, tagHead.Y, hostCenter.Z)
+                : new XYZ(tagHead.X, hostCenter.Y + diag * signY, hostCenter.Z);
+
+            // Score each candidate by distance from actual elbow
+            double dist0 = elbow.DistanceTo(mid);
+            double dist90 = Math.Min(elbow.DistanceTo(ortho90), elbow.DistanceTo(ortho90Alt));
+            double dist45 = elbow.DistanceTo(expected45);
+
+            // Pick the closest match within tolerance
+            double minDist = Math.Min(dist0, Math.Min(dist90, dist45));
+            if (minDist > tolerance * 5) return "90"; // Way off — default to 90
+
+            if (dist0 <= dist90 && dist0 <= dist45) return "0";
+            if (dist90 <= dist0 && dist90 <= dist45) return "90";
+            return "45";
         }
 
         /// <summary>
@@ -3619,8 +3659,9 @@ namespace StingTools.Organise
 
         /// <summary>
         /// Calculate the elbow position for a given angle mode.
+        /// Public so SnapElbowDirect (inline handler) can reuse the same geometry.
         /// </summary>
-        private static XYZ CalculateElbowPosition(XYZ hostCenter, XYZ tagHead, XYZ delta, string angleMode)
+        public static XYZ CalculateElbowPosition(XYZ hostCenter, XYZ tagHead, XYZ delta, string angleMode)
         {
             if (angleMode == "0")
             {
@@ -4337,7 +4378,7 @@ namespace StingTools.Organise
                             string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                             string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                             string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
-                            string key = $"{disc}-{sys}-{lvl}";
+                            string key = $"{disc}_{sys}_{lvl}";
                             if (!seqCounters.ContainsKey(key)) seqCounters[key] = 0;
                             seqCounters[key]++;
                             string newSeq = seqCounters[key].ToString().PadLeft(ParamRegistry.NumPad, '0');

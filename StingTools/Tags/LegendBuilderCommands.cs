@@ -197,7 +197,7 @@ namespace StingTools.Tags
         /// Works with both Legend views and Drafting views.
         /// Must be called within an active Transaction.
         /// </summary>
-        private static void PopulateLegendContent(Document doc, View legendView,
+        internal static void PopulateLegendContent(Document doc, View legendView,
             List<LegendEntry> entries, LegendConfig config)
         {
             // Find solid fill pattern for filled regions
@@ -207,6 +207,11 @@ namespace StingTools.Tags
             ElementId textTypeId = new FilteredElementCollector(doc)
                 .OfClass(typeof(TextNoteType))
                 .FirstElementId();
+            if (textTypeId == null || textTypeId == ElementId.InvalidElementId)
+            {
+                StingLog.Warn("PopulateLegendContent: no TextNoteType found in document");
+                return;
+            }
 
             // Get or create the title TextNoteType (larger)
             ElementId titleTypeId = GetOrCreateTitleNoteType(doc, textTypeId);
@@ -1257,6 +1262,11 @@ namespace StingTools.Tags
             FillPatternElement solidFill = FindSolidFill(doc);
             ElementId textTypeId = new FilteredElementCollector(doc)
                 .OfClass(typeof(TextNoteType)).FirstElementId();
+            if (textTypeId == null || textTypeId == ElementId.InvalidElementId)
+            {
+                StingLog.Warn("PopulateTagLegendContent: no TextNoteType found in document");
+                return;
+            }
             ElementId titleTypeId = GetOrCreateTitleNoteType(doc, textTypeId);
             ElementId smallTypeId = GetOrCreateSmallNoteType(doc, textTypeId);
 
@@ -6567,10 +6577,12 @@ namespace StingTools.Tags
             // Check all known taggable categories
             foreach (var bic in SharedParamGuids.AllCategoryEnums)
             {
+                string catName = bic.ToString();
                 try
                 {
                     Category cat = doc.Settings.Categories.get_Item(bic);
                     if (cat == null) continue;
+                    catName = cat.Name;
 
                     OverrideGraphicSettings ogs = view.GetCategoryOverrides(new ElementId(bic));
                     if (!HasMeaningfulOverride(ogs)) continue;
@@ -6588,7 +6600,7 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex)
                 {
-                    StingLog.Warn($"CategoryLegend: failed reading overrides for '{cat?.Name}': {ex.Message}");
+                    StingLog.Warn($"CategoryLegend: failed reading overrides for '{catName}': {ex.Message}");
                 }
             }
 

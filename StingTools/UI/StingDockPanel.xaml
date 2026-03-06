@@ -450,7 +450,8 @@
                                 <Button Style="{StaticResource RedBtn}" Content="Del Tags" Tag="DeleteTags" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource OrangeBtn}" Content="Orphans" Tag="Orphans" Click="Cmd_Click" ToolTip="Find orphaned tags"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="[Num]Renumb" Tag="RenumberTags" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="[List]Clone" Tag="CloneTags" Click="Cmd_Click" ToolTip="Clone tag layout"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="[List]Clone" Tag="CloneTags" Click="Cmd_Click" ToolTip="Clone tag layout from current view"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="[List]Apply Clone" Tag="ApplyClonedTags" Click="Cmd_Click" ToolTip="Apply cloned tag layout to current view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="AuditTags" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="AuditCSV" Tag="AuditTagsCSV" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="MultiView" Tag="MultiView" Click="Cmd_Click" ToolTip="Tag across views"/>

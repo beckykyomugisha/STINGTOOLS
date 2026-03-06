@@ -872,6 +872,12 @@ namespace StingTools.Tags
                 var segmentTypes = GetOrCreateSegmentNoteTypes(doc);
                 ElementId baseTypeId = new FilteredElementCollector(doc)
                     .OfClass(typeof(TextNoteType)).FirstElementId();
+                if (baseTypeId == null || baseTypeId == ElementId.InvalidElementId)
+                {
+                    TaskDialog.Show("Segment Note", "No TextNoteType found in the document.");
+                    tx.RollBack();
+                    return Result.Succeeded;
+                }
 
                 foreach (var el in selected)
                 {

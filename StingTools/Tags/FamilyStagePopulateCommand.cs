@@ -164,30 +164,36 @@ namespace StingTools.Tags
                             discSet++;
                     }
 
-                    // LOC — from spatial context
+                    // LOC — from spatial context (guard null: SpatialAutoDetect may return null)
                     string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                    if (overwrite)
+                    if (!string.IsNullOrEmpty(loc))
                     {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true))
-                            locSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc))
-                            locSet++;
+                        if (overwrite)
+                        {
+                            if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true))
+                                locSet++;
+                        }
+                        else
+                        {
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc))
+                                locSet++;
+                        }
                     }
 
-                    // ZONE — from room data
+                    // ZONE — from room data (guard null: SpatialAutoDetect may return null)
                     string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                    if (overwrite)
+                    if (!string.IsNullOrEmpty(zone))
                     {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true))
-                            zoneSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone))
-                            zoneSet++;
+                        if (overwrite)
+                        {
+                            if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true))
+                                zoneSet++;
+                        }
+                        else
+                        {
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone))
+                                zoneSet++;
+                        }
                     }
 
                     // LVL — deterministic from element level (guaranteed default: "L00" for levelless)
@@ -220,7 +226,7 @@ namespace StingTools.Tags
 
                     // DISC correction — system-aware override (e.g. M→P for plumbing pipes, M→FP for fire)
                     string correctedDisc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
-                    if (correctedDisc != disc)
+                    if (!string.IsNullOrEmpty(correctedDisc) && correctedDisc != disc)
                     {
                         disc = correctedDisc;
                         ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);

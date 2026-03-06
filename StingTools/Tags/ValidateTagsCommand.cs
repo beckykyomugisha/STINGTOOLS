@@ -27,7 +27,7 @@ namespace StingTools.Tags
     /// Report style uses flowing narrative paragraphs for compliance summaries
     /// to provide context-rich feedback rather than bare statistics.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class ValidateTagsCommand : IExternalCommand
     {
@@ -158,8 +158,12 @@ namespace StingTools.Tags
                 int elementIsoErrors = elementErrors.Count;
                 if (elementIsoErrors > 0)
                 {
-                    if (tag1Status == "VALID") tag1Status = "ISO_INVALID";
-                    IncrementDict(issuesByCategory, catName);
+                    if (tag1Status == "VALID")
+                    {
+                        tag1Status = "ISO_INVALID";
+                        tag1Valid--; // Correct the pre-increment at line 95
+                        IncrementDict(issuesByCategory, catName); // Only count once — MISSING/INCOMPLETE already counted above
+                    }
                     foreach (string err in elementErrors)
                         IncrementDict(isoIssueTypes, err);
                 }

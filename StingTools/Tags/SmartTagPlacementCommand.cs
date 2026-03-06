@@ -178,7 +178,7 @@ namespace StingTools.Tags
         // ── Collision detection (AABB 2D) ──────────────────────────────
 
         /// <summary>2D bounding box for collision detection in plan view.</summary>
-        public struct Box2D
+        public struct Box2D : IEquatable<Box2D>
         {
             public double MinX, MinY, MaxX, MaxY;
 
@@ -191,6 +191,27 @@ namespace StingTools.Tags
             {
                 return MinX < other.MaxX && MaxX > other.MinX
                     && MinY < other.MaxY && MaxY > other.MinY;
+            }
+
+            public bool Equals(Box2D other)
+            {
+                return MinX == other.MinX && MinY == other.MinY
+                    && MaxX == other.MaxX && MaxY == other.MaxY;
+            }
+
+            public override bool Equals(object obj) => obj is Box2D b && Equals(b);
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = 17;
+                    hash = hash * 31 + MinX.GetHashCode();
+                    hash = hash * 31 + MinY.GetHashCode();
+                    hash = hash * 31 + MaxX.GetHashCode();
+                    hash = hash * 31 + MaxY.GetHashCode();
+                    return hash;
+                }
             }
 
             public static Box2D FromBoundingBox(BoundingBoxXYZ bb)

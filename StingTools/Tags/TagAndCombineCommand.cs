@@ -186,9 +186,13 @@ namespace StingTools.Tags
                         string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
                         if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
                         if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) populated++;
-                        // System-aware DISC correction for pipes
-                        disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
-                        ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);
+                        // System-aware DISC correction for pipes (guard null return)
+                        string correctedDisc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
+                        if (!string.IsNullOrEmpty(correctedDisc))
+                        {
+                            disc = correctedDisc;
+                            ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);
+                        }
 
                         string func = TagConfig.GetSmartFuncCode(el, sys);
                         if (string.IsNullOrEmpty(func))
@@ -227,11 +231,14 @@ namespace StingTools.Tags
 
                         // Step 7: Combine into ALL containers via ParamRegistry (single source of truth)
                         string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                        combined += ParamRegistry.WriteContainers(el, tokenVals, catName,
-                            overwrite: true, skipParam: ParamRegistry.TAG7);
+                        if (tokenVals != null && tokenVals.Length >= 8)
+                        {
+                            combined += ParamRegistry.WriteContainers(el, tokenVals, catName,
+                                overwrite: true, skipParam: ParamRegistry.TAG7);
 
-                        // Step 7b: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                        combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            // Step 7b: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                            combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                        }
                     }
                     catch (Exception ex)
                     {

@@ -672,18 +672,16 @@ namespace StingTools.Tags
             Autodesk.Revit.ApplicationServices.Application app,
             List<string> paramNames = null)
         {
+            string originalFile = app.SharedParametersFilename;
             try
             {
                 // Set the shared parameter file
-                string originalFile = app.SharedParametersFilename;
                 app.SharedParametersFilename = sharedParamFile;
 
                 DefinitionFile defFile = app.OpenSharedParameterFile();
                 if (defFile == null)
                 {
                     StingLog.Warn("Cannot open shared parameter file for tag family");
-                    if (!string.IsNullOrEmpty(originalFile))
-                        app.SharedParametersFilename = originalFile;
                     return false;
                 }
 
@@ -736,10 +734,6 @@ namespace StingTools.Tags
                     tx.Commit();
                 }
 
-                // Restore original shared parameter file
-                if (!string.IsNullOrEmpty(originalFile))
-                    app.SharedParametersFilename = originalFile;
-
                 StingLog.Info($"Added {added} shared parameters to tag family");
                 return added > 0;
             }
@@ -747,6 +741,12 @@ namespace StingTools.Tags
             {
                 StingLog.Error("AddSharedParameters failed", ex);
                 return false;
+            }
+            finally
+            {
+                // Always restore original shared parameter file
+                if (!string.IsNullOrEmpty(originalFile))
+                    app.SharedParametersFilename = originalFile;
             }
         }
 
@@ -799,7 +799,7 @@ namespace StingTools.Tags
                             // Attempt to set the FamilyLabel to our tag parameter.
                             // This works for dimension labels in families but may not
                             // work for annotation text labels (which is the Revit limitation).
-                            if (dim.FamilyLabel != null || dim.FamilyLabel == null)
+                            if (dim.FamilyLabel != null)
                             {
                                 dim.FamilyLabel = tagParam;
                                 StingLog.Info("Successfully rebound dimension label to ASS_TAG_1_TXT");
