@@ -1,4 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  CRITICAL DEPLOYMENT NOTE:
+  This .addin file must exist in ONLY ONE of these locations:
+    - Per-user:    %AppData%\Autodesk\Revit\Addins\2025\
+    - Per-machine: %ProgramData%\Autodesk\Revit\Addins\2025\
+
+  If copies exist in BOTH locations, Revit loads the plugin TWICE, causing:
+    - Double-registration of dockable panes, external events, and IUpdaters
+    - Race conditions and doubled memory usage
+    - Crashes on startup or when clicking buttons
+
+  Recommended: Use per-user (%AppData%) location ONLY.
+  Also remove any legacy pyRevit extensions that duplicate StingTools functionality:
+    - pyRevit_*_StingDocs.dll
+    - pyRevit_*_STINGTags.dll
+    - pyRevit_*_STINGTemp.dll
+-->
 <RevitAddIns>
   <AddIn Type="Application">
     <Name>STING Tools</Name>

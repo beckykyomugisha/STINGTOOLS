@@ -178,7 +178,7 @@ namespace StingTools.Core
         {
             try
             {
-                DockablePane pane = commandData.Application
+                DockablePane pane = ParameterHelpers.GetApp(commandData)
                     .GetDockablePane(StingDockPanelProvider.PaneId);
 
                 if (pane == null)

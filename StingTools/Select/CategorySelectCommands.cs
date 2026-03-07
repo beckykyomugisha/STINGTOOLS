@@ -19,7 +19,7 @@ namespace StingTools.Select
         public static Result SelectByCategory(ExternalCommandData commandData,
             BuiltInCategory bic, string label)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
@@ -144,7 +144,7 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);

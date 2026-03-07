@@ -23,9 +23,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var uiApp = ParameterHelpers.GetApp(commandData);
+            Document doc = uiApp.ActiveUIDocument.Document;
             Autodesk.Revit.ApplicationServices.Application app =
-                commandData.Application.Application;
+                uiApp.Application;
 
             string spFile = app.SharedParametersFilename;
             if (string.IsNullOrEmpty(spFile) || !File.Exists(spFile))

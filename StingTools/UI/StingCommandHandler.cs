@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
@@ -21,24 +19,49 @@ namespace StingTools.UI
     /// </summary>
     public class StingCommandHandler : IExternalEventHandler
     {
+        private readonly object _lock = new object();
         private string _commandTag = "";
         private string _param1 = "";
         private string _param2 = "";
 
         public void SetCommand(string tag, string param1 = "", string param2 = "")
         {
-            _commandTag = tag ?? "";
-            _param1 = param1 ?? "";
-            _param2 = param2 ?? "";
+            lock (_lock)
+            {
+                _commandTag = tag ?? "";
+                _param1 = param1 ?? "";
+                _param2 = param2 ?? "";
+            }
         }
 
         public string GetName() => "STING Command Dispatcher";
 
         public void Execute(UIApplication app)
         {
+            // Store current UIApplication so commands can access it via
+            // StingCommandHandler.CurrentApp when ExternalCommandData is null
+            CurrentApp = app;
+
+            // Snapshot command state under lock to prevent race with WPF UI thread
+            string tag, p1, p2;
+            lock (_lock)
+            {
+                tag = _commandTag;
+                p1 = _param1;
+                p2 = _param2;
+            }
+
+            // Guard: most commands require an open document
+            if (app.ActiveUIDocument == null)
+            {
+                TaskDialog.Show("STING Tools",
+                    "No document is open. Please open a Revit project first.");
+                return;
+            }
+
             try
             {
-                switch (_commandTag)
+                switch (tag)
                 {
                     // ════════════════════════════════════════════════════════
                     // SELECT TAB
@@ -110,9 +133,9 @@ namespace StingTools.UI
                     case "QuickSystem": QuickParamFilter(app, ParamRegistry.SYS); break;
 
                     // ── Bulk write from panel (inline) ──
-                    case "BulkWrite": BulkParamWriteInline(app, _param1, _param2, false); break;
-                    case "BulkClear": BulkParamWriteInline(app, _param1, "", true); break;
-                    case "BulkPreview": BulkParamPreview(app, _param1, _param2); break;
+                    case "BulkWrite": BulkParamWriteInline(app, p1, p2, false); break;
+                    case "BulkClear": BulkParamWriteInline(app, p1, "", true); break;
+                    case "BulkPreview": BulkParamPreview(app, p1, p2); break;
 
                     // ── Project filters (inline) ──
                     case "FilterWorkset": QuickParamFilter(app, "Workset"); break;
@@ -291,9 +314,9 @@ namespace StingTools.UI
                     case "CreateFiltersFromColors": RunCommand<Select.CreateFiltersFromColorsCommand>(app); break;
 
                     // ── Colouriser inline ──
-                    case "ColorApply": ColorByParameter(app, _param1, _param2); break;
-                    case "ColorApplyHex": ColorByHex(app, _param1); break;
-                    case "ColorApplyTransparency": SetTransparencyOverride(app, _param1); break;
+                    case "ColorApply": ColorByParameter(app, p1, p2); break;
+                    case "ColorApplyHex": ColorByHex(app, p1); break;
+                    case "ColorApplyTransparency": SetTransparencyOverride(app, p1); break;
 
                     // ── Graphic overrides (inline) ──
                     case "HalftoneOn": SetHalftone(app, true); break;
@@ -335,7 +358,7 @@ namespace StingTools.UI
                     case "DocumentationPackage": RunCommand<Docs.DocumentationPackageCommand>(app); break;
                     case "BatchCreateSections": RunCommand<Docs.BatchCreateSectionsCommand>(app); break;
                     case "BatchCreateElevations": RunCommand<Docs.BatchCreateElevationsCommand>(app); break;
-                    case "DrawingRegister": RunCommand<Docs.DrawingRegisterCommand>(app); break;
+                    case "DocsDrawingRegister": RunCommand<Docs.DrawingRegisterCommand>(app); break;
                     case "ProjectBrowserOrganizer": RunCommand<Docs.ProjectBrowserOrganizerCommand>(app); break;
 
                     // ════════════════════════════════════════════════════════
@@ -504,7 +527,7 @@ namespace StingTools.UI
                     case "BulkBrain": BulkBrainSuggest(app); break;
                     case "ParamLookupRefresh":
                     case "RefreshParamList": RefreshParamList(app); break;
-                    case "CondAdd": ConditionAdd(app, _param1, _param2); break;
+                    case "CondAdd": ConditionAdd(app, p1, p2); break;
                     case "CondRemove": ConditionRemove(app); break;
                     case "CondClear": ConditionClear(app); break;
                     case "CondPreview": ConditionPreview(app); break;
@@ -584,7 +607,7 @@ namespace StingTools.UI
                     case "ListLinks": ListLinkedModels(app); break;
                     case "SelInLink":
                     case "TagLinked":
-                        StingLog.Info($"LinkedModel: {_commandTag} — requires linked document access");
+                        StingLog.Info($"LinkedModel: {tag} — requires linked document access");
                         TaskDialog.Show("Linked Model", "Select/tag in linked model requires direct linked document access.\nUse Revit's built-in 'Select Links' and 'Tab' key to select linked elements.");
                         break;
                     case "AuditLinks": AuditLinkedModels(app); break;
@@ -712,9 +735,9 @@ namespace StingTools.UI
 
                     // ── Unmapped / placeholder ──
                     default:
-                        StingLog.Warn($"Unrecognised command tag: {_commandTag}");
+                        StingLog.Warn($"Unrecognised command tag: {tag}");
                         TaskDialog.Show("STING Tools",
-                            $"Command '{_commandTag}' is not yet available.\nCheck for plugin updates.");
+                            $"Command '{tag}' is not yet available.\nCheck for plugin updates.");
                         break;
                 }
             }
@@ -724,17 +747,19 @@ namespace StingTools.UI
             }
             catch (Exception ex)
             {
-                StingLog.Error($"DockPanel command '{_commandTag}' failed", ex);
+                StingLog.Error($"DockPanel command '{tag}' failed", ex);
                 TaskDialog.Show("STING Tools", $"Command failed: {ex.Message}");
             }
 
-            // ENH-003: Refresh compliance status bar after any command completes
+            // ENH-003: Update compliance status bar (uses cache — no full rescan)
             try
             {
                 var doc = app.ActiveUIDocument?.Document;
                 if (doc != null)
                 {
-                    ComplianceScan.InvalidateCache();
+                    // Use cached results (30s lifetime) — do NOT invalidate cache
+                    // here, as that forces a full element scan after every button click.
+                    // Cache is already invalidated by tagging commands that modify data.
                     var scan = ComplianceScan.Scan(doc);
                     StingDockPanel.UpdateComplianceStatus(scan.StatusBarText, scan.RAGStatus);
                 }
@@ -742,62 +767,50 @@ namespace StingTools.UI
             catch { /* Non-critical — don't interrupt user */ }
         }
 
+        // ── Current UIApplication (static fallback for panel commands) ──
+
+        /// <summary>
+        /// Current UIApplication reference, set during Execute().
+        /// Commands can use this as a fallback when ExternalCommandData is null.
+        /// </summary>
+        public static UIApplication CurrentApp { get; private set; }
+
         // ── Generic command runner ────────────────────────────────────
 
         private static void RunCommand<T>(UIApplication app) where T : IExternalCommand, new()
         {
-            var cmd = new T();
-            string message = "";
-            var elements = new ElementSet();
-            ExternalCommandData cmdData = CreateCommandData(app);
-            if (cmdData != null)
-            {
-                cmd.Execute(cmdData, ref message, elements);
-            }
-            else
-            {
-                StingLog.Error($"Cannot create ExternalCommandData for {typeof(T).Name}");
-                TaskDialog.Show("STING Tools",
-                    $"Cannot invoke {typeof(T).Name} from panel.\n" +
-                    "Please restart Revit and try again.");
-            }
-        }
-
-        private static ExternalCommandData CreateCommandData(UIApplication app)
-        {
             try
             {
-                var data = (ExternalCommandData)RuntimeHelpers
-                    .GetUninitializedObject(typeof(ExternalCommandData));
+                var cmd = new T();
+                string message = "";
+                var elements = new ElementSet();
 
-                var fields = typeof(ExternalCommandData).GetFields(
-                    BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
-
-                bool appSet = false;
-                foreach (var field in fields)
-                {
-                    if (field.FieldType == typeof(UIApplication))
-                    {
-                        field.SetValue(data, app);
-                        appSet = true;
-                        break;
-                    }
-                }
-
-                if (!appSet)
-                {
-                    var backingField = typeof(ExternalCommandData).GetField(
-                        "<Application>k__BackingField",
-                        BindingFlags.NonPublic | BindingFlags.Instance);
-                    backingField?.SetValue(data, app);
-                }
-
-                return data;
+                // Pass null for ExternalCommandData — commands use
+                // StingCommandHandler.CurrentApp as fallback.
+                // This avoids the fragile RuntimeHelpers.GetUninitializedObject
+                // reflection hack that breaks across Revit versions.
+                cmd.Execute(null, ref message, elements);
+            }
+            catch (NullReferenceException nre)
+            {
+                // Most likely: command accessed commandData.Application without null check.
+                // Log the specific command so we can fix it.
+                StingLog.Error($"RunCommand<{typeof(T).Name}>: NullReferenceException — " +
+                    "command may need commandData null guard. " +
+                    "Use StingCommandHandler.CurrentApp instead.", nre);
+                TaskDialog.Show("STING Tools",
+                    $"{typeof(T).Name}: internal error.\n" +
+                    "Please report this issue.\n\n" + nre.Message);
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            {
+                // User cancelled — silent
             }
             catch (Exception ex)
             {
-                StingLog.Error("CreateCommandData reflection failed", ex);
-                return null;
+                StingLog.Error($"RunCommand<{typeof(T).Name}> failed", ex);
+                TaskDialog.Show("STING Tools",
+                    $"{typeof(T).Name} failed:\n{ex.Message}");
             }
         }
 

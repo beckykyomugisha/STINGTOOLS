@@ -1650,7 +1650,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Pick legend type
@@ -1807,7 +1807,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             var html = new StringBuilder();
             html.AppendLine("<!DOCTYPE html>");
@@ -1944,7 +1944,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Pick which legends to create
@@ -2150,7 +2150,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -2301,7 +2301,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
             View activeView = doc.ActiveView;
 
@@ -2438,7 +2438,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
             View activeView = doc.ActiveView;
 
@@ -2539,7 +2539,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Find Legend views (NOT drafting — only legends can go on multiple sheets)
@@ -2652,7 +2652,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var sheets = new FilteredElementCollector(doc)
@@ -2776,7 +2776,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Pick grouping and scope
@@ -2907,7 +2907,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             View activeView = uidoc.ActiveView;
@@ -2999,7 +2999,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var sheets = new FilteredElementCollector(doc)
@@ -3094,7 +3094,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Find all STING legend views
@@ -3309,7 +3309,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Find all STING legend views
@@ -3427,7 +3427,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var dlg = new TaskDialog("One-Click Legend Pipeline");
@@ -4357,7 +4357,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -4418,7 +4418,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Load presets from JSON
@@ -4542,7 +4542,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Check for seed component
@@ -4674,7 +4674,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             var entries = StingColorRegistry.GetAllAsLegendEntries();
             if (entries.Count == 0)
@@ -4864,7 +4864,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             var staleItems = LegendSyncEngine.AuditStaleLegends(doc);
 
@@ -4947,7 +4947,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             // Count elements by status
             var statusCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -5022,7 +5022,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             if (!doc.IsWorkshared)
             {
@@ -5731,7 +5731,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var dlg = new TaskDialog("MEP System Legend");
@@ -5827,7 +5827,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var entries = LegendIntelligence.BuildMaterialEntries(doc);
@@ -5880,7 +5880,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var entries = LegendIntelligence.BuildCompoundTypeEntries(doc);
@@ -5934,7 +5934,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var entries = LegendIntelligence.BuildEquipmentEntries(doc);
@@ -5987,7 +5987,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var entries = LegendIntelligence.BuildFireRatingEntries(doc);
@@ -6061,7 +6061,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Confirmation dialog
@@ -6651,7 +6651,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -6754,7 +6754,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Find STING templates
@@ -6898,7 +6898,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -6962,7 +6962,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var templates = VGLinkedLegendBuilder.GetStingTemplates(doc);

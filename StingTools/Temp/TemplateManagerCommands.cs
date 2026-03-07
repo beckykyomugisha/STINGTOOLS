@@ -1101,7 +1101,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             var stingTemplates = TemplateManager.GetStingTemplates(doc);
             if (stingTemplates.Count == 0)
@@ -1203,7 +1203,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             var allTemplates = new FilteredElementCollector(doc)
                 .OfClass(typeof(View)).Cast<View>()
@@ -1377,7 +1377,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             var stingTemplates = TemplateManager.GetStingTemplates(doc);
             if (stingTemplates.Count < 2)
@@ -1451,7 +1451,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
             var views = TemplateManager.GetAssignableViews(doc);
 
             var excellent = new List<string>();
@@ -1530,7 +1530,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             var stingTemplates = TemplateManager.GetStingTemplates(doc);
             if (stingTemplates.Count == 0)
@@ -1643,7 +1643,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             var stingTemplates = TemplateManager.GetStingTemplates(doc);
             if (stingTemplates.Count == 0)
@@ -1717,7 +1717,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             var existing = new HashSet<string>(
                 new FilteredElementCollector(doc)
@@ -1783,7 +1783,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             Category linesCat;
             try { linesCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines); }
@@ -1846,7 +1846,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             // Load from CSV (62 rows in v2.8), fall back to hardcoded (40)
             var csvStyles = TemplateManager.LoadObjectStylesFromCsv();
@@ -1898,7 +1898,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             TextNoteType baseType = new FilteredElementCollector(doc)
                 .OfClass(typeof(TextNoteType)).Cast<TextNoteType>().FirstOrDefault();
@@ -1964,7 +1964,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             DimensionType baseType = new FilteredElementCollector(doc)
                 .OfClass(typeof(DimensionType)).Cast<DimensionType>()
@@ -2073,7 +2073,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Determine target views
@@ -2415,7 +2415,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             // Load the shared parameter file
             string spfPath = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
@@ -2440,8 +2440,8 @@ namespace StingTools.Temp
             DefinitionFile defFile;
             try
             {
-                commandData.Application.Application.SharedParametersFilename = spfPath;
-                defFile = commandData.Application.Application.OpenSharedParameterFile();
+                ParameterHelpers.GetApp(commandData).Application.SharedParametersFilename = spfPath;
+                defFile = ParameterHelpers.GetApp(commandData).Application.OpenSharedParameterFile();
                 if (defFile == null)
                 {
                     TaskDialog.Show("Batch Add Family Params",
@@ -2514,7 +2514,7 @@ namespace StingTools.Temp
                     paramsProcessed++;
 
                     // Build category set for this parameter
-                    CategorySet catSet = commandData.Application.Application.Create.NewCategorySet();
+                    CategorySet catSet = ParameterHelpers.GetApp(commandData).Application.Create.NewCategorySet();
                     string bindingType = "Type"; // default
 
                     foreach (var entry in paramGroup)
@@ -2566,10 +2566,10 @@ namespace StingTools.Temp
                     {
                         ElementBinding binding;
                         if (bindingType.Equals("Instance", StringComparison.OrdinalIgnoreCase))
-                            binding = commandData.Application.Application.Create
+                            binding = ParameterHelpers.GetApp(commandData).Application.Create
                                 .NewInstanceBinding(catSet);
                         else
-                            binding = commandData.Application.Application.Create
+                            binding = ParameterHelpers.GetApp(commandData).Application.Create
                                 .NewTypeBinding(catSet);
 
                         bool success = bmap.Insert(extDef, binding,
@@ -2643,7 +2643,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
             if (string.IsNullOrEmpty(csvPath))
@@ -2798,7 +2798,7 @@ namespace StingTools.Temp
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
             StingLog.Info("Template Setup Wizard: starting 15-step automation");
             var report = new StringBuilder();
             report.AppendLine("STING Template Setup Wizard Results");
@@ -2989,7 +2989,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             // Collect all view templates
             var allTemplates = new FilteredElementCollector(doc)
@@ -3247,7 +3247,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             // Mode selection
             TaskDialog modeDlg = new TaskDialog("Batch VG Reset");

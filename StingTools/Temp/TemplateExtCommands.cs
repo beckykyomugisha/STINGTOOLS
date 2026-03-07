@@ -40,7 +40,7 @@ namespace StingTools.Temp
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             var existing = new HashSet<string>(
                 new FilteredElementCollector(doc)
@@ -109,7 +109,7 @@ namespace StingTools.Temp
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             var existingPhases = new HashSet<string>(
                 new FilteredElementCollector(doc)
@@ -148,7 +148,7 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             // Get all STING filters
             var filters = new FilteredElementCollector(doc)
@@ -215,7 +215,7 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
             return CompoundTypeCreator.CreateTypes(doc, "Cable Trays",
                 "MEP_MATERIALS.csv",
                 new[] { "E-TRY" },
@@ -230,7 +230,7 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
             return CompoundTypeCreator.CreateTypes(doc, "Conduits",
                 "MEP_MATERIALS.csv",
                 new[] { "E-CDT" },
@@ -245,7 +245,7 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             string[] categories = new[]
             {

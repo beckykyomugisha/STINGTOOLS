@@ -37,7 +37,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIApplication uiApp = commandData.Application;
+            UIApplication uiApp = ParameterHelpers.GetApp(commandData);
             UIDocument uidoc = uiApp.ActiveUIDocument;
             Document doc = uidoc.Document;
 

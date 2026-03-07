@@ -214,7 +214,7 @@ namespace StingTools.Core
         public static Result ExecutePreset(WorkflowPreset preset,
             ExternalCommandData commandData, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
             StingLog.Info($"Workflow '{preset.Name}': starting {preset.Steps.Count} steps");
 
             var report = new StringBuilder();

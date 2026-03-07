@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Autodesk.Revit.UI;
 
 namespace StingTools.UI
@@ -11,6 +12,13 @@ namespace StingTools.UI
     /// Code-behind for the STING Tools dockable panel.
     /// Unified 6-tab layout: SELECT, ORGANISE, DOCS, TEMP, CREATE, VIEW.
     /// All button clicks dispatched via IExternalEventHandler for thread safety.
+    ///
+    /// CRASH FIX: Implements lazy tab content loading to prevent WPF stack overflow.
+    /// The full visual tree (493 buttons, 652 StaticResources) would exhaust the
+    /// 1MB thread stack during the recursive Measure/Arrange layout pass.
+    /// Solution: detach non-active tab content immediately after InitializeComponent(),
+    /// before the first layout pass runs. Content is re-attached on demand when
+    /// the user selects a tab.
     /// </summary>
     public partial class StingDockPanel : Page
     {
@@ -22,11 +30,67 @@ namespace StingTools.UI
         private static readonly Dictionary<string, List<int>> SelectionMemory =
             new Dictionary<string, List<int>>();
 
+        // ── Lazy tab loading state ────────────────────────────────────
+        // Stores detached tab content keyed by tab index.
+        // Content is re-attached on first tab selection.
+        private readonly Dictionary<int, object> _deferredTabContent =
+            new Dictionary<int, object>();
+        private bool _tabLoadingInitialized;
+
         public StingDockPanel()
         {
             InitializeComponent();
+
+            // CRASH FIX: Immediately after XAML parsing, detach content from all
+            // non-active tabs BEFORE the first WPF layout pass (Measure/Arrange).
+            // This prevents the stack overflow caused by laying out 493 buttons
+            // in deeply nested panels all at once.
+            DeferNonActiveTabContent();
+
             BuildColorSwatches();
             _instance = this;
+        }
+
+        /// <summary>
+        /// Detach content from all non-active tabs to prevent stack overflow
+        /// during the initial WPF layout pass. Content is re-attached lazily
+        /// when the user selects each tab for the first time.
+        /// </summary>
+        private void DeferNonActiveTabContent()
+        {
+            if (tabMain == null) return;
+
+            int activeIndex = tabMain.SelectedIndex;
+            if (activeIndex < 0) activeIndex = 0;
+
+            for (int i = 0; i < tabMain.Items.Count; i++)
+            {
+                if (i == activeIndex) continue; // Keep the active tab loaded
+
+                if (tabMain.Items[i] is TabItem tab && tab.Content != null)
+                {
+                    _deferredTabContent[i] = tab.Content;
+                    tab.Content = CreateLoadingPlaceholder();
+                }
+            }
+
+            _tabLoadingInitialized = true;
+            Core.StingLog.Info($"DeferNonActiveTabContent: deferred {_deferredTabContent.Count} tabs, " +
+                $"active tab={activeIndex}");
+        }
+
+        /// <summary>Create a lightweight placeholder shown while tab content loads.</summary>
+        private static UIElement CreateLoadingPlaceholder()
+        {
+            return new TextBlock
+            {
+                Text = "Loading...",
+                FontSize = 12,
+                Foreground = Brushes.Gray,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 20, 0, 0)
+            };
         }
 
         /// <summary>Initialise the external event handler — called once from OnStartup.</summary>
@@ -61,7 +125,28 @@ namespace StingTools.UI
 
         private void TabMain_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Update status on tab change
+            if (!_tabLoadingInitialized) return;
+            if (tabMain == null) return;
+
+            int idx = tabMain.SelectedIndex;
+            if (idx < 0) return;
+
+            // Lazy-load deferred tab content on first selection
+            if (_deferredTabContent.TryGetValue(idx, out object content))
+            {
+                _deferredTabContent.Remove(idx);
+
+                if (tabMain.Items[idx] is TabItem tab)
+                {
+                    // Use Dispatcher.BeginInvoke to load content AFTER the tab
+                    // switch animation completes, preventing layout stutter
+                    Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+                    {
+                        tab.Content = content;
+                        Core.StingLog.Info($"Tab {idx} content loaded (lazy)");
+                    }));
+                }
+            }
         }
 
         // ── Bulk Parameter Write ──────────────────────────────────────
@@ -120,7 +205,7 @@ namespace StingTools.UI
                     Tag = hex,
                     ToolTip = hex
                 };
-                swatch.MouseLeftButtonDown += (s, e) =>
+                swatch.MouseLeftButtonDown += (s, ev) =>
                 {
                     if (s is Border b && b.Tag is string h)
                     {
@@ -151,7 +236,7 @@ namespace StingTools.UI
                     Tag = hex,
                     ToolTip = hex
                 };
-                swatch.MouseLeftButtonDown += (s, e) =>
+                swatch.MouseLeftButtonDown += (s, ev) =>
                 {
                     if (s is Border b && b.Tag is string h)
                     {

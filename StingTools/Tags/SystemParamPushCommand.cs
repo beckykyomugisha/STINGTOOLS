@@ -505,7 +505,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Get selected elements or prompt to select
@@ -670,7 +670,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Discover all MEP systems in the project
@@ -825,7 +825,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var selection = uidoc.Selection.GetElementIds();
