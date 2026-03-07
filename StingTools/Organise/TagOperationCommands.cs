@@ -492,11 +492,13 @@ namespace StingTools.Organise
                                 disc, loc, zone, lvl, sys, func, prod);
                             int incSeq = seq + 1;
                             string incTag;
+                            int safetyLimit = 10000;
                             do
                             {
                                 string incSeqStr = incSeq.ToString().PadLeft(ParamRegistry.NumPad, '0');
                                 incTag = groupKey + ParamRegistry.Separator + incSeqStr;
                                 incSeq++;
+                                if (--safetyLimit <= 0) { StingLog.Warn("Renumber: safety limit reached resolving collision"); break; }
                             }
                             while (existingTagIndex.Contains(incTag) || newTags.Contains(incTag));
 
