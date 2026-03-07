@@ -847,6 +847,20 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- FM / O&M HANDOVER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="🏗 FM / O&amp;M HANDOVER"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Export" Tag="COBieExport" Click="Cmd_Click" ToolTip="Export COBie-lite asset data (7 sheets: Facility, Floor, Space, Type, Component, System, Zone)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Maint Schedule" Tag="MaintenanceSchedule" Click="Cmd_Click" ToolTip="Export planned preventive maintenance schedule with frequencies and priorities"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="O&amp;M Manual" Tag="OMManual" Click="Cmd_Click" ToolTip="Export Operations &amp; Maintenance manual organized by discipline and system"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Asset Health" Tag="AssetHealth" Click="Cmd_Click" ToolTip="Export asset health scores (0-100) with risk levels and recommendations"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Space Handover" Tag="SpaceHandover" Click="Cmd_Click" ToolTip="Export space/room handover report with asset counts and density"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- SCHEDULE TOOLS (incl column width sync) -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="📊 SCHEDULE TOOLS"/>
                         <Border Style="{StaticResource GroupBorder}">

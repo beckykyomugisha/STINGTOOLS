@@ -369,6 +369,13 @@ namespace StingTools.UI
                     case "ProjectBrowserOrganizer": RunCommand<Docs.ProjectBrowserOrganizerCommand>(app); break;
                     case "JournalParser": RunCommand<Docs.JournalParserCommand>(app); break;
 
+                    // ── FM / O&M Handover Exports ──
+                    case "COBieExport": RunCommand<Docs.COBieExportCommand>(app); break;
+                    case "MaintenanceSchedule": RunCommand<Docs.MaintenanceScheduleExportCommand>(app); break;
+                    case "OMManual": RunCommand<Docs.OAndMManualExportCommand>(app); break;
+                    case "AssetHealth": RunCommand<Docs.AssetHealthReportCommand>(app); break;
+                    case "SpaceHandover": RunCommand<Docs.SpaceHandoverReportCommand>(app); break;
+
                     // ════════════════════════════════════════════════════════
                     // TEMP TAB
                     // ════════════════════════════════════════════════════════
