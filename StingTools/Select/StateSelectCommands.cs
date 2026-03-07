@@ -19,7 +19,7 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = cmd.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
@@ -45,7 +45,7 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = cmd.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
@@ -71,7 +71,7 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = cmd.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
@@ -96,7 +96,7 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = cmd.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
@@ -115,7 +115,7 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = cmd.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
@@ -140,7 +140,7 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = cmd.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -244,7 +244,7 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = cmd.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var selected = uidoc.Selection.GetElementIds();
@@ -351,7 +351,7 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = cmd.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var selected = uidoc.Selection.GetElementIds();

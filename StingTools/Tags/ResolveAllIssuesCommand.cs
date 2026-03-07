@@ -33,7 +33,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Phase 1: Scan all elements and classify issues

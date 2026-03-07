@@ -39,7 +39,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = commandData.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Load presentation modes from LABEL_DEFINITIONS.json

@@ -27,7 +27,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             var schedules = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSchedule))
@@ -208,7 +208,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             var schedules = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSchedule))
@@ -356,7 +356,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             // Source = active schedule or user picks
             ViewSchedule source = doc.ActiveView as ViewSchedule;
@@ -417,7 +417,7 @@ namespace StingTools.Temp
                     $"Sort/Group: {clone.Definition.GetSortGroupFieldCount()}");
 
                 // Open the new schedule
-                commandData.Application.ActiveUIDocument.ActiveView = clone;
+                commandData.SafeApp().ActiveUIDocument.ActiveView = clone;
             }
 
             return Result.Succeeded;
@@ -436,7 +436,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             // Load CSV definitions
             var csvDefs = ScheduleAuditHelper.LoadScheduleDefinitions();
@@ -648,7 +648,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             if (!(doc.ActiveView is ViewSchedule sched))
             {
@@ -931,7 +931,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             // Scope: active schedule or all
             TaskDialog scopeDlg = new TaskDialog("Schedule Colors");
@@ -1161,7 +1161,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             // If active view is a schedule, show detailed stats for it
             if (doc.ActiveView is ViewSchedule sched)
@@ -1305,7 +1305,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             var schedules = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSchedule))
@@ -1424,7 +1424,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             var schedules = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSchedule))

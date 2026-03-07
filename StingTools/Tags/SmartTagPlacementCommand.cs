@@ -924,7 +924,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = commandData.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1095,7 +1095,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = commandData.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1244,7 +1244,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = commandData.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1311,7 +1311,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             var views = new FilteredElementCollector(doc)
                 .OfClass(typeof(View)).Cast<View>()
@@ -1404,7 +1404,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
             View view = doc.ActiveView;
 
             var tags = new FilteredElementCollector(doc, view.Id)
@@ -1454,7 +1454,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
             View view = doc.ActiveView;
 
             if (view is ViewSheet)
@@ -1528,7 +1528,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = commandData.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1680,7 +1680,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIApplication uiApp = commandData.Application;
+            UIApplication uiApp = commandData.SafeApp();
             UIDocument uidoc = uiApp.ActiveUIDocument;
             Document doc = uidoc.Document;
 
@@ -1882,7 +1882,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             // Pick line weight (pen number 1-16)
             TaskDialog dlg = new TaskDialog("Set Tag Category Line Weight");

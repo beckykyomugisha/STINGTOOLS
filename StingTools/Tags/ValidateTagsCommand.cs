@@ -42,7 +42,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             var collector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType();

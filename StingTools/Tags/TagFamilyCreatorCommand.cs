@@ -426,7 +426,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIApplication uiApp = commandData.Application;
+            UIApplication uiApp = commandData.SafeApp();
             UIDocument uidoc = uiApp.ActiveUIDocument;
             Document doc = uidoc.Document;
             var app = uiApp.Application;
@@ -936,7 +936,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             string tagFamilyDir = TagFamilyConfig.GetOutputDirectory();
             if (!Directory.Exists(tagFamilyDir))
@@ -1047,7 +1047,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIApplication uiApp = commandData.Application;
+            UIApplication uiApp = commandData.SafeApp();
             Document doc = uiApp.ActiveUIDocument.Document;
 
             // Find all loaded STING tag families
@@ -1207,7 +1207,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             // Collect all loaded families
             var loadedFamilies = new Dictionary<string, Family>(StringComparer.OrdinalIgnoreCase);

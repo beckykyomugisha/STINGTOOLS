@@ -25,7 +25,7 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = commandData.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
             View sourceView = doc.ActiveView;
 
@@ -133,7 +133,7 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             var views = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
@@ -299,7 +299,7 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = commandData.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
             View source = doc.ActiveView;
 
@@ -441,7 +441,7 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = commandData.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
             View activeView = doc.ActiveView;
 
@@ -586,7 +586,7 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = commandData.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -710,7 +710,7 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))

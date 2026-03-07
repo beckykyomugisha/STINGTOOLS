@@ -22,7 +22,7 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = commandData.SafeApp().ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var sheets = new FilteredElementCollector(doc)

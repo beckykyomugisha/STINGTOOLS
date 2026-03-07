@@ -3,6 +3,7 @@ using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using StingTools.Core;
 
 namespace StingTools.Docs
 {
@@ -17,7 +18,7 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
 
             // Check if a sheet index schedule already exists
             var existing = new FilteredElementCollector(doc)
