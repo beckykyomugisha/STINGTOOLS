@@ -39,6 +39,27 @@
     <PackageReference Include="ClosedXML" Version="0.104.2" />
   </ItemGroup>
 
+  <!--
+    Prevent .NET runtime/framework assemblies from being copied to the output directory.
+    ClosedXML's dependency chain (ClosedXML -> DocumentFormat.OpenXml -> System.IO.Packaging
+    -> WindowsBase) pulls in framework DLLs that conflict with Revit's loaded runtime.
+    The OnAssemblyResolve handler in StingToolsApp.cs also filters these, but preventing
+    the copy is the first line of defence against version-conflict crashes.
+    See journal error: "WindowsBase 4.0.0.0 conflicts with preloaded 8.0.0.0"
+  -->
+  <Target Name="RemoveConflictingAssemblies" AfterTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
+        Condition="$([System.String]::new('%(Filename)').StartsWith('System.')) Or
+                   $([System.String]::new('%(Filename)').StartsWith('Microsoft.')) Or
+                   '%(Filename)' == 'WindowsBase' Or
+                   '%(Filename)' == 'PresentationCore' Or
+                   '%(Filename)' == 'PresentationFramework' Or
+                   '%(Filename)' == 'mscorlib' Or
+                   '%(Filename)' == 'netstandard'" />
+    </ItemGroup>
+  </Target>
+
   <!-- Copy data files to output directory alongside the DLL -->
   <ItemGroup>
     <None Include="Data\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="data" />
