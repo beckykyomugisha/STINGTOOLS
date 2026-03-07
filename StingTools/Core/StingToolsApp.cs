@@ -34,6 +34,16 @@ namespace StingTools.Core
                 // features that use ClosedXML will throw FileNotFoundException.
                 AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
 
+                // Issue #19: Log unhandled exceptions that crash Revit.
+                // These bypass normal try-catch (StackOverflow, AccessViolation, etc.)
+                AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+                {
+                    if (e.ExceptionObject is Exception ex)
+                        StingLog.Error($"FATAL UNHANDLED: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                    else
+                        StingLog.Error($"FATAL UNHANDLED: {e.ExceptionObject}");
+                };
+
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
 
