@@ -103,6 +103,22 @@ namespace StingTools.Temp
             int failed = 0;
             var totalSw = Stopwatch.StartNew();
 
+            // ════════════════════════════════════════════════════
+            // PRE-GROUP: Units change triggers massive Revit-internal regeneration
+            // (ElementsGraphicCacheUpdater, DOPT processing). Running this INSIDE
+            // a TransactionGroup causes Revit to crash during deferred DOPT.
+            // Execute it as a standalone transaction BEFORE the group starts.
+            // ════════════════════════════════════════════════════
+            report.AppendLine("\n── Pre-flight ──");
+            passed += RunStep(ref stepNum, report,
+                $"Set Display Units ({data.UnitSystem})",
+                () => SetProjectUnits(doc, data.UnitSystem));
+
+            // Set Project Information also standalone — it writes to ProjectInfo
+            // which triggers internal reprocessing that conflicts with groups
+            passed += RunStep(ref stepNum, report, "Set Project Information",
+                () => SetProjectInformation(doc, data));
+
             using (TransactionGroup tg = new TransactionGroup(doc, "STING Project Setup"))
             {
                 tg.Start();
@@ -111,15 +127,6 @@ namespace StingTools.Temp
                 // PHASE 1: FOUNDATION
                 // ════════════════════════════════════════════════════
                 report.AppendLine("\n── Phase 1: Foundation ──");
-
-                // Step: Set Display Units
-                passed += RunStep(ref stepNum, report,
-                    $"Set Display Units ({data.UnitSystem})",
-                    () => SetProjectUnits(doc, data.UnitSystem));
-
-                // Step: Set Project Information
-                passed += RunStep(ref stepNum, report, "Set Project Information",
-                    () => SetProjectInformation(doc, data));
 
                 // Step: Create/Update Levels
                 passed += RunStep(ref stepNum, report,
