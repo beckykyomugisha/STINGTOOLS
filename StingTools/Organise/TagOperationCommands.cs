@@ -17,7 +17,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var selected = uidoc.Selection.GetElementIds();
@@ -124,7 +124,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var selected = uidoc.Selection.GetElementIds();
@@ -195,7 +195,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
@@ -350,7 +350,7 @@ namespace StingTools.Organise
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var selected = uidoc.Selection.GetElementIds();
@@ -413,7 +413,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var selected = uidoc.Selection.GetElementIds();
@@ -549,7 +549,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(cmd).ActiveUIDocument.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             var sb = new StringBuilder();
@@ -612,7 +612,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
@@ -670,7 +670,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
@@ -802,7 +802,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(cmd).ActiveUIDocument.Document;
             View view = doc.ActiveView;
 
             var reset = new OverrideGraphicSettings();
@@ -844,7 +844,7 @@ namespace StingTools.Organise
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var selected = uidoc.Selection.GetElementIds().ToList();
@@ -949,7 +949,7 @@ namespace StingTools.Organise
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var selected = uidoc.Selection.GetElementIds().ToList();
@@ -1020,7 +1020,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Count elements per discipline
@@ -1350,7 +1350,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1438,7 +1438,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1516,7 +1516,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1593,7 +1593,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1700,7 +1700,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1748,7 +1748,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1848,7 +1848,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -2000,7 +2000,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -2131,7 +2131,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -2214,7 +2214,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -2371,7 +2371,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -2486,7 +2486,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(cmd).ActiveUIDocument.Document;
             View view = doc.ActiveView;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
@@ -2580,7 +2580,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Define ALL columns for the register
@@ -2868,7 +2868,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -2915,7 +2915,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -2963,7 +2963,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -3021,7 +3021,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetSelectedTags(uidoc);
@@ -3156,7 +3156,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -3217,7 +3217,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -3265,7 +3265,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -3499,7 +3499,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc)
@@ -3660,7 +3660,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -3700,7 +3700,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -3791,7 +3791,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Get selected text notes and tags
@@ -3915,7 +3915,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -3995,7 +3995,7 @@ namespace StingTools.Organise
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetSelectedTags(uidoc);
@@ -4101,7 +4101,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc)
@@ -4179,7 +4179,7 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc.Document;
 
             // Scan all taggable elements

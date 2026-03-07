@@ -20,7 +20,7 @@ namespace StingTools.Tags
         public static Result WriteToken(ExternalCommandData cmd, string paramName,
             string label, string[] options)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             // Build target set: selected elements or all taggable in view
@@ -188,7 +188,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
@@ -269,7 +269,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
             Document doc = uidoc.Document;
 
             var targetIds = uidoc.Selection.GetElementIds();
@@ -474,7 +474,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(cmd).ActiveUIDocument.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             var stats = new Dictionary<string, (int total, int valid, int resolved, int incomplete, int missing)>();

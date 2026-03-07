@@ -29,7 +29,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             string dataPath = StingToolsApp.DataPath;
             if (string.IsNullOrEmpty(dataPath) || !Directory.Exists(dataPath))
@@ -567,7 +567,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             string bindingsPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
             if (bindingsPath == null)
@@ -1027,7 +1027,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             StingLog.Info("BOQ Export starting...");
@@ -1888,7 +1888,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             var report = new StringBuilder();
@@ -2098,7 +2098,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument?.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             // Load IFC mapping from PARAMETER_REGISTRY.json
@@ -2212,7 +2212,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument?.Document;
+            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             // Load BEP from data directory
@@ -2351,7 +2351,7 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             // Define clash groups: MEP vs Structure
             var mepCats = new List<BuiltInCategory>
@@ -2589,7 +2589,7 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             if (string.IsNullOrEmpty(doc.PathName))
             {
@@ -2734,7 +2734,7 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             // Find Excel files in the project directory
             string projectDir = !string.IsNullOrEmpty(doc.PathName)
@@ -2899,7 +2899,7 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
             string outputDir = !string.IsNullOrEmpty(doc.PathName)
                 ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()

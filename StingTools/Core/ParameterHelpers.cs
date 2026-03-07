@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.UI;
 
 namespace StingTools.Core
 {
@@ -12,6 +13,30 @@ namespace StingTools.Core
     /// </summary>
     public static class ParameterHelpers
     {
+        /// <summary>
+        /// Get UIApplication from ExternalCommandData with null-safe fallback to
+        /// StingCommandHandler.CurrentApp. Use this at the top of every command:
+        ///   UIApplication uiApp = ParameterHelpers.GetApp(commandData);
+        ///   UIDocument uidoc = uiApp.ActiveUIDocument;
+        ///   Document doc = uidoc.Document;
+        /// </summary>
+        public static UIApplication GetApp(ExternalCommandData commandData)
+        {
+            if (commandData?.Application != null)
+                return commandData.Application;
+
+            // Fallback: when invoked from dockable panel via IExternalEventHandler,
+            // ExternalCommandData is null. Use the static UIApplication reference
+            // set by StingCommandHandler.Execute().
+            var app = UI.StingCommandHandler.CurrentApp;
+            if (app != null)
+                return app;
+
+            throw new InvalidOperationException(
+                "No UIApplication available. Command must be invoked from " +
+                "Revit ribbon or the STING dockable panel.");
+        }
+
         // Parameter lookup cache: avoids O(n) LookupParameter on every call.
         // Keyed by (ElementId typeId, string paramName) → Definition.
         // Null values are cached to avoid repeated miss lookups.

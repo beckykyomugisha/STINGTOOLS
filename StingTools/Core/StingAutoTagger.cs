@@ -113,19 +113,38 @@ namespace StingTools.Core
         /// <summary>
         /// Called by Revit when elements are added to tagged categories.
         /// Auto-populates tokens and builds ISO 19650 tag.
+        ///
+        /// CRASH FIX: Wrapped in defensive guards to prevent Revit crash:
+        /// - Element count limit per trigger (max 50 elements)
+        /// - Null/disposed element checks
+        /// - Full exception isolation (IUpdater exceptions crash Revit)
+        /// - Automatic disable on repeated failures
         /// </summary>
+        private static int _consecutiveFailures;
+        private const int MaxFailuresBeforeAutoDisable = 3;
+        private const int MaxElementsPerTrigger = 50;
+
         public void Execute(UpdaterData data)
         {
             if (!_enabled) return;
 
-            Document doc = data.GetDocument();
-            if (doc == null) return;
-
-            var addedIds = data.GetAddedElementIds();
-            if (addedIds == null || addedIds.Count == 0) return;
-
             try
             {
+                Document doc = data.GetDocument();
+                if (doc == null || !doc.IsValidObject) return;
+
+                var addedIds = data.GetAddedElementIds();
+                if (addedIds == null || addedIds.Count == 0) return;
+
+                // Guard: limit elements per trigger to prevent performance issues
+                // during large paste/import operations
+                if (addedIds.Count > MaxElementsPerTrigger)
+                {
+                    StingLog.Info($"StingAutoTagger: skipping batch of {addedIds.Count} elements " +
+                        $"(exceeds limit of {MaxElementsPerTrigger})");
+                    return;
+                }
+
                 // Build context once for the batch
                 var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
                 var existingTags = TagConfig.BuildExistingTagIndex(doc);
@@ -137,7 +156,7 @@ namespace StingTools.Core
                     if (_recentlyProcessed.Contains(id.Value)) continue;
 
                     Element el = doc.GetElement(id);
-                    if (el == null) continue;
+                    if (el == null || !el.IsValidObject) continue;
 
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(catName)) continue;
@@ -158,10 +177,22 @@ namespace StingTools.Core
                 // Trim processed cache to prevent unbounded growth
                 if (_recentlyProcessed.Count > 10000)
                     _recentlyProcessed.Clear();
+
+                // Reset failure counter on success
+                _consecutiveFailures = 0;
             }
             catch (Exception ex)
             {
                 StingLog.Error("StingAutoTagger.Execute", ex);
+                _consecutiveFailures++;
+
+                // Auto-disable after repeated failures to prevent Revit instability
+                if (_consecutiveFailures >= MaxFailuresBeforeAutoDisable)
+                {
+                    StingLog.Error($"StingAutoTagger: auto-disabling after {_consecutiveFailures} " +
+                        "consecutive failures to prevent Revit instability");
+                    try { Toggle(); } catch { _enabled = false; }
+                }
             }
         }
 

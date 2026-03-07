@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
@@ -36,6 +34,10 @@ namespace StingTools.UI
 
         public void Execute(UIApplication app)
         {
+            // Store current UIApplication so commands can access it via
+            // StingCommandHandler.CurrentApp when ExternalCommandData is null
+            CurrentApp = app;
+
             try
             {
                 switch (_commandTag)
@@ -728,13 +730,15 @@ namespace StingTools.UI
                 TaskDialog.Show("STING Tools", $"Command failed: {ex.Message}");
             }
 
-            // ENH-003: Refresh compliance status bar after any command completes
+            // ENH-003: Update compliance status bar (uses cache — no full rescan)
             try
             {
                 var doc = app.ActiveUIDocument?.Document;
                 if (doc != null)
                 {
-                    ComplianceScan.InvalidateCache();
+                    // Use cached results (30s lifetime) — do NOT invalidate cache
+                    // here, as that forces a full element scan after every button click.
+                    // Cache is already invalidated by tagging commands that modify data.
                     var scan = ComplianceScan.Scan(doc);
                     StingDockPanel.UpdateComplianceStatus(scan.StatusBarText, scan.RAGStatus);
                 }
@@ -742,62 +746,50 @@ namespace StingTools.UI
             catch { /* Non-critical — don't interrupt user */ }
         }
 
+        // ── Current UIApplication (static fallback for panel commands) ──
+
+        /// <summary>
+        /// Current UIApplication reference, set during Execute().
+        /// Commands can use this as a fallback when ExternalCommandData is null.
+        /// </summary>
+        public static UIApplication CurrentApp { get; private set; }
+
         // ── Generic command runner ────────────────────────────────────
 
         private static void RunCommand<T>(UIApplication app) where T : IExternalCommand, new()
         {
-            var cmd = new T();
-            string message = "";
-            var elements = new ElementSet();
-            ExternalCommandData cmdData = CreateCommandData(app);
-            if (cmdData != null)
-            {
-                cmd.Execute(cmdData, ref message, elements);
-            }
-            else
-            {
-                StingLog.Error($"Cannot create ExternalCommandData for {typeof(T).Name}");
-                TaskDialog.Show("STING Tools",
-                    $"Cannot invoke {typeof(T).Name} from panel.\n" +
-                    "Please restart Revit and try again.");
-            }
-        }
-
-        private static ExternalCommandData CreateCommandData(UIApplication app)
-        {
             try
             {
-                var data = (ExternalCommandData)RuntimeHelpers
-                    .GetUninitializedObject(typeof(ExternalCommandData));
+                var cmd = new T();
+                string message = "";
+                var elements = new ElementSet();
 
-                var fields = typeof(ExternalCommandData).GetFields(
-                    BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
-
-                bool appSet = false;
-                foreach (var field in fields)
-                {
-                    if (field.FieldType == typeof(UIApplication))
-                    {
-                        field.SetValue(data, app);
-                        appSet = true;
-                        break;
-                    }
-                }
-
-                if (!appSet)
-                {
-                    var backingField = typeof(ExternalCommandData).GetField(
-                        "<Application>k__BackingField",
-                        BindingFlags.NonPublic | BindingFlags.Instance);
-                    backingField?.SetValue(data, app);
-                }
-
-                return data;
+                // Pass null for ExternalCommandData — commands use
+                // StingCommandHandler.CurrentApp as fallback.
+                // This avoids the fragile RuntimeHelpers.GetUninitializedObject
+                // reflection hack that breaks across Revit versions.
+                cmd.Execute(null, ref message, elements);
+            }
+            catch (NullReferenceException nre)
+            {
+                // Most likely: command accessed commandData.Application without null check.
+                // Log the specific command so we can fix it.
+                StingLog.Error($"RunCommand<{typeof(T).Name}>: NullReferenceException — " +
+                    "command may need commandData null guard. " +
+                    "Use StingCommandHandler.CurrentApp instead.", nre);
+                TaskDialog.Show("STING Tools",
+                    $"{typeof(T).Name}: internal error.\n" +
+                    "Please report this issue.\n\n" + nre.Message);
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            {
+                // User cancelled — silent
             }
             catch (Exception ex)
             {
-                StingLog.Error("CreateCommandData reflection failed", ex);
-                return null;
+                StingLog.Error($"RunCommand<{typeof(T).Name}> failed", ex);
+                TaskDialog.Show("STING Tools",
+                    $"{typeof(T).Name} failed:\n{ex.Message}");
             }
         }
 
