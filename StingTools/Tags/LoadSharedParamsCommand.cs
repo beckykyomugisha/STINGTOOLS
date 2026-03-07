@@ -10,16 +10,22 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Ported from shared_params.py LoadSharedParams logic.
     /// Bind shared parameters (universal + discipline-specific) to project categories.
-    /// Pass 1: 17 universal ASS_MNG parameters → all 53 categories (type-safe enum resolution).
-    /// Pass 2: discipline-specific tag containers → correct category subsets
-    ///         using DisciplineBindings map (no longer simplified — full discipline targeting).
+    /// Pass 1: universal ASS_MNG parameters → all 53 categories.
+    /// Pass 2: discipline-specific tag containers → correct category subsets.
+    ///
+    /// IMPORTANT: Parameters are bound in small batches (≤10 per transaction) with
+    /// doc.Regenerate() between batches. Binding many parameters in a single transaction
+    /// causes Revit's native parameter database (ExternalParamDatabase.cpp) to crash
+    /// during internal DOPT processing. Batching avoids this.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class LoadSharedParamsCommand : IExternalCommand
     {
+        /// <summary>Max parameters to bind per transaction before regenerating.</summary>
+        private const int BatchSize = 10;
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -76,7 +82,6 @@ namespace StingTools.Tags
             }
 
             // Pre-index all definitions once — O(n) build, O(1) lookups
-            // instead of scanning all groups × definitions per parameter
             var defIndex = BuildDefinitionIndex(defFile);
             StingLog.Info($"Definition index: {defIndex.Count} definitions loaded");
 
@@ -87,118 +92,143 @@ namespace StingTools.Tags
             var errors = new List<string>();
 
             // ── Pass 1: Universal parameters → all 53 categories ──
+            // Bind in batches to avoid native crash in Revit's parameter database
+            StingLog.Info("Pass 1: starting universal parameter binding");
             try
             {
-                using (Transaction tx = new Transaction(doc, "STING Load Universal Params"))
+                CategorySet allCats = SharedParamGuids.BuildCategorySet(
+                    doc, SharedParamGuids.AllCategoryEnums);
+                StingLog.Info($"Pass 1: {allCats.Size} categories resolved");
+
+                string[] universalParams = SharedParamGuids.UniversalParams;
+                for (int batchStart = 0; batchStart < universalParams.Length; batchStart += BatchSize)
                 {
-                    tx.Start();
+                    int batchEnd = Math.Min(batchStart + BatchSize, universalParams.Length);
+                    StingLog.Info($"Pass 1: binding batch {batchStart + 1}–{batchEnd} of {universalParams.Length}");
 
-                    CategorySet allCats = SharedParamGuids.BuildCategorySet(
-                        doc, SharedParamGuids.AllCategoryEnums);
-                    StingLog.Info($"Pass 1: {allCats.Size} categories resolved");
-
-                    foreach (string paramName in SharedParamGuids.UniversalParams)
+                    using (Transaction tx = new Transaction(doc,
+                        $"STING Load Universal Params ({batchStart + 1}-{batchEnd})"))
                     {
-                        if (!defIndex.TryGetValue(paramName, out ExternalDefinition extDef))
-                        {
-                            pass1Skipped++;
-                            StingLog.Warn($"Pass 1: Definition not found: {paramName}");
-                            continue;
-                        }
+                        tx.Start();
 
-                        try
+                        for (int i = batchStart; i < batchEnd; i++)
                         {
-                            InstanceBinding binding = app.Create.NewInstanceBinding(allCats);
-                            bool result = doc.ParameterBindings.Insert(
-                                extDef, binding, GroupTypeId.General);
-                            if (!result)
+                            string paramName = universalParams[i];
+                            if (!defIndex.TryGetValue(paramName, out ExternalDefinition extDef))
                             {
-                                result = doc.ParameterBindings.ReInsert(
-                                    extDef, binding, GroupTypeId.General);
-                            }
-                            if (result)
-                                pass1Bound++;
-                            else
                                 pass1Skipped++;
-                        }
-                        catch (Exception ex)
-                        {
-                            pass1Skipped++;
-                            errors.Add($"P1 {paramName}: {ex.Message}");
-                            StingLog.Error($"Pass 1 bind failed: {paramName}", ex);
-                        }
-                    }
-
-                    tx.Commit();
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("Pass 1 transaction failed", ex);
-                errors.Add($"Pass 1 transaction: {ex.Message}");
-            }
-
-            // ── Pass 2: Discipline-specific parameters → category subsets ──
-            try
-            {
-                using (Transaction tx = new Transaction(doc, "STING Load Discipline Params"))
-                {
-                    tx.Start();
-
-                    // Use only hardcoded DisciplineBindings — no CSV file I/O
-                    // during the critical binding path. CSV supplement is available
-                    // separately via DynamicBindingsCommand.
-                    foreach (var kvp in SharedParamGuids.DisciplineBindings)
-                    {
-                        string paramName = kvp.Key;
-
-                        if (!defIndex.TryGetValue(paramName, out ExternalDefinition extDef))
-                        {
-                            pass2Skipped++;
-                            StingLog.Warn($"Pass 2: Definition not found: {paramName}");
-                            continue;
-                        }
-
-                        try
-                        {
-                            CategorySet cats = SharedParamGuids.BuildCategorySet(doc, kvp.Value);
-
-                            if (cats.Size == 0)
-                            {
-                                pass2Skipped++;
-                                StingLog.Warn($"Pass 2: No valid categories for {paramName}");
                                 continue;
                             }
 
-                            InstanceBinding binding = app.Create.NewInstanceBinding(cats);
-                            bool result = doc.ParameterBindings.Insert(
-                                extDef, binding, GroupTypeId.General);
-                            if (!result)
+                            try
                             {
-                                result = doc.ParameterBindings.ReInsert(
+                                InstanceBinding binding = app.Create.NewInstanceBinding(allCats);
+                                bool result = doc.ParameterBindings.Insert(
                                     extDef, binding, GroupTypeId.General);
+                                if (!result)
+                                {
+                                    result = doc.ParameterBindings.ReInsert(
+                                        extDef, binding, GroupTypeId.General);
+                                }
+                                if (result)
+                                    pass1Bound++;
+                                else
+                                    pass1Skipped++;
                             }
-                            if (result)
-                                pass2Bound++;
-                            else
-                                pass2Skipped++;
+                            catch (Exception ex)
+                            {
+                                pass1Skipped++;
+                                errors.Add($"P1 {paramName}: {ex.Message}");
+                                StingLog.Error($"Pass 1 bind failed: {paramName}", ex);
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            pass2Skipped++;
-                            errors.Add($"P2 {paramName}: {ex.Message}");
-                            StingLog.Error($"Pass 2 bind failed: {paramName}", ex);
-                        }
+
+                        tx.Commit();
                     }
 
-                    tx.Commit();
+                    // Let Revit process internal state between batches
+                    doc.Regenerate();
                 }
             }
             catch (Exception ex)
             {
-                StingLog.Error("Pass 2 transaction failed", ex);
-                errors.Add($"Pass 2 transaction: {ex.Message}");
+                StingLog.Error("Pass 1 failed", ex);
+                errors.Add($"Pass 1: {ex.Message}");
             }
+
+            StingLog.Info($"Pass 1 complete: {pass1Bound} bound, {pass1Skipped} skipped");
+
+            // ── Pass 2: Discipline-specific parameters → category subsets ──
+            // Also batched to prevent native crashes
+            StingLog.Info("Pass 2: starting discipline parameter binding");
+            try
+            {
+                var disciplineEntries = SharedParamGuids.DisciplineBindings.ToArray();
+                for (int batchStart = 0; batchStart < disciplineEntries.Length; batchStart += BatchSize)
+                {
+                    int batchEnd = Math.Min(batchStart + BatchSize, disciplineEntries.Length);
+                    StingLog.Info($"Pass 2: binding batch {batchStart + 1}–{batchEnd} of {disciplineEntries.Length}");
+
+                    using (Transaction tx = new Transaction(doc,
+                        $"STING Load Discipline Params ({batchStart + 1}-{batchEnd})"))
+                    {
+                        tx.Start();
+
+                        for (int i = batchStart; i < batchEnd; i++)
+                        {
+                            string paramName = disciplineEntries[i].Key;
+                            BuiltInCategory[] catEnums = disciplineEntries[i].Value;
+
+                            if (!defIndex.TryGetValue(paramName, out ExternalDefinition extDef))
+                            {
+                                pass2Skipped++;
+                                continue;
+                            }
+
+                            try
+                            {
+                                CategorySet cats = SharedParamGuids.BuildCategorySet(doc, catEnums);
+                                if (cats.Size == 0)
+                                {
+                                    pass2Skipped++;
+                                    continue;
+                                }
+
+                                InstanceBinding binding = app.Create.NewInstanceBinding(cats);
+                                bool result = doc.ParameterBindings.Insert(
+                                    extDef, binding, GroupTypeId.General);
+                                if (!result)
+                                {
+                                    result = doc.ParameterBindings.ReInsert(
+                                        extDef, binding, GroupTypeId.General);
+                                }
+                                if (result)
+                                    pass2Bound++;
+                                else
+                                    pass2Skipped++;
+                            }
+                            catch (Exception ex)
+                            {
+                                pass2Skipped++;
+                                errors.Add($"P2 {paramName}: {ex.Message}");
+                                StingLog.Error($"Pass 2 bind failed: {paramName}", ex);
+                            }
+                        }
+
+                        tx.Commit();
+                    }
+
+                    // Let Revit process internal state between batches
+                    doc.Regenerate();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Pass 2 failed", ex);
+                errors.Add($"Pass 2: {ex.Message}");
+            }
+
+            StingLog.Info($"Pass 2 complete: {pass2Bound} bound, {pass2Skipped} skipped");
 
             string report = $"Shared parameter binding complete.\n\n" +
                 $"Pass 1 (Universal):   {pass1Bound} bound, {pass1Skipped} skipped\n" +
