@@ -357,8 +357,16 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // Issue #11: Invalid layers (zero thickness, incompatible function) throw ArgumentException
+                    StingLog.Warn($"SetCompoundStructure failed for '{typeName}': {ex.Message}");
+                }
             }
 
             return true;
@@ -381,8 +389,16 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // Issue #11: Invalid layers (zero thickness, incompatible function) throw ArgumentException
+                    StingLog.Warn($"SetCompoundStructure failed for '{typeName}': {ex.Message}");
+                }
             }
 
             return true;
@@ -405,8 +421,16 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // Issue #11: Invalid layers (zero thickness, incompatible function) throw ArgumentException
+                    StingLog.Warn($"SetCompoundStructure failed for '{typeName}': {ex.Message}");
+                }
             }
 
             return true;
@@ -429,8 +453,16 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // Issue #11: Invalid layers (zero thickness, incompatible function) throw ArgumentException
+                    StingLog.Warn($"SetCompoundStructure failed for '{typeName}': {ex.Message}");
+                }
             }
 
             return true;
@@ -445,28 +477,28 @@ namespace StingTools.Temp
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
-                        .FirstOrDefault();
+                        .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 case ElementKind.Pipe:
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
-                        .FirstOrDefault();
+                        .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 case ElementKind.CableTray:
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType))
-                        .FirstOrDefault();
+                        .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 case ElementKind.Conduit:
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType))
-                        .FirstOrDefault();
+                        .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 default:

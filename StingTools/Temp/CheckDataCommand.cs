@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -16,10 +17,38 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class CheckDataCommand : IExternalCommand
+    public class CheckDataCommand : IExternalCommand, Core.IPanelCommand
     {
+        public Result Execute(UIApplication app)
+        {
+            try
+            {
+                return ExecuteCore();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CheckDataCommand crashed", ex);
+                try { TaskDialog.Show("Check Data", $"Error: {ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
+        {
+            try
+            {
+                return ExecuteCore();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CheckDataCommand crashed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteCore()
         {
             string dataDir = StingToolsApp.DataPath;
             if (string.IsNullOrEmpty(dataDir) || !Directory.Exists(dataDir))
@@ -119,7 +148,18 @@ namespace StingTools.Temp
             TaskDialog td = new TaskDialog("Check Data");
             td.MainInstruction = $"{fileCount} data files found" +
                 (integrityIssues > 0 ? $" ({integrityIssues} integrity warning(s))" : "");
-            td.MainContent = report.ToString();
+            // Revit TaskDialog.MainContent can crash if text exceeds ~2000 chars.
+            // Use ExpandedContent for the full report.
+            string reportText = report.ToString();
+            if (reportText.Length > 1500)
+            {
+                td.MainContent = reportText.Substring(0, 1500) + "\n…(truncated — see expanded)";
+                td.ExpandedContent = reportText;
+            }
+            else
+            {
+                td.MainContent = reportText;
+            }
             td.Show();
 
             return Result.Succeeded;

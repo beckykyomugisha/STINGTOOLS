@@ -35,10 +35,39 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class MasterSetupCommand : IExternalCommand
+    public class MasterSetupCommand : IExternalCommand, Core.IPanelCommand
     {
+        public Result Execute(UIApplication app)
+        {
+            try
+            {
+                return ExecuteCore(app);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("MasterSetupCommand crashed", ex);
+                try { TaskDialog.Show("Master Setup", $"Critical error: {ex.GetType().Name}\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
+        {
+            try
+            {
+                UIApplication uiApp = commandData.SafeApp();
+                return ExecuteCore(uiApp);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("MasterSetupCommand crashed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteCore(UIApplication uiApp)
         {
             TaskDialog confirm = new TaskDialog("STING Master Setup");
             confirm.MainInstruction = "Run full project setup?";
@@ -101,7 +130,7 @@ namespace StingTools.Temp
 
                 // Step 1: Load shared parameters (critical — other steps depend on it)
                 passed += RunStep(ref stepNum, report, "Load Shared Parameters",
-                    () => RunCommand(new Tags.LoadSharedParamsCommand(), commandData, elements));
+                    () => RunCommand(new Tags.LoadSharedParamsCommand()));
 
                 // If parameter loading failed, offer rollback
                 if (passed == 0)
@@ -136,49 +165,55 @@ namespace StingTools.Temp
 
                 // Step 2: Create BLE Materials
                 passed += DoStep("Create BLE Materials",
-                    () => RunCommand(new CreateBLEMaterialsCommand(), commandData, elements));
+                    () => RunCommand(new CreateBLEMaterialsCommand()));
 
                 // Step 3: Create MEP Materials
                 passed += DoStep("Create MEP Materials",
-                    () => RunCommand(new CreateMEPMaterialsCommand(), commandData, elements));
+                    () => RunCommand(new CreateMEPMaterialsCommand()));
 
                 // Step 4: Create compound types (Walls, Floors, Ceilings, Roofs)
                 passed += DoStep("Create Wall Types",
-                    () => RunCommand(new CreateWallsCommand(), commandData, elements));
+                    () => RunCommand(new CreateWallsCommand()));
                 passed += DoStep("Create Floor Types",
-                    () => RunCommand(new CreateFloorsCommand(), commandData, elements));
+                    () => RunCommand(new CreateFloorsCommand()));
                 passed += DoStep("Create Ceiling Types",
-                    () => RunCommand(new CreateCeilingsCommand(), commandData, elements));
+                    () => RunCommand(new CreateCeilingsCommand()));
                 passed += DoStep("Create Roof Types",
-                    () => RunCommand(new CreateRoofsCommand(), commandData, elements));
+                    () => RunCommand(new CreateRoofsCommand()));
 
                 // Step 5: Create MEP types (Ducts, Pipes)
                 passed += DoStep("Create Duct Types",
-                    () => RunCommand(new CreateDuctsCommand(), commandData, elements));
+                    () => RunCommand(new CreateDuctsCommand()));
                 passed += DoStep("Create Pipe Types",
-                    () => RunCommand(new CreatePipesCommand(), commandData, elements));
+                    () => RunCommand(new CreatePipesCommand()));
+
+                // Issue #8: Regenerate model after large batch operations to ensure consistency
+                try { doc.Regenerate(); } catch { }
 
                 // Step 6: Batch create schedules
                 passed += DoStep("Batch Create Schedules",
-                    () => RunCommand(new BatchSchedulesCommand(), commandData, elements));
+                    () => RunCommand(new BatchSchedulesCommand()));
 
                 // Step 7: Evaluate formulas (199 dependency-ordered formulas)
                 passed += DoStep("Evaluate Formulas (199 definitions)",
-                    () => RunCommand(new FormulaEvaluatorCommand(), commandData, elements));
+                    () => RunCommand(new FormulaEvaluatorCommand()));
+
+                // Issue #8: Regenerate after schedules + formulas before tagging
+                try { doc.Regenerate(); } catch { }
 
                 // Step 8: Tag & Combine (full pipeline: populate + tag + combine + TAG7 narrative)
                 passed += DoStep("Tag & Combine (full pipeline + TAG7)",
-                    () => RunCommand(new Tags.TagAndCombineCommand(), commandData, elements));
+                    () => RunCommand(new Tags.TagAndCombineCommand()));
 
                 // Step 9: Create view filters
                 passed += DoStep("Create View Filters",
-                    () => RunCommand(new CreateFiltersCommand(), commandData, elements));
+                    () => RunCommand(new CreateFiltersCommand()));
 
                 // Step 10: Create worksets (only if worksharing enabled)
                 if (doc.IsWorkshared)
                 {
                     passed += DoStep("Create Worksets",
-                        () => RunCommand(new CreateWorksetsCommand(), commandData, elements));
+                        () => RunCommand(new CreateWorksetsCommand()));
                 }
                 else if (!userCancelled)
                 {
@@ -188,41 +223,41 @@ namespace StingTools.Temp
 
                 // Step 11: Create view templates
                 passed += DoStep("Create View Templates",
-                    () => RunCommand(new ViewTemplatesCommand(), commandData, elements));
+                    () => RunCommand(new ViewTemplatesCommand()));
 
                 // Step 12: Fill patterns + line styles + object styles
                 passed += DoStep("Create Fill Patterns",
-                    () => RunCommand(new CreateFillPatternsCommand(), commandData, elements));
+                    () => RunCommand(new CreateFillPatternsCommand()));
                 passed += DoStep("Create Line Styles",
-                    () => RunCommand(new CreateLineStylesCommand(), commandData, elements));
+                    () => RunCommand(new CreateLineStylesCommand()));
                 passed += DoStep("Configure Object Styles",
-                    () => RunCommand(new CreateObjectStylesCommand(), commandData, elements));
+                    () => RunCommand(new CreateObjectStylesCommand()));
 
                 // Step 13: Text styles + dimension styles
                 passed += DoStep("Create Text Styles",
-                    () => RunCommand(new CreateTextStylesCommand(), commandData, elements));
+                    () => RunCommand(new CreateTextStylesCommand()));
                 passed += DoStep("Create Dimension Styles",
-                    () => RunCommand(new CreateDimensionStylesCommand(), commandData, elements));
+                    () => RunCommand(new CreateDimensionStylesCommand()));
 
                 // Step 14: Apply filters to templates + VG overrides
                 passed += DoStep("Apply Filters to Templates",
-                    () => RunCommand(new ApplyFiltersToViewsCommand(), commandData, elements));
+                    () => RunCommand(new ApplyFiltersToViewsCommand()));
                 passed += DoStep("Apply VG Overrides (5-layer)",
-                    () => RunCommand(new CreateVGOverridesCommand(), commandData, elements));
+                    () => RunCommand(new CreateVGOverridesCommand()));
 
                 // Step 15: Batch family parameters from CSV
                 passed += DoStep("Batch Family Params (CSV-driven)",
-                    () => RunCommand(new BatchAddFamilyParamsCommand(), commandData, elements));
+                    () => RunCommand(new BatchAddFamilyParamsCommand()));
 
                 // Step 16: Auto-assign templates + auto-fix
                 passed += DoStep("Auto-Assign Templates (5-layer)",
-                    () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
+                    () => RunCommand(new AutoAssignTemplatesCommand()));
                 passed += DoStep("Auto-Fix Template Health",
-                    () => RunCommand(new AutoFixTemplateCommand(), commandData, elements));
+                    () => RunCommand(new AutoFixTemplateCommand()));
 
                 // Step 17: Auto-create legends (discipline, system, filter)
                 passed += DoStep("Auto-Create Legends (discipline + system)",
-                    () => RunCommand(new Tags.AutoCreateLegendsCommand(), commandData, elements));
+                    () => RunCommand(new Tags.AutoCreateLegendsCommand()));
 
                 // Handle user cancellation — offer rollback of partial results
                 if (userCancelled)
@@ -293,7 +328,16 @@ namespace StingTools.Temp
 
             TaskDialog td = new TaskDialog("STING Master Setup");
             td.MainInstruction = $"Master Setup: {passed}/{stepNum} steps complete";
-            td.MainContent = report.ToString();
+            string reportText = report.ToString();
+            if (reportText.Length > 1500)
+            {
+                td.MainContent = reportText.Substring(0, 1500) + "\n…(see expanded)";
+                td.ExpandedContent = reportText;
+            }
+            else
+            {
+                td.MainContent = reportText;
+            }
             td.Show();
 
             StingLog.Info($"Master Setup complete: {passed}/{stepNum} passed, " +
@@ -302,12 +346,16 @@ namespace StingTools.Temp
             return passed > 0 ? Result.Succeeded : Result.Failed;
         }
 
-        /// <summary>Execute an IExternalCommand without capturing ref message in a lambda.</summary>
-        private static Result RunCommand(IExternalCommand cmd,
-            ExternalCommandData data, ElementSet elems)
+        /// <summary>Execute an IExternalCommand, preferring IPanelCommand path when available.</summary>
+        private static Result RunCommand(IExternalCommand cmd)
         {
+            // Prefer IPanelCommand — gets real UIApplication, no null commandData
+            if (cmd is Core.IPanelCommand panelCmd)
+                return panelCmd.Execute(UI.StingCommandHandler.CurrentApp);
+
             string msg = "";
-            return cmd.Execute(data, ref msg, elems);
+            var elems = new ElementSet();
+            return cmd.Execute(null, ref msg, elems);
         }
 
         private static int RunStep(ref int stepNum, StringBuilder report,

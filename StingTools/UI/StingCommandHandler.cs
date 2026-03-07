@@ -36,6 +36,12 @@ namespace StingTools.UI
 
         public string GetName() => "STING Command Dispatcher";
 
+        /// <summary>
+        /// Current UIApplication reference — set each time Execute runs.
+        /// Commands can use this as a fallback when ExternalCommandData is unavailable.
+        /// </summary>
+        internal static UIApplication CurrentApp { get; private set; }
+
         public void Execute(UIApplication app)
         {
             // Store current UIApplication so commands can access it via
@@ -395,7 +401,7 @@ namespace StingTools.UI
 
                     // ── Corporate Schedules ──
                     case "CorporateTitleBlock": RunCommand<Temp.CorporateTitleBlockScheduleCommand>(app); break;
-                    case "DrawingRegister": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
+                    case "DrawingRegisterSchedule": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
 
                     // ── Schedule Enhancements ──
                     case "ScheduleAudit": RunCommand<Temp.ScheduleAuditCommand>(app); break;
@@ -754,8 +760,8 @@ namespace StingTools.UI
             // ENH-003: Update compliance status bar (uses cache — no full rescan)
             try
             {
-                var doc = app.ActiveUIDocument?.Document;
-                if (doc != null)
+                bool isTagCommand = false;
+                switch (_commandTag)
                 {
                     // Use cached results (30s lifetime) — do NOT invalidate cache
                     // here, as that forces a full element scan after every button click.
@@ -764,7 +770,7 @@ namespace StingTools.UI
                     StingDockPanel.UpdateComplianceStatus(scan.StatusBarText, scan.RAGStatus);
                 }
             }
-            catch { /* Non-critical — don't interrupt user */ }
+            catch (Exception ex) { StingLog.Warn($"Post-command compliance scan: {ex.Message}"); }
         }
 
         // ── Current UIApplication (static fallback for panel commands) ──
@@ -814,27 +820,58 @@ namespace StingTools.UI
             }
         }
 
+        // CreateCommandData REMOVED — was the root cause of Revit crashes.
+        // ExternalCommandData is a native COM wrapper that cannot be fabricated
+        // from user code. RunCommand<T> now passes null, and all commands use
+        // commandData.SafeApp() which falls back to CurrentApp.
+
         // ── Inline operations ─────────────────────────────────────────
+
+        // Issue #12: Track document identity to clear stale memory slots on document change
+        private static string _lastDocPath = "";
 
         private static readonly Dictionary<string, List<ElementId>> _memorySlots =
             new Dictionary<string, List<ElementId>>();
+
+        /// <summary>
+        /// Check if view supports temporary hide/isolate operations.
+        /// Schedules, legends, drafting views, and drawing sheets do not support these.
+        /// Issue #3: calling IsolateElementsTemporary on unsupported views throws
+        /// InvalidOperationException and can crash the UI.
+        /// </summary>
+        private static bool SupportsTemporaryViewMode(View view)
+        {
+            return view != null
+                && !(view is ViewSchedule)
+                && !(view is ViewDrafting)
+                && view.ViewType != ViewType.Legend
+                && view.ViewType != ViewType.DrawingSheet;
+        }
 
         private static void ViewIsolateSelected(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc?.ActiveView == null) return;
+            if (!SupportsTemporaryViewMode(uidoc.ActiveView))
+            { TaskDialog.Show("Isolate", "Temporary isolate is not supported in this view type."); return; }
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Isolate", "Select elements first."); return; }
-            uidoc.ActiveView.IsolateElementsTemporary(ids);
+            try { uidoc.ActiveView.IsolateElementsTemporary(ids); }
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException ex)
+            { StingLog.Warn($"ViewIsolate: {ex.Message}"); }
         }
 
         private static void ViewHideSelected(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc?.ActiveView == null) return;
+            if (!SupportsTemporaryViewMode(uidoc.ActiveView))
+            { TaskDialog.Show("Hide", "Temporary hide is not supported in this view type."); return; }
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Hide", "Select elements first."); return; }
-            uidoc.ActiveView.HideElementsTemporary(ids);
+            try { uidoc.ActiveView.HideElementsTemporary(ids); }
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException ex)
+            { StingLog.Warn($"ViewHide: {ex.Message}"); }
         }
 
         private static void ViewRevealHidden(UIApplication app)
@@ -842,6 +879,8 @@ namespace StingTools.UI
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             var view = uidoc.ActiveView;
+            if (!SupportsTemporaryViewMode(view))
+            { TaskDialog.Show("Reveal", "Not supported in this view type."); return; }
             try
             {
                 // Use reflection — EnableTemporaryViewMode may not be available in all Revit API versions
@@ -862,7 +901,9 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc?.ActiveView == null) return;
-            uidoc.ActiveView.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+            if (!SupportsTemporaryViewMode(uidoc.ActiveView)) return;
+            try { uidoc.ActiveView.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate); }
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException) { }
         }
 
         private static void SelectAllVisible(UIApplication app)
@@ -1178,10 +1219,19 @@ namespace StingTools.UI
 
         // ── Graphic overrides ─────────────────────────────────────────
 
+        /// <summary>Check if view supports graphic overrides (not schedules).</summary>
+        private static bool SupportsGraphicOverrides(View view)
+        {
+            return view != null && !(view is ViewSchedule);
+        }
+
         private static void SetHalftone(UIApplication app, bool on)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            // Issue #6: Validate view supports graphic overrides before SetElementOverrides
+            if (!SupportsGraphicOverrides(uidoc.ActiveView))
+            { TaskDialog.Show("Halftone", "Not supported in schedule views."); return; }
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Halftone", "Select elements first."); return; }
             using (Transaction tx = new Transaction(uidoc.Document, "STING Halftone"))
@@ -1190,7 +1240,10 @@ namespace StingTools.UI
                 var ogs = new OverrideGraphicSettings();
                 ogs.SetHalftone(on);
                 foreach (ElementId id in ids)
-                    uidoc.ActiveView.SetElementOverrides(id, ogs);
+                {
+                    try { uidoc.ActiveView.SetElementOverrides(id, ogs); }
+                    catch { }
+                }
                 tx.Commit();
             }
         }
@@ -1199,12 +1252,15 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            if (!SupportsGraphicOverrides(uidoc.ActiveView)) return;
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) return;
             using (Transaction tx = new Transaction(uidoc.Document, "STING Permanent Hide"))
             {
                 tx.Start();
-                uidoc.ActiveView.HideElements(ids);
+                try { uidoc.ActiveView.HideElements(ids); }
+                catch (Autodesk.Revit.Exceptions.InvalidOperationException ex)
+                { StingLog.Warn($"PermanentHide: {ex.Message}"); }
                 tx.Commit();
             }
         }
@@ -1213,12 +1269,15 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            if (!SupportsGraphicOverrides(uidoc.ActiveView)) return;
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) return;
             using (Transaction tx = new Transaction(uidoc.Document, "STING Permanent Unhide"))
             {
                 tx.Start();
-                uidoc.ActiveView.UnhideElements(ids);
+                try { uidoc.ActiveView.UnhideElements(ids); }
+                catch (Autodesk.Revit.Exceptions.InvalidOperationException ex)
+                { StingLog.Warn($"PermanentUnhide: {ex.Message}"); }
                 tx.Commit();
             }
         }
@@ -1227,6 +1286,10 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            var view = uidoc.ActiveView;
+            // Issue #18: Only iterate Model and Annotation categories.
+            // Many categories throw InvalidOperationException on get_Visible/set_Visible
+            // when queried in the wrong context. Filtering reduces both errors and iteration time.
             using (Transaction tx = new Transaction(uidoc.Document, "STING Unhide Category"))
             {
                 tx.Start();
@@ -1234,8 +1297,11 @@ namespace StingTools.UI
                 {
                     try
                     {
-                        if (cat.get_Visible(uidoc.ActiveView) == false)
-                            cat.set_Visible(uidoc.ActiveView, true);
+                        if (cat.CategoryType != CategoryType.Model &&
+                            cat.CategoryType != CategoryType.Annotation)
+                            continue;
+                        if (cat.get_Visible(view) == false)
+                            cat.set_Visible(view, true);
                     }
                     catch { }
                 }
@@ -1294,18 +1360,15 @@ namespace StingTools.UI
 
         private static string[] GetTokenOptions(string paramName)
         {
-            return paramName switch
-            {
-                ParamRegistry.SYS => new[] { "HVAC", "DCW", "SAN" },
-                ParamRegistry.FUNC => new[] { "SUP", "HTG", "PWR" },
-                ParamRegistry.PROD => new[] { "AHU", "DB", "DR" },
-                ParamRegistry.LVL => new[] { "GF", "L01", "B1" },
-                ParamRegistry.ORIGIN => new[] { "NEW", "EXISTING", "DEMOLISHED" },
-                ParamRegistry.PROJECT => new[] { "PRJ001", "PRJ002", "PRJ003" },
-                ParamRegistry.REV => new[] { "P01", "P02", "C01" },
-                ParamRegistry.VOLUME => new[] { "V01", "V02", "V03" },
-                _ => new[] { "VALUE1", "VALUE2", "VALUE3" }
-            };
+            if (paramName == ParamRegistry.SYS) return new[] { "HVAC", "DCW", "SAN" };
+            if (paramName == ParamRegistry.FUNC) return new[] { "SUP", "HTG", "PWR" };
+            if (paramName == ParamRegistry.PROD) return new[] { "AHU", "DB", "DR" };
+            if (paramName == ParamRegistry.LVL) return new[] { "GF", "L01", "B1" };
+            if (paramName == ParamRegistry.ORIGIN) return new[] { "NEW", "EXISTING", "DEMOLISHED" };
+            if (paramName == ParamRegistry.PROJECT) return new[] { "PRJ001", "PRJ002", "PRJ003" };
+            if (paramName == ParamRegistry.REV) return new[] { "P01", "P02", "C01" };
+            if (paramName == ParamRegistry.VOLUME) return new[] { "V01", "V02", "V03" };
+            return new[] { "VALUE1", "VALUE2", "VALUE3" };
         }
 
         // ── Connected elements selector ─────────────────────────────
@@ -1532,7 +1595,12 @@ namespace StingTools.UI
                 int linkCount = 0;
                 foreach (string name in names.Take(4))
                 {
-                    td.AddCommandLink((TaskDialogCommandLinkId)(1001 + linkCount), name);
+                    // Issue #19: Use named enum values instead of fragile int casts
+                    var linkIds = new[] {
+                        TaskDialogCommandLinkId.CommandLink1, TaskDialogCommandLinkId.CommandLink2,
+                        TaskDialogCommandLinkId.CommandLink3, TaskDialogCommandLinkId.CommandLink4 };
+                    if (linkCount < linkIds.Length)
+                        td.AddCommandLink(linkIds[linkCount], name);
                     linkCount++;
                 }
                 td.CommonButtons = TaskDialogCommonButtons.Cancel;
@@ -1971,7 +2039,7 @@ namespace StingTools.UI
                             if (leaders.Count > 0)
                                 tn.RemoveLeaders();
                             else
-                                tn.AddLeader(TextNoteLeaderType.TNLT_STRAIGHT_L);
+                                tn.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
                             toggled++;
                         }
                         catch { }
@@ -3105,13 +3173,22 @@ namespace StingTools.UI
                 tags = Organise.LeaderHelper.GetTargetTags(uidoc);
             if (tags.Count == 0) return;
 
+            // Issue #7: Wrap in try-catch — orphaned tags or deleted hosts can crash
             using (Transaction tx = new Transaction(uidoc.Document, $"STING Nudge {direction}"))
             {
                 tx.Start();
-                int nudged = Organise.NudgeTagsCommand.NudgeInDirection(
-                    uidoc.Document, uidoc.ActiveView, tags, direction);
-                tx.Commit();
-                StingLog.Info($"Nudge {direction}: {nudged} tags");
+                try
+                {
+                    int nudged = Organise.NudgeTagsCommand.NudgeInDirection(
+                        uidoc.Document, uidoc.ActiveView, tags, direction);
+                    tx.Commit();
+                    StingLog.Info($"Nudge {direction}: {nudged} tags");
+                }
+                catch (Exception ex)
+                {
+                    if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    StingLog.Warn($"NudgeTags {direction}: {ex.Message}");
+                }
             }
         }
 

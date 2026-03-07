@@ -32,8 +32,22 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class ProjectSetupCommand : IExternalCommand
+    public class ProjectSetupCommand : IExternalCommand, Core.IPanelCommand
     {
+        public Result Execute(UIApplication app)
+        {
+            try
+            {
+                return ExecuteCore(app);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ProjectSetupCommand crashed", ex);
+                try { TaskDialog.Show("Project Setup", $"Critical error: {ex.GetType().Name}\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -184,7 +198,7 @@ namespace StingTools.Temp
                 if (data.LoadParams)
                 {
                     passed += RunStep(ref stepNum, report, "Load Shared Parameters (200+)",
-                        () => RunCommand(new Tags.LoadSharedParamsCommand(), commandData, elements));
+                        () => RunCommand(new Tags.LoadSharedParamsCommand()));
                 }
                 else
                 {
@@ -196,9 +210,9 @@ namespace StingTools.Temp
                 if (data.CreateMaterials)
                 {
                     passed += RunStep(ref stepNum, report, "Create BLE Materials (815)",
-                        () => RunCommand(new CreateBLEMaterialsCommand(), commandData, elements));
+                        () => RunCommand(new CreateBLEMaterialsCommand()));
                     passed += RunStep(ref stepNum, report, "Create MEP Materials (464)",
-                        () => RunCommand(new CreateMEPMaterialsCommand(), commandData, elements));
+                        () => RunCommand(new CreateMEPMaterialsCommand()));
                 }
                 else
                 {
@@ -210,21 +224,21 @@ namespace StingTools.Temp
                 if (data.CreateFamilyTypes)
                 {
                     passed += RunStep(ref stepNum, report, "Create Wall Types",
-                        () => RunCommand(new CreateWallsCommand(), commandData, elements));
+                        () => RunCommand(new CreateWallsCommand()));
                     passed += RunStep(ref stepNum, report, "Create Floor Types",
-                        () => RunCommand(new CreateFloorsCommand(), commandData, elements));
+                        () => RunCommand(new CreateFloorsCommand()));
                     passed += RunStep(ref stepNum, report, "Create Ceiling Types",
-                        () => RunCommand(new CreateCeilingsCommand(), commandData, elements));
+                        () => RunCommand(new CreateCeilingsCommand()));
                     passed += RunStep(ref stepNum, report, "Create Roof Types",
-                        () => RunCommand(new CreateRoofsCommand(), commandData, elements));
+                        () => RunCommand(new CreateRoofsCommand()));
                     passed += RunStep(ref stepNum, report, "Create Duct Types",
-                        () => RunCommand(new CreateDuctsCommand(), commandData, elements));
+                        () => RunCommand(new CreateDuctsCommand()));
                     passed += RunStep(ref stepNum, report, "Create Pipe Types",
-                        () => RunCommand(new CreatePipesCommand(), commandData, elements));
+                        () => RunCommand(new CreatePipesCommand()));
                     passed += RunStep(ref stepNum, report, "Create Cable Tray Types",
-                        () => RunCommand(new CreateCableTraysCommand(), commandData, elements));
+                        () => RunCommand(new CreateCableTraysCommand()));
                     passed += RunStep(ref stepNum, report, "Create Conduit Types",
-                        () => RunCommand(new CreateConduitsCommand(), commandData, elements));
+                        () => RunCommand(new CreateConduitsCommand()));
                 }
                 else
                 {
@@ -236,9 +250,9 @@ namespace StingTools.Temp
                 if (data.CreateSchedules)
                 {
                     passed += RunStep(ref stepNum, report, "Batch Create Schedules (168)",
-                        () => RunCommand(new BatchSchedulesCommand(), commandData, elements));
+                        () => RunCommand(new BatchSchedulesCommand()));
                     passed += RunStep(ref stepNum, report, "Create Template Schedules (13)",
-                        () => RunCommand(new CreateTemplateSchedulesCommand(), commandData, elements));
+                        () => RunCommand(new CreateTemplateSchedulesCommand()));
                 }
                 else
                 {
@@ -255,17 +269,17 @@ namespace StingTools.Temp
                 if (data.CreateStyles)
                 {
                     passed += RunStep(ref stepNum, report, "Create Fill Patterns",
-                        () => RunCommand(new CreateFillPatternsCommand(), commandData, elements));
+                        () => RunCommand(new CreateFillPatternsCommand()));
                     passed += RunStep(ref stepNum, report, "Create Line Patterns (10 ISO 128)",
-                        () => RunCommand(new CreateLinePatternsCommand(), commandData, elements));
+                        () => RunCommand(new CreateLinePatternsCommand()));
                     passed += RunStep(ref stepNum, report, "Create Line Styles",
-                        () => RunCommand(new CreateLineStylesCommand(), commandData, elements));
+                        () => RunCommand(new CreateLineStylesCommand()));
                     passed += RunStep(ref stepNum, report, "Create Object Styles",
-                        () => RunCommand(new CreateObjectStylesCommand(), commandData, elements));
+                        () => RunCommand(new CreateObjectStylesCommand()));
                     passed += RunStep(ref stepNum, report, "Create Text Styles",
-                        () => RunCommand(new CreateTextStylesCommand(), commandData, elements));
+                        () => RunCommand(new CreateTextStylesCommand()));
                     passed += RunStep(ref stepNum, report, "Create Dimension Styles",
-                        () => RunCommand(new CreateDimensionStylesCommand(), commandData, elements));
+                        () => RunCommand(new CreateDimensionStylesCommand()));
                 }
                 else
                 {
@@ -277,7 +291,7 @@ namespace StingTools.Temp
                 if (data.CreateFilters)
                 {
                     passed += RunStep(ref stepNum, report, "Create View Filters (28+)",
-                        () => RunCommand(new CreateFiltersCommand(), commandData, elements));
+                        () => RunCommand(new CreateFiltersCommand()));
                 }
                 else
                 {
@@ -289,11 +303,11 @@ namespace StingTools.Temp
                 if (data.CreateTemplates)
                 {
                     passed += RunStep(ref stepNum, report, "Create View Templates (23)",
-                        () => RunCommand(new ViewTemplatesCommand(), commandData, elements));
+                        () => RunCommand(new ViewTemplatesCommand()));
                     passed += RunStep(ref stepNum, report, "Apply Filters to Templates",
-                        () => RunCommand(new ApplyFiltersToViewsCommand(), commandData, elements));
+                        () => RunCommand(new ApplyFiltersToViewsCommand()));
                     passed += RunStep(ref stepNum, report, "Apply VG Overrides (5-layer)",
-                        () => RunCommand(new CreateVGOverridesCommand(), commandData, elements));
+                        () => RunCommand(new CreateVGOverridesCommand()));
                 }
                 else
                 {
@@ -305,7 +319,7 @@ namespace StingTools.Temp
                 if (data.CreatePhases)
                 {
                     passed += RunStep(ref stepNum, report, "Create Phases (audit only — API limitation)",
-                        () => RunCommand(new CreatePhasesCommand(), commandData, elements));
+                        () => RunCommand(new CreatePhasesCommand()));
                 }
                 else
                 {
@@ -317,7 +331,7 @@ namespace StingTools.Temp
                 if (data.EnableWorksharing && doc.IsWorkshared)
                 {
                     passed += RunStep(ref stepNum, report, "Create Worksets (35 ISO 19650)",
-                        () => RunCommand(new CreateWorksetsCommand(), commandData, elements));
+                        () => RunCommand(new CreateWorksetsCommand()));
                 }
                 else
                 {
@@ -347,7 +361,7 @@ namespace StingTools.Temp
                 if (data.CreateDependents)
                 {
                     passed += RunStep(ref stepNum, report, "Create Dependent Views",
-                        () => RunCommand(new Docs.CreateDependentViewsCommand(), commandData, elements));
+                        () => RunCommand(new Docs.CreateDependentViewsCommand()));
                 }
                 else
                 {
@@ -359,7 +373,7 @@ namespace StingTools.Temp
                 if (data.CreateSheets)
                 {
                     passed += RunStep(ref stepNum, report, "Create Sheets",
-                        () => RunCommand(new Docs.BatchCreateSheetsCommand(), commandData, elements));
+                        () => RunCommand(new Docs.BatchCreateSheetsCommand()));
                 }
                 else
                 {
@@ -371,7 +385,7 @@ namespace StingTools.Temp
                 if (data.CreateSections)
                 {
                     passed += RunStep(ref stepNum, report, "Create Building Sections",
-                        () => RunCommand(new Docs.BatchCreateSectionsCommand(), commandData, elements));
+                        () => RunCommand(new Docs.BatchCreateSectionsCommand()));
                 }
                 else
                 {
@@ -383,7 +397,7 @@ namespace StingTools.Temp
                 if (data.CreateElevations)
                 {
                     passed += RunStep(ref stepNum, report, "Create 4 Exterior Elevations",
-                        () => RunCommand(new Docs.BatchCreateElevationsCommand(), commandData, elements));
+                        () => RunCommand(new Docs.BatchCreateElevationsCommand()));
                 }
                 else
                 {
@@ -395,11 +409,11 @@ namespace StingTools.Temp
                 if (data.CreateViews || data.CreateSheets)
                 {
                     passed += RunStep(ref stepNum, report, "Organize Project Browser",
-                        () => RunCommand(new Docs.ProjectBrowserOrganizerCommand(), commandData, elements));
+                        () => RunCommand(new Docs.ProjectBrowserOrganizerCommand()));
                     if (data.CreateSheets)
                     {
                         passed += RunStep(ref stepNum, report, "Create Sheet Index Schedule",
-                            () => RunCommand(new Docs.SheetIndexCommand(), commandData, elements));
+                            () => RunCommand(new Docs.SheetIndexCommand()));
                     }
                 }
 
@@ -412,9 +426,9 @@ namespace StingTools.Temp
                 if (data.CreateTemplates)
                 {
                     passed += RunStep(ref stepNum, report, "Auto-Assign Templates (5-layer)",
-                        () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
+                        () => RunCommand(new AutoAssignTemplatesCommand()));
                     passed += RunStep(ref stepNum, report, "Auto-Fix Template Health",
-                        () => RunCommand(new AutoFixTemplateCommand(), commandData, elements));
+                        () => RunCommand(new AutoFixTemplateCommand()));
                 }
                 else
                 {
@@ -426,9 +440,9 @@ namespace StingTools.Temp
                 if (data.LoadParams)
                 {
                     passed += RunStep(ref stepNum, report, "Full Auto-Populate (tokens+dims+MEP+formulas+tags)",
-                        () => RunCommand(new FullAutoPopulateCommand(), commandData, elements));
+                        () => RunCommand(new FullAutoPopulateCommand()));
                     passed += RunStep(ref stepNum, report, "Batch Family Parameters (CSV)",
-                        () => RunCommand(new BatchAddFamilyParamsCommand(), commandData, elements));
+                        () => RunCommand(new BatchAddFamilyParamsCommand()));
                 }
 
                 // Set starting view
@@ -469,10 +483,17 @@ namespace StingTools.Temp
 
             // GAP-006: Persist wizard settings to project_config.json
             // Update TagConfig with wizard LOC/ZONE codes before saving
+            // (LocCodes/ZoneCodes have private setters — modify in-place then reload)
             if (data.LocCodes.Count > 0)
-                TagConfig.LocCodes = data.LocCodes;
+            {
+                TagConfig.LocCodes.Clear();
+                TagConfig.LocCodes.AddRange(data.LocCodes);
+            }
             if (data.ZoneCodes.Count > 0)
-                TagConfig.ZoneCodes = data.ZoneCodes;
+            {
+                TagConfig.ZoneCodes.Clear();
+                TagConfig.ZoneCodes.AddRange(data.ZoneCodes);
+            }
 
             string configPath = Path.Combine(StingToolsApp.DataPath ?? "", "project_config.json");
             if (TagConfig.SaveToFile(configPath))
@@ -491,7 +512,16 @@ namespace StingTools.Temp
 
             TaskDialog td = new TaskDialog("STING Project Setup");
             td.MainInstruction = $"Project Setup: {passed}/{stepNum} steps complete";
-            td.MainContent = report.ToString();
+            string reportText = report.ToString();
+            if (reportText.Length > 1500)
+            {
+                td.MainContent = reportText.Substring(0, 1500) + "\n…(see expanded)";
+                td.ExpandedContent = reportText;
+            }
+            else
+            {
+                td.MainContent = reportText;
+            }
             td.Show();
 
             StingLog.Info($"Project Setup complete: {passed}/{stepNum} passed, " +
@@ -1091,12 +1121,16 @@ namespace StingTools.Temp
             return result;
         }
 
-        /// <summary>Execute an IExternalCommand delegate.</summary>
-        private static Result RunCommand(IExternalCommand cmd,
-            ExternalCommandData data, ElementSet elems)
+        /// <summary>Execute an IExternalCommand, preferring IPanelCommand path when available.</summary>
+        private static Result RunCommand(IExternalCommand cmd)
         {
+            // Prefer IPanelCommand — gets real UIApplication, no null commandData
+            if (cmd is Core.IPanelCommand panelCmd)
+                return panelCmd.Execute(UI.StingCommandHandler.CurrentApp);
+
             string msg = "";
-            return cmd.Execute(data, ref msg, elems);
+            var elems = new ElementSet();
+            return cmd.Execute(null, ref msg, elems);
         }
 
         /// <summary>Execute a step with timing and error handling.</summary>

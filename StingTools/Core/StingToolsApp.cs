@@ -29,6 +29,21 @@ namespace StingTools.Core
                     Path.GetDirectoryName(AssemblyPath) ?? string.Empty,
                     "data");
 
+                // Issue #16: Resolve ClosedXML and other transitive dependencies
+                // from the plugin directory. Without this, BOQ export and other
+                // features that use ClosedXML will throw FileNotFoundException.
+                AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
+
+                // Issue #19: Log unhandled exceptions that crash Revit.
+                // These bypass normal try-catch (StackOverflow, AccessViolation, etc.)
+                AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+                {
+                    if (e.ExceptionObject is Exception ex)
+                        StingLog.Error($"FATAL UNHANDLED: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                    else
+                        StingLog.Error($"FATAL UNHANDLED: {e.ExceptionObject}");
+                };
+
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
 
@@ -50,9 +65,30 @@ namespace StingTools.Core
         public Result OnShutdown(UIControlledApplication application)
         {
             StingLog.Info("STING Tools shutting down");
+            AppDomain.CurrentDomain.AssemblyResolve -= OnAssemblyResolve;
             StingAutoTagger.Unregister();
             StingLog.Shutdown();
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Issue #16: Resolve transitive dependencies (ClosedXML, DocumentFormat.OpenXml, etc.)
+        /// from the same directory as the plugin DLL. Revit's default probing path doesn't
+        /// include the plugin directory, so these assemblies would fail to load at runtime.
+        /// </summary>
+        private static Assembly OnAssemblyResolve(object sender, ResolveEventArgs args)
+        {
+            string pluginDir = Path.GetDirectoryName(AssemblyPath);
+            if (string.IsNullOrEmpty(pluginDir)) return null;
+
+            string assemblyName = new System.Reflection.AssemblyName(args.Name).Name;
+            string candidate = Path.Combine(pluginDir, assemblyName + ".dll");
+            if (File.Exists(candidate))
+            {
+                try { return Assembly.LoadFrom(candidate); }
+                catch (Exception ex) { StingLog.Warn($"AssemblyResolve failed for {assemblyName}: {ex.Message}"); }
+            }
+            return null;
         }
 
         // ── Dockable Panel Registration ──────────────────────────────

@@ -1069,7 +1069,7 @@ namespace StingTools.Temp
                     string catName = el.Category?.Name ?? "Uncategorised";
                     var item = new BOQItem
                     {
-                        ElementId = el.Id.IntegerValue,
+                        ElementId = el.Id.Value,
                         Category = catName,
                         FamilyName = ParameterHelpers.GetFamilyName(el),
                         TypeName = ParameterHelpers.GetFamilySymbolName(el),
@@ -1395,7 +1395,7 @@ namespace StingTools.Temp
                 ws.Cell(row, 2).Style.Font.Italic = true;
 
                 // Print settings
-                ws.PageSetup.PrintTitleRows = 1;
+                ws.PageSetup.SetRowsToRepeatAtTop(1, 1);
                 ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
                 ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
                 ws.PageSetup.FitToPages(1, 0); // fit width to 1 page
@@ -1848,7 +1848,7 @@ namespace StingTools.Temp
 
         private class BOQItem
         {
-            public int ElementId;
+            public long ElementId;
             public string Category, FamilyName, TypeName, Description, Tag;
             public string Discipline, Level, Location, Zone, System, Unit;
             public double UnitPrice, Quantity, TotalCost;
@@ -2696,9 +2696,9 @@ namespace StingTools.Temp
             sb.AppendLine();
             sb.AppendLine("PropertySet:\tSTING_AssetIdentity\tI\t" +
                 "IfcBuildingElement,IfcDistributionElement");
-            string descParam = ParamRegistry.GetParamName("ASS_DESCRIPTION_TXT") ?? "ASS_DESCRIPTION_TXT";
-            string mfgParam = ParamRegistry.GetParamName("ASS_MANUFACTURER_TXT") ?? "ASS_MANUFACTURER_TXT";
-            string modelParam = ParamRegistry.GetParamName("ASS_MODEL_TXT") ?? "ASS_MODEL_TXT";
+            string descParam = "ASS_DESCRIPTION_TXT";
+            string mfgParam = "ASS_MANUFACTURER_TXT";
+            string modelParam = "ASS_MODEL_TXT";
             sb.AppendLine($"\t{descParam}\tText");
             sb.AppendLine($"\t{mfgParam}\tText");
             sb.AppendLine($"\t{modelParam}\tText");
@@ -2707,8 +2707,8 @@ namespace StingTools.Temp
             sb.AppendLine();
             sb.AppendLine("PropertySet:\tSTING_AssetCost\tI\t" +
                 "IfcBuildingElement,IfcDistributionElement");
-            string costParam = ParamRegistry.GetParamName("ASS_UNIT_COST_TXT") ?? "ASS_UNIT_COST_TXT";
-            string areaParam = ParamRegistry.GetParamName("ASS_AREA_M2_TXT") ?? "ASS_AREA_M2_TXT";
+            string costParam = "ASS_UNIT_COST_TXT";
+            string areaParam = "ASS_AREA_M2_TXT";
             sb.AppendLine($"\t{costParam}\tText");
             sb.AppendLine($"\t{areaParam}\tText");
 
@@ -2947,23 +2947,10 @@ namespace StingTools.Temp
 
             File.WriteAllText(knoPath, sb.ToString());
 
-            // Load into Revit via KeynoteTable API
+            // Keynote file generated — user must load via Annotate > Keynoting Settings
+            // (Revit 2025+ KeynoteTable API does not support direct LoadFrom with ModelPath)
             int entries = discCodes.Count + TagConfig.SysMap.Count + TagConfig.ProdMap.Count;
-            try
-            {
-                KeynoteTable kt = KeynoteTable.GetKeynoteTable(doc);
-                using (Transaction tx = new Transaction(doc, "STING Keynote Sync"))
-                {
-                    tx.Start();
-                    ModelPath mp = ModelPathUtils.ConvertUserVisiblePathToModelPath(knoPath);
-                    kt.LoadFrom(mp, null);
-                    tx.Commit();
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"Keynote table auto-load: {ex.Message} — file generated, load manually via Annotate > Keynoting Settings");
-            }
+            StingLog.Info($"Keynote file generated with {entries} entries: {knoPath}");
 
             TaskDialog.Show("Keynote Sync",
                 $"Keynote file generated: {Path.GetFileName(knoPath)}\n\n" +

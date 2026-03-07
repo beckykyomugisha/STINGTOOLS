@@ -92,7 +92,7 @@ namespace StingTools.Core
         {
             if (_writer == null)
             {
-                var stream = new FileStream(LogPath, FileMode.Append, FileAccess.Write, FileShare.Read);
+                var stream = new FileStream(LogPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
                 _writer = new StreamWriter(stream) { AutoFlush = false };
             }
         }

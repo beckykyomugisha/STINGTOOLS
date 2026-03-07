@@ -79,42 +79,51 @@ namespace StingTools.Core
 
             try
             {
+                // Build a multi-category filter so Revit pre-filters at the native level
+                // instead of iterating every element in the document
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                var catFilter = new ElementMulticategoryFilter(catEnums);
+
                 foreach (Element elem in new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType())
+                    .WhereElementIsNotElementType()
+                    .WherePasses(catFilter))
                 {
-                    string cat = ParameterHelpers.GetCategoryName(elem);
-                    if (!known.Contains(cat)) continue;
+                    try
+                    {
+                        string cat = ParameterHelpers.GetCategoryName(elem);
+                        if (!known.Contains(cat)) continue;
 
-                    result.TotalElements++;
-                    string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                        result.TotalElements++;
+                        string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
 
-                    if (string.IsNullOrEmpty(tag))
-                    {
-                        result.Untagged++;
-                        AddIssue(result, "Untagged");
-                    }
-                    else if (TagConfig.TagIsFullyResolved(tag))
-                    {
-                        result.TaggedComplete++;
-                        result.FullyResolved++;
-                    }
-                    else if (TagConfig.TagIsComplete(tag))
-                    {
-                        result.TaggedComplete++;
-                        // Has placeholders — check which tokens
-                        string[] parts = tag.Split(ParamRegistry.Separator[0]);
-                        if (parts.Length >= 8)
+                        if (string.IsNullOrEmpty(tag))
                         {
-                            if (parts[1] == "XX") AddIssue(result, "Missing LOC");
-                            if (parts[2] == "XX" || parts[2] == "ZZ") AddIssue(result, "Missing ZONE");
-                            if (parts[7] == "0000") AddIssue(result, "SEQ=0000");
+                            result.Untagged++;
+                            AddIssue(result, "Untagged");
+                        }
+                        else if (TagConfig.TagIsFullyResolved(tag))
+                        {
+                            result.TaggedComplete++;
+                            result.FullyResolved++;
+                        }
+                        else if (TagConfig.TagIsComplete(tag))
+                        {
+                            result.TaggedComplete++;
+                            string[] parts = tag.Split(ParamRegistry.Separator[0]);
+                            if (parts.Length >= 8)
+                            {
+                                if (parts[1] == "XX") AddIssue(result, "Missing LOC");
+                                if (parts[2] == "XX" || parts[2] == "ZZ") AddIssue(result, "Missing ZONE");
+                                if (parts[7] == "0000") AddIssue(result, "SEQ=0000");
+                            }
+                        }
+                        else
+                        {
+                            result.TaggedIncomplete++;
+                            AddIssue(result, "Incomplete tag");
                         }
                     }
-                    else
-                    {
-                        result.TaggedIncomplete++;
-                        AddIssue(result, "Incomplete tag");
-                    }
+                    catch { /* Skip corrupt/inaccessible elements */ }
                 }
             }
             catch (Exception ex)
