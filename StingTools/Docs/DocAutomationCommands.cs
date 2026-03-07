@@ -22,7 +22,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
+            Document doc = uidoc.Document;
 
             var allViews = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
@@ -37,8 +39,8 @@ namespace StingTools.Docs
                     .Cast<ViewSheet>()
                     .SelectMany(s => s.GetAllPlacedViews()));
 
-            // Get the active view to protect it
-            ElementId activeViewId = doc.ActiveView.Id;
+            // Get the active view to protect it (null-safe)
+            ElementId activeViewId = doc.ActiveView?.Id ?? ElementId.InvalidElementId;
 
             var unplaced = allViews
                 .Where(v => !placedViewIds.Contains(v.Id) && v.Id != activeViewId)
@@ -179,7 +181,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
+            Document doc = uidoc.Document;
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
@@ -352,7 +356,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
+            Document doc = uidoc.Document;
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))

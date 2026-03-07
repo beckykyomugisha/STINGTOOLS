@@ -1021,14 +1021,17 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
+            View activeView = doc.ActiveView;
+            if (activeView == null) { TaskDialog.Show("Select by Discipline", "No active view."); return Result.Failed; }
 
             // Count elements per discipline
             var discCounts = new Dictionary<string, int>();
             var discElements = new Dictionary<string, List<ElementId>>();
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            foreach (Element elem in new FilteredElementCollector(doc, doc.ActiveView.Id)
+            foreach (Element elem in new FilteredElementCollector(doc, activeView.Id)
                 .WhereElementIsNotElementType())
             {
                 string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
@@ -1490,7 +1493,7 @@ namespace StingTools.Organise
                         view.SetElementOverrides(tag.Id, ogs);
                         colored++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"SetTagTextColor override failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -1571,7 +1574,7 @@ namespace StingTools.Organise
                         view.SetElementOverrides(tag.Id, ogs);
                         colored++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"SetLeaderColor override failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -1672,12 +1675,12 @@ namespace StingTools.Organise
                 foreach (var tag in withoutLeaders)
                 {
                     try { view.SetElementOverrides(tag.Id, textOgs); textColored++; }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"SplitColor text override failed: {ex.Message}"); }
                 }
                 foreach (var tag in withLeaders)
                 {
                     try { view.SetElementOverrides(tag.Id, leaderOgs); leaderColored++; }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"SplitColor leader override failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -3341,7 +3344,9 @@ namespace StingTools.Organise
             }
 
             // Fall back to all tags in active view
-            return new FilteredElementCollector(doc, doc.ActiveView.Id)
+            View activeView = doc.ActiveView;
+            if (activeView == null) return new List<IndependentTag>();
+            return new FilteredElementCollector(doc, activeView.Id)
                 .OfClass(typeof(IndependentTag))
                 .Cast<IndependentTag>()
                 .ToList();

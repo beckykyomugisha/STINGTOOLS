@@ -309,14 +309,23 @@ namespace StingTools.Select
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class ColorByParameterCommand : IExternalCommand
+    public class ColorByParameterCommand : IExternalCommand, IPanelCommand
     {
+        public Result Execute(UIApplication app)
+        {
+            string msg = "";
+            var el = new ElementSet();
+            return Execute(null, ref msg, el);
+        }
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
+            if (view == null) { TaskDialog.Show("Color By Parameter", "No active view."); return Result.Failed; }
 
             // Collect taggable elements in active view
             var elems = new FilteredElementCollector(doc, view.Id)
@@ -499,8 +508,10 @@ namespace StingTools.Select
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
+            if (view == null) { TaskDialog.Show("Clear Overrides", "No active view."); return Result.Failed; }
 
             // Check selection first — clear only selected elements if any
             var selected = uidoc.Selection.GetElementIds();
@@ -571,8 +582,11 @@ namespace StingTools.Select
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
+            Document doc = uidoc.Document;
             View view = doc.ActiveView;
+            if (view == null) { TaskDialog.Show("Save Preset", "No active view."); return Result.Failed; }
 
             // Scan elements for overrides
             var elems = new FilteredElementCollector(doc, view.Id)
@@ -667,8 +681,10 @@ namespace StingTools.Select
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
+            if (view == null) { TaskDialog.Show("Load Preset", "No active view."); return Result.Failed; }
 
             var presets = ColorHelper.LoadPresets();
             if (presets.Count == 0)
@@ -771,8 +787,10 @@ namespace StingTools.Select
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
+            if (view == null) { TaskDialog.Show("Create Filters", "No active view."); return Result.Failed; }
 
             // Ask which parameter was used for coloring
             TaskDialog paramDlg = new TaskDialog("Create Filters — Parameter");

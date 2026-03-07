@@ -20,9 +20,20 @@ namespace StingTools.Select
             BuiltInCategory bic, string label)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null)
+            {
+                TaskDialog.Show("STING Tools", "No document is open.");
+                return Result.Failed;
+            }
             Document doc = uidoc.Document;
+            View activeView = doc.ActiveView;
+            if (activeView == null)
+            {
+                TaskDialog.Show($"Select {label}", "No active view. Open a view and try again.");
+                return Result.Failed;
+            }
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = new FilteredElementCollector(doc, activeView.Id)
                 .OfCategory(bic)
                 .WhereElementIsNotElementType()
                 .ToElementIds();
@@ -145,10 +156,13 @@ namespace StingTools.Select
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
+            View activeView = doc.ActiveView;
+            if (activeView == null) { TaskDialog.Show("Select All", "No active view."); return Result.Failed; }
 
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = new FilteredElementCollector(doc, activeView.Id)
                 .WhereElementIsNotElementType()
                 .Where(e => knownCategories.Contains(ParameterHelpers.GetCategoryName(e)))
                 .Select(e => e.Id)

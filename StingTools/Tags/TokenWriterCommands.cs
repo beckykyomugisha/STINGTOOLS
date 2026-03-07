@@ -21,6 +21,7 @@ namespace StingTools.Tags
             string label, string[] options)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Build target set: selected elements or all taggable in view
@@ -29,8 +30,10 @@ namespace StingTools.Tags
 
             if (!usingSelection)
             {
+                View activeView = doc.ActiveView;
+                if (activeView == null) { TaskDialog.Show(label, "No active view."); return Result.Failed; }
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
-                targetIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                targetIds = new FilteredElementCollector(doc, activeView.Id)
                     .WhereElementIsNotElementType()
                     .Where(e => known.Contains(ParameterHelpers.GetCategoryName(e)))
                     .Select(e => e.Id)
@@ -189,6 +192,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
@@ -196,7 +200,9 @@ namespace StingTools.Tags
             var targetIds = uidoc.Selection.GetElementIds();
             if (targetIds.Count == 0)
             {
-                targetIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                View activeView = doc.ActiveView;
+                if (activeView == null) { TaskDialog.Show("Assign Numbers", "No active view."); return Result.Failed; }
+                targetIds = new FilteredElementCollector(doc, activeView.Id)
                     .WhereElementIsNotElementType()
                     .Where(e => known.Contains(ParameterHelpers.GetCategoryName(e)))
                     .Select(e => e.Id).ToList();
@@ -270,13 +276,16 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var targetIds = uidoc.Selection.GetElementIds();
             if (targetIds.Count == 0)
             {
+                View activeView = doc.ActiveView;
+                if (activeView == null) { TaskDialog.Show("Build Tags", "No active view."); return Result.Failed; }
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
-                targetIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                targetIds = new FilteredElementCollector(doc, activeView.Id)
                     .WhereElementIsNotElementType()
                     .Where(e => known.Contains(ParameterHelpers.GetCategoryName(e)))
                     .Select(e => e.Id).ToList();

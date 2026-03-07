@@ -29,12 +29,21 @@ namespace StingTools.Tags
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class BatchTagCommand : IExternalCommand
+    public class BatchTagCommand : IExternalCommand, IPanelCommand
     {
+        public Result Execute(UIApplication app)
+        {
+            string msg = "";
+            var el = new ElementSet();
+            return Execute(null, ref msg, el);
+        }
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Batch Tag", "No document is open."); return Result.Failed; }
+            Document doc = uidoc.Document;
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
@@ -264,7 +273,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Tag Migration", "No document is open."); return Result.Failed; }
+            Document doc = uidoc.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Collect all tagged elements
@@ -397,7 +408,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Tag Changed", "No document is open."); return Result.Failed; }
+            Document doc = uidoc.Document;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);

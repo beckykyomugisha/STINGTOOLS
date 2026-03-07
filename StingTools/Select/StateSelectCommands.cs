@@ -11,6 +11,34 @@ using StingTools.Core;
 namespace StingTools.Select
 {
     /// <summary>
+    /// Shared guard: validates UIDocument and ActiveView before proceeding.
+    /// Returns false if either is null (shows user-facing dialog).
+    /// </summary>
+    internal static class SelectGuard
+    {
+        public static bool TryGetContext(ExternalCommandData cmd, string label,
+            out UIDocument uidoc, out Document doc, out View activeView)
+        {
+            uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
+            doc = null;
+            activeView = null;
+            if (uidoc == null)
+            {
+                TaskDialog.Show("STING Tools", "No document is open.");
+                return false;
+            }
+            doc = uidoc.Document;
+            activeView = doc.ActiveView;
+            if (activeView == null)
+            {
+                TaskDialog.Show(label, "No active view. Open a view and try again.");
+                return false;
+            }
+            return true;
+        }
+    }
+
+    /// <summary>
     /// State-based selection commands from STINGTags v9.6 SELECT tab:
     /// Untagged, Tagged, EmptyMark, Pinned, Unpinned.
     /// </summary>
@@ -19,11 +47,11 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            if (!SelectGuard.TryGetContext(cmd, "Select Untagged", out var uidoc, out var doc, out var activeView))
+                return Result.Failed;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = new FilteredElementCollector(doc, activeView.Id)
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
@@ -45,11 +73,11 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            if (!SelectGuard.TryGetContext(cmd, "Select Tagged", out var uidoc, out var doc, out var activeView))
+                return Result.Failed;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = new FilteredElementCollector(doc, activeView.Id)
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
@@ -71,10 +99,10 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            if (!SelectGuard.TryGetContext(cmd, "Select Empty Mark", out var uidoc, out var doc, out var activeView))
+                return Result.Failed;
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = new FilteredElementCollector(doc, activeView.Id)
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
@@ -96,10 +124,10 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            if (!SelectGuard.TryGetContext(cmd, "Select Pinned", out var uidoc, out var doc, out var activeView))
+                return Result.Failed;
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = new FilteredElementCollector(doc, activeView.Id)
                 .WhereElementIsNotElementType()
                 .Where(e => e.Pinned)
                 .Select(e => e.Id).ToList();
@@ -115,11 +143,11 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            if (!SelectGuard.TryGetContext(cmd, "Select Unpinned", out var uidoc, out var doc, out var activeView))
+                return Result.Failed;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = new FilteredElementCollector(doc, activeView.Id)
                 .WhereElementIsNotElementType()
                 .Where(e => !e.Pinned && known.Contains(ParameterHelpers.GetCategoryName(e)))
                 .Select(e => e.Id).ToList();
@@ -140,9 +168,8 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            if (!SelectGuard.TryGetContext(cmd, "Select by Level", out var uidoc, out var doc, out var view))
+                return Result.Failed;
 
             // Try to get level from plan view directly
             ElementId levelId = null;
@@ -244,8 +271,8 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            if (!SelectGuard.TryGetContext(cmd, "Select by Room", out var uidoc, out var doc, out _))
+                return Result.Failed;
 
             var selected = uidoc.Selection.GetElementIds();
             if (selected.Count == 0)
@@ -352,6 +379,7 @@ namespace StingTools.Select
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var selected = uidoc.Selection.GetElementIds();

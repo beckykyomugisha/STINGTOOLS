@@ -230,6 +230,10 @@ namespace StingTools.Tags
 
             StingLog.Info($"Pass 2 complete: {pass2Bound} bound, {pass2Skipped} skipped");
 
+            // Clear stale parameter cache so subsequent commands find newly-bound params
+            ParameterHelpers.ClearParamCache();
+            StingLog.Info("Parameter lookup cache cleared after binding");
+
             string report = $"Shared parameter binding complete.\n\n" +
                 $"Pass 1 (Universal):   {pass1Bound} bound, {pass1Skipped} skipped\n" +
                 $"Pass 2 (Discipline):  {pass2Bound} bound, {pass2Skipped} skipped\n" +

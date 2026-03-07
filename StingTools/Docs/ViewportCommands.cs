@@ -271,7 +271,7 @@ namespace StingTools.Docs
                 .Select(id => doc.GetElement(id) as TextNote)
                 .Where(t => t != null).ToList();
 
-            if (textNotes.Count == 0)
+            if (textNotes.Count == 0 && doc.ActiveView != null)
             {
                 // Fall back to all text notes in view
                 textNotes = new FilteredElementCollector(doc, doc.ActiveView.Id)

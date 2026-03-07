@@ -31,12 +31,20 @@ namespace StingTools.Tags
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class TagAndCombineCommand : IExternalCommand
+    public class TagAndCombineCommand : IExternalCommand, IPanelCommand
     {
+        public Result Execute(UIApplication app)
+        {
+            string msg = "";
+            var el = new ElementSet();
+            return Execute(null, ref msg, el);
+        }
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Tag & Combine", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Step 0: Choose scope
