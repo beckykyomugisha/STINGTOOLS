@@ -38,7 +38,9 @@ namespace StingTools.Temp
         {
             try
             {
-                return ExecuteCore(app);
+                string message = "";
+                var elements = new ElementSet();
+                return Execute(null, ref message, elements);
             }
             catch (Exception ex)
             {
