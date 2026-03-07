@@ -47,6 +47,8 @@ namespace StingTools.Core
 
         public static bool IsEnabled => _enabled;
         public static int ProcessedCount => _processedCount;
+        /// <summary>True if the auto-tagger was disabled automatically due to repeated failures.</summary>
+        public static bool WasAutoDisabled { get; private set; }
 
         /// <summary>
         /// Register the updater with Revit. Called from OnStartup.
@@ -104,6 +106,8 @@ namespace StingTools.Core
             {
                 UpdaterRegistry.EnableUpdater(_updaterId);
                 _enabled = true;
+                WasAutoDisabled = false;
+                _consecutiveFailures = 0;
                 _recentlyProcessed.Clear();
                 StingLog.Info("StingAutoTagger: enabled");
             }
@@ -191,7 +195,16 @@ namespace StingTools.Core
                 {
                     StingLog.Error($"StingAutoTagger: auto-disabling after {_consecutiveFailures} " +
                         "consecutive failures to prevent Revit instability");
+                    WasAutoDisabled = true;
                     try { Toggle(); } catch { _enabled = false; }
+
+                    // Notify the user via the dockable panel status bar
+                    try
+                    {
+                        UI.StingDockPanel.UpdateComplianceStatus(
+                            "Auto-Tagger DISABLED (errors — re-enable via toggle)", "RED");
+                    }
+                    catch { /* Panel may not be loaded yet */ }
                 }
             }
         }
@@ -239,15 +252,30 @@ namespace StingTools.Core
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            bool wasAutoDisabled = StingAutoTagger.WasAutoDisabled;
             bool nowEnabled = StingAutoTagger.Toggle();
-            TaskDialog.Show("Auto-Tagger",
-                nowEnabled
-                    ? "Real-time auto-tagging ENABLED.\n\n" +
+
+            string msg;
+            if (nowEnabled && wasAutoDisabled)
+            {
+                msg = "Real-time auto-tagging RE-ENABLED.\n\n" +
+                      "Note: Auto-tagger was previously disabled automatically due to errors.\n" +
+                      "If problems persist, check the log file for details.\n\n" +
+                      $"Elements auto-tagged so far: {StingAutoTagger.ProcessedCount}";
+            }
+            else if (nowEnabled)
+            {
+                msg = "Real-time auto-tagging ENABLED.\n\n" +
                       "Newly placed elements will be automatically tagged\n" +
                       "with ISO 19650 codes (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ).\n\n" +
-                      $"Elements auto-tagged so far: {StingAutoTagger.ProcessedCount}"
-                    : "Real-time auto-tagging DISABLED.\n\n" +
-                      $"Total elements auto-tagged this session: {StingAutoTagger.ProcessedCount}");
+                      $"Elements auto-tagged so far: {StingAutoTagger.ProcessedCount}";
+            }
+            else
+            {
+                msg = "Real-time auto-tagging DISABLED.\n\n" +
+                      $"Total elements auto-tagged this session: {StingAutoTagger.ProcessedCount}";
+            }
+            TaskDialog.Show("Auto-Tagger", msg);
             return Result.Succeeded;
         }
     }
