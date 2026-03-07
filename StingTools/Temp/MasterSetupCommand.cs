@@ -158,6 +158,9 @@ namespace StingTools.Temp
                 passed += DoStep("Create Pipe Types",
                     () => RunCommand(new CreatePipesCommand(), commandData, elements));
 
+                // Issue #8: Regenerate model after large batch operations to ensure consistency
+                try { doc.Regenerate(); } catch { }
+
                 // Step 6: Batch create schedules
                 passed += DoStep("Batch Create Schedules",
                     () => RunCommand(new BatchSchedulesCommand(), commandData, elements));
@@ -165,6 +168,9 @@ namespace StingTools.Temp
                 // Step 7: Evaluate formulas (199 dependency-ordered formulas)
                 passed += DoStep("Evaluate Formulas (199 definitions)",
                     () => RunCommand(new FormulaEvaluatorCommand(), commandData, elements));
+
+                // Issue #8: Regenerate after schedules + formulas before tagging
+                try { doc.Regenerate(); } catch { }
 
                 // Step 8: Tag & Combine (full pipeline: populate + tag + combine + TAG7 narrative)
                 passed += DoStep("Tag & Combine (full pipeline + TAG7)",

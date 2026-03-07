@@ -357,8 +357,16 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // Issue #11: Invalid layers (zero thickness, incompatible function) throw ArgumentException
+                    StingLog.Warn($"SetCompoundStructure failed for '{typeName}': {ex.Message}");
+                }
             }
 
             return true;
@@ -381,8 +389,16 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // Issue #11: Invalid layers (zero thickness, incompatible function) throw ArgumentException
+                    StingLog.Warn($"SetCompoundStructure failed for '{typeName}': {ex.Message}");
+                }
             }
 
             return true;
@@ -405,8 +421,16 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // Issue #11: Invalid layers (zero thickness, incompatible function) throw ArgumentException
+                    StingLog.Warn($"SetCompoundStructure failed for '{typeName}': {ex.Message}");
+                }
             }
 
             return true;
@@ -429,8 +453,16 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // Issue #11: Invalid layers (zero thickness, incompatible function) throw ArgumentException
+                    StingLog.Warn($"SetCompoundStructure failed for '{typeName}': {ex.Message}");
+                }
             }
 
             return true;
