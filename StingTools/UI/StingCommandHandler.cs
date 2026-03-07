@@ -19,15 +19,19 @@ namespace StingTools.UI
     /// </summary>
     public class StingCommandHandler : IExternalEventHandler
     {
+        private readonly object _lock = new object();
         private string _commandTag = "";
         private string _param1 = "";
         private string _param2 = "";
 
         public void SetCommand(string tag, string param1 = "", string param2 = "")
         {
-            _commandTag = tag ?? "";
-            _param1 = param1 ?? "";
-            _param2 = param2 ?? "";
+            lock (_lock)
+            {
+                _commandTag = tag ?? "";
+                _param1 = param1 ?? "";
+                _param2 = param2 ?? "";
+            }
         }
 
         public string GetName() => "STING Command Dispatcher";
@@ -38,9 +42,26 @@ namespace StingTools.UI
             // StingCommandHandler.CurrentApp when ExternalCommandData is null
             CurrentApp = app;
 
+            // Snapshot command state under lock to prevent race with WPF UI thread
+            string tag, p1, p2;
+            lock (_lock)
+            {
+                tag = _commandTag;
+                p1 = _param1;
+                p2 = _param2;
+            }
+
+            // Guard: most commands require an open document
+            if (app.ActiveUIDocument == null)
+            {
+                TaskDialog.Show("STING Tools",
+                    "No document is open. Please open a Revit project first.");
+                return;
+            }
+
             try
             {
-                switch (_commandTag)
+                switch (tag)
                 {
                     // ════════════════════════════════════════════════════════
                     // SELECT TAB
@@ -112,9 +133,9 @@ namespace StingTools.UI
                     case "QuickSystem": QuickParamFilter(app, ParamRegistry.SYS); break;
 
                     // ── Bulk write from panel (inline) ──
-                    case "BulkWrite": BulkParamWriteInline(app, _param1, _param2, false); break;
-                    case "BulkClear": BulkParamWriteInline(app, _param1, "", true); break;
-                    case "BulkPreview": BulkParamPreview(app, _param1, _param2); break;
+                    case "BulkWrite": BulkParamWriteInline(app, p1, p2, false); break;
+                    case "BulkClear": BulkParamWriteInline(app, p1, "", true); break;
+                    case "BulkPreview": BulkParamPreview(app, p1, p2); break;
 
                     // ── Project filters (inline) ──
                     case "FilterWorkset": QuickParamFilter(app, "Workset"); break;
@@ -293,9 +314,9 @@ namespace StingTools.UI
                     case "CreateFiltersFromColors": RunCommand<Select.CreateFiltersFromColorsCommand>(app); break;
 
                     // ── Colouriser inline ──
-                    case "ColorApply": ColorByParameter(app, _param1, _param2); break;
-                    case "ColorApplyHex": ColorByHex(app, _param1); break;
-                    case "ColorApplyTransparency": SetTransparencyOverride(app, _param1); break;
+                    case "ColorApply": ColorByParameter(app, p1, p2); break;
+                    case "ColorApplyHex": ColorByHex(app, p1); break;
+                    case "ColorApplyTransparency": SetTransparencyOverride(app, p1); break;
 
                     // ── Graphic overrides (inline) ──
                     case "HalftoneOn": SetHalftone(app, true); break;
@@ -337,7 +358,7 @@ namespace StingTools.UI
                     case "DocumentationPackage": RunCommand<Docs.DocumentationPackageCommand>(app); break;
                     case "BatchCreateSections": RunCommand<Docs.BatchCreateSectionsCommand>(app); break;
                     case "BatchCreateElevations": RunCommand<Docs.BatchCreateElevationsCommand>(app); break;
-                    case "DrawingRegister": RunCommand<Docs.DrawingRegisterCommand>(app); break;
+                    case "DocsDrawingRegister": RunCommand<Docs.DrawingRegisterCommand>(app); break;
                     case "ProjectBrowserOrganizer": RunCommand<Docs.ProjectBrowserOrganizerCommand>(app); break;
 
                     // ════════════════════════════════════════════════════════
@@ -506,7 +527,7 @@ namespace StingTools.UI
                     case "BulkBrain": BulkBrainSuggest(app); break;
                     case "ParamLookupRefresh":
                     case "RefreshParamList": RefreshParamList(app); break;
-                    case "CondAdd": ConditionAdd(app, _param1, _param2); break;
+                    case "CondAdd": ConditionAdd(app, p1, p2); break;
                     case "CondRemove": ConditionRemove(app); break;
                     case "CondClear": ConditionClear(app); break;
                     case "CondPreview": ConditionPreview(app); break;
@@ -586,7 +607,7 @@ namespace StingTools.UI
                     case "ListLinks": ListLinkedModels(app); break;
                     case "SelInLink":
                     case "TagLinked":
-                        StingLog.Info($"LinkedModel: {_commandTag} — requires linked document access");
+                        StingLog.Info($"LinkedModel: {tag} — requires linked document access");
                         TaskDialog.Show("Linked Model", "Select/tag in linked model requires direct linked document access.\nUse Revit's built-in 'Select Links' and 'Tab' key to select linked elements.");
                         break;
                     case "AuditLinks": AuditLinkedModels(app); break;
@@ -714,9 +735,9 @@ namespace StingTools.UI
 
                     // ── Unmapped / placeholder ──
                     default:
-                        StingLog.Warn($"Unrecognised command tag: {_commandTag}");
+                        StingLog.Warn($"Unrecognised command tag: {tag}");
                         TaskDialog.Show("STING Tools",
-                            $"Command '{_commandTag}' is not yet available.\nCheck for plugin updates.");
+                            $"Command '{tag}' is not yet available.\nCheck for plugin updates.");
                         break;
                 }
             }
@@ -726,7 +747,7 @@ namespace StingTools.UI
             }
             catch (Exception ex)
             {
-                StingLog.Error($"DockPanel command '{_commandTag}' failed", ex);
+                StingLog.Error($"DockPanel command '{tag}' failed", ex);
                 TaskDialog.Show("STING Tools", $"Command failed: {ex.Message}");
             }
 

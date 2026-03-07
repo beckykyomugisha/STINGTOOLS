@@ -980,7 +980,7 @@
                                 <TextBlock Style="{StaticResource SubLabel}" Text="SHEET CREATION"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Batch Sheets" Tag="BatchCreateSheets" Click="Cmd_Click" ToolTip="Create sheets with auto-numbering and viewport placement"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Drawing Register" Tag="DrawingRegister" Click="Cmd_Click" ToolTip="ISO 19650 drawing register with revision tracking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Drawing Register" Tag="DocsDrawingRegister" Click="Cmd_Click" ToolTip="ISO 19650 drawing register with revision tracking"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Title Block" Tag="CorporateTitleBlock" Click="Cmd_Click" ToolTip="Corporate title block schedule with project info and discipline summary"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="MANAGEMENT"/>
