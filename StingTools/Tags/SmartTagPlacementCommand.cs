@@ -924,9 +924,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             if (view is ViewSheet)
             {
@@ -1095,9 +1097,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             var allTags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
@@ -1244,9 +1248,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             var selectedIds = uidoc.Selection.GetElementIds();
             var selectedTags = selectedIds
@@ -1311,7 +1317,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var views = new FilteredElementCollector(doc)
                 .OfClass(typeof(View)).Cast<View>()
@@ -1404,8 +1412,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             var tags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag)).Cast<IndependentTag>().ToList();
@@ -1454,8 +1465,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             if (view is ViewSheet)
             {
@@ -1528,9 +1542,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             var tags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
@@ -1680,9 +1696,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIApplication uiApp = ParameterHelpers.GetApp(commandData);
-            UIDocument uidoc = uiApp.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // Find tag families to modify
             var tagFamilies = new FilteredElementCollector(doc)
@@ -1882,7 +1899,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Pick line weight (pen number 1-16)
             TaskDialog dlg = new TaskDialog("Set Tag Category Line Weight");

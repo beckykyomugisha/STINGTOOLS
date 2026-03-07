@@ -314,9 +314,12 @@ namespace StingTools.Select
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             // Collect taggable elements in active view
             var elems = new FilteredElementCollector(doc, view.Id)
@@ -498,9 +501,12 @@ namespace StingTools.Select
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             // Check selection first — clear only selected elements if any
             var selected = uidoc.Selection.GetElementIds();
@@ -571,8 +577,11 @@ namespace StingTools.Select
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             // Scan elements for overrides
             var elems = new FilteredElementCollector(doc, view.Id)
@@ -666,9 +675,12 @@ namespace StingTools.Select
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var presets = ColorHelper.LoadPresets();
             if (presets.Count == 0)
@@ -770,9 +782,12 @@ namespace StingTools.Select
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             // Ask which parameter was used for coloring
             TaskDialog paramDlg = new TaskDialog("Create Filters — Parameter");

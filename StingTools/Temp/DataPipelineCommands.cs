@@ -29,7 +29,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             string dataPath = StingToolsApp.DataPath;
             if (string.IsNullOrEmpty(dataPath) || !Directory.Exists(dataPath))
@@ -567,7 +569,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             string bindingsPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
             if (bindingsPath == null)
@@ -1027,8 +1031,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
-            if (doc == null) return Result.Failed;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             StingLog.Info("BOQ Export starting...");
 
@@ -1888,8 +1893,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
-            if (doc == null) return Result.Failed;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             var report = new StringBuilder();
             report.AppendLine("STING Template VG Consistency Audit");
@@ -2098,8 +2104,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
-            if (doc == null) return Result.Failed;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Load IFC mapping from PARAMETER_REGISTRY.json
             string regPath = StingToolsApp.FindDataFile("PARAMETER_REGISTRY.json");
@@ -2212,8 +2219,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
-            if (doc == null) return Result.Failed;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Load BEP from data directory
             string bepPath = StingToolsApp.FindDataFile("project_bep.json");
@@ -2351,7 +2359,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             // Define clash groups: MEP vs Structure
             var mepCats = new List<BuiltInCategory>
@@ -2589,7 +2599,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             if (string.IsNullOrEmpty(doc.PathName))
             {
@@ -2734,7 +2746,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             // Find Excel files in the project directory
             string projectDir = !string.IsNullOrEmpty(doc.PathName)
@@ -2899,7 +2913,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             string outputDir = !string.IsNullOrEmpty(doc.PathName)
                 ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()

@@ -19,11 +19,11 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
@@ -34,7 +34,7 @@ namespace StingTools.Select
                 })
                 .Select(e => e.Id).ToList();
 
-            uidoc.Selection.SetElementIds(ids);
+            ctx.UIDoc.Selection.SetElementIds(ids);
             TaskDialog.Show("Select Untagged", $"Selected {ids.Count} untagged elements.");
             return Result.Succeeded;
         }
@@ -45,11 +45,11 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
@@ -60,7 +60,7 @@ namespace StingTools.Select
                 })
                 .Select(e => e.Id).ToList();
 
-            uidoc.Selection.SetElementIds(ids);
+            ctx.UIDoc.Selection.SetElementIds(ids);
             TaskDialog.Show("Select Tagged", $"Selected {ids.Count} tagged elements.");
             return Result.Succeeded;
         }
@@ -71,10 +71,10 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
@@ -85,7 +85,7 @@ namespace StingTools.Select
                 })
                 .Select(e => e.Id).ToList();
 
-            uidoc.Selection.SetElementIds(ids);
+            ctx.UIDoc.Selection.SetElementIds(ids);
             TaskDialog.Show("Select Empty Mark", $"Selected {ids.Count} elements with empty Mark.");
             return Result.Succeeded;
         }
@@ -96,15 +96,15 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
                 .WhereElementIsNotElementType()
                 .Where(e => e.Pinned)
                 .Select(e => e.Id).ToList();
 
-            uidoc.Selection.SetElementIds(ids);
+            ctx.UIDoc.Selection.SetElementIds(ids);
             TaskDialog.Show("Select Pinned", $"Selected {ids.Count} pinned elements.");
             return Result.Succeeded;
         }
@@ -115,16 +115,16 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
                 .WhereElementIsNotElementType()
                 .Where(e => !e.Pinned && known.Contains(ParameterHelpers.GetCategoryName(e)))
                 .Select(e => e.Id).ToList();
 
-            uidoc.Selection.SetElementIds(ids);
+            ctx.UIDoc.Selection.SetElementIds(ids);
             TaskDialog.Show("Select Unpinned", $"Selected {ids.Count} unpinned elements.");
             return Result.Succeeded;
         }
@@ -140,9 +140,11 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             // Try to get level from plan view directly
             ElementId levelId = null;
@@ -244,8 +246,10 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("Select", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds();
             if (selected.Count == 0)
@@ -351,8 +355,10 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("Bulk Param Write", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds();
             if (selected.Count == 0)

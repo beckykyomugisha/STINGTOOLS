@@ -22,7 +22,10 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var allViews = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
@@ -38,7 +41,7 @@ namespace StingTools.Docs
                     .SelectMany(s => s.GetAllPlacedViews()));
 
             // Get the active view to protect it
-            ElementId activeViewId = doc.ActiveView.Id;
+            ElementId activeViewId = ctx.ActiveView.Id;
 
             var unplaced = allViews
                 .Where(v => !placedViewIds.Contains(v.Id) && v.Id != activeViewId)
@@ -179,7 +182,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
@@ -352,7 +357,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))

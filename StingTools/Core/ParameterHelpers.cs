@@ -11,14 +11,53 @@ namespace StingTools.Core
     /// <summary>
     /// Ported from tag_logic.py — parameter read/write helpers for Revit elements.
     /// </summary>
+    /// <summary>
+    /// Safe command execution context — null-checked UIApplication, UIDocument,
+    /// Document, and ActiveView. Use <see cref="ParameterHelpers.GetContext"/> to obtain.
+    /// </summary>
+    public class CommandContext
+    {
+        public UIApplication App { get; init; }
+        public UIDocument UIDoc { get; init; }
+        public Document Doc { get; init; }
+        /// <summary>Active view — may be null if in family editor or schedule is active.
+        /// Check before using with FilteredElementCollector(doc, view.Id).</summary>
+        public View ActiveView { get; init; }
+        /// <summary>True when ActiveView is a graphical view suitable for element collection.</summary>
+        public bool HasGraphicalView => ActiveView != null
+            && ActiveView.ViewType != ViewType.Schedule
+            && ActiveView.ViewType != ViewType.DrawingSheet
+            && ActiveView.ViewType != ViewType.Internal;
+    }
+
     public static class ParameterHelpers
     {
+        /// <summary>
+        /// Get a fully null-checked command execution context.
+        /// Returns null if no document is open (caller should return Result.Failed).
+        /// Usage:
+        ///   var ctx = ParameterHelpers.GetContext(commandData);
+        ///   if (ctx == null) { message = "No document open."; return Result.Failed; }
+        /// </summary>
+        public static CommandContext GetContext(ExternalCommandData commandData)
+        {
+            var app = GetApp(commandData);
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return null;
+            var doc = uidoc.Document;
+            if (doc == null) return null;
+            View activeView = null;
+            try { activeView = doc.ActiveView; } catch { /* family editor / no view */ }
+            return new CommandContext { App = app, UIDoc = uidoc, Doc = doc, ActiveView = activeView };
+        }
+
         /// <summary>
         /// Get UIApplication from ExternalCommandData with null-safe fallback to
         /// StingCommandHandler.CurrentApp. Use this at the top of every command:
         ///   UIApplication uiApp = ParameterHelpers.GetApp(commandData);
         ///   UIDocument uidoc = uiApp.ActiveUIDocument;
         ///   Document doc = uidoc.Document;
+        /// Prefer <see cref="GetContext"/> for full null-safety.
         /// </summary>
         public static UIApplication GetApp(ExternalCommandData commandData)
         {

@@ -17,8 +17,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds();
             if (selected.Count == 0)
@@ -124,8 +126,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds();
             if (selected.Count == 0)
@@ -195,8 +199,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Find all duplicates
@@ -350,8 +356,10 @@ namespace StingTools.Organise
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds();
             if (selected.Count == 0)
@@ -413,8 +421,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds();
             if (selected.Count == 0)
@@ -549,7 +559,9 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            Document doc = ParameterHelpers.GetApp(cmd).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             var sb = new StringBuilder();
@@ -612,8 +624,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             var tagMap = new Dictionary<string, List<ElementId>>();
@@ -670,9 +684,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Red = missing, Orange = incomplete, Yellow = ISO violation, Purple = placeholder
@@ -802,8 +819,11 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            Document doc = ParameterHelpers.GetApp(cmd).ActiveUIDocument.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var reset = new OverrideGraphicSettings();
             int cleared = 0;
@@ -844,8 +864,10 @@ namespace StingTools.Organise
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds().ToList();
             if (selected.Count < 2)
@@ -949,8 +971,10 @@ namespace StingTools.Organise
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds().ToList();
             if (selected.Count != 2)
@@ -1020,15 +1044,19 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // Count elements per discipline
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
             var discCounts = new Dictionary<string, int>();
             var discElements = new Dictionary<string, List<ElementId>>();
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            foreach (Element elem in new FilteredElementCollector(doc, doc.ActiveView.Id)
+            foreach (Element elem in new FilteredElementCollector(doc, view.Id)
                 .WhereElementIsNotElementType())
             {
                 string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
@@ -1350,9 +1378,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var (tags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -1438,9 +1469,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var (tags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -1516,9 +1550,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var (allTags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
             var leaderTags = allTags.Where(t =>
@@ -1593,9 +1630,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var (allTags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
             if (allTags.Count == 0)
@@ -1700,9 +1740,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var (tags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -1748,9 +1791,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var (allTags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
             if (allTags.Count == 0)
@@ -1848,9 +1894,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var (tags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -2000,9 +2049,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var (allTags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
             if (allTags.Count == 0)
@@ -2131,9 +2183,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var (tags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -2214,9 +2269,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var (allTags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
             if (allTags.Count == 0)
@@ -2371,9 +2429,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -2486,8 +2547,11 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            Document doc = ParameterHelpers.GetApp(cmd).ActiveUIDocument.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             int total = 0, tagged = 0, untagged = 0;
@@ -2580,7 +2644,9 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Define ALL columns for the register
@@ -2868,8 +2934,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -2915,8 +2983,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -2963,8 +3033,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -3021,8 +3093,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var tags = LeaderHelper.GetSelectedTags(uidoc);
             if (tags.Count < 2)
@@ -3032,7 +3106,8 @@ namespace StingTools.Organise
                 return Result.Succeeded;
             }
 
-            View view = doc.ActiveView;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             // Calculate actual tag widths for smart spacing
             double maxTagWidth = 0;
@@ -3156,8 +3231,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -3217,8 +3294,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -3265,9 +3344,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var allTags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
@@ -3341,7 +3423,9 @@ namespace StingTools.Organise
             }
 
             // Fall back to all tags in active view
-            return new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var activeView = doc.ActiveView;
+            if (activeView == null) return new List<IndependentTag>();
+            return new FilteredElementCollector(doc, activeView.Id)
                 .OfClass(typeof(IndependentTag))
                 .Cast<IndependentTag>()
                 .ToList();
@@ -3499,8 +3583,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var tags = LeaderHelper.GetTargetTags(uidoc)
                 .Where(t => t.HasLeader).ToList();
@@ -3660,9 +3746,12 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var tags = LeaderHelper.GetTargetTags(uidoc)
                 .Where(t => t.HasLeader).ToList();
@@ -3700,8 +3789,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -3791,8 +3882,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // Get selected text notes and tags
             var selIds = uidoc.Selection.GetElementIds();
@@ -3915,8 +4008,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -3995,8 +4090,10 @@ namespace StingTools.Organise
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var tags = LeaderHelper.GetSelectedTags(uidoc);
             if (tags.Count == 0)
@@ -4101,8 +4198,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var tags = LeaderHelper.GetTargetTags(uidoc)
                 .Where(t => t.HasLeader).ToList();
@@ -4179,8 +4278,10 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            var doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var uidoc = ctx.UIDoc;
+            var doc = ctx.Doc;
 
             // Scan all taggable elements
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Windows.Media.Imaging;
 using Autodesk.Revit.DB;
@@ -29,6 +31,9 @@ namespace StingTools.Core
                     Path.GetDirectoryName(AssemblyPath) ?? string.Empty,
                     "data");
 
+                // Pre-flight: log assembly environment for crash diagnostics
+                LogAssemblyEnvironment();
+
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
 
@@ -53,6 +58,68 @@ namespace StingTools.Core
             StingAutoTagger.Unregister();
             StingLog.Shutdown();
             return Result.Succeeded;
+        }
+
+        // ── Assembly Pre-Flight Check ────────────────────────────────
+
+        /// <summary>
+        /// Logs the assembly environment at startup for crash diagnostics.
+        /// Detects known conflict patterns (version mismatches for key assemblies)
+        /// that have been observed to cause native Revit crashes.
+        /// </summary>
+        private static void LogAssemblyEnvironment()
+        {
+            try
+            {
+                var stingAsm = Assembly.GetExecutingAssembly().GetName();
+                StingLog.Info($"STING Tools v{stingAsm.Version} loaded from {AssemblyPath}");
+
+                // Check for assemblies we depend on that may conflict with other addins
+                var criticalAssemblies = new[] {
+                    "Newtonsoft.Json", "ClosedXML", "DocumentFormat.OpenXml",
+                    "System.IO.Packaging", "WindowsBase", "RevitAPI", "RevitAPIUI"
+                };
+
+                var loaded = AppDomain.CurrentDomain.GetAssemblies();
+                var conflicts = new List<string>();
+
+                // Group loaded assemblies by short name to detect version conflicts
+                var grouped = loaded
+                    .Where(a => !a.IsDynamic)
+                    .GroupBy(a => a.GetName().Name, StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Count() > 1 || criticalAssemblies.Contains(g.Key));
+
+                foreach (var g in grouped)
+                {
+                    var versions = g.Select(a => a.GetName().Version?.ToString() ?? "?").Distinct().ToList();
+                    if (versions.Count > 1)
+                    {
+                        string msg = $"CONFLICT: {g.Key} loaded with {versions.Count} versions: " +
+                            string.Join(", ", versions);
+                        StingLog.Warn(msg);
+                        conflicts.Add(msg);
+                    }
+                    else if (criticalAssemblies.Contains(g.Key))
+                    {
+                        StingLog.Info($"Assembly: {g.Key} v{versions[0]}");
+                    }
+                }
+
+                if (conflicts.Count > 0)
+                {
+                    StingLog.Warn($"Assembly pre-flight: {conflicts.Count} version conflict(s) detected. " +
+                        "These may cause intermittent crashes. Check log for details.");
+                }
+                else
+                {
+                    StingLog.Info("Assembly pre-flight: no version conflicts detected.");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Pre-flight check is diagnostic only — never block startup
+                StingLog.Warn($"Assembly pre-flight check failed: {ex.Message}");
+            }
         }
 
         // ── Dockable Panel Registration ──────────────────────────────

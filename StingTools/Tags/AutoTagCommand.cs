@@ -31,15 +31,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View activeView = doc.ActiveView;
-
-            if (activeView == null)
-            {
-                TaskDialog.Show("Auto Tag", "No active view.");
-                return Result.Failed;
-            }
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc; Document doc = ctx.Doc;
+            View activeView = ctx.ActiveView;
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
             var viewElements = new FilteredElementCollector(doc, activeView.Id)
@@ -223,7 +219,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
