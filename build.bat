@@ -100,6 +100,20 @@ if not exist "%OUTDIR%\StingTools.dll" (
     REM Fallback: some .NET SDK versions append TFM despite AppendTargetFrameworkToOutputPath=false
     if exist "%OUTDIR%\net8.0-windows\StingTools.dll" set "OUTDIR=%OUTDIR%\net8.0-windows"
 )
+if not exist "%OUTDIR%\StingTools.dll" (
+    REM Fallback: Debug config when Release was requested but build defaulted
+    if exist "StingTools\bin\Debug\StingTools.dll" set "OUTDIR=StingTools\bin\Debug"
+    if exist "StingTools\bin\Debug\net8.0-windows\StingTools.dll" set "OUTDIR=StingTools\bin\Debug\net8.0-windows"
+)
+if not exist "%OUTDIR%\StingTools.dll" (
+    REM Last resort: search recursively under bin
+    for /r "StingTools\bin" %%F in (StingTools.dll) do (
+        set "OUTDIR=%%~dpF"
+        set "OUTDIR=!OUTDIR:~0,-1!"
+        goto :found
+    )
+)
+:found
 if exist "%OUTDIR%\StingTools.dll" (
     echo.
     echo ═══════════════════════════════════════════════
@@ -117,8 +131,17 @@ if exist "%OUTDIR%\StingTools.dll" (
     echo    4. Restart Revit
     echo.
 ) else (
-    echo WARNING: StingTools.dll not found at expected location.
-    echo Check build output above for actual path.
+    echo.
+    echo ═══════════════════════════════════════════════
+    echo  BUILD FAILED — StingTools.dll not produced
+    echo ═══════════════════════════════════════════════
+    echo.
+    echo  Check the build errors above. Common causes:
+    echo    - Missing Revit API DLLs at: %RevitApiPath%
+    echo    - C# compilation errors in source files
+    echo    - NuGet package restore failures
+    echo.
+    exit /b 1
 )
 
 endlocal
