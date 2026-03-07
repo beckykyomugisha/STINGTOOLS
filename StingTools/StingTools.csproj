@@ -49,8 +49,9 @@
   -->
   <Target Name="RemoveConflictingAssemblies" AfterTargets="ResolveAssemblyReferences">
     <ItemGroup>
+      <!-- Keep System.IO.Packaging — it's a NuGet package needed by ClosedXML/OpenXml -->
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
-        Condition="$([System.String]::new('%(Filename)').StartsWith('System.')) Or
+        Condition="($([System.String]::new('%(Filename)').StartsWith('System.')) And '%(Filename)' != 'System.IO.Packaging') Or
                    $([System.String]::new('%(Filename)').StartsWith('Microsoft.')) Or
                    '%(Filename)' == 'WindowsBase' Or
                    '%(Filename)' == 'PresentationCore' Or

@@ -273,6 +273,12 @@ namespace StingTools.Temp
         /// Shared material creation logic for BLE and MEP commands.
         /// Reads CSV, finds/duplicates base materials, applies all properties.
         /// </summary>
+        /// <summary>Max materials to create per transaction before committing and
+        /// regenerating. Large batches (464 MEP materials in one go) push Revit's
+        /// regeneration past its limits, causing crashes especially when other plugins
+        /// (DiRoots, pyRevit) have loaded conflicting assembly versions.</summary>
+        private const int MaterialBatchSize = 50;
+
         public static Result CreateMaterialsFromCsv(Document doc, string csvFileName,
             string dialogTitle)
         {
@@ -293,70 +299,83 @@ namespace StingTools.Temp
             int created = 0;
             int skipped = 0;
             int duplicated = 0;
+            int batchCount = 0;
 
-            using (Transaction tx = new Transaction(doc, $"STING {dialogTitle}"))
+            // Build caches OUTSIDE the transaction (read-only operations)
+            var baseMaterialCache = BuildBaseMaterialCache(doc);
+            var existingNames = new HashSet<string>(
+                baseMaterialCache.Keys, StringComparer.OrdinalIgnoreCase);
+            var fillPatternCache = BuildFillPatternCache(doc);
+
+            // Process in batches to avoid overwhelming Revit's regeneration engine.
+            // Creating 464+ materials in a single transaction triggers internal DOPT
+            // failures, especially when assembly version conflicts from co-loaded
+            // plugins (DiRoots.One, pyRevitLoader) destabilize the CLR.
+            for (int batchStart = 0; batchStart < lines.Count; batchStart += MaterialBatchSize)
             {
-                tx.Start();
+                int batchEnd = Math.Min(batchStart + MaterialBatchSize, lines.Count);
+                batchCount++;
 
-                // Build base material cache from existing materials in project
-                var baseMaterialCache = BuildBaseMaterialCache(doc);
-
-                // Build existing names set (case-insensitive) for dedup
-                var existingNames = new HashSet<string>(
-                    baseMaterialCache.Keys, StringComparer.OrdinalIgnoreCase);
-
-                // Build fill pattern cache for pattern assignment
-                var fillPatternCache = BuildFillPatternCache(doc);
-
-                foreach (string line in lines)
+                using (Transaction tx = new Transaction(doc,
+                    $"STING {dialogTitle} (batch {batchCount})"))
                 {
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 7) continue;
+                    tx.Start();
 
-                    string matName = cols[ColName].Trim();
-                    if (string.IsNullOrEmpty(matName)) continue;
-
-                    if (existingNames.Contains(matName))
+                    for (int i = batchStart; i < batchEnd; i++)
                     {
-                        skipped++;
-                        continue;
-                    }
+                        string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
+                        if (cols.Length < 7) continue;
 
-                    try
-                    {
-                        // Create material from base (duplicate native) or blank
-                        Material newMat = CreateFromBase(doc, matName, cols, baseMaterialCache);
-                        if (newMat != null)
+                        string matName = cols[ColName].Trim();
+                        if (string.IsNullOrEmpty(matName)) continue;
+
+                        if (existingNames.Contains(matName))
                         {
-                            // Apply all CSV properties (color, patterns, class, etc.)
-                            ApplyMaterialProperties(newMat, cols, doc, fillPatternCache);
+                            skipped++;
+                            continue;
+                        }
 
-                            // Track whether base material was used
-                            string baseMatName = GetCol(cols, ColBaseMaterial);
-                            if (!string.IsNullOrEmpty(baseMatName) &&
-                                baseMaterialCache.ContainsKey(baseMatName))
-                                duplicated++;
+                        try
+                        {
+                            // Create material from base (duplicate native) or blank
+                            Material newMat = CreateFromBase(doc, matName, cols, baseMaterialCache);
+                            if (newMat != null)
+                            {
+                                // Apply all CSV properties (color, patterns, class, etc.)
+                                ApplyMaterialProperties(newMat, cols, doc, fillPatternCache);
 
-                            created++;
-                            existingNames.Add(matName);
-                            // Add to base cache so later rows can reference this material
-                            baseMaterialCache[matName] = newMat;
+                                // Track whether base material was used
+                                string baseMatName = GetCol(cols, ColBaseMaterial);
+                                if (!string.IsNullOrEmpty(baseMatName) &&
+                                    baseMaterialCache.ContainsKey(baseMatName))
+                                    duplicated++;
+
+                                created++;
+                                existingNames.Add(matName);
+                                // Add to base cache so later rows can reference this material
+                                baseMaterialCache[matName] = newMat;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Material create failed '{matName}': {ex.Message}");
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"Material create failed '{matName}': {ex.Message}");
-                    }
 
-                    // Progress logging every 100 materials
-                    if ((created + skipped) % 100 == 0)
-                        StingLog.Info($"{dialogTitle}: {created} created, {skipped} skipped so far...");
+                    tx.Commit();
                 }
 
-                tx.Commit();
+                // Let Revit regenerate between batches — prevents internal state overflow
+                try { doc.Regenerate(); } catch (Exception ex)
+                {
+                    StingLog.Warn($"Regenerate after batch {batchCount}: {ex.Message}");
+                }
+
+                // Progress logging per batch
+                StingLog.Info($"{dialogTitle}: batch {batchCount} done — {created} created, {skipped} skipped");
             }
 
-            string report = $"Created {created} materials.\n" +
+            string report = $"Created {created} materials in {batchCount} batches.\n" +
                 $"  Duplicated from base: {duplicated}\n" +
                 $"  Created blank: {created - duplicated}\n" +
                 $"Skipped {skipped} (already exist).\n" +
@@ -403,9 +422,10 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
             return MaterialPropertyHelper.CreateMaterialsFromCsv(
-                doc, "BLE_MATERIALS.csv", "Create BLE Materials");
+                uidoc.Document, "BLE_MATERIALS.csv", "Create BLE Materials");
         }
     }
 
@@ -421,9 +441,10 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("STING Tools", "No document is open."); return Result.Failed; }
             return MaterialPropertyHelper.CreateMaterialsFromCsv(
-                doc, "MEP_MATERIALS.csv", "Create MEP Materials");
+                uidoc.Document, "MEP_MATERIALS.csv", "Create MEP Materials");
         }
     }
 }

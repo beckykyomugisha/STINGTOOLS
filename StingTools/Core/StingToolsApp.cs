@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Windows.Media.Imaging;
 using Autodesk.Revit.DB;
@@ -45,6 +46,12 @@ namespace StingTools.Core
                         StingLog.Error($"FATAL UNHANDLED: {e.ExceptionObject}");
                 };
 
+                // Issue #22: Scan for known plugin conflicts at startup.
+                // DiRoots.One, pyRevitLoader, and StingBIM.AI.Revit can load
+                // conflicting RevitAPI versions (e.g. 25.4.20.0 vs 25.4.30.0),
+                // which causes NullRef/TypeLoad crashes in any Revit plugin.
+                ScanForConflicts();
+
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
 
@@ -72,6 +79,132 @@ namespace StingTools.Core
             return Result.Succeeded;
         }
 
+        // ── Assembly conflict detection ─────────────────────────────
+
+        /// <summary>
+        /// Known problematic addins that load conflicting RevitAPI versions or share
+        /// namespace collisions. Detected at startup and logged as warnings so the
+        /// user can diagnose "mysterious" crashes caused by the toxic combination of
+        /// multiple plugins competing for the same assembly binding.
+        ///
+        /// Root causes documented in STINGTOOLS_CRASH_ANALYSIS.md:
+        ///   1. DiRoots.One + pyRevitLoader load RevitAPI 25.4.20.0 vs Revit's 25.4.30.0
+        ///   2. StingBIM.AI.Revit.dll v0.0.0.0 shares namespace, unsigned
+        ///   3. Multiple Newtonsoft.Json versions (DiRoots ships v12, we ship v13)
+        /// </summary>
+        private static readonly string[] KnownConflictAssemblies =
+        {
+            "pyRevitLoader",
+            "DiRoots.One",
+            "DiRootsOne",
+            "StingBIM.AI.Revit",
+            "StingBIM.AI",
+        };
+
+        /// <summary>
+        /// Scan all loaded assemblies at startup for known conflicts.
+        /// Logs findings to StingTools.log for diagnostics — does NOT block loading.
+        /// </summary>
+        private static void ScanForConflicts()
+        {
+            try
+            {
+                var loaded = AppDomain.CurrentDomain.GetAssemblies();
+                var revitApiVersions = new List<string>();
+                var conflicts = new List<string>();
+                int totalAddins = 0;
+
+                foreach (Assembly asm in loaded)
+                {
+                    try
+                    {
+                        string name = asm.GetName().Name;
+                        string version = asm.GetName().Version?.ToString() ?? "?";
+
+                        // Track RevitAPI version conflicts
+                        if (name == "RevitAPI" || name == "RevitAPIUI")
+                        {
+                            revitApiVersions.Add($"{name} {version} [{asm.Location}]");
+                        }
+
+                        // Detect known conflicting addins
+                        foreach (string conflict in KnownConflictAssemblies)
+                        {
+                            if (name.Contains(conflict, StringComparison.OrdinalIgnoreCase))
+                            {
+                                conflicts.Add($"{name} v{version}");
+                                break;
+                            }
+                        }
+
+                        // Count Revit addins (heuristic: references RevitAPI)
+                        if (name != "RevitAPI" && name != "RevitAPIUI" && name != "StingTools")
+                        {
+                            try
+                            {
+                                foreach (var refAsm in asm.GetReferencedAssemblies())
+                                {
+                                    if (refAsm.Name == "RevitAPI")
+                                    {
+                                        totalAddins++;
+                                        // Check for version mismatch
+                                        if (revitApiVersions.Count > 0)
+                                        {
+                                            string hostVer = revitApiVersions[0];
+                                            string refVer = refAsm.Version?.ToString() ?? "?";
+                                            if (!hostVer.Contains(refVer))
+                                            {
+                                                conflicts.Add(
+                                                    $"{name} references RevitAPI {refVer} (host has different version)");
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                            catch { /* ReflectionTypeLoadException for some assemblies */ }
+                        }
+                    }
+                    catch { /* Skip assemblies that can't be inspected */ }
+                }
+
+                // Log findings
+                if (revitApiVersions.Count > 0)
+                    StingLog.Info($"RevitAPI loaded: {string.Join("; ", revitApiVersions)}");
+
+                if (conflicts.Count > 0)
+                {
+                    StingLog.Warn($"CONFLICT DETECTED: {conflicts.Count} known conflict(s) with co-loaded plugins:");
+                    foreach (string c in conflicts)
+                        StingLog.Warn($"  - {c}");
+                    StingLog.Warn("If STING Tools crashes, try disabling conflicting addins. " +
+                        "See STINGTOOLS_CRASH_ANALYSIS.md for details.");
+                }
+                else
+                {
+                    StingLog.Info($"No known assembly conflicts detected ({totalAddins} other addins loaded)");
+                }
+
+                // Check for duplicate Newtonsoft.Json versions (common conflict)
+                var jsonVersions = loaded
+                    .Where(a => a.GetName().Name == "Newtonsoft.Json")
+                    .Select(a => a.GetName().Version?.ToString() ?? "?")
+                    .Distinct().ToList();
+                if (jsonVersions.Count > 1)
+                {
+                    StingLog.Warn($"Multiple Newtonsoft.Json versions loaded: {string.Join(", ", jsonVersions)}. " +
+                        "This can cause TypeLoadException in JSON deserialization.");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Conflict scan is non-critical — never block startup
+                StingLog.Warn($"Conflict scan failed (non-critical): {ex.Message}");
+            }
+        }
+
+        // ── Assembly resolution ─────────────────────────────────────
+
         /// <summary>
         /// Resolve transitive NuGet dependencies (ClosedXML, DocumentFormat.OpenXml, etc.)
         /// from the same directory as the plugin DLL. Revit's default probing path doesn't
@@ -81,6 +214,10 @@ namespace StingTools.Core
         /// Everything else (framework, runtime, Revit, unknown) returns null so the CLR
         /// uses its normal resolution. A deny list (blocking all System.*) is too broad —
         /// it blocks NuGet packages like System.IO.Packaging that share the System. prefix.
+        ///
+        /// IMPORTANT: Never resolve RevitAPI/RevitAPIUI — these must come from Revit's
+        /// own directory. Other plugins (DiRoots, pyRevit) may request different versions;
+        /// returning null lets the CLR's binding policy handle version unification.
         /// </summary>
         private static readonly HashSet<string> AllowedAssemblies =
             new HashSet<string>(StringComparer.Ordinal)
@@ -100,23 +237,59 @@ namespace StingTools.Core
             "System.IO.Packaging",
         };
 
+        /// <summary>
+        /// Assemblies we must NEVER resolve — always let the CLR/Revit handle these.
+        /// Prevents our resolver from hijacking Revit's own assemblies or other plugins'
+        /// requests, which is the #1 cause of cross-plugin conflicts.
+        /// </summary>
+        private static readonly HashSet<string> BlockedAssemblies =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "RevitAPI", "RevitAPIUI", "RevitAPIIFC", "RevitAPIMacros",
+            "AdWindows", "UIFramework", "UIFrameworkServices",
+            "WindowsBase", "PresentationCore", "PresentationFramework",
+            "mscorlib", "netstandard",
+        };
+
         private static Assembly OnAssemblyResolve(object sender, ResolveEventArgs args)
         {
             string pluginDir = Path.GetDirectoryName(AssemblyPath);
             if (string.IsNullOrEmpty(pluginDir)) return null;
 
-            string assemblyName = new System.Reflection.AssemblyName(args.Name).Name;
+            var asmName = new AssemblyName(args.Name);
+            string shortName = asmName.Name;
+
+            // NEVER resolve Revit/framework assemblies — prevents cross-plugin conflicts
+            if (BlockedAssemblies.Contains(shortName))
+                return null;
 
             // WHITELIST: Only resolve known plugin dependencies from the plugin directory.
             // Everything else falls through to the CLR's default resolution.
-            if (!AllowedAssemblies.Contains(assemblyName))
+            if (!AllowedAssemblies.Contains(shortName))
                 return null;
 
-            string candidate = Path.Combine(pluginDir, assemblyName + ".dll");
+            // Check if this assembly is already loaded (version-tolerant).
+            // Prevents loading duplicate versions that conflict with DiRoots/pyRevit.
+            foreach (Assembly loaded in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                try
+                {
+                    if (loaded.GetName().Name == shortName)
+                        return loaded; // Reuse existing — avoids version conflict
+                }
+                catch { }
+            }
+
+            string candidate = Path.Combine(pluginDir, shortName + ".dll");
             if (File.Exists(candidate))
             {
-                try { return Assembly.LoadFrom(candidate); }
-                catch (Exception ex) { StingLog.Warn($"AssemblyResolve failed for {assemblyName}: {ex.Message}"); }
+                try
+                {
+                    var loaded = Assembly.LoadFrom(candidate);
+                    StingLog.Info($"AssemblyResolve: loaded {shortName} v{loaded.GetName().Version} from plugin dir");
+                    return loaded;
+                }
+                catch (Exception ex) { StingLog.Warn($"AssemblyResolve failed for {shortName}: {ex.Message}"); }
             }
             return null;
         }
