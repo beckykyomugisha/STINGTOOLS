@@ -15,11 +15,18 @@ namespace StingTools.Docs
     //  FM / O&M HANDOVER EXPORT COMMANDS
     //
     //  ISO 19650-aligned Facilities Management and Operations & Maintenance
-    //  handover document exports. Three commands:
-    //    1. COBie Export — COBie-lite spreadsheet (Facility, Floor, Space, Type,
-    //       Component, System, Zone sheets) as CSV
-    //    2. Maintenance Schedule — planned preventive maintenance schedule export
-    //    3. O&M Manual — comprehensive operations & maintenance manual export
+    //  handover document exports. Five commands:
+    //    1. COBie Export — COBie 2.4 spreadsheet (11 sheets: Contact, Facility,
+    //       Floor, Space, Type, Component, System, Zone, Attribute, Job, Resource)
+    //    2. Maintenance Schedule — PPM with ASTM E2018 condition grades, CIBSE
+    //       failure modes, spare parts, and CDM safety precautions
+    //    3. O&M Manual — comprehensive manual with failure modes, safety, spares
+    //    4. Asset Health Report — 0-100 health scoring (5 dimensions)
+    //    5. Space Handover Report — room-by-room asset inventory with density
+    //
+    //  Enhanced from StingBIM.AI repos: FacilityManagement (predictive analytics,
+    //  equipment health scoring), Maintenance (ASTM E2018, work orders, failure
+    //  modes), TenantManagement (space management, BOMA 2017).
     //
     //  All commands extract data from STING shared parameters + Revit built-in
     //  parameters and export to CSV/text files alongside the project.
@@ -169,7 +176,84 @@ namespace StingTools.Docs
                     zoneLines.Add($"{Esc(zg.Key)},STING Tools,{DateTime.Now:yyyy-MM-dd},Zone,{Esc(zg.Key)} zone,{Esc(spaces)}");
                 }
 
-                // Write all CSV files
+                // ── Contact sheet (COBie 2.4) ──
+                var contactLines = new List<string>();
+                contactLines.Add("Email,CreatedBy,CreatedOn,Category,Company,Phone,Department,Street,PostalCode,Country");
+                contactLines.Add($"bim@stingtools.com,STING Tools,{DateTime.Now:yyyy-MM-dd},BIM Manager,STING BIM,,BIM,,," );
+                string clientName = HandoverHelper.GetProjectInfoParam(doc, "Client Name");
+                if (!string.IsNullOrEmpty(clientName))
+                    contactLines.Add($",STING Tools,{DateTime.Now:yyyy-MM-dd},Owner,{Esc(clientName)},,,,,");
+
+                // ── Attribute sheet (COBie 2.4 — extended asset properties) ──
+                var attrLines = new List<string>();
+                attrLines.Add("Name,CreatedBy,CreatedOn,Category,SheetName,RowName,Value,Unit,Description,AllowedValues");
+                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                {
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (!known.Contains(cat)) continue;
+                    string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1)) continue;
+
+                    // Export key attributes as COBie Attribute rows
+                    void AddAttr(string name, string val, string unit, string desc)
+                    {
+                        if (!string.IsNullOrEmpty(val))
+                            attrLines.Add($"{Esc(name)},STING Tools,{DateTime.Now:yyyy-MM-dd},Attribute,Component,{Esc(tag1)},{Esc(val)},{unit},{Esc(desc)},");
+                    }
+                    AddAttr("Voltage", HandoverHelper.Gs(el, ParamRegistry.ELC_VOLTAGE), "V", "Electrical voltage");
+                    AddAttr("Power", HandoverHelper.Gs(el, ParamRegistry.ELC_POWER), "kW", "Electrical power");
+                    AddAttr("AirFlow", HandoverHelper.Gs(el, ParamRegistry.HVC_DUCT_FLOW), "L/s", "Air flow rate");
+                    AddAttr("PipeFlow", HandoverHelper.Gs(el, ParamRegistry.PLM_PIPE_FLOW), "L/s", "Pipe flow rate");
+                    AddAttr("Status", HandoverHelper.Gs(el, ParamRegistry.STATUS), "", "Asset status");
+                    AddAttr("MaintenanceType", HandoverHelper.Gs(el, ParamRegistry.MNT_TYPE), "", "Maintenance type");
+                    AddAttr("Uniformat", HandoverHelper.Gs(el, ParamRegistry.UNIFORMAT), "", "Uniformat classification");
+                    AddAttr("OmniClass", HandoverHelper.Gs(el, ParamRegistry.OMNICLASS), "", "OmniClass classification");
+                }
+
+                // ── Job sheet (COBie 2.4 — maintenance tasks) ──
+                var jobLines = new List<string>();
+                jobLines.Add("Name,CreatedBy,CreatedOn,Category,Status,TypeName,Description,Duration,DurationUnit,Start,TaskStartUnit,Frequency,FrequencyUnit,Priors");
+                var jobsSeen = new HashSet<string>();
+                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                {
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (!known.Contains(cat)) continue;
+                    string disc = HandoverHelper.Gs(el, ParamRegistry.DISC);
+                    string sys = HandoverHelper.Gs(el, ParamRegistry.SYS);
+                    string typName = ParameterHelpers.GetFamilySymbolName(el);
+                    string jobKey = $"{disc}-{sys}-{typName}";
+                    if (jobsSeen.Contains(jobKey)) continue;
+                    jobsSeen.Add(jobKey);
+
+                    string freq = HandoverHelper.GetMaintenanceFrequency(disc, sys);
+                    string mntType = HandoverHelper.GetDefaultMaintenanceType(disc, sys);
+                    string priority = HandoverHelper.GetMaintenancePriority(disc, sys);
+                    string freqUnit = freq == "Quarterly" ? "3" : freq == "6-Monthly" ? "6" : "12";
+
+                    jobLines.Add($"{Esc($"PPM-{jobKey}")},STING Tools,{DateTime.Now:yyyy-MM-dd},Preventive,Required," +
+                        $"{Esc(typName)},{Esc(mntType)},2,hour,,month,{freqUnit},month,");
+                }
+
+                // ── Resource sheet (COBie 2.4 — spare parts/materials) ──
+                var resLines = new List<string>();
+                resLines.Add("Name,CreatedBy,CreatedOn,Category,Description");
+                var resSeen = new HashSet<string>();
+                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                {
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (!known.Contains(cat)) continue;
+                    string disc = HandoverHelper.Gs(el, ParamRegistry.DISC);
+                    string sys = HandoverHelper.Gs(el, ParamRegistry.SYS);
+                    var spares = HandoverHelper.GetSpareParts(disc, sys);
+                    foreach (string spare in spares)
+                    {
+                        if (resSeen.Contains(spare)) continue;
+                        resSeen.Add(spare);
+                        resLines.Add($"{Esc(spare)},STING Tools,{DateTime.Now:yyyy-MM-dd},Spare Part,{Esc(spare)}");
+                    }
+                }
+
+                // Write all 12 COBie CSV files
                 string facilityPath = Path.Combine(outputDir, $"{prefix}_Facility.csv");
                 string floorPath = Path.Combine(outputDir, $"{prefix}_Floor.csv");
                 string spacePath = Path.Combine(outputDir, $"{prefix}_Space.csv");
@@ -177,6 +261,10 @@ namespace StingTools.Docs
                 string compPath = Path.Combine(outputDir, $"{prefix}_Component.csv");
                 string sysPath = Path.Combine(outputDir, $"{prefix}_System.csv");
                 string zonePath = Path.Combine(outputDir, $"{prefix}_Zone.csv");
+                string contactPath = Path.Combine(outputDir, $"{prefix}_Contact.csv");
+                string attrPath = Path.Combine(outputDir, $"{prefix}_Attribute.csv");
+                string jobPath = Path.Combine(outputDir, $"{prefix}_Job.csv");
+                string resPath = Path.Combine(outputDir, $"{prefix}_Resource.csv");
 
                 File.WriteAllText(facilityPath, "\uFEFF" + string.Join("\n", facilityLines));
                 File.WriteAllText(floorPath, "\uFEFF" + string.Join("\n", floorLines));
@@ -185,16 +273,24 @@ namespace StingTools.Docs
                 File.WriteAllText(compPath, "\uFEFF" + string.Join("\n", compLines));
                 File.WriteAllText(sysPath, "\uFEFF" + string.Join("\n", sysLines));
                 File.WriteAllText(zonePath, "\uFEFF" + string.Join("\n", zoneLines));
+                File.WriteAllText(contactPath, "\uFEFF" + string.Join("\n", contactLines));
+                File.WriteAllText(attrPath, "\uFEFF" + string.Join("\n", attrLines));
+                File.WriteAllText(jobPath, "\uFEFF" + string.Join("\n", jobLines));
+                File.WriteAllText(resPath, "\uFEFF" + string.Join("\n", resLines));
 
-                string report = $"COBie Export Complete\n\n" +
-                    $"7 COBie sheets exported:\n" +
+                string report = $"COBie 2.4 Export Complete\n\n" +
+                    $"11 COBie sheets exported:\n" +
+                    $"  Contact:    {contactLines.Count - 1} contacts\n" +
                     $"  Facility:   1 record\n" +
                     $"  Floor:      {floorLines.Count - 1} levels\n" +
                     $"  Space:      {spaceLines.Count - 1} rooms\n" +
                     $"  Type:       {typesSeen.Count} asset types\n" +
                     $"  Component:  {compCount} assets\n" +
                     $"  System:     {systemGroups.Count} systems\n" +
-                    $"  Zone:       {zoneGroups.Count} zones\n\n" +
+                    $"  Zone:       {zoneGroups.Count} zones\n" +
+                    $"  Attribute:  {attrLines.Count - 1} properties\n" +
+                    $"  Job:        {jobLines.Count - 1} maintenance tasks\n" +
+                    $"  Resource:   {resLines.Count - 1} spare parts\n\n" +
                     $"Output: {outputDir}\\{prefix}_*.csv";
 
                 TaskDialog.Show("COBie Export", report);
@@ -239,6 +335,7 @@ namespace StingTools.Docs
                 sb.Append('\uFEFF');
                 sb.AppendLine("AssetTag,Category,FamilyName,TypeName,Discipline,System,Function,Product," +
                     "Location,Zone,Level,Room,MaintenanceType,Frequency,Priority," +
+                    "ConditionGrade,LikelyFailureMode,SpareParts,SafetyPrecautions," +
                     "Manufacturer,Model,Description,Status,Mark");
 
                 int total = 0;
@@ -286,6 +383,12 @@ namespace StingTools.Docs
                         discCounts[disc]++;
                     }
 
+                    // ASTM E2018 condition grade + CIBSE failure mode + spare parts
+                    string condGrade = HandoverHelper.GetConditionGrade(status);
+                    string failureMode = HandoverHelper.GetLikelyFailureMode(disc, sys, cat);
+                    string spares = string.Join("; ", HandoverHelper.GetSpareParts(disc, sys));
+                    string safety = HandoverHelper.GetSafetyPrecautions(disc, sys);
+
                     sb.Append(Esc(tag1)).Append(',');
                     sb.Append(Esc(cat)).Append(',');
                     sb.Append(Esc(familyName)).Append(',');
@@ -301,6 +404,10 @@ namespace StingTools.Docs
                     sb.Append(Esc(mntType)).Append(',');
                     sb.Append(freq).Append(',');
                     sb.Append(priority).Append(',');
+                    sb.Append(condGrade).Append(',');
+                    sb.Append(Esc(failureMode)).Append(',');
+                    sb.Append(Esc(spares)).Append(',');
+                    sb.Append(Esc(safety)).Append(',');
                     sb.Append(Esc(mfr)).Append(',');
                     sb.Append(Esc(model)).Append(',');
                     sb.Append(Esc(desc)).Append(',');
@@ -500,11 +607,21 @@ namespace StingTools.Docs
                             if (!string.IsNullOrEmpty(rec.Flow))
                                 sb.AppendLine($"    Flow:          {rec.Flow}");
 
-                            // Maintenance info
+                            // Maintenance & Safety info (CIBSE Guide M / ASTM E2018)
                             string freq = HandoverHelper.GetMaintenanceFrequency(rec.Disc, rec.Sys);
                             string mntType = !string.IsNullOrEmpty(rec.MntType) ? rec.MntType
                                 : HandoverHelper.GetDefaultMaintenanceType(rec.Disc, rec.Sys);
+                            string condGrade = HandoverHelper.GetConditionGrade(rec.Status);
+                            string failMode = HandoverHelper.GetLikelyFailureMode(rec.Disc, rec.Sys, rec.Category);
+                            string safety = HandoverHelper.GetSafetyPrecautions(rec.Disc, rec.Sys);
+                            var spares = HandoverHelper.GetSpareParts(rec.Disc, rec.Sys);
+
+                            sb.AppendLine($"    Condition:     Grade {condGrade}");
                             sb.AppendLine($"    Maintenance:   {mntType} ({freq})");
+                            sb.AppendLine($"    Failure Mode:  {failMode}");
+                            if (spares.Count > 0)
+                                sb.AppendLine($"    Spare Parts:   {string.Join(", ", spares)}");
+                            sb.AppendLine($"    Safety:        {safety}");
                             sb.AppendLine();
                         }
 
@@ -1068,6 +1185,125 @@ namespace StingTools.Docs
                         case "P": return "Plumbing inspection, valve check";
                         case "A": return "Visual inspection, finish check";
                         default: return "General inspection";
+                    }
+            }
+        }
+
+        /// <summary>
+        /// ASTM E2018 condition grade based on asset status.
+        /// A=New/Excellent, B=Good, C=Fair, D=Poor, E=Very Poor, F=Failed/End of Life.
+        /// </summary>
+        internal static string GetConditionGrade(string status)
+        {
+            if (string.IsNullOrEmpty(status)) return "B";
+            switch (status.ToUpper())
+            {
+                case "NEW": return "A";
+                case "EXISTING": return "B";
+                case "REFURBISHED": return "B";
+                case "TEMPORARY": return "C";
+                case "DEMOLISHED": return "F";
+                default: return "B";
+            }
+        }
+
+        /// <summary>
+        /// Likely failure mode based on discipline, system, and category.
+        /// From CIBSE Guide M failure mode analysis.
+        /// </summary>
+        internal static string GetLikelyFailureMode(string disc, string sys, string category)
+        {
+            if (string.IsNullOrEmpty(sys)) sys = "";
+            switch (sys)
+            {
+                case "HVAC": return "Wear (bearings, belts), Contamination (coils, filters)";
+                case "DCW":
+                case "DHW":
+                case "HWS": return "Corrosion (pipes, fittings), Leakage (valves, joints)";
+                case "SAN":
+                case "RWD": return "Corrosion, Blockage, Leakage (traps, seals)";
+                case "GAS": return "Leakage (joints, valves), Corrosion";
+                case "FP":
+                case "FLS": return "Electrical (sensor drift, wiring), Contamination (detector heads)";
+                case "LV":
+                case "COM":
+                case "ICT": return "Electrical (connection failure), ThermalDegradation";
+                case "SEC": return "Electrical (sensor failure), Wear (mechanical locks)";
+                default:
+                    switch (disc ?? "")
+                    {
+                        case "M": return "Wear, Fatigue, Misalignment";
+                        case "E": return "Electrical (insulation breakdown), Overload, ThermalDegradation";
+                        case "P": return "Corrosion, Leakage, Wear (valves, seals)";
+                        case "A": return "Wear (finishes, hardware), Fatigue (structural sealants)";
+                        default: return "General wear and degradation";
+                    }
+            }
+        }
+
+        /// <summary>
+        /// Recommended spare parts for a given discipline/system.
+        /// Based on typical PPM spare parts inventory from FM best practice.
+        /// </summary>
+        internal static List<string> GetSpareParts(string disc, string sys)
+        {
+            if (string.IsNullOrEmpty(sys)) sys = "";
+            switch (sys)
+            {
+                case "HVAC": return new List<string> { "Filters", "Drive belts", "Bearings", "Contactors", "Thermostats" };
+                case "DCW":
+                case "DHW":
+                case "HWS": return new List<string> { "TMV cartridges", "Flexible hoses", "Isolation valves", "Gaskets" };
+                case "SAN":
+                case "RWD": return new List<string> { "Trap seals", "Rodding eyes", "Waste fittings" };
+                case "GAS": return new List<string> { "Gas valves", "Flame sensors", "Burner nozzles" };
+                case "FP":
+                case "FLS": return new List<string> { "Detector heads", "Call point glass", "Sounder units", "Batteries" };
+                case "LV":
+                case "COM":
+                case "ICT": return new List<string> { "Patch cables", "Network switches", "UPS batteries" };
+                case "SEC": return new List<string> { "PIR sensors", "Door contacts", "Camera lenses" };
+                default:
+                    switch (disc ?? "")
+                    {
+                        case "M": return new List<string> { "Bearings", "Seals", "Gaskets" };
+                        case "E": return new List<string> { "Fuses", "MCBs", "Contactors", "Lamps" };
+                        case "P": return new List<string> { "Washers", "Valves", "Float valves" };
+                        default: return new List<string>();
+                    }
+            }
+        }
+
+        /// <summary>
+        /// Safety precautions for maintenance by discipline/system.
+        /// Based on CDM Regulations and CIBSE safe working practices.
+        /// </summary>
+        internal static string GetSafetyPrecautions(string disc, string sys)
+        {
+            if (string.IsNullOrEmpty(sys)) sys = "";
+            switch (sys)
+            {
+                case "HVAC": return "Isolate power before access. LOTO required. Check for Legionella risk.";
+                case "DCW":
+                case "DHW":
+                case "HWS": return "Isolate water supply. Hot water scald risk. Legionella control required.";
+                case "SAN":
+                case "RWD": return "PPE required (gloves, eye protection). Biological hazard.";
+                case "GAS": return "Gas Safe registered engineer only. Ventilation check. LEL monitoring.";
+                case "FP":
+                case "FLS": return "Notify building occupants. Isolate zone. Fire watch during testing.";
+                case "LV":
+                case "COM":
+                case "ICT": return "ESD precautions. Check UPS status before work.";
+                case "SEC": return "Coordinate with security team. Log access.";
+                default:
+                    switch (disc ?? "")
+                    {
+                        case "M": return "LOTO required. Check rotating parts.";
+                        case "E": return "Isolate at distribution board. LOTO. Prove dead before work.";
+                        case "P": return "Isolate water supply. Drain down if needed.";
+                        case "A": return "Access equipment as needed. Check for asbestos.";
+                        default: return "Risk assessment required before work.";
                     }
             }
         }
