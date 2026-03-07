@@ -11,6 +11,8 @@ namespace StingTools.UI
     /// Code-behind for the STING Tools dockable panel.
     /// Unified 6-tab layout: SELECT, ORGANISE, DOCS, TEMP, CREATE, VIEW.
     /// All button clicks dispatched via IExternalEventHandler for thread safety.
+    /// Tab content is lazily loaded to prevent stack overflow (0xC00000FD) from
+    /// deep WPF visual tree measure/arrange passes on Revit's limited stack.
     /// </summary>
     public partial class StingDockPanel : Page
     {
@@ -22,9 +24,33 @@ namespace StingTools.UI
         private static readonly Dictionary<string, List<int>> SelectionMemory =
             new Dictionary<string, List<int>>();
 
+        /// <summary>
+        /// Stores detached tab content for lazy loading. Key = tab index.
+        /// Content is created by InitializeComponent but removed from the visual tree
+        /// until the user selects the tab, preventing stack overflow during layout.
+        /// </summary>
+        private readonly Dictionary<int, object> _deferredTabContent = new();
+
         public StingDockPanel()
         {
             InitializeComponent();
+
+            // Defer non-active tab content to prevent stack overflow.
+            // InitializeComponent creates all elements in memory, but we detach
+            // tabs 1-5 from the visual tree so only the SELECT tab (index 0)
+            // goes through measure/arrange on initial load.
+            for (int i = 1; i < tabMain.Items.Count; i++)
+            {
+                if (tabMain.Items[i] is TabItem tab && tab.Content != null)
+                {
+                    _deferredTabContent[i] = tab.Content;
+                    tab.Content = null;
+                }
+            }
+
+            // Color swatches can be built now — the named panel elements exist in
+            // memory even though they're detached from the visual tree. When the
+            // VIEW tab is re-attached, the swatches will be visible.
             BuildColorSwatches();
             _instance = this;
         }
@@ -61,7 +87,20 @@ namespace StingTools.UI
 
         private void TabMain_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Update status on tab change
+            if (e.Source != tabMain) return; // ignore child SelectionChanged bubbling
+
+            int idx = tabMain.SelectedIndex;
+            if (_deferredTabContent != null && _deferredTabContent.TryGetValue(idx, out object content))
+            {
+                // Re-attach the deferred content on first selection.
+                // This spreads the measure/arrange cost across user interactions
+                // instead of hitting the stack all at once on panel load.
+                if (tabMain.Items[idx] is TabItem tab)
+                {
+                    tab.Content = content;
+                    _deferredTabContent.Remove(idx);
+                }
+            }
         }
 
         // ── Bulk Parameter Write ──────────────────────────────────────
