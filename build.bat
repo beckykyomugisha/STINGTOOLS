@@ -83,13 +83,12 @@ if errorlevel 1 (
 
 REM -- Build --------------------------------------------------------------
 echo [2/3] Building %CONFIG%...
-dotnet build "%PROJECT%" -c %CONFIG% -p:RevitApiPath="%RevitApiPath%" --no-restore > build.log 2>&1
-type build.log
-findstr /c:"Build FAILED" build.log >nul 2>&1
-if not errorlevel 1 (
+echo.
+dotnet build "%PROJECT%" -c %CONFIG% -p:RevitApiPath="%RevitApiPath%" --no-restore
+if errorlevel 1 (
     echo.
     echo ===============================================
-    echo  BUILD FAILED -- see build.log for full output
+    echo  BUILD FAILED -- check errors above
     echo ===============================================
     exit /b 1
 )

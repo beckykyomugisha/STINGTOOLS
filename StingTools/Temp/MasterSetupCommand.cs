@@ -68,7 +68,13 @@ namespace StingTools.Temp
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
-            Document doc = commandData.SafeApp().ActiveUIDocument.Document;
+            UIApplication uiApp = commandData.SafeApp();
+            if (uiApp?.ActiveUIDocument == null)
+            {
+                message = "No document open.";
+                return Result.Failed;
+            }
+            Document doc = uiApp.ActiveUIDocument.Document;
             StingLog.Info("Master Setup: starting full automation workflow");
             var report = new StringBuilder();
             report.AppendLine("STING Master Setup Results");
