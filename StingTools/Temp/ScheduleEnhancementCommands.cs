@@ -1387,21 +1387,24 @@ namespace StingTools.Temp
             if (confirm.Show() != TaskDialogResult.Yes) return Result.Cancelled;
 
             int deleted = 0;
+            var deleteIds = targets.Select(s => s.Id).ToList();
             using (Transaction tx = new Transaction(doc, "STING Delete Schedules"))
             {
                 tx.Start();
-                foreach (var sched in targets)
+                try
                 {
-                    try
+                    doc.Delete(deleteIds);
+                    deleted = deleteIds.Count;
+                }
+                catch
+                {
+                    foreach (var sched in targets)
                     {
-                        doc.Delete(sched.Id);
-                        deleted++;
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"Delete schedule failed '{sched.Name}': {ex.Message}");
+                        try { doc.Delete(sched.Id); deleted++; }
+                        catch (Exception ex) { StingLog.Warn($"Delete schedule failed '{sched.Name}': {ex.Message}"); }
                     }
                 }
+                doc.Regenerate();
                 tx.Commit();
             }
 

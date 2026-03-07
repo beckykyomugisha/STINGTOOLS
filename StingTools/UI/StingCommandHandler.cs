@@ -751,20 +751,17 @@ namespace StingTools.UI
                 TaskDialog.Show("STING Tools", $"Command failed: {ex.Message}");
             }
 
-            // ENH-003: Update compliance status bar (uses cache — no full rescan)
-            try
-            {
-                var doc = app.ActiveUIDocument?.Document;
-                if (doc != null)
-                {
-                    // Use cached results (30s lifetime) — do NOT invalidate cache
-                    // here, as that forces a full element scan after every button click.
-                    // Cache is already invalidated by tagging commands that modify data.
-                    var scan = ComplianceScan.Scan(doc);
-                    StingDockPanel.UpdateComplianceStatus(scan.StatusBarText, scan.RAGStatus);
-                }
-            }
-            catch { /* Non-critical — don't interrupt user */ }
+            // ENH-003: Compliance status bar update REMOVED from post-command hook.
+            //
+            // Running FilteredElementCollector over all elements immediately after a
+            // command commits a transaction can crash Revit — the document may still
+            // be processing deferred regeneration (ElementsGraphicCacheUpdater) and
+            // iterating elements at that point triggers a native segfault that
+            // bypasses managed catch blocks.
+            //
+            // The compliance status is now updated only by explicit commands
+            // (CompletenessDashboard, Validate, etc.) or via the status bar
+            // refresh button in the dockable panel.
         }
 
         // ── Current UIApplication (static fallback for panel commands) ──
@@ -781,6 +778,10 @@ namespace StingTools.UI
         {
             try
             {
+                // Log command start so we have a breadcrumb if Revit crashes
+                // during execution (native crashes bypass catch blocks).
+                StingLog.Info($"RunCommand<{typeof(T).Name}>: start");
+
                 var cmd = new T();
                 string message = "";
                 var elements = new ElementSet();
@@ -790,6 +791,8 @@ namespace StingTools.UI
                 // This avoids the fragile RuntimeHelpers.GetUninitializedObject
                 // reflection hack that breaks across Revit versions.
                 cmd.Execute(null, ref message, elements);
+
+                StingLog.Info($"RunCommand<{typeof(T).Name}>: done");
             }
             catch (NullReferenceException nre)
             {

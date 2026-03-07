@@ -1289,18 +1289,50 @@ namespace StingTools.Tags
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
 
+            StingLog.Info($"RemoveAnnotationTags: deleting {tagsToRemove.Count} tags ({scope})");
+
+            // Collect IDs upfront — batch deletion is safer and faster than one-by-one
+            var idsToDelete = new List<ElementId>(tagsToRemove.Count);
+            foreach (var tag in tagsToRemove)
+                idsToDelete.Add(tag.Id);
+
+            // Clear selection BEFORE deleting — if deleted tags remain in the
+            // active selection, Revit's deferred graphics update can crash
+            // accessing disposed element references.
+            try { uidoc.Selection.SetElementIds(new List<ElementId>()); }
+            catch { /* best effort */ }
+
             int removed = 0;
             using (Transaction tx = new Transaction(doc, "STING Remove Annotation Tags"))
             {
                 tx.Start();
-                foreach (var tag in tagsToRemove)
+                try
                 {
-                    try { doc.Delete(tag.Id); removed++; }
-                    catch (Exception ex) { StingLog.Warn($"Could not delete tag {tag.Id}: {ex.Message}"); }
+                    // Single batch delete — avoids per-element internal bookkeeping
+                    // that can trigger cascading graphics cache invalidation
+                    doc.Delete(idsToDelete);
+                    removed = idsToDelete.Count;
                 }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"RemoveAnnotationTags: batch delete failed, falling back to one-by-one", ex);
+                    // Fallback: delete individually
+                    foreach (var id in idsToDelete)
+                    {
+                        try { doc.Delete(id); removed++; }
+                        catch (Exception ex2) { StingLog.Warn($"Could not delete tag {id}: {ex2.Message}"); }
+                    }
+                }
+
+                // Force regeneration inside the transaction so the view's
+                // graphics state is consistent before Commit() triggers the
+                // deferred ElementsGraphicCacheUpdater.  Without this, Revit
+                // may crash in the background after Commit returns.
+                doc.Regenerate();
                 tx.Commit();
             }
 
+            StingLog.Info($"RemoveAnnotationTags: deleted {removed} of {idsToDelete.Count} tags");
             TaskDialog.Show("Remove Annotation Tags", $"Removed {removed} of {tagsToRemove.Count} annotation tags.");
             return Result.Succeeded;
         }

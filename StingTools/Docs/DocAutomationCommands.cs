@@ -97,22 +97,36 @@ namespace StingTools.Docs
 
             int deleted = 0;
             int failedDel = 0;
+            var deleteList = toDelete.ToList();
+            var idsToDelete = deleteList.Select(v => v.Id).ToList();
             using (Transaction tx = new Transaction(doc, "STING Delete Unused Views"))
             {
                 tx.Start();
-                foreach (View v in toDelete)
+                try
                 {
-                    try
+                    // Batch delete — safer than one-by-one which can trigger
+                    // cascading graphics cache invalidation and crash Revit
+                    doc.Delete(idsToDelete);
+                    deleted = idsToDelete.Count;
+                }
+                catch
+                {
+                    // Fallback: delete individually
+                    foreach (View v in deleteList)
                     {
-                        doc.Delete(v.Id);
-                        deleted++;
-                    }
-                    catch (Exception ex)
-                    {
-                        failedDel++;
-                        StingLog.Warn($"Could not delete view '{v.Name}': {ex.Message}");
+                        try
+                        {
+                            doc.Delete(v.Id);
+                            deleted++;
+                        }
+                        catch (Exception ex)
+                        {
+                            failedDel++;
+                            StingLog.Warn($"Could not delete view '{v.Name}': {ex.Message}");
+                        }
                     }
                 }
+                doc.Regenerate();
                 tx.Commit();
             }
 

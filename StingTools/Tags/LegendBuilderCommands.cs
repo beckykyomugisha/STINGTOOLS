@@ -118,14 +118,15 @@ namespace StingTools.Tags
                 {
                     try { newLegend.Name = name; } catch { }
 
-                    // Delete all existing elements from the duplicated legend
+                    // Delete all existing elements from the duplicated legend (batch)
                     var existingElements = new FilteredElementCollector(doc, newLegend.Id)
                         .WhereElementIsNotElementType()
                         .ToElementIds()
                         .ToList();
-                    foreach (var eid in existingElements)
+                    if (existingElements.Count > 0)
                     {
-                        try { doc.Delete(eid); } catch { }
+                        try { doc.Delete(existingElements); }
+                        catch { foreach (var eid in existingElements) { try { doc.Delete(eid); } catch { } } }
                     }
                 }
                 return newLegend;
@@ -3173,15 +3174,15 @@ namespace StingTools.Tags
 
                 foreach (View legendView in toUpdate)
                 {
-                    // Delete all existing content from the view
+                    // Delete all existing content from the view (batch)
                     var existingElements = new FilteredElementCollector(doc, legendView.Id)
                         .WhereElementIsNotElementType()
                         .ToElementIds()
                         .ToList();
-
-                    foreach (var eid in existingElements)
+                    if (existingElements.Count > 0)
                     {
-                        try { doc.Delete(eid); } catch { }
+                        try { doc.Delete(existingElements); }
+                        catch { foreach (var eid in existingElements) { try { doc.Delete(eid); } catch { } } }
                     }
 
                     // Detect legend type from name and re-populate
@@ -3406,21 +3407,24 @@ namespace StingTools.Tags
                 return Result.Cancelled;
 
             int deleted = 0;
+            var deleteIds = toDelete.Select(v => v.Id).ToList();
             using (Transaction tx = new Transaction(doc, "STING Delete Stale Legends"))
             {
                 tx.Start();
-                foreach (var v in toDelete)
+                try
                 {
-                    try
+                    doc.Delete(deleteIds);
+                    deleted = deleteIds.Count;
+                }
+                catch
+                {
+                    foreach (var v in toDelete)
                     {
-                        doc.Delete(v.Id);
-                        deleted++;
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"DeleteStaleLegend: failed to delete '{v.Name}': {ex.Message}");
+                        try { doc.Delete(v.Id); deleted++; }
+                        catch (Exception ex) { StingLog.Warn($"DeleteStaleLegend: failed to delete '{v.Name}': {ex.Message}"); }
                     }
                 }
+                doc.Regenerate();
                 tx.Commit();
             }
 
@@ -4942,18 +4946,20 @@ namespace StingTools.Tags
                             staleItems.Any(s => v.Name.Contains(s.Name.Replace("STING Legend - ", ""))))
                         .ToList();
 
-                    foreach (var legend in stingLegends)
+                    var legendIds = stingLegends.Select(l => l.Id).ToList();
+                    try
                     {
-                        try
+                        if (legendIds.Count > 0) { doc.Delete(legendIds); deleted = legendIds.Count; }
+                    }
+                    catch
+                    {
+                        foreach (var legend in stingLegends)
                         {
-                            doc.Delete(legend.Id);
-                            deleted++;
-                        }
-                        catch (Exception ex)
-                        {
-                            StingLog.Warn($"Cannot delete legend '{legend.Name}': {ex.Message}");
+                            try { doc.Delete(legend.Id); deleted++; }
+                            catch (Exception ex) { StingLog.Warn($"Cannot delete legend '{legend.Name}': {ex.Message}"); }
                         }
                     }
+                    doc.Regenerate();
                     tx.Commit();
                 }
 
