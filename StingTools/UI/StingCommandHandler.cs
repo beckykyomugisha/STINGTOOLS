@@ -760,14 +760,14 @@ namespace StingTools.UI
             }
 
             // ENH-003: Update compliance status bar (uses cache — no full rescan)
+            // Safety: skip if document is in a modifiable state (inside transaction)
+            // or invalid, to prevent Revit native crashes
             try
             {
-                var doc = app.ActiveUIDocument?.Document;
-                if (doc != null)
+                var uidoc = app.ActiveUIDocument;
+                var doc = uidoc?.Document;
+                if (doc != null && doc.IsValidObject && !doc.IsModifiable)
                 {
-                    // Use cached results (30s lifetime) — do NOT invalidate cache
-                    // here, as that forces a full element scan after every button click.
-                    // Cache is already invalidated by tagging commands that modify data.
                     var scan = ComplianceScan.Scan(doc);
                     StingDockPanel.UpdateComplianceStatus(scan.StatusBarText, scan.RAGStatus);
                 }
@@ -782,19 +782,23 @@ namespace StingTools.UI
             try
             {
                 var cmd = new T();
+
+                // Prefer IPanelCommand when available — receives the real
+                // UIApplication directly, avoiding null ExternalCommandData issues
+                if (cmd is Core.IPanelCommand panelCmd)
+                {
+                    panelCmd.Execute(app);
+                    return;
+                }
+
+                // Fallback: pass null for ExternalCommandData — commands use
+                // StingCommandHandler.CurrentApp as fallback via GetApp/SafeApp.
                 string message = "";
                 var elements = new ElementSet();
-
-                // Pass null for ExternalCommandData — commands use
-                // StingCommandHandler.CurrentApp as fallback.
-                // This avoids the fragile RuntimeHelpers.GetUninitializedObject
-                // reflection hack that breaks across Revit versions.
                 cmd.Execute(null, ref message, elements);
             }
             catch (NullReferenceException nre)
             {
-                // Most likely: command accessed commandData.Application without null check.
-                // Log the specific command so we can fix it.
                 StingLog.Error($"RunCommand<{typeof(T).Name}>: NullReferenceException — " +
                     "command may need commandData null guard. " +
                     "Use StingCommandHandler.CurrentApp instead.", nre);

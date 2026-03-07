@@ -24,13 +24,13 @@ namespace StingTools.UI
             data.FrameworkElement = _page;
             data.InitialState = new DockablePaneState
             {
-                DockPosition = DockPosition.Right,
-                MinimumWidth = 320,
-                MinimumHeight = 400
+                // Tab behind Properties panel — most stable docking configuration.
+                // DockPosition.Right caused "Only floating document is support!" on
+                // every Show(), and floating panes crash Revit on WPF tab switches
+                // (ANTECEDENT: editor ArrowEditor → HIDEWHENNOVALUE → crash).
+                DockPosition = DockPosition.Tabbed,
+                TabBehind = DockablePanes.BuiltInDockablePanes.PropertiesPalette
             };
-            // VisibleByDefault=false prevents "Only floating document is support!"
-            // warning when Revit starts with no document open. The panel is shown
-            // on first click of the STING Panel ribbon button instead.
             data.VisibleByDefault = false;
         }
 
