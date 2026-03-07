@@ -925,6 +925,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Smart Place Tags", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1096,6 +1097,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Arrange Tags", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1245,6 +1247,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Remove Annotation Tags", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1311,7 +1314,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Batch Place Tags", "No document is open."); return Result.Failed; }
 
             var views = new FilteredElementCollector(doc)
                 .OfClass(typeof(View)).Cast<View>()
@@ -1404,7 +1408,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Learn Tag Placement", "No document is open."); return Result.Failed; }
             View view = doc.ActiveView;
 
             var tags = new FilteredElementCollector(doc, view.Id)
@@ -1454,7 +1459,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Apply Tag Template", "No document is open."); return Result.Failed; }
             View view = doc.ActiveView;
 
             if (view is ViewSheet)
@@ -1529,6 +1535,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Tag Overlap Analysis", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1882,7 +1889,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Set Tag Category Line Weight", "No document is open."); return Result.Failed; }
 
             // Pick line weight (pen number 1-16)
             TaskDialog dlg = new TaskDialog("Set Tag Category Line Weight");

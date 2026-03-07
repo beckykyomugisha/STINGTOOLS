@@ -27,7 +27,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Batch Schedules", "No document is open."); return Result.Failed; }
             string dataDir = StingToolsApp.DataPath;
 
             if (string.IsNullOrEmpty(dataDir) || !Directory.Exists(dataDir))
@@ -834,7 +835,8 @@ namespace StingTools.Temp
             ref string message, ElementSet elements)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Full Auto Populate", "No document is open."); return Result.Failed; }
 
             // ── Prepare indexes ────────────────────────────────────────────────
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
@@ -1086,7 +1088,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Auto Populate", "No document is open."); return Result.Failed; }
 
             var collector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType();
@@ -1233,7 +1236,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Export CSV", "No document is open."); return Result.Failed; }
 
             var schedules = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSchedule))
@@ -1321,7 +1325,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Corporate Title Block Schedule", "No document is open."); return Result.Failed; }
 
             // ── Check for existing schedule ──
             string scheduleName = "STING - Corporate Project Information";
@@ -1645,7 +1650,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Drawing Register Schedule", "No document is open."); return Result.Failed; }
 
             string scheduleName = "STING - Drawing Register";
 

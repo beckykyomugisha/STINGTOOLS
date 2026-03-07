@@ -42,7 +42,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Validate Tags", "No document is open."); return Result.Failed; }
 
             var collector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType();

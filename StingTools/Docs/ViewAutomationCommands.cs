@@ -26,6 +26,7 @@ namespace StingTools.Docs
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Duplicate View", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View sourceView = doc.ActiveView;
 
@@ -133,7 +134,8 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Batch Rename Views", "No document is open."); return Result.Failed; }
 
             var views = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
@@ -300,6 +302,7 @@ namespace StingTools.Docs
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Copy View Settings", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View source = doc.ActiveView;
 
@@ -442,6 +445,7 @@ namespace StingTools.Docs
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Auto Place Viewports", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View activeView = doc.ActiveView;
 
@@ -587,6 +591,7 @@ namespace StingTools.Docs
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Crop To Content", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -710,7 +715,8 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Batch Align Viewports", "No document is open."); return Result.Failed; }
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))

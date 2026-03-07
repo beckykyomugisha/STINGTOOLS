@@ -33,7 +33,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Resolve All Issues", "No document is open."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Phase 1: Scan all elements and classify issues

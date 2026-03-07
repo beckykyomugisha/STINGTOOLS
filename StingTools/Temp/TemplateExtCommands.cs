@@ -40,7 +40,8 @@ namespace StingTools.Temp
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Create Line Patterns", "No document is open."); return Result.Failed; }
 
             var existing = new HashSet<string>(
                 new FilteredElementCollector(doc)
@@ -109,7 +110,8 @@ namespace StingTools.Temp
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Create Phases", "No document is open."); return Result.Failed; }
 
             var existingPhases = new HashSet<string>(
                 new FilteredElementCollector(doc)
@@ -148,7 +150,8 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Apply Filters To Views", "No document is open."); return Result.Failed; }
 
             // Get all STING filters
             var filters = new FilteredElementCollector(doc)
@@ -215,7 +218,8 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Create Cable Trays", "No document is open."); return Result.Failed; }
             return CompoundTypeCreator.CreateTypes(doc, "Cable Trays",
                 "MEP_MATERIALS.csv",
                 new[] { "E-TRY" },
@@ -230,7 +234,8 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Create Conduits", "No document is open."); return Result.Failed; }
             return CompoundTypeCreator.CreateTypes(doc, "Conduits",
                 "MEP_MATERIALS.csv",
                 new[] { "E-CDT" },
@@ -245,7 +250,8 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Create Material Schedules", "No document is open."); return Result.Failed; }
 
             string[] categories = new[]
             {

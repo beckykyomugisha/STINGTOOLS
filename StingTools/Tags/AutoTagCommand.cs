@@ -231,7 +231,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Tag New Only", "No document is open."); return Result.Failed; }
+            Document doc = uidoc.Document;
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 

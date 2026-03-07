@@ -40,6 +40,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Rich Tag Note", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -384,6 +385,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Export Rich Tag Report", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Collect all elements with TAG7
@@ -669,6 +671,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("View Tag7Sections", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var selected = uidoc.Selection.GetElementIds()
@@ -861,6 +864,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Rich Segment Note", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -1066,6 +1070,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("View Segments", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var selected = uidoc.Selection.GetElementIds()

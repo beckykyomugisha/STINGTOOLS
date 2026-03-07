@@ -21,7 +21,8 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("View Organizer", "No document is open."); return Result.Failed; }
 
             var views = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))

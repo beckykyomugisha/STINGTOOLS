@@ -1651,6 +1651,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Create Color Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Pick legend type
@@ -1807,7 +1808,8 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Export Color Legend Html", "No document is open."); return Result.Failed; }
 
             var html = new StringBuilder();
             html.AppendLine("<!DOCTYPE html>");
@@ -1945,6 +1947,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Auto Create Legends", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Pick which legends to create
@@ -2151,6 +2154,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Legend From View", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -2302,6 +2306,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Place Legend On Sheet", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View activeView = doc.ActiveView;
 
@@ -2439,6 +2444,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Sheet Context Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View activeView = doc.ActiveView;
 
@@ -2540,6 +2546,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Place Legend On All Sheets", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Find Legend views (NOT drafting — only legends can go on multiple sheets)
@@ -2653,6 +2660,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Batch Sheet Context Legends", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var sheets = new FilteredElementCollector(doc)
@@ -2777,6 +2785,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Create Tag Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Pick grouping and scope
@@ -2908,6 +2917,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Sheet Tag Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             View activeView = uidoc.ActiveView;
@@ -3000,6 +3010,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Batch Tag Legends", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var sheets = new FilteredElementCollector(doc)
@@ -3095,6 +3106,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Update Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Find all STING legend views
@@ -3310,6 +3322,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Delete Stale Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Find all STING legend views
@@ -3428,6 +3441,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("One Click Legend Pipeline", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var dlg = new TaskDialog("One-Click Legend Pipeline");
@@ -4358,6 +4372,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Flexible Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -4419,6 +4434,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Legend From Preset", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Load presets from JSON
@@ -4543,6 +4559,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Component Type Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Check for seed component
@@ -4674,7 +4691,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Color Reference Legend", "No document is open."); return Result.Failed; }
 
             var entries = StingColorRegistry.GetAllAsLegendEntries();
             if (entries.Count == 0)
@@ -4864,7 +4882,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Legend Sync Audit", "No document is open."); return Result.Failed; }
 
             var staleItems = LegendSyncEngine.AuditStaleLegends(doc);
 
@@ -4947,7 +4966,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Status Legend", "No document is open."); return Result.Failed; }
 
             // Count elements by status
             var statusCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -5022,7 +5042,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Workset Legend", "No document is open."); return Result.Failed; }
 
             if (!doc.IsWorkshared)
             {
@@ -5732,6 +5753,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Mep System Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var dlg = new TaskDialog("MEP System Legend");
@@ -5828,6 +5850,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Material Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var entries = LegendIntelligence.BuildMaterialEntries(doc);
@@ -5881,6 +5904,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Compound Type Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var entries = LegendIntelligence.BuildCompoundTypeEntries(doc);
@@ -5935,6 +5959,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Equipment Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var entries = LegendIntelligence.BuildEquipmentEntries(doc);
@@ -5988,6 +6013,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Fire Rating Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var entries = LegendIntelligence.BuildFireRatingEntries(doc);
@@ -6062,6 +6088,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Master Legend Pipeline", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Confirmation dialog
@@ -6669,6 +6696,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Filter Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -6772,6 +6800,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Template Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Find STING templates
@@ -6916,6 +6945,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("VGCategory Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -6980,6 +7010,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Batch Template Legend", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var templates = VGLinkedLegendBuilder.GetStingTemplates(doc);

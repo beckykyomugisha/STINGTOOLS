@@ -2583,7 +2583,8 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Tag Register Export", "No document is open."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Define ALL columns for the register
@@ -2872,6 +2873,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Add Leaders", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -2919,6 +2921,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Remove Leaders", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -2967,6 +2970,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Toggle Leaders", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -3025,6 +3029,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Align Tags", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetSelectedTags(uidoc);
@@ -3160,6 +3165,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Reset Tag Positions", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -3221,6 +3227,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Toggle Tag Orientation", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -3269,6 +3276,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Select Tags With Leaders", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -3505,6 +3513,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Snap Leader Elbow", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc)
@@ -3666,6 +3675,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Auto Align Leader Text", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             View view = doc.ActiveView;
 
@@ -3706,6 +3716,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Flip Tags", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -3797,6 +3808,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Align Tag Text", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Get selected text notes and tags
@@ -3921,6 +3933,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Pin Tags", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc);
@@ -4107,6 +4120,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Attach Leader", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var tags = LeaderHelper.GetTargetTags(uidoc)
@@ -4185,6 +4199,7 @@ namespace StingTools.Organise
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Anomaly Auto Fix", "No document is open."); return Result.Failed; }
             var doc = uidoc.Document;
 
             // Scan all taggable elements

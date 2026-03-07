@@ -20,7 +20,8 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Transmittal", "No document is open."); return Result.Failed; }
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))

@@ -23,6 +23,7 @@ namespace StingTools.Docs
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Sheet Organizer", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var sheets = new FilteredElementCollector(doc)

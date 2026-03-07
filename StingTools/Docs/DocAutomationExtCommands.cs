@@ -461,6 +461,7 @@ namespace StingTools.Docs
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Batch Create Views", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             var sw = Stopwatch.StartNew();
 
@@ -727,6 +728,7 @@ namespace StingTools.Docs
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Batch Create Sheets", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Get title blocks
@@ -971,6 +973,7 @@ namespace StingTools.Docs
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Create Dependent Views", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var scopeBoxes = DocAutomationHelper.GetScopeBoxes(doc);
@@ -1108,6 +1111,7 @@ namespace StingTools.Docs
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Scope Box Manager", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var scopeBoxes = DocAutomationHelper.GetScopeBoxes(doc);
@@ -1336,7 +1340,8 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("View Template Assigner", "No document is open."); return Result.Failed; }
 
             // Collect templates and views
             var templates = new FilteredElementCollector(doc)
@@ -1481,6 +1486,7 @@ namespace StingTools.Docs
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Documentation Package", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
             var sw = Stopwatch.StartNew();
 
@@ -1722,7 +1728,8 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Batch Create Sections", "No document is open."); return Result.Failed; }
 
             var grids = new FilteredElementCollector(doc)
                 .OfClass(typeof(Grid))
@@ -1865,6 +1872,7 @@ namespace StingTools.Docs
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Batch Create Elevations", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             ViewFamilyType elevType = DocAutomationHelper.FindViewFamilyType(doc, ViewFamily.Elevation);
@@ -2048,7 +2056,8 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Drawing Register", "No document is open."); return Result.Failed; }
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
@@ -2204,7 +2213,8 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Project Browser Organizer", "No document is open."); return Result.Failed; }
 
             var views = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
@@ -2399,7 +2409,8 @@ namespace StingTools.Docs
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Revision Cloud Auto Create", "No document is open."); return Result.Failed; }
 
             // Get the latest revision in the project (or create one)
             var revisions = new FilteredElementCollector(doc)

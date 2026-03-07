@@ -29,7 +29,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Validate Template", "No document is open."); return Result.Failed; }
 
             string dataPath = StingToolsApp.DataPath;
             if (string.IsNullOrEmpty(dataPath) || !Directory.Exists(dataPath))
@@ -567,7 +568,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Dynamic Bindings", "No document is open."); return Result.Failed; }
 
             string bindingsPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
             if (bindingsPath == null)
@@ -1027,7 +1029,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
             if (doc == null) return Result.Failed;
 
             StingLog.Info("BOQ Export starting...");
@@ -1888,7 +1890,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
             if (doc == null) return Result.Failed;
 
             var report = new StringBuilder();
@@ -2098,7 +2100,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
             if (doc == null) return Result.Failed;
 
             // Load IFC mapping from PARAMETER_REGISTRY.json
@@ -2212,7 +2214,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
             if (doc == null) return Result.Failed;
 
             // Load BEP from data directory
@@ -2351,7 +2353,8 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Clash Detection", "No document is open."); return Result.Failed; }
 
             // Define clash groups: MEP vs Structure
             var mepCats = new List<BuiltInCategory>
@@ -2589,7 +2592,8 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("IFCExport", "No document is open."); return Result.Failed; }
 
             if (string.IsNullOrEmpty(doc.PathName))
             {
@@ -2734,7 +2738,8 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Excel BOQImport", "No document is open."); return Result.Failed; }
 
             // Find Excel files in the project directory
             string projectDir = !string.IsNullOrEmpty(doc.PathName)
@@ -2899,7 +2904,8 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Keynote Sync", "No document is open."); return Result.Failed; }
 
             string outputDir = !string.IsNullOrEmpty(doc.PathName)
                 ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()

@@ -936,7 +936,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Load Tag Families", "No document is open."); return Result.Failed; }
 
             string tagFamilyDir = TagFamilyConfig.GetOutputDirectory();
             if (!Directory.Exists(tagFamilyDir))
@@ -1207,7 +1208,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Audit Tag Families", "No document is open."); return Result.Failed; }
 
             // Collect all loaded families
             var loadedFamilies = new Dictionary<string, Family>(StringComparer.OrdinalIgnoreCase);

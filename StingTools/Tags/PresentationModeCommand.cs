@@ -40,6 +40,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Set Presentation Mode", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Load presentation modes from LABEL_DEFINITIONS.json

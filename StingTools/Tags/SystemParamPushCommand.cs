@@ -507,6 +507,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("System Param Push", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Get selected elements or prompt to select
@@ -672,6 +673,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Batch System Push", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Discover all MEP systems in the project
@@ -827,6 +829,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Select System Elements", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             var selection = uidoc.Selection.GetElementIds();

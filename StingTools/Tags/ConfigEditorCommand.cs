@@ -30,7 +30,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Config Editor", "No document is open."); return Result.Failed; }
 
             // Find existing config
             string projectDir = Path.GetDirectoryName(doc.PathName);

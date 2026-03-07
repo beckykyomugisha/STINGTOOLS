@@ -27,7 +27,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Schedule Audit", "No document is open."); return Result.Failed; }
 
             var schedules = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSchedule))
@@ -208,7 +209,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Schedule Compare", "No document is open."); return Result.Failed; }
 
             var schedules = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSchedule))
@@ -356,7 +358,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Schedule Duplicate", "No document is open."); return Result.Failed; }
 
             // Source = active schedule or user picks
             ViewSchedule source = doc.ActiveView as ViewSchedule;
@@ -417,7 +420,7 @@ namespace StingTools.Temp
                     $"Sort/Group: {clone.Definition.GetSortGroupFieldCount()}");
 
                 // Open the new schedule
-                ParameterHelpers.GetApp(commandData).ActiveUIDocument.ActiveView = clone;
+                ParameterHelpers.GetUIDoc(commandData).ActiveView = clone;
             }
 
             return Result.Succeeded;
@@ -436,7 +439,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Schedule Refresh", "No document is open."); return Result.Failed; }
 
             // Load CSV definitions
             var csvDefs = ScheduleAuditHelper.LoadScheduleDefinitions();
@@ -648,7 +652,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Schedule Field Manager", "No document is open."); return Result.Failed; }
 
             if (!(doc.ActiveView is ViewSchedule sched))
             {
@@ -931,7 +936,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Schedule Color", "No document is open."); return Result.Failed; }
 
             // Scope: active schedule or all
             TaskDialog scopeDlg = new TaskDialog("Schedule Colors");
@@ -1161,7 +1167,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Schedule Stats", "No document is open."); return Result.Failed; }
 
             // If active view is a schedule, show detailed stats for it
             if (doc.ActiveView is ViewSchedule sched)
@@ -1305,7 +1312,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Schedule Delete", "No document is open."); return Result.Failed; }
 
             var schedules = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSchedule))
@@ -1424,7 +1432,8 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Schedule Report", "No document is open."); return Result.Failed; }
 
             var schedules = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSchedule))

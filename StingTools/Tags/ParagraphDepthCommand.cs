@@ -25,6 +25,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Set Paragraph Depth", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             // Ask user for depth level
@@ -149,6 +150,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            if (uidoc == null) { TaskDialog.Show("Toggle Warning Visibility", "No document is open."); return Result.Failed; }
             Document doc = uidoc.Document;
 
             TaskDialog td = new TaskDialog("Warning Visibility");

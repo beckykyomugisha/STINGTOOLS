@@ -18,7 +18,8 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Sheet Index", "No document is open."); return Result.Failed; }
 
             // Check if a sheet index schedule already exists
             var existing = new FilteredElementCollector(doc)

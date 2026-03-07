@@ -47,10 +47,11 @@ namespace StingTools.Core
                 };
 
                 // Issue #22: Scan for known plugin conflicts at startup.
-                // DiRoots.One, pyRevitLoader, and StingBIM.AI.Revit can load
-                // conflicting RevitAPI versions (e.g. 25.4.20.0 vs 25.4.30.0),
-                // which causes NullRef/TypeLoad crashes in any Revit plugin.
-                ScanForConflicts();
+                // DEFERRED: ScanForConflicts() was calling GetReferencedAssemblies()
+                // on all loaded assemblies, which can trigger assembly loading during
+                // Revit's initialization phase and destabilize the CLR.
+                // Moved to lazy scan on first command dispatch instead.
+                // ScanForConflicts();
 
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);

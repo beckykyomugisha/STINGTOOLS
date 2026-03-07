@@ -25,7 +25,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Combine Parameters", "No document is open."); return Result.Failed; }
 
             var allGroups = ParamRegistry.ContainerGroups;
 
@@ -277,7 +278,8 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Combine Pre Flight", "No document is open."); return Result.Failed; }
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             int total = 0, fullyReady = 0, partial = 0, empty = 0;
