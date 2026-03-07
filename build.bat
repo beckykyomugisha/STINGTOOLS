@@ -96,53 +96,50 @@ if errorlevel 1 (
 REM -- Report output ------------------------------------------------------
 echo.
 echo [3/3] Locating output...
-set "OUTDIR=StingTools\bin\%CONFIG%"
-if not exist "%OUTDIR%\StingTools.dll" (
-    REM Fallback: some .NET SDK versions append TFM despite AppendTargetFrameworkToOutputPath=false
-    if exist "%OUTDIR%\net8.0-windows\StingTools.dll" set "OUTDIR=%OUTDIR%\net8.0-windows"
+
+REM Search for the DLL under bin/
+set "OUTDIR="
+for /r "StingTools\bin" %%F in (StingTools.dll) do (
+    set "OUTDIR=%%~dpF"
+    goto :found
 )
-if not exist "%OUTDIR%\StingTools.dll" (
-    REM Fallback: Debug config when Release was requested but build defaulted
-    if exist "StingTools\bin\Debug\StingTools.dll" set "OUTDIR=StingTools\bin\Debug"
-    if exist "StingTools\bin\Debug\net8.0-windows\StingTools.dll" set "OUTDIR=StingTools\bin\Debug\net8.0-windows"
-)
-if not exist "%OUTDIR%\StingTools.dll" (
-    REM Last resort: search recursively under bin
-    for /r "StingTools\bin" %%F in (StingTools.dll) do (
-        set "OUTDIR=%%~dpF"
-        set "OUTDIR=!OUTDIR:~0,-1!"
-        goto :found
-    )
-)
+
 :found
-if exist "%OUTDIR%\StingTools.dll" (
-    echo.
-    echo ===============================================
-    echo  BUILD SUCCEEDED
-    echo ===============================================
-    echo.
-    echo  Output:  %OUTDIR%\StingTools.dll
-    echo  Data:    %OUTDIR%\data\
-    echo.
-    echo  Deploy to Revit:
-    echo    1. Copy StingTools.dll + Newtonsoft.Json.dll + data\ to plugin folder
-    echo    2. Update Assembly path in StingTools.addin to match plugin folder
-    echo    3. Copy StingTools.addin to your Revit version addins folder:
-    echo       %%APPDATA%%\Autodesk\Revit\Addins\2025\  (or 2026, 2027)
-    echo    4. Restart Revit
-    echo.
-) else (
-    echo.
-    echo ===============================================
-    echo  BUILD FAILED -- StingTools.dll not produced
-    echo ===============================================
-    echo.
-    echo  Check the build errors above. Common causes:
-    echo    - Missing Revit API DLLs at: %RevitApiPath%
-    echo    - C# compilation errors in source files
-    echo    - NuGet package restore failures
-    echo.
-    exit /b 1
-)
+if not defined OUTDIR goto :notfound
+
+REM Remove trailing backslash
+if "!OUTDIR:~-1!"=="\" set "OUTDIR=!OUTDIR:~0,-1!"
+
+echo.
+echo ===============================================
+echo  BUILD SUCCEEDED
+echo ===============================================
+echo.
+echo  Output:  !OUTDIR!\StingTools.dll
+echo  Data:    !OUTDIR!\data\
+echo.
+echo  Deploy to Revit:
+echo    1. Copy StingTools.dll + Newtonsoft.Json.dll + data\ to plugin folder
+echo    2. Update Assembly path in StingTools.addin to match plugin folder
+echo    3. Copy StingTools.addin to your Revit version addins folder:
+echo       %%APPDATA%%\Autodesk\Revit\Addins\2025\  (or 2026, 2027)
+echo    4. Restart Revit
+echo.
+goto :done
+
+:notfound
+echo.
+echo ===============================================
+echo  BUILD FAILED -- StingTools.dll not produced
+echo ===============================================
+echo.
+echo  Check the build errors above. Common causes:
+echo    - Missing Revit API DLLs at: %RevitApiPath%
+echo    - C# compilation errors in source files
+echo    - NuGet package restore failures
+echo.
+exit /b 1
+
+:done
 
 endlocal
