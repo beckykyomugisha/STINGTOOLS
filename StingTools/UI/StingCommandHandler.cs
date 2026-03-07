@@ -773,14 +773,6 @@ namespace StingTools.UI
             catch { /* Non-critical — don't interrupt user */ }
         }
 
-        // ── Current UIApplication (static fallback for panel commands) ──
-
-        /// <summary>
-        /// Current UIApplication reference, set during Execute().
-        /// Commands can use this as a fallback when ExternalCommandData is null.
-        /// </summary>
-        public static UIApplication CurrentApp { get; private set; }
-
         // ── Generic command runner ────────────────────────────────────
 
         private static void RunCommand<T>(UIApplication app) where T : IExternalCommand, new()
