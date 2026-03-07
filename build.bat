@@ -1,16 +1,16 @@
 @echo off
-REM ──────────────────────────────────────────────────────────────────
+REM -----------------------------------------------------------------------
 REM  StingTools Build Script
 REM  Builds StingTools.dll for Autodesk Revit 2025/2026/2027
-REM ──────────────────────────────────────────────────────────────────
+REM -----------------------------------------------------------------------
 
 setlocal enabledelayedexpansion
 
-REM ── Configuration ─────────────────────────────────────────────────
+REM -- Configuration ------------------------------------------------------
 set "PROJECT=StingTools\StingTools.csproj"
 set "CONFIG=Release"
 
-REM ── Handle clean option ──────────────────────────────────────────
+REM -- Handle clean option ------------------------------------------------
 if /i "%~1"=="clean" (
     echo Cleaning build output...
     dotnet clean "%PROJECT%" -c %CONFIG% --verbosity quiet 2>nul
@@ -20,7 +20,7 @@ if /i "%~1"=="clean" (
     exit /b 0
 )
 
-REM ── Detect Revit API path ────────────────────────────────────────
+REM -- Detect Revit API path ----------------------------------------------
 REM Try common install locations (2025 preferred)
 if defined RevitApiPath (
     echo Using RevitApiPath from environment: %RevitApiPath%
@@ -56,7 +56,7 @@ echo ERROR: No Revit API path specified. Exiting.
 exit /b 1
 
 :build
-REM ── Verify API DLLs exist ────────────────────────────────────────
+REM -- Verify API DLLs exist ----------------------------------------------
 if not exist "%RevitApiPath%\RevitAPI.dll" (
     echo ERROR: RevitAPI.dll not found at: %RevitApiPath%
     exit /b 1
@@ -67,13 +67,13 @@ if not exist "%RevitApiPath%\RevitAPIUI.dll" (
 )
 
 echo.
-echo ══════════════════════════════════════════════════════════════════
+echo ===============================================
 echo  Building StingTools (%CONFIG%)
 echo  Revit API: %RevitApiPath%
-echo ══════════════════════════════════════════════════════════════════
+echo ===============================================
 echo.
 
-REM ── Restore NuGet packages ───────────────────────────────────────
+REM -- Restore NuGet packages ---------------------------------------------
 echo [1/3] Restoring packages...
 dotnet restore "%PROJECT%" --verbosity quiet
 if errorlevel 1 (
@@ -81,18 +81,20 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM ── Build ────────────────────────────────────────────────────────
+REM -- Build --------------------------------------------------------------
 echo [2/3] Building %CONFIG%...
-dotnet build "%PROJECT%" -c %CONFIG% -p:RevitApiPath="%RevitApiPath%" --no-restore
-if errorlevel 1 (
+dotnet build "%PROJECT%" -c %CONFIG% -p:RevitApiPath="%RevitApiPath%" --no-restore > build.log 2>&1
+type build.log
+findstr /c:"Build FAILED" build.log >nul 2>&1
+if not errorlevel 1 (
     echo.
-    echo ═══════════════════════════════════════════════
-    echo  BUILD FAILED — check errors above
-    echo ═══════════════════════════════════════════════
+    echo ===============================================
+    echo  BUILD FAILED -- see build.log for full output
+    echo ===============================================
     exit /b 1
 )
 
-REM ── Report output ────────────────────────────────────────────────
+REM -- Report output ------------------------------------------------------
 echo.
 echo [3/3] Locating output...
 set "OUTDIR=StingTools\bin\%CONFIG%"
@@ -116,9 +118,9 @@ if not exist "%OUTDIR%\StingTools.dll" (
 :found
 if exist "%OUTDIR%\StingTools.dll" (
     echo.
-    echo ═══════════════════════════════════════════════
+    echo ===============================================
     echo  BUILD SUCCEEDED
-    echo ═══════════════════════════════════════════════
+    echo ===============================================
     echo.
     echo  Output:  %OUTDIR%\StingTools.dll
     echo  Data:    %OUTDIR%\data\
@@ -132,9 +134,9 @@ if exist "%OUTDIR%\StingTools.dll" (
     echo.
 ) else (
     echo.
-    echo ═══════════════════════════════════════════════
-    echo  BUILD FAILED — StingTools.dll not produced
-    echo ═══════════════════════════════════════════════
+    echo ===============================================
+    echo  BUILD FAILED -- StingTools.dll not produced
+    echo ===============================================
     echo.
     echo  Check the build errors above. Common causes:
     echo    - Missing Revit API DLLs at: %RevitApiPath%
