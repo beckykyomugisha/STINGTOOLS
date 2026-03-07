@@ -23,7 +23,23 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uiApp = ParameterHelpers.GetApp(commandData);
+            UIApplication uiApp;
+            try
+            {
+                uiApp = ParameterHelpers.GetApp(commandData);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("LoadSharedParams: cannot get UIApplication", ex);
+                return Result.Failed;
+            }
+
+            if (uiApp.ActiveUIDocument == null)
+            {
+                TaskDialog.Show("Load Shared Params", "No document is open.");
+                return Result.Failed;
+            }
+
             Document doc = uiApp.ActiveUIDocument.Document;
             Autodesk.Revit.ApplicationServices.Application app =
                 uiApp.Application;
@@ -38,7 +54,20 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
-            DefinitionFile defFile = app.OpenSharedParameterFile();
+            DefinitionFile defFile;
+            try
+            {
+                defFile = app.OpenSharedParameterFile();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to open shared parameter file", ex);
+                TaskDialog.Show("Load Shared Params",
+                    "Error opening shared parameter file:\n" + spFile +
+                    "\n\n" + ex.Message);
+                return Result.Failed;
+            }
+
             if (defFile == null)
             {
                 TaskDialog.Show("Load Shared Params",
@@ -46,150 +75,134 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
+            // Pre-index all definitions once — O(n) build, O(1) lookups
+            // instead of scanning all groups × definitions per parameter
+            var defIndex = BuildDefinitionIndex(defFile);
+            StingLog.Info($"Definition index: {defIndex.Count} definitions loaded");
+
             int pass1Bound = 0;
             int pass1Skipped = 0;
             int pass2Bound = 0;
             int pass2Skipped = 0;
-            int csvExtras = 0;
             var errors = new List<string>();
 
-            using (Transaction tx = new Transaction(doc, "STING Load Shared Params"))
+            // ── Pass 1: Universal parameters → all 53 categories ──
+            try
             {
-                tx.Start();
-
-                // Pass 1: Universal parameters → all 53 categories (type-safe)
-                CategorySet allCats = SharedParamGuids.BuildCategorySet(
-                    doc, SharedParamGuids.AllCategoryEnums);
-                StingLog.Info($"Pass 1: {allCats.Size} categories resolved");
-
-                foreach (string paramName in SharedParamGuids.UniversalParams)
+                using (Transaction tx = new Transaction(doc, "STING Load Universal Params"))
                 {
-                    ExternalDefinition extDef = FindDefinition(defFile, paramName);
-                    if (extDef == null)
-                    {
-                        pass1Skipped++;
-                        StingLog.Warn($"Pass 1: Definition not found: {paramName}");
-                        continue;
-                    }
+                    tx.Start();
 
-                    try
+                    CategorySet allCats = SharedParamGuids.BuildCategorySet(
+                        doc, SharedParamGuids.AllCategoryEnums);
+                    StingLog.Info($"Pass 1: {allCats.Size} categories resolved");
+
+                    foreach (string paramName in SharedParamGuids.UniversalParams)
                     {
-                        InstanceBinding binding = app.Create.NewInstanceBinding(allCats);
-                        bool result = doc.ParameterBindings.Insert(
-                            extDef, binding, GroupTypeId.General);
-                        if (!result)
+                        if (!defIndex.TryGetValue(paramName, out ExternalDefinition extDef))
                         {
-                            // Already bound — update with ReInsert to add new categories
-                            result = doc.ParameterBindings.ReInsert(
-                                extDef, binding, GroupTypeId.General);
-                        }
-                        if (result)
-                            pass1Bound++;
-                        else
                             pass1Skipped++;
-                    }
-                    catch (Exception ex)
-                    {
-                        pass1Skipped++;
-                        errors.Add($"P1 {paramName}: {ex.Message}");
-                        StingLog.Error($"Pass 1 bind failed: {paramName}", ex);
-                    }
-                }
-
-                // GAP-003: Load CSV-driven category bindings to supplement hardcoded DisciplineBindings
-                var csvBindings = Temp.TemplateManager.LoadCategoryBindings();
-
-                // Pass 2: Discipline-specific parameters → correct category subsets
-                // Merge hardcoded DisciplineBindings with any extra categories from CSV
-                var allDisciplineParams = new HashSet<string>(
-                    SharedParamGuids.DisciplineBindings.Keys, StringComparer.OrdinalIgnoreCase);
-                foreach (string csvParam in csvBindings.Keys)
-                    allDisciplineParams.Add(csvParam);
-
-                foreach (string paramName in allDisciplineParams)
-                {
-                    ExternalDefinition extDef = FindDefinition(defFile, paramName);
-                    if (extDef == null)
-                    {
-                        pass2Skipped++;
-                        StingLog.Warn($"Pass 2: Definition not found: {paramName}");
-                        continue;
-                    }
-
-                    try
-                    {
-                        // Start with hardcoded categories
-                        CategorySet cats;
-                        if (SharedParamGuids.DisciplineBindings.TryGetValue(paramName,
-                            out BuiltInCategory[] hardcodedCats))
-                        {
-                            cats = SharedParamGuids.BuildCategorySet(doc, hardcodedCats);
-                        }
-                        else
-                        {
-                            cats = new CategorySet();
-                        }
-
-                        // Merge CSV categories (GAP-003: data-driven supplement)
-                        if (csvBindings.TryGetValue(paramName, out var csvEntries))
-                        {
-                            foreach (var entry in csvEntries)
-                            {
-                                if (Temp.TemplateManager.CategoryNameToEnum.TryGetValue(
-                                    entry.category, out BuiltInCategory bic))
-                                {
-                                    try
-                                    {
-                                        Category cat = doc.Settings.Categories.get_Item(bic);
-                                        if (cat != null && cat.AllowsBoundParameters)
-                                        {
-                                            if (!cats.Contains(cat))
-                                            {
-                                                cats.Insert(cat);
-                                                csvExtras++;
-                                            }
-                                        }
-                                    }
-                                    catch { }
-                                }
-                            }
-                        }
-
-                        if (cats.Size == 0)
-                        {
-                            pass2Skipped++;
-                            StingLog.Warn($"Pass 2: No valid categories for {paramName}");
+                            StingLog.Warn($"Pass 1: Definition not found: {paramName}");
                             continue;
                         }
 
-                        InstanceBinding binding = app.Create.NewInstanceBinding(cats);
-                        bool result = doc.ParameterBindings.Insert(
-                            extDef, binding, GroupTypeId.General);
-                        if (!result)
+                        try
                         {
-                            result = doc.ParameterBindings.ReInsert(
+                            InstanceBinding binding = app.Create.NewInstanceBinding(allCats);
+                            bool result = doc.ParameterBindings.Insert(
                                 extDef, binding, GroupTypeId.General);
+                            if (!result)
+                            {
+                                result = doc.ParameterBindings.ReInsert(
+                                    extDef, binding, GroupTypeId.General);
+                            }
+                            if (result)
+                                pass1Bound++;
+                            else
+                                pass1Skipped++;
                         }
-                        if (result)
-                            pass2Bound++;
-                        else
-                            pass2Skipped++;
+                        catch (Exception ex)
+                        {
+                            pass1Skipped++;
+                            errors.Add($"P1 {paramName}: {ex.Message}");
+                            StingLog.Error($"Pass 1 bind failed: {paramName}", ex);
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        pass2Skipped++;
-                        errors.Add($"P2 {paramName}: {ex.Message}");
-                        StingLog.Error($"Pass 2 bind failed: {paramName}", ex);
-                    }
-                }
 
-                tx.Commit();
+                    tx.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Pass 1 transaction failed", ex);
+                errors.Add($"Pass 1 transaction: {ex.Message}");
+            }
+
+            // ── Pass 2: Discipline-specific parameters → category subsets ──
+            try
+            {
+                using (Transaction tx = new Transaction(doc, "STING Load Discipline Params"))
+                {
+                    tx.Start();
+
+                    // Use only hardcoded DisciplineBindings — no CSV file I/O
+                    // during the critical binding path. CSV supplement is available
+                    // separately via DynamicBindingsCommand.
+                    foreach (var kvp in SharedParamGuids.DisciplineBindings)
+                    {
+                        string paramName = kvp.Key;
+
+                        if (!defIndex.TryGetValue(paramName, out ExternalDefinition extDef))
+                        {
+                            pass2Skipped++;
+                            StingLog.Warn($"Pass 2: Definition not found: {paramName}");
+                            continue;
+                        }
+
+                        try
+                        {
+                            CategorySet cats = SharedParamGuids.BuildCategorySet(doc, kvp.Value);
+
+                            if (cats.Size == 0)
+                            {
+                                pass2Skipped++;
+                                StingLog.Warn($"Pass 2: No valid categories for {paramName}");
+                                continue;
+                            }
+
+                            InstanceBinding binding = app.Create.NewInstanceBinding(cats);
+                            bool result = doc.ParameterBindings.Insert(
+                                extDef, binding, GroupTypeId.General);
+                            if (!result)
+                            {
+                                result = doc.ParameterBindings.ReInsert(
+                                    extDef, binding, GroupTypeId.General);
+                            }
+                            if (result)
+                                pass2Bound++;
+                            else
+                                pass2Skipped++;
+                        }
+                        catch (Exception ex)
+                        {
+                            pass2Skipped++;
+                            errors.Add($"P2 {paramName}: {ex.Message}");
+                            StingLog.Error($"Pass 2 bind failed: {paramName}", ex);
+                        }
+                    }
+
+                    tx.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Pass 2 transaction failed", ex);
+                errors.Add($"Pass 2 transaction: {ex.Message}");
             }
 
             string report = $"Shared parameter binding complete.\n\n" +
                 $"Pass 1 (Universal):   {pass1Bound} bound, {pass1Skipped} skipped\n" +
                 $"Pass 2 (Discipline):  {pass2Bound} bound, {pass2Skipped} skipped\n" +
-                (csvExtras > 0 ? $"  CSV extras: {csvExtras} categories added from CATEGORY_BINDINGS.csv\n" : "") +
                 $"\nSource: {spFile}";
             if (errors.Count > 0)
                 report += $"\n\nErrors ({errors.Count}):\n" +
@@ -201,17 +214,34 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
 
-        private static ExternalDefinition FindDefinition(DefinitionFile defFile, string name)
+        /// <summary>
+        /// Build a dictionary of parameter name → ExternalDefinition from the shared
+        /// parameter file. Scanned once upfront for O(1) lookups per parameter.
+        /// </summary>
+        private static Dictionary<string, ExternalDefinition> BuildDefinitionIndex(
+            DefinitionFile defFile)
         {
-            foreach (DefinitionGroup group in defFile.Groups)
+            var index = new Dictionary<string, ExternalDefinition>(
+                StringComparer.Ordinal);
+            try
             {
-                foreach (Definition def in group.Definitions)
+                foreach (DefinitionGroup group in defFile.Groups)
                 {
-                    if (def.Name == name && def is ExternalDefinition extDef)
-                        return extDef;
+                    foreach (Definition def in group.Definitions)
+                    {
+                        if (def is ExternalDefinition extDef &&
+                            !index.ContainsKey(extDef.Name))
+                        {
+                            index[extDef.Name] = extDef;
+                        }
+                    }
                 }
             }
-            return null;
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to index definition file", ex);
+            }
+            return index;
         }
     }
 }
