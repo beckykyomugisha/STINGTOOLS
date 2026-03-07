@@ -72,16 +72,33 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Issue #16: Resolve transitive dependencies (ClosedXML, DocumentFormat.OpenXml, etc.)
+        /// Resolve transitive NuGet dependencies (ClosedXML, DocumentFormat.OpenXml, etc.)
         /// from the same directory as the plugin DLL. Revit's default probing path doesn't
         /// include the plugin directory, so these assemblies would fail to load at runtime.
         ///
-        /// CRITICAL: Must NOT resolve .NET runtime/framework assemblies (System.*, Microsoft.*,
-        /// WindowsBase, PresentationCore, etc.) from the plugin directory. Doing so causes
-        /// version conflicts that crash Revit — the journal "WindowsBase 4.0.0.0 conflicts
-        /// with preloaded 8.0.0.0" error is caused by this handler loading the wrong version.
-        /// Only resolve known plugin dependencies.
+        /// WHITELIST approach: Only resolve assemblies that are known plugin dependencies.
+        /// Everything else (framework, runtime, Revit, unknown) returns null so the CLR
+        /// uses its normal resolution. A deny list (blocking all System.*) is too broad —
+        /// it blocks NuGet packages like System.IO.Packaging that share the System. prefix.
         /// </summary>
+        private static readonly HashSet<string> AllowedAssemblies =
+            new HashSet<string>(StringComparer.Ordinal)
+        {
+            // Direct NuGet dependencies
+            "Newtonsoft.Json",
+            "ClosedXML",
+            // ClosedXML transitive dependencies
+            "ClosedXML.Parser",
+            "DocumentFormat.OpenXml",
+            "DocumentFormat.OpenXml.Framework",
+            "ExcelNumberFormat",
+            "RBush",
+            "SixLabors.Fonts",
+            // System.IO.Packaging is a NuGet package (not a framework assembly)
+            // needed by DocumentFormat.OpenXml
+            "System.IO.Packaging",
+        };
+
         private static Assembly OnAssemblyResolve(object sender, ResolveEventArgs args)
         {
             string pluginDir = Path.GetDirectoryName(AssemblyPath);
@@ -89,23 +106,11 @@ namespace StingTools.Core
 
             string assemblyName = new System.Reflection.AssemblyName(args.Name).Name;
 
-            // NEVER resolve .NET runtime/framework assemblies from the plugin directory.
-            // These are provided by the runtime and loading duplicates causes type identity
-            // mismatches that crash the CLR with AccessViolationException.
-            if (assemblyName.StartsWith("System.", StringComparison.Ordinal) ||
-                assemblyName.StartsWith("Microsoft.", StringComparison.Ordinal) ||
-                assemblyName == "WindowsBase" ||
-                assemblyName == "PresentationCore" ||
-                assemblyName == "PresentationFramework" ||
-                assemblyName == "UIAutomationTypes" ||
-                assemblyName == "UIAutomationProvider" ||
-                assemblyName == "mscorlib" ||
-                assemblyName == "netstandard" ||
-                assemblyName.StartsWith("Autodesk.", StringComparison.Ordinal))
+            // WHITELIST: Only resolve known plugin dependencies from the plugin directory.
+            // Everything else falls through to the CLR's default resolution.
+            if (!AllowedAssemblies.Contains(assemblyName))
                 return null;
 
-            // Only resolve known plugin dependencies — whitelist approach is safest,
-            // but we use a deny list above + existence check as a pragmatic middle ground
             string candidate = Path.Combine(pluginDir, assemblyName + ".dll");
             if (File.Exists(candidate))
             {
