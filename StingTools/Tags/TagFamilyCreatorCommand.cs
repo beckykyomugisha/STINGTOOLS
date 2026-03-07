@@ -1041,7 +1041,7 @@ namespace StingTools.Tags
     ///
     /// Workflow: Run after CreateTagFamiliesCommand to complete tag family setup.
     /// </summary>
-    [Transaction(TransactionMode.Manual)]
+    [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class ConfigureTagLabelsCommand : IExternalCommand
     {
