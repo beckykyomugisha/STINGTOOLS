@@ -760,8 +760,8 @@ namespace StingTools.UI
             // ENH-003: Update compliance status bar (uses cache — no full rescan)
             try
             {
-                bool isTagCommand = false;
-                switch (_commandTag)
+                var doc = app.ActiveUIDocument?.Document;
+                if (doc != null)
                 {
                     // Use cached results (30s lifetime) — do NOT invalidate cache
                     // here, as that forces a full element scan after every button click.
@@ -770,7 +770,7 @@ namespace StingTools.UI
                     StingDockPanel.UpdateComplianceStatus(scan.StatusBarText, scan.RAGStatus);
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Post-command compliance scan: {ex.Message}"); }
+            catch { /* Non-critical — don't interrupt user */ }
         }
 
         // ── Current UIApplication (static fallback for panel commands) ──
