@@ -214,7 +214,13 @@ namespace StingTools.Core
         {
             try
             {
-                DockablePane pane = ParameterHelpers.GetApp(commandData)
+                var uiApp = ParameterHelpers.GetApp(commandData);
+
+                // Store UIApplication reference so the command handler can use it
+                // for dispatching panel button clicks on the Revit API thread
+                UI.StingDockPanel.SetUIApplication(uiApp);
+
+                DockablePane pane = uiApp
                     .GetDockablePane(StingDockPanelProvider.PaneId);
 
                 if (pane == null)

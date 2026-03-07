@@ -831,6 +831,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Organizer" Tag="SheetOrganizer" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Index" Tag="SheetIndex" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Transmittal" Tag="Transmittal" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Journal" Tag="JournalParser" Click="Cmd_Click" ToolTip="Parse Revit journal files for addin errors, crash diagnostics, and command timeline"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Naming" Tag="SheetNamingCheck" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto-Num" Tag="AutoNumberSheets" Click="Cmd_Click"/>
                                 </WrapPanel>

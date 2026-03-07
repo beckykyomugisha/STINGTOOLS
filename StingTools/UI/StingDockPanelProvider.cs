@@ -28,7 +28,10 @@ namespace StingTools.UI
                 MinimumWidth = 320,
                 MinimumHeight = 400
             };
-            data.VisibleByDefault = true;
+            // VisibleByDefault=false prevents "Only floating document is support!"
+            // warning when Revit starts with no document open. The panel is shown
+            // on first click of the STING Panel ribbon button instead.
+            data.VisibleByDefault = false;
         }
 
         /// <summary>Get the page instance (for updating status, etc.).</summary>

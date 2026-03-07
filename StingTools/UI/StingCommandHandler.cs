@@ -367,6 +367,7 @@ namespace StingTools.UI
                     case "BatchCreateElevations": RunCommand<Docs.BatchCreateElevationsCommand>(app); break;
                     case "DocsDrawingRegister": RunCommand<Docs.DrawingRegisterCommand>(app); break;
                     case "ProjectBrowserOrganizer": RunCommand<Docs.ProjectBrowserOrganizerCommand>(app); break;
+                    case "JournalParser": RunCommand<Docs.JournalParserCommand>(app); break;
 
                     // ════════════════════════════════════════════════════════
                     // TEMP TAB
