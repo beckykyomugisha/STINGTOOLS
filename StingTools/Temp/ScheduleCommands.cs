@@ -213,6 +213,9 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
+            // CRASH FIX: force regeneration before showing result dialog
+            try { doc.Regenerate(); } catch { }
+
             var report = new StringBuilder();
             report.AppendLine($"Created {created} schedules ({matTakeoffs} material takeoffs).");
             report.AppendLine($"Skipped {skipped} (exist or failed).");
@@ -969,6 +972,9 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
+            // CRASH FIX: force regeneration before showing result dialog
+            try { doc.Regenerate(); } catch { }
+
             sw.Stop();
 
             var report = new StringBuilder();
@@ -1205,6 +1211,9 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
+
+            // CRASH FIX: force regeneration before showing result dialog
+            try { doc.Regenerate(); } catch { }
 
             var report = new StringBuilder();
             report.AppendLine($"Auto-populated {updated} field values across {total} elements.");
@@ -1585,6 +1594,9 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
+            // CRASH FIX: force regeneration before showing result dialog
+            try { doc.Regenerate(); } catch { }
+
             var report = new StringBuilder();
             report.AppendLine("Corporate Title Block Schedule Created");
             report.AppendLine(new string('═', 50));
@@ -1895,6 +1907,9 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
+
+            // CRASH FIX: force regeneration before showing result dialog
+            try { doc.Regenerate(); } catch { }
 
             // ── Also export as CSV ──
             string csvPath = null;

@@ -53,6 +53,16 @@ namespace StingTools.Core
         /// <summary>
         /// Register the updater with Revit. Called from OnStartup.
         /// Starts in disabled state — user must toggle on explicitly.
+        ///
+        /// CRASH FIX: Do NOT add triggers at registration.  Even when disabled
+        /// via DisableUpdater(), Revit still evaluates the 22-category trigger
+        /// filter on every element change in the document.  For large operations
+        /// (815 materials, batch paste, etc.) this adds overhead and — combined
+        /// with co-loaded plugins that also have updaters — can destabilise
+        /// Revit's internal change processing pipeline.
+        ///
+        /// Triggers are now only added when the user explicitly enables the
+        /// auto-tagger via Toggle(), and removed when they disable it.
         /// </summary>
         public static void Register(UIControlledApplication application)
         {
@@ -61,17 +71,13 @@ namespace StingTools.Core
                 _instance = new StingAutoTagger(application.ActiveAddInId);
                 UpdaterRegistry.RegisterUpdater(_instance, true);
 
-                // Add triggers for element addition in tagged categories
-                var catFilter = new ElementCategoryFilter(BuiltInCategory.OST_MechanicalEquipment);
-                var multiCatFilter = CreateMultiCategoryFilter();
-
-                UpdaterRegistry.AddTrigger(_updaterId, multiCatFilter,
-                    Element.GetChangeTypeElementAddition());
-
-                // Start disabled
+                // NO triggers added here — they are added when user enables
+                // the auto-tagger via Toggle() and removed when they disable it.
+                // This prevents Revit from evaluating the 22-category filter on
+                // every element change while the auto-tagger is off.
                 UpdaterRegistry.DisableUpdater(_updaterId);
                 _enabled = false;
-                StingLog.Info("StingAutoTagger: registered (disabled by default)");
+                StingLog.Info("StingAutoTagger: registered (disabled by default, no triggers)");
             }
             catch (Exception ex)
             {
@@ -98,18 +104,35 @@ namespace StingTools.Core
 
             if (_enabled)
             {
+                // Remove triggers so Revit stops evaluating the category filter
+                try { UpdaterRegistry.RemoveAllTriggers(_updaterId); }
+                catch (Exception ex) { StingLog.Warn($"StingAutoTagger: RemoveAllTriggers: {ex.Message}"); }
+
                 UpdaterRegistry.DisableUpdater(_updaterId);
                 _enabled = false;
-                StingLog.Info("StingAutoTagger: disabled");
+                StingLog.Info("StingAutoTagger: disabled (triggers removed)");
             }
             else
             {
+                // Add triggers for element addition in tagged categories
+                try
+                {
+                    var multiCatFilter = CreateMultiCategoryFilter();
+                    UpdaterRegistry.AddTrigger(_updaterId, multiCatFilter,
+                        Element.GetChangeTypeElementAddition());
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("StingAutoTagger: failed to add triggers", ex);
+                    return false;
+                }
+
                 UpdaterRegistry.EnableUpdater(_updaterId);
                 _enabled = true;
                 WasAutoDisabled = false;
                 _consecutiveFailures = 0;
                 _recentlyProcessed.Clear();
-                StingLog.Info("StingAutoTagger: enabled");
+                StingLog.Info("StingAutoTagger: enabled (triggers active)");
             }
             return _enabled;
         }

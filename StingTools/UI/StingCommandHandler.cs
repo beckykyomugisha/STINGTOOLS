@@ -752,16 +752,32 @@ namespace StingTools.UI
             }
 
             // ENH-003: Compliance status bar update REMOVED from post-command hook.
+            // (See commit history for rationale — FilteredElementCollector after
+            // transaction commit causes native segfault during deferred regeneration.)
+
+            // CRASH FIX: Force document regeneration BEFORE returning control to Revit.
             //
-            // Running FilteredElementCollector over all elements immediately after a
-            // command commits a transaction can crash Revit — the document may still
-            // be processing deferred regeneration (ElementsGraphicCacheUpdater) and
-            // iterating elements at that point triggers a native segfault that
-            // bypasses managed catch blocks.
+            // After a transaction commits, Revit queues deferred processing
+            // (ElementsGraphicCacheUpdater, undo buffer, graphics cache).
+            // When Execute() returns, Revit processes this deferred work AND
+            // fires other co-loaded plugins' event handlers / IUpdaters.
+            // If the model is in a partially-regenerated state at that point,
+            // those handlers (DiRoots, pyRevit, etc.) may access invalid elements
+            // causing a native crash (segfault that bypasses managed catch blocks).
             //
-            // The compliance status is now updated only by explicit commands
-            // (CompletenessDashboard, Validate, etc.) or via the status bar
-            // refresh button in the dockable panel.
+            // Calling doc.Regenerate() here forces all pending changes to complete
+            // while we're still on the API thread, ensuring a consistent model state
+            // before Revit dispatches to other addins.
+            try
+            {
+                var doc = app.ActiveUIDocument?.Document;
+                if (doc != null && doc.IsValidObject)
+                    doc.Regenerate();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Post-command regeneration failed: {ex.Message}");
+            }
         }
 
         // ── Current UIApplication (static fallback for panel commands) ──

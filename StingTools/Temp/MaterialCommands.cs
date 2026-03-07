@@ -356,6 +356,14 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
+            // CRASH FIX: Force regeneration after large material creation.
+            // After committing 815+ materials in a single transaction, Revit queues
+            // massive deferred processing.  Regenerate now so the model is stable
+            // before showing the result dialog (whose message pump can trigger
+            // other plugins' handlers) and before returning to Revit.
+            try { doc.Regenerate(); }
+            catch (Exception ex) { StingLog.Warn($"Post-material regeneration: {ex.Message}"); }
+
             string report = $"Created {created} materials.\n" +
                 $"  Duplicated from base: {duplicated}\n" +
                 $"  Created blank: {created - duplicated}\n" +

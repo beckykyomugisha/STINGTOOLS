@@ -389,6 +389,9 @@ namespace StingTools.Temp
 
                 tx.Commit();
 
+                // CRASH FIX: force regeneration before showing result dialog
+                try { doc.Regenerate(); } catch { }
+
                 string paramNote = spLookup.Count > 0
                     ? $"\nParameter-based: {paramCreated} created, {paramSkipped} skipped."
                     : "\nParameter-based filters skipped (load shared parameters first).";
@@ -497,6 +500,9 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
+
+            // CRASH FIX: force regeneration before showing result dialog
+            try { doc.Regenerate(); } catch { }
 
             TaskDialog.Show("Create Worksets",
                 $"Created {created} worksets.\nSkipped {skipped} (exist or failed).\n" +
@@ -833,6 +839,9 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
+
+            // CRASH FIX: force regeneration before showing result dialog
+            try { doc.Regenerate(); } catch { }
 
             var baseReport = new StringBuilder();
             foreach (var kvp in baseViews)

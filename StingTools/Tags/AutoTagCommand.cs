@@ -176,6 +176,9 @@ namespace StingTools.Tags
                 tx.Commit();
             }
 
+            // CRASH FIX: force regeneration before showing result dialog
+            try { doc.Regenerate(); } catch { }
+
             var report = new StringBuilder();
             report.AppendLine($"Auto Tag — '{activeView.Name}'");
             report.AppendLine(new string('=', 50));
@@ -314,6 +317,9 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+
+            // CRASH FIX: force regeneration before showing result dialog
+            try { doc.Regenerate(); } catch { }
 
             sw.Stop();
 
