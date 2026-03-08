@@ -1393,13 +1393,15 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            var view = uidoc.ActiveView;
+            if (view == null) { TaskDialog.Show("Color By Parameter", "No active view."); return; }
             if (string.IsNullOrEmpty(paramName))
             {
                 TaskDialog.Show("Color By Parameter", "Select a parameter name first.");
                 return;
             }
 
-            var elements = new FilteredElementCollector(uidoc.Document, uidoc.ActiveView.Id)
+            var elements = new FilteredElementCollector(uidoc.Document, view.Id)
                 .WhereElementIsNotElementType()
                 .ToList();
 
@@ -1449,7 +1451,7 @@ namespace StingTools.UI
                         ogs.SetSurfaceForegroundPatternColor(color);
                     }
                     foreach (ElementId id in kvp.Value)
-                        uidoc.ActiveView.SetElementOverrides(id, ogs);
+                        view.SetElementOverrides(id, ogs);
                     colorIdx++;
                 }
                 tx.Commit();
@@ -1464,6 +1466,8 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            var view = uidoc.ActiveView;
+            if (view == null) { TaskDialog.Show("Color", "No active view."); return; }
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Color", "Select elements first."); return; }
 
@@ -1498,7 +1502,7 @@ namespace StingTools.UI
                     ogs.SetSurfaceForegroundPatternColor(color);
                 }
                 foreach (ElementId id in ids)
-                    uidoc.ActiveView.SetElementOverrides(id, ogs);
+                    view.SetElementOverrides(id, ogs);
                 tx.Commit();
             }
         }
@@ -1507,6 +1511,8 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            var view = uidoc.ActiveView;
+            if (view == null) { TaskDialog.Show("Transparency", "No active view."); return; }
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Transparency", "Select elements first."); return; }
 
@@ -1520,7 +1526,7 @@ namespace StingTools.UI
                 var ogs = new OverrideGraphicSettings();
                 ogs.SetSurfaceTransparency(transparency);
                 foreach (ElementId id in ids)
-                    uidoc.ActiveView.SetElementOverrides(id, ogs);
+                    view.SetElementOverrides(id, ogs);
                 tx.Commit();
             }
         }
