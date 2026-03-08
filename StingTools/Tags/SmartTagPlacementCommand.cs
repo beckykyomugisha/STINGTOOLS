@@ -497,7 +497,10 @@ namespace StingTools.Tags
                     catch { }
                 }
                 if (hidden.Count > 0)
-                    doc.Regenerate();
+                {
+                    try { doc.Regenerate(); }
+                    catch (Exception rex) { StingLog.Warn($"SuppressAnnotations regenerate: {rex.Message}"); }
+                }
             }
             catch (Exception ex)
             {
@@ -1326,9 +1329,10 @@ namespace StingTools.Tags
 
                 // Force regeneration inside the transaction so the view's
                 // graphics state is consistent before Commit() triggers the
-                // deferred ElementsGraphicCacheUpdater.  Without this, Revit
-                // may crash in the background after Commit returns.
-                doc.Regenerate();
+                // deferred ElementsGraphicCacheUpdater.  Wrapped in try/catch
+                // to prevent native crashes from propagating.
+                try { doc.Regenerate(); }
+                catch (Exception rex) { StingLog.Warn($"RemoveAnnotationTags regenerate: {rex.Message}"); }
                 tx.Commit();
             }
 

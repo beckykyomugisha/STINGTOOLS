@@ -126,7 +126,8 @@ namespace StingTools.Docs
                         }
                     }
                 }
-                doc.Regenerate();
+                try { doc.Regenerate(); }
+                catch (Exception ex) { StingLog.Warn($"Regenerate after view delete: {ex.Message}"); }
                 tx.Commit();
             }
 

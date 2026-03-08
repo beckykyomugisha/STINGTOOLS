@@ -3424,7 +3424,8 @@ namespace StingTools.Tags
                         catch (Exception ex) { StingLog.Warn($"DeleteStaleLegend: failed to delete '{v.Name}': {ex.Message}"); }
                     }
                 }
-                doc.Regenerate();
+                try { doc.Regenerate(); }
+                catch (Exception ex) { StingLog.Warn($"Regenerate after legend delete: {ex.Message}"); }
                 tx.Commit();
             }
 
@@ -4959,7 +4960,8 @@ namespace StingTools.Tags
                             catch (Exception ex) { StingLog.Warn($"Cannot delete legend '{legend.Name}': {ex.Message}"); }
                         }
                     }
-                    doc.Regenerate();
+                    try { doc.Regenerate(); }
+                    catch (Exception ex) { StingLog.Warn($"Regenerate after legend sync delete: {ex.Message}"); }
                     tx.Commit();
                 }
 
