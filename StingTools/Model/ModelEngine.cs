@@ -76,7 +76,7 @@ namespace StingTools.Model
     /// <summary>
     /// Result from family/type resolution.
     /// </summary>
-    internal class ResolveResult
+    public class ResolveResult
     {
         public bool Success { get; set; }
         public ElementId TypeId { get; set; }

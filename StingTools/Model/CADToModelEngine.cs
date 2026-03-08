@@ -69,7 +69,7 @@ namespace StingTools.Model
     #region Extracted Geometry Types
 
     /// <summary>A line segment extracted from DWG geometry.</summary>
-    internal class ExtractedLine
+    public class ExtractedLine
     {
         public XYZ Start { get; set; }
         public XYZ End { get; set; }
@@ -90,7 +90,7 @@ namespace StingTools.Model
     }
 
     /// <summary>A parallel line pair detected as a potential wall.</summary>
-    internal class DetectedWall
+    public class DetectedWall
     {
         public XYZ CenterStart { get; set; }
         public XYZ CenterEnd { get; set; }
@@ -100,14 +100,14 @@ namespace StingTools.Model
     }
 
     /// <summary>A closed loop detected as a potential floor/room boundary.</summary>
-    internal class DetectedLoop
+    public class DetectedLoop
     {
         public List<XYZ> Points { get; set; } = new();
         public string LayerName { get; set; }
     }
 
     /// <summary>A block reference detected as a potential door/window/fixture.</summary>
-    internal class DetectedBlock
+    public class DetectedBlock
     {
         public XYZ InsertionPoint { get; set; }
         public string BlockName { get; set; }
