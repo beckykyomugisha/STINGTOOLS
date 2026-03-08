@@ -831,7 +831,6 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Organizer" Tag="SheetOrganizer" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Index" Tag="SheetIndex" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Transmittal" Tag="Transmittal" Click="Cmd_Click"/>
-                                    <Button Style="{StaticResource GreenBtn}" Content="FM Handover" Tag="HandoverManual" Click="Cmd_Click" ToolTip="FM O/M Handover Manual — asset register, maintenance schedule, spatial summary"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Naming" Tag="SheetNamingCheck" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto-Num" Tag="AutoNumberSheets" Click="Cmd_Click"/>
                                 </WrapPanel>
@@ -1049,6 +1048,7 @@
                                     <Button Style="{StaticResource PurpleBtn}" Content="Master Setup" Tag="MasterSetup" Click="Cmd_Click" ToolTip="One-click full project setup (no wizard)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Create Params" Tag="CreateParameters" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Check Data" Tag="CheckData" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="FM Handover" Tag="HandoverManual" Click="Cmd_Click" ToolTip="FM O/M Handover Manual + COBie V2.4 — asset register, maintenance, spatial, 9 COBie worksheets"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
