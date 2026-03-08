@@ -405,9 +405,11 @@ namespace StingTools.Temp
                 }
                 catch (Exception ex)
                 {
+                    // CRASH FIX: Show TaskDialog after RollBack, not inside the
+                    // active transaction. Modal dialogs inside transactions deadlock.
                     StingLog.Error($"Schedule duplicate failed: {ex.Message}", ex);
-                    TaskDialog.Show("Duplicate Schedule", $"Failed to duplicate: {ex.Message}");
                     tx.RollBack();
+                    TaskDialog.Show("Duplicate Schedule", $"Failed to duplicate: {ex.Message}");
                     return Result.Failed;
                 }
 

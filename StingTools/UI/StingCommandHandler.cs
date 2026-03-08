@@ -3048,22 +3048,28 @@ namespace StingTools.UI
             if (num < 0) num = 0;
             string newNum = prefix + num.ToString().PadLeft(numPart.Length, '0');
 
+            // CRASH FIX: TaskDialog must not be shown inside an active Transaction.
+            // Modal dialogs block the UI thread while the transaction holds a document
+            // lock, which can deadlock Revit. Show dialogs after commit/rollback.
+            string resultMsg = null;
+            bool success = false;
             using (Transaction tx = new Transaction(doc, "STING Sheet Renumber"))
             {
                 tx.Start();
                 try
                 {
                     sheet.SheetNumber = newNum;
-                    TaskDialog.Show("Sheet Renumber", $"Changed: {currentNum} → {newNum}");
+                    success = true;
+                    resultMsg = $"Changed: {currentNum} → {newNum}";
                 }
                 catch (Exception ex)
                 {
-                    TaskDialog.Show("Sheet Renumber", $"Failed: {ex.Message}");
+                    resultMsg = $"Failed: {ex.Message}";
                     tx.RollBack();
-                    return;
                 }
-                tx.Commit();
+                if (success) tx.Commit();
             }
+            TaskDialog.Show("Sheet Renumber", resultMsg);
         }
 
         private static void SheetAddPrefix(UIApplication app)
