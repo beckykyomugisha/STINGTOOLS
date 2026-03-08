@@ -1123,7 +1123,17 @@ namespace StingTools.Core
                 // Re-read actual token values (some may have been preserved by SetIfEmpty)
                 // to ensure TAG1 reflects what's actually on the element
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
-                tag = string.Join(Separator, actualTokens);
+                string actualTag = string.Join(Separator, actualTokens);
+
+                // Fix collision index: the derived tag was added at line above,
+                // but the actual tag may differ because SetIfEmpty preserved existing tokens.
+                // Update the index so it reflects the real tag on the element.
+                if (existingTags != null && actualTag != tag)
+                {
+                    existingTags.Remove(tag);
+                    existingTags.Add(actualTag);
+                }
+                tag = actualTag;
             }
             ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
 
