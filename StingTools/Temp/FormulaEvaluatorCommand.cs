@@ -18,7 +18,9 @@ namespace StingTools.Temp
     /// dependency order (level 0 → 6), and writes computed values to element parameters.
     /// Formula types: paragraph assembly (36), warning thresholds (30), derived calculations (17),
     /// plus 197 original formulas. Supports: arithmetic (+,-,*,/,^), parentheses, if() conditionals,
-    /// log(), string concatenation, and Revit built-in geometry inputs (Width, Height, Length, etc.).
+    /// or(), and(), not(), min(), max(), abs(), round(), sqrt(), log(), string concatenation,
+    /// comparison operators (=, &lt;&gt;, !=, &lt;, &gt;, &lt;=, &gt;=),
+    /// and Revit built-in geometry inputs (Width, Height, Length, etc.).
     /// Paragraph formulas are gated by TAG_PARA_STATE_1/2/3_BOOL for 3-state depth control.
     /// Warning formulas auto-append threshold violations gated by TAG_WARN_VISIBLE_BOOL.
     /// </summary>
@@ -427,26 +429,37 @@ namespace StingTools.Temp
         }
 
         /// <summary>
-        /// Evaluate a TEXT formula (string concatenation).
-        /// Format: ASS_ID_TXT + "-" + ASS_TAG_1_TXT
+        /// Evaluate a TEXT formula (string concatenation or if-conditional text).
+        /// Formats:
+        ///   ASS_ID_TXT + "-" + ASS_TAG_1_TXT
+        ///   if(TAG_PARA_STATE_3_BOOL, "long narrative text", "")
+        ///   if(or(A &lt; 5, B &gt; 10), " [!WARNING]", "")
         /// </summary>
         public static string EvaluateText(string expression, Dictionary<string, object> context)
         {
             try
             {
+                string trimmed = expression.Trim();
+
+                // Handle if() conditionals in text formulas
+                if (trimmed.StartsWith("if(", StringComparison.OrdinalIgnoreCase))
+                {
+                    return EvaluateTextIf(trimmed, context);
+                }
+
                 // Split on + for concatenation, handling quoted strings
                 var parts = TokenizeTextExpression(expression);
                 var sb = new StringBuilder();
 
                 foreach (string part in parts)
                 {
-                    string trimmed = part.Trim();
-                    if (trimmed.StartsWith("\"") && trimmed.EndsWith("\""))
+                    string p = part.Trim();
+                    if (p.StartsWith("\"") && p.EndsWith("\""))
                     {
                         // Quoted literal string
-                        sb.Append(trimmed.Substring(1, trimmed.Length - 2));
+                        sb.Append(p.Substring(1, p.Length - 2));
                     }
-                    else if (context.TryGetValue(trimmed, out object val))
+                    else if (context.TryGetValue(p, out object val))
                     {
                         sb.Append(val?.ToString() ?? "");
                     }
@@ -460,6 +473,105 @@ namespace StingTools.Temp
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Evaluate an if() expression that returns text strings.
+        /// Format: if(condition, "trueText", "falseText")
+        /// The condition is evaluated numerically; the branches are text.
+        /// </summary>
+        private static string EvaluateTextIf(string expression, Dictionary<string, object> context)
+        {
+            // Use the numeric parser just for the condition, then extract the text branches
+            // Find the condition part and the two text branches
+            int openParen = expression.IndexOf('(');
+            if (openParen < 0) return null;
+
+            // Parse from inside the if(...)
+            string inner = expression.Substring(openParen + 1);
+            // Remove trailing )
+            if (inner.EndsWith(")"))
+                inner = inner.Substring(0, inner.Length - 1);
+
+            // Find the condition end (first comma not inside parens or quotes)
+            int condEnd = FindTopLevelComma(inner, 0);
+            if (condEnd < 0) return null;
+
+            string condExpr = inner.Substring(0, condEnd).Trim();
+
+            // Find the second comma (between true and false branches)
+            int trueEnd = FindTopLevelComma(inner, condEnd + 1);
+            string trueBranch, falseBranch;
+            if (trueEnd >= 0)
+            {
+                trueBranch = inner.Substring(condEnd + 1, trueEnd - condEnd - 1).Trim();
+                falseBranch = inner.Substring(trueEnd + 1).Trim();
+            }
+            else
+            {
+                trueBranch = inner.Substring(condEnd + 1).Trim();
+                falseBranch = "";
+            }
+
+            // Evaluate the condition numerically
+            double condResult;
+            try
+            {
+                var parser = new ExpressionParser(condExpr, context);
+                condResult = parser.Parse();
+            }
+            catch
+            {
+                condResult = 0;
+            }
+
+            // Pick the branch and extract string content
+            string branch = condResult != 0 ? trueBranch : falseBranch;
+            return ExtractTextValue(branch, context);
+        }
+
+        /// <summary>Find the next comma at the top level (not inside parens or quotes).</summary>
+        private static int FindTopLevelComma(string s, int start)
+        {
+            int depth = 0;
+            bool inQuote = false;
+            for (int i = start; i < s.Length; i++)
+            {
+                char c = s[i];
+                if (c == '"') inQuote = !inQuote;
+                else if (!inQuote)
+                {
+                    if (c == '(') depth++;
+                    else if (c == ')') depth--;
+                    else if (c == ',' && depth == 0) return i;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>Extract text value: quoted string → literal, variable → lookup, nested if → recurse.</summary>
+        private static string ExtractTextValue(string branch, Dictionary<string, object> context)
+        {
+            string trimmed = branch.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed == "\"\"") return null;
+
+            // Quoted literal
+            if (trimmed.StartsWith("\"") && trimmed.EndsWith("\""))
+                return trimmed.Substring(1, trimmed.Length - 2);
+
+            // Nested if()
+            if (trimmed.StartsWith("if(", StringComparison.OrdinalIgnoreCase))
+                return EvaluateTextIf(trimmed, context);
+
+            // Concatenation with +
+            if (trimmed.Contains('+'))
+                return EvaluateText(trimmed, context);
+
+            // Variable reference
+            if (context.TryGetValue(trimmed, out object val))
+                return val?.ToString();
+
+            return null;
         }
 
         /// <summary>Split text expression on + operator, respecting quoted strings.</summary>
@@ -498,7 +610,8 @@ namespace StingTools.Temp
 
         /// <summary>
         /// Evaluate a numeric formula using recursive descent parsing.
-        /// Supports: +, -, *, /, ^, (), if(), log(), comparison operators.
+        /// Supports: +, -, *, /, ^, (), if(), or(), and(), not(),
+        /// min(), max(), abs(), round(), sqrt(), log(), comparison operators.
         /// </summary>
         public static double? EvaluateNumeric(string expression, Dictionary<string, object> context)
         {
@@ -561,7 +674,7 @@ namespace StingTools.Temp
         ///   power      = unary ('^' unary)?
         ///   unary      = '-' primary | primary
         ///   primary    = NUMBER | IDENTIFIER | '(' expr ')' | function_call
-        ///   function   = 'if' '(' expr ',' expr ',' expr ')' | 'log' '(' expr ')'
+        ///   function   = if | or | and | not | min | max | abs | round | sqrt | log
         /// </summary>
         private class ExpressionParser
         {
@@ -600,6 +713,7 @@ namespace StingTools.Temp
                 if (_pos + s.Length <= _expr.Length &&
                     _expr.Substring(_pos, s.Length) == s)
                 {
+                    // Ensure we don't match partial identifiers (e.g., "<=" from "<>")
                     _pos += s.Length;
                     return true;
                 }
@@ -611,6 +725,8 @@ namespace StingTools.Temp
                 double left = ParseAddition();
                 SkipWhitespace();
 
+                if (Match("<>")) return left != ParseAddition() ? 1 : 0;
+                if (Match("!=")) return left != ParseAddition() ? 1 : 0;
                 if (Match("<=")) return left <= ParseAddition() ? 1 : 0;
                 if (Match(">=")) return left >= ParseAddition() ? 1 : 0;
                 if (Match("<")) return left < ParseAddition() ? 1 : 0;
@@ -726,10 +842,20 @@ namespace StingTools.Temp
                 if (string.IsNullOrEmpty(ident)) return 0;
 
                 // Functions
-                if (ident.Equals("if", StringComparison.OrdinalIgnoreCase))
-                    return ParseIf();
-                if (ident.Equals("log", StringComparison.OrdinalIgnoreCase))
-                    return ParseLog();
+                string identLower = ident.ToLowerInvariant();
+                switch (identLower)
+                {
+                    case "if": return ParseIf();
+                    case "or": return ParseOr();
+                    case "and": return ParseAnd();
+                    case "not": return ParseNot();
+                    case "min": return ParseMin();
+                    case "max": return ParseMax();
+                    case "abs": return ParseAbs();
+                    case "round": return ParseRound();
+                    case "sqrt": return ParseSqrt();
+                    case "log": return ParseLog();
+                }
 
                 // Variable lookup
                 if (_ctx.TryGetValue(ident, out object val))
@@ -765,6 +891,21 @@ namespace StingTools.Temp
                 return _pos > start ? _expr.Substring(start, _pos - start) : "";
             }
 
+            private string ReadQuotedString()
+            {
+                if (_pos < _expr.Length && _expr[_pos] == '"')
+                {
+                    _pos++; // skip opening quote
+                    int start = _pos;
+                    while (_pos < _expr.Length && _expr[_pos] != '"')
+                        _pos++;
+                    string val = _expr.Substring(start, _pos - start);
+                    if (_pos < _expr.Length) _pos++; // skip closing quote
+                    return val;
+                }
+                return null;
+            }
+
             private void SkipString()
             {
                 _pos++; // skip opening quote
@@ -785,6 +926,9 @@ namespace StingTools.Temp
                 SkipWhitespace();
                 if (_pos < _expr.Length && _expr[_pos] == ',') _pos++;
 
+                // trueVal/falseVal may be string literals (for TEXT formulas that
+                // use if() to select between strings) — handle via ParseComparison
+                // which dispatches string literals as 0, or nested if() for cascades
                 double trueVal = ParseComparison();
 
                 SkipWhitespace();
@@ -802,32 +946,53 @@ namespace StingTools.Temp
             {
                 SkipWhitespace();
 
-                // Check for string comparison: PARAM = "value"
+                // Check for function calls in condition position (or, and, not)
                 int savedPos = _pos;
                 string ident = ParseIdentifier();
-                SkipWhitespace();
 
-                if (_pos < _expr.Length && _expr[_pos] == '=')
+                if (!string.IsNullOrEmpty(ident))
                 {
-                    _pos++;
+                    string identLower = ident.ToLowerInvariant();
+                    // Delegate to function parsers if matched
+                    switch (identLower)
+                    {
+                        case "or": return ParseOr();
+                        case "and": return ParseAnd();
+                        case "not": return ParseNot();
+                    }
+
+                    SkipWhitespace();
+
+                    // Check for string comparison: PARAM = "value" or PARAM <> "value"
+                    bool isNotEqual = false;
+                    if (Match("<>") || Match("!="))
+                    {
+                        isNotEqual = true;
+                    }
+                    else if (_pos < _expr.Length && _expr[_pos] == '=')
+                    {
+                        _pos++;
+                    }
+                    else
+                    {
+                        // Not a string comparison — restore and parse numeric
+                        _pos = savedPos;
+                        return ParseComparison();
+                    }
+
                     SkipWhitespace();
                     if (_pos < _expr.Length && _expr[_pos] == '"')
                     {
                         // String comparison
-                        _pos++;
-                        int strStart = _pos;
-                        while (_pos < _expr.Length && _expr[_pos] != '"')
-                            _pos++;
-                        string compareValue = _expr.Substring(strStart, _pos - strStart);
-                        if (_pos < _expr.Length) _pos++; // skip closing quote
-
+                        string compareValue = ReadQuotedString();
                         if (_ctx.TryGetValue(ident, out object val))
                         {
                             string strVal = val?.ToString() ?? "";
-                            return strVal.Equals(compareValue,
-                                StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                            bool match = strVal.Equals(compareValue,
+                                StringComparison.OrdinalIgnoreCase);
+                            return (isNotEqual ? !match : match) ? 1 : 0;
                         }
-                        return 0;
+                        return isNotEqual ? 1 : 0; // missing param: not-equal to anything is true
                     }
                 }
 
@@ -836,6 +1001,160 @@ namespace StingTools.Temp
                 return ParseComparison();
             }
 
+            /// <summary>or(condition1, condition2, ...) — returns 1 if ANY condition is non-zero.</summary>
+            private double ParseOr()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(') _pos++;
+
+                bool anyTrue = false;
+                while (true)
+                {
+                    double val = ParseComparison();
+                    if (val != 0) anyTrue = true;
+                    SkipWhitespace();
+                    if (_pos < _expr.Length && _expr[_pos] == ',')
+                    {
+                        _pos++;
+                        continue;
+                    }
+                    break;
+                }
+
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+                return anyTrue ? 1 : 0;
+            }
+
+            /// <summary>and(condition1, condition2, ...) — returns 1 if ALL conditions are non-zero.</summary>
+            private double ParseAnd()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(') _pos++;
+
+                bool allTrue = true;
+                while (true)
+                {
+                    double val = ParseComparison();
+                    if (val == 0) allTrue = false;
+                    SkipWhitespace();
+                    if (_pos < _expr.Length && _expr[_pos] == ',')
+                    {
+                        _pos++;
+                        continue;
+                    }
+                    break;
+                }
+
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+                return allTrue ? 1 : 0;
+            }
+
+            /// <summary>not(condition) — returns 1 if condition is 0, else 0.</summary>
+            private double ParseNot()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(') _pos++;
+                double val = ParseComparison();
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+                return val == 0 ? 1 : 0;
+            }
+
+            /// <summary>min(a, b, ...) — returns smallest value.</summary>
+            private double ParseMin()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(') _pos++;
+
+                double result = ParseComparison();
+                while (true)
+                {
+                    SkipWhitespace();
+                    if (_pos < _expr.Length && _expr[_pos] == ',')
+                    {
+                        _pos++;
+                        double val = ParseComparison();
+                        if (val < result) result = val;
+                        continue;
+                    }
+                    break;
+                }
+
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+                return result;
+            }
+
+            /// <summary>max(a, b, ...) — returns largest value.</summary>
+            private double ParseMax()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(') _pos++;
+
+                double result = ParseComparison();
+                while (true)
+                {
+                    SkipWhitespace();
+                    if (_pos < _expr.Length && _expr[_pos] == ',')
+                    {
+                        _pos++;
+                        double val = ParseComparison();
+                        if (val > result) result = val;
+                        continue;
+                    }
+                    break;
+                }
+
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+                return result;
+            }
+
+            /// <summary>abs(value) — returns absolute value.</summary>
+            private double ParseAbs()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(') _pos++;
+                double val = ParseComparison();
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+                return Math.Abs(val);
+            }
+
+            /// <summary>round(value) or round(value, decimals) — rounds to specified decimal places.</summary>
+            private double ParseRound()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(') _pos++;
+                double val = ParseComparison();
+                int decimals = 0;
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ',')
+                {
+                    _pos++;
+                    decimals = (int)ParseComparison();
+                    if (decimals < 0) decimals = 0;
+                    if (decimals > 15) decimals = 15;
+                }
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+                return Math.Round(val, decimals, MidpointRounding.AwayFromZero);
+            }
+
+            /// <summary>sqrt(value) — returns square root (0 for negative inputs).</summary>
+            private double ParseSqrt()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(') _pos++;
+                double val = ParseComparison();
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+                return val >= 0 ? Math.Sqrt(val) : 0;
+            }
+
+            /// <summary>log(value) — returns log base 10 (0 for non-positive inputs).</summary>
             private double ParseLog()
             {
                 SkipWhitespace();
