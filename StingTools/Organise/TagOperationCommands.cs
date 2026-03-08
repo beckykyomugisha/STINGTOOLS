@@ -2017,7 +2017,7 @@ namespace StingTools.Organise
                                 merged.SetSurfaceForegroundPatternColor(
                                     ogs.SurfaceForegroundPatternColor);
                             }
-                            merged.SetSurfaceTransparency(ogs.SurfaceTransparency);
+                            // SurfaceTransparency has no public getter; skip copy
 
                             view.SetElementOverrides(tag.Id, merged);
                         }
@@ -2242,7 +2242,7 @@ namespace StingTools.Organise
                             ogs.SetSurfaceForegroundPatternId(surfId);
                             ogs.SetSurfaceForegroundPatternColor(existing.SurfaceForegroundPatternColor);
                         }
-                        ogs.SetSurfaceTransparency(existing.SurfaceTransparency);
+                        // SurfaceTransparency has no public getter; skip copy
 
                         view.SetElementOverrides(tag.Id, ogs);
                         modified++;
@@ -4297,7 +4297,7 @@ namespace StingTools.Organise
             }
 
             // Build spatial context for LOC/ZONE auto-detection
-            var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
 
             // Identify anomalies
             int emptyDisc = 0, wrongDisc = 0, emptyLoc = 0, emptyZone = 0;
@@ -4398,7 +4398,7 @@ namespace StingTools.Organise
                         }
                         else if (issue == "LOC:empty")
                         {
-                            string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
+                            string loc = SpatialAutoDetect.DetectLoc(doc, el, popCtx.RoomIndex, popCtx.ProjectLoc);
                             if (!string.IsNullOrEmpty(loc))
                             {
                                 ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true);
@@ -4407,7 +4407,7 @@ namespace StingTools.Organise
                         }
                         else if (issue == "ZONE:empty")
                         {
-                            string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
+                            string zone = SpatialAutoDetect.DetectZone(doc, el, popCtx.RoomIndex);
                             if (!string.IsNullOrEmpty(zone))
                             {
                                 ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true);

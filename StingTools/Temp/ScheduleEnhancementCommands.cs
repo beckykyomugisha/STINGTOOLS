@@ -1032,8 +1032,8 @@ namespace StingTools.Temp
                         {
                             try
                             {
-                                headerSection.SetCellBackgroundColor(0, col, headerColor);
-                                headerSection.SetCellTextColor(0, col, textColor);
+                                // Note: TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor in the Revit API.
+                                // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
                             }
                             catch { }
                         }
@@ -1047,8 +1047,8 @@ namespace StingTools.Temp
                         {
                             try
                             {
-                                bodySection.SetCellBackgroundColor(0, col, headerColor);
-                                bodySection.SetCellTextColor(0, col, textColor);
+                                // Note: TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor in the Revit API.
+                                // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
                             }
                             catch { }
                         }
@@ -1100,9 +1100,8 @@ namespace StingTools.Temp
                     {
                         try
                         {
-                            headerSection.SetCellBackgroundColor(0, col, color);
-                            // White text on colored background
-                            headerSection.SetCellTextColor(0, col, new Color(255, 255, 255));
+                            // Note: TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor in the Revit API.
+                            // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
                         }
                         catch { }
                     }
@@ -1117,9 +1116,8 @@ namespace StingTools.Temp
                     {
                         try
                         {
-                            // First body row is typically column headers
-                            bodySection.SetCellBackgroundColor(0, col, color);
-                            bodySection.SetCellTextColor(0, col, new Color(255, 255, 255));
+                            // Note: TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor in the Revit API.
+                            // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
                         }
                         catch { }
                     }
