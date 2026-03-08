@@ -466,7 +466,9 @@ namespace StingTools.Temp
                     }
                 }
 
-                tg.Assimilate();
+                // CRASH FIX: Commit() avoids the native crash caused by
+                // Assimilate()'s single massive regeneration pass.
+                tg.Commit();
             }
 
             // GAP-006: Persist wizard settings to project_config.json

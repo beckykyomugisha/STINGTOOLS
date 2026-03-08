@@ -284,7 +284,13 @@ namespace StingTools.Tags
                     }
                 }
 
-                tg.Assimilate();
+                // CRASH FIX: Use Commit() instead of Assimilate().
+                // Assimilate() merges all sub-transactions into one undo entry,
+                // forcing a single massive native regeneration that causes
+                // access violations (native crashes) after heavy operations
+                // like binding 200+ parameters.  Commit() allows Revit to
+                // handle regeneration incrementally per sub-transaction.
+                tg.Commit();
             }
 
             int universalCount = SharedParamGuids.UniversalParams?.Length ?? 0;

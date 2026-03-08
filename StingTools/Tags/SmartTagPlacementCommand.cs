@@ -1413,7 +1413,9 @@ namespace StingTools.Tags
                     if (viewsProcessed % 10 == 0)
                         StingLog.Info($"BatchPlaceTags: {viewsProcessed}/{targetViews.Count} views done");
                 }
-                tg.Assimilate();
+                // CRASH FIX: Commit() avoids the native crash caused by
+                // Assimilate()'s single massive regeneration pass.
+                tg.Commit();
             }
 
             sw.Stop();

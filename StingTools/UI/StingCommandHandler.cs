@@ -771,24 +771,21 @@ namespace StingTools.UI
             // (See commit history for rationale — FilteredElementCollector after
             // transaction commit causes native segfault during deferred regeneration.)
 
-            // NOTE: Post-command doc.Regenerate() REMOVED.
+            // NOTE: Post-command doc.Regenerate() REMOVED (see commit history).
             //
-            // Previous versions called doc.Regenerate() here to force pending changes
-            // to complete before returning to Revit.  However, this causes native
-            // crashes (access violations that bypass managed exception handling) after
-            // heavy operations like:
+            // CRASH FIX: All TransactionGroup.Assimilate() calls replaced with
+            // Commit().  Assimilate() merges sub-transactions into one undo entry,
+            // forcing a single massive native regeneration that causes access
+            // violations (native crashes bypassing managed exception handling)
+            // after heavy operations like:
             //   - Creating 815+ materials (CreateBLEMaterials)
             //   - Binding 200+ shared parameters (LoadSharedParams)
             //   - Batch tagging thousands of elements
             //
-            // Revit already regenerates automatically when a transaction commits.
-            // The deferred processing is Revit's own mechanism and is safe.
-            // Co-loaded plugins (pyRevit, DiRoots) access the model through their
-            // own event handlers which fire AFTER regeneration completes.
-            //
-            // If a specific command needs forced regeneration for correctness,
-            // it should call doc.Regenerate() inside its own try/catch WITHIN
-            // the transaction (before tx.Commit()), not after.
+            // Commit() preserves sub-transactions as separate undo entries,
+            // allowing Revit to regenerate incrementally.  The only trade-off
+            // is multiple Ctrl+Z steps instead of one, which is far preferable
+            // to crashing Revit.
         }
 
         // ── Current UIApplication (static fallback for panel commands) ──

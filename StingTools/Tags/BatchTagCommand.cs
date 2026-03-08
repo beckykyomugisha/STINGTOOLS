@@ -218,7 +218,9 @@ namespace StingTools.Tags
                     return Result.Cancelled;
                 }
 
-                tg.Assimilate();
+                // CRASH FIX: Commit() avoids the native crash caused by
+                // Assimilate()'s single massive regeneration pass.
+                tg.Commit();
             }
             sw.Stop();
 

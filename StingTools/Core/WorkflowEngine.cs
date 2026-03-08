@@ -321,7 +321,9 @@ namespace StingTools.Core
                     }
                 }
 
-                tg.Assimilate();
+                // CRASH FIX: Commit() avoids the native crash caused by
+                // Assimilate()'s single massive regeneration pass.
+                tg.Commit();
             }
 
             report.AppendLine(new string('─', 50));

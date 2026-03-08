@@ -263,7 +263,9 @@ namespace StingTools.Temp
                         return Result.Cancelled;
                     }
 
-                    tg.Assimilate();
+                    // CRASH FIX: Commit() avoids the native crash caused by
+                    // Assimilate()'s single massive regeneration pass.
+                    tg.Commit();
                     TaskDialog.Show("Master Setup",
                         $"Kept {passed} completed steps.\nRemaining steps were cancelled.");
                     return passed > 0 ? Result.Succeeded : Result.Cancelled;
@@ -297,7 +299,9 @@ namespace StingTools.Temp
                     }
                 }
 
-                tg.Assimilate();
+                // CRASH FIX: Commit() avoids the native crash caused by
+                // Assimilate()'s single massive regeneration pass.
+                tg.Commit();
             }
             report.AppendLine(new string('─', 45));
             report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");
