@@ -238,7 +238,7 @@ namespace StingTools.Temp
     /// <summary>
     /// Formula evaluation engine — parses and evaluates expressions from
     /// FORMULAS_WITH_DEPENDENCIES.csv. Handles arithmetic, conditionals,
-    /// string concatenation, and Revit geometry inputs.
+    /// string concatenation, material variation lookups, and Revit geometry inputs.
     /// </summary>
     internal static class FormulaEngine
     {
@@ -255,6 +255,90 @@ namespace StingTools.Temp
             public int DependencyLevel;
             public bool UsesBuiltinGeometry;
             public string[] BuiltinInputs;
+        }
+
+        /// <summary>Material lookup entry from MATERIAL_LOOKUP.csv.</summary>
+        internal class MaterialLookupEntry
+        {
+            public string Category;
+            public string TypeKey;
+            public string Property;
+            public double Value;
+        }
+
+        // Cached material lookup table: (Category, TypeKey, Property) → Value
+        private static Dictionary<string, double> _materialLookup;
+        private static readonly object _lookupLock = new object();
+
+        /// <summary>
+        /// Load material variation lookup table from MATERIAL_LOOKUP.csv.
+        /// Thread-safe lazy initialization. Key format: "CATEGORY|TYPEKEY|PROPERTY".
+        /// </summary>
+        internal static void EnsureMaterialLookupLoaded()
+        {
+            if (_materialLookup != null) return;
+            lock (_lookupLock)
+            {
+                if (_materialLookup != null) return;
+                _materialLookup = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+                string csvPath = StingToolsApp.FindDataFile("MATERIAL_LOOKUP.csv");
+                if (csvPath == null)
+                {
+                    StingLog.Warn("MATERIAL_LOOKUP.csv not found — lookup() will use fallback defaults");
+                    return;
+                }
+
+                try
+                {
+                    var lines = File.ReadAllLines(csvPath)
+                        .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
+                        .Skip(1); // skip header
+
+                    foreach (string line in lines)
+                    {
+                        string[] cols = StingToolsApp.ParseCsvLine(line);
+                        if (cols.Length < 4) continue;
+
+                        string category = cols[0].Trim();
+                        string typeKey = cols[1].Trim();
+                        string property = cols[2].Trim();
+                        if (double.TryParse(cols[3].Trim(), NumberStyles.Any,
+                            CultureInfo.InvariantCulture, out double value))
+                        {
+                            string key = $"{category}|{typeKey}|{property}";
+                            _materialLookup[key] = value;
+                        }
+                    }
+                    StingLog.Info($"Material lookup loaded: {_materialLookup.Count} entries");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"Failed to load MATERIAL_LOOKUP.csv: {ex.Message}", ex);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Look up a material variation value. Tries exact match first, then DEFAULT.
+        /// Returns null if no match found.
+        /// </summary>
+        internal static double? LookupMaterial(string category, string typeKey, string property)
+        {
+            EnsureMaterialLookupLoaded();
+            if (_materialLookup == null) return null;
+
+            // Try exact match
+            string key = $"{category}|{typeKey}|{property}";
+            if (_materialLookup.TryGetValue(key, out double val))
+                return val;
+
+            // Try DEFAULT fallback
+            string defaultKey = $"{category}|DEFAULT|{property}";
+            if (_materialLookup.TryGetValue(defaultKey, out double defVal))
+                return defVal;
+
+            return null;
         }
 
         /// <summary>Load formula definitions from CSV file.</summary>
@@ -855,6 +939,7 @@ namespace StingTools.Temp
                     case "round": return ParseRound();
                     case "sqrt": return ParseSqrt();
                     case "log": return ParseLog();
+                    case "lookup": return ParseLookup();
                 }
 
                 // Variable lookup
@@ -1163,6 +1248,51 @@ namespace StingTools.Temp
                 SkipWhitespace();
                 if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
                 return val > 0 ? Math.Log10(val) : 0;
+            }
+
+            /// <summary>
+            /// lookup(CATEGORY, TYPE_PARAM, PROPERTY) — material variation lookup.
+            /// CATEGORY: lookup table category (e.g., "CONCRETE", "BRICK_BOND", "MORTAR")
+            /// TYPE_PARAM: parameter name whose value selects the material type (e.g., "BLE_STRUCT_CONCRETE_GRADE_TXT")
+            /// PROPERTY: the property to retrieve (e.g., "CEMENT_BAGS_PER_M3")
+            /// Falls back to DEFAULT type key if the element's parameter value is not in the table.
+            /// Example: lookup(CONCRETE, BLE_STRUCT_CONCRETE_GRADE_TXT, CEMENT_BAGS_PER_M3)
+            /// </summary>
+            private double ParseLookup()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(') _pos++;
+
+                // Arg 1: Category (identifier, not quoted)
+                string category = ParseIdentifier();
+
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ',') _pos++;
+
+                // Arg 2: Parameter name that holds the type key
+                string typeParam = ParseIdentifier();
+
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ',') _pos++;
+
+                // Arg 3: Property name to look up
+                string property = ParseIdentifier();
+
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+
+                // Resolve type key from element context
+                string typeKey = "DEFAULT";
+                if (_ctx.TryGetValue(typeParam, out object paramVal))
+                {
+                    string valStr = paramVal?.ToString()?.Trim() ?? "";
+                    if (!string.IsNullOrEmpty(valStr))
+                        typeKey = valStr.ToUpperInvariant();
+                }
+
+                // Look up in material table
+                double? result = FormulaEngine.LookupMaterial(category, typeKey, property);
+                return result ?? 0;
             }
         }
     }

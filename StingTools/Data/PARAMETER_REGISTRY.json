@@ -488,7 +488,18 @@
       { "key": "RAMP_SLOPE",      "param_name": "BLE_RAMP_SLOPE_PCT",             "description": "Ramp slope (%)" },
       { "key": "RAMP_WIDTH",      "param_name": "BLE_RAMP_WIDTH_MM",              "description": "Ramp width (mm)" },
       { "key": "STRUCT_TYPE",     "param_name": "BLE_STRUCT_ELE_TYPE_TXT",         "description": "Structural element type" },
-      { "key": "FIRE_RATING",     "param_name": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN", "description": "Fire resistance rating (min)" }
+      { "key": "FIRE_RATING",     "param_name": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN", "description": "Fire resistance rating (min)" },
+      { "key": "CONC_GRADE",      "param_name": "BLE_STRUCT_CONCRETE_GRADE_TXT",  "description": "Concrete grade (C15, C20, C25, C30, C35, C40, C45)" },
+      { "key": "BRICK_BOND",      "param_name": "BLE_BRICK_BOND_TYPE_TXT",        "description": "Brick bond type (STRETCHER, HEADER, ENGLISH, FLEMISH)" },
+      { "key": "BLOCK_SIZE",      "param_name": "BLE_BLOCK_SIZE_TXT",             "description": "Block face dimensions LxH mm (440x215, 390x190, 400x200)" },
+      { "key": "MORTAR_MIX",      "param_name": "BLE_MORTAR_MIX_TXT",             "description": "Mortar mix ratio (1:3, 1:4, 1:5, 1:6, 1:8)" },
+      { "key": "PAINT_TYPE",      "param_name": "BLE_PAINT_TYPE_TXT",             "description": "Paint type (PRIMER, EMULSION, GLOSS, EGGSHELL, TEXTURED, EPOXY)" },
+      { "key": "TILE_SIZE",       "param_name": "BLE_TILE_SIZE_TXT",              "description": "Tile size class (MOSAIC, SMALL, MEDIUM, LARGE)" },
+      { "key": "TILE_JOINT",      "param_name": "BLE_TILE_JOINT_WIDTH_MM",        "description": "Tile grout joint width in mm (2, 3, 5, 8, 10)" },
+      { "key": "PLASTER_TYPE",    "param_name": "BLE_PLASTER_TYPE_TXT",           "description": "Plaster type (THIN_COAT, STANDARD, THICK, LIME)" },
+      { "key": "ROOF_PROFILE",    "param_name": "BLE_ROOF_SHEET_PROFILE_TXT",     "description": "Roof sheet profile (CORRUGATED, BOX_PROFILE, STANDING_SEAM, FIBRE_CEMENT, CLAY_TILE)" },
+      { "key": "ROOF_LOAD",       "param_name": "BLE_ROOF_LOAD_CLASS_TXT",        "description": "Roof load class (LIGHT, MEDIUM, HEAVY)" },
+      { "key": "SURFACE_COND",    "param_name": "BLE_SURFACE_CONDITION_TXT",      "description": "Surface condition (SMOOTH, FAIR, ROUGH, VERY_ROUGH)" }
     ],
     "electrical": [
       { "key": "ELC_POWER",       "param_name": "ELC_CKT_PWR_KW",               "description": "Circuit power (kW)" },
