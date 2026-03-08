@@ -370,11 +370,14 @@ namespace StingTools.Core
         {
             EnsureLoaded();
             if (_containersByCategory == null) BuildCategoryIndex();
-            if (string.IsNullOrEmpty(categoryName)) return AllContainers.Where(c => c.Categories == null).ToArray();
+            // Use _allContainers directly to avoid reentrant EnsureLoaded() calls
+            if (_allContainers == null)
+                _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
+            if (string.IsNullOrEmpty(categoryName)) return _allContainers.Where(c => c.Categories == null).ToArray();
 
             var result = new List<ContainerParamDef>();
             // Universal containers (null categories) always apply
-            foreach (var c in AllContainers)
+            foreach (var c in _allContainers)
             {
                 if (c.Categories == null)
                     result.Add(c);
@@ -411,7 +414,10 @@ namespace StingTools.Core
         public static (string param, int[] tokens, string sep, string[] categories)[] GetContainerTuples()
         {
             EnsureLoaded();
-            return AllContainers.Select(c => (c.ParamName, c.TokenIndices, c.Separator, c.Categories)).ToArray();
+            // Use _allContainers directly to avoid reentrant EnsureLoaded() calls
+            if (_allContainers == null)
+                _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
+            return _allContainers.Select(c => (c.ParamName, c.TokenIndices, c.Separator, c.Categories)).ToArray();
         }
 
         /// <summary>
@@ -776,7 +782,13 @@ namespace StingTools.Core
                 StingLog.Info("ParamRegistry.LoadFromFile: building discipline category names");
                 BuildDisciplineCategoryNames();
 
-                StingLog.Info($"ParamRegistry loaded: {SourceTokens.Length} tokens, {ContainerGroups.Length} groups, {AllContainers.Length} containers, {_guidByName?.Count ?? 0} GUIDs");
+                // CRASH FIX: Build _allContainers here instead of lazily in the AllContainers
+                // property. The old code used AllContainers.Length in the success log line below,
+                // which called EnsureLoaded() — but _loaded is still false at this point, causing
+                // INFINITE RECURSION (C# lock is reentrant on the same thread).
+                _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
+
+                StingLog.Info($"ParamRegistry loaded: {SourceTokens.Length} tokens, {ContainerGroups.Length} groups, {_allContainers.Length} containers, {_guidByName?.Count ?? 0} GUIDs");
             }
             catch (Exception ex)
             {
@@ -910,7 +922,11 @@ namespace StingTools.Core
         private static void BuildCategoryIndex()
         {
             _containersByCategory = new Dictionary<string, List<ContainerParamDef>>(StringComparer.OrdinalIgnoreCase);
-            foreach (var c in AllContainers)
+            // Use _allContainers directly (not the AllContainers property) to avoid
+            // re-entering EnsureLoaded() if this is called during loading
+            if (_allContainers == null)
+                _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
+            foreach (var c in _allContainers)
             {
                 if (c.Categories == null) continue;
                 foreach (string cat in c.Categories)
