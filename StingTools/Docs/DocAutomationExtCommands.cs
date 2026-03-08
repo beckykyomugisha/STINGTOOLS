@@ -2744,6 +2744,22 @@ namespace StingTools.Docs
                 // ── Section 4: Spatial Summary (Rooms) ──
                 csv.AppendLine("SECTION,4. SPATIAL SUMMARY");
                 csv.AppendLine("Level,Room Number,Room Name,Department,Area (m2),Asset Count");
+
+                // PERF FIX: Pre-build room→count index O(elements) instead of
+                // O(rooms × elements) nested loop that caused slow/crash on large models
+                var roomAssetCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var el in allElements)
+                {
+                    string elRoom = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NUM);
+                    if (string.IsNullOrEmpty(elRoom))
+                        elRoom = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NUM);
+                    if (!string.IsNullOrEmpty(elRoom))
+                    {
+                        roomAssetCounts.TryGetValue(elRoom, out int c);
+                        roomAssetCounts[elRoom] = c + 1;
+                    }
+                }
+
                 foreach (var room in rooms)
                 {
                     string levelName = room.Level?.Name ?? "Unknown";
@@ -2751,19 +2767,7 @@ namespace StingTools.Docs
                     try { dept = room.LookupParameter("Department")?.AsString() ?? ""; } catch { /* no dept param */ }
                     double areaM2 = room.Area * 0.092903; // sq ft to m2
 
-                    // Count assets in this room
-                    int assetsInRoom = 0;
-                    try
-                    {
-                        foreach (var el in allElements)
-                        {
-                            string elRoom = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NUM);
-                            if (string.IsNullOrEmpty(elRoom))
-                                elRoom = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NUM);
-                            if (elRoom == room.Number) assetsInRoom++;
-                        }
-                    }
-                    catch { /* spatial lookup failure */ }
+                    roomAssetCounts.TryGetValue(room.Number, out int assetsInRoom);
 
                     csv.AppendLine($"\"{Esc(levelName)}\",\"{room.Number}\",\"{Esc(room.Name)}\"," +
                         $"\"{Esc(dept)}\",{areaM2:F2},{assetsInRoom}");

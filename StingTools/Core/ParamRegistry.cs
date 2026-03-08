@@ -441,7 +441,10 @@ namespace StingTools.Core
         public static BuiltInCategory[] ResolveUniversalCategoryEnums()
         {
             EnsureLoaded();
-            return ResolveCategoryEnums(UniversalCategories);
+            StingLog.Info($"ResolveUniversalCategoryEnums: resolving {UniversalCategories?.Length ?? 0} categories");
+            var result = ResolveCategoryEnums(UniversalCategories);
+            StingLog.Info($"ResolveUniversalCategoryEnums: resolved to {result?.Length ?? 0} BuiltInCategory enums");
+            return result;
         }
 
         /// <summary>
@@ -486,9 +489,11 @@ namespace StingTools.Core
             lock (_lock)
             {
                 if (_loaded) return;
+                StingLog.Info("ParamRegistry.EnsureLoaded: first-time load starting");
                 try
                 {
                     LoadFromFile();
+                    StingLog.Info("ParamRegistry.EnsureLoaded: LoadFromFile completed successfully");
                 }
                 catch (Exception ex)
                 {
@@ -521,6 +526,37 @@ namespace StingTools.Core
                         CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     if (UniversalCategories == null)
                         UniversalCategories = Array.Empty<string>();
+                    // Ensure TAG convenience names are set — many commands access these
+                    if (string.IsNullOrEmpty(TAG1)) TAG1 = "ASS_TAG_1_TXT";
+                    if (string.IsNullOrEmpty(TAG2)) TAG2 = "ASS_TAG_2_TXT";
+                    if (string.IsNullOrEmpty(TAG3)) TAG3 = "ASS_TAG_3_TXT";
+                    if (string.IsNullOrEmpty(TAG4)) TAG4 = "ASS_TAG_4_TXT";
+                    if (string.IsNullOrEmpty(TAG5)) TAG5 = "ASS_TAG_5_TXT";
+                    if (string.IsNullOrEmpty(TAG6)) TAG6 = "ASS_TAG_6_TXT";
+                    if (string.IsNullOrEmpty(TAG7)) TAG7 = "ASS_TAG_7_TXT";
+                    if (string.IsNullOrEmpty(STATUS)) STATUS = "ASS_STATUS_TXT";
+                    if (string.IsNullOrEmpty(DETAIL_NUM)) DETAIL_NUM = "ASS_INST_DETAIL_NUM_TXT";
+                    if (string.IsNullOrEmpty(MNT_TYPE)) MNT_TYPE = "MNT_TYPE_TXT";
+                    // Ensure GUID maps exist
+                    if (_guidByName == null) _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
+                    if (_nameByGuid == null) _nameByGuid = new Dictionary<Guid, string>();
+                    if (_extendedParams == null) _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
+                    if (TokenPresets == null) TokenPresets = new Dictionary<string, int[]>();
+                    if (SourceTokens == null || SourceTokens.Length == 0)
+                    {
+                        SourceTokens = new[]
+                        {
+                            new TokenDef { Slot = 0, Key = "DISC", ParamName = "ASS_DISCIPLINE_COD_TXT" },
+                            new TokenDef { Slot = 1, Key = "LOC",  ParamName = "ASS_LOC_TXT" },
+                            new TokenDef { Slot = 2, Key = "ZONE", ParamName = "ASS_ZONE_TXT" },
+                            new TokenDef { Slot = 3, Key = "LVL",  ParamName = "ASS_LVL_COD_TXT" },
+                            new TokenDef { Slot = 4, Key = "SYS",  ParamName = "ASS_SYSTEM_TYPE_TXT" },
+                            new TokenDef { Slot = 5, Key = "FUNC", ParamName = "ASS_FUNC_TXT" },
+                            new TokenDef { Slot = 6, Key = "PROD", ParamName = "ASS_PRODCT_COD_TXT" },
+                            new TokenDef { Slot = 7, Key = "SEQ",  ParamName = "ASS_SEQ_NUM_TXT" },
+                        };
+                    }
+                    StingLog.Info("ParamRegistry.EnsureLoaded: minimal defaults applied");
                 }
                 _loaded = true;
             }
@@ -528,6 +564,7 @@ namespace StingTools.Core
 
         private static void LoadFromFile()
         {
+            StingLog.Info("ParamRegistry.LoadFromFile: starting");
             string path = StingToolsApp.FindDataFile("PARAMETER_REGISTRY.json");
             if (path == null || !File.Exists(path))
             {
@@ -535,11 +572,31 @@ namespace StingTools.Core
                 LoadDefaults();
                 return;
             }
+            StingLog.Info($"ParamRegistry.LoadFromFile: found at {path}");
 
             try
             {
+                StingLog.Info("ParamRegistry.LoadFromFile: reading file");
                 string json = File.ReadAllText(path);
-                JObject root = JObject.Parse(json);
+                StingLog.Info($"ParamRegistry.LoadFromFile: read {json.Length} chars, parsing JSON");
+
+                // CRASH FIX: Newtonsoft.Json version conflicts with other Revit addins
+                // can cause native crashes during JObject.Parse(). Isolate JSON parsing
+                // in its own try/catch so a conflict falls back to compiled defaults
+                // instead of crashing Revit entirely.
+                JObject root;
+                try
+                {
+                    root = JObject.Parse(json);
+                }
+                catch (Exception jsonEx)
+                {
+                    StingLog.Error("ParamRegistry: JObject.Parse FAILED — possible Newtonsoft.Json " +
+                        "version conflict with another Revit addin. Using compiled defaults.", jsonEx);
+                    LoadDefaults();
+                    return;
+                }
+                StingLog.Info("ParamRegistry.LoadFromFile: JSON parsed OK");
 
                 // Tag format
                 var fmt = root["tag_format"];
@@ -549,6 +606,8 @@ namespace StingTools.Core
                     NumPad = fmt["num_pad"]?.Value<int>() ?? 4;
                     SegmentOrder = fmt["segment_order"]?.ToObject<string[]>() ?? SegmentOrder;
                 }
+
+                StingLog.Info("ParamRegistry.LoadFromFile: tag_format loaded");
 
                 // Source tokens
                 var tokArr = root["source_tokens"] as JArray;
@@ -574,6 +633,8 @@ namespace StingTools.Core
                     AllTokenParams = SourceTokens.Select(t => t.ParamName).ToArray();
                 }
 
+                StingLog.Info($"ParamRegistry.LoadFromFile: {SourceTokens.Length} source tokens loaded");
+
                 // Support params
                 var supArr = root["support_params"] as JArray;
                 if (supArr != null)
@@ -592,6 +653,8 @@ namespace StingTools.Core
                     }
                 }
 
+                StingLog.Info("ParamRegistry.LoadFromFile: support params loaded");
+
                 // Token presets
                 var presets = root["token_presets"] as JObject;
                 TokenPresets = new Dictionary<string, int[]>();
@@ -600,6 +663,8 @@ namespace StingTools.Core
                     foreach (var kvp in presets)
                         TokenPresets[kvp.Key] = kvp.Value.ToObject<int[]>();
                 }
+
+                StingLog.Info($"ParamRegistry.LoadFromFile: {TokenPresets.Count} token presets loaded");
 
                 // Container groups
                 var groupArr = root["container_groups"] as JArray;
@@ -676,6 +741,8 @@ namespace StingTools.Core
                         TAG7F = ContainerGroups[0].Params[12].ParamName;
                 }
 
+                StingLog.Info($"ParamRegistry.LoadFromFile: {ContainerGroups.Length} container groups loaded");
+
                 // Category enum map
                 var catMap = root["category_enum_map"] as JObject;
                 CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -685,19 +752,28 @@ namespace StingTools.Core
                         CategoryEnumMap[kvp.Key] = kvp.Value.ToString();
                 }
 
+                StingLog.Info($"ParamRegistry.LoadFromFile: {CategoryEnumMap.Count} category enum mappings loaded");
+
                 // Universal categories
                 UniversalCategories = root["universal_categories"]?.ToObject<string[]>() ?? Array.Empty<string>();
+                StingLog.Info($"ParamRegistry.LoadFromFile: {UniversalCategories.Length} universal categories loaded");
 
                 // Load extended params
                 LoadExtendedParams(root);
+                StingLog.Info($"ParamRegistry.LoadFromFile: {_extendedParams?.Count ?? 0} extended params loaded");
 
                 // Build GUID lookups
+                StingLog.Info("ParamRegistry.LoadFromFile: building GUID maps");
                 BuildGuidMaps(root);
+                StingLog.Info($"ParamRegistry.LoadFromFile: {_guidByName?.Count ?? 0} GUIDs mapped");
 
                 // Build universal params list
+                StingLog.Info("ParamRegistry.LoadFromFile: building universal params list");
                 BuildUniversalParams(root);
+                StingLog.Info($"ParamRegistry.LoadFromFile: {UniversalParams?.Length ?? 0} universal params");
 
                 // Build discipline category name mappings
+                StingLog.Info("ParamRegistry.LoadFromFile: building discipline category names");
                 BuildDisciplineCategoryNames();
 
                 StingLog.Info($"ParamRegistry loaded: {SourceTokens.Length} tokens, {ContainerGroups.Length} groups, {AllContainers.Length} containers, {_guidByName?.Count ?? 0} GUIDs");

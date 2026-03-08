@@ -43,6 +43,22 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
+                // CRASH FIX: Eagerly load ParamRegistry at startup instead of lazy-loading
+                // on first command. This ensures:
+                //   1. JSON parsing errors surface at startup where they're diagnosable
+                //   2. Newtonsoft.Json assembly conflicts are caught before any command runs
+                //   3. All subsequent commands get pre-loaded data with zero crash risk
+                //   4. The data file path is validated once, not on every button click
+                try
+                {
+                    ParamRegistry.EnsureLoaded();
+                    StingLog.Info("ParamRegistry pre-loaded at startup successfully");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("ParamRegistry pre-load failed (commands will use defaults)", ex);
+                }
+
                 // CRASH FIX: Subscribe to DocumentClosing to clear stale static caches.
                 // ElementId-based caches and Definition caches become invalid when a
                 // document closes. Using them against a new document causes native crashes.

@@ -40,7 +40,24 @@ namespace StingTools.Core
             get
             {
                 if (_allCategoryEnums == null)
-                    _allCategoryEnums = ParamRegistry.ResolveUniversalCategoryEnums();
+                {
+                    try
+                    {
+                        StingLog.Info("SharedParamGuids.AllCategoryEnums: resolving (first access)");
+                        _allCategoryEnums = ParamRegistry.ResolveUniversalCategoryEnums();
+                        if (_allCategoryEnums == null)
+                        {
+                            StingLog.Warn("SharedParamGuids.AllCategoryEnums: resolved to null, using empty array");
+                            _allCategoryEnums = Array.Empty<BuiltInCategory>();
+                        }
+                        StingLog.Info($"SharedParamGuids.AllCategoryEnums: {_allCategoryEnums.Length} categories resolved");
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error("SharedParamGuids.AllCategoryEnums: resolution failed, using empty array", ex);
+                        _allCategoryEnums = Array.Empty<BuiltInCategory>();
+                    }
+                }
                 return _allCategoryEnums;
             }
         }
@@ -56,15 +73,29 @@ namespace StingTools.Core
             get
             {
                 if (_disciplineBindings == null)
-                    _disciplineBindings = ParamRegistry.BuildDisciplineBindings();
+                {
+                    try
+                    {
+                        StingLog.Info("SharedParamGuids.DisciplineBindings: building (first access)");
+                        _disciplineBindings = ParamRegistry.BuildDisciplineBindings();
+                        if (_disciplineBindings == null)
+                        {
+                            StingLog.Warn("SharedParamGuids.DisciplineBindings: resolved to null, using empty dict");
+                            _disciplineBindings = new Dictionary<string, BuiltInCategory[]>();
+                        }
+                        StingLog.Info($"SharedParamGuids.DisciplineBindings: {_disciplineBindings.Count} discipline params resolved");
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error("SharedParamGuids.DisciplineBindings: build failed, using empty dict", ex);
+                        _disciplineBindings = new Dictionary<string, BuiltInCategory[]>();
+                    }
+                }
                 return _disciplineBindings;
             }
         }
         private static Dictionary<string, BuiltInCategory[]> _disciplineBindings;
 
-        /// <summary>
-        /// Build a CategorySet from BuiltInCategory enum values (type-safe).
-        /// </summary>
         /// <summary>
         /// Invalidate cached data so next access re-derives from ParamRegistry.
         /// Called by ParamRegistry.Reload() to prevent stale caches.
@@ -75,23 +106,37 @@ namespace StingTools.Core
             _disciplineBindings = null;
         }
 
+        /// <summary>
+        /// Build a CategorySet from BuiltInCategory enum values (type-safe).
+        /// </summary>
         public static CategorySet BuildCategorySet(Document doc, BuiltInCategory[] categories)
         {
             CategorySet catSet = new CategorySet();
+            if (categories == null || categories.Length == 0)
+            {
+                StingLog.Warn("BuildCategorySet: categories array is null or empty");
+                return catSet;
+            }
+
             Categories cats = doc.Settings.Categories;
+            int added = 0;
             foreach (BuiltInCategory bic in categories)
             {
                 try
                 {
                     Category cat = cats.get_Item(bic);
                     if (cat != null && cat.AllowsBoundParameters)
+                    {
                         catSet.Insert(cat);
+                        added++;
+                    }
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"Category {bic} not available: {ex.Message}");
                 }
             }
+            StingLog.Info($"BuildCategorySet: {added}/{categories.Length} categories resolved");
             return catSet;
         }
 
