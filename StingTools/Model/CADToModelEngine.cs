@@ -117,7 +117,7 @@ namespace StingTools.Model
     }
 
     /// <summary>Results from the CAD geometry extraction pass.</summary>
-    internal class CADExtractionResult
+    public class CADExtractionResult
     {
         public List<ExtractedLine> Lines { get; set; } = new();
         public List<DetectedWall> Walls { get; set; } = new();

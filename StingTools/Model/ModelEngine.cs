@@ -140,7 +140,7 @@ namespace StingTools.Model
     /// Priority: exact match → keyword match → closest dimension → first available.
     /// Never hardcodes family names.
     /// </summary>
-    internal class ModelFamilyResolver
+    public class ModelFamilyResolver
     {
         private readonly Document _doc;
 
