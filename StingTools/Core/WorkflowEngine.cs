@@ -295,6 +295,7 @@ namespace StingTools.Core
             report.AppendLine(new string('─', 50));
             report.AppendLine($"  Complete: {passed}/{preset.Steps.Count} steps OK");
             report.AppendLine($"  Skipped: {skipped}, Failed: {failed}");
+            if (cancelled) report.AppendLine("  ⚠ Cancelled by user (Escape)");
             report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
 
             TaskDialog td = new TaskDialog($"Workflow: {preset.Name}");
