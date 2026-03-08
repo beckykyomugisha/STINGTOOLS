@@ -351,7 +351,7 @@ namespace StingTools.Model
                 // DWG-01 FIX: Handle nested GeometryInstance (block references)
                 if (obj is GeometryInstance nestedInstance)
                 {
-                    var blockName = nestedInstance.Symbol?.Name;
+                    var blockName = nestedInstance.GetSymbol()?.Name;
                     var nestedTransform = nestedInstance.Transform;
                     var insertionPoint = nestedTransform.Origin;
 

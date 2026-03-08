@@ -52,8 +52,8 @@ namespace StingTools.Model
                 if (result.Success)
                 {
                     TaskDialog.Show("MODEL — Wall", result.Message);
-                    if (result.CreatedIds.Count > 0)
-                        uidoc.Selection.SetElementIds(result.CreatedIds);
+                    if (result.CreatedElementIds.Count > 0)
+                        uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
                 else
                 {
@@ -135,8 +135,8 @@ namespace StingTools.Model
                 if (result.Success)
                 {
                     TaskDialog.Show("MODEL — Room", result.Message);
-                    if (result.CreatedIds.Count > 0)
-                        uidoc.Selection.SetElementIds(result.CreatedIds);
+                    if (result.CreatedElementIds.Count > 0)
+                        uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
                 else
                 {
@@ -228,8 +228,8 @@ namespace StingTools.Model
                 if (result.Success)
                 {
                     TaskDialog.Show("MODEL — Floor", result.Message);
-                    if (result.CreatedIds.Count > 0)
-                        uidoc.Selection.SetElementIds(result.CreatedIds);
+                    if (result.CreatedElementIds.Count > 0)
+                        uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
                 else
                 {
@@ -379,8 +379,8 @@ namespace StingTools.Model
                 if (result.Success)
                 {
                     TaskDialog.Show("MODEL — Door", result.Message);
-                    if (result.CreatedIds.Count > 0)
-                        uidoc.Selection.SetElementIds(result.CreatedIds);
+                    if (result.CreatedElementIds.Count > 0)
+                        uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
                 else
                 {
@@ -437,8 +437,8 @@ namespace StingTools.Model
                 if (result.Success)
                 {
                     TaskDialog.Show("MODEL — Window", result.Message);
-                    if (result.CreatedIds.Count > 0)
-                        uidoc.Selection.SetElementIds(result.CreatedIds);
+                    if (result.CreatedElementIds.Count > 0)
+                        uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
                 else
                 {
@@ -552,8 +552,8 @@ namespace StingTools.Model
                 if (result.Success)
                 {
                     TaskDialog.Show("MODEL — Column Grid", result.Message);
-                    if (result.CreatedIds.Count > 0)
-                        uidoc.Selection.SetElementIds(result.CreatedIds);
+                    if (result.CreatedElementIds.Count > 0)
+                        uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
                 else
                 {
@@ -599,8 +599,8 @@ namespace StingTools.Model
 
                 var engine = new ModelEngine(doc);
                 var result = engine.CreateBeam(
-                    p1.X * Units.FeetToMm, p1.Y * Units.FeetToMm,
-                    p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm);
+                    p1.X * Units.FeetToMm, p1.Y * Units.FeetToMm, p1.Z * Units.FeetToMm,
+                    p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm, p2.Z * Units.FeetToMm);
 
                 if (result.Success)
                     TaskDialog.Show("MODEL — Beam", result.Message);
@@ -832,14 +832,13 @@ namespace StingTools.Model
 
                 var engine = new ModelEngine(doc);
                 var result = engine.CreateBuildingShell(widthMm, depthMm,
-                    wallHeightMm: heightMm,
-                    originXMm: originXMm, originYMm: originYMm);
+                    wallHeightMm: heightMm);
 
                 if (result.Success)
                 {
                     TaskDialog.Show("MODEL — Building Shell", result.Message);
-                    if (result.CreatedIds.Count > 0)
-                        uidoc.Selection.SetElementIds(result.CreatedIds);
+                    if (result.CreatedElementIds.Count > 0)
+                        uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
                 else
                 {

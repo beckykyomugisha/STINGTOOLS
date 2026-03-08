@@ -381,7 +381,7 @@ namespace StingTools.Model
         public static void Assign(Document doc, Element el)
         {
             if (el?.Category == null || !doc.IsWorkshared) return;
-            var bic = (BuiltInCategory)el.Category.Id.IntegerValue;
+            var bic = (BuiltInCategory)el.Category.Id.Value;
             if (!Map.TryGetValue(bic, out var wsName)) return;
             try
             {
