@@ -54,11 +54,24 @@ namespace StingTools.Tags
             string spFile = app.SharedParametersFilename;
             if (string.IsNullOrEmpty(spFile) || !File.Exists(spFile))
             {
-                TaskDialog.Show("STING Tools - Load Shared Params",
-                    "No shared parameter file is set in Revit.\n\n" +
-                    "Go to Manage → Shared Parameters and set the file path to " +
-                    "MR_PARAMETERS.txt first.");
-                return Result.Failed;
+                // Auto-set MR_PARAMETERS.txt from the plugin's Data folder
+                string autoPath = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                if (!string.IsNullOrEmpty(autoPath) && File.Exists(autoPath))
+                {
+                    app.SharedParametersFilename = autoPath;
+                    spFile = autoPath;
+                    StingLog.Info($"Auto-set shared parameter file: {autoPath}");
+                }
+                else
+                {
+                    TaskDialog.Show("STING Tools - Load Shared Params",
+                        "Could not find MR_PARAMETERS.txt.\n\n" +
+                        "Expected location: " +
+                        (StingToolsApp.DataPath ?? "(DataPath not set)") +
+                        "\n\nEither place the file there or go to " +
+                        "Manage → Shared Parameters and set the path manually.");
+                    return Result.Failed;
+                }
             }
 
             DefinitionFile defFile = app.OpenSharedParameterFile();
@@ -78,10 +91,24 @@ namespace StingTools.Tags
 
             int pass1Bound = 0;
             int pass1Skipped = 0;
+            int pass1AlreadyBound = 0;
             int pass2Bound = 0;
             int pass2Skipped = 0;
+            int pass2AlreadyBound = 0;
             var errors = new List<string>();
             int csvExtras = 0;
+
+            // Pre-scan existing bindings to skip already-bound params (avoids crash on re-run)
+            var existingBindings = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var iter = doc.ParameterBindings.ForwardIterator();
+            while (iter.MoveNext())
+            {
+                if (iter.Key is ExternalDefinition exDef)
+                    existingBindings.Add(exDef.Name);
+                else if (iter.Key != null)
+                    existingBindings.Add(iter.Key.Name);
+            }
+            StingLog.Info($"Pre-scan: {existingBindings.Count} parameters already bound in project");
 
             // Build category set ONCE outside transactions (read-only)
             StingLog.Info($"Pass 1: UniversalParams has {SharedParamGuids.UniversalParams?.Length ?? 0} entries, " +
@@ -109,7 +136,13 @@ namespace StingTools.Tags
             }
 
             // ── Pass 1: Universal parameters → all 53 categories ──
-            var universalParams = SharedParamGuids.UniversalParams ?? Array.Empty<string>();
+            var allUniversalParams = SharedParamGuids.UniversalParams ?? Array.Empty<string>();
+            // Pre-filter: skip params already bound (avoids empty transactions on re-run)
+            var universalParams = allUniversalParams
+                .Where(p => !existingBindings.Contains(p)).ToArray();
+            pass1AlreadyBound = allUniversalParams.Length - universalParams.Length;
+            StingLog.Info($"Pass 1: {universalParams.Length} to bind, {pass1AlreadyBound} already bound");
+
             for (int batchStart = 0; batchStart < universalParams.Length; batchStart += BindingBatchSize)
             {
                 int batchEnd = Math.Min(batchStart + BindingBatchSize, universalParams.Length);
@@ -125,6 +158,7 @@ namespace StingTools.Tags
                         for (int i = batchStart; i < batchEnd; i++)
                         {
                             string paramName = universalParams[i];
+
                             if (!defLookup.TryGetValue(paramName, out ExternalDefinition extDef))
                             {
                                 pass1Skipped++;
@@ -171,7 +205,11 @@ namespace StingTools.Tags
             foreach (string csvParam in csvBindings.Keys)
                 allDisciplineParams.Add(csvParam);
 
-            var disciplineParamList = allDisciplineParams.ToList();
+            // Pre-filter: skip params already bound
+            var disciplineParamList = allDisciplineParams
+                .Where(p => !existingBindings.Contains(p)).ToList();
+            pass2AlreadyBound = allDisciplineParams.Count - disciplineParamList.Count;
+            StingLog.Info($"Pass 2: {disciplineParamList.Count} to bind, {pass2AlreadyBound} already bound");
             csvExtras = 0;
 
             for (int batchStart = 0; batchStart < disciplineParamList.Count; batchStart += BindingBatchSize)
@@ -189,6 +227,7 @@ namespace StingTools.Tags
                         for (int i = batchStart; i < batchEnd; i++)
                         {
                             string paramName = disciplineParamList[i];
+
                             if (!defLookup.TryGetValue(paramName, out ExternalDefinition extDef))
                             {
                                 pass2Skipped++;
@@ -273,11 +312,22 @@ namespace StingTools.Tags
 
             int universalCount = SharedParamGuids.UniversalParams?.Length ?? 0;
             int catCount = SharedParamGuids.AllCategoryEnums?.Length ?? 0;
-            string report = $"Shared parameter binding complete.\n\n" +
-                $"Pass 1 (Universal):   {pass1Bound} bound, {pass1Skipped} skipped  ({universalCount} params, {catCount} categories)\n" +
-                $"Pass 2 (Discipline):  {pass2Bound} bound, {pass2Skipped} skipped\n" +
-                (csvExtras > 0 ? $"  CSV extras: {csvExtras} categories added from CATEGORY_BINDINGS.csv\n" : "") +
-                $"\nSource: {spFile}";
+            int totalAlready = pass1AlreadyBound + pass2AlreadyBound;
+            string report;
+            if (totalAlready > 0 && pass1Bound == 0 && pass2Bound == 0)
+            {
+                report = $"All parameters are already bound — nothing to do.\n\n" +
+                    $"{totalAlready} parameters already present in project.\n" +
+                    $"\nSource: {spFile}";
+            }
+            else
+            {
+                report = $"Shared parameter binding complete.\n\n" +
+                    $"Pass 1 (Universal):   {pass1Bound} bound, {pass1AlreadyBound} already present, {pass1Skipped} skipped  ({universalCount} params, {catCount} categories)\n" +
+                    $"Pass 2 (Discipline):  {pass2Bound} bound, {pass2AlreadyBound} already present, {pass2Skipped} skipped\n" +
+                    (csvExtras > 0 ? $"  CSV extras: {csvExtras} categories added from CATEGORY_BINDINGS.csv\n" : "") +
+                    $"\nSource: {spFile}";
+            }
             if (errors.Count > 0)
                 report += $"\n\nErrors ({errors.Count}):\n" +
                     string.Join("\n", errors.Take(10));
