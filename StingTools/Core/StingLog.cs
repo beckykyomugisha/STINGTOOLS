@@ -83,8 +83,12 @@ namespace StingTools.Core
             }
             catch
             {
-                // Last-resort: cannot log — dispose bad writer so next call retries
-                DisposeWriter();
+                // CRASH FIX: Dispose inside lock to prevent another thread from
+                // seeing a non-null but disposed _writer between disposal and null assignment
+                lock (Lock)
+                {
+                    DisposeWriter();
+                }
             }
         }
 

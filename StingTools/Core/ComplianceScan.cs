@@ -12,6 +12,9 @@ namespace StingTools.Core
     /// </summary>
     public static class ComplianceScan
     {
+        // CRASH FIX: Lock protects cache from concurrent read/write races
+        // between ComplianceScan.Scan() and InvalidateCache() calls
+        private static readonly object _cacheLock = new object();
         private static ComplianceResult _cached;
         private static DateTime _cacheTime = DateTime.MinValue;
         private static readonly TimeSpan CacheLifetime = TimeSpan.FromSeconds(30);
@@ -70,9 +73,12 @@ namespace StingTools.Core
         /// </summary>
         public static ComplianceResult Scan(Document doc, bool forceRefresh = false)
         {
-            if (!forceRefresh && _cached != null &&
-                (DateTime.Now - _cacheTime) < CacheLifetime)
-                return _cached;
+            lock (_cacheLock)
+            {
+                if (!forceRefresh && _cached != null &&
+                    (DateTime.Now - _cacheTime) < CacheLifetime)
+                    return _cached;
+            }
 
             var result = new ComplianceResult { ScanTime = DateTime.Now };
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
@@ -122,16 +128,22 @@ namespace StingTools.Core
                 StingLog.Warn($"Compliance scan failed: {ex.Message}");
             }
 
-            _cached = result;
-            _cacheTime = DateTime.Now;
+            lock (_cacheLock)
+            {
+                _cached = result;
+                _cacheTime = DateTime.Now;
+            }
             return result;
         }
 
         /// <summary>Invalidate cached results (call after tagging operations).</summary>
         public static void InvalidateCache()
         {
-            _cached = null;
-            _cacheTime = DateTime.MinValue;
+            lock (_cacheLock)
+            {
+                _cached = null;
+                _cacheTime = DateTime.MinValue;
+            }
         }
 
         private static void AddIssue(ComplianceResult result, string issueType)

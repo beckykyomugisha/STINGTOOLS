@@ -29,8 +29,11 @@ namespace StingTools.Core
         private static StingAutoTagger _instance;
         private static UpdaterId _updaterId;
         private static bool _enabled;
+        // CRASH FIX: Lock protects _recentlyProcessed from concurrent access
+        // if IUpdater fires during command execution or document switching
+        private static readonly object _processedLock = new object();
         private static readonly HashSet<long> _recentlyProcessed = new HashSet<long>();
-        private static int _processedCount;
+        private static volatile int _processedCount;
 
         private readonly AddInId _addinId;
 
@@ -180,7 +183,9 @@ namespace StingTools.Core
                 foreach (ElementId id in addedIds)
                 {
                     // Skip recently processed (avoid re-trigger loops)
-                    if (_recentlyProcessed.Contains(id.Value)) continue;
+                    bool alreadyDone;
+                    lock (_processedLock) { alreadyDone = _recentlyProcessed.Contains(id.Value); }
+                    if (alreadyDone) continue;
 
                     Element el = doc.GetElement(id);
                     if (el == null || !el.IsValidObject) continue;
@@ -197,13 +202,15 @@ namespace StingTools.Core
                         skipComplete: true, existingTags: existingTags,
                         collisionMode: TagCollisionMode.AutoIncrement);
 
-                    _recentlyProcessed.Add(id.Value);
-                    _processedCount++;
-                }
+                    lock (_processedLock)
+                    {
+                        _recentlyProcessed.Add(id.Value);
+                        _processedCount++;
 
-                // Trim processed cache to prevent unbounded growth
-                if (_recentlyProcessed.Count > 10000)
-                    _recentlyProcessed.Clear();
+                        // Trim processed cache to prevent unbounded growth
+                        if (_recentlyProcessed.Count > 10000)
+                            _recentlyProcessed.Clear();
+                    }
 
                 // Reset failure counter on success
                 _consecutiveFailures = 0;

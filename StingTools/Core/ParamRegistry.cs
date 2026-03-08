@@ -26,7 +26,10 @@ namespace StingTools.Core
     public static class ParamRegistry
     {
         // ── Loaded state ────────────────────────────────────────────────
-        private static bool _loaded;
+        // CRASH FIX: volatile ensures double-checked locking works correctly —
+        // without it, a thread can see _loaded=true while dictionaries are
+        // still being written by the loading thread (CPU cache coherency issue)
+        private static volatile bool _loaded;
         private static readonly object _lock = new object();
 
         // ── Tag format ──────────────────────────────────────────────────
