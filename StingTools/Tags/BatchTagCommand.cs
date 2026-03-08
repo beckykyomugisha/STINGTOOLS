@@ -251,6 +251,19 @@ namespace StingTools.Tags
                 levelElevation[lvl.Id] = lvl.Elevation;
             }
 
+            // Pre-cache category, discipline, and system per element to avoid
+            // redundant GetCategoryName/GetMepSystemAwareSysCode calls in sort keys
+            var sortCache = new Dictionary<long, (string cat, string disc, string sys)>();
+            foreach (var e in elements)
+            {
+                string cat = ParameterHelpers.GetCategoryName(e);
+                string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
+                string sys = TagConfig.GetMepSystemAwareSysCode(e, cat);
+                if (string.IsNullOrEmpty(sys))
+                    sys = TagConfig.GetDiscDefaultSysCode(disc);
+                sortCache[e.Id.Value] = (cat, disc, sys);
+            }
+
             return elements.OrderBy(e =>
                 {
                     ElementId lvlId = e.LevelId;
@@ -259,21 +272,9 @@ namespace StingTools.Tags
                         return elev;
                     return double.MaxValue;
                 })
-                .ThenBy(e =>
-                {
-                    string cat = ParameterHelpers.GetCategoryName(e);
-                    return TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
-                })
-                .ThenBy(e =>
-                {
-                    // SYS sort key: groups elements by ACTUAL system within discipline
-                    // Uses MEP-aware detection so pipes group by DCW/HWS/SAN/GAS
-                    string cat = ParameterHelpers.GetCategoryName(e);
-                    string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
-                    string sys = TagConfig.GetMepSystemAwareSysCode(e, cat);
-                    return !string.IsNullOrEmpty(sys) ? sys : TagConfig.GetDiscDefaultSysCode(disc);
-                })
-                .ThenBy(e => ParameterHelpers.GetCategoryName(e))
+                .ThenBy(e => sortCache[e.Id.Value].disc)
+                .ThenBy(e => sortCache[e.Id.Value].sys)
+                .ThenBy(e => sortCache[e.Id.Value].cat)
                 .ThenBy(e => e.Id.Value) // Stable sort: consistent ordering across runs
                 .ToList();
         }

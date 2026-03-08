@@ -328,7 +328,7 @@ namespace StingTools.UI
             }));
         }
 
-        private static void PopulateCombo(ComboBox cmb, IList<string> items)
+        private static void PopulateCombo(System.Windows.Controls.ComboBox cmb, IList<string> items)
         {
             if (cmb == null) return;
             string currentText = cmb.Text;

@@ -1004,12 +1004,19 @@ namespace StingTools.Core
                 stats.RecordWarning($"Element {el.Id}: category '{catName}' has no DISC mapping — defaulted to 'A'");
 
             string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-            if (string.IsNullOrEmpty(loc)) loc = LocCodes.Count > 0 ? LocCodes[0] : "BLD1";
+            if (string.IsNullOrEmpty(loc) || loc == "XX")
+            {
+                // First valid non-placeholder code from LocCodes, else hardcoded default
+                loc = LocCodes.FirstOrDefault(c => c != "XX" && !string.IsNullOrEmpty(c)) ?? "BLD1";
+            }
             string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-            if (string.IsNullOrEmpty(zone)) zone = ZoneCodes.Count > 0 ? ZoneCodes[0] : "Z01";
+            if (string.IsNullOrEmpty(zone) || zone == "XX")
+            {
+                zone = ZoneCodes.FirstOrDefault(c => c != "XX" && !string.IsNullOrEmpty(c)) ?? "Z01";
+            }
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
-            // Guaranteed LVL default: replace unresolved "XX" with "L00" for levelless elements
-            if (lvl == "XX") lvl = "L00";
+            // Guaranteed LVL default: replace unresolved "XX"/"" with "L00" for levelless elements
+            if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
 
             // Intelligence Layer: MEP system-aware SYS/FUNC derivation
             // 6-layer system detection: connector → sys param → circuit → family → room → category
@@ -1071,14 +1078,22 @@ namespace StingTools.Core
                 {
                     collisionCount++;
                     sequenceCounters[seqKey]++;
+                    // Overflow guard: cap SEQ at format capacity (9999 for NumPad=4)
+                    if (sequenceCounters[seqKey] > maxSeq)
+                    {
+                        string overflowMsg = $"SEQ overflow in collision loop: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq})";
+                        StingLog.Warn(overflowMsg);
+                        stats?.RecordWarning(overflowMsg);
+                        break;
+                    }
                     seq = sequenceCounters[seqKey].ToString().PadLeft(NumPad, '0');
                     tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
-                // Only remove old tag from index when overwriting — prevents
-                // stale removal when multiple elements share the same existing tag
-                if (overwriteTokens && !string.IsNullOrEmpty(existingTag))
+                // Remove the element's old tag from index (it's being replaced)
+                // so stale entries don't cause false collisions for other elements
+                if (!string.IsNullOrEmpty(existingTag) && existingTag != tag)
                     existingTags.Remove(existingTag);
                 existingTags.Add(tag);
             }
@@ -1764,8 +1779,14 @@ namespace StingTools.Core
                 string seqStr = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
                 if (string.IsNullOrEmpty(disc)) continue;
 
+                // Normalise empty tokens to match BuildAndWriteTag key format
+                if (string.IsNullOrEmpty(sys))
+                    sys = GetDiscDefaultSysCode(disc);
+                if (string.IsNullOrEmpty(lvl) || lvl == "XX")
+                    lvl = "L00";
+
                 string key = $"{disc}_{sys}_{lvl}";
-                if (int.TryParse(seqStr, out int seqNum))
+                if (int.TryParse(seqStr, out int seqNum) && seqNum > 0)
                 {
                     if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
                         maxSeq[key] = seqNum;
@@ -1817,8 +1838,14 @@ namespace StingTools.Core
                 string seqStr = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
                 if (string.IsNullOrEmpty(disc)) continue;
 
+                // Normalise empty tokens to match BuildAndWriteTag key format
+                if (string.IsNullOrEmpty(sys))
+                    sys = GetDiscDefaultSysCode(disc);
+                if (string.IsNullOrEmpty(lvl) || lvl == "XX")
+                    lvl = "L00";
+
                 string key = $"{disc}_{sys}_{lvl}";
-                if (int.TryParse(seqStr, out int seqNum))
+                if (int.TryParse(seqStr, out int seqNum) && seqNum > 0)
                 {
                     if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
                         maxSeq[key] = seqNum;
