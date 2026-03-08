@@ -1063,6 +1063,12 @@ namespace StingTools.UI
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             var doc = uidoc.Document;
+            var view = doc.ActiveView;
+            if (view == null)
+            {
+                TaskDialog.Show("Parameter List", "No active view — switch to a model view first.");
+                return;
+            }
 
             // Collect parameter names from selected element (or first taggable in view)
             var ids = uidoc.Selection.GetElementIds();
@@ -1071,7 +1077,7 @@ namespace StingTools.UI
                 target = doc.GetElement(ids.First());
             if (target == null)
             {
-                target = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                target = new FilteredElementCollector(doc, view.Id)
                     .WhereElementIsNotElementType()
                     .FirstOrDefault(e => e.Category != null);
             }
@@ -1379,9 +1385,11 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
-            var ids = new FilteredElementCollector(uidoc.Document, uidoc.ActiveView.Id)
+            var view = uidoc.ActiveView;
+            if (view == null) { TaskDialog.Show("Select", "No active view."); return; }
+            var ids = new FilteredElementCollector(uidoc.Document, view.Id)
                 .WhereElementIsNotElementType()
-                .Where(e => !e.IsHidden(uidoc.ActiveView))
+                .Where(e => !e.IsHidden(view))
                 .Select(e => e.Id).ToList();
             uidoc.Selection.SetElementIds(ids);
             StingLog.Info($"SelectVisibleOnly: {ids.Count} elements");
@@ -1401,9 +1409,24 @@ namespace StingTools.UI
                 return;
             }
 
-            var elements = new FilteredElementCollector(uidoc.Document, view.Id)
-                .WhereElementIsNotElementType()
-                .ToList();
+            // If elements are selected, color only the selection; otherwise color entire view
+            var selIds = uidoc.Selection.GetElementIds();
+            List<Element> elements;
+            string scope;
+            if (selIds.Count > 0)
+            {
+                elements = selIds.Select(id => uidoc.Document.GetElement(id))
+                    .Where(e => e != null && e.IsValidObject)
+                    .ToList();
+                scope = $"{elements.Count} selected elements";
+            }
+            else
+            {
+                elements = new FilteredElementCollector(uidoc.Document, view.Id)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                scope = $"{elements.Count} elements in view";
+            }
 
             var groups = new Dictionary<string, List<ElementId>>();
             foreach (var el in elements)
@@ -1458,7 +1481,7 @@ namespace StingTools.UI
             }
 
             TaskDialog.Show("Color By Parameter",
-                $"Coloured {elements.Count} elements by '{paramName}'\n" +
+                $"Coloured {scope} by '{paramName}'\n" +
                 $"({groups.Count} unique values).");
         }
 
@@ -3635,12 +3658,18 @@ namespace StingTools.UI
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             var doc = uidoc.Document;
+            var view = doc.ActiveView;
+            if (view == null)
+            {
+                TaskDialog.Show("Anomaly Scan", "No active view — switch to a model view first.");
+                return;
+            }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             int total = 0, missingTag = 0, missingDisc = 0, missingSys = 0;
             int placeholders = 0, formatErrors = 0;
 
-            foreach (Element el in new FilteredElementCollector(doc, doc.ActiveView.Id)
+            foreach (Element el in new FilteredElementCollector(doc, view.Id)
                 .WhereElementIsNotElementType())
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
@@ -3669,7 +3698,7 @@ namespace StingTools.UI
             double healthPct = total > 0 ? ((total - Math.Min(issues, total)) / (double)total) * 100 : 0;
 
             var report = new StringBuilder();
-            report.AppendLine($"Anomaly Scan — {doc.ActiveView.Name}");
+            report.AppendLine($"Anomaly Scan — {view.Name}");
             report.AppendLine(new string('═', 45));
             report.AppendLine($"  Taggable elements: {total}");
             report.AppendLine($"  Health score:      {healthPct:F0}%");
@@ -3881,24 +3910,26 @@ namespace StingTools.UI
                         XYZ elbowPos;
                         if (effectiveMode == "0")
                         {
-                            elbowPos = (hostCenter + tagHead) / 2.0;
+                            // Straight: elbow on line near tag head
+                            XYZ dir = delta.Normalize();
+                            double len = delta.GetLength();
+                            elbowPos = hostCenter + dir * (len * 0.95);
                         }
                         else if (effectiveMode == "45")
                         {
+                            // 45° elbow near element (arrow side)
                             double absDx = Math.Abs(delta.X);
                             double absDy = Math.Abs(delta.Y);
                             double diag = Math.Min(absDx, absDy);
                             double signX = delta.X >= 0 ? 1 : -1;
                             double signY = delta.Y >= 0 ? 1 : -1;
 
-                            if (absDx > absDy)
-                                elbowPos = new XYZ(hostCenter.X + diag * signX, tagHead.Y, hostCenter.Z);
-                            else
-                                elbowPos = new XYZ(tagHead.X, hostCenter.Y + diag * signY, hostCenter.Z);
+                            elbowPos = new XYZ(hostCenter.X + diag * signX, hostCenter.Y + diag * signY, hostCenter.Z);
                         }
                         else // "90"
                         {
-                            elbowPos = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+                            // 90° elbow near element (arrow side): vertical from host then horizontal to tag
+                            elbowPos = new XYZ(hostCenter.X, tagHead.Y, hostCenter.Z);
                         }
 
                         var refs = tag.GetTaggedReferences();
@@ -3943,8 +3974,8 @@ namespace StingTools.UI
                 if (elbow.DistanceTo(mid) < 0.1)
                     return "90"; // Cycle: 0 → 90
 
-                // Check if elbow is at orthogonal position (90°)
-                XYZ ortho90 = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+                // Check if elbow is at orthogonal position (90°) — arrow side
+                XYZ ortho90 = new XYZ(hostCenter.X, tagHead.Y, hostCenter.Z);
                 if (elbow.DistanceTo(ortho90) < 0.1)
                     return "45"; // Cycle: 90 → 45
 
