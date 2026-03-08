@@ -2808,6 +2808,78 @@ namespace StingTools.Docs
                         .OrderBy(s => s);
                     csv.AppendLine($"{kvp.Key},{kvp.Value.Count},\"{string.Join("; ", systems)}\"");
                 }
+                csv.AppendLine();
+
+                // ── Section 7: COBie Data Extract ──
+                csv.AppendLine("SECTION,7. COBie DATA EXTRACT");
+                csv.AppendLine("Asset Tag,Asset Name,Category,System,Manufacturer,Model,Serial No,Installation Date,Warranty,Room,Level");
+                foreach (var el in allElements)
+                {
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1)) continue;
+
+                    string assetName = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+                    if (string.IsNullOrEmpty(assetName))
+                        assetName = ParameterHelpers.GetFamilySymbolName(el);
+                    string cat = el.Category?.Name ?? "";
+                    string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    string mfr = ParameterHelpers.GetString(el, ParamRegistry.MFR);
+                    string model = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
+                    string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
+                    string installDate = ParameterHelpers.GetString(el, "ASS_INSTALLATION_DATE_TXT");
+                    string warranty = ParameterHelpers.GetString(el, "ASS_WARRANTY_TXT");
+                    string roomName = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
+                    if (string.IsNullOrEmpty(roomName))
+                        roomName = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
+                    string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+
+                    csv.AppendLine($"\"{tag1}\",\"{Esc(assetName)}\",\"{Esc(cat)}\",{sys}," +
+                        $"\"{Esc(mfr)}\",\"{Esc(model)}\",\"{Esc(serial)}\"," +
+                        $"\"{Esc(installDate)}\",\"{Esc(warranty)}\",\"{Esc(roomName)}\",{lvl}");
+                }
+                csv.AppendLine();
+
+                // ── Section 8: FM Schedules Available (from MR_SCHEDULES.csv) ──
+                csv.AppendLine("SECTION,8. FM SCHEDULES AVAILABLE (MR_SCHEDULES.csv)");
+                csv.AppendLine("Schedule Name,Category,Discipline,Source,Fields");
+                int fmScheduleCount = 0;
+                try
+                {
+                    string scheduleCsv = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
+                    if (scheduleCsv != null)
+                    {
+                        foreach (string line in File.ReadAllLines(scheduleCsv))
+                        {
+                            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                            string[] cols = StingToolsApp.ParseCsvLine(line);
+                            if (cols.Length < 8) continue;
+                            string recType = cols[0].Trim();
+                            string source = cols[1].Trim();
+                            string disc = cols[2].Trim();
+                            string schedName = cols[3].Trim();
+                            string category = cols[4].Trim();
+                            string fields = cols.Length > 7 ? cols[7].Trim() : "";
+
+                            // Include FM_Revit and COBie-related schedules
+                            if (recType == "SCHEDULE" &&
+                                (source.StartsWith("FM", StringComparison.OrdinalIgnoreCase) ||
+                                 schedName.Contains("Maintenance", StringComparison.OrdinalIgnoreCase) ||
+                                 schedName.Contains("Handover", StringComparison.OrdinalIgnoreCase) ||
+                                 schedName.Contains("Asset", StringComparison.OrdinalIgnoreCase) ||
+                                 disc.Equals("Facilities", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                csv.AppendLine($"\"{Esc(schedName)}\",\"{Esc(category)}\",{disc},{source},\"{Esc(fields)}\"");
+                                fmScheduleCount++;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"HandoverManual: FM schedule scan failed: {ex.Message}");
+                }
+                if (fmScheduleCount == 0)
+                    csv.AppendLine("(No FM schedules found in MR_SCHEDULES.csv),,,,");
 
                 // Write to file
                 string dir = Path.GetDirectoryName(doc.PathName);
@@ -2827,14 +2899,17 @@ namespace StingTools.Docs
                 report.AppendLine($"  Systems:          {bySys.Count}");
                 report.AppendLine($"  Rooms:            {rooms.Count}");
                 report.AppendLine($"  Levels:           {byLevel.Count}");
+                report.AppendLine($"  FM Schedules:     {fmScheduleCount} (from MR_SCHEDULES.csv)");
                 report.AppendLine();
                 report.AppendLine("  Sections:");
                 report.AppendLine("    1. Project Information");
                 report.AppendLine("    2. System Summary");
                 report.AppendLine("    3. Asset Register (by discipline)");
                 report.AppendLine("    4. Spatial Summary (rooms)");
-                report.AppendLine("    5. Maintenance Schedule");
+                report.AppendLine("    5. Maintenance Schedule (BS 8210)");
                 report.AppendLine("    6. Level Summary");
+                report.AppendLine("    7. COBie Data Extract");
+                report.AppendLine("    8. FM Schedules Available");
                 report.AppendLine();
                 report.AppendLine($"  File: {path}");
                 report.AppendLine();
