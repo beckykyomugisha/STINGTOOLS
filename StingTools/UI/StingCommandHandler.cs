@@ -52,6 +52,9 @@ namespace StingTools.UI
                 p2 = _param2;
             }
 
+            // Guard: empty tag means no command was requested (cleared after previous run)
+            if (string.IsNullOrEmpty(tag)) return;
+
             // Guard: most commands require an open document
             if (app.ActiveUIDocument == null)
             {
@@ -752,6 +755,17 @@ namespace StingTools.UI
                 StingLog.Error($"DockPanel command '{tag}' failed", ex);
                 TaskDialog.Show("STING Tools", $"Command failed: {ex.Message}");
             }
+            finally
+            {
+                // CRASH FIX: Clear command tag after execution to prevent
+                // re-entrancy if ExternalEvent fires again without SetCommand().
+                lock (_lock)
+                {
+                    _commandTag = "";
+                    _param1 = "";
+                    _param2 = "";
+                }
+            }
 
             // ENH-003: Compliance status bar update REMOVED from post-command hook.
             // (See commit history for rationale — FilteredElementCollector after
@@ -835,6 +849,15 @@ namespace StingTools.UI
         private static readonly Dictionary<string, List<ElementId>> _memorySlots =
             new Dictionary<string, List<ElementId>>();
 
+        /// <summary>
+        /// CRASH FIX: Clear selection memory slots that hold ElementId references.
+        /// Must be called on document close to prevent stale IDs being used against a new document.
+        /// </summary>
+        public static void ClearStaticState()
+        {
+            _memorySlots.Clear();
+        }
+
         private static void ViewIsolateSelected(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
@@ -856,17 +879,18 @@ namespace StingTools.UI
         private static void ViewRevealHidden(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
-            var view = uidoc.ActiveView;
+            if (uidoc?.ActiveView == null) return;
             try
             {
-                // Use reflection — EnableTemporaryViewMode may not be available in all Revit API versions
-                var method = view.GetType().GetMethod("EnableTemporaryViewMode",
-                    new[] { typeof(TemporaryViewMode) });
-                if (method != null)
-                    method.Invoke(view, new object[] { TemporaryViewMode.RevealHiddenElements });
-                else
-                    TaskDialog.Show("Reveal", "Reveal hidden elements is not available in this Revit version.");
+                // CRASH FIX: Direct API call instead of reflection.
+                // Reflection wraps Revit exceptions in TargetInvocationException,
+                // masking the real error and potentially corrupting view state.
+                uidoc.ActiveView.EnableTemporaryViewMode(TemporaryViewMode.RevealHiddenElements);
+            }
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException)
+            {
+                // View doesn't support reveal hidden (e.g., schedule, legend)
+                TaskDialog.Show("Reveal", "This view does not support reveal hidden elements.");
             }
             catch (Exception ex)
             {
@@ -949,7 +973,7 @@ namespace StingTools.UI
                     if (hostIds2.Any(id => selected.Contains(id)))
                         tagIds.Add(tag.Id);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
             }
             if (tagIds.Count > 0)
                 uidoc.Selection.SetElementIds(tagIds);
@@ -969,7 +993,7 @@ namespace StingTools.UI
                 if (el is IndependentTag tag)
                 {
                     try { hostIds.AddRange(tag.GetTaggedLocalElementIds()); }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
             }
             if (hostIds.Count > 0)
@@ -1259,7 +1283,7 @@ namespace StingTools.UI
                         if (cat.get_Visible(uidoc.ActiveView) == false)
                             cat.set_Visible(uidoc.ActiveView, true);
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -1457,7 +1481,7 @@ namespace StingTools.UI
                         break;
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
             }
 
             using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Parameter"))
@@ -1512,7 +1536,7 @@ namespace StingTools.UI
                 .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
             {
                 try { if (fpe.GetFillPattern().IsSolidFill) { solidFill = fpe; break; } }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
             }
 
             using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Hex"))
@@ -1635,7 +1659,7 @@ namespace StingTools.UI
                         sg.Point = new XYZ(refPos.X, sg.Point.Y, sg.Point.Z);
                         moved++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -1697,7 +1721,7 @@ namespace StingTools.UI
                     double w = def.GetField(i).GridColumnWidth;
                     if (w > maxWidth) maxWidth = w;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
             }
 
             if (maxWidth <= 0)
@@ -1722,7 +1746,7 @@ namespace StingTools.UI
                             updated++;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -1769,7 +1793,7 @@ namespace StingTools.UI
                         field.GridColumnWidth = width;
                         updated++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -1796,7 +1820,7 @@ namespace StingTools.UI
                     double w = def.GetField(i).GridColumnWidth;
                     if (w > maxWidth) maxWidth = w;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
             }
 
             int updated = 0;
@@ -1810,7 +1834,7 @@ namespace StingTools.UI
                         def.GetField(i).GridColumnWidth = maxWidth;
                         updated++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -1872,7 +1896,7 @@ namespace StingTools.UI
                         field.GridColumnWidth = widthFt;
                         updated++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
 
                 tx.Commit();
@@ -1895,7 +1919,7 @@ namespace StingTools.UI
 
             for (int i = 0; i < fieldCount; i++)
             {
-                try { if (def.GetField(i).IsHidden) hiddenCount++; } catch { }
+                try { if (def.GetField(i).IsHidden) hiddenCount++; } catch (Exception ex) { StingLog.Warn($"ScheduleToggleHidden field {i}: {ex.Message}"); }
             }
 
             if (hiddenCount == 0)
@@ -1920,7 +1944,7 @@ namespace StingTools.UI
                             revealed++;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -1956,7 +1980,7 @@ namespace StingTools.UI
                                 aligned++;
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                     }
                 }
                 tx.Commit();
@@ -1987,7 +2011,7 @@ namespace StingTools.UI
                         tn.Coord = new XYZ(refPos.X, tn.Coord.Y, tn.Coord.Z);
                         moved++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -2016,7 +2040,7 @@ namespace StingTools.UI
                                 tn.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
                             toggled++;
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                     }
                 }
                 tx.Commit();
@@ -2051,7 +2075,7 @@ namespace StingTools.UI
                             }
                             reset++;
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                     }
                 }
                 tx.Commit();
@@ -2078,7 +2102,7 @@ namespace StingTools.UI
                                 seg.ValueOverride = "";
                             reset++;
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                     }
                 }
                 tx.Commit();
@@ -2112,7 +2136,7 @@ namespace StingTools.UI
                             { zeroDims.Add(dim.Id); break; }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
             }
 
             if (zeroDims.Count > 0)
@@ -2193,32 +2217,12 @@ namespace StingTools.UI
             if (legendVps.Count < 2)
             { TaskDialog.Show("Legend Uniform", "Need 2+ legend/STING viewports on sheet."); return; }
 
-            // Set all legend views to scale 1 (1:1) for uniform sizing
-            int updated = 0;
-            using (var tx = new Transaction(doc, "STING Legend Uniform Scale"))
-            {
-                tx.Start();
-                foreach (var (vp, view) in legendVps)
-                {
-                    try
-                    {
-                        if (view.Scale != 1)
-                        {
-                            view.Scale = 1;
-                            updated++;
-                        }
-                    }
-                    catch { }
-                }
-                tx.Commit();
-            }
-
-            // Find the most common scale among legend views
-            if (legendVps.Count == 0)
-            {
-                TaskDialog.Show("Legend Uniform Size", "No legend viewports found.");
-                return;
-            }
+            // CRASH FIX: Merged two back-to-back transactions into one.
+            // The original code set all scales to 1 in a first transaction, then
+            // found the "most common scale" (always 1 after the first pass) and
+            // set it again in a second transaction. Back-to-back transactions on
+            // the same elements without doc.Regenerate() is a known Revit crash
+            // pattern. Now uses a single transaction with the most common scale.
             var scaleCounts = legendVps.GroupBy(lv => lv.view.Scale)
                 .OrderByDescending(g => g.Count()).ToList();
             int targetScale = scaleCounts[0].Key;
@@ -2409,7 +2413,7 @@ namespace StingTools.UI
                         colorGroups[key].elems.Add(elem);
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
             }
 
             if (colorGroups.Count == 0)
@@ -2517,7 +2521,7 @@ namespace StingTools.UI
                             reset++;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -2805,7 +2809,7 @@ namespace StingTools.UI
                             }
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -2912,7 +2916,7 @@ namespace StingTools.UI
                         tagLayout[hostIds.First()] = (tag.TagHeadPosition, tag.HasLeader, tag.TagOrientation);
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
             }
 
             TaskDialog.Show("Clone Tag Layout",
@@ -3841,7 +3845,7 @@ namespace StingTools.UI
                     var cat = tf.Family.FamilyCategory;
                     if (cat != null) taggedCats.Add(cat.Name);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
             }
 
             var report = new StringBuilder();
@@ -4246,7 +4250,7 @@ namespace StingTools.UI
                     else if (Math.Abs(start.Y - end.Y) < 0.1)
                         gridYPositions.Add(start.Y);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
             }
 
             var matches = new List<ElementId>();
@@ -4317,7 +4321,7 @@ namespace StingTools.UI
                             updated++;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -4374,7 +4378,7 @@ namespace StingTools.UI
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
             }
 
             var report = new StringBuilder();
@@ -4414,7 +4418,7 @@ namespace StingTools.UI
                             hiddenCats.Add(cat.Name);
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
             }
 
             var msg = new StringBuilder();
@@ -4443,7 +4447,7 @@ namespace StingTools.UI
                     foreach (Category cat in doc.Settings.Categories)
                     {
                         try { cat.set_Visible(view, true); }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                     }
                     tx.Commit();
                 }
@@ -4511,7 +4515,7 @@ namespace StingTools.UI
                         rt.HasLeader = lockLeader;
                         toggled++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }

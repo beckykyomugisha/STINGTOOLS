@@ -43,6 +43,11 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
+                // CRASH FIX: Subscribe to DocumentClosing to clear stale static caches.
+                // ElementId-based caches and Definition caches become invalid when a
+                // document closes. Using them against a new document causes native crashes.
+                application.ControlledApplication.DocumentClosing += OnDocumentClosing;
+
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
             }
@@ -52,6 +57,27 @@ namespace StingTools.Core
                     "Failed to initialise STING Tools:\n" + ex.Message);
                 StingLog.Error("Startup failed", ex);
                 return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// CRASH FIX: Clear all static caches that hold ElementId or Definition references.
+        /// These become invalid when a document closes and cause native crashes if used
+        /// against a different document.
+        /// </summary>
+        private static void OnDocumentClosing(object sender,
+            Autodesk.Revit.DB.Events.DocumentClosingEventArgs e)
+        {
+            try
+            {
+                ParameterHelpers.ClearParamCache();
+                ComplianceScan.InvalidateCache();
+                UI.StingCommandHandler.ClearStaticState();
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, and selection caches");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DocumentClosing cleanup: {ex.Message}");
             }
         }
 

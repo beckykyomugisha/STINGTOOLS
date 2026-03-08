@@ -115,8 +115,18 @@ namespace StingTools.UI
             if (sender is Button btn && btn.Tag is string cmdTag)
             {
                 _handler?.SetCommand(cmdTag);
-                _externalEvent?.Raise();
-                UpdateStatus($"Running: {cmdTag}...");
+                var result = _externalEvent?.Raise() ?? ExternalEventRequest.Denied;
+                if (result == ExternalEventRequest.Accepted)
+                {
+                    UpdateStatus($"Running: {cmdTag}...");
+                }
+                else
+                {
+                    // CRASH FIX: If Raise() is denied (previous command still running),
+                    // clear the command tag to prevent wrong command execution later.
+                    _handler?.SetCommand("");
+                    UpdateStatus($"Busy — try again...");
+                }
             }
         }
 
@@ -277,7 +287,10 @@ namespace StingTools.UI
             if (txtStatus == null) return;
             if (!txtStatus.Dispatcher.CheckAccess())
             {
-                txtStatus.Dispatcher.Invoke(() => txtStatus.Text = message);
+                // CRASH FIX: Use BeginInvoke (async) instead of Invoke (sync).
+                // Synchronous Invoke can deadlock when the Revit API thread is
+                // waiting for the WPF dispatcher during modal dialog display.
+                txtStatus.Dispatcher.BeginInvoke(new Action(() => txtStatus.Text = message));
                 return;
             }
             txtStatus.Text = message;
@@ -288,7 +301,8 @@ namespace StingTools.UI
             if (txtBulkStatus == null) return;
             if (!txtBulkStatus.Dispatcher.CheckAccess())
             {
-                txtBulkStatus.Dispatcher.Invoke(() => txtBulkStatus.Text = message);
+                // CRASH FIX: Use BeginInvoke to avoid deadlock (see UpdateStatus).
+                txtBulkStatus.Dispatcher.BeginInvoke(new Action(() => txtBulkStatus.Text = message));
                 return;
             }
             txtBulkStatus.Text = message;
@@ -312,11 +326,12 @@ namespace StingTools.UI
 
                 if (!_instance.txtStatus.Dispatcher.CheckAccess())
                 {
-                    _instance.txtStatus.Dispatcher.Invoke(() =>
+                    // CRASH FIX: Use BeginInvoke to avoid deadlock (see UpdateStatus).
+                    _instance.txtStatus.Dispatcher.BeginInvoke(new Action(() =>
                     {
                         _instance.txtStatus.Text = statusText;
                         _instance.txtStatus.Foreground = brush;
-                    });
+                    }));
                 }
                 else
                 {
