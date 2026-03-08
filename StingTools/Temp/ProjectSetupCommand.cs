@@ -16,8 +16,8 @@ namespace StingTools.Temp
     /// <summary>
     /// Project Setup Wizard command — launches a 7-page WPF dialog that collects
     /// all project setup information including discipline-specific configuration,
-    /// then executes a comprehensive automation pipeline in a single
-    /// TransactionGroup for atomic rollback.
+    /// then executes a comprehensive automation pipeline.
+    /// Each step runs in its own transaction.
     ///
     /// Execution order (dependency-aware):
     ///   Phase 0: Pre-flight (collect data via WPF wizard)
@@ -88,10 +88,6 @@ namespace StingTools.Temp
             int passed = 0;
             int failed = 0;
             var totalSw = Stopwatch.StartNew();
-
-            using (TransactionGroup tg = new TransactionGroup(doc, "STING Project Setup"))
-            {
-                tg.Start();
 
                 // ════════════════════════════════════════════════════
                 // PHASE 1: FOUNDATION
@@ -171,8 +167,7 @@ namespace StingTools.Temp
                         "Rollback all", "Undo all changes");
                     if (critDlg.Show() == TaskDialogResult.CommandLink2)
                     {
-                        tg.RollBack();
-                        TaskDialog.Show("Project Setup", "All changes rolled back.");
+                        TaskDialog.Show("Project Setup", "Setup aborted. Use Ctrl+Z to undo.");
                         return Result.Cancelled;
                     }
                 }
@@ -447,27 +442,8 @@ namespace StingTools.Temp
                     report.AppendLine(new string('─', 55));
                     report.AppendLine($"  {passed}/{stepNum} succeeded, {failed} failed");
                     report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
-
-                    TaskDialog rollbackDlg = new TaskDialog("Project Setup — Failures Detected");
-                    rollbackDlg.MainInstruction = $"{failed} step(s) had issues";
-                    rollbackDlg.MainContent = report.ToString() +
-                        "\n\nKeep results or rollback all changes?";
-                    rollbackDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                        "Keep results", $"Commit {passed} successful steps");
-                    rollbackDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                        "Rollback all", "Undo everything");
-
-                    if (rollbackDlg.Show() == TaskDialogResult.CommandLink2)
-                    {
-                        tg.RollBack();
-                        StingLog.Info("Project Setup: user chose rollback after failures");
-                        TaskDialog.Show("Project Setup", "All changes rolled back.");
-                        return Result.Cancelled;
-                    }
+                    report.AppendLine("  Use Ctrl+Z to undo individual steps if needed.");
                 }
-
-                tg.Assimilate();
-            }
 
             // GAP-006: Persist wizard settings to project_config.json
             // Update TagConfig with wizard LOC/ZONE codes before saving

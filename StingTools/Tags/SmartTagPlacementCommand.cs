@@ -18,7 +18,7 @@ namespace StingTools.Tags
     ///
     /// Key improvements over v1:
     ///   - Grid-based spatial index for O(1) average overlap queries (was O(n²))
-    ///   - Actual tag bounding box measurement via TransactionGroup rollback
+    ///   - Actual tag bounding box measurement via temporary transaction rollback
     ///   - 16 candidate positions (8 cardinal + 8 intermediate at 1.5x offset)
     ///   - Alignment bonus: tags aligned with existing nearby tags score higher
     ///   - Performance: suppress annotation regeneration during batch placement
@@ -498,8 +498,7 @@ namespace StingTools.Tags
                 }
                 if (hidden.Count > 0)
                 {
-                    try { doc.Regenerate(); }
-                    catch (Exception rex) { StingLog.Warn($"SuppressAnnotations regenerate: {rex.Message}"); }
+                    // doc.Regenerate() REMOVED — causes native Revit crashes (see StingCommandHandler.cs:759)
                 }
             }
             catch (Exception ex)
@@ -776,8 +775,9 @@ namespace StingTools.Tags
                 double avgDx = kvp.Value.Average(o => o.dx);
                 double avgDy = kvp.Value.Average(o => o.dy);
                 bool useLeader = kvp.Value.Count(o => o.hasLeader) > kvp.Value.Count / 2;
-                string orient = kvp.Value.GroupBy(o => o.orient)
-                    .OrderByDescending(g => g.Count()).First().Key;
+                var orientGroups = kvp.Value.GroupBy(o => o.orient)
+                    .OrderByDescending(g => g.Count()).ToList();
+                string orient = orientGroups.Count > 0 ? orientGroups[0].Key : "Horizontal";
 
                 int side = 0;
                 if (Math.Abs(avgDy) > Math.Abs(avgDx))
@@ -1327,12 +1327,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                // Force regeneration inside the transaction so the view's
-                // graphics state is consistent before Commit() triggers the
-                // deferred ElementsGraphicCacheUpdater.  Wrapped in try/catch
-                // to prevent native crashes from propagating.
-                try { doc.Regenerate(); }
-                catch (Exception rex) { StingLog.Warn($"RemoveAnnotationTags regenerate: {rex.Message}"); }
+                // doc.Regenerate() REMOVED — causes native Revit crashes (see StingCommandHandler.cs:759)
                 tx.Commit();
             }
 
@@ -1400,25 +1395,31 @@ namespace StingTools.Tags
             int totalPlaced = 0, totalSkipped = 0, totalCollisions = 0, viewsProcessed = 0;
             var perView = new List<(string name, int placed, int skipped)>();
 
-            using (TransactionGroup tg = new TransactionGroup(doc, "STING Batch Place Tags"))
+            // CRASH FIX: Single transaction for all views instead of one per view.
+            // Rapid-fire tx.Commit() calls trigger Revit's deferred regeneration
+            // which causes native segfaults (same root cause as ENH-003).
+            using (Transaction tx = new Transaction(doc, "STING Batch Place Tags"))
             {
-                tg.Start();
+                tx.Start();
                 foreach (View v in targetViews)
                 {
-                    using (Transaction tx = new Transaction(doc, $"STING Tag {v.Name}"))
+                    try
                     {
-                        tx.Start();
                         var (p, s, c) = TagPlacementEngine.PlaceTagsInView(
                             doc, v, addLeaders: false, tagOnlyUntagged: true);
-                        tx.Commit();
                         totalPlaced += p; totalSkipped += s; totalCollisions += c;
                         perView.Add((v.Name, p, s));
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"BatchPlaceTags: view '{v.Name}' failed: {ex.Message}");
+                        perView.Add((v.Name, 0, 0));
                     }
                     viewsProcessed++;
                     if (viewsProcessed % 10 == 0)
                         StingLog.Info($"BatchPlaceTags: {viewsProcessed}/{targetViews.Count} views done");
                 }
-                tg.Assimilate();
+                tx.Commit();
             }
 
             sw.Stop();

@@ -507,7 +507,7 @@ namespace StingTools.Temp
                         (d, v, tx) =>
                         {
                             try { v.RemoveFilter(capturedId); }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Remove orphan filter ID {capturedId.Value}: {ex.Message}"); }
                         }));
                 }
             }
@@ -536,7 +536,7 @@ namespace StingTools.Temp
                                     v.AddFilter(sf.Id);
                                     v.SetFilterVisibility(sf.Id, true);
                                 }
-                                catch { }
+                                catch (Exception ex) { StingLog.Warn($"Add missing STING filter '{sf.Name}': {ex.Message}"); }
                             }
                         }
                     }));
@@ -1044,6 +1044,7 @@ namespace StingTools.Temp
                 { "Conduit Fittings", BuiltInCategory.OST_ConduitFitting },
                 { "Conduits", BuiltInCategory.OST_Conduit },
                 { "Curtain Panels", BuiltInCategory.OST_CurtainWallPanels },
+                { "Curtain Systems", BuiltInCategory.OST_CurtainWallPanels },
                 { "Curtain Wall Mullions", BuiltInCategory.OST_CurtainWallMullions },
                 { "Data Devices", BuiltInCategory.OST_DataDevices },
                 { "Doors", BuiltInCategory.OST_Doors },
@@ -1054,12 +1055,14 @@ namespace StingTools.Temp
                 { "Electrical Fixtures", BuiltInCategory.OST_ElectricalFixtures },
                 { "Fire Alarm Devices", BuiltInCategory.OST_FireAlarmDevices },
                 { "Flex Ducts", BuiltInCategory.OST_FlexDuctCurves },
+                { "Flex Pipes", BuiltInCategory.OST_FlexPipeCurves },
                 { "Floors", BuiltInCategory.OST_Floors },
                 { "Furniture", BuiltInCategory.OST_Furniture },
                 { "Generic Models", BuiltInCategory.OST_GenericModel },
                 { "Lighting Devices", BuiltInCategory.OST_LightingDevices },
                 { "Lighting Fixtures", BuiltInCategory.OST_LightingFixtures },
                 { "Mechanical Equipment", BuiltInCategory.OST_MechanicalEquipment },
+                { "Medical Equipment", BuiltInCategory.OST_SpecialityEquipment },
                 { "Nurse Call Devices", BuiltInCategory.OST_NurseCallDevices },
                 { "Pipe Accessories", BuiltInCategory.OST_PipeAccessory },
                 { "Pipe Fittings", BuiltInCategory.OST_PipeFitting },
@@ -1082,6 +1085,12 @@ namespace StingTools.Temp
                 { "Railings", BuiltInCategory.OST_Railings },
                 { "Columns", BuiltInCategory.OST_Columns },
                 { "Furniture Systems", BuiltInCategory.OST_FurnitureSystems },
+                { "Parking", BuiltInCategory.OST_Parking },
+                { "Planting", BuiltInCategory.OST_Planting },
+                { "Site", BuiltInCategory.OST_Site },
+                { "Topography", BuiltInCategory.OST_Topography },
+                { "Mass", BuiltInCategory.OST_Mass },
+                { "Entourage", BuiltInCategory.OST_Entourage },
             };
     }
 
@@ -2798,7 +2807,7 @@ namespace StingTools.Temp
     ///  14. Auto-Assign Templates (5-layer matching)
     ///  15. Auto-Fix + Compliance Audit
     ///
-    /// Wrapped in TransactionGroup for atomic rollback on failure.
+    /// Each step runs in its own transaction.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -2826,7 +2835,7 @@ namespace StingTools.Temp
                 " 13.  Worksets (35 ISO 19650, if workshared)\n" +
                 " 14.  Auto-Assign Templates (5-layer matching)\n" +
                 " 15.  Auto-Fix + Final Audit\n\n" +
-                "All steps grouped atomically for rollback.\n" +
+                "Each step runs independently.\n" +
                 "This may take 1-2 minutes.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
@@ -2843,10 +2852,6 @@ namespace StingTools.Temp
             int stepNum = 0;
             int passed = 0;
             var totalSw = Stopwatch.StartNew();
-
-            using (TransactionGroup tg = new TransactionGroup(doc, "STING Template Setup Wizard"))
-            {
-                tg.Start();
 
                 // Step 1: Fill Patterns
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
@@ -2939,27 +2944,8 @@ namespace StingTools.Temp
                     report.AppendLine(new string('─', 55));
                     report.AppendLine($"  {passed}/{stepNum} succeeded, {failed} failed");
                     report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
-
-                    TaskDialog rollDlg = new TaskDialog("Template Wizard — Failures");
-                    rollDlg.MainInstruction = $"{failed} step(s) failed";
-                    rollDlg.MainContent = report.ToString() +
-                        "\n\nKeep partial results or rollback all?";
-                    rollDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                        "Keep results", $"Commit {passed} successful steps");
-                    rollDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                        "Rollback all", "Undo all changes");
-
-                    if (rollDlg.Show() == TaskDialogResult.CommandLink2)
-                    {
-                        tg.RollBack();
-                        StingLog.Info("Template Wizard: user chose rollback");
-                        TaskDialog.Show("Template Setup Wizard", "All changes rolled back.");
-                        return Result.Cancelled;
-                    }
+                    report.AppendLine("  Use Ctrl+Z to undo individual steps if needed.");
                 }
-
-                tg.Assimilate();
-            }
 
             report.AppendLine(new string('─', 55));
             report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");

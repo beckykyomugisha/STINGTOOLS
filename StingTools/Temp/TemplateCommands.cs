@@ -178,11 +178,6 @@ namespace StingTools.Temp
 
             using (Transaction tx = new Transaction(doc, "STING Create Filters"))
             {
-                // CRASH FIX: Suppress warning dialogs during batch filter creation
-                var failOpts = tx.GetFailureHandlingOptions();
-                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
-                tx.SetFailureHandlingOptions(failOpts);
-
                 tx.Start();
 
                 // ── Phase 1: Multi-category discipline filters (no parameter rules) ──
@@ -242,7 +237,7 @@ namespace StingTools.Temp
                         Category cat = doc.Settings.Categories.get_Item(bic);
                         if (cat != null) allCatIds.Add(new ElementId(bic));
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Get category '{bic}' for filter: {ex.Message}"); }
                 }
 
                 if (allCatIds.Count > 0 && spLookup.Count > 0)
@@ -329,7 +324,7 @@ namespace StingTools.Temp
                                         Category cat = doc.Settings.Categories.get_Item(bic);
                                         if (cat != null) csvCatIds.Add(new ElementId(bic));
                                     }
-                                    catch { }
+                                    catch (Exception ex) { StingLog.Warn($"Get CSV filter category '{catName}': {ex.Message}"); }
                                 }
                             }
                         }
@@ -477,11 +472,6 @@ namespace StingTools.Temp
 
             using (Transaction tx = new Transaction(doc, "STING Create Worksets"))
             {
-                // CRASH FIX: Suppress warning dialogs during batch workset creation
-                var failOpts = tx.GetFailureHandlingOptions();
-                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
-                tx.SetFailureHandlingOptions(failOpts);
-
                 tx.Start();
 
                 foreach (string name in WorksetNames)
@@ -713,11 +703,6 @@ namespace StingTools.Temp
 
             using (Transaction tx = new Transaction(doc, "STING Create View Templates"))
             {
-                // CRASH FIX: Suppress warning dialogs during batch template creation
-                var failOpts = tx.GetFailureHandlingOptions();
-                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
-                tx.SetFailureHandlingOptions(failOpts);
-
                 tx.Start();
 
                 foreach (var (name, discipline, detailLevel, baseViewType) in TemplateDefs)
@@ -833,7 +818,7 @@ namespace StingTools.Temp
                                     if (scaleP != null && !scaleP.IsReadOnly)
                                         scaleP.Set(scaleVal);
                                 }
-                                catch { }
+                                catch (Exception ex) { StingLog.Warn($"Set view template scale: {ex.Message}"); }
                             }
 
                             csvCreated++;
@@ -907,7 +892,7 @@ namespace StingTools.Temp
                             template.AddFilter(kvp.Value.Id);
                             template.SetFilterOverrides(kvp.Value.Id, halftone);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Add/override demolition filter '{kvp.Key}': {ex.Message}"); }
                     }
                     // If status filter exists, highlight demolished elements in red
                     if (filterLookup.TryGetValue("STING - Status: Demolished", out var demoFilter))
@@ -925,7 +910,7 @@ namespace StingTools.Temp
                             }
                             template.SetFilterOverrides(demoFilter.Id, redOgs);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Apply demolished status filter override: {ex.Message}"); }
                     }
                     return;
                 }
@@ -937,7 +922,7 @@ namespace StingTools.Temp
                     {
                         if (!kvp.Key.StartsWith("STING - ")) continue;
                         try { template.AddFilter(kvp.Value.Id); }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Add as-built filter '{kvp.Key}': {ex.Message}"); }
                     }
                     // Halftone new elements if the status filter exists
                     if (filterLookup.TryGetValue("STING - Status: New", out var newFilter))
@@ -947,7 +932,7 @@ namespace StingTools.Temp
                             template.AddFilter(newFilter.Id);
                             template.SetFilterOverrides(newFilter.Id, halftone);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Apply as-built new-status halftone override: {ex.Message}"); }
                     }
                     return;
                 }
@@ -966,7 +951,7 @@ namespace StingTools.Temp
                             if (!isRooms)
                                 template.SetFilterOverrides(kvp.Value.Id, halftone);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Add/override area plan filter '{kvp.Key}': {ex.Message}"); }
                     }
                     return;
                 }
@@ -995,7 +980,7 @@ namespace StingTools.Temp
                             if (kvp.Key.Contains("Architectural") || kvp.Key.Contains("Structural"))
                                 template.SetFilterOverrides(kvp.Value.Id, halftone);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Add/override MEP 3D filter '{kvp.Key}': {ex.Message}"); }
                     }
                     return;
                 }
@@ -1017,7 +1002,7 @@ namespace StingTools.Temp
                                 template.SetFilterOverrides(kvp.Value.Id, cOgs);
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Add/override presentation 3D filter '{kvp.Key}': {ex.Message}"); }
                     }
                     return;
                 }
@@ -1074,7 +1059,7 @@ namespace StingTools.Temp
                                 }
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Add/override elevation/section filter '{kvp.Key}': {ex.Message}"); }
                     }
                     return;
                 }
@@ -1124,7 +1109,7 @@ namespace StingTools.Temp
                                 }
                             }
                         }
-                        catch { /* filter might not be compatible */ }
+                        catch (Exception ex) { StingLog.Warn($"Add/override presentation filter '{kvp.Key}': {ex.Message}"); }
                     }
                     return;
                 }
@@ -1221,7 +1206,7 @@ namespace StingTools.Temp
                                 template.SetFilterOverrides(kvp.Value.Id, greyOgs);
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Add/override accent presentation filter '{kvp.Key}': {ex.Message}"); }
                     }
                     return;
                 }
@@ -1241,7 +1226,7 @@ namespace StingTools.Temp
                             if (!isRelevant)
                                 template.SetFilterOverrides(kvp.Value.Id, halftone);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Add/override RCP filter '{kvp.Key}': {ex.Message}"); }
                     }
                     return;
                 }

@@ -405,9 +405,11 @@ namespace StingTools.Temp
                 }
                 catch (Exception ex)
                 {
+                    // CRASH FIX: Show TaskDialog after RollBack, not inside the
+                    // active transaction. Modal dialogs inside transactions deadlock.
                     StingLog.Error($"Schedule duplicate failed: {ex.Message}", ex);
-                    TaskDialog.Show("Duplicate Schedule", $"Failed to duplicate: {ex.Message}");
                     tx.RollBack();
+                    TaskDialog.Show("Duplicate Schedule", $"Failed to duplicate: {ex.Message}");
                     return Result.Failed;
                 }
 
@@ -511,7 +513,7 @@ namespace StingTools.Temp
                         for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
                         {
                             try { existingFields.Add(sched.Definition.GetField(i).GetName()); }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Read schedule field name at index {i}: {ex.Message}"); }
                         }
 
                         // Add missing fields
@@ -531,7 +533,7 @@ namespace StingTools.Temp
                                     if (!string.IsNullOrEmpty(name))
                                         addedFieldIds[name] = field.FieldId;
                                 }
-                                catch { }
+                                catch (Exception ex) { StingLog.Warn($"Read field ID at index {i}: {ex.Message}"); }
                             }
 
                             // Add any fields from CSV that are missing
@@ -594,7 +596,7 @@ namespace StingTools.Temp
                                     var field = sched.Definition.GetField(i);
                                     addedFieldIds[field.GetName()] = field.FieldId;
                                 }
-                                catch { }
+                                catch (Exception ex) { StingLog.Warn($"Read field for sorting at index {i}: {ex.Message}"); }
                             }
 
                             if (!string.IsNullOrEmpty(def.Grouping))
@@ -615,7 +617,7 @@ namespace StingTools.Temp
                                     var field = sched.Definition.GetField(i);
                                     addedFieldIds[field.GetName()] = field.FieldId;
                                 }
-                                catch { }
+                                catch (Exception ex) { StingLog.Warn($"Read field for filter at index {i}: {ex.Message}"); }
                             }
 
                             ScheduleHelper.ApplyFilters(doc, sched, def.Filters, addedFieldIds);
@@ -743,7 +745,7 @@ namespace StingTools.Temp
                         count++;
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Unhide field at index {i}: {ex.Message}"); }
             }
             return count;
         }
@@ -772,7 +774,7 @@ namespace StingTools.Temp
                             break;
                         }
                     }
-                    catch { break; }
+                    catch (Exception ex) { StingLog.Warn($"Read cell text at row {row}, col {col}: {ex.Message}"); break; }
                 }
                 if (!hasData) emptyColumns.Add(col);
             }
@@ -786,7 +788,7 @@ namespace StingTools.Temp
                     sched.Definition.RemoveField(emptyColumns[i]);
                     removed++;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Remove empty field at index {emptyColumns[i]}: {ex.Message}"); }
             }
             return removed;
         }
@@ -810,7 +812,7 @@ namespace StingTools.Temp
                         count++;
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Auto-size header at index {i}: {ex.Message}"); }
             }
             return count;
         }
@@ -830,7 +832,7 @@ namespace StingTools.Temp
             for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
             {
                 try { existingFields.Add(sched.Definition.GetField(i).GetName()); }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Read existing field name at index {i}: {ex.Message}"); }
             }
 
             var available = sched.Definition.GetSchedulableFields();
@@ -858,7 +860,7 @@ namespace StingTools.Temp
                             added++;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Add missing STING field '{fieldName}': {ex.Message}"); }
                 }
             }
             return added;
@@ -1402,8 +1404,6 @@ namespace StingTools.Temp
                         catch (Exception ex) { StingLog.Warn($"Delete schedule failed '{sched.Name}': {ex.Message}"); }
                     }
                 }
-                try { doc.Regenerate(); }
-                catch (Exception ex) { StingLog.Warn($"Regenerate after schedule delete: {ex.Message}"); }
                 tx.Commit();
             }
 

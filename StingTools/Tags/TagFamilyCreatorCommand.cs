@@ -971,24 +971,25 @@ namespace StingTools.Tags
             int failed = 0;
             var report = new StringBuilder();
 
-            foreach (string rfaPath in rfaFiles.OrderBy(f => f))
+            // CRASH FIX: Single transaction for all families instead of one per .rfa file.
+            // Rapid-fire tx.Commit() calls trigger Revit's deferred regeneration
+            // which causes native segfaults (same root cause as ENH-003).
+            using (Transaction tx = new Transaction(doc, "STING Load Tag Families"))
             {
-                string famName = Path.GetFileNameWithoutExtension(rfaPath);
-
-                if (loadedFamilies.Contains(famName))
+                tx.Start();
+                foreach (string rfaPath in rfaFiles.OrderBy(f => f))
                 {
-                    skipped++;
-                    continue;
-                }
+                    string famName = Path.GetFileNameWithoutExtension(rfaPath);
 
-                try
-                {
-                    using (Transaction tx = new Transaction(doc, $"STING Load {famName}"))
+                    if (loadedFamilies.Contains(famName))
                     {
-                        tx.Start();
-                        bool success = doc.LoadFamily(rfaPath, new TagFamilyLoadOptions(), out Family fam);
-                        tx.Commit();
+                        skipped++;
+                        continue;
+                    }
 
+                    try
+                    {
+                        bool success = doc.LoadFamily(rfaPath, new TagFamilyLoadOptions(), out Family fam);
                         if (success)
                         {
                             loaded++;
@@ -1000,13 +1001,14 @@ namespace StingTools.Tags
                             report.AppendLine($"  [FAIL] {famName}");
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        report.AppendLine($"  [FAIL] {famName} — {ex.Message}");
+                        StingLog.Error($"Load tag family failed: {famName}", ex);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    failed++;
-                    report.AppendLine($"  [FAIL] {famName} — {ex.Message}");
-                    StingLog.Error($"Load tag family failed: {famName}", ex);
-                }
+                tx.Commit();
             }
 
             TaskDialog td = new TaskDialog("Load Tag Families");

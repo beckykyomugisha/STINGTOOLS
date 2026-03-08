@@ -551,6 +551,7 @@ namespace StingTools.Docs
             // Step 3: Template assignment
             TaskDialog tplDlg = new TaskDialog("Batch Create Views — Templates");
             tplDlg.MainInstruction = "View template assignment";
+            tplDlg.MainContent = "Click an option to proceed with view creation:";
             tplDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 "Auto-assign STING templates (recommended)",
                 "7-layer intelligent matching: discipline + view type + level");
@@ -558,6 +559,7 @@ namespace StingTools.Docs
                 "No templates (assign later)",
                 "Create views without template assignment");
             tplDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            tplDlg.DefaultButton = TaskDialogResult.CommandLink1;
 
             bool autoTemplate;
             switch (tplDlg.Show())
@@ -757,6 +759,7 @@ namespace StingTools.Docs
             // Step 1: Creation mode
             TaskDialog modeDlg = new TaskDialog("Batch Create Sheets");
             modeDlg.MainInstruction = $"Create sheets ({unplacedViews.Count} unplaced views available)";
+            modeDlg.MainContent = "Click an option below to create sheets:";
             modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 "One view per sheet (recommended)",
                 $"Create {unplacedViews.Count} sheets, each with one view centered");
@@ -767,6 +770,7 @@ namespace StingTools.Docs
                 "Group by discipline",
                 "Views of the same discipline share a sheet");
             modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            modeDlg.DefaultButton = TaskDialogResult.CommandLink1;
 
             int mode;
             switch (modeDlg.Show())
@@ -1546,14 +1550,10 @@ namespace StingTools.Docs
             int errors = 0;
             var nameCache = DocAutomationHelper.BuildViewNameIndex(doc);
 
-            using (TransactionGroup tg = new TransactionGroup(doc, "STING Documentation Package"))
+            // Phase 1: Create Views
+            using (Transaction tx1 = new Transaction(doc, "STING Doc Package — Create Views"))
             {
-                tg.Start();
-
-                // Phase 1: Create Views
-                using (Transaction tx1 = new Transaction(doc, "STING Doc Package — Create Views"))
-                {
-                    tx1.Start();
+                tx1.Start();
 
                     foreach (var disc in selectedDiscs)
                     {
@@ -1686,9 +1686,6 @@ namespace StingTools.Docs
 
                     tx2.Commit();
                 }
-
-                tg.Assimilate();
-            }
 
             sw.Stop();
 
@@ -2592,5 +2589,580 @@ namespace StingTools.Docs
                 $"{changedElements.Count} changed elements");
             return Result.Succeeded;
         }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  FM O/M HANDOVER MANUAL CREATOR
+    //  Generates a comprehensive Facility Management / Operations & Maintenance
+    //  handover manual from BIM data — asset register, maintenance schedules,
+    //  system descriptions, and spatial summaries per ISO 19650 / BS 8210.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Creates an FM O/M Handover Manual — a structured CSV/text export containing:
+    /// - Project summary and building information
+    /// - Asset register grouped by discipline and system
+    /// - Maintenance schedule recommendations per asset type
+    /// - Spatial summary (rooms, levels, zones)
+    /// - System descriptions and equipment lists
+    /// - Tag completeness and compliance summary
+    ///
+    /// Inspired by StingBIM.AI.FacilityManagement and StingBIM.AI.Maintenance
+    /// from the original Stingtools-Original repository.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HandoverManualCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                string projectName = doc.ProjectInformation?.Name ?? "Unnamed Project";
+                string projectNumber = doc.ProjectInformation?.Number ?? "000";
+                string projectAddress = doc.ProjectInformation?.Address ?? "";
+                string projectStatus = doc.ProjectInformation?.Status ?? "";
+                string projLoc = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.LOC);
+                string projZone = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.ZONE);
+
+                var known = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
+
+                // Collect all taggable elements
+                var allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && known.Contains(e.Category.Name))
+                    .ToList();
+
+                // Group by discipline
+                var byDisc = new Dictionary<string, List<Element>>(StringComparer.OrdinalIgnoreCase);
+                // Group by system
+                var bySys = new Dictionary<string, List<Element>>(StringComparer.OrdinalIgnoreCase);
+                // Group by level
+                var byLevel = new Dictionary<string, List<Element>>(StringComparer.OrdinalIgnoreCase);
+
+                int tagged = 0, untagged = 0;
+
+                foreach (var el in allElements)
+                {
+                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+
+                    if (TagConfig.TagIsComplete(tag1)) tagged++; else untagged++;
+
+                    string discKey = string.IsNullOrEmpty(disc) ? "Unassigned" : disc;
+                    if (!byDisc.ContainsKey(discKey)) byDisc[discKey] = new List<Element>();
+                    byDisc[discKey].Add(el);
+
+                    string sysKey = string.IsNullOrEmpty(sys) ? "Unassigned" : sys;
+                    if (!bySys.ContainsKey(sysKey)) bySys[sysKey] = new List<Element>();
+                    bySys[sysKey].Add(el);
+
+                    string lvlKey = string.IsNullOrEmpty(lvl) ? "Unknown" : lvl;
+                    if (!byLevel.ContainsKey(lvlKey)) byLevel[lvlKey] = new List<Element>();
+                    byLevel[lvlKey].Add(el);
+                }
+
+                // Collect rooms
+                var rooms = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType()
+                    .Cast<Autodesk.Revit.DB.Architecture.Room>()
+                    .Where(r => r.Area > 0)
+                    .OrderBy(r => r.Level?.Name ?? "")
+                    .ThenBy(r => r.Number)
+                    .ToList();
+
+                // Build CSV output
+                var csv = new StringBuilder();
+                csv.Append('\uFEFF'); // BOM for Excel
+
+                // ── Section 1: Project Summary ──
+                csv.AppendLine("SECTION,FM O/M HANDOVER MANUAL");
+                csv.AppendLine($"Generated,{DateTime.Now:yyyy-MM-dd HH:mm}");
+                csv.AppendLine($"Standard,ISO 19650 / BS 8210");
+                csv.AppendLine();
+                csv.AppendLine("SECTION,1. PROJECT INFORMATION");
+                csv.AppendLine($"Project Name,\"{projectName}\"");
+                csv.AppendLine($"Project Number,\"{projectNumber}\"");
+                csv.AppendLine($"Address,\"{projectAddress}\"");
+                csv.AppendLine($"Status,\"{projectStatus}\"");
+                csv.AppendLine($"Location Code,{projLoc}");
+                csv.AppendLine($"Zone Code,{projZone}");
+                csv.AppendLine($"Total Assets,{allElements.Count}");
+                csv.AppendLine($"Tagged Complete,{tagged}");
+                csv.AppendLine($"Untagged/Incomplete,{untagged}");
+                double pct = allElements.Count > 0 ? (tagged * 100.0 / allElements.Count) : 0;
+                csv.AppendLine($"Compliance,{pct:F1}%");
+                csv.AppendLine();
+
+                // ── Section 2: System Summary ──
+                csv.AppendLine("SECTION,2. SYSTEM SUMMARY");
+                csv.AppendLine("System Code,System Description,Asset Count,Disciplines");
+                foreach (var kvp in bySys.OrderBy(x => x.Key))
+                {
+                    string sysDesc = GetSystemDescription(kvp.Key);
+                    var discs = kvp.Value
+                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.DISC))
+                        .Where(d => !string.IsNullOrEmpty(d))
+                        .Distinct()
+                        .OrderBy(d => d);
+                    csv.AppendLine($"{kvp.Key},\"{sysDesc}\",{kvp.Value.Count},\"{string.Join("; ", discs)}\"");
+                }
+                csv.AppendLine();
+
+                // ── Section 3: Asset Register by Discipline ──
+                csv.AppendLine("SECTION,3. ASSET REGISTER");
+                csv.AppendLine("Discipline,Category,Family,Type,Tag,Level,Room,System,Status,Manufacturer,Model,Description");
+                foreach (var discGroup in byDisc.OrderBy(x => x.Key))
+                {
+                    foreach (var el in discGroup.Value.OrderBy(e => ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
+                    {
+                        string cat = el.Category?.Name ?? "";
+                        string family = ParameterHelpers.GetFamilyName(el);
+                        string typeName = ParameterHelpers.GetFamilySymbolName(el);
+                        string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                        string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                        string roomName = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
+                        if (string.IsNullOrEmpty(roomName))
+                            roomName = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
+                        string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                        string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                        string mfr = ParameterHelpers.GetString(el, ParamRegistry.MFR);
+                        string model = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
+                        string desc = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+
+                        csv.AppendLine($"{discGroup.Key},\"{Esc(cat)}\",\"{Esc(family)}\",\"{Esc(typeName)}\"," +
+                            $"\"{tag1}\",{lvl},\"{Esc(roomName)}\",{sys},{status}," +
+                            $"\"{Esc(mfr)}\",\"{Esc(model)}\",\"{Esc(desc)}\"");
+                    }
+                }
+                csv.AppendLine();
+
+                // ── Section 4: Spatial Summary (Rooms) ──
+                csv.AppendLine("SECTION,4. SPATIAL SUMMARY");
+                csv.AppendLine("Level,Room Number,Room Name,Department,Area (m2),Asset Count");
+
+                // PERF FIX: Pre-build room→count index O(elements) instead of
+                // O(rooms × elements) nested loop that caused slow/crash on large models
+                var roomAssetCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var el in allElements)
+                {
+                    string elRoom = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NUM);
+                    if (string.IsNullOrEmpty(elRoom))
+                        elRoom = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NUM);
+                    if (!string.IsNullOrEmpty(elRoom))
+                    {
+                        roomAssetCounts.TryGetValue(elRoom, out int c);
+                        roomAssetCounts[elRoom] = c + 1;
+                    }
+                }
+
+                foreach (var room in rooms)
+                {
+                    string levelName = room.Level?.Name ?? "Unknown";
+                    string dept = "";
+                    try { dept = room.LookupParameter("Department")?.AsString() ?? ""; } catch { /* no dept param */ }
+                    double areaM2 = room.Area * 0.092903; // sq ft to m2
+
+                    roomAssetCounts.TryGetValue(room.Number, out int assetsInRoom);
+
+                    csv.AppendLine($"\"{Esc(levelName)}\",\"{room.Number}\",\"{Esc(room.Name)}\"," +
+                        $"\"{Esc(dept)}\",{areaM2:F2},{assetsInRoom}");
+                }
+                csv.AppendLine();
+
+                // ── Section 5: Maintenance Schedule Recommendations ──
+                csv.AppendLine("SECTION,5. MAINTENANCE SCHEDULE");
+                csv.AppendLine("System,Category,Maintenance Type,Frequency,Priority,Notes");
+                foreach (var kvp in bySys.OrderBy(x => x.Key))
+                {
+                    var categories = kvp.Value
+                        .GroupBy(e => e.Category?.Name ?? "Unknown")
+                        .OrderBy(g => g.Key);
+
+                    foreach (var catGroup in categories)
+                    {
+                        var (maintType, frequency, priority, notes) =
+                            GetMaintenanceSchedule(kvp.Key, catGroup.Key);
+                        csv.AppendLine($"{kvp.Key},\"{Esc(catGroup.Key)}\",{maintType},{frequency}," +
+                            $"{priority},\"{Esc(notes)} ({catGroup.Count()} assets)\"");
+                    }
+                }
+                csv.AppendLine();
+
+                // ── Section 6: Level Summary ──
+                csv.AppendLine("SECTION,6. LEVEL SUMMARY");
+                csv.AppendLine("Level Code,Asset Count,Systems Present");
+                foreach (var kvp in byLevel.OrderBy(x => x.Key))
+                {
+                    var systems = kvp.Value
+                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.SYS))
+                        .Where(s => !string.IsNullOrEmpty(s))
+                        .Distinct()
+                        .OrderBy(s => s);
+                    csv.AppendLine($"{kvp.Key},{kvp.Value.Count},\"{string.Join("; ", systems)}\"");
+                }
+                csv.AppendLine();
+
+                // ── Section 7: COBie Data Extract (V2.4 / ISO 19650-4) ──
+                // Structured per COBie V2.4 worksheet tabs for FM system import
+
+                // 7A. Contact (project stakeholders)
+                csv.AppendLine("SECTION,7A. COBie CONTACT");
+                csv.AppendLine("Email,Category,Company,Phone,Department,Street,PostalCode,Country");
+                csv.AppendLine($"\"project@{Esc(projectName)}\",Facility Manager,\"{Esc(projectName)}\",," +
+                    $"\"{Esc(projectAddress)}\",,");
+                csv.AppendLine();
+
+                // 7B. Floor (levels / storeys)
+                csv.AppendLine("SECTION,7B. COBie FLOOR");
+                csv.AppendLine("Name,Category,ExternalSystem,ExternalObject,Description,Elevation,Height");
+                var levels = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Level))
+                    .Cast<Level>()
+                    .OrderBy(l => l.Elevation)
+                    .ToList();
+                foreach (var level in levels)
+                {
+                    string lvlCode = ParameterHelpers.GetLevelCode(doc, level);
+                    double elevM = level.Elevation * 0.3048; // ft to m
+                    csv.AppendLine($"\"{Esc(level.Name)}\",Floor,Revit,IfcBuildingStorey," +
+                        $"\"{lvlCode}\",{elevM:F3},");
+                }
+                csv.AppendLine();
+
+                // 7C. Space (rooms mapped to COBie Space)
+                csv.AppendLine("SECTION,7C. COBie SPACE");
+                csv.AppendLine("Name,FloorName,Category,Description,RoomTag,UsableHeight,GrossArea,NetArea");
+                foreach (var room in rooms)
+                {
+                    string levelName = room.Level?.Name ?? "Unknown";
+                    string dept = "";
+                    try { dept = room.LookupParameter("Department")?.AsString() ?? ""; } catch { }
+                    double areaM2 = room.Area * 0.092903;
+                    double heightM = 0;
+                    try
+                    {
+                        var ubh = room.LookupParameter("Unbounded Height");
+                        if (ubh != null) heightM = ubh.AsDouble() * 0.3048;
+                    }
+                    catch { }
+
+                    csv.AppendLine($"\"{room.Number} - {Esc(room.Name)}\",\"{Esc(levelName)}\"," +
+                        $"\"{Esc(dept)}\",\"{Esc(room.Name)}\",\"{room.Number}\"," +
+                        $"{heightM:F2},{areaM2:F2},{areaM2:F2}");
+                }
+                csv.AppendLine();
+
+                // 7D. Zone (zone groupings)
+                csv.AppendLine("SECTION,7D. COBie ZONE");
+                csv.AppendLine("Name,Category,SpaceNames,Description");
+                var zoneGroups = rooms
+                    .GroupBy(r =>
+                    {
+                        string dept = "";
+                        try { dept = r.LookupParameter("Department")?.AsString() ?? ""; } catch { }
+                        return string.IsNullOrEmpty(dept) ? "General" : dept;
+                    })
+                    .OrderBy(g => g.Key);
+                foreach (var zg in zoneGroups)
+                {
+                    var spaceNames = zg.Select(r => $"{r.Number}").Take(20);
+                    csv.AppendLine($"\"{Esc(zg.Key)}\",Department," +
+                        $"\"{string.Join("; ", spaceNames)}\",\"{zg.Count()} spaces\"");
+                }
+                csv.AppendLine();
+
+                // 7E. Type (asset types — grouped by family type)
+                csv.AppendLine("SECTION,7E. COBie TYPE");
+                csv.AppendLine("Name,Category,Manufacturer,ModelNumber,Description,ExpectedLife,ReplacementCost,NominalLength,NominalWidth,NominalHeight");
+                var typeGroups = allElements
+                    .GroupBy(e =>
+                    {
+                        string family = ParameterHelpers.GetFamilyName(e);
+                        string typeName = ParameterHelpers.GetFamilySymbolName(e);
+                        return $"{family}:{typeName}";
+                    })
+                    .OrderBy(g => g.Key)
+                    .ToList();
+                foreach (var tg in typeGroups)
+                {
+                    var sample = tg.First();
+                    string family = ParameterHelpers.GetFamilyName(sample);
+                    string typeName = ParameterHelpers.GetFamilySymbolName(sample);
+                    string cat = sample.Category?.Name ?? "";
+                    string mfr = ParameterHelpers.GetString(sample, ParamRegistry.MFR);
+                    string modelNr = ParameterHelpers.GetString(sample, ParamRegistry.MODEL);
+                    string desc = ParameterHelpers.GetString(sample, ParamRegistry.DESC);
+                    if (string.IsNullOrEmpty(desc)) desc = typeName;
+                    string cost = ParameterHelpers.GetString(sample, "ASS_CST_UNIT_PRICE_UGX_NR");
+
+                    csv.AppendLine($"\"{Esc(typeName)}\",\"{Esc(cat)}\",\"{Esc(mfr)}\"," +
+                        $"\"{Esc(modelNr)}\",\"{Esc(desc)}\",,{cost},,,");
+                }
+                csv.AppendLine();
+
+                // 7F. Component (individual assets — the core COBie sheet)
+                csv.AppendLine("SECTION,7F. COBie COMPONENT");
+                csv.AppendLine("Name,TypeName,Space,Tag,SerialNumber,InstallationDate,WarrantyStartDate," +
+                    "WarrantyDurationParts,WarrantyDurationLabour,Description,Manufacturer,Model,Floor,System");
+                int cobieComponentCount = 0;
+                foreach (var el in allElements)
+                {
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1)) continue;
+
+                    string assetName = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+                    if (string.IsNullOrEmpty(assetName))
+                        assetName = ParameterHelpers.GetFamilySymbolName(el);
+                    string typeName = ParameterHelpers.GetFamilySymbolName(el);
+                    string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    string mfr = ParameterHelpers.GetString(el, ParamRegistry.MFR);
+                    string modelNr = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
+                    string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
+                    string installDate = ParameterHelpers.GetString(el, "ASS_INSTALLATION_DATE_TXT");
+                    string warranty = ParameterHelpers.GetString(el, "ASS_WARRANTY_TXT");
+                    string roomName = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
+                    if (string.IsNullOrEmpty(roomName))
+                        roomName = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
+                    string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+
+                    csv.AppendLine($"\"{Esc(assetName)}\",\"{Esc(typeName)}\",\"{Esc(roomName)}\"," +
+                        $"\"{tag1}\",\"{Esc(serial)}\",\"{Esc(installDate)}\"," +
+                        $"\"{Esc(installDate)}\",,," +
+                        $"\"{Esc(assetName)}\",\"{Esc(mfr)}\",\"{Esc(modelNr)}\",{lvl},{sys}");
+                    cobieComponentCount++;
+                }
+                csv.AppendLine();
+
+                // 7G. System (MEP systems mapped to COBie System)
+                csv.AppendLine("SECTION,7G. COBie SYSTEM");
+                csv.AppendLine("Name,Category,ComponentNames,Description");
+                foreach (var kvp in bySys.OrderBy(x => x.Key))
+                {
+                    if (kvp.Key == "Unassigned") continue;
+                    string sysDesc = GetSystemDescription(kvp.Key);
+                    var componentTags = kvp.Value
+                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.TAG1))
+                        .Where(t => !string.IsNullOrEmpty(t))
+                        .Take(20);
+                    csv.AppendLine($"\"{kvp.Key} - {Esc(sysDesc)}\",\"{kvp.Key}\"," +
+                        $"\"{string.Join("; ", componentTags)}\",\"{Esc(sysDesc)} ({kvp.Value.Count} components)\"");
+                }
+                csv.AppendLine();
+
+                // 7H. Job (maintenance tasks derived from BS 8210/SFG20)
+                csv.AppendLine("SECTION,7H. COBie JOB");
+                csv.AppendLine("Name,TypeName,TaskNumber,Description,Duration,Frequency,Priors");
+                int jobNum = 1;
+                foreach (var kvp in bySys.OrderBy(x => x.Key))
+                {
+                    if (kvp.Key == "Unassigned") continue;
+                    var (maintType, frequency, priority, notes) =
+                        GetMaintenanceSchedule(kvp.Key, kvp.Value.FirstOrDefault()?.Category?.Name ?? "");
+                    csv.AppendLine($"\"{kvp.Key} {maintType}\",\"{kvp.Key}\",{jobNum:D3}," +
+                        $"\"{Esc(notes)}\",\"{frequency}\",\"{frequency}\",\"{priority}\"");
+                    jobNum++;
+                }
+                csv.AppendLine();
+
+                // 7I. Document (project documents reference)
+                csv.AppendLine("SECTION,7I. COBie DOCUMENT");
+                csv.AppendLine("Name,Category,ApprovalBy,Stage,Reference,Description");
+                csv.AppendLine($"\"FM Handover Manual\",Handover,\"{Esc(projectName)}\",As-Built," +
+                    $"\"{projectNumber}\",\"ISO 19650 FM O/M Handover Manual\"");
+                csv.AppendLine($"\"Asset Tag Register\",Register,\"{Esc(projectName)}\",As-Built," +
+                    $"\"{projectNumber}\",\"Complete STING asset tag register\"");
+                csv.AppendLine($"\"Maintenance Schedule\",Schedule,\"{Esc(projectName)}\",As-Built," +
+                    $"\"{projectNumber}\",\"BS 8210/SFG20 maintenance recommendations\"");
+                csv.AppendLine();
+
+                // ── Section 8: FM Schedules Available (from MR_SCHEDULES.csv) ──
+                csv.AppendLine("SECTION,8. FM SCHEDULES AVAILABLE (MR_SCHEDULES.csv)");
+                csv.AppendLine("Schedule Name,Category,Discipline,Source,Fields");
+                int fmScheduleCount = 0;
+                try
+                {
+                    string scheduleCsv = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
+                    if (scheduleCsv != null)
+                    {
+                        foreach (string line in File.ReadAllLines(scheduleCsv))
+                        {
+                            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                            string[] cols = StingToolsApp.ParseCsvLine(line);
+                            if (cols.Length < 8) continue;
+                            string recType = cols[0].Trim();
+                            string source = cols[1].Trim();
+                            string disc = cols[2].Trim();
+                            string schedName = cols[3].Trim();
+                            string category = cols[4].Trim();
+                            string fields = cols.Length > 7 ? cols[7].Trim() : "";
+
+                            // Include FM_Revit, COBie_V24, and related schedules
+                            if (recType == "SCHEDULE" &&
+                                (source.StartsWith("FM", StringComparison.OrdinalIgnoreCase) ||
+                                 source.StartsWith("COBie", StringComparison.OrdinalIgnoreCase) ||
+                                 schedName.Contains("COBie", StringComparison.OrdinalIgnoreCase) ||
+                                 schedName.Contains("Maintenance", StringComparison.OrdinalIgnoreCase) ||
+                                 schedName.Contains("Handover", StringComparison.OrdinalIgnoreCase) ||
+                                 schedName.Contains("Asset", StringComparison.OrdinalIgnoreCase) ||
+                                 disc.Equals("Facilities", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                csv.AppendLine($"\"{Esc(schedName)}\",\"{Esc(category)}\",{disc},{source},\"{Esc(fields)}\"");
+                                fmScheduleCount++;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"HandoverManual: FM schedule scan failed: {ex.Message}");
+                }
+                if (fmScheduleCount == 0)
+                    csv.AppendLine("(No FM schedules found in MR_SCHEDULES.csv),,,,");
+
+                // Let user choose save location
+                string defaultDir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(defaultDir)) defaultDir = Path.GetTempPath();
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string defaultName = $"STING_FM_Handover_Manual_{timestamp}.csv";
+
+                var dlg = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "Save FM Handover Manual",
+                    Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*",
+                    FileName = defaultName,
+                    InitialDirectory = defaultDir
+                };
+                if (dlg.ShowDialog() != true)
+                    return Result.Cancelled;
+                string path = dlg.FileName;
+
+                File.WriteAllText(path, csv.ToString(), Encoding.UTF8);
+
+                // Summary dialog
+                var report = new StringBuilder();
+                report.AppendLine("FM O/M Handover Manual Generated");
+                report.AppendLine(new string('═', 50));
+                report.AppendLine($"  Project:          {projectName}");
+                report.AppendLine($"  Total assets:     {allElements.Count}");
+                report.AppendLine($"  Tagged complete:  {tagged} ({pct:F1}%)");
+                report.AppendLine($"  Systems:          {bySys.Count}");
+                report.AppendLine($"  Rooms:            {rooms.Count}");
+                report.AppendLine($"  Levels:           {levels.Count}");
+                report.AppendLine($"  Asset types:      {typeGroups.Count}");
+                report.AppendLine($"  COBie components: {cobieComponentCount}");
+                report.AppendLine($"  FM Schedules:     {fmScheduleCount} (from MR_SCHEDULES.csv)");
+                report.AppendLine();
+                report.AppendLine("  Sections:");
+                report.AppendLine("    1. Project Information");
+                report.AppendLine("    2. System Summary");
+                report.AppendLine("    3. Asset Register (by discipline)");
+                report.AppendLine("    4. Spatial Summary (rooms)");
+                report.AppendLine("    5. Maintenance Schedule (BS 8210)");
+                report.AppendLine("    6. Level Summary");
+                report.AppendLine("  COBie V2.4 Worksheets:");
+                report.AppendLine("    7A. Contact      7E. Type");
+                report.AppendLine("    7B. Floor        7F. Component");
+                report.AppendLine("    7C. Space        7G. System");
+                report.AppendLine("    7D. Zone         7H. Job");
+                report.AppendLine("                     7I. Document");
+                report.AppendLine("    8. FM Schedules Available");
+                report.AppendLine();
+                report.AppendLine($"  File: {path}");
+                report.AppendLine();
+                report.AppendLine("Opens in Excel. COBie V2.4 aligned per ISO 19650-4.");
+
+                var td = new TaskDialog("STING Tools - FM Handover Manual");
+                td.MainInstruction = "FM O/M Handover Manual Generated";
+                td.MainContent = report.ToString();
+                td.CommonButtons = TaskDialogCommonButtons.Ok;
+                td.DefaultButton = TaskDialogResult.Ok;
+                td.Show();
+                StingLog.Info($"HandoverManual: {allElements.Count} assets, {cobieComponentCount} COBie components, " +
+                    $"{bySys.Count} systems, {rooms.Count} rooms, {levels.Count} levels → {path}");
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HandoverManualCommand crashed", ex);
+                TaskDialog.Show("STING Tools", $"FM Handover Manual failed:\n{ex.Message}");
+                return Result.Failed;
+            }
+        }
+
+        /// <summary>Get human-readable system description from code.</summary>
+        private static string GetSystemDescription(string sysCode)
+        {
+            return sysCode switch
+            {
+                "HVAC" => "Heating, Ventilation & Air Conditioning",
+                "DCW" => "Domestic Cold Water",
+                "DHW" => "Domestic Hot Water",
+                "HWS" => "Heating Hot Water System",
+                "SAN" => "Sanitary / Drainage",
+                "RWD" => "Rainwater Drainage",
+                "GAS" => "Gas Supply",
+                "FP" => "Fire Protection & Suppression",
+                "LV" => "Low Voltage Systems",
+                "FLS" => "Fire Life Safety",
+                "COM" => "Communications & Data",
+                "ICT" => "Information & Communications Technology",
+                "NCL" => "Nurse Call / Patient Systems",
+                "SEC" => "Security & Access Control",
+                "ARC" => "Architectural Elements",
+                "STR" => "Structural Elements",
+                "GEN" => "General / Miscellaneous",
+                _ => sysCode
+            };
+        }
+
+        /// <summary>Get maintenance schedule recommendation based on system and category.</summary>
+        private static (string MaintType, string Frequency, string Priority, string Notes)
+            GetMaintenanceSchedule(string sysCode, string category)
+        {
+            // BS 8210 / SFG20 inspired maintenance frequencies
+            return sysCode switch
+            {
+                "HVAC" => ("Preventive", "Quarterly", "High",
+                    "Filter replacement, belt inspection, refrigerant check"),
+                "DCW" or "DHW" => ("Preventive", "6-Monthly", "High",
+                    "Legionella risk assessment, TMV testing, flush dead legs"),
+                "HWS" => ("Preventive", "Quarterly", "High",
+                    "Boiler service, pump inspection, valve check"),
+                "SAN" or "RWD" => ("Preventive", "Annually", "Medium",
+                    "Drain survey, gully clean, interceptor maintenance"),
+                "GAS" => ("Statutory", "Annually", "Critical",
+                    "Gas safety inspection, leak detection, emergency valve test"),
+                "FP" => ("Statutory", "6-Monthly", "Critical",
+                    "Sprinkler flow test, extinguisher service, hydrant test"),
+                "FLS" => ("Statutory", "Quarterly", "Critical",
+                    "Fire alarm test, emergency lighting, smoke detector service"),
+                "LV" or "COM" or "ICT" => ("Preventive", "Annually", "Medium",
+                    "Thermal imaging, connection check, UPS battery test"),
+                "SEC" => ("Preventive", "Quarterly", "Medium",
+                    "Access control audit, CCTV review, intruder alarm test"),
+                "NCL" => ("Preventive", "6-Monthly", "High",
+                    "System function test, battery replacement, handset check"),
+                "ARC" => ("Reactive", "As-needed", "Low",
+                    "Fabric inspection, decorative maintenance"),
+                "STR" => ("Condition", "5-Yearly", "Medium",
+                    "Structural survey, movement monitoring"),
+                _ => ("Planned", "Annually", "Medium",
+                    "General inspection and maintenance")
+            };
+        }
+
+        /// <summary>Escape CSV field.</summary>
+        private static string Esc(string v) =>
+            v?.Replace("\"", "\"\"") ?? "";
     }
 }

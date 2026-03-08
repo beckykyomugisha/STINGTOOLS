@@ -24,7 +24,6 @@ namespace StingTools.UI
     {
         private static ExternalEvent _externalEvent;
         private static StingCommandHandler _handler;
-        private static UIApplication _uiApp;
         private static StingDockPanel _instance;
 
         private static readonly Dictionary<string, List<int>> SelectionMemory =
@@ -102,12 +101,6 @@ namespace StingTools.UI
             _externalEvent = ExternalEvent.Create(_handler);
         }
 
-        /// <summary>Store UIApplication reference when available.</summary>
-        public static void SetUIApplication(UIApplication uiApp)
-        {
-            _uiApp = uiApp;
-        }
-
         // ── Unified button click dispatcher ──────────────────────────────
 
         private void Cmd_Click(object sender, RoutedEventArgs e)
@@ -115,8 +108,18 @@ namespace StingTools.UI
             if (sender is Button btn && btn.Tag is string cmdTag)
             {
                 _handler?.SetCommand(cmdTag);
-                _externalEvent?.Raise();
-                UpdateStatus($"Running: {cmdTag}...");
+                var result = _externalEvent?.Raise() ?? ExternalEventRequest.Denied;
+                if (result == ExternalEventRequest.Accepted)
+                {
+                    UpdateStatus($"Running: {cmdTag}...");
+                }
+                else
+                {
+                    // CRASH FIX: If Raise() is denied (previous command still running),
+                    // clear the command tag to prevent wrong command execution later.
+                    _handler?.SetCommand("");
+                    UpdateStatus($"Busy — try again...");
+                }
             }
         }
 
@@ -277,7 +280,10 @@ namespace StingTools.UI
             if (txtStatus == null) return;
             if (!txtStatus.Dispatcher.CheckAccess())
             {
-                txtStatus.Dispatcher.Invoke(() => txtStatus.Text = message);
+                // CRASH FIX: Use BeginInvoke (async) instead of Invoke (sync).
+                // Synchronous Invoke can deadlock when the Revit API thread is
+                // waiting for the WPF dispatcher during modal dialog display.
+                txtStatus.Dispatcher.BeginInvoke(new Action(() => txtStatus.Text = message));
                 return;
             }
             txtStatus.Text = message;
@@ -288,10 +294,50 @@ namespace StingTools.UI
             if (txtBulkStatus == null) return;
             if (!txtBulkStatus.Dispatcher.CheckAccess())
             {
-                txtBulkStatus.Dispatcher.Invoke(() => txtBulkStatus.Text = message);
+                // CRASH FIX: Use BeginInvoke to avoid deadlock (see UpdateStatus).
+                txtBulkStatus.Dispatcher.BeginInvoke(new Action(() => txtBulkStatus.Text = message));
                 return;
             }
             txtBulkStatus.Text = message;
+        }
+
+        // ── Dropdown population (called from StingCommandHandler) ──
+
+        /// <summary>
+        /// Populate all three parameter ComboBoxes (Bulk, Lookup, Anomaly) from
+        /// the Revit API thread via Dispatcher. Called after RefreshParamList scans
+        /// element parameters.
+        /// </summary>
+        public static void PopulateParamDropdowns(IEnumerable<string> paramNames)
+        {
+            if (_instance == null) return;
+            var list = paramNames is IList<string> l ? l : new List<string>(paramNames);
+            _instance.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    PopulateCombo(_instance.cmbBulkParam, list);
+                    PopulateCombo(_instance.cmbLookupParam, list);
+                    PopulateCombo(_instance.cmbAnomalyParam, list);
+                    Core.StingLog.Info($"Dropdowns populated with {list.Count} params");
+                }
+                catch (Exception ex)
+                {
+                    Core.StingLog.Warn($"PopulateParamDropdowns failed: {ex.Message}");
+                }
+            }));
+        }
+
+        private static void PopulateCombo(System.Windows.Controls.ComboBox cmb, IList<string> items)
+        {
+            if (cmb == null) return;
+            string currentText = cmb.Text;
+            cmb.Items.Clear();
+            foreach (string item in items)
+                cmb.Items.Add(item);
+            // Restore previous text if it was typed in
+            if (!string.IsNullOrEmpty(currentText))
+                cmb.Text = currentText;
         }
 
         /// <summary>
@@ -312,11 +358,12 @@ namespace StingTools.UI
 
                 if (!_instance.txtStatus.Dispatcher.CheckAccess())
                 {
-                    _instance.txtStatus.Dispatcher.Invoke(() =>
+                    // CRASH FIX: Use BeginInvoke to avoid deadlock (see UpdateStatus).
+                    _instance.txtStatus.Dispatcher.BeginInvoke(new Action(() =>
                     {
                         _instance.txtStatus.Text = statusText;
                         _instance.txtStatus.Foreground = brush;
-                    });
+                    }));
                 }
                 else
                 {

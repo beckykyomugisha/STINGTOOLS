@@ -93,7 +93,6 @@ namespace StingTools.Tags
             int familyProdCount = 0;
             int isoViolations = 0;
             int missingTokenElements = 0;
-            int crossValWarnings = 0;
 
             // STATUS/REV prediction counters
             int statusMissing = 0, statusWillAutoDetect = 0;

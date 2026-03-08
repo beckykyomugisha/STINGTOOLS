@@ -31,14 +31,8 @@ namespace StingTools.Core
                     Path.GetDirectoryName(AssemblyPath) ?? string.Empty,
                     "data");
 
-                // Warn if data directory is missing — this is the root cause of
-                // "data file commands crash but selection commands work" issues
-                if (!Directory.Exists(DataPath))
-                {
-                    StingLog.Warn($"Data directory not found: {DataPath}");
-                    StingLog.Warn("Data-dependent commands (materials, schedules, parameters) will " +
-                        "use fallback defaults. Run extract_plugin.sh to deploy data files.");
-                }
+                // Validate data directory and critical files at startup
+                ValidateDataFiles();
 
                 // Pre-flight: log assembly environment for crash diagnostics
                 LogAssemblyEnvironment();
@@ -49,6 +43,27 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
+                // CRASH FIX: Eagerly load ParamRegistry at startup instead of lazy-loading
+                // on first command. This ensures:
+                //   1. JSON parsing errors surface at startup where they're diagnosable
+                //   2. Newtonsoft.Json assembly conflicts are caught before any command runs
+                //   3. All subsequent commands get pre-loaded data with zero crash risk
+                //   4. The data file path is validated once, not on every button click
+                try
+                {
+                    ParamRegistry.EnsureLoaded();
+                    StingLog.Info("ParamRegistry pre-loaded at startup successfully");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("ParamRegistry pre-load failed (commands will use defaults)", ex);
+                }
+
+                // CRASH FIX: Subscribe to DocumentClosing to clear stale static caches.
+                // ElementId-based caches and Definition caches become invalid when a
+                // document closes. Using them against a new document causes native crashes.
+                application.ControlledApplication.DocumentClosing += OnDocumentClosing;
+
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
             }
@@ -58,6 +73,27 @@ namespace StingTools.Core
                     "Failed to initialise STING Tools:\n" + ex.Message);
                 StingLog.Error("Startup failed", ex);
                 return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// CRASH FIX: Clear all static caches that hold ElementId or Definition references.
+        /// These become invalid when a document closes and cause native crashes if used
+        /// against a different document.
+        /// </summary>
+        private static void OnDocumentClosing(object sender,
+            Autodesk.Revit.DB.Events.DocumentClosingEventArgs e)
+        {
+            try
+            {
+                ParameterHelpers.ClearParamCache();
+                ComplianceScan.InvalidateCache();
+                UI.StingCommandHandler.ClearStaticState();
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, and selection caches");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DocumentClosing cleanup: {ex.Message}");
             }
         }
 
@@ -128,6 +164,60 @@ namespace StingTools.Core
             {
                 // Pre-flight check is diagnostic only — never block startup
                 StingLog.Warn($"Assembly pre-flight check failed: {ex.Message}");
+            }
+        }
+
+        // ── Data File Validation ─────────────────────────────────────
+
+        /// <summary>
+        /// Validates that the data directory and critical data files exist at startup.
+        /// Logs warnings for missing files and shows a one-time dialog if the data
+        /// directory is completely missing — this is the #1 cause of command crashes.
+        /// </summary>
+        private static void ValidateDataFiles()
+        {
+            if (!Directory.Exists(DataPath))
+            {
+                StingLog.Warn($"Data directory not found: {DataPath}");
+                StingLog.Warn("Data-dependent commands will use fallback defaults. " +
+                    "Deploy the data/ folder alongside StingTools.dll.");
+                // Don't block startup with a dialog — log is sufficient.
+                // Commands that need data files already show their own error dialogs.
+                return;
+            }
+
+            // Critical files that many commands depend on
+            string[] criticalFiles = new[]
+            {
+                "PARAMETER_REGISTRY.json",
+                "MR_PARAMETERS.txt",
+                "MR_PARAMETERS.csv",
+                "BLE_MATERIALS.csv",
+                "MEP_MATERIALS.csv",
+                "MR_SCHEDULES.csv",
+                "FORMULAS_WITH_DEPENDENCIES.csv",
+                "CATEGORY_BINDINGS.csv",
+                "LABEL_DEFINITIONS.json",
+            };
+
+            var missing = new List<string>();
+            foreach (string file in criticalFiles)
+            {
+                string path = FindDataFile(file);
+                if (path == null)
+                    missing.Add(file);
+            }
+
+            if (missing.Count > 0)
+            {
+                string list = string.Join(", ", missing);
+                StingLog.Warn($"Missing {missing.Count} critical data files: {list}");
+                StingLog.Warn($"Data path: {DataPath}");
+                StingLog.Warn("Commands that depend on these files will show individual error messages.");
+            }
+            else
+            {
+                StingLog.Info($"Data validation passed: all {criticalFiles.Length} critical files found in {DataPath}");
             }
         }
 

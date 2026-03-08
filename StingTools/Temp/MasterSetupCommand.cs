@@ -29,9 +29,7 @@ namespace StingTools.Temp
     ///  16.  Auto-assign templates + auto-fix health
     ///  17.  Auto-create legends (discipline + system + filter)
     ///
-    /// Wrapped in a TransactionGroup for atomic rollback: if any critical step
-    /// fails, the user can choose to rollback all changes or keep partial results.
-    /// Each step reports its result with timing information.
+    /// Each step runs in its own transaction with timing information.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -74,8 +72,8 @@ namespace StingTools.Temp
                 " 15.  Batch family parameters (4,686 from CSV)\n" +
                 " 16.  Auto-assign templates + auto-fix health\n" +
                 " 17.  Auto-create legends (discipline + system)\n\n" +
-                "All steps are grouped atomically — if critical steps fail,\n" +
-                "you can rollback all changes.\n\n" +
+                "Each step runs independently.\n" +
+                "Use Ctrl+Z to undo individual steps if needed.\n\n" +
                 "This may take several minutes for a new project.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
@@ -110,195 +108,144 @@ namespace StingTools.Temp
                 report.AppendLine($"   0. Load project_config.json — SKIPPED (using defaults)");
             }
 
-            using (TransactionGroup tg = new TransactionGroup(doc, "STING Master Setup"))
+            // Step 1: Load shared parameters (critical — other steps depend on it)
+            passed += RunStep(ref stepNum, report, "Load Shared Parameters",
+                () => RunCommand(new Tags.LoadSharedParamsCommand(), commandData, elements));
+
+            // If parameter loading failed, abort
+            if (passed == 0)
             {
-                tg.Start();
-
-                // Step 1: Load shared parameters (critical — other steps depend on it)
-                passed += RunStep(ref stepNum, report, "Load Shared Parameters",
-                    () => RunCommand(new Tags.LoadSharedParamsCommand(), commandData, elements));
-
-                // If parameter loading failed, offer rollback
-                if (passed == 0)
+                StingLog.Error("Master Setup: critical step 1 failed — aborting");
+                TaskDialog critFail = new TaskDialog("Master Setup — Critical Failure");
+                critFail.MainInstruction = "Shared parameter loading failed";
+                critFail.MainContent =
+                    "Step 1 (Load Shared Parameters) failed. Subsequent steps\n" +
+                    "depend on these parameters. Continue anyway or stop?";
+                critFail.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Continue anyway", "Attempt remaining steps despite the failure");
+                critFail.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Stop", "Abort setup (use Ctrl+Z to undo parameter binding)");
+                if (critFail.Show() == TaskDialogResult.CommandLink2)
                 {
-                    StingLog.Error("Master Setup: critical step 1 failed — offering rollback");
-                    TaskDialog critFail = new TaskDialog("Master Setup — Critical Failure");
-                    critFail.MainInstruction = "Shared parameter loading failed";
-                    critFail.MainContent =
-                        "Step 1 (Load Shared Parameters) failed. Subsequent steps\n" +
-                        "depend on these parameters. Continue anyway or rollback?";
-                    critFail.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                        "Continue anyway", "Attempt remaining steps despite the failure");
-                    critFail.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                        "Rollback all", "Undo all changes and abort");
-                    if (critFail.Show() == TaskDialogResult.CommandLink2)
-                    {
-                        tg.RollBack();
-                        TaskDialog.Show("Master Setup", "All changes rolled back.");
-                        return Result.Cancelled;
-                    }
+                    TaskDialog.Show("Master Setup", "Setup aborted. Use Ctrl+Z to undo.");
+                    return Result.Cancelled;
                 }
-
-                // Helper: run a step and handle cancellation (-1 return)
-                bool userCancelled = false;
-                int DoStep(string label, Func<Result> action)
-                {
-                    if (userCancelled) return 0;
-                    int result = RunStep(ref stepNum, report, label, action);
-                    if (result == -1) { userCancelled = true; return 0; }
-                    return result;
-                }
-
-                // Step 2: Create BLE Materials
-                passed += DoStep("Create BLE Materials",
-                    () => RunCommand(new CreateBLEMaterialsCommand(), commandData, elements));
-
-                // Step 3: Create MEP Materials
-                passed += DoStep("Create MEP Materials",
-                    () => RunCommand(new CreateMEPMaterialsCommand(), commandData, elements));
-
-                // Step 4: Create compound types (Walls, Floors, Ceilings, Roofs)
-                passed += DoStep("Create Wall Types",
-                    () => RunCommand(new CreateWallsCommand(), commandData, elements));
-                passed += DoStep("Create Floor Types",
-                    () => RunCommand(new CreateFloorsCommand(), commandData, elements));
-                passed += DoStep("Create Ceiling Types",
-                    () => RunCommand(new CreateCeilingsCommand(), commandData, elements));
-                passed += DoStep("Create Roof Types",
-                    () => RunCommand(new CreateRoofsCommand(), commandData, elements));
-
-                // Step 5: Create MEP types (Ducts, Pipes)
-                passed += DoStep("Create Duct Types",
-                    () => RunCommand(new CreateDuctsCommand(), commandData, elements));
-                passed += DoStep("Create Pipe Types",
-                    () => RunCommand(new CreatePipesCommand(), commandData, elements));
-
-                // Step 6: Batch create schedules
-                passed += DoStep("Batch Create Schedules",
-                    () => RunCommand(new BatchSchedulesCommand(), commandData, elements));
-
-                // Step 7: Evaluate formulas (199 dependency-ordered formulas)
-                passed += DoStep("Evaluate Formulas (199 definitions)",
-                    () => RunCommand(new FormulaEvaluatorCommand(), commandData, elements));
-
-                // Step 8: Tag & Combine (full pipeline: populate + tag + combine + TAG7 narrative)
-                passed += DoStep("Tag & Combine (full pipeline + TAG7)",
-                    () => RunCommand(new Tags.TagAndCombineCommand(), commandData, elements));
-
-                // Step 9: Create view filters
-                passed += DoStep("Create View Filters",
-                    () => RunCommand(new CreateFiltersCommand(), commandData, elements));
-
-                // Step 10: Create worksets (only if worksharing enabled)
-                if (doc.IsWorkshared)
-                {
-                    passed += DoStep("Create Worksets",
-                        () => RunCommand(new CreateWorksetsCommand(), commandData, elements));
-                }
-                else if (!userCancelled)
-                {
-                    stepNum++;
-                    report.AppendLine($"  {stepNum,2}. Create Worksets — SKIPPED (not workshared)");
-                }
-
-                // Step 11: Create view templates
-                passed += DoStep("Create View Templates",
-                    () => RunCommand(new ViewTemplatesCommand(), commandData, elements));
-
-                // Step 12: Fill patterns + line styles + object styles
-                passed += DoStep("Create Fill Patterns",
-                    () => RunCommand(new CreateFillPatternsCommand(), commandData, elements));
-                passed += DoStep("Create Line Styles",
-                    () => RunCommand(new CreateLineStylesCommand(), commandData, elements));
-                passed += DoStep("Configure Object Styles",
-                    () => RunCommand(new CreateObjectStylesCommand(), commandData, elements));
-
-                // Step 13: Text styles + dimension styles
-                passed += DoStep("Create Text Styles",
-                    () => RunCommand(new CreateTextStylesCommand(), commandData, elements));
-                passed += DoStep("Create Dimension Styles",
-                    () => RunCommand(new CreateDimensionStylesCommand(), commandData, elements));
-
-                // Step 14: Apply filters to templates + VG overrides
-                passed += DoStep("Apply Filters to Templates",
-                    () => RunCommand(new ApplyFiltersToViewsCommand(), commandData, elements));
-                passed += DoStep("Apply VG Overrides (5-layer)",
-                    () => RunCommand(new CreateVGOverridesCommand(), commandData, elements));
-
-                // Step 15: Batch family parameters from CSV
-                passed += DoStep("Batch Family Params (CSV-driven)",
-                    () => RunCommand(new BatchAddFamilyParamsCommand(), commandData, elements));
-
-                // Step 16: Auto-assign templates + auto-fix
-                passed += DoStep("Auto-Assign Templates (5-layer)",
-                    () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
-                passed += DoStep("Auto-Fix Template Health",
-                    () => RunCommand(new AutoFixTemplateCommand(), commandData, elements));
-
-                // Step 17: Auto-create legends (discipline, system, filter)
-                passed += DoStep("Auto-Create Legends (discipline + system)",
-                    () => RunCommand(new Tags.AutoCreateLegendsCommand(), commandData, elements));
-
-                // Handle user cancellation — offer rollback of partial results
-                if (userCancelled)
-                {
-                    totalSw.Stop();
-                    StingLog.Info($"Master Setup: cancelled by user at step {stepNum}");
-                    report.AppendLine(new string('─', 45));
-                    report.AppendLine($"  CANCELLED at step {stepNum} ({passed} completed)");
-
-                    TaskDialog cancelDlg = new TaskDialog("Master Setup — Cancelled");
-                    cancelDlg.MainInstruction = $"Cancelled at step {stepNum}";
-                    cancelDlg.MainContent = report.ToString() +
-                        "\n\nKeep completed steps or rollback all?";
-                    cancelDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                        "Keep results", $"Commit {passed} completed steps");
-                    cancelDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                        "Rollback all", "Undo all changes");
-
-                    if (cancelDlg.Show() == TaskDialogResult.CommandLink2)
-                    {
-                        tg.RollBack();
-                        TaskDialog.Show("Master Setup", "All changes rolled back.");
-                        return Result.Cancelled;
-                    }
-
-                    tg.Assimilate();
-                    TaskDialog.Show("Master Setup",
-                        $"Kept {passed} completed steps.\nRemaining steps were cancelled.");
-                    return passed > 0 ? Result.Succeeded : Result.Cancelled;
-                }
-
-                failed = stepNum - passed;
-                totalSw.Stop();
-
-                // If failures occurred, offer rollback
-                if (failed > 0)
-                {
-                    report.AppendLine(new string('─', 45));
-                    report.AppendLine($"  {passed}/{stepNum} succeeded, {failed} failed");
-                    report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
-
-                    TaskDialog rollbackDlg = new TaskDialog("Master Setup — Failures Detected");
-                    rollbackDlg.MainInstruction = $"{failed} step(s) failed";
-                    rollbackDlg.MainContent = report.ToString() +
-                        "\n\nKeep partial results or rollback all changes?";
-                    rollbackDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                        "Keep results", $"Commit {passed} successful steps");
-                    rollbackDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                        "Rollback all", "Undo all changes from this session");
-
-                    if (rollbackDlg.Show() == TaskDialogResult.CommandLink2)
-                    {
-                        tg.RollBack();
-                        StingLog.Info("Master Setup: user chose rollback after failures");
-                        TaskDialog.Show("Master Setup", "All changes rolled back.");
-                        return Result.Cancelled;
-                    }
-                }
-
-                tg.Assimilate();
             }
+
+            // Helper: run a step and handle cancellation (-1 return)
+            bool userCancelled = false;
+            int DoStep(string label, Func<Result> action)
+            {
+                if (userCancelled) return 0;
+                int result = RunStep(ref stepNum, report, label, action);
+                if (result == -1) { userCancelled = true; return 0; }
+                return result;
+            }
+
+            // Step 2: Create BLE Materials
+            passed += DoStep("Create BLE Materials",
+                () => RunCommand(new CreateBLEMaterialsCommand(), commandData, elements));
+
+            // Step 3: Create MEP Materials
+            passed += DoStep("Create MEP Materials",
+                () => RunCommand(new CreateMEPMaterialsCommand(), commandData, elements));
+
+            // Step 4: Create compound types (Walls, Floors, Ceilings, Roofs)
+            passed += DoStep("Create Wall Types",
+                () => RunCommand(new CreateWallsCommand(), commandData, elements));
+            passed += DoStep("Create Floor Types",
+                () => RunCommand(new CreateFloorsCommand(), commandData, elements));
+            passed += DoStep("Create Ceiling Types",
+                () => RunCommand(new CreateCeilingsCommand(), commandData, elements));
+            passed += DoStep("Create Roof Types",
+                () => RunCommand(new CreateRoofsCommand(), commandData, elements));
+
+            // Step 5: Create MEP types (Ducts, Pipes)
+            passed += DoStep("Create Duct Types",
+                () => RunCommand(new CreateDuctsCommand(), commandData, elements));
+            passed += DoStep("Create Pipe Types",
+                () => RunCommand(new CreatePipesCommand(), commandData, elements));
+
+            // Step 6: Batch create schedules
+            passed += DoStep("Batch Create Schedules",
+                () => RunCommand(new BatchSchedulesCommand(), commandData, elements));
+
+            // Step 7: Evaluate formulas (199 dependency-ordered formulas)
+            passed += DoStep("Evaluate Formulas (199 definitions)",
+                () => RunCommand(new FormulaEvaluatorCommand(), commandData, elements));
+
+            // Step 8: Tag & Combine (full pipeline: populate + tag + combine + TAG7 narrative)
+            passed += DoStep("Tag & Combine (full pipeline + TAG7)",
+                () => RunCommand(new Tags.TagAndCombineCommand(), commandData, elements));
+
+            // Step 9: Create view filters
+            passed += DoStep("Create View Filters",
+                () => RunCommand(new CreateFiltersCommand(), commandData, elements));
+
+            // Step 10: Create worksets (only if worksharing enabled)
+            if (doc.IsWorkshared)
+            {
+                passed += DoStep("Create Worksets",
+                    () => RunCommand(new CreateWorksetsCommand(), commandData, elements));
+            }
+            else if (!userCancelled)
+            {
+                stepNum++;
+                report.AppendLine($"  {stepNum,2}. Create Worksets — SKIPPED (not workshared)");
+            }
+
+            // Step 11: Create view templates
+            passed += DoStep("Create View Templates",
+                () => RunCommand(new ViewTemplatesCommand(), commandData, elements));
+
+            // Step 12: Fill patterns + line styles + object styles
+            passed += DoStep("Create Fill Patterns",
+                () => RunCommand(new CreateFillPatternsCommand(), commandData, elements));
+            passed += DoStep("Create Line Styles",
+                () => RunCommand(new CreateLineStylesCommand(), commandData, elements));
+            passed += DoStep("Configure Object Styles",
+                () => RunCommand(new CreateObjectStylesCommand(), commandData, elements));
+
+            // Step 13: Text styles + dimension styles
+            passed += DoStep("Create Text Styles",
+                () => RunCommand(new CreateTextStylesCommand(), commandData, elements));
+            passed += DoStep("Create Dimension Styles",
+                () => RunCommand(new CreateDimensionStylesCommand(), commandData, elements));
+
+            // Step 14: Apply filters to templates + VG overrides
+            passed += DoStep("Apply Filters to Templates",
+                () => RunCommand(new ApplyFiltersToViewsCommand(), commandData, elements));
+            passed += DoStep("Apply VG Overrides (5-layer)",
+                () => RunCommand(new CreateVGOverridesCommand(), commandData, elements));
+
+            // Step 15: Batch family parameters from CSV
+            passed += DoStep("Batch Family Params (CSV-driven)",
+                () => RunCommand(new BatchAddFamilyParamsCommand(), commandData, elements));
+
+            // Step 16: Auto-assign templates + auto-fix
+            passed += DoStep("Auto-Assign Templates (5-layer)",
+                () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
+            passed += DoStep("Auto-Fix Template Health",
+                () => RunCommand(new AutoFixTemplateCommand(), commandData, elements));
+
+            // Step 17: Auto-create legends (discipline, system, filter)
+            passed += DoStep("Auto-Create Legends (discipline + system)",
+                () => RunCommand(new Tags.AutoCreateLegendsCommand(), commandData, elements));
+
+            // Handle user cancellation
+            if (userCancelled)
+            {
+                totalSw.Stop();
+                StingLog.Info($"Master Setup: cancelled by user at step {stepNum}");
+                report.AppendLine(new string('─', 45));
+                report.AppendLine($"  CANCELLED at step {stepNum} ({passed} completed)");
+                TaskDialog.Show("Master Setup",
+                    report.ToString() + "\n\nCompleted steps are committed.\nUse Ctrl+Z to undo.");
+                return passed > 0 ? Result.Succeeded : Result.Cancelled;
+            }
+
+            failed = stepNum - passed;
+            totalSw.Stop();
             report.AppendLine(new string('─', 45));
             report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");
             report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");

@@ -143,7 +143,18 @@ namespace StingTools.Tags
                             stats: stats);
                         tagsRebuilt++;
 
-                        // Step 3: Verify containers are written (BuildAndWriteTag now does this unconditionally)
+                        // Step 3: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                        try
+                        {
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                        }
+                        catch (Exception tag7Ex)
+                        {
+                            StingLog.Warn($"ResolveAllIssues TAG7 for {el.Id}: {tag7Ex.Message}");
+                        }
+
+                        // Step 4: Verify containers are written (BuildAndWriteTag now does this unconditionally)
                         containersWritten++;
                     }
                     catch (Exception ex)

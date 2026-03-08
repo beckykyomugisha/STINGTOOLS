@@ -1074,7 +1074,7 @@ namespace StingTools.Temp
                     string catName = el.Category?.Name ?? "Uncategorised";
                     var item = new BOQItem
                     {
-                        ElementId = el.Id.IntegerValue,
+                        ElementId = el.Id.Value,
                         Category = catName,
                         FamilyName = ParameterHelpers.GetFamilyName(el),
                         TypeName = ParameterHelpers.GetFamilySymbolName(el),
@@ -1550,11 +1550,25 @@ namespace StingTools.Temp
             // ═══════════════════════════════════════════════════════════════
             //  SAVE WORKBOOK
             // ═══════════════════════════════════════════════════════════════
-            string exportDir = StingToolsApp.DataPath ?? Path.GetTempPath();
+            // Let user choose save location
+            string defaultDir = Path.GetDirectoryName(doc.PathName);
+            if (string.IsNullOrEmpty(defaultDir))
+                defaultDir = StingToolsApp.DataPath ?? Path.GetTempPath();
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string safeTitle = string.Join("_", doc.Title.Split(Path.GetInvalidFileNameChars()));
             string fileName = $"STING_BOQ_{safeTitle}_{timestamp}.xlsx";
-            string exportPath = Path.Combine(exportDir, fileName);
+
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Save Bill of Quantities",
+                Filter = "Excel Files (*.xlsx)|*.xlsx|All Files (*.*)|*.*",
+                FileName = fileName,
+                InitialDirectory = defaultDir
+            };
+            if (dlg.ShowDialog() != true)
+                return Result.Cancelled;
+            string exportPath = dlg.FileName;
+
             try
             {
                 wb.SaveAs(exportPath);
@@ -1621,7 +1635,12 @@ namespace StingTools.Temp
             summary.AppendLine();
             summary.AppendLine($"Exported to: {exportPath}");
 
-            TaskDialog.Show("BOQ Export", summary.ToString());
+            var td = new TaskDialog("STING Tools - BOQ Export");
+            td.MainInstruction = "Bill of Quantities Export Complete";
+            td.MainContent = summary.ToString();
+            td.CommonButtons = TaskDialogCommonButtons.Ok;
+            td.DefaultButton = TaskDialogResult.Ok;
+            td.Show();
             return Result.Succeeded;
         }
 
@@ -1853,7 +1872,7 @@ namespace StingTools.Temp
 
         private class BOQItem
         {
-            public int ElementId;
+            public long ElementId;
             public string Category, FamilyName, TypeName, Description, Tag;
             public string Discipline, Level, Location, Zone, System, Unit;
             public double UnitPrice, Quantity, TotalCost;
@@ -2783,7 +2802,12 @@ namespace StingTools.Temp
             {
                 using (var workbook = new ClosedXML.Excel.XLWorkbook(xlsxPath))
                 {
-                    var ws = workbook.Worksheets.First();
+                    var ws = workbook.Worksheets.FirstOrDefault();
+                    if (ws == null)
+                    {
+                        TaskDialog.Show("Excel BOQ Import", "Excel file contains no worksheets.");
+                        return Result.Cancelled;
+                    }
                     int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
                     if (lastRow < 2)
                     {

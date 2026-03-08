@@ -10,6 +10,8 @@ using StingTools.Core;
 namespace StingTools.Organise
 {
     /// <summary>Tag selected elements only (Tag Sel from STINGTags ORGANISE tab).
+    /// Writes ISO 19650 tag data to parameters AND places visual IndependentTag
+    /// annotations in the active view so tags are immediately visible.
     /// Includes collision mode selection for handling already-tagged elements.</summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -43,9 +45,10 @@ namespace StingTools.Organise
             if (alreadyTagged > 0)
             {
                 TaskDialog modeDlg = new TaskDialog("Tag Selected — Collision Mode");
-                modeDlg.MainInstruction = $"{alreadyTagged} of {selected.Count} elements already have tags";
+                modeDlg.MainInstruction = $"{alreadyTagged} of {selected.Count} elements already have tags.";
+                modeDlg.MainContent = "Choose how to handle already-tagged elements:";
                 modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    "Skip already-tagged",
+                    "Skip already-tagged (Recommended)",
                     "Only tag elements that don't have complete tags");
                 modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                     "Overwrite all tags",
@@ -54,6 +57,7 @@ namespace StingTools.Organise
                     "Auto-increment on collision",
                     "Tag all; auto-increment SEQ if generated tag already exists");
                 modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                modeDlg.DefaultButton = TaskDialogResult.CommandLink1;
 
                 switch (modeDlg.Show())
                 {
@@ -72,6 +76,26 @@ namespace StingTools.Organise
             var stats = new TaggingStats();
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+
+            // Collect existing visual tags in view to avoid double-annotating
+            View activeView = doc.ActiveView;
+            var existingVisualTags = new HashSet<ElementId>();
+            if (activeView != null)
+            {
+                foreach (IndependentTag vt in new FilteredElementCollector(doc, activeView.Id)
+                    .OfClass(typeof(IndependentTag))
+                    .Cast<IndependentTag>())
+                {
+                    try
+                    {
+                        foreach (ElementId hid in vt.GetTaggedLocalElementIds())
+                            existingVisualTags.Add(hid);
+                    }
+                    catch { }
+                }
+            }
+
+            int visualTagsPlaced = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Tag Selected"))
             {
@@ -104,15 +128,89 @@ namespace StingTools.Organise
                     string catTag7 = ParameterHelpers.GetCategoryName(elem);
                     string[] tVals = ParamRegistry.ReadTokenValues(elem);
                     TagConfig.WriteTag7All(doc, elem, catTag7, tVals, overwrite: true);
+
+                    // Place visual IndependentTag annotation if not already present
+                    if (activeView != null && !existingVisualTags.Contains(id))
+                    {
+                        try
+                        {
+                            PlaceVisualTag(doc, elem, activeView);
+                            visualTagsPlaced++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Visual tag for {id}: {ex.Message}");
+                        }
+                    }
                 }
                 tx.Commit();
             }
 
-            string report = $"Tagged {stats.TotalTagged} of {selected.Count} selected elements.";
+            string report = $"Tagged {stats.TotalTagged} of {selected.Count} selected elements.\n" +
+                $"Visual annotations placed: {visualTagsPlaced}";
             if (stats.TotalSkipped > 0) report += $"\nSkipped: {stats.TotalSkipped}";
             if (stats.TotalCollisions > 0) report += $"\nCollisions resolved: {stats.TotalCollisions}";
+            if (visualTagsPlaced == 0 && stats.TotalTagged > 0)
+                report += "\n\nNote: No visual tags could be placed. Use 'Smart Place Tags' for advanced annotation placement.";
             TaskDialog.Show("Tag Selected", report);
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Place a visual IndependentTag annotation for an element in the view.
+        /// Uses the element's bounding box center with a small offset for readability.
+        /// </summary>
+        private static void PlaceVisualTag(Document doc, Element elem, View view)
+        {
+            // Get element center for tag head position
+            XYZ center = LeaderHelper.GetElementCenter(elem);
+            if (center == null) return;
+
+            // Find a matching tag type for this element's category
+            Category cat = elem.Category;
+            if (cat == null) return;
+            BuiltInCategory bic = (BuiltInCategory)cat.Id.Value;
+
+            // Look for any loaded tag family that targets this category
+            var tagTypes = new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .Where(fs =>
+                {
+                    try
+                    {
+                        Family fam = fs.Family;
+                        if (fam == null) return false;
+                        // Tag families have a specific category assignment
+                        return fam.FamilyPlacementType == FamilyPlacementType.ViewBased;
+                    }
+                    catch { return false; }
+                })
+                .ToList();
+
+            // Offset tag head slightly above-right of element center for visibility
+            double offset = view.Scale * 0.005; // Scale-aware offset
+            XYZ tagHeadPos = new XYZ(center.X + offset, center.Y + offset, center.Z);
+
+            try
+            {
+                // Try creating a tag using the Revit API
+                IndependentTag newTag = IndependentTag.Create(
+                    doc,
+                    view.Id,
+                    new Reference(elem),
+                    false, // no leader initially — cleaner appearance
+                    TagMode.TM_ADDBY_CATEGORY,
+                    TagOrientation.Horizontal,
+                    tagHeadPos);
+
+                if (newTag != null)
+                    StingLog.Info($"Visual tag placed for element {elem.Id}");
+            }
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException)
+            {
+                // No tag family loaded for this category — silently skip
+            }
         }
     }
 
@@ -281,10 +379,16 @@ namespace StingTools.Organise
                         // Find next unique SEQ
                         string newTag;
                         string newSeq;
+                        int maxSeqVal = (int)Math.Pow(10, ParamRegistry.NumPad) - 1;
                         int safety = 10000;
                         do
                         {
                             seqCounters[seqKey]++;
+                            if (seqCounters[seqKey] > maxSeqVal)
+                            {
+                                StingLog.Warn($"FixDuplicates SEQ overflow for group {seqKey}");
+                                break;
+                            }
                             newSeq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
                             newTag = string.Join(ParamRegistry.Separator, disc, loc, zone, lvl, sys, func, prod, newSeq);
                         } while (tagIndex.Contains(newTag) && safety-- > 0);
@@ -501,12 +605,18 @@ namespace StingTools.Organise
                             string groupKey = string.Join(ParamRegistry.Separator,
                                 disc, loc, zone, lvl, sys, func, prod);
                             int incSeq = seq + 1;
+                            int maxSeqVal = (int)Math.Pow(10, ParamRegistry.NumPad) - 1;
                             string incTag;
                             do
                             {
                                 string incSeqStr = incSeq.ToString().PadLeft(ParamRegistry.NumPad, '0');
                                 incTag = groupKey + ParamRegistry.Separator + incSeqStr;
                                 incSeq++;
+                                if (incSeq > maxSeqVal)
+                                {
+                                    StingLog.Warn($"Renumber SEQ overflow for group {groupKey}");
+                                    break;
+                                }
                             }
                             while (existingTagIndex.Contains(incTag) || newTags.Contains(incTag));
 
@@ -1095,6 +1205,7 @@ namespace StingTools.Organise
             var top = discCounts.OrderByDescending(x => x.Value).Take(4).ToList();
             TaskDialog td = new TaskDialog("Select by Discipline");
             td.MainInstruction = "Select elements by discipline code";
+            td.MainContent = $"{discCounts.Count} disciplines found. Click a discipline to select its elements:";
             for (int i = 0; i < top.Count; i++)
             {
                 td.AddCommandLink((TaskDialogCommandLinkId)(i + 1001),
@@ -3433,14 +3544,16 @@ namespace StingTools.Organise
         }
 
         /// <summary>
-        /// Auto-align tag head position opposite to leader direction.
-        /// When leader comes from the right, shift tag text left (and vice versa).
-        /// When leader comes from below, shift tag text up (and vice versa).
-        /// This creates cleaner annotation where the tag text reads away from the leader.
+        /// Auto-align tag head position relative to leader direction.
+        /// Positions tags with proper clearance from the leader endpoint so text
+        /// is readable and doesn't overlap the leader line or the element.
+        /// Uses scale-aware offsets and element bounding box for accurate placement.
         /// </summary>
         public static int AutoAlignTagsToLeaders(Document doc, List<IndependentTag> tags, View view)
         {
             int aligned = 0;
+            double scaleFactor = view.Scale / 100.0; // Normalize scale for offset calculations
+
             foreach (IndependentTag tag in tags)
             {
                 try
@@ -3458,44 +3571,51 @@ namespace StingTools.Organise
                     XYZ tagHead = tag.TagHeadPosition;
                     double dx = tagHead.X - hostCenter.X;
                     double dy = tagHead.Y - hostCenter.Y;
+                    double dist = Math.Sqrt(dx * dx + dy * dy);
+                    if (dist < 0.01) continue;
 
                     // Get tag bounding box for width/height estimate
                     BoundingBoxXYZ bb = tag.get_BoundingBox(view);
                     double tagW = bb != null ? (bb.Max.X - bb.Min.X) : view.Scale * 0.008;
                     double tagH = bb != null ? (bb.Max.Y - bb.Min.Y) : view.Scale * 0.003;
-                    double halfW = tagW * 0.5;
-                    double halfH = tagH * 0.5;
 
-                    // Calculate the offset to shift tag text opposite to leader
-                    // If leader comes from right (element is right of tag), shift tag left
+                    // Get element bounding box for clearance
+                    BoundingBoxXYZ elBB = host.get_BoundingBox(view);
+                    double elHalfW = elBB != null ? (elBB.Max.X - elBB.Min.X) * 0.5 : scaleFactor * 0.5;
+                    double elHalfH = elBB != null ? (elBB.Max.Y - elBB.Min.Y) * 0.5 : scaleFactor * 0.5;
+
+                    // Clearance gap between element edge and tag edge (scale-aware)
+                    double clearance = Math.Max(scaleFactor * 0.3, 0.15);
+
                     XYZ newPos = tagHead;
                     if (Math.Abs(dx) > Math.Abs(dy))
                     {
-                        // Primarily horizontal leader
+                        // Primarily horizontal arrangement
+                        double tagEdgeDist = elHalfW + clearance + tagW * 0.5;
                         if (dx > 0)
                         {
-                            // Tag is to the right of element → keep tag right, but ensure
-                            // tag head is offset rightward so text reads away from leader
-                            newPos = new XYZ(hostCenter.X + Math.Abs(dx) + halfW * 0.1, tagHead.Y, tagHead.Z);
+                            // Tag to the right of element
+                            newPos = new XYZ(hostCenter.X + tagEdgeDist, tagHead.Y, tagHead.Z);
                         }
                         else
                         {
-                            // Tag is to the left → offset leftward
-                            newPos = new XYZ(hostCenter.X - Math.Abs(dx) - halfW * 0.1, tagHead.Y, tagHead.Z);
+                            // Tag to the left of element
+                            newPos = new XYZ(hostCenter.X - tagEdgeDist, tagHead.Y, tagHead.Z);
                         }
                     }
                     else
                     {
-                        // Primarily vertical leader
+                        // Primarily vertical arrangement
+                        double tagEdgeDist = elHalfH + clearance + tagH * 0.5;
                         if (dy > 0)
                         {
-                            // Tag above → nudge up slightly
-                            newPos = new XYZ(tagHead.X, hostCenter.Y + Math.Abs(dy) + halfH * 0.1, tagHead.Z);
+                            // Tag above element
+                            newPos = new XYZ(tagHead.X, hostCenter.Y + tagEdgeDist, tagHead.Z);
                         }
                         else
                         {
-                            // Tag below → nudge down slightly
-                            newPos = new XYZ(tagHead.X, hostCenter.Y - Math.Abs(dy) - halfH * 0.1, tagHead.Z);
+                            // Tag below element
+                            newPos = new XYZ(tagHead.X, hostCenter.Y - tagEdgeDist, tagHead.Z);
                         }
                     }
 
@@ -3649,38 +3769,63 @@ namespace StingTools.Organise
 
         /// <summary>
         /// Calculate the elbow position for a given angle mode.
+        /// Uses element-aware positioning: considers the relative position of tag
+        /// to host and creates clean geometric elbows that avoid crossing the element.
         /// </summary>
         private static XYZ CalculateElbowPosition(XYZ hostCenter, XYZ tagHead, XYZ delta, string angleMode)
         {
+            double absDx = Math.Abs(delta.X);
+            double absDy = Math.Abs(delta.Y);
+            double signX = delta.X >= 0 ? 1.0 : -1.0;
+            double signY = delta.Y >= 0 ? 1.0 : -1.0;
+            double len = delta.GetLength();
+
             if (angleMode == "0")
             {
-                // Straight: elbow on the line between host and tag head (near tag)
-                // so the leader runs straight from element to elbow with a tiny
-                // kink at the end before the tag head.
+                // Straight: elbow very close to tag head for a clean straight leader.
+                // Place elbow 85% along the line from host to tag, so the leader
+                // runs almost straight with a minimal stub at the tag end.
+                if (len < 0.01) return hostCenter;
                 XYZ dir = delta.Normalize();
-                double len = delta.GetLength();
-                return hostCenter + dir * (len * 0.95);
+                return hostCenter + dir * (len * 0.85);
             }
             else if (angleMode == "45")
             {
-                // 45° elbow near the element (arrow side): diagonal from host,
-                // then horizontal/vertical run to the tag head.
-                double absDx = Math.Abs(delta.X);
-                double absDy = Math.Abs(delta.Y);
+                // 45° elbow: diagonal run from host, then orthogonal run to tag.
+                // The elbow sits where the diagonal meets the horizontal/vertical
+                // line through the tag head.
                 double diag = Math.Min(absDx, absDy);
-                double signX = delta.X >= 0 ? 1 : -1;
-                double signY = delta.Y >= 0 ? 1 : -1;
 
-                if (absDx > absDy)
-                    return new XYZ(hostCenter.X + diag * signX, hostCenter.Y + diag * signY, hostCenter.Z);
+                if (absDx >= absDy)
+                {
+                    // Wider than tall: diagonal goes at 45° until Y matches tag, then horizontal to tag
+                    // Elbow is at (hostX + diag*signX, tagHead.Y)
+                    return new XYZ(hostCenter.X + diag * signX, tagHead.Y, hostCenter.Z);
+                }
                 else
-                    return new XYZ(hostCenter.X + diag * signX, hostCenter.Y + diag * signY, hostCenter.Z);
+                {
+                    // Taller than wide: diagonal goes at 45° until X matches tag, then vertical to tag
+                    // Elbow is at (tagHead.X, hostY + diag*signY)
+                    return new XYZ(tagHead.X, hostCenter.Y + diag * signY, hostCenter.Z);
+                }
             }
             else // "90"
             {
-                // 90° elbow near the element (arrow side): vertical from host,
-                // then horizontal run to the tag head.
-                return new XYZ(hostCenter.X, tagHead.Y, hostCenter.Z);
+                // 90° elbow: choose the cleaner of two L-shaped paths.
+                // Option A: vertical from host, then horizontal to tag (elbow at hostX, tagY)
+                // Option B: horizontal from host, then vertical to tag (elbow at tagX, hostY)
+                // Pick the option where the first leg is shorter — creates a tighter bend
+                // near the element and a longer run to the tag for readability.
+                if (absDx >= absDy)
+                {
+                    // Tag is more to the side — go vertical first (short leg), then horizontal (long leg)
+                    return new XYZ(hostCenter.X, tagHead.Y, hostCenter.Z);
+                }
+                else
+                {
+                    // Tag is more above/below — go horizontal first (short leg), then vertical (long leg)
+                    return new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+                }
             }
         }
     }
@@ -4388,7 +4533,7 @@ namespace StingTools.Organise
                             string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                             string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                             string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
-                            string key = $"{disc}-{sys}-{lvl}";
+                            string key = $"{disc}_{sys}_{lvl}";
                             if (!seqCounters.ContainsKey(key)) seqCounters[key] = 0;
                             seqCounters[key]++;
                             string newSeq = seqCounters[key].ToString().PadLeft(ParamRegistry.NumPad, '0');

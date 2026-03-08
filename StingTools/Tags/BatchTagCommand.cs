@@ -80,9 +80,9 @@ namespace StingTools.Tags
                 $"  Taggable:       {totalTaggable:N0}\n" +
                 $"  Already tagged: {alreadyTagged:N0}\n" +
                 $"  Untagged:       {untagged:N0}\n\n" +
-                "Choose collision handling:";
+                "Click an option below to start tagging:";
             modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                $"Skip existing — tag {untagged:N0} new only",
+                $"Skip existing — tag {untagged:N0} new only (Recommended)",
                 "Only tag untagged elements. Already-tagged elements are left unchanged.");
             modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                 $"Overwrite all {totalTaggable:N0}",
@@ -91,6 +91,7 @@ namespace StingTools.Tags
                 $"Auto-increment on collision",
                 "Tag untagged elements; if a generated tag collides with an existing one, auto-increment SEQ.");
             modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            modeDlg.DefaultButton = TaskDialogResult.CommandLink1;
 
             TagCollisionMode collisionMode;
             switch (modeDlg.Show())
@@ -127,98 +128,82 @@ namespace StingTools.Tags
             // ENH-001: Show progress dialog with cancel support
             var progress = StingProgressDialog.Show("Batch Tag", totalTaggable);
 
-            // CRASH FIX: Wrap ALL batches in TransactionGroup for atomic rollback.
-            // Processing 10,000+ elements in a single transaction can overflow the
-            // transaction journal and cause native Revit crashes.
-            using (TransactionGroup tg = new TransactionGroup(doc, "STING Batch Tag All"))
+            for (int batchStart = 0; batchStart < sorted.Count; batchStart += TagBatchSize)
             {
-                tg.Start();
+                if (cancelled) break;
 
-                for (int batchStart = 0; batchStart < sorted.Count; batchStart += TagBatchSize)
+                int batchEnd = Math.Min(batchStart + TagBatchSize, sorted.Count);
+                int batchNum = (batchStart / TagBatchSize) + 1;
+
+                using (Transaction tx = new Transaction(doc, $"STING Batch Tag #{batchNum}"))
                 {
-                    if (cancelled) break;
+                    tx.Start();
 
-                    int batchEnd = Math.Min(batchStart + TagBatchSize, sorted.Count);
-                    int batchNum = (batchStart / TagBatchSize) + 1;
-
-                    using (Transaction tx = new Transaction(doc, $"STING Batch Tag #{batchNum}"))
+                    for (int idx = batchStart; idx < batchEnd; idx++)
                     {
-                        // CRASH FIX: Suppress warning dialogs during batch tagging
-                        var failOpts = tx.GetFailureHandlingOptions();
-                        failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
-                        tx.SetFailureHandlingOptions(failOpts);
+                        Element el = sorted[idx];
 
-                        tx.Start();
-
-                        for (int idx = batchStart; idx < batchEnd; idx++)
+                        // Check for user cancellation via progress dialog
+                        if (progress.IsCancelled)
                         {
-                            Element el = sorted[idx];
-
-                            // Check for user cancellation via progress dialog
-                            if (progress.IsCancelled)
-                            {
-                                StingLog.Info($"Batch Tag: cancelled by user at {idx}/{totalTaggable}");
-                                cancelled = true;
-                                break;
-                            }
-
-                            try
-                            {
-                                // Full 9-token auto-population via shared helper
-                                bool overwriteMode = (collisionMode == TagCollisionMode.Overwrite);
-                                var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx,
-                                    overwrite: overwriteMode);
-                                populated += popResult.TokensSet;
-                                if (popResult.StatusDetected) statusDetected++;
-                                if (popResult.RevSet) revSet++;
-
-                                bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                                TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                                    skipComplete: skipComplete,
-                                    existingTags: tagIndex,
-                                    collisionMode: collisionMode,
-                                    stats: stats);
-
-                                // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                                string catName = ParameterHelpers.GetCategoryName(el);
-                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
-                            }
-                            catch (Exception ex)
-                            {
-                                StingLog.Error($"BatchTag: failed on element {el?.Id}: {ex.Message}", ex);
-                                stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
-                            }
-
-                            progress.Increment($"Tagged {stats.TotalTagged}, collisions {stats.TotalCollisions}");
-
-                            if ((batchStart + (idx - batchStart)) % 500 == 0 && idx > 0)
-                                StingLog.Info($"Batch Tag progress: {idx}/{totalTaggable} " +
-                                    $"({stats.TotalTagged} tagged, {stats.TotalCollisions} collisions)");
+                            StingLog.Info($"Batch Tag: cancelled by user at {idx}/{totalTaggable}");
+                            cancelled = true;
+                            break;
                         }
 
-                        if (cancelled)
+                        try
                         {
-                            tx.RollBack();
+                            // Full 9-token auto-population via shared helper
+                            bool overwriteMode = (collisionMode == TagCollisionMode.Overwrite);
+                            var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx,
+                                overwrite: overwriteMode);
+                            populated += popResult.TokensSet;
+                            if (popResult.StatusDetected) statusDetected++;
+                            if (popResult.RevSet) revSet++;
+
+                            bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
+                            TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
+                                skipComplete: skipComplete,
+                                existingTags: tagIndex,
+                                collisionMode: collisionMode,
+                                stats: stats);
+
+                            // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                            string catName = ParameterHelpers.GetCategoryName(el);
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            tx.Commit();
-                            StingLog.Info($"Batch Tag: batch {batchNum} committed");
+                            StingLog.Error($"BatchTag: failed on element {el?.Id}: {ex.Message}", ex);
+                            stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
                         }
+
+                        progress.Increment($"Tagged {stats.TotalTagged}, collisions {stats.TotalCollisions}");
+
+                        if ((batchStart + (idx - batchStart)) % 500 == 0 && idx > 0)
+                            StingLog.Info($"Batch Tag progress: {idx}/{totalTaggable} " +
+                                $"({stats.TotalTagged} tagged, {stats.TotalCollisions} collisions)");
+                    }
+
+                    if (cancelled)
+                    {
+                        tx.RollBack();
+                    }
+                    else
+                    {
+                        tx.Commit();
+                        StingLog.Info($"Batch Tag: batch {batchNum} committed");
                     }
                 }
+            }
 
-                progress.Close();
+            progress.Close();
 
-                if (cancelled)
-                {
-                    tg.RollBack();
-                    TaskDialog.Show("Batch Tag", $"Cancelled by user.\nAll changes rolled back.");
-                    return Result.Cancelled;
-                }
-
-                tg.Assimilate();
+            if (cancelled)
+            {
+                TaskDialog.Show("Batch Tag", $"Cancelled by user.\nPartially completed batches were committed.");
+                return Result.Cancelled;
             }
             sw.Stop();
 
@@ -266,6 +251,19 @@ namespace StingTools.Tags
                 levelElevation[lvl.Id] = lvl.Elevation;
             }
 
+            // Pre-cache category, discipline, and system per element to avoid
+            // redundant GetCategoryName/GetMepSystemAwareSysCode calls in sort keys
+            var sortCache = new Dictionary<long, (string cat, string disc, string sys)>();
+            foreach (var e in elements)
+            {
+                string cat = ParameterHelpers.GetCategoryName(e);
+                string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
+                string sys = TagConfig.GetMepSystemAwareSysCode(e, cat);
+                if (string.IsNullOrEmpty(sys))
+                    sys = TagConfig.GetDiscDefaultSysCode(disc);
+                sortCache[e.Id.Value] = (cat, disc, sys);
+            }
+
             return elements.OrderBy(e =>
                 {
                     ElementId lvlId = e.LevelId;
@@ -274,21 +272,9 @@ namespace StingTools.Tags
                         return elev;
                     return double.MaxValue;
                 })
-                .ThenBy(e =>
-                {
-                    string cat = ParameterHelpers.GetCategoryName(e);
-                    return TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
-                })
-                .ThenBy(e =>
-                {
-                    // SYS sort key: groups elements by ACTUAL system within discipline
-                    // Uses MEP-aware detection so pipes group by DCW/HWS/SAN/GAS
-                    string cat = ParameterHelpers.GetCategoryName(e);
-                    string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
-                    string sys = TagConfig.GetMepSystemAwareSysCode(e, cat);
-                    return !string.IsNullOrEmpty(sys) ? sys : TagConfig.GetDiscDefaultSysCode(disc);
-                })
-                .ThenBy(e => ParameterHelpers.GetCategoryName(e))
+                .ThenBy(e => sortCache[e.Id.Value].disc)
+                .ThenBy(e => sortCache[e.Id.Value].sys)
+                .ThenBy(e => sortCache[e.Id.Value].cat)
                 .ThenBy(e => e.Id.Value) // Stable sort: consistent ordering across runs
                 .ToList();
         }
@@ -411,6 +397,19 @@ namespace StingTools.Tags
                             existingTags: tagIndex,
                             collisionMode: TagCollisionMode.Overwrite,
                             stats: stats);
+
+                        // Write TAG7 + sub-sections with migrated tag
+                        try
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(el);
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                        }
+                        catch (Exception tag7Ex)
+                        {
+                            StingLog.Warn($"Migration TAG7 for {el.Id}: {tag7Ex.Message}");
+                        }
+
                         migrated++;
                     }
                     catch (Exception ex)
@@ -562,6 +561,19 @@ namespace StingTools.Tags
                                 existingTags: tagIndex,
                                 collisionMode: TagCollisionMode.Overwrite,
                                 stats: null);
+
+                            // Write TAG7 + sub-sections with updated spatial tokens
+                            try
+                            {
+                                string catName = ParameterHelpers.GetCategoryName(el);
+                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            }
+                            catch (Exception tag7Ex)
+                            {
+                                StingLog.Warn($"TagChanged TAG7 for {el.Id}: {tag7Ex.Message}");
+                            }
+
                             updated++;
                         }
                     }

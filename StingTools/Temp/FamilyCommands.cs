@@ -198,11 +198,6 @@ namespace StingTools.Temp
 
             using (Transaction tx = new Transaction(doc, $"Create {label} Types"))
             {
-                // CRASH FIX: Suppress warning dialogs during batch type creation
-                var failOpts = tx.GetFailureHandlingOptions();
-                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
-                tx.SetFailureHandlingOptions(failOpts);
-
                 tx.Start();
 
                 foreach (string[] cols in rows)
@@ -397,8 +392,19 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    // BUG-01 FIX: Disable EndCap conditions that are invalid for Floor types.
+                    // Revit applies default EndCap conditions that cause errors on non-wall types.
+                    cs.OpeningWrapping = OpeningWrappingCondition.None;
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // EndCap or other structure error — log and continue (type was created, just no layers)
+                    StingLog.Warn($"Floor '{typeName}' compound structure failed: {ex.Message}");
+                }
             }
 
             return true;
@@ -421,8 +427,17 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    // BUG-02 FIX: Disable EndCap/wrapping that causes errors on Ceiling types
+                    cs.OpeningWrapping = OpeningWrappingCondition.None;
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Ceiling '{typeName}' compound structure failed: {ex.Message}");
+                }
             }
 
             return true;
@@ -445,8 +460,17 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    // BUG-03 FIX: Disable EndCap/wrapping that causes errors on Roof types
+                    cs.OpeningWrapping = OpeningWrappingCondition.None;
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Roof '{typeName}' compound structure failed: {ex.Message}");
+                }
             }
 
             return true;
