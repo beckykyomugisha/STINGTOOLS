@@ -2810,9 +2810,109 @@ namespace StingTools.Docs
                 }
                 csv.AppendLine();
 
-                // ── Section 7: COBie Data Extract ──
-                csv.AppendLine("SECTION,7. COBie DATA EXTRACT");
-                csv.AppendLine("Asset Tag,Asset Name,Category,System,Manufacturer,Model,Serial No,Installation Date,Warranty,Room,Level");
+                // ── Section 7: COBie Data Extract (V2.4 / ISO 19650-4) ──
+                // Structured per COBie V2.4 worksheet tabs for FM system import
+
+                // 7A. Contact (project stakeholders)
+                csv.AppendLine("SECTION,7A. COBie CONTACT");
+                csv.AppendLine("Email,Category,Company,Phone,Department,Street,PostalCode,Country");
+                csv.AppendLine($"\"project@{Esc(projectName)}\",Facility Manager,\"{Esc(projectName)}\",," +
+                    $"\"{Esc(projectAddress)}\",,");
+                csv.AppendLine();
+
+                // 7B. Floor (levels / storeys)
+                csv.AppendLine("SECTION,7B. COBie FLOOR");
+                csv.AppendLine("Name,Category,ExternalSystem,ExternalObject,Description,Elevation,Height");
+                var levels = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Level))
+                    .Cast<Level>()
+                    .OrderBy(l => l.Elevation)
+                    .ToList();
+                foreach (var level in levels)
+                {
+                    string lvlCode = ParameterHelpers.GetLevelCode(doc, level);
+                    double elevM = level.Elevation * 0.3048; // ft to m
+                    csv.AppendLine($"\"{Esc(level.Name)}\",Floor,Revit,IfcBuildingStorey," +
+                        $"\"{lvlCode}\",{elevM:F3},");
+                }
+                csv.AppendLine();
+
+                // 7C. Space (rooms mapped to COBie Space)
+                csv.AppendLine("SECTION,7C. COBie SPACE");
+                csv.AppendLine("Name,FloorName,Category,Description,RoomTag,UsableHeight,GrossArea,NetArea");
+                foreach (var room in rooms)
+                {
+                    string levelName = room.Level?.Name ?? "Unknown";
+                    string dept = "";
+                    try { dept = room.LookupParameter("Department")?.AsString() ?? ""; } catch { }
+                    double areaM2 = room.Area * 0.092903;
+                    double heightM = 0;
+                    try
+                    {
+                        var ubh = room.LookupParameter("Unbounded Height");
+                        if (ubh != null) heightM = ubh.AsDouble() * 0.3048;
+                    }
+                    catch { }
+
+                    csv.AppendLine($"\"{room.Number} - {Esc(room.Name)}\",\"{Esc(levelName)}\"," +
+                        $"\"{Esc(dept)}\",\"{Esc(room.Name)}\",\"{room.Number}\"," +
+                        $"{heightM:F2},{areaM2:F2},{areaM2:F2}");
+                }
+                csv.AppendLine();
+
+                // 7D. Zone (zone groupings)
+                csv.AppendLine("SECTION,7D. COBie ZONE");
+                csv.AppendLine("Name,Category,SpaceNames,Description");
+                var zoneGroups = rooms
+                    .GroupBy(r =>
+                    {
+                        string dept = "";
+                        try { dept = r.LookupParameter("Department")?.AsString() ?? ""; } catch { }
+                        return string.IsNullOrEmpty(dept) ? "General" : dept;
+                    })
+                    .OrderBy(g => g.Key);
+                foreach (var zg in zoneGroups)
+                {
+                    var spaceNames = zg.Select(r => $"{r.Number}").Take(20);
+                    csv.AppendLine($"\"{Esc(zg.Key)}\",Department," +
+                        $"\"{string.Join("; ", spaceNames)}\",\"{zg.Count()} spaces\"");
+                }
+                csv.AppendLine();
+
+                // 7E. Type (asset types — grouped by family type)
+                csv.AppendLine("SECTION,7E. COBie TYPE");
+                csv.AppendLine("Name,Category,Manufacturer,ModelNumber,Description,ExpectedLife,ReplacementCost,NominalLength,NominalWidth,NominalHeight");
+                var typeGroups = allElements
+                    .GroupBy(e =>
+                    {
+                        string family = ParameterHelpers.GetFamilyName(e);
+                        string typeName = ParameterHelpers.GetFamilySymbolName(e);
+                        return $"{family}:{typeName}";
+                    })
+                    .OrderBy(g => g.Key)
+                    .ToList();
+                foreach (var tg in typeGroups)
+                {
+                    var sample = tg.First();
+                    string family = ParameterHelpers.GetFamilyName(sample);
+                    string typeName = ParameterHelpers.GetFamilySymbolName(sample);
+                    string cat = sample.Category?.Name ?? "";
+                    string mfr = ParameterHelpers.GetString(sample, ParamRegistry.MFR);
+                    string modelNr = ParameterHelpers.GetString(sample, ParamRegistry.MODEL);
+                    string desc = ParameterHelpers.GetString(sample, ParamRegistry.DESC);
+                    if (string.IsNullOrEmpty(desc)) desc = typeName;
+                    string cost = ParameterHelpers.GetString(sample, "ASS_CST_UNIT_PRICE_UGX_NR");
+
+                    csv.AppendLine($"\"{Esc(typeName)}\",\"{Esc(cat)}\",\"{Esc(mfr)}\"," +
+                        $"\"{Esc(modelNr)}\",\"{Esc(desc)}\",,{cost},,,");
+                }
+                csv.AppendLine();
+
+                // 7F. Component (individual assets — the core COBie sheet)
+                csv.AppendLine("SECTION,7F. COBie COMPONENT");
+                csv.AppendLine("Name,TypeName,Space,Tag,SerialNumber,InstallationDate,WarrantyStartDate," +
+                    "WarrantyDurationParts,WarrantyDurationLabour,Description,Manufacturer,Model,Floor,System");
+                int cobieComponentCount = 0;
                 foreach (var el in allElements)
                 {
                     string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -2821,10 +2921,10 @@ namespace StingTools.Docs
                     string assetName = ParameterHelpers.GetString(el, ParamRegistry.DESC);
                     if (string.IsNullOrEmpty(assetName))
                         assetName = ParameterHelpers.GetFamilySymbolName(el);
-                    string cat = el.Category?.Name ?? "";
+                    string typeName = ParameterHelpers.GetFamilySymbolName(el);
                     string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                     string mfr = ParameterHelpers.GetString(el, ParamRegistry.MFR);
-                    string model = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
+                    string modelNr = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
                     string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
                     string installDate = ParameterHelpers.GetString(el, "ASS_INSTALLATION_DATE_TXT");
                     string warranty = ParameterHelpers.GetString(el, "ASS_WARRANTY_TXT");
@@ -2833,10 +2933,54 @@ namespace StingTools.Docs
                         roomName = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
                     string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
 
-                    csv.AppendLine($"\"{tag1}\",\"{Esc(assetName)}\",\"{Esc(cat)}\",{sys}," +
-                        $"\"{Esc(mfr)}\",\"{Esc(model)}\",\"{Esc(serial)}\"," +
-                        $"\"{Esc(installDate)}\",\"{Esc(warranty)}\",\"{Esc(roomName)}\",{lvl}");
+                    csv.AppendLine($"\"{Esc(assetName)}\",\"{Esc(typeName)}\",\"{Esc(roomName)}\"," +
+                        $"\"{tag1}\",\"{Esc(serial)}\",\"{Esc(installDate)}\"," +
+                        $"\"{Esc(installDate)}\",,," +
+                        $"\"{Esc(assetName)}\",\"{Esc(mfr)}\",\"{Esc(modelNr)}\",{lvl},{sys}");
+                    cobieComponentCount++;
                 }
+                csv.AppendLine();
+
+                // 7G. System (MEP systems mapped to COBie System)
+                csv.AppendLine("SECTION,7G. COBie SYSTEM");
+                csv.AppendLine("Name,Category,ComponentNames,Description");
+                foreach (var kvp in bySys.OrderBy(x => x.Key))
+                {
+                    if (kvp.Key == "Unassigned") continue;
+                    string sysDesc = GetSystemDescription(kvp.Key);
+                    var componentTags = kvp.Value
+                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.TAG1))
+                        .Where(t => !string.IsNullOrEmpty(t))
+                        .Take(20);
+                    csv.AppendLine($"\"{kvp.Key} - {Esc(sysDesc)}\",\"{kvp.Key}\"," +
+                        $"\"{string.Join("; ", componentTags)}\",\"{Esc(sysDesc)} ({kvp.Value.Count} components)\"");
+                }
+                csv.AppendLine();
+
+                // 7H. Job (maintenance tasks derived from BS 8210/SFG20)
+                csv.AppendLine("SECTION,7H. COBie JOB");
+                csv.AppendLine("Name,TypeName,TaskNumber,Description,Duration,Frequency,Priors");
+                int jobNum = 1;
+                foreach (var kvp in bySys.OrderBy(x => x.Key))
+                {
+                    if (kvp.Key == "Unassigned") continue;
+                    var (maintType, frequency, priority, notes) =
+                        GetMaintenanceSchedule(kvp.Key, kvp.Value.FirstOrDefault()?.Category?.Name ?? "");
+                    csv.AppendLine($"\"{kvp.Key} {maintType}\",\"{kvp.Key}\",{jobNum:D3}," +
+                        $"\"{Esc(notes)}\",\"{frequency}\",\"{frequency}\",\"{priority}\"");
+                    jobNum++;
+                }
+                csv.AppendLine();
+
+                // 7I. Document (project documents reference)
+                csv.AppendLine("SECTION,7I. COBie DOCUMENT");
+                csv.AppendLine("Name,Category,ApprovalBy,Stage,Reference,Description");
+                csv.AppendLine($"\"FM Handover Manual\",Handover,\"{Esc(projectName)}\",As-Built," +
+                    $"\"{projectNumber}\",\"ISO 19650 FM O/M Handover Manual\"");
+                csv.AppendLine($"\"Asset Tag Register\",Register,\"{Esc(projectName)}\",As-Built," +
+                    $"\"{projectNumber}\",\"Complete STING asset tag register\"");
+                csv.AppendLine($"\"Maintenance Schedule\",Schedule,\"{Esc(projectName)}\",As-Built," +
+                    $"\"{projectNumber}\",\"BS 8210/SFG20 maintenance recommendations\"");
                 csv.AppendLine();
 
                 // ── Section 8: FM Schedules Available (from MR_SCHEDULES.csv) ──
@@ -2860,9 +3004,11 @@ namespace StingTools.Docs
                             string category = cols[4].Trim();
                             string fields = cols.Length > 7 ? cols[7].Trim() : "";
 
-                            // Include FM_Revit and COBie-related schedules
+                            // Include FM_Revit, COBie_V24, and related schedules
                             if (recType == "SCHEDULE" &&
                                 (source.StartsWith("FM", StringComparison.OrdinalIgnoreCase) ||
+                                 source.StartsWith("COBie", StringComparison.OrdinalIgnoreCase) ||
+                                 schedName.Contains("COBie", StringComparison.OrdinalIgnoreCase) ||
                                  schedName.Contains("Maintenance", StringComparison.OrdinalIgnoreCase) ||
                                  schedName.Contains("Handover", StringComparison.OrdinalIgnoreCase) ||
                                  schedName.Contains("Asset", StringComparison.OrdinalIgnoreCase) ||
@@ -2898,7 +3044,9 @@ namespace StingTools.Docs
                 report.AppendLine($"  Tagged complete:  {tagged} ({pct:F1}%)");
                 report.AppendLine($"  Systems:          {bySys.Count}");
                 report.AppendLine($"  Rooms:            {rooms.Count}");
-                report.AppendLine($"  Levels:           {byLevel.Count}");
+                report.AppendLine($"  Levels:           {levels.Count}");
+                report.AppendLine($"  Asset types:      {typeGroups.Count}");
+                report.AppendLine($"  COBie components: {cobieComponentCount}");
                 report.AppendLine($"  FM Schedules:     {fmScheduleCount} (from MR_SCHEDULES.csv)");
                 report.AppendLine();
                 report.AppendLine("  Sections:");
@@ -2908,16 +3056,21 @@ namespace StingTools.Docs
                 report.AppendLine("    4. Spatial Summary (rooms)");
                 report.AppendLine("    5. Maintenance Schedule (BS 8210)");
                 report.AppendLine("    6. Level Summary");
-                report.AppendLine("    7. COBie Data Extract");
+                report.AppendLine("  COBie V2.4 Worksheets:");
+                report.AppendLine("    7A. Contact      7E. Type");
+                report.AppendLine("    7B. Floor        7F. Component");
+                report.AppendLine("    7C. Space        7G. System");
+                report.AppendLine("    7D. Zone         7H. Job");
+                report.AppendLine("                     7I. Document");
                 report.AppendLine("    8. FM Schedules Available");
                 report.AppendLine();
                 report.AppendLine($"  File: {path}");
                 report.AppendLine();
-                report.AppendLine("Opens directly in Excel. Suitable for FM handover per ISO 19650.");
+                report.AppendLine("Opens in Excel. COBie V2.4 aligned per ISO 19650-4.");
 
                 TaskDialog.Show("FM Handover Manual", report.ToString());
-                StingLog.Info($"HandoverManual: {allElements.Count} assets, {bySys.Count} systems, " +
-                    $"{rooms.Count} rooms → {path}");
+                StingLog.Info($"HandoverManual: {allElements.Count} assets, {cobieComponentCount} COBie components, " +
+                    $"{bySys.Count} systems, {rooms.Count} rooms, {levels.Count} levels → {path}");
 
                 return Result.Succeeded;
             }
