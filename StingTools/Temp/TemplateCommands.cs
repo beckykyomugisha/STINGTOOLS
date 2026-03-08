@@ -178,6 +178,11 @@ namespace StingTools.Temp
 
             using (Transaction tx = new Transaction(doc, "STING Create Filters"))
             {
+                // CRASH FIX: Suppress warning dialogs during batch filter creation
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
+
                 tx.Start();
 
                 // ── Phase 1: Multi-category discipline filters (no parameter rules) ──
@@ -472,6 +477,11 @@ namespace StingTools.Temp
 
             using (Transaction tx = new Transaction(doc, "STING Create Worksets"))
             {
+                // CRASH FIX: Suppress warning dialogs during batch workset creation
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
+
                 tx.Start();
 
                 foreach (string name in WorksetNames)
@@ -703,6 +713,11 @@ namespace StingTools.Temp
 
             using (Transaction tx = new Transaction(doc, "STING Create View Templates"))
             {
+                // CRASH FIX: Suppress warning dialogs during batch template creation
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
+
                 tx.Start();
 
                 foreach (var (name, discipline, detailLevel, baseViewType) in TemplateDefs)

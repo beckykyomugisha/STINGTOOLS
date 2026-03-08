@@ -31,6 +31,19 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            try { return ExecuteCore(commandData, ref message, elements); }
+            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("AutoTagCommand crashed", ex);
+                try { TaskDialog.Show("STING Tools", $"Auto Tag failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteCore(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
@@ -124,6 +137,9 @@ namespace StingTools.Tags
 
             using (Transaction tx = new Transaction(doc, "STING Auto Tag"))
             {
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
                 tx.Start();
 
                 int processed = 0;
@@ -267,6 +283,9 @@ namespace StingTools.Tags
 
             using (Transaction tx = new Transaction(doc, "STING Tag New Only"))
             {
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
                 tx.Start();
 
                 int processed = 0;

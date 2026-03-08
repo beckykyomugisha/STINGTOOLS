@@ -40,6 +40,19 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            try { return ExecuteCore(commandData, ref message, elements); }
+            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("MasterSetupCommand crashed", ex);
+                try { TaskDialog.Show("STING Tools", $"Master Setup failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteCore(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
             TaskDialog confirm = new TaskDialog("STING Master Setup");
             confirm.MainInstruction = "Run full project setup?";
             confirm.MainContent =

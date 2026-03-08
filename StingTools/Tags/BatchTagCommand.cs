@@ -34,6 +34,19 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            try { return ExecuteCore(commandData, ref message, elements); }
+            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("BatchTagCommand crashed", ex);
+                try { TaskDialog.Show("STING Tools", $"Batch Tag failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteCore(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
@@ -109,71 +122,103 @@ namespace StingTools.Tags
             StingLog.Info($"Batch Tag: starting — {totalTaggable} taggable, {alreadyTagged} tagged, mode={collisionMode}");
 
             bool cancelled = false;
+            const int TagBatchSize = 500;
 
             // ENH-001: Show progress dialog with cancel support
             var progress = StingProgressDialog.Show("Batch Tag", totalTaggable);
 
-            using (Transaction tx = new Transaction(doc, "STING Batch Tag"))
+            // CRASH FIX: Wrap ALL batches in TransactionGroup for atomic rollback.
+            // Processing 10,000+ elements in a single transaction can overflow the
+            // transaction journal and cause native Revit crashes.
+            using (TransactionGroup tg = new TransactionGroup(doc, "STING Batch Tag All"))
             {
-                tx.Start();
+                tg.Start();
 
-                int processed = 0;
-                foreach (Element el in sorted)
+                for (int batchStart = 0; batchStart < sorted.Count; batchStart += TagBatchSize)
                 {
-                    // ENH-001: Check for user cancellation via progress dialog
-                    if (progress.IsCancelled)
+                    if (cancelled) break;
+
+                    int batchEnd = Math.Min(batchStart + TagBatchSize, sorted.Count);
+                    int batchNum = (batchStart / TagBatchSize) + 1;
+
+                    using (Transaction tx = new Transaction(doc, $"STING Batch Tag #{batchNum}"))
                     {
-                        StingLog.Info($"Batch Tag: cancelled by user at {processed}/{totalTaggable}");
-                        cancelled = true;
-                        break;
+                        // CRASH FIX: Suppress warning dialogs during batch tagging
+                        var failOpts = tx.GetFailureHandlingOptions();
+                        failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                        tx.SetFailureHandlingOptions(failOpts);
+
+                        tx.Start();
+
+                        for (int idx = batchStart; idx < batchEnd; idx++)
+                        {
+                            Element el = sorted[idx];
+
+                            // Check for user cancellation via progress dialog
+                            if (progress.IsCancelled)
+                            {
+                                StingLog.Info($"Batch Tag: cancelled by user at {idx}/{totalTaggable}");
+                                cancelled = true;
+                                break;
+                            }
+
+                            try
+                            {
+                                // Full 9-token auto-population via shared helper
+                                bool overwriteMode = (collisionMode == TagCollisionMode.Overwrite);
+                                var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx,
+                                    overwrite: overwriteMode);
+                                populated += popResult.TokensSet;
+                                if (popResult.StatusDetected) statusDetected++;
+                                if (popResult.RevSet) revSet++;
+
+                                bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
+                                TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
+                                    skipComplete: skipComplete,
+                                    existingTags: tagIndex,
+                                    collisionMode: collisionMode,
+                                    stats: stats);
+
+                                // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                                string catName = ParameterHelpers.GetCategoryName(el);
+                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Error($"BatchTag: failed on element {el?.Id}: {ex.Message}", ex);
+                                stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
+                            }
+
+                            progress.Increment($"Tagged {stats.TotalTagged}, collisions {stats.TotalCollisions}");
+
+                            if ((batchStart + (idx - batchStart)) % 500 == 0 && idx > 0)
+                                StingLog.Info($"Batch Tag progress: {idx}/{totalTaggable} " +
+                                    $"({stats.TotalTagged} tagged, {stats.TotalCollisions} collisions)");
+                        }
+
+                        if (cancelled)
+                        {
+                            tx.RollBack();
+                        }
+                        else
+                        {
+                            tx.Commit();
+                            StingLog.Info($"Batch Tag: batch {batchNum} committed");
+                        }
                     }
-
-                    try
-                    {
-                        // Full 9-token auto-population via shared helper
-                        bool overwriteMode = (collisionMode == TagCollisionMode.Overwrite);
-                        var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx,
-                            overwrite: overwriteMode);
-                        populated += popResult.TokensSet;
-                        if (popResult.StatusDetected) statusDetected++;
-                        if (popResult.RevSet) revSet++;
-
-                        bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                        TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                            skipComplete: skipComplete,
-                            existingTags: tagIndex,
-                            collisionMode: collisionMode,
-                            stats: stats);
-
-                        // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                        string catName = ParameterHelpers.GetCategoryName(el);
-                        string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                        TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Error($"BatchTag: failed on element {el?.Id}: {ex.Message}", ex);
-                        stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
-                    }
-
-                    processed++;
-                    progress.Increment($"Tagged {stats.TotalTagged}, collisions {stats.TotalCollisions}");
-
-                    if (processed % 500 == 0)
-                        StingLog.Info($"Batch Tag progress: {processed}/{totalTaggable} " +
-                            $"({stats.TotalTagged} tagged, {stats.TotalCollisions} collisions)");
                 }
 
                 progress.Close();
 
                 if (cancelled)
                 {
-                    tx.RollBack();
-                    TaskDialog.Show("Batch Tag", $"Cancelled by user.\n{processed} of {totalTaggable} elements processed.\nAll changes rolled back.");
+                    tg.RollBack();
+                    TaskDialog.Show("Batch Tag", $"Cancelled by user.\nAll changes rolled back.");
                     return Result.Cancelled;
                 }
 
-                tx.Commit();
+                tg.Assimilate();
             }
             sw.Stop();
 
