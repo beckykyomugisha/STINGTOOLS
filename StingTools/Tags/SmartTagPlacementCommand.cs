@@ -775,8 +775,9 @@ namespace StingTools.Tags
                 double avgDx = kvp.Value.Average(o => o.dx);
                 double avgDy = kvp.Value.Average(o => o.dy);
                 bool useLeader = kvp.Value.Count(o => o.hasLeader) > kvp.Value.Count / 2;
-                string orient = kvp.Value.GroupBy(o => o.orient)
-                    .OrderByDescending(g => g.Count()).First().Key;
+                var orientGroups = kvp.Value.GroupBy(o => o.orient)
+                    .OrderByDescending(g => g.Count()).ToList();
+                string orient = orientGroups.Count > 0 ? orientGroups[0].Key : "Horizontal";
 
                 int side = 0;
                 if (Math.Abs(avgDy) > Math.Abs(avgDx))

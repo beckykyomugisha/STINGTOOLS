@@ -2783,7 +2783,12 @@ namespace StingTools.Temp
             {
                 using (var workbook = new ClosedXML.Excel.XLWorkbook(xlsxPath))
                 {
-                    var ws = workbook.Worksheets.First();
+                    var ws = workbook.Worksheets.FirstOrDefault();
+                    if (ws == null)
+                    {
+                        TaskDialog.Show("Excel BOQ Import", "Excel file contains no worksheets.");
+                        return Result.Cancelled;
+                    }
                     int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
                     if (lastRow < 2)
                     {

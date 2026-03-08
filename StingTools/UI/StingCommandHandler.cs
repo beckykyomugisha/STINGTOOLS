@@ -2214,9 +2214,14 @@ namespace StingTools.UI
             }
 
             // Find the most common scale among legend views
+            if (legendVps.Count == 0)
+            {
+                TaskDialog.Show("Legend Uniform Size", "No legend viewports found.");
+                return;
+            }
             var scaleCounts = legendVps.GroupBy(lv => lv.view.Scale)
                 .OrderByDescending(g => g.Count()).ToList();
-            int targetScale = scaleCounts.First().Key;
+            int targetScale = scaleCounts[0].Key;
 
             int changed = 0;
             using (Transaction tx = new Transaction(doc, "STING Legend Uniform Size"))

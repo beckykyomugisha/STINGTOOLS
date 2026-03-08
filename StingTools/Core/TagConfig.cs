@@ -515,24 +515,26 @@ namespace StingTools.Core
         /// <summary>Build or return the cached reverse SysMap (category → list of valid SYS codes).</summary>
         private static Dictionary<string, List<string>> GetReverseSysMap()
         {
-            if (_reverseSysMap == null)
+            var map = _reverseSysMap;
+            if (map == null)
             {
-                _reverseSysMap = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+                map = new Dictionary<string, List<string>>(StringComparer.Ordinal);
                 foreach (var kvp in SysMap)
                 {
                     foreach (string cat in kvp.Value)
                     {
-                        if (!_reverseSysMap.TryGetValue(cat, out var list))
+                        if (!map.TryGetValue(cat, out var list))
                         {
                             list = new List<string>();
-                            _reverseSysMap[cat] = list;
+                            map[cat] = list;
                         }
                         if (!list.Contains(kvp.Key))
                             list.Add(kvp.Key);
                     }
                 }
+                _reverseSysMap = map;
             }
-            return _reverseSysMap;
+            return map;
         }
 
         /// <summary>Load from a JSON config file, falling back to defaults.</summary>

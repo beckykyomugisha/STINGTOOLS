@@ -302,8 +302,14 @@ namespace StingTools.Select
             // Find ALL elements in the same room (not just FamilyInstance)
             var roomId = room.Id;
             var ids = new List<ElementId>();
+            var activeView = ctx.ActiveView ?? doc.ActiveView;
+            if (activeView == null)
+            {
+                TaskDialog.Show("Select by Room", "No active view. Switch to a model view first.");
+                return Result.Succeeded;
+            }
 
-            foreach (Element e in new FilteredElementCollector(doc, doc.ActiveView.Id)
+            foreach (Element e in new FilteredElementCollector(doc, activeView.Id)
                 .WhereElementIsNotElementType())
             {
                 try
