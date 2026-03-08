@@ -68,7 +68,8 @@ namespace StingTools.Tags
                 string pageInfo = options.Length > pageSize
                     ? $"\nPage {page + 1}: showing {options[startIdx]}..{options[endIdx - 1]}"
                     : "";
-                td.MainContent = (usingSelection ? "(Selected elements)" : "(All taggable in view)") + pageInfo;
+                td.MainContent = (usingSelection ? "(Selected elements)" : "(All taggable in view)") + pageInfo +
+                    "\n\nClick an option below to apply it:";
 
                 int linkCount = 0;
                 for (int i = startIdx; i < endIdx; i++)

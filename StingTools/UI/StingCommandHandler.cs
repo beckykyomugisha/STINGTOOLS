@@ -87,6 +87,7 @@ namespace StingTools.UI
                     case "SelectConduits": RunCommand<Select.SelectConduitsCommand>(app); break;
                     case "SelectCableTrays": RunCommand<Select.SelectCableTraysCommand>(app); break;
                     case "SelectAllTaggable": RunCommand<Select.SelectAllTaggableCommand>(app); break;
+                    case "SelectCustomCategory": RunCommand<Select.SelectCustomCategoryCommand>(app); break;
 
                     // ── State selectors ──
                     case "SelectUntagged": RunCommand<Select.SelectUntaggedCommand>(app); break;

@@ -80,9 +80,9 @@ namespace StingTools.Tags
                 $"  Taggable:       {totalTaggable:N0}\n" +
                 $"  Already tagged: {alreadyTagged:N0}\n" +
                 $"  Untagged:       {untagged:N0}\n\n" +
-                "Choose collision handling:";
+                "Click an option below to start tagging:";
             modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                $"Skip existing — tag {untagged:N0} new only",
+                $"Skip existing — tag {untagged:N0} new only (Recommended)",
                 "Only tag untagged elements. Already-tagged elements are left unchanged.");
             modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                 $"Overwrite all {totalTaggable:N0}",
@@ -91,6 +91,7 @@ namespace StingTools.Tags
                 $"Auto-increment on collision",
                 "Tag untagged elements; if a generated tag collides with an existing one, auto-increment SEQ.");
             modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            modeDlg.DefaultButton = TaskDialogResult.CommandLink1;
 
             TagCollisionMode collisionMode;
             switch (modeDlg.Show())

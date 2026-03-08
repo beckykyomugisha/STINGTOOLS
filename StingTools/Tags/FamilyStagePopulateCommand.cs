@@ -63,16 +63,17 @@ namespace StingTools.Tags
                 "This ensures every token is correct BEFORE tagging.\n" +
                 "After this, tag generation is pure concatenation — no guessing.\n\n" +
                 "Tokens populated: DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS, REV\n" +
-                "(SEQ is NOT assigned — that happens during tagging)";
+                "(SEQ is NOT assigned — that happens during tagging)\n\n" +
+                "Click a scope option below to proceed:";
             scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 "Selected elements only",
-                $"{uidoc.Selection.GetElementIds().Count} elements selected");
+                $"{uidoc.Selection.GetElementIds().Count} elements selected — click to proceed");
             scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                 "Active view",
-                "Pre-populate all taggable elements in this view");
+                "Pre-populate all taggable elements in this view — click to proceed");
             scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
                 "Entire project",
-                "Pre-populate every taggable element in the model");
+                "Pre-populate every taggable element in the model — click to proceed");
             scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             ICollection<ElementId> targetIds;
@@ -108,13 +109,15 @@ namespace StingTools.Tags
             // Override mode
             TaskDialog overDlg = new TaskDialog("Token Write Mode");
             overDlg.MainInstruction = "How to handle existing token values?";
+            overDlg.MainContent = "Click an option below to proceed, or Cancel to abort.";
             overDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Fill empty only (safe)",
+                "Fill empty only (safe) — Recommended",
                 "Only populate tokens that are currently empty — existing values untouched");
             overDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                 "Overwrite all (force)",
                 "Re-derive all tokens from scratch, overwriting any existing values");
             overDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            overDlg.DefaultButton = TaskDialogResult.CommandLink1;
 
             bool overwrite;
             switch (overDlg.Show())

@@ -165,6 +165,7 @@
                                 <Button Style="{StaticResource CatBtn}" Content="Cnd" Tag="SelectConduits" Click="Cmd_Click" ToolTip="Conduits"/>
                                 <Button Style="{StaticResource CatBtn}" Content="Cbl" Tag="SelectCableTrays" Click="Cmd_Click" ToolTip="Cable Trays"/>
                                 <Button Style="{StaticResource CatBtn}" Content="ALL..." Tag="SelectAllTaggable" Click="Cmd_Click" ToolTip="ALL Taggable" Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Pick..." Tag="SelectCustomCategory" Click="Cmd_Click" ToolTip="Choose from ALL categories in view" Background="#2196F3" Foreground="White"/>
                                 <Button Style="{StaticResource CatBtn}" Content="View" Tag="SelectView" Click="Cmd_Click" ToolTip="Select view elements"/>
                             </WrapPanel>
                         </Border>

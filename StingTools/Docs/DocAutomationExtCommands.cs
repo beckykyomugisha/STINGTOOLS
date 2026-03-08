@@ -551,6 +551,7 @@ namespace StingTools.Docs
             // Step 3: Template assignment
             TaskDialog tplDlg = new TaskDialog("Batch Create Views — Templates");
             tplDlg.MainInstruction = "View template assignment";
+            tplDlg.MainContent = "Click an option to proceed with view creation:";
             tplDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 "Auto-assign STING templates (recommended)",
                 "7-layer intelligent matching: discipline + view type + level");
@@ -558,6 +559,7 @@ namespace StingTools.Docs
                 "No templates (assign later)",
                 "Create views without template assignment");
             tplDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            tplDlg.DefaultButton = TaskDialogResult.CommandLink1;
 
             bool autoTemplate;
             switch (tplDlg.Show())
@@ -757,6 +759,7 @@ namespace StingTools.Docs
             // Step 1: Creation mode
             TaskDialog modeDlg = new TaskDialog("Batch Create Sheets");
             modeDlg.MainInstruction = $"Create sheets ({unplacedViews.Count} unplaced views available)";
+            modeDlg.MainContent = "Click an option below to create sheets:";
             modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 "One view per sheet (recommended)",
                 $"Create {unplacedViews.Count} sheets, each with one view centered");
@@ -767,6 +770,7 @@ namespace StingTools.Docs
                 "Group by discipline",
                 "Views of the same discipline share a sheet");
             modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            modeDlg.DefaultButton = TaskDialogResult.CommandLink1;
 
             int mode;
             switch (modeDlg.Show())

@@ -375,6 +375,30 @@ namespace StingTools.Temp
             return true;
         }
 
+        /// <summary>
+        /// Strip EndCap conditions from a CompoundStructure to prevent Revit's
+        /// "invalid EndCap" errors on Floor, Ceiling, and Roof types.
+        /// Revit's CreateSimpleCompoundStructure applies default EndCap conditions
+        /// that are not valid for all element types.
+        /// </summary>
+        private static CompoundStructure SafeCompoundStructure(IList<CompoundStructureLayer> layers)
+        {
+            CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+            try
+            {
+                // Remove EndCap conditions that cause errors on Floor/Ceiling/Roof
+                for (int i = 0; i < cs.LayerCount; i++)
+                {
+                    cs.SetEndCap(i, EndCapCondition.NoEndCap);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"EndCap stripping failed (non-fatal): {ex.Message}");
+            }
+            return cs;
+        }
+
         private static bool CreateFloorType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
             Dictionary<string, ElementId> materialCache)
@@ -392,8 +416,25 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = SafeCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // Fallback: try without EndCap stripping
+                    StingLog.Warn($"Floor '{typeName}' EndCap-safe failed, trying raw: {ex.Message}");
+                    try
+                    {
+                        CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                        newType.SetCompoundStructure(cs);
+                    }
+                    catch (Exception ex2)
+                    {
+                        StingLog.Warn($"Floor '{typeName}' compound structure failed: {ex2.Message}");
+                    }
+                }
             }
 
             return true;
@@ -416,8 +457,24 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = SafeCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Ceiling '{typeName}' EndCap-safe failed, trying raw: {ex.Message}");
+                    try
+                    {
+                        CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                        newType.SetCompoundStructure(cs);
+                    }
+                    catch (Exception ex2)
+                    {
+                        StingLog.Warn($"Ceiling '{typeName}' compound structure failed: {ex2.Message}");
+                    }
+                }
             }
 
             return true;
@@ -440,8 +497,24 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = SafeCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Roof '{typeName}' EndCap-safe failed, trying raw: {ex.Message}");
+                    try
+                    {
+                        CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                        newType.SetCompoundStructure(cs);
+                    }
+                    catch (Exception ex2)
+                    {
+                        StingLog.Warn($"Roof '{typeName}' compound structure failed: {ex2.Message}");
+                    }
+                }
             }
 
             return true;
