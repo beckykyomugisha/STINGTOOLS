@@ -627,7 +627,8 @@
     "Parts": "OST_Parts",
     "Assemblies": "OST_Assemblies",
     "Detail Components": "OST_DetailComponents",
-    "Railings": "OST_Railings"
+    "Railings": "OST_Railings",
+    "Materials": "OST_Materials"
   },
 
   "universal_categories": [
@@ -644,7 +645,7 @@
     "Structural Foundations", "Structural Stiffener", "Railings", "Stairs",
     "Ramps", "Curtain Panels", "Curtain Wall Mullions", "Curtain Systems",
     "Generic Models", "Specialty Equipment", "Parking", "Site",
-    "Mass", "Parts", "Assemblies", "Detail Components"
+    "Mass", "Parts", "Assemblies", "Detail Components", "Materials"
   ],
 
   "ifc_property_mapping": {

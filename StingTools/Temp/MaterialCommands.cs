@@ -49,6 +49,7 @@ namespace StingTools.Temp
         public const int ColSurfaceFgPattern = 41;  // BLE_APP-SURFACE-FG-PATTERN
         public const int ColCutFgColor = 42;        // BLE_APP-CUT-FG-COLOR
         public const int ColCutFgPattern = 43;      // BLE_APP-CUT-FG-PATTERN
+        public const int ColImage = 44;              // BLE_APP-IMAGE
         public const int ColDescription = 45;       // BLE_APP-DESCRIPTION
         public const int ColComments = 46;          // BLE_APP-COMMENTS
         public const int ColSurfaceBgPattern = 47;  // BLE_APP-SURFACE-BG-PATTERN
@@ -79,11 +80,12 @@ namespace StingTools.Temp
         /// <summary>
         /// Column-to-parameter mappings for populating ALL CSV data as shared parameters.
         /// Each entry: (column_index, parameter_name_to_look_up).
+        /// Names MUST match MR_PARAMETERS.txt exactly (including hyphens).
         /// Uses LookupParameter to find shared params bound to the Material category.
         /// </summary>
         private static readonly (int col, string paramName)[] SharedParamMappings = new[]
         {
-            // Classification
+            // Classification (cols 0-8)
             (ColDiscipline,     "MAT_DISCIPLINE"),
             (ColIso19650Id,     "MAT_ISO_19650_ID"),
             (ColCode,           "MAT_CODE"),
@@ -91,20 +93,46 @@ namespace StingTools.Temp
             (ColCategory,       "MAT_CATEGORY"),
             (ColApplication,    "MAT_APPLICATION"),
             (ColLocation,       "MAT_LOCATION"),
-            // Dimensions
+            // Dimensions (cols 9-10)
             (ColThicknessMm,    "MAT_THICKNESS_MM"),
             (ColThicknessInch,  "MAT_THICKNESS_INCH"),
-            // Cost
-            (ColCostUsd,        "MAT_COST_UNIT_USD"),
-            (ColCostUgx,        "MAT_COST_UNIT_UGX"),
+            // Cost (cols 11-12, 62-63) — names match MR_PARAMETERS.txt
+            (ColCostUsd,        "MAT_COST_USD"),
+            (ColCostUgx,        "MAT_COST_UGX"),
             (ColCostAssemblyUsd,"MAT_COST_ASSEMBLY_USD"),
             (ColCostAssemblyUgx,"MAT_COST_ASSEMBLY_UGX"),
-            // Durability & Specs
+            // Durability & Specs (cols 13-14, 31-33)
             (ColDurability,     "MAT_DURABILITY"),
             (ColSpecifications, "MAT_SPECIFICATIONS"),
-            (ColFeatures,       "MAT_FEATURES"),
+            (ColManufacturer,   "MAT_MANUFACTURER"),
             (ColStandard,       "MAT_STANDARD"),
-            // Physical Properties
+            (ColFeatures,       "MAT_FEATURES"),
+            // Appearance (cols 34-50, 64-67) — written as shared params for data round-trip
+            (ColBaseMaterial,   "BLE_APP-REVIT-BASE-MATERIAL"),
+            (ColIdentityClass,  "BLE_APP-IDENTITY-CLASS"),
+            (ColColor,          "BLE_APP-COLOR"),
+            (ColTransparency,   "BLE_APP-TRANSPARENCY"),
+            (ColSmoothness,     "BLE_APP-SMOOTHNESS"),
+            (ColShininess,      "BLE_APP-SHININESS"),
+            (ColSurfaceFgColor, "BLE_APP-SURFACE-FG-COLOR"),
+            (ColSurfaceFgPattern,"BLE_APP-SURFACE-FG-PATTERN"),
+            (ColCutFgColor,     "BLE_APP-CUT-FG-COLOR"),
+            (ColCutFgPattern,   "BLE_APP-CUT-FG-PATTERN"),
+            (ColImage,          "BLE_APP-IMAGE"),
+            (ColDescription,    "BLE_APP-DESCRIPTION"),
+            (ColComments,       "BLE_APP-COMMENTS"),
+            (ColSurfaceBgPattern,"BLE_APP-SURFACE-BG-PATTERN"),
+            (ColSurfaceBgColor, "BLE_APP-SURFACE-BG-COLOR"),
+            (ColCutBgPattern,   "BLE_APP-CUT-BG-PATTERN"),
+            (ColCutBgColor,     "BLE_APP-CUT-BG-COLOR"),
+            (ColCutPatternName, "BLE_APP-CUT_PATTERN"),
+            (ColSurfacePatternName,"BLE_APP-SURFACE_PATTERN"),
+            (ColBgPatternName,  "BLE_APP-BACKGROUND_PATTERN"),
+            (ColShadingRgb,     "BLE_APP-SHADING_RGB"),
+            // Physical / Thermal / Performance (cols 51-61, 68-69)
+            (ColPhysicalAsset,  "BLE_APP-PHYSICAL-ASSET"),
+            (ColThermalAsset,   "BLE_APP-THERMAL-ASSET"),
+            (ColTextureUrl,     "BLE_MAT_TEXTURE_URL"),
             (ColDensity,        "PROP_DENSITY_KG_M3"),
             (ColThermalCond,    "PROP_THERMAL_COND_W_MK"),
             (ColThermalRes,     "PROP_THERMAL_RES_M2K_W"),
@@ -115,10 +143,6 @@ namespace StingTools.Temp
             (ColCarbon,         "PROP_CARBON_KG_M3"),
             (ColCompStrength,   "PROP_COMP_STRENGTH_MPA"),
             (ColTensStrength,   "PROP_TENS_STRENGTH_MPA"),
-            // Assets
-            (ColPhysicalAsset,  "BLE_APP_PHYSICAL_ASSET"),
-            (ColThermalAsset,   "BLE_APP_THERMAL_ASSET"),
-            (ColTextureUrl,     "BLE_MAT_TEXTURE_URL"),
         };
 
         /// <summary>
@@ -496,8 +520,171 @@ namespace StingTools.Temp
         }
 
         /// <summary>
+        /// All shared parameter names that should be bound to the Material category.
+        /// Collected from SharedParamMappings + layer params for comprehensive coverage.
+        /// </summary>
+        private static string[] AllMaterialParamNames
+        {
+            get
+            {
+                var names = new List<string>();
+                foreach (var (_, paramName) in SharedParamMappings)
+                    names.Add(paramName);
+                // Layer data params
+                names.Add("MAT_LAYER_COUNT");
+                for (int i = 1; i <= 5; i++)
+                {
+                    names.Add($"MAT_LAYER_{i}_MATERIAL");
+                    names.Add($"MAT_LAYER_{i}_THICKNESS_MM");
+                    names.Add($"MAT_LAYER_{i}_FUNCTION");
+                }
+                return names.ToArray();
+            }
+        }
+
+        /// <summary>
+        /// Auto-bind all material shared parameters to OST_Materials if not already bound.
+        /// This ensures LookupParameter works when writing CSV data to materials.
+        /// Must be called BEFORE creating materials.
+        /// </summary>
+        public static int EnsureMaterialParamsBound(Document doc)
+        {
+            var app = doc.Application;
+            string spFile = app.SharedParametersFilename;
+            if (string.IsNullOrEmpty(spFile) || !File.Exists(spFile))
+            {
+                string autoPath = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                if (!string.IsNullOrEmpty(autoPath) && File.Exists(autoPath))
+                {
+                    app.SharedParametersFilename = autoPath;
+                    spFile = autoPath;
+                }
+                else
+                {
+                    StingLog.Warn("EnsureMaterialParamsBound: MR_PARAMETERS.txt not found");
+                    return 0;
+                }
+            }
+
+            DefinitionFile defFile = app.OpenSharedParameterFile();
+            if (defFile == null)
+            {
+                StingLog.Warn("EnsureMaterialParamsBound: cannot open shared param file");
+                return 0;
+            }
+
+            // Build definition lookup
+            var defLookup = new Dictionary<string, ExternalDefinition>(StringComparer.Ordinal);
+            foreach (DefinitionGroup group in defFile.Groups)
+                foreach (Definition def in group.Definitions)
+                    if (def is ExternalDefinition ext)
+                        defLookup[def.Name] = ext;
+
+            // Get Material category
+            Category matCat;
+            try
+            {
+                matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
+                if (matCat == null || !matCat.AllowsBoundParameters)
+                {
+                    StingLog.Warn("EnsureMaterialParamsBound: OST_Materials not available");
+                    return 0;
+                }
+            }
+            catch
+            {
+                StingLog.Warn("EnsureMaterialParamsBound: OST_Materials not available");
+                return 0;
+            }
+
+            CategorySet matCatSet = new CategorySet();
+            matCatSet.Insert(matCat);
+
+            // Pre-scan existing bindings to see which params are already bound to Materials
+            var existingOnMaterials = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var iter = doc.ParameterBindings.ForwardIterator();
+            while (iter.MoveNext())
+            {
+                string paramName = iter.Key?.Name;
+                if (string.IsNullOrEmpty(paramName)) continue;
+
+                if (iter.Current is InstanceBinding ib)
+                {
+                    var catIter = ib.Categories.ForwardIterator();
+                    while (catIter.MoveNext())
+                    {
+                        if (catIter.Current is Category c &&
+                            c.Id.Value == (int)BuiltInCategory.OST_Materials)
+                        {
+                            existingOnMaterials.Add(paramName);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Bind missing params
+            int bound = 0;
+            string[] paramNames = AllMaterialParamNames;
+
+            using (Transaction tx = new Transaction(doc, "STING Bind Material Params"))
+            {
+                tx.Start();
+                try
+                {
+                    foreach (string paramName in paramNames)
+                    {
+                        if (existingOnMaterials.Contains(paramName)) continue;
+                        if (!defLookup.TryGetValue(paramName, out ExternalDefinition extDef)) continue;
+
+                        try
+                        {
+                            // Try to get existing binding and add Materials category to it
+                            var existingBinding = doc.ParameterBindings.get_Item(extDef);
+                            if (existingBinding is InstanceBinding existingIb)
+                            {
+                                existingIb.Categories.Insert(matCat);
+                                doc.ParameterBindings.ReInsert(extDef, existingIb,
+                                    GroupTypeId.General);
+                                bound++;
+                            }
+                            else
+                            {
+                                // New binding just for Materials
+                                InstanceBinding binding = app.Create.NewInstanceBinding(matCatSet);
+                                bool result = doc.ParameterBindings.Insert(
+                                    extDef, binding, GroupTypeId.General);
+                                if (!result)
+                                    result = doc.ParameterBindings.ReInsert(
+                                        extDef, binding, GroupTypeId.General);
+                                if (result) bound++;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Bind '{paramName}' to Materials: {ex.Message}");
+                        }
+                    }
+
+                    tx.Commit();
+                    StingLog.Info($"EnsureMaterialParamsBound: {bound} params newly bound to Materials " +
+                        $"({existingOnMaterials.Count} already bound, {paramNames.Length} total)");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("EnsureMaterialParamsBound transaction failed", ex);
+                    if (tx.HasStarted() && !tx.HasEnded())
+                        tx.RollBack();
+                }
+            }
+
+            return bound;
+        }
+
+        /// <summary>
         /// Shared material creation logic for BLE and MEP commands.
         /// Reads CSV, finds/duplicates base materials, applies all properties.
+        /// Auto-binds shared params to Materials category before creation.
         /// Each batch is a standalone Transaction so Revit regenerates between batches.
         /// </summary>
         private const int MaterialBatchSize = 50;
@@ -517,6 +704,11 @@ namespace StingTools.Temp
                     "alongside StingTools.dll.");
                 return Result.Failed;
             }
+
+            // ── Step 0: Auto-bind material shared params to OST_Materials ──
+            int paramsBound = EnsureMaterialParamsBound(doc);
+            if (paramsBound > 0)
+                StingLog.Info($"{dialogTitle}: auto-bound {paramsBound} shared params to Materials category");
 
             var lines = File.ReadAllLines(csvPath)
                 .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
@@ -613,6 +805,7 @@ namespace StingTools.Temp
                 $"  Duplicated from base: {duplicated}\n" +
                 $"  Created blank: {created - duplicated}\n" +
                 $"Skipped {skipped} (already exist).\n" +
+                (paramsBound > 0 ? $"Material params bound: {paramsBound}\n" : "") +
                 (batchErrors > 0 ? $"Batch errors: {batchErrors}\n" : "") +
                 $"Source: {Path.GetFileName(csvPath)} ({lines.Count} rows)";
             TaskDialog.Show(dialogTitle, report);
