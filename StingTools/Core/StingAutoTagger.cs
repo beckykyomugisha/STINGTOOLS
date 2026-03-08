@@ -177,8 +177,7 @@ namespace StingTools.Core
 
                 // Build context once for the batch
                 var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
-                var existingTags = TagConfig.BuildExistingTagIndex(doc);
-                var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+                var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
 
                 foreach (ElementId id in addedIds)
                 {
@@ -201,6 +200,17 @@ namespace StingTools.Core
                     TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                         skipComplete: true, existingTags: existingTags,
                         collisionMode: TagCollisionMode.AutoIncrement);
+
+                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                    try
+                    {
+                        string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                        TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
+                    }
+                    catch (Exception tag7Ex)
+                    {
+                        StingLog.Warn($"AutoTagger TAG7 for {id}: {tag7Ex.Message}");
+                    }
 
                     lock (_processedLock)
                     {

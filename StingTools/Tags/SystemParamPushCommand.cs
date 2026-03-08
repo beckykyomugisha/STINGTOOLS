@@ -612,8 +612,7 @@ namespace StingTools.Tags
                 // If FullAutoTag mode, also build tags
                 if (mode == SystemParamPush.PushMode.FullAutoTag)
                 {
-                    var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
-                    var existingTags = TagConfig.BuildExistingTagIndex(doc);
+                    var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                     var stats = new TaggingStats();
 
                     foreach (var el in systemElementList)
@@ -625,6 +624,18 @@ namespace StingTools.Tags
                         TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                             skipComplete: true, existingTags,
                             TagCollisionMode.AutoIncrement, stats);
+
+                        // Write TAG7 + sub-sections
+                        try
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(el);
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
+                        }
+                        catch (Exception tag7Ex)
+                        {
+                            StingLog.Warn($"SystemParamPush TAG7 for {el.Id}: {tag7Ex.Message}");
+                        }
                     }
                 }
 
@@ -764,12 +775,12 @@ namespace StingTools.Tags
             {
                 tx.Start();
 
-                var seqCounters = mode == SystemParamPush.PushMode.FullAutoTag
-                    ? TagConfig.GetExistingSequenceCounters(doc)
-                    : null;
-                var existingTags = mode == SystemParamPush.PushMode.FullAutoTag
-                    ? TagConfig.BuildExistingTagIndex(doc)
-                    : null;
+                Dictionary<string, int> seqCounters = null;
+                HashSet<string> existingTags = null;
+                if (mode == SystemParamPush.PushMode.FullAutoTag)
+                {
+                    (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                }
 
                 foreach (var sys in allSystems)
                 {
@@ -793,6 +804,18 @@ namespace StingTools.Tags
                             TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                 skipComplete: true, existingTags,
                                 TagCollisionMode.AutoIncrement, stats);
+
+                            // Write TAG7 + sub-sections
+                            try
+                            {
+                                string catName = ParameterHelpers.GetCategoryName(el);
+                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
+                            }
+                            catch (Exception tag7Ex)
+                            {
+                                StingLog.Warn($"BatchSystemPush TAG7 for {el.Id}: {tag7Ex.Message}");
+                            }
                         }
                     }
 

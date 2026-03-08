@@ -379,10 +379,16 @@ namespace StingTools.Organise
                         // Find next unique SEQ
                         string newTag;
                         string newSeq;
+                        int maxSeqVal = (int)Math.Pow(10, ParamRegistry.NumPad) - 1;
                         int safety = 10000;
                         do
                         {
                             seqCounters[seqKey]++;
+                            if (seqCounters[seqKey] > maxSeqVal)
+                            {
+                                StingLog.Warn($"FixDuplicates SEQ overflow for group {seqKey}");
+                                break;
+                            }
                             newSeq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
                             newTag = string.Join(ParamRegistry.Separator, disc, loc, zone, lvl, sys, func, prod, newSeq);
                         } while (tagIndex.Contains(newTag) && safety-- > 0);
@@ -599,12 +605,18 @@ namespace StingTools.Organise
                             string groupKey = string.Join(ParamRegistry.Separator,
                                 disc, loc, zone, lvl, sys, func, prod);
                             int incSeq = seq + 1;
+                            int maxSeqVal = (int)Math.Pow(10, ParamRegistry.NumPad) - 1;
                             string incTag;
                             do
                             {
                                 string incSeqStr = incSeq.ToString().PadLeft(ParamRegistry.NumPad, '0');
                                 incTag = groupKey + ParamRegistry.Separator + incSeqStr;
                                 incSeq++;
+                                if (incSeq > maxSeqVal)
+                                {
+                                    StingLog.Warn($"Renumber SEQ overflow for group {groupKey}");
+                                    break;
+                                }
                             }
                             while (existingTagIndex.Contains(incTag) || newTags.Contains(incTag));
 
@@ -4521,7 +4533,7 @@ namespace StingTools.Organise
                             string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                             string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                             string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
-                            string key = $"{disc}-{sys}-{lvl}";
+                            string key = $"{disc}_{sys}_{lvl}";
                             if (!seqCounters.ContainsKey(key)) seqCounters[key] = 0;
                             seqCounters[key]++;
                             string newSeq = seqCounters[key].ToString().PadLeft(ParamRegistry.NumPad, '0');
