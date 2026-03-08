@@ -58,9 +58,11 @@ namespace StingTools.Tags
                 tx.Start();
 
                 // Pass 1: Universal parameters → all 53 categories (type-safe)
+                StingLog.Info($"Pass 1: UniversalParams has {SharedParamGuids.UniversalParams?.Length ?? 0} entries, " +
+                    $"AllCategoryEnums has {SharedParamGuids.AllCategoryEnums?.Length ?? 0} entries");
                 CategorySet allCats = SharedParamGuids.BuildCategorySet(
                     doc, SharedParamGuids.AllCategoryEnums);
-                StingLog.Info($"Pass 1: {allCats.Size} categories resolved");
+                StingLog.Info($"Pass 1: {allCats.Size} categories resolved, {SharedParamGuids.UniversalParams?.Length ?? 0} params to bind");
 
                 foreach (string paramName in SharedParamGuids.UniversalParams)
                 {
@@ -190,8 +192,10 @@ namespace StingTools.Tags
             // CRASH FIX: force regeneration before showing result dialog
             try { doc.Regenerate(); } catch { }
 
+            int universalCount = SharedParamGuids.UniversalParams?.Length ?? 0;
+            int catCount = SharedParamGuids.AllCategoryEnums?.Length ?? 0;
             string report = $"Shared parameter binding complete.\n\n" +
-                $"Pass 1 (Universal):   {pass1Bound} bound, {pass1Skipped} skipped\n" +
+                $"Pass 1 (Universal):   {pass1Bound} bound, {pass1Skipped} skipped  ({universalCount} params, {catCount} categories)\n" +
                 $"Pass 2 (Discipline):  {pass2Bound} bound, {pass2Skipped} skipped\n" +
                 (csvExtras > 0 ? $"  CSV extras: {csvExtras} categories added from CATEGORY_BINDINGS.csv\n" : "") +
                 $"\nSource: {spFile}";

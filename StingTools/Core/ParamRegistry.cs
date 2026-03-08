@@ -483,7 +483,42 @@ namespace StingTools.Core
             lock (_lock)
             {
                 if (_loaded) return;
-                LoadFromFile();
+                try
+                {
+                    LoadFromFile();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("EnsureLoaded: LoadFromFile failed, using minimal defaults", ex);
+                    // Set minimal defaults so the plugin doesn't crash entirely
+                    if (UniversalParams == null || UniversalParams.Length == 0)
+                    {
+                        UniversalParams = new[]
+                        {
+                            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+                            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
+                            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
+                            "ASS_STATUS_TXT", "ASS_INST_DETAIL_NUM_TXT", "MNT_TYPE_TXT",
+                        };
+                    }
+                    if (AllTokenParams == null || AllTokenParams.Length == 0)
+                    {
+                        AllTokenParams = new[]
+                        {
+                            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+                        };
+                    }
+                    if (ContainerGroups == null)
+                        ContainerGroups = Array.Empty<ContainerGroupDef>();
+                    if (CategoryEnumMap == null)
+                        CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    if (UniversalCategories == null)
+                        UniversalCategories = Array.Empty<string>();
+                }
                 _loaded = true;
             }
         }
@@ -949,10 +984,10 @@ namespace StingTools.Core
                 { "PARA_CST_CONC", "CST_TAG_7_PARA_CONC_TXT" },
                 // Warning threshold
                 { "ELC_PNL_RATED", "ELC_PNL_RATED_BOOL" },
-                // ISO 19650 naming
-                { "PROJECT_COD", "PRJ_PROJECT_COD_TXT" }, { "ORIGINATOR_COD", "PRJ_ORIGINATOR_COD_TXT" },
-                { "VOLUME_COD", "PRJ_VOLUME_COD_TXT" }, { "STATUS_COD", "PRJ_STATUS_COD_TXT" },
-                { "REV_COD", "PRJ_REV_COD_TXT" },
+                // ISO 19650 project-level naming (PRJ_ prefix variants)
+                { "PRJ_PROJECT_COD", "PRJ_PROJECT_COD_TXT" }, { "PRJ_ORIGINATOR_COD", "PRJ_ORIGINATOR_COD_TXT" },
+                { "PRJ_VOLUME_COD", "PRJ_VOLUME_COD_TXT" }, { "PRJ_STATUS_COD", "PRJ_STATUS_COD_TXT" },
+                { "PRJ_REV_COD", "PRJ_REV_COD_TXT" },
             };
 
             ContainerGroups = Array.Empty<ContainerGroupDef>();
