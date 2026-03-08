@@ -10,7 +10,7 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 - **62 source files** (59 C# + 2 XAML + 1 AssemblyInfo, ~63,515 lines of code) across 8 directories
 - **265 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
-- **20 runtime data files** (CSV, JSON, TXT, XLSX, PY)
+- **21 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel + 1 WPF project setup wizard
 
 ## Technology Stack
@@ -111,7 +111,7 @@ STINGTOOLS/
     │   ├── FamilyCommands.cs           # Wall/Floor/Ceiling/Roof/Duct/Pipe types + CompoundTypeCreator
     │   ├── ScheduleCommands.cs         # FullAutoPopulate, BatchSchedules, AutoPopulate, ExportCSV + ScheduleHelper
     │   ├── ScheduleEnhancementCommands.cs # 9 schedule mgmt: Audit, Compare, Duplicate, Refresh, FieldMgr, Color, Stats, Delete, Report
-    │   ├── FormulaEvaluatorCommand.cs  # Formula engine (199 formulas) + FormulaEngine + ExpressionParser
+    │   ├── FormulaEvaluatorCommand.cs  # Formula engine (199 formulas) + FormulaEngine + ExpressionParser + MaterialLookup
     │   ├── TemplateCommands.cs         # Filters, worksets, view templates (23 template defs + VG configuration)
     │   ├── TemplateExtCommands.cs      # Line patterns, phases, apply filters, cable trays, conduits, material schedules
     │   ├── TemplateManagerCommands.cs  # 17 template intelligence commands + TemplateManager engine (~3,464 lines)
@@ -128,8 +128,9 @@ STINGTOOLS/
         ├── SCHEDULE_FIELD_REMAP.csv    # 50 field deprecation remaps
         ├── BINDING_COVERAGE_MATRIX.csv # Parameter-category coverage
         ├── BOQ_TEMPLATE.csv            # Bill of Quantities template structure
-        ├── CATEGORY_BINDINGS.csv       # 10,661 category bindings
-        ├── FAMILY_PARAMETER_BINDINGS.csv   # 4,686 family bindings
+        ├── CATEGORY_BINDINGS.csv       # 10,706 category bindings
+        ├── FAMILY_PARAMETER_BINDINGS.csv   # 4,731 family bindings
+        ├── MATERIAL_LOOKUP.csv         # 237-row material variation lookup tables (concrete grades, brick bonds, paint types, etc.)
         ├── PARAMETER__CATEGORIES.csv   # Parameter-category cross-reference
         ├── PARAMETER_REGISTRY.json     # Master parameter registry (v4.3) — single source of truth for ParamRegistry.cs
         ├── LABEL_DEFINITIONS.json      # 3,623-line label/legend definition specs for all tag containers and display styles
@@ -386,7 +387,7 @@ STINGTOOLS/
 | `Temp/FamilyCommands.cs` | 6 (Walls, Floors, Ceilings, Roofs, Ducts, Pipes) + CompoundTypeCreator | 723 |
 | `Temp/ScheduleCommands.cs` | 6 (FullAutoPopulate, BatchSchedules, AutoPopulate, ExportCSV, CorporateTitleBlockSchedule, DrawingRegisterSchedule) + ScheduleHelper | 2,004 |
 | `Temp/ScheduleEnhancementCommands.cs` | 9 (Audit, Compare, Duplicate, Refresh, FieldMgr, Color, Stats, Delete, Report) | 1,634 |
-| `Temp/FormulaEvaluatorCommand.cs` | 1 (+ FormulaEngine + ExpressionParser) | 850 |
+| `Temp/FormulaEvaluatorCommand.cs` | 1 (+ FormulaEngine + ExpressionParser + MaterialLookup) | 1,299 |
 | `Temp/TemplateCommands.cs` | 3 (Filters, Worksets, ViewTemplates) | 1,304 |
 | `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 316 |
 | `Temp/TemplateManagerCommands.cs` | 17 (AutoAssign, Audit, Diff, Compliance, AutoFix, SyncOverrides, FillPatterns, LineStyles, ObjectStyles, TextStyles, DimStyles, VGOverrides, BatchFamilyParams, TemplateSchedules, SetupWizard, CloneTemplate, BatchVGReset) + TemplateManager engine | 3,464 |
@@ -459,7 +460,7 @@ STINGTOOLS/
 - Loads from `PARAMETER_REGISTRY.json` at runtime (thread-safe lazy initialization via `EnsureLoaded()` with lock); falls back to hardcoded defaults if JSON not found
 - **Tag format configuration**: `Separator`, `NumPad`, `SegmentOrder` — data-driven rather than hardcoded
 - **Typed string constants** for all 8 source tokens (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ) + universal containers (TAG1-TAG7, TAG7A-TAG7F)
-- **Extended parameter constants**: ~60+ parameters across identity, spatial, BLE dimensional, electrical, lighting, HVAC, and plumbing groups
+- **Extended parameter constants**: ~75+ parameters across identity, spatial, BLE dimensional (incl. material variation types), electrical, lighting, HVAC, and plumbing groups
 - **GUID lookups**: `GetGuid(paramName)`, `GetParamName(guid)`, `AllParamGuids`
 - **Container management**: `AllContainers`, `ContainersForCategory(categoryName)`, `GetContainerTuples()`
 - **Token presets**: Named index arrays for partial tag strings
@@ -571,7 +572,7 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `AnnotationColorHelper` | `Organise/TagOperationCommands.cs` | Discipline-to-Color map, quick-pick colors, solid fill finder, annotation `OverrideGraphicSettings` builder |
 | `ScheduleHelper` | `Temp/ScheduleCommands.cs` | Schedule creation utilities and field remap loading from SCHEDULE_FIELD_REMAP.csv |
 | `ScheduleAuditHelper` | `Temp/ScheduleEnhancementCommands.cs` | CSV definition loader, ScheduleDefinition model, shared infrastructure for schedule management commands |
-| `FormulaEngine` | `Temp/FormulaEvaluatorCommand.cs` | Formula parsing, context building, text/numeric evaluation, includes `ExpressionParser` recursive descent parser |
+| `FormulaEngine` | `Temp/FormulaEvaluatorCommand.cs` | Formula parsing, context building, text/numeric evaluation, `ExpressionParser` recursive descent parser, `MaterialLookup` cache for material variation lookups |
 | `TemplateManager` | `Temp/TemplateManagerCommands.cs` | Deep template intelligence engine: 5-layer auto-assignment, compliance scoring, VG diff, style definitions |
 | `TagFamilyConfig` | `Tags/TagFamilyCreatorCommand.cs` | Configuration for tag family creation: 50 `BuiltInCategory` to `.rft` template mappings, seed family lookup, output directory management |
 | `LegendBuilder` | `Tags/LegendBuilderCommands.cs` | Legend creation engine: drafting view legends with FilledRegion swatches and TextNote labels, multi-column grid layout |
@@ -854,7 +855,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | ~~**No template automation**~~ | **DONE** — `TemplateManagerCommands.cs` with 17 commands and `TemplateManager` intelligence engine: 5-layer auto-assignment, compliance scoring, VG diff, style definitions. `ViewTemplatesCommand` expanded to 23 template definitions with VG configuration. | Done |
 | ~~**No dockable panel UI**~~ | **DONE** — WPF dockable panel (`UI/` directory, 6 files) with 6-tab interface (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW), `IExternalEventHandler` dispatch for thread safety, ~413 buttons, colour swatches, bulk parameter controls. | Done |
 | ~~Cross-parameter validation~~ | **DONE** — `ISO19650Validator` validates all tokens, cross-validates DISC/SYS against category, validates tag format. `FixDuplicateTagsCommand` auto-resolves duplicates. | Done |
-| ~~Formula evaluation engine~~ | **DONE** — `FormulaEvaluatorCommand` + `FormulaEngine` reads 199 formulas from CSV, evaluates in dependency order (levels 0-6), supports arithmetic, conditionals, string concat, and Revit geometry inputs. | Done |
+| ~~Formula evaluation engine~~ | **DONE** — `FormulaEvaluatorCommand` + `FormulaEngine` reads 199 formulas from CSV, evaluates in dependency order (levels 0-6), supports arithmetic, conditionals, string concat, Revit geometry inputs, and `lookup()` function for material variation tables. 8 math functions (or, and, not, min, max, abs, round, sqrt). `MATERIAL_LOOKUP.csv` provides 237 entries across 15 material categories (concrete grades, brick bonds, block sizes, mortar mixes, paint types, etc.). 13 new material variation parameters added (BLE_BRICK_BOND_TYPE_TXT, BLE_BLOCK_SIZE_TXT, BLE_MORTAR_MIX_TXT, BLE_PAINT_TYPE_TXT, BLE_TILE_SIZE_TXT, BLE_TILE_JOINT_WIDTH_MM, BLE_PLASTER_TYPE_TXT, BLE_ROOF_SHEET_PROFILE_TXT, BLE_ROOF_LOAD_CLASS_TXT, BLE_SURFACE_CONDITION_TXT, CST_FORMWORK_TYPE_TXT, CST_PLYWOOD_SIZE_TXT, CST_SAND_MOISTURE_TXT). 25 formulas updated from hardcoded constants to lookup() calls. | Done |
 | ~~Family-stage pre-population~~ | **DONE** — `FamilyStagePopulateCommand` pre-populates all 7 tokens before tagging (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD). | Done |
 | ~~Leader management commands~~ | **DONE** — 14 leader management commands: Toggle/Add/Remove Leaders, Align Tags, Reset Positions, Toggle Orientation, Snap Elbows, Auto-Align Leader Text, Flip Tags, Align Text, Pin/Unpin, Nudge, Attach/Free, Select by Leader. | Done |
 | ~~Tag register export~~ | **DONE** — `TagRegisterExportCommand` exports comprehensive 40+ column asset register (tags, identity, spatial, MEP, cost, validation) to CSV. | Done |
@@ -1061,6 +1062,70 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 
 ---
 
+### Material Variation Lookup System — IMPLEMENTED
+
+The formula engine uses a `lookup(CATEGORY, TYPE_PARAM, PROPERTY)` function to retrieve material-specific values from `MATERIAL_LOOKUP.csv`, replacing hardcoded constants in 25 formulas. This enables accurate quantity calculations that account for material variations.
+
+#### Architecture
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `MATERIAL_LOOKUP.csv` | `Data/MATERIAL_LOOKUP.csv` (237 rows) | Lookup tables for 15 material categories with DEFAULT fallbacks |
+| `FormulaEngine.LookupMaterial()` | `Temp/FormulaEvaluatorCommand.cs` | Thread-safe cached lookup with `CATEGORY\|TYPE_KEY\|PROPERTY` keys |
+| `ExpressionParser.ParseLookup()` | `Temp/FormulaEvaluatorCommand.cs` | Parses `lookup(CAT, PARAM, PROP)` in formula expressions |
+
+#### Material Categories (15)
+
+| Category | Types | Key Properties |
+|----------|-------|----------------|
+| CONCRETE | C15, C20, C25, C30, C35, C40, C45 | CEMENT_BAGS_PER_M3, WATER_CEMENT_RATIO, CARBON_KG_PER_M3, SAND_M3_PER_M3, AGGREGATE_M3_PER_M3, STRENGTH_MPA |
+| BRICK_BOND | STRETCHER, HEADER, ENGLISH, FLEMISH, STACK, RAT_TRAP | BRICKS_PER_M2, MORTAR_M3_PER_M2, WASTE_PCT |
+| BLOCK | 440x215, 390x190, 400x200, 300x200, 200x200 | BLOCKS_PER_M2, MORTAR_M3_PER_M2, FACE_AREA_M2 |
+| MORTAR | 1:3, 1:4, 1:5, 1:6, 1:8 | CEMENT_KG_PER_M3, SAND_M3_PER_M3, STRENGTH_MPA |
+| PAINT | PRIMER, EMULSION, GLOSS, EGGSHELL, TEXTURED, EPOXY, ANTI_RUST, WEATHER_SHIELD | COVERAGE_M2_PER_L, COATS_REQUIRED, DRY_TIME_HRS |
+| TILE | MOSAIC, SMALL, MEDIUM, LARGE | TILES_PER_M2, ADHESIVE_KG_PER_M2, GROUT_KG_PER_M2 |
+| PLASTER | THIN_COAT, STANDARD, THICK, LIME | THICKNESS_MM, COVERAGE_M2_PER_BAG, BAGS_PER_M2 |
+| ROOF_SHEET | CORRUGATED, BOX_PROFILE, STANDING_SEAM, FIBRE_CEMENT, CLAY_TILE, CONCRETE_TILE | COVER_WIDTH_MM, OVERLAP_MM, WEIGHT_KG_PER_M2 |
+| PURLIN | DEFAULT | SPACING_MM |
+| FORMWORK | DEFAULT | REUSES, AREA_PER_M3 |
+| SAND | DEFAULT | BULKING_FACTOR |
+| PLYWOOD | DEFAULT | AREA_M2 |
+| PUTTY | DEFAULT | COVERAGE_M2_PER_KG |
+| GROUT | DEFAULT | KG_PER_M2_AT_3MM |
+| REBAR_LAP | DEFAULT | SPLICE_FACTOR |
+
+#### New Material Variation Parameters (13)
+
+| Parameter | Data Type | Group | Description |
+|-----------|-----------|-------|-------------|
+| `BLE_BRICK_BOND_TYPE_TXT` | TEXT | BLE_ELES | Brick bond type (STRETCHER, HEADER, ENGLISH, FLEMISH) |
+| `BLE_BLOCK_SIZE_TXT` | TEXT | BLE_ELES | Block face dimensions LxH mm (440x215, 390x190, 400x200) |
+| `BLE_MORTAR_MIX_TXT` | TEXT | BLE_ELES | Mortar mix ratio (1:3, 1:4, 1:5, 1:6, 1:8) |
+| `BLE_PAINT_TYPE_TXT` | TEXT | BLE_ELES | Paint type (PRIMER, EMULSION, GLOSS, EGGSHELL, TEXTURED, EPOXY) |
+| `BLE_TILE_SIZE_TXT` | TEXT | BLE_ELES | Tile size class (MOSAIC, SMALL, MEDIUM, LARGE) |
+| `BLE_TILE_JOINT_WIDTH_MM` | LENGTH | BLE_ELES | Tile grout joint width in mm (2, 3, 5, 8, 10) |
+| `BLE_PLASTER_TYPE_TXT` | TEXT | BLE_ELES | Plaster type (THIN_COAT, STANDARD, THICK, LIME) |
+| `BLE_ROOF_SHEET_PROFILE_TXT` | TEXT | BLE_ELES | Roof sheet profile (CORRUGATED, BOX_PROFILE, STANDING_SEAM, etc.) |
+| `BLE_ROOF_LOAD_CLASS_TXT` | TEXT | BLE_ELES | Roof load class (LIGHT, MEDIUM, HEAVY) |
+| `BLE_SURFACE_CONDITION_TXT` | TEXT | BLE_ELES | Surface condition (SMOOTH, FAIR, ROUGH, VERY_ROUGH) |
+| `CST_FORMWORK_TYPE_TXT` | TEXT | CST_PROC | Formwork type (TIMBER, STEEL, PLYWOOD, PLASTIC) |
+| `CST_PLYWOOD_SIZE_TXT` | TEXT | CST_PROC | Plywood sheet size (2440x1220, 2400x1200, 1220x610) |
+| `CST_SAND_MOISTURE_TXT` | TEXT | CST_PROC | Sand moisture condition (DRY, DAMP, WET, SATURATED) |
+
+#### Formula lookup() Usage
+
+```
+# Before (hardcoded):
+BLE_WALL_LENGTH_MM * BLE_WALL_HEIGHT_MM / 1000000 * 55 * 1.05
+
+# After (data-driven):
+BLE_WALL_LENGTH_MM * BLE_WALL_HEIGHT_MM / 1000000 * lookup(BRICK_BOND, BLE_BRICK_BOND_TYPE_TXT, BRICKS_PER_M2) * (1 + lookup(BRICK_BOND, BLE_BRICK_BOND_TYPE_TXT, WASTE_PCT) / 100)
+```
+
+The `lookup()` function resolves TYPE_PARAM from the element's parameter value at runtime, falls back to DEFAULT if the type is not found, and returns `null` if neither exists (formula then falls back to 0).
+
+---
+
 ### Implementation Priority Matrix
 
 #### Completed (Phases 1-3)
@@ -1072,7 +1137,7 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 5. **Cross-parameter validation** — `ISO19650Validator` with DISC/SYS/category cross-check
 6. **LOC/ZONE auto-detection** — `SpatialAutoDetect` from room and project data
 7. **Family-aware PROD codes** — `GetFamilyAwareProdCode()` with 35+ mappings
-8. **Formula evaluation engine** — `FormulaEvaluatorCommand` with recursive descent parser
+8. **Formula evaluation engine** — `FormulaEvaluatorCommand` with recursive descent parser, `lookup()` function, and material variation tables
 9. **Document automation** — DeleteUnusedViews, SheetNamingCheck, AutoNumberSheets
 10. **Leader management** — 14 annotation leader commands
 11. **Tag register export** — 40+ column comprehensive CSV export

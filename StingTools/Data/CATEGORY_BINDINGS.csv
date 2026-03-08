@@ -12774,3 +12774,48 @@ PH_END_DATE_TXT,Railings,Type,True
 PH_STATUS_TXT,Railings,Type,True
 PH_START_DATE_TXT,Railings,Type,True
 PH_NAME_TXT,Railings,Type,True
+BLE_BRICK_BOND_TYPE_TXT,Walls,Type,True
+BLE_BLOCK_SIZE_TXT,Walls,Type,True
+BLE_MORTAR_MIX_TXT,Walls,Type,True
+BLE_MORTAR_MIX_TXT,Floors,Type,True
+BLE_PAINT_TYPE_TXT,Walls,Type,True
+BLE_PAINT_TYPE_TXT,Ceilings,Type,True
+BLE_PAINT_TYPE_TXT,Doors,Type,True
+BLE_PAINT_TYPE_TXT,Windows,Type,True
+BLE_PAINT_TYPE_TXT,Generic Models,Type,True
+BLE_TILE_SIZE_TXT,Walls,Type,True
+BLE_TILE_SIZE_TXT,Floors,Type,True
+BLE_TILE_SIZE_TXT,Ceilings,Type,True
+BLE_TILE_JOINT_WIDTH_MM,Walls,Type,True
+BLE_TILE_JOINT_WIDTH_MM,Floors,Type,True
+BLE_TILE_JOINT_WIDTH_MM,Ceilings,Type,True
+BLE_PLASTER_TYPE_TXT,Walls,Type,True
+BLE_PLASTER_TYPE_TXT,Ceilings,Type,True
+BLE_ROOF_SHEET_PROFILE_TXT,Roofs,Type,True
+BLE_ROOF_LOAD_CLASS_TXT,Roofs,Type,True
+BLE_SURFACE_CONDITION_TXT,Walls,Type,True
+BLE_SURFACE_CONDITION_TXT,Floors,Type,True
+BLE_SURFACE_CONDITION_TXT,Ceilings,Type,True
+BLE_SURFACE_CONDITION_TXT,Roofs,Type,True
+BLE_SURFACE_CONDITION_TXT,Generic Models,Type,True
+CST_FORMWORK_TYPE_TXT,Floors,Type,True
+CST_FORMWORK_TYPE_TXT,Generic Models,Type,True
+CST_FORMWORK_TYPE_TXT,Roofs,Type,True
+CST_FORMWORK_TYPE_TXT,Structural Columns,Type,True
+CST_FORMWORK_TYPE_TXT,Structural Foundations,Type,True
+CST_FORMWORK_TYPE_TXT,Structural Framing,Type,True
+CST_FORMWORK_TYPE_TXT,Walls,Type,True
+CST_PLYWOOD_SIZE_TXT,Floors,Type,True
+CST_PLYWOOD_SIZE_TXT,Generic Models,Type,True
+CST_PLYWOOD_SIZE_TXT,Roofs,Type,True
+CST_PLYWOOD_SIZE_TXT,Structural Columns,Type,True
+CST_PLYWOOD_SIZE_TXT,Structural Foundations,Type,True
+CST_PLYWOOD_SIZE_TXT,Structural Framing,Type,True
+CST_PLYWOOD_SIZE_TXT,Walls,Type,True
+CST_SAND_MOISTURE_TXT,Floors,Type,True
+CST_SAND_MOISTURE_TXT,Generic Models,Type,True
+CST_SAND_MOISTURE_TXT,Roofs,Type,True
+CST_SAND_MOISTURE_TXT,Structural Columns,Type,True
+CST_SAND_MOISTURE_TXT,Structural Foundations,Type,True
+CST_SAND_MOISTURE_TXT,Structural Framing,Type,True
+CST_SAND_MOISTURE_TXT,Walls,Type,True
