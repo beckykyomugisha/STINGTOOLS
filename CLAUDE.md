@@ -835,10 +835,10 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | ~~**No tag collision detection**~~ | `TagConfig.cs` | **DONE** — `BuildAndWriteTag` accepts `existingTags` HashSet for O(1) collision detection; auto-increments SEQ on duplicate. `BuildExistingTagIndex()` builds the index once per batch. All callers updated. | Done |
 | ~~**No progress reporting**~~ | `BatchTagCommand`, `MasterSetupCommand` | **DONE** — BatchTag shows element count upfront, logs every 500 elements, reports duration. MasterSetup reports per-step timing. | Done |
 | ~~**No cancellation support**~~ | All batch commands | **DONE** — `StingProgressDialog` provides modeless progress window with Cancel button and Escape key detection. `EscapeChecker` utility for Win32 key state. `WorkflowEngine` checks cancellation between steps. | Done |
-| **Hardcoded category bindings** | `SharedParamGuids.cs:109-261` | 53 categories + discipline bindings hardcoded; adding a category requires code rebuild (BINDING_COVERAGE_MATRIX.csv exists but unused) | Medium |
+| ~~**Hardcoded category bindings**~~ | `SharedParamGuids.cs`, `ParamRegistry.cs` | **DONE** — Discipline bindings derived from `PARAMETER_REGISTRY.json` container_groups (data-driven). `CATEGORY_BINDINGS.csv` loaded by `TemplateManager.LoadCategoryBindings()` and used by `LoadSharedParamsCommand` Pass 2 to augment JSON bindings. `FAMILY_PARAMETER_BINDINGS.csv` loaded by `BatchAddFamilyParamsCommand`. | Done |
 | ~~**No error recovery**~~ | `MasterSetupCommand.cs` | **DONE** — Wrapped in `TransactionGroup` for atomic rollback. If critical step 1 (Load Params) fails, user can rollback immediately. Per-step timing reported. | Done |
-| **Fixed tag format** | `TagConfig.cs:16-18` | `NumPad=4`, `Separator="-"` hardcoded — can't change segment count, order, or separator | Medium |
-| **Partially unused data files** | `Data/` directory | Most files now loaded. MATERIAL_SCHEMA.json used by `SchemaValidateCommand`. BINDING_COVERAGE_MATRIX.csv used by `DynamicBindingsCommand`. VALIDAT_BIM_TEMPLATE.py ported to C# (`ValidateTemplateCommand`). Remaining unused: CATEGORY_BINDINGS.csv (10,661 entries), FAMILY_PARAMETER_BINDINGS.csv (4,686 entries) | Low |
+| ~~**Fixed tag format**~~ | `ParamRegistry.cs`, `TagConfig.cs` | **DONE** — Tag format (separator, num_pad, segment_order) loaded from `PARAMETER_REGISTRY.json`, with project-level overrides via `project_config.json` TAG_FORMAT section. `ConfigEditorCommand` displays and saves tag format settings. | Done |
+| ~~**Partially unused data files**~~ | `Data/` directory | **DONE** — All data files now loaded: CATEGORY_BINDINGS.csv (LoadSharedParams Pass 2), FAMILY_PARAMETER_BINDINGS.csv (BatchAddFamilyParams), MATERIAL_SCHEMA.json (SchemaValidate), BINDING_COVERAGE_MATRIX.csv (DynamicBindings), VALIDAT_BIM_TEMPLATE.py (ported to ValidateTemplate). | Done |
 
 #### B. Enhancement Opportunities
 
@@ -870,7 +870,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | ~~Annotation color management~~ | **DONE** — 5 commands in `TagOperationCommands.cs`: ColorTagsByDiscipline, SetTagTextColor, SetLeaderColor, SplitTagLeaderColor, ClearAnnotationColors. | Done |
 | ~~Schema validation~~ | **DONE** — `SchemaValidateCommand` validates BLE/MEP CSV columns match MATERIAL_SCHEMA.json (77-column schema). | Done |
 | ~~Schedule management system~~ | **DONE** — `ScheduleEnhancementCommands.cs` (1,579 lines) with 9 commands: Audit, Compare, Duplicate, Refresh, FieldManager, Color, Stats, Delete, Report. Plus ScheduleAutoFit, MatchWidest (functional), ToggleHidden inline operations. `ScheduleAuditHelper` engine loads CSV definitions for cross-reference. | Done |
-| Configurable tag format in project_config.json (separator, padding, segments) | Flexibility for different standards | Medium |
+| ~~Configurable tag format in project_config.json (separator, padding, segments)~~ | **DONE** — TAG_FORMAT section in project_config.json with `ParamRegistry.ApplyTagFormatOverrides()`. ConfigEditorCommand displays and saves tag format. | Done |
 | ~~Batch command chaining / workflow presets~~ | **DONE** — `WorkflowEngine` with JSON presets, 3 built-in workflows, cancellation, TransactionGroup rollback | Done |
 | ~~Cancellation support~~ | **DONE** — `StingProgressDialog` + `EscapeChecker` for batch operations | Done |
 | ~~Real-time auto-tagging~~ | **DONE** — `StingAutoTagger` IUpdater for zero-touch tagging on element placement | Done |
@@ -1055,8 +1055,8 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 |------|------|----------------|----------------|
 | ~~`MATERIAL_SCHEMA.json`~~ | 77 cols | **DONE** — loaded by `SchemaValidateCommand` | Validates BLE/MEP CSV columns match schema |
 | ~~`BINDING_COVERAGE_MATRIX.csv`~~ | Large | **DONE** — loaded by `DynamicBindingsCommand` | Replaces hardcoded category bindings |
-| `CATEGORY_BINDINGS.csv` | 10,661 | **Not yet loaded** | Replace hardcoded `DisciplineBindings` — data-driven parameter binding |
-| `FAMILY_PARAMETER_BINDINGS.csv` | 4,686 | **Not yet loaded** | Family-level parameter validation and auto-binding |
+| ~~`CATEGORY_BINDINGS.csv`~~ | 10,661 | **DONE** — loaded by `TemplateManager.LoadCategoryBindings()`, used in `LoadSharedParamsCommand` Pass 2 | Augments JSON-derived discipline bindings with CSV-based category mappings |
+| ~~`FAMILY_PARAMETER_BINDINGS.csv`~~ | 4,686 | **DONE** — loaded by `TemplateManager.LoadFamilyParameterBindings()`, used in `BatchAddFamilyParamsCommand` | Data-driven family parameter binding with GUID validation |
 | ~~`VALIDAT_BIM_TEMPLATE.py`~~ | 45 checks | **DONE** — ported to C# `ValidateTemplateCommand` | 45 validation checks now in `DataPipelineCommands.cs` |
 
 ---
@@ -1127,11 +1127,11 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 48. **Parameter binding** — Fixed binding counts, dropdown population, export save location, dialog buttons
 49. **Tagging pipeline** — Fixed LVL handling, level code parsing, SetString safety, TAG7 writing, key format, overflow guards
 
-#### Next Priorities
+#### Completed (Phase 8 — Data Integration & Configuration)
 
-50. **Configurable tag format** — Separator, padding, segments via project_config.json
-51. **Dynamic discipline bindings** — Load CATEGORY_BINDINGS.csv (10,661 entries) to replace hardcoded `DisciplineBindings`
-52. **Family parameter auto-binding** — Load FAMILY_PARAMETER_BINDINGS.csv (4,686 entries) for family-level validation
+50. **Configurable tag format** — Separator, padding, segment order configurable via `project_config.json` TAG_FORMAT section with `ParamRegistry.ApplyTagFormatOverrides()`. `ConfigEditorCommand` displays and saves tag format settings.
+51. **Dynamic discipline bindings** — `CATEGORY_BINDINGS.csv` (10,661 entries) loaded by `TemplateManager.LoadCategoryBindings()` and used in `LoadSharedParamsCommand` Pass 2 to augment JSON-derived bindings.
+52. **Family parameter auto-binding** — `FAMILY_PARAMETER_BINDINGS.csv` (4,686 entries) loaded by `BatchAddFamilyParamsCommand` for data-driven family parameter binding with GUID validation.
 
 ### External Tool References
 

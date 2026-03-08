@@ -46,6 +46,7 @@ namespace StingTools.Tags
             td.MainInstruction = "Tag Configuration";
             td.MainContent =
                 $"Current source: {TagConfig.ConfigSource}\n" +
+                $"Tag format:    {string.Join(TagConfig.Separator, TagConfig.SegmentOrder)} (pad {TagConfig.NumPad})\n" +
                 $"Disciplines:   {TagConfig.DiscMap.Count} category mappings\n" +
                 $"Systems:       {TagConfig.SysMap.Count} system groups\n" +
                 $"Products:      {TagConfig.ProdMap.Count} product codes\n" +
@@ -126,6 +127,13 @@ namespace StingTools.Tags
             report.AppendLine($"Source: {TagConfig.ConfigSource}");
             report.AppendLine();
 
+            report.AppendLine("── Tag Format ──");
+            report.AppendLine($"  Separator:     \"{TagConfig.Separator}\"");
+            report.AppendLine($"  Padding:       {TagConfig.NumPad} digits");
+            report.AppendLine($"  Segments:      {string.Join(", ", TagConfig.SegmentOrder)}");
+            report.AppendLine($"  Example:       M{TagConfig.Separator}BLD1{TagConfig.Separator}Z01{TagConfig.Separator}L02{TagConfig.Separator}HVAC{TagConfig.Separator}SUP{TagConfig.Separator}AHU{TagConfig.Separator}{"1".PadLeft(TagConfig.NumPad, '0')}");
+            report.AppendLine();
+
             report.AppendLine($"── DISC Map ({TagConfig.DiscMap.Count} entries) ──");
             foreach (var kvp in TagConfig.DiscMap.OrderBy(x => x.Value).ThenBy(x => x.Key))
                 report.AppendLine($"  {kvp.Value,-4} ← {kvp.Key}");
@@ -175,6 +183,13 @@ namespace StingTools.Tags
                     { "FUNC_MAP", TagConfig.FuncMap },
                     { "LOC_CODES", TagConfig.LocCodes },
                     { "ZONE_CODES", TagConfig.ZoneCodes },
+                    { "TAG_FORMAT", new Dictionary<string, object>
+                        {
+                            { "separator", TagConfig.Separator },
+                            { "num_pad", TagConfig.NumPad },
+                            { "segment_order", TagConfig.SegmentOrder }
+                        }
+                    },
                 };
 
                 string json = JsonConvert.SerializeObject(config, Formatting.Indented);

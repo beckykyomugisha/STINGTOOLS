@@ -377,8 +377,8 @@ namespace StingTools.Organise
                         if (!seqCounters.ContainsKey(seqKey)) seqCounters[seqKey] = 0;
 
                         // Find next unique SEQ
-                        string newTag;
-                        string newSeq;
+                        string newTag = "";
+                        string newSeq = "";
                         int maxSeqVal = (int)Math.Pow(10, ParamRegistry.NumPad) - 1;
                         int safety = 10000;
                         do

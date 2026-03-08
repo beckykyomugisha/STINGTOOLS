@@ -294,5 +294,107 @@ Assemble System,"SYS, FUNC",ASS_TAG_4,ParamRegistry.AssembleContainer(),System c
 Multi-line Top,All 8 tokens,ASS_TAG_5,ParamRegistry.AssembleContainer(),Line-break separated
 Multi-line Bottom,All 8 tokens,ASS_TAG_6,ParamRegistry.AssembleContainer(),Line-break separated
 Discipline Containers,All 8 tokens,HVC_EQP_TAG etc.,ParamRegistry.WriteContainers(),Category-matched discipline containers
-TAG7 Narrative,Element data,ASS_TAG_7,TagConfig.WriteTag7All(),Rich descriptive narrative with markup
-TAG7 Sections,Element data,ASS_TAG_7A-F,TagConfig.WriteTag7All(),Individual section narratives
+TAG7 Narrative,Element data,ASS_TAG_7,TagConfig.WriteTag7All(),Rich descriptive narrative with meaningful connecting words between sections
+TAG7 Sections,Element data,ASS_TAG_7A-F,TagConfig.WriteTag7All(),Individual section narratives prefixed/suffixed with logical connectors
+##
+## ═══════════════════════════════════════════════════════════════════════════════
+## SHEET 14: TAG STYLE ENGINE — Visual Appearance Control
+## ═══════════════════════════════════════════════════════════════════════════════
+SECTION,TAG_STYLE_ENGINE
+NOTE,Tag Style Engine controls tag text appearance via BOOL shared parameter matrix
+NOTE,Each tag family has label rows bound to TAG_{SIZE}{STYLE}_{COLOR}_BOOL parameters
+NOTE,Setting exactly ONE BOOL true per element type makes that label row visible
+NOTE,Bounding box and leader colors are controlled separately via RGB integer parameters
+##
+## TAG STYLE PARAMETER MATRIX (128 combinations = 4 sizes x 4 styles x 8 colors)
+PARAMETER_PATTERN,SIZES,STYLES,COLORS,TOTAL
+TAG_{SIZE}{STYLE}_{COLOR}_BOOL,"2, 2.5, 3, 3.5","NOM, BOLD, ITALIC, BOLDITALIC","BLACK, BLUE, GREEN, RED, ORANGE, PURPLE, GREY, WHITE",128
+##
+## TEXT SIZE OPTIONS
+SIZE,MM_HEIGHT,USE_CASE
+2,2.0 mm,"Compact annotations — minimal visual footprint for dense drawings"
+2.5,2.5 mm,"Standard everyday annotations — default for engineering drawings"
+3,3.0 mm,"Large annotations — presentation sheets and client deliverables"
+3.5,3.5 mm,"Extra-large annotations — titles, headings, and emphasis labels"
+##
+## TEXT STYLE OPTIONS
+STYLE_CODE,DISPLAY_NAME,USE_CASE
+NOM,Normal,"Standard weight text — general annotations and reference labels"
+BOLD,Bold,"Heavy emphasis — headings, equipment names, key identifiers"
+ITALIC,Italic,"Slanted emphasis — secondary info, notes, status annotations"
+BOLDITALIC,Bold Italic,"Maximum emphasis — warnings, critical data, highlighted values"
+##
+## TEXT COLOR OPTIONS — Each color has SEMANTIC MEANING per context
+COLOR_CODE,RGB_VALUES,DISCIPLINE_MEANING,SYSTEM_MEANING,STATUS_MEANING,ZONE_MEANING
+BLACK,"0,0,0",Architecture / General,General,Default,Default
+BLUE,"0,128,255",Mechanical,HVAC / Supply / Cold Water,Existing,Zone 01
+GREEN,"0,180,0",Plumbing,Sanitary / Drainage / Environmental,New,Zone 02
+RED,"200,0,0",Structural / Fire Protection,Fire / Emergency / Structural,Demolished,Zone 04
+ORANGE,"255,160,0",Electrical / Fire Protection,Hot Water / Heating / Electrical,Temporary,Zone 03
+PURPLE,"160,0,200",Low Voltage,Communications / LV / Security,N/A,N/A
+GREY,"128,128,128",General / Unassigned,Auxiliary / Support,N/A,Unzoned
+WHITE,"255,255,255",Dark mode / Inverted presentations,Dark background views,N/A,N/A
+##
+## BOUNDING BOX COLOR PARAMETERS — Separate from text color
+PARAMETER,TYPE,DESCRIPTION
+TAG_BOX_COLOR_R_INT,Integer,"Box fill Red channel (0-255) — matches discipline/system color"
+TAG_BOX_COLOR_G_INT,Integer,"Box fill Green channel (0-255) — matches discipline/system color"
+TAG_BOX_COLOR_B_INT,Integer,"Box fill Blue channel (0-255) — matches discipline/system color"
+TAG_BOX_VISIBLE_BOOL,Yes/No,Show/hide the tag bounding box
+TAG_BOX_STYLE_TXT,Text,"Box border style: SOLID, DASHED, NONE, ROUND"
+TAG_LEADER_COLOR_R_INT,Integer,"Leader line Red channel (0-255) — can differ from box and text"
+TAG_LEADER_COLOR_G_INT,Integer,"Leader line Green channel (0-255)"
+TAG_LEADER_COLOR_B_INT,Integer,"Leader line Blue channel (0-255)"
+##
+## PARAGRAPH STATE PARAMETERS (10 tiers of content visibility)
+PARAMETER,TIER,CONTENT_LEVEL,DESCRIPTION
+TAG_PARA_STATE_1_BOOL,1,Minimal,"Tag code and asset identifier only"
+TAG_PARA_STATE_2_BOOL,2,Compact,"Adds type name and basic identity"
+TAG_PARA_STATE_3_BOOL,3,Standard,"Adds system context and spatial info"
+TAG_PARA_STATE_4_BOOL,4,Extended,"Adds lifecycle status and revision"
+TAG_PARA_STATE_5_BOOL,5,Technical,"Adds MEP performance data"
+TAG_PARA_STATE_6_BOOL,6,Full,"Adds classification codes and cost"
+TAG_PARA_STATE_7_BOOL,7,Specification,"Adds material properties and dimensions"
+TAG_PARA_STATE_8_BOOL,8,Detailed,"Adds maintenance requirements"
+TAG_PARA_STATE_9_BOOL,9,Comprehensive,"Adds scheduling and commissioning data"
+TAG_PARA_STATE_10_BOOL,10,Maximum,"All available data — BOQ export level"
+##
+## VARIABLE-DRIVEN COLOR SCHEMES — Color by any tag variable
+SCHEME_NAME,VARIABLE,DESCRIPTION,VALUE_COUNT
+Discipline,DISC,"Standard ISO 19650 discipline colors (M=Blue, E=Gold, P=Green, A=Grey, S=Red)",8
+System,SYS,"MEP system type colors (HVAC=Blue, DCW=Teal, FP=Red, LV=Purple)",16
+Status,STATUS,"Lifecycle status colors (NEW=Green, EXISTING=Blue, DEMOLISHED=Red, TEMP=Orange)",4
+Zone,ZONE,"Spatial zone colors (Z01=Blue, Z02=Green, Z03=Orange, Z04=Red)",6
+Level,LVL,"Building level colors (GF=Green, L01=Blue, B1=Red, RF=Orange)",8
+Location,LOC,"Building location colors (BLD1=Blue, BLD2=Green, BLD3=Orange, EXT=Purple)",5
+Function,FUNC,"CIBSE function code colors (SUP=Blue, HTG=Orange, PWR=Gold, LTG=Yellow)",12
+##
+## VIEW COLOR SCHEMES — Element graphic overrides per discipline
+SCHEME_NAME,DESCRIPTION,DEFAULT_TAG_STYLE
+Discipline,"Standard ISO 19650 — each discipline gets its own color",2BOLD_BLUE (M) / 2BOLD_RED (E) / 2BOLD_GREEN (P) / 2NOM_BLACK (A)
+Warm,"Salmon/terracotta tones — architectural presentation",2.5NOM_RED
+Cool,"Green/teal tones — MEP and environmental",2.5NOM_GREEN
+Red,"Structural/fire emphasis — bold red tones",2.5BOLD_RED
+Yellow,"Electrical emphasis — amber/gold tones",2.5BOLD_BLACK
+Blue,"Plumbing/MEP emphasis — slate blue tones",2.5NOM_BLUE
+Mono,"Black and white — print-ready",2NOM_BLACK
+Dark,"Inverted for dark backgrounds",2.5NOM_BLACK
+##
+## TAG7 NARRATIVE CONNECTING WORDS — Logical statement formation
+## Sections are connected with meaningful phrases instead of pipe separators:
+SECTION_TRANSITION,FROM_SECTION,TO_SECTION,CONNECTING_PHRASE
+A→B,Identity,System,". This asset operates within the"
+A→C,Identity,Spatial,". " (Section C begins with "Located in")
+B→C,System,Spatial,". "
+*→D,Any,Lifecycle,". " (Section D begins with "This element is...")
+*→E,Any,Technical,". Technical specifications include"
+*→F,Any,Classification,". Classified under"
+## Within sections:
+INTERNAL_CONNECTOR,SECTION,EXAMPLE_PHRASE
+Status+Revision,D,"This element is new, currently at revision P02"
+Revision+Origin,D,"currently at revision P02, originating from design team"
+Project+Volume,D,"within project XYZ (volume 1)"
+Maintenance,D,"Requires periodic maintenance"
+Uniformat+OmniClass,F,"Uniformat code D3010 (HVAC), with OmniClass reference 23-33"
+Cost,F,"with an estimated unit cost of 1500"
+ISO tag,F,"Assigned ISO 19650 tag M-BLD1-Z01-L02-HVAC-SUP-AHU-0003"
