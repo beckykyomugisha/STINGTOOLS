@@ -24,7 +24,6 @@ namespace StingTools.UI
     {
         private static ExternalEvent _externalEvent;
         private static StingCommandHandler _handler;
-        private static UIApplication _uiApp;
         private static StingDockPanel _instance;
 
         private static readonly Dictionary<string, List<int>> SelectionMemory =
@@ -100,12 +99,6 @@ namespace StingTools.UI
         {
             _handler = new StingCommandHandler();
             _externalEvent = ExternalEvent.Create(_handler);
-        }
-
-        /// <summary>Store UIApplication reference when available.</summary>
-        public static void SetUIApplication(UIApplication uiApp)
-        {
-            _uiApp = uiApp;
         }
 
         // ── Unified button click dispatcher ──────────────────────────────

@@ -507,7 +507,7 @@ namespace StingTools.Temp
                         (d, v, tx) =>
                         {
                             try { v.RemoveFilter(capturedId); }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Remove orphan filter ID {capturedId.Value}: {ex.Message}"); }
                         }));
                 }
             }
@@ -536,7 +536,7 @@ namespace StingTools.Temp
                                     v.AddFilter(sf.Id);
                                     v.SetFilterVisibility(sf.Id, true);
                                 }
-                                catch { }
+                                catch (Exception ex) { StingLog.Warn($"Add missing STING filter '{sf.Name}': {ex.Message}"); }
                             }
                         }
                     }));

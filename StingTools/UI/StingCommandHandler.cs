@@ -882,14 +882,31 @@ namespace StingTools.UI
             if (uidoc?.ActiveView == null) return;
             try
             {
-                // CRASH FIX: Direct API call instead of reflection.
-                // Reflection wraps Revit exceptions in TargetInvocationException,
-                // masking the real error and potentially corrupting view state.
-                uidoc.ActiveView.EnableTemporaryViewMode(TemporaryViewMode.RevealHiddenElements);
+                // EnableTemporaryViewMode is not available as a direct instance
+                // method on View in all Revit API versions — use reflection with
+                // proper exception unwrapping to avoid masking the real error.
+                var view = uidoc.ActiveView;
+                var method = view.GetType().GetMethod("EnableTemporaryViewMode",
+                    new[] { typeof(TemporaryViewMode) });
+                if (method != null)
+                {
+                    try
+                    {
+                        method.Invoke(view, new object[] { TemporaryViewMode.RevealHiddenElements });
+                    }
+                    catch (System.Reflection.TargetInvocationException tie) when (tie.InnerException != null)
+                    {
+                        // Unwrap reflection wrapper to surface the real Revit exception
+                        throw tie.InnerException;
+                    }
+                }
+                else
+                {
+                    TaskDialog.Show("Reveal", "Reveal hidden elements is not available in this Revit version.");
+                }
             }
             catch (Autodesk.Revit.Exceptions.InvalidOperationException)
             {
-                // View doesn't support reveal hidden (e.g., schedule, legend)
                 TaskDialog.Show("Reveal", "This view does not support reveal hidden elements.");
             }
             catch (Exception ex)
