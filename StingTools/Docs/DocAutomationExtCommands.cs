@@ -2593,4 +2593,331 @@ namespace StingTools.Docs
             return Result.Succeeded;
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  FM O/M HANDOVER MANUAL CREATOR
+    //  Generates a comprehensive Facility Management / Operations & Maintenance
+    //  handover manual from BIM data — asset register, maintenance schedules,
+    //  system descriptions, and spatial summaries per ISO 19650 / BS 8210.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Creates an FM O/M Handover Manual — a structured CSV/text export containing:
+    /// - Project summary and building information
+    /// - Asset register grouped by discipline and system
+    /// - Maintenance schedule recommendations per asset type
+    /// - Spatial summary (rooms, levels, zones)
+    /// - System descriptions and equipment lists
+    /// - Tag completeness and compliance summary
+    ///
+    /// Inspired by StingBIM.AI.FacilityManagement and StingBIM.AI.Maintenance
+    /// from the original Stingtools-Original repository.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HandoverManualCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                string projectName = doc.ProjectInformation?.Name ?? "Unnamed Project";
+                string projectNumber = doc.ProjectInformation?.Number ?? "000";
+                string projectAddress = doc.ProjectInformation?.Address ?? "";
+                string projectStatus = doc.ProjectInformation?.Status ?? "";
+                string projLoc = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.LOC);
+                string projZone = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.ZONE);
+
+                var known = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
+
+                // Collect all taggable elements
+                var allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && known.Contains(e.Category.Name))
+                    .ToList();
+
+                // Group by discipline
+                var byDisc = new Dictionary<string, List<Element>>(StringComparer.OrdinalIgnoreCase);
+                // Group by system
+                var bySys = new Dictionary<string, List<Element>>(StringComparer.OrdinalIgnoreCase);
+                // Group by level
+                var byLevel = new Dictionary<string, List<Element>>(StringComparer.OrdinalIgnoreCase);
+
+                int tagged = 0, untagged = 0;
+
+                foreach (var el in allElements)
+                {
+                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+
+                    if (TagConfig.TagIsComplete(tag1)) tagged++; else untagged++;
+
+                    string discKey = string.IsNullOrEmpty(disc) ? "Unassigned" : disc;
+                    if (!byDisc.ContainsKey(discKey)) byDisc[discKey] = new List<Element>();
+                    byDisc[discKey].Add(el);
+
+                    string sysKey = string.IsNullOrEmpty(sys) ? "Unassigned" : sys;
+                    if (!bySys.ContainsKey(sysKey)) bySys[sysKey] = new List<Element>();
+                    bySys[sysKey].Add(el);
+
+                    string lvlKey = string.IsNullOrEmpty(lvl) ? "Unknown" : lvl;
+                    if (!byLevel.ContainsKey(lvlKey)) byLevel[lvlKey] = new List<Element>();
+                    byLevel[lvlKey].Add(el);
+                }
+
+                // Collect rooms
+                var rooms = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType()
+                    .Cast<Autodesk.Revit.DB.Architecture.Room>()
+                    .Where(r => r.Area > 0)
+                    .OrderBy(r => r.Level?.Name ?? "")
+                    .ThenBy(r => r.Number)
+                    .ToList();
+
+                // Build CSV output
+                var csv = new StringBuilder();
+                csv.Append('\uFEFF'); // BOM for Excel
+
+                // ── Section 1: Project Summary ──
+                csv.AppendLine("SECTION,FM O/M HANDOVER MANUAL");
+                csv.AppendLine($"Generated,{DateTime.Now:yyyy-MM-dd HH:mm}");
+                csv.AppendLine($"Standard,ISO 19650 / BS 8210");
+                csv.AppendLine();
+                csv.AppendLine("SECTION,1. PROJECT INFORMATION");
+                csv.AppendLine($"Project Name,\"{projectName}\"");
+                csv.AppendLine($"Project Number,\"{projectNumber}\"");
+                csv.AppendLine($"Address,\"{projectAddress}\"");
+                csv.AppendLine($"Status,\"{projectStatus}\"");
+                csv.AppendLine($"Location Code,{projLoc}");
+                csv.AppendLine($"Zone Code,{projZone}");
+                csv.AppendLine($"Total Assets,{allElements.Count}");
+                csv.AppendLine($"Tagged Complete,{tagged}");
+                csv.AppendLine($"Untagged/Incomplete,{untagged}");
+                double pct = allElements.Count > 0 ? (tagged * 100.0 / allElements.Count) : 0;
+                csv.AppendLine($"Compliance,{pct:F1}%");
+                csv.AppendLine();
+
+                // ── Section 2: System Summary ──
+                csv.AppendLine("SECTION,2. SYSTEM SUMMARY");
+                csv.AppendLine("System Code,System Description,Asset Count,Disciplines");
+                foreach (var kvp in bySys.OrderBy(x => x.Key))
+                {
+                    string sysDesc = GetSystemDescription(kvp.Key);
+                    var discs = kvp.Value
+                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.DISC))
+                        .Where(d => !string.IsNullOrEmpty(d))
+                        .Distinct()
+                        .OrderBy(d => d);
+                    csv.AppendLine($"{kvp.Key},\"{sysDesc}\",{kvp.Value.Count},\"{string.Join("; ", discs)}\"");
+                }
+                csv.AppendLine();
+
+                // ── Section 3: Asset Register by Discipline ──
+                csv.AppendLine("SECTION,3. ASSET REGISTER");
+                csv.AppendLine("Discipline,Category,Family,Type,Tag,Level,Room,System,Status,Manufacturer,Model,Description");
+                foreach (var discGroup in byDisc.OrderBy(x => x.Key))
+                {
+                    foreach (var el in discGroup.Value.OrderBy(e => ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
+                    {
+                        string cat = el.Category?.Name ?? "";
+                        string family = ParameterHelpers.GetFamilyName(el);
+                        string typeName = ParameterHelpers.GetFamilySymbolName(el);
+                        string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                        string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                        string roomName = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
+                        if (string.IsNullOrEmpty(roomName))
+                            roomName = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
+                        string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                        string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                        string mfr = ParameterHelpers.GetString(el, ParamRegistry.MFR);
+                        string model = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
+                        string desc = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+
+                        csv.AppendLine($"{discGroup.Key},\"{Esc(cat)}\",\"{Esc(family)}\",\"{Esc(typeName)}\"," +
+                            $"\"{tag1}\",{lvl},\"{Esc(roomName)}\",{sys},{status}," +
+                            $"\"{Esc(mfr)}\",\"{Esc(model)}\",\"{Esc(desc)}\"");
+                    }
+                }
+                csv.AppendLine();
+
+                // ── Section 4: Spatial Summary (Rooms) ──
+                csv.AppendLine("SECTION,4. SPATIAL SUMMARY");
+                csv.AppendLine("Level,Room Number,Room Name,Department,Area (m2),Asset Count");
+                foreach (var room in rooms)
+                {
+                    string levelName = room.Level?.Name ?? "Unknown";
+                    string dept = "";
+                    try { dept = room.LookupParameter("Department")?.AsString() ?? ""; } catch { /* no dept param */ }
+                    double areaM2 = room.Area * 0.092903; // sq ft to m2
+
+                    // Count assets in this room
+                    int assetsInRoom = 0;
+                    try
+                    {
+                        foreach (var el in allElements)
+                        {
+                            string elRoom = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NUM);
+                            if (string.IsNullOrEmpty(elRoom))
+                                elRoom = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NUM);
+                            if (elRoom == room.Number) assetsInRoom++;
+                        }
+                    }
+                    catch { /* spatial lookup failure */ }
+
+                    csv.AppendLine($"\"{Esc(levelName)}\",\"{room.Number}\",\"{Esc(room.Name)}\"," +
+                        $"\"{Esc(dept)}\",{areaM2:F2},{assetsInRoom}");
+                }
+                csv.AppendLine();
+
+                // ── Section 5: Maintenance Schedule Recommendations ──
+                csv.AppendLine("SECTION,5. MAINTENANCE SCHEDULE");
+                csv.AppendLine("System,Category,Maintenance Type,Frequency,Priority,Notes");
+                foreach (var kvp in bySys.OrderBy(x => x.Key))
+                {
+                    var categories = kvp.Value
+                        .GroupBy(e => e.Category?.Name ?? "Unknown")
+                        .OrderBy(g => g.Key);
+
+                    foreach (var catGroup in categories)
+                    {
+                        var (maintType, frequency, priority, notes) =
+                            GetMaintenanceSchedule(kvp.Key, catGroup.Key);
+                        csv.AppendLine($"{kvp.Key},\"{Esc(catGroup.Key)}\",{maintType},{frequency}," +
+                            $"{priority},\"{Esc(notes)} ({catGroup.Count()} assets)\"");
+                    }
+                }
+                csv.AppendLine();
+
+                // ── Section 6: Level Summary ──
+                csv.AppendLine("SECTION,6. LEVEL SUMMARY");
+                csv.AppendLine("Level Code,Asset Count,Systems Present");
+                foreach (var kvp in byLevel.OrderBy(x => x.Key))
+                {
+                    var systems = kvp.Value
+                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.SYS))
+                        .Where(s => !string.IsNullOrEmpty(s))
+                        .Distinct()
+                        .OrderBy(s => s);
+                    csv.AppendLine($"{kvp.Key},{kvp.Value.Count},\"{string.Join("; ", systems)}\"");
+                }
+
+                // Write to file
+                string dir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string path = Path.Combine(dir, $"STING_FM_Handover_Manual_{timestamp}.csv");
+
+                File.WriteAllText(path, csv.ToString(), Encoding.UTF8);
+
+                // Summary dialog
+                var report = new StringBuilder();
+                report.AppendLine("FM O/M Handover Manual Generated");
+                report.AppendLine(new string('═', 50));
+                report.AppendLine($"  Project:          {projectName}");
+                report.AppendLine($"  Total assets:     {allElements.Count}");
+                report.AppendLine($"  Tagged complete:  {tagged} ({pct:F1}%)");
+                report.AppendLine($"  Systems:          {bySys.Count}");
+                report.AppendLine($"  Rooms:            {rooms.Count}");
+                report.AppendLine($"  Levels:           {byLevel.Count}");
+                report.AppendLine();
+                report.AppendLine("  Sections:");
+                report.AppendLine("    1. Project Information");
+                report.AppendLine("    2. System Summary");
+                report.AppendLine("    3. Asset Register (by discipline)");
+                report.AppendLine("    4. Spatial Summary (rooms)");
+                report.AppendLine("    5. Maintenance Schedule");
+                report.AppendLine("    6. Level Summary");
+                report.AppendLine();
+                report.AppendLine($"  File: {path}");
+                report.AppendLine();
+                report.AppendLine("Opens directly in Excel. Suitable for FM handover per ISO 19650.");
+
+                TaskDialog.Show("FM Handover Manual", report.ToString());
+                StingLog.Info($"HandoverManual: {allElements.Count} assets, {bySys.Count} systems, " +
+                    $"{rooms.Count} rooms → {path}");
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HandoverManualCommand crashed", ex);
+                TaskDialog.Show("STING Tools", $"FM Handover Manual failed:\n{ex.Message}");
+                return Result.Failed;
+            }
+        }
+
+        /// <summary>Get human-readable system description from code.</summary>
+        private static string GetSystemDescription(string sysCode)
+        {
+            return sysCode switch
+            {
+                "HVAC" => "Heating, Ventilation & Air Conditioning",
+                "DCW" => "Domestic Cold Water",
+                "DHW" => "Domestic Hot Water",
+                "HWS" => "Heating Hot Water System",
+                "SAN" => "Sanitary / Drainage",
+                "RWD" => "Rainwater Drainage",
+                "GAS" => "Gas Supply",
+                "FP" => "Fire Protection & Suppression",
+                "LV" => "Low Voltage Systems",
+                "FLS" => "Fire Life Safety",
+                "COM" => "Communications & Data",
+                "ICT" => "Information & Communications Technology",
+                "NCL" => "Nurse Call / Patient Systems",
+                "SEC" => "Security & Access Control",
+                "ARC" => "Architectural Elements",
+                "STR" => "Structural Elements",
+                "GEN" => "General / Miscellaneous",
+                _ => sysCode
+            };
+        }
+
+        /// <summary>Get maintenance schedule recommendation based on system and category.</summary>
+        private static (string MaintType, string Frequency, string Priority, string Notes)
+            GetMaintenanceSchedule(string sysCode, string category)
+        {
+            // BS 8210 / SFG20 inspired maintenance frequencies
+            return sysCode switch
+            {
+                "HVAC" => ("Preventive", "Quarterly", "High",
+                    "Filter replacement, belt inspection, refrigerant check"),
+                "DCW" or "DHW" => ("Preventive", "6-Monthly", "High",
+                    "Legionella risk assessment, TMV testing, flush dead legs"),
+                "HWS" => ("Preventive", "Quarterly", "High",
+                    "Boiler service, pump inspection, valve check"),
+                "SAN" or "RWD" => ("Preventive", "Annually", "Medium",
+                    "Drain survey, gully clean, interceptor maintenance"),
+                "GAS" => ("Statutory", "Annually", "Critical",
+                    "Gas safety inspection, leak detection, emergency valve test"),
+                "FP" => ("Statutory", "6-Monthly", "Critical",
+                    "Sprinkler flow test, extinguisher service, hydrant test"),
+                "FLS" => ("Statutory", "Quarterly", "Critical",
+                    "Fire alarm test, emergency lighting, smoke detector service"),
+                "LV" or "COM" or "ICT" => ("Preventive", "Annually", "Medium",
+                    "Thermal imaging, connection check, UPS battery test"),
+                "SEC" => ("Preventive", "Quarterly", "Medium",
+                    "Access control audit, CCTV review, intruder alarm test"),
+                "NCL" => ("Preventive", "6-Monthly", "High",
+                    "System function test, battery replacement, handset check"),
+                "ARC" => ("Reactive", "As-needed", "Low",
+                    "Fabric inspection, decorative maintenance"),
+                "STR" => ("Condition", "5-Yearly", "Medium",
+                    "Structural survey, movement monitoring"),
+                _ => ("Planned", "Annually", "Medium",
+                    "General inspection and maintenance")
+            };
+        }
+
+        /// <summary>Escape CSV field.</summary>
+        private static string Esc(string v) =>
+            v?.Replace("\"", "\"\"") ?? "";
+    }
 }

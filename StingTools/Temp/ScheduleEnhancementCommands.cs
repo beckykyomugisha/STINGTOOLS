@@ -1402,8 +1402,6 @@ namespace StingTools.Temp
                         catch (Exception ex) { StingLog.Warn($"Delete schedule failed '{sched.Name}': {ex.Message}"); }
                     }
                 }
-                try { doc.Regenerate(); }
-                catch (Exception ex) { StingLog.Warn($"Regenerate after schedule delete: {ex.Message}"); }
                 tx.Commit();
             }
 

@@ -334,6 +334,7 @@ namespace StingTools.UI
                     case "ViewOrganizer": RunCommand<Docs.ViewOrganizerCommand>(app); break;
                     case "SheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
                     case "Transmittal": RunCommand<Docs.TransmittalCommand>(app); break;
+                    case "HandoverManual": RunCommand<Docs.HandoverManualCommand>(app); break;
                     case "DeleteUnusedViews": RunCommand<Docs.DeleteUnusedViewsCommand>(app); break;
                     case "SheetNamingCheck": RunCommand<Docs.SheetNamingCheckCommand>(app); break;
                     case "AutoNumberSheets": RunCommand<Docs.AutoNumberSheetsCommand>(app); break;

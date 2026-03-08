@@ -831,6 +831,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Organizer" Tag="SheetOrganizer" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Index" Tag="SheetIndex" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Transmittal" Tag="Transmittal" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="FM Handover" Tag="HandoverManual" Click="Cmd_Click" ToolTip="FM O/M Handover Manual — asset register, maintenance schedule, spatial summary"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Naming" Tag="SheetNamingCheck" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto-Num" Tag="AutoNumberSheets" Click="Cmd_Click"/>
                                 </WrapPanel>

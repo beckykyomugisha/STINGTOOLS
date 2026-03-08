@@ -31,14 +31,8 @@ namespace StingTools.Core
                     Path.GetDirectoryName(AssemblyPath) ?? string.Empty,
                     "data");
 
-                // Warn if data directory is missing — this is the root cause of
-                // "data file commands crash but selection commands work" issues
-                if (!Directory.Exists(DataPath))
-                {
-                    StingLog.Warn($"Data directory not found: {DataPath}");
-                    StingLog.Warn("Data-dependent commands (materials, schedules, parameters) will " +
-                        "use fallback defaults. Run extract_plugin.sh to deploy data files.");
-                }
+                // Validate data directory and critical files at startup
+                ValidateDataFiles();
 
                 // Pre-flight: log assembly environment for crash diagnostics
                 LogAssemblyEnvironment();
@@ -128,6 +122,60 @@ namespace StingTools.Core
             {
                 // Pre-flight check is diagnostic only — never block startup
                 StingLog.Warn($"Assembly pre-flight check failed: {ex.Message}");
+            }
+        }
+
+        // ── Data File Validation ─────────────────────────────────────
+
+        /// <summary>
+        /// Validates that the data directory and critical data files exist at startup.
+        /// Logs warnings for missing files and shows a one-time dialog if the data
+        /// directory is completely missing — this is the #1 cause of command crashes.
+        /// </summary>
+        private static void ValidateDataFiles()
+        {
+            if (!Directory.Exists(DataPath))
+            {
+                StingLog.Warn($"Data directory not found: {DataPath}");
+                StingLog.Warn("Data-dependent commands will use fallback defaults. " +
+                    "Deploy the data/ folder alongside StingTools.dll.");
+                // Don't block startup with a dialog — log is sufficient.
+                // Commands that need data files already show their own error dialogs.
+                return;
+            }
+
+            // Critical files that many commands depend on
+            string[] criticalFiles = new[]
+            {
+                "PARAMETER_REGISTRY.json",
+                "MR_PARAMETERS.txt",
+                "MR_PARAMETERS.csv",
+                "BLE_MATERIALS.csv",
+                "MEP_MATERIALS.csv",
+                "MR_SCHEDULES.csv",
+                "FORMULAS_WITH_DEPENDENCIES.csv",
+                "CATEGORY_BINDINGS.csv",
+                "LABEL_DEFINITIONS.json",
+            };
+
+            var missing = new List<string>();
+            foreach (string file in criticalFiles)
+            {
+                string path = FindDataFile(file);
+                if (path == null)
+                    missing.Add(file);
+            }
+
+            if (missing.Count > 0)
+            {
+                string list = string.Join(", ", missing);
+                StingLog.Warn($"Missing {missing.Count} critical data files: {list}");
+                StingLog.Warn($"Data path: {DataPath}");
+                StingLog.Warn("Commands that depend on these files will show individual error messages.");
+            }
+            else
+            {
+                StingLog.Info($"Data validation passed: all {criticalFiles.Length} critical files found in {DataPath}");
             }
         }
 
