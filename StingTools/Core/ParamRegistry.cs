@@ -33,9 +33,38 @@ namespace StingTools.Core
         private static readonly object _lock = new object();
 
         // ── Tag format ──────────────────────────────────────────────────
-        public static string Separator { get; private set; } = "-";
-        public static int NumPad { get; private set; } = 4;
-        public static string[] SegmentOrder { get; private set; } = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+        // Base values loaded from PARAMETER_REGISTRY.json; project overrides applied on top.
+        private static string _baseSeparator = "-";
+        private static int _baseNumPad = 4;
+        private static string[] _baseSegmentOrder = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+        private static string _overrideSeparator;
+        private static int? _overrideNumPad;
+        private static string[] _overrideSegmentOrder;
+
+        public static string Separator => _overrideSeparator ?? _baseSeparator;
+        public static int NumPad => _overrideNumPad ?? _baseNumPad;
+        public static string[] SegmentOrder => _overrideSegmentOrder ?? _baseSegmentOrder;
+
+        /// <summary>
+        /// Apply project-level tag format overrides (from project_config.json).
+        /// </summary>
+        public static void ApplyTagFormatOverrides(string separator, int? numPad, string[] segmentOrder)
+        {
+            _overrideSeparator = separator;
+            _overrideNumPad = numPad;
+            _overrideSegmentOrder = segmentOrder;
+            StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length}");
+        }
+
+        /// <summary>
+        /// Clear project-level tag format overrides (revert to PARAMETER_REGISTRY.json values).
+        /// </summary>
+        public static void ClearTagFormatOverrides()
+        {
+            _overrideSeparator = null;
+            _overrideNumPad = null;
+            _overrideSegmentOrder = null;
+        }
 
         // ── Source token definitions ────────────────────────────────────
         public static TokenDef[] SourceTokens { get; private set; } = Array.Empty<TokenDef>();
@@ -725,13 +754,13 @@ namespace StingTools.Core
                 }
                 StingLog.Info("ParamRegistry.LoadFromFile: JSON parsed OK");
 
-                // Tag format
+                // Tag format (base values from PARAMETER_REGISTRY.json)
                 var fmt = root["tag_format"];
                 if (fmt != null)
                 {
-                    Separator = fmt["separator"]?.ToString() ?? "-";
-                    NumPad = fmt["num_pad"]?.Value<int>() ?? 4;
-                    SegmentOrder = fmt["segment_order"]?.ToObject<string[]>() ?? SegmentOrder;
+                    _baseSeparator = fmt["separator"]?.ToString() ?? "-";
+                    _baseNumPad = fmt["num_pad"]?.Value<int>() ?? 4;
+                    _baseSegmentOrder = fmt["segment_order"]?.ToObject<string[]>() ?? _baseSegmentOrder;
                 }
 
                 StingLog.Info("ParamRegistry.LoadFromFile: tag_format loaded");
@@ -1065,9 +1094,9 @@ namespace StingTools.Core
         /// <summary>Fallback defaults matching the original hardcoded values.</summary>
         private static void LoadDefaults()
         {
-            Separator = "-";
-            NumPad = 4;
-            SegmentOrder = new[] { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+            _baseSeparator = "-";
+            _baseNumPad = 4;
+            _baseSegmentOrder = new[] { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
 
             AllTokenParams = new[]
             {

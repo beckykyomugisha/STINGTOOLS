@@ -482,6 +482,7 @@ namespace StingTools.Core
     {
         public static int NumPad => ParamRegistry.NumPad;
         public static string Separator => ParamRegistry.Separator;
+        public static string[] SegmentOrder => ParamRegistry.SegmentOrder;
         public const int MaxCollisionDepth = 10000;
 
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
@@ -563,6 +564,45 @@ namespace StingTools.Core
                 LocCodes = TryDeserialize<List<string>>(data, "LOC_CODES") ?? DefaultLocCodes();
                 ZoneCodes = TryDeserialize<List<string>>(data, "ZONE_CODES") ?? DefaultZoneCodes();
                 _reverseSysMap = null; // Invalidate cache
+
+                // Load tag format overrides (optional — fall back to ParamRegistry defaults)
+                ParamRegistry.ClearTagFormatOverrides();
+                if (data.TryGetValue("TAG_FORMAT", out object fmtObj))
+                {
+                    try
+                    {
+                        var fmt = JsonConvert.DeserializeObject<Dictionary<string, object>>(
+                            JsonConvert.SerializeObject(fmtObj));
+                        if (fmt != null)
+                        {
+                            string sep = null;
+                            int? pad = null;
+                            string[] segs = null;
+
+                            if (fmt.TryGetValue("separator", out object sepVal) && sepVal is string s)
+                                sep = s;
+                            if (fmt.TryGetValue("num_pad", out object padVal))
+                            {
+                                if (padVal is long lv) pad = (int)lv;
+                                else if (int.TryParse(padVal?.ToString(), out int iv)) pad = iv;
+                            }
+                            if (fmt.TryGetValue("segment_order", out object segVal))
+                            {
+                                var parsed = JsonConvert.DeserializeObject<string[]>(
+                                    JsonConvert.SerializeObject(segVal));
+                                if (parsed != null && parsed.Length > 0)
+                                    segs = parsed;
+                            }
+
+                            ParamRegistry.ApplyTagFormatOverrides(sep, pad, segs);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Failed to parse TAG_FORMAT from config: {ex.Message}");
+                    }
+                }
+
                 ConfigSource = "project_config.json";
 
                 // GAP-009: Restore persisted active preset
@@ -589,6 +629,7 @@ namespace StingTools.Core
             LocCodes = DefaultLocCodes();
             ZoneCodes = DefaultZoneCodes();
             _reverseSysMap = null; // Invalidate cache
+            ParamRegistry.ClearTagFormatOverrides();
             ConfigSource = "built-in defaults";
         }
 
@@ -607,7 +648,13 @@ namespace StingTools.Core
                     ["PROD_MAP"] = ProdMap,
                     ["FUNC_MAP"] = FuncMap,
                     ["LOC_CODES"] = LocCodes,
-                    ["ZONE_CODES"] = ZoneCodes
+                    ["ZONE_CODES"] = ZoneCodes,
+                    ["TAG_FORMAT"] = new Dictionary<string, object>
+                    {
+                        ["separator"] = Separator,
+                        ["num_pad"] = NumPad,
+                        ["segment_order"] = SegmentOrder
+                    }
                 };
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);
