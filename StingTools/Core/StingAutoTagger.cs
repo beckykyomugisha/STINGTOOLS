@@ -211,6 +211,7 @@ namespace StingTools.Core
                         if (_recentlyProcessed.Count > 10000)
                             _recentlyProcessed.Clear();
                     }
+                }
 
                 // Reset failure counter on success
                 _consecutiveFailures = 0;
