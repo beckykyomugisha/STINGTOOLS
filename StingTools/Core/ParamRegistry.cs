@@ -1002,6 +1002,87 @@ namespace StingTools.Core
                 "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
                 "ASS_STATUS_TXT", "ASS_INST_DETAIL_NUM_TXT", "MNT_TYPE_TXT",
             };
+
+            // CRASH FIX: Initialize GUID maps from SourceTokens when JSON is missing.
+            // Without this, _guidByName stays null → AllParamGuids returns empty dict →
+            // all GUID lookups fail → compliance scan fails → commands that check GUIDs crash.
+            _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
+            _nameByGuid = new Dictionary<Guid, string>();
+            foreach (var tok in SourceTokens)
+            {
+                if (Guid.TryParse(tok.GuidStr, out Guid g))
+                {
+                    _guidByName[tok.ParamName] = g;
+                    _nameByGuid[g] = tok.ParamName;
+                }
+            }
+
+            // CRASH FIX: Initialize CategoryEnumMap with the 53 standard categories.
+            // Without this, ResolveUniversalCategoryEnums() returns empty array →
+            // AllCategoryEnums = empty → BuildCategorySet = empty → 0 params bound →
+            // LoadSharedParamsCommand silently does nothing, leaving project unconfigured.
+            CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Air Terminals", "OST_DuctTerminal" },
+                { "Cable Tray Fittings", "OST_CableTrayFitting" },
+                { "Cable Trays", "OST_CableTray" },
+                { "Casework", "OST_Casework" },
+                { "Ceilings", "OST_Ceilings" },
+                { "Communication Devices", "OST_CommunicationDevices" },
+                { "Conduit Fittings", "OST_ConduitFitting" },
+                { "Conduits", "OST_Conduit" },
+                { "Curtain Panels", "OST_CurtainWallPanels" },
+                { "Curtain Wall Mullions", "OST_CurtainWallMullions" },
+                { "Data Devices", "OST_DataDevices" },
+                { "Doors", "OST_Doors" },
+                { "Duct Accessories", "OST_DuctAccessory" },
+                { "Duct Fittings", "OST_DuctFitting" },
+                { "Duct Insulations", "OST_DuctInsulations" },
+                { "Ducts", "OST_DuctCurves" },
+                { "Electrical Equipment", "OST_ElectricalEquipment" },
+                { "Electrical Fixtures", "OST_ElectricalFixtures" },
+                { "Fire Alarm Devices", "OST_FireAlarmDevices" },
+                { "Flex Ducts", "OST_FlexDuctCurves" },
+                { "Flex Pipes", "OST_FlexPipeCurves" },
+                { "Floors", "OST_Floors" },
+                { "Furniture", "OST_Furniture" },
+                { "Furniture Systems", "OST_FurnitureSystems" },
+                { "Generic Models", "OST_GenericModel" },
+                { "Lighting Devices", "OST_LightingDevices" },
+                { "Lighting Fixtures", "OST_LightingFixtures" },
+                { "Mass", "OST_Mass" },
+                { "Mechanical Equipment", "OST_MechanicalEquipment" },
+                { "Nurse Call Devices", "OST_NurseCallDevices" },
+                { "Parking", "OST_Parking" },
+                { "Pipe Accessories", "OST_PipeAccessory" },
+                { "Pipe Fittings", "OST_PipeFitting" },
+                { "Pipe Insulations", "OST_PipeInsulations" },
+                { "Pipes", "OST_PipeCurves" },
+                { "Planting", "OST_Planting" },
+                { "Plumbing Fixtures", "OST_PlumbingFixtures" },
+                { "Railings", "OST_StairsRailing" },
+                { "Ramps", "OST_Ramps" },
+                { "Roofs", "OST_Roofs" },
+                { "Rooms", "OST_Rooms" },
+                { "Security Devices", "OST_SecurityDevices" },
+                { "Site", "OST_Site" },
+                { "Specialty Equipment", "OST_SpecialityEquipment" },
+                { "Sprinklers", "OST_Sprinklers" },
+                { "Stairs", "OST_Stairs" },
+                { "Structural Columns", "OST_StructuralColumns" },
+                { "Structural Connections", "OST_StructConnections" },
+                { "Structural Foundations", "OST_StructuralFoundation" },
+                { "Structural Framing", "OST_StructuralFraming" },
+                { "Telephone Devices", "OST_TelephoneDevices" },
+                { "Walls", "OST_Walls" },
+                { "Windows", "OST_Windows" },
+            };
+
+            // Set UniversalCategories to the full 53-category list so
+            // ResolveUniversalCategoryEnums returns all categories even without JSON.
+            UniversalCategories = CategoryEnumMap.Keys.ToArray();
+
+            StingLog.Info($"LoadDefaults: {_guidByName.Count} GUIDs, {CategoryEnumMap.Count} categories, {UniversalParams.Length} universal params");
         }
 
         // ════════════════════════════════════════════════════════════════

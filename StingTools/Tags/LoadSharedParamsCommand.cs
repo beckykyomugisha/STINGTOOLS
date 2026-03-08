@@ -88,6 +88,12 @@ namespace StingTools.Tags
                 doc, SharedParamGuids.AllCategoryEnums);
             StingLog.Info($"Pass 1: {allCats.Size} categories resolved, {SharedParamGuids.UniversalParams?.Length ?? 0} params to bind");
 
+            if (allCats.Size == 0)
+            {
+                StingLog.Warn("No categories resolved — PARAMETER_REGISTRY.json may be missing. " +
+                    $"DataPath: {StingToolsApp.DataPath}");
+            }
+
             // Load CSV bindings ONCE outside transactions
             Dictionary<string, List<(string category, string bindingType, bool isShared)>> csvBindings;
             try

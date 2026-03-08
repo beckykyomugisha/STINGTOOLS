@@ -742,9 +742,16 @@ namespace StingTools.Organise
             using (Transaction tx = new Transaction(doc, "STING Highlight Invalid"))
             {
                 tx.Start();
-                foreach (Element elem in new FilteredElementCollector(doc, view.Id)
-                    .WhereElementIsNotElementType())
+                // Materialize the collector BEFORE iterating — avoids "object not valid"
+                // crashes when elements are deleted/undone during the loop.
+                var elements = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                foreach (Element elem in elements)
                 {
+                    // CRASH FIX: Skip invalid/deleted elements — log error showed
+                    // "The referenced object is not valid" crash in production
+                    if (elem == null || !elem.IsValidObject) continue;
                     string cat = ParameterHelpers.GetCategoryName(elem);
                     if (!known.Contains(cat)) continue;
 

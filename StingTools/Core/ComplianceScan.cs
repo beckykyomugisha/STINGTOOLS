@@ -85,9 +85,13 @@ namespace StingTools.Core
 
             try
             {
-                foreach (Element elem in new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType())
+                // Materialize to List to avoid "object not valid" during iteration
+                var allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                foreach (Element elem in allElements)
                 {
+                    if (elem == null || !elem.IsValidObject) continue;
                     string cat = ParameterHelpers.GetCategoryName(elem);
                     if (!known.Contains(cat)) continue;
 

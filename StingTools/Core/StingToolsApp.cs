@@ -31,6 +31,15 @@ namespace StingTools.Core
                     Path.GetDirectoryName(AssemblyPath) ?? string.Empty,
                     "data");
 
+                // Warn if data directory is missing — this is the root cause of
+                // "data file commands crash but selection commands work" issues
+                if (!Directory.Exists(DataPath))
+                {
+                    StingLog.Warn($"Data directory not found: {DataPath}");
+                    StingLog.Warn("Data-dependent commands (materials, schedules, parameters) will " +
+                        "use fallback defaults. Run extract_plugin.sh to deploy data files.");
+                }
+
                 // Pre-flight: log assembly environment for crash diagnostics
                 LogAssemblyEnvironment();
 
@@ -171,19 +180,26 @@ namespace StingTools.Core
             // 1. Primary: DataPath/fileName (e.g. .../CompiledPlugin/data/BLE_MATERIALS.csv)
             if (!string.IsNullOrEmpty(DataPath))
             {
-                string direct = Path.Combine(DataPath, fileName);
-                if (File.Exists(direct)) return direct;
+                try
+                {
+                    string direct = Path.Combine(DataPath, fileName);
+                    if (File.Exists(direct)) return direct;
+                }
+                catch { /* Path.Combine or File.Exists can fail on invalid paths */ }
             }
 
-            // 2. Search DataPath subdirectories
-            if (!string.IsNullOrEmpty(DataPath) && Directory.Exists(DataPath))
+            // 2. Search DataPath subdirectories (only if directory actually exists)
+            if (!string.IsNullOrEmpty(DataPath))
             {
                 try
                 {
-                    foreach (string f in Directory.GetFiles(
-                        DataPath, fileName, SearchOption.AllDirectories))
+                    if (Directory.Exists(DataPath))
                     {
-                        return f;
+                        foreach (string f in Directory.GetFiles(
+                            DataPath, fileName, SearchOption.AllDirectories))
+                        {
+                            return f;
+                        }
                     }
                 }
                 catch (Exception ex)
