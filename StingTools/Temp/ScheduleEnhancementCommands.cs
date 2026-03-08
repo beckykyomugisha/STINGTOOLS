@@ -578,9 +578,9 @@ namespace StingTools.Temp
                                 }
                             }
 
-                            // Re-apply column headers
-                            if (formulaMap.Count > 0)
-                                ScheduleHelper.ApplyFieldHeaders(sched, formulaMap);
+                            // Re-apply column headers + auto-humanize
+                            ScheduleHelper.ApplyFieldHeaders(sched,
+                                formulaMap.Count > 0 ? formulaMap : null);
                         }
 
                         // Re-apply sorting if none exists

@@ -351,10 +351,10 @@ namespace StingTools.Temp
                                 doc, vs, fieldsSpec, fieldRemaps, formulaMap, addedFieldIds);
                         }
 
-                        // Apply column heading overrides from Formulas column
+                        // Apply column heading overrides from Formulas column + auto-humanize
                         bool didFormat = false;
-                        if (formulaMap.Count > 0)
-                            didFormat |= ScheduleHelper.ApplyFieldHeaders(vs, formulaMap);
+                        didFormat |= ScheduleHelper.ApplyFieldHeaders(vs,
+                            formulaMap.Count > 0 ? formulaMap : null);
 
                         // Apply grouping (inserts as first sort field with ShowHeader)
                         if (!string.IsNullOrEmpty(groupSpec))
@@ -727,8 +727,8 @@ namespace StingTools.Temp
         }
 
         /// <summary>
-        /// Apply column heading overrides from the Formulas map.
-        /// Sets each field's ColumnHeading to be the display-friendly name.
+        /// Apply column heading overrides from the Formulas map, then auto-humanize
+        /// any remaining raw parameter names (e.g. ASS_ID_TXT → Asset ID).
         /// </summary>
         public static bool ApplyFieldHeaders(ViewSchedule vs,
             Dictionary<string, string> formulaMap)
@@ -743,11 +743,22 @@ namespace StingTools.Temp
                     ScheduleField field = vs.Definition.GetField(i);
                     string currentHeading = field.ColumnHeading;
 
-                    // Check if this field's current heading matches a formula key
-                    if (formulaMap.TryGetValue(currentHeading, out string displayName))
+                    // Priority 1: Explicit formula map override
+                    if (formulaMap != null &&
+                        formulaMap.TryGetValue(currentHeading, out string displayName))
                     {
                         field.ColumnHeading = displayName;
                         applied = true;
+                    }
+                    // Priority 2: Auto-humanize raw STING parameter names
+                    else if (IsRawParamName(currentHeading))
+                    {
+                        string humanized = HumanizeParamName(currentHeading);
+                        if (humanized != currentHeading)
+                        {
+                            field.ColumnHeading = humanized;
+                            applied = true;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -757,6 +768,308 @@ namespace StingTools.Temp
             }
             return applied;
         }
+
+        /// <summary>
+        /// Returns true if the heading looks like a raw STING parameter name
+        /// (e.g. ASS_ID_TXT, BLE_ELE_AREA_SQ_M, PLM_PPE_FLW_LPS).
+        /// </summary>
+        private static bool IsRawParamName(string heading)
+        {
+            if (string.IsNullOrEmpty(heading) || heading.Length < 4) return false;
+            // STING params use UPPERCASE with underscores and known prefixes
+            return _paramPrefixes.Any(p => heading.StartsWith(p, StringComparison.Ordinal))
+                && heading.Contains('_');
+        }
+
+        private static readonly string[] _paramPrefixes = new[]
+        {
+            "ASS_", "BLE_", "CST_", "ELC_", "ELE_", "HVC_", "PLM_", "MAT_",
+            "PRJ_", "LTG_", "FLS_", "COM_", "SEC_", "NCL_", "ICT_", "MEP_",
+            "TAG_", "FP_"
+        };
+
+        /// <summary>
+        /// Convert a raw parameter name like ASS_ID_TXT to a human-readable
+        /// column heading like "Asset ID". Uses known abbreviation expansions
+        /// and strips type suffixes (_TXT, _NR, _BOOL).
+        /// </summary>
+        internal static string HumanizeParamName(string paramName)
+        {
+            if (string.IsNullOrEmpty(paramName)) return paramName;
+
+            // Check well-known display names first
+            if (_knownDisplayNames.TryGetValue(paramName, out string known))
+                return known;
+
+            // Strip the group prefix (ASS_, BLE_, etc.)
+            string working = paramName;
+            foreach (string prefix in _paramPrefixes)
+            {
+                if (working.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    working = working.Substring(prefix.Length);
+                    break;
+                }
+            }
+
+            // Strip type suffixes
+            foreach (string suffix in _typeSuffixes)
+            {
+                if (working.EndsWith(suffix, StringComparison.Ordinal))
+                {
+                    working = working.Substring(0, working.Length - suffix.Length);
+                    break;
+                }
+            }
+
+            // Check for unit suffixes and convert to parenthetical
+            string unitLabel = "";
+            foreach (var kvp in _unitSuffixes)
+            {
+                if (working.EndsWith(kvp.Key, StringComparison.Ordinal))
+                {
+                    working = working.Substring(0, working.Length - kvp.Key.Length);
+                    unitLabel = $" ({kvp.Value})";
+                    break;
+                }
+            }
+
+            // Remove trailing underscores
+            working = working.TrimEnd('_');
+
+            // Expand known abbreviations in segments
+            string[] segments = working.Split('_');
+            for (int i = 0; i < segments.Length; i++)
+            {
+                if (_abbreviations.TryGetValue(segments[i], out string expanded))
+                    segments[i] = expanded;
+                else
+                    segments[i] = ToTitleCase(segments[i]);
+            }
+
+            return string.Join(" ", segments) + unitLabel;
+        }
+
+        private static string ToTitleCase(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            if (s.Length == 1) return s.ToUpper();
+            return char.ToUpper(s[0]) + s.Substring(1).ToLower();
+        }
+
+        private static readonly string[] _typeSuffixes = new[]
+        {
+            "_TXT", "_NR", "_BOOL", "_NUM"
+        };
+
+        private static readonly Dictionary<string, string> _unitSuffixes =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["_SQ_M"] = "m\u00B2",
+            ["_CU_M"] = "m\u00B3",
+            ["_MM"] = "mm",
+            ["_M"] = "m",
+            ["_KW"] = "kW",
+            ["_KPA"] = "kPa",
+            ["_LPS"] = "L/s",
+            ["_MPS"] = "m/s",
+            ["_PCT"] = "%",
+            ["_DEG"] = "\u00B0",
+            ["_BAR"] = "bar",
+            ["_GPH"] = "gal/hr",
+            ["_YRS"] = "yrs",
+            ["_MONTHS"] = "months",
+            ["_UGX"] = "UGX",
+            ["_USD"] = "USD",
+            ["_MICRON"] = "\u00B5m",
+        };
+
+        private static readonly Dictionary<string, string> _abbreviations =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ID"] = "ID",
+            ["COD"] = "Code",
+            ["TYP"] = "Type",
+            ["LOC"] = "Location",
+            ["LVL"] = "Level",
+            ["RM"] = "Room",
+            ["SYS"] = "System",
+            ["FUNC"] = "Function",
+            ["PRODCT"] = "Product",
+            ["SEQ"] = "Sequence",
+            ["NUM"] = "Number",
+            ["REF"] = "Reference",
+            ["NR"] = "No.",
+            ["CAT"] = "Category",
+            ["CST"] = "Cost",
+            ["DESC"] = "Description",
+            ["MFR"] = "Manufacturer",
+            ["MDL"] = "Model",
+            ["SER"] = "Serial",
+            ["INST"] = "Installation",
+            ["MAINT"] = "Maintenance",
+            ["FREQ"] = "Frequency",
+            ["ELE"] = "Element",
+            ["EQP"] = "Equipment",
+            ["FLR"] = "Floor",
+            ["STR"] = "Strainer",
+            ["STRUCT"] = "Structural",
+            ["PPE"] = "Pipe",
+            ["VLV"] = "Valve",
+            ["VNT"] = "Vent",
+            ["FLW"] = "Flow",
+            ["PSR"] = "Pressure",
+            ["PWR"] = "Power",
+            ["HED"] = "Head",
+            ["DRN"] = "Drain",
+            ["INS"] = "Insulation",
+            ["THK"] = "Thickness",
+            ["SZ"] = "Size",
+            ["MAT"] = "Material",
+            ["SPT"] = "Support",
+            ["LD"] = "Load",
+            ["CAP"] = "Capacity",
+            ["GSK"] = "Gasket",
+            ["EXJ"] = "Expansion Joint",
+            ["EXP"] = "Expansion",
+            ["GRT"] = "Grate",
+            ["VEL"] = "Velocity",
+            ["BKWTR"] = "Backwater",
+            ["FIT"] = "Fitting",
+            ["CONN"] = "Connection",
+            ["DIA"] = "Diameter",
+            ["AMP"] = "Amperage",
+            ["VOLT"] = "Voltage",
+            ["FREQ"] = "Frequency",
+            ["DCT"] = "Duct",
+            ["FLX"] = "Flex",
+            ["FIX"] = "Fixture",
+            ["CDT"] = "Conduit",
+            ["CTR"] = "Cable Tray",
+            ["DEV"] = "Device",
+            ["PMT"] = "Procurement",
+            ["PRO"] = "Purchase",
+            ["PO"] = "PO",
+            ["QTY"] = "Qty",
+            ["DEPT"] = "Department",
+            ["HOTWTR"] = "Hot Water",
+            ["TEMP"] = "Temperature",
+            ["EFF"] = "Efficiency",
+            ["ACTU"] = "Actuation",
+            ["CV"] = "Cv",
+            ["OANDM"] = "O&M",
+            ["TAG"] = "Tag",
+            ["DISC"] = "Discipline",
+            ["ZONE"] = "Zone",
+            ["AREA"] = "Area",
+            ["VOL"] = "Volume",
+            ["HTG"] = "Heating",
+            ["CLG"] = "Cooling",
+            ["SUP"] = "Supply",
+            ["RET"] = "Return",
+            ["CEIL"] = "Ceiling",
+            ["STAIR"] = "Stair",
+            ["RAMP"] = "Ramp",
+            ["WALL"] = "Wall",
+            ["FIN"] = "Finish",
+            ["INT"] = "Interior",
+            ["EXT"] = "Exterior",
+        };
+
+        /// <summary>Well-known parameter → display name overrides for exact matches.</summary>
+        private static readonly Dictionary<string, string> _knownDisplayNames =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // Universal tag fields
+            ["ASS_ID_TXT"] = "Asset ID",
+            ["ASS_TAG_1_TXT"] = "STING Tag",
+            ["ASS_TAG_2_TXT"] = "Tag (Top)",
+            ["ASS_TAG_3_TXT"] = "Tag (Bottom L)",
+            ["ASS_TAG_4_TXT"] = "Tag (Bottom R)",
+            ["ASS_TAG_5_TXT"] = "Tag (Multi Top)",
+            ["ASS_TAG_6_TXT"] = "Tag (Multi Bottom)",
+            ["ASS_DISCIPLINE_COD_TXT"] = "Discipline",
+            ["ASS_LOC_TXT"] = "Location",
+            ["ASS_ZONE_TXT"] = "Zone",
+            ["ASS_LVL_COD_TXT"] = "Level Code",
+            ["ASS_SYSTEM_TYPE_TXT"] = "System Type",
+            ["ASS_FUNC_TXT"] = "Function",
+            ["ASS_PRODCT_COD_TXT"] = "Product Code",
+            ["ASS_SEQ_NUM_TXT"] = "Sequence No.",
+            ["ASS_STATUS_TXT"] = "Status",
+            ["ASS_RM_COD_TXT"] = "Room Ref.",
+            ["ASS_DESCRIPTION_TXT"] = "Description",
+            ["ASS_CATEGORY_TXT"] = "Category",
+            ["ASS_CAT_TXT"] = "Category",
+            ["ASS_MANUFACTURER_TXT"] = "Manufacturer",
+            ["ASS_MODEL_NR_TXT"] = "Model No.",
+            ["ASS_SERIAL_NR_TXT"] = "Serial No.",
+            ["ASS_PART_NUMBER_TXT"] = "Part Number",
+            ["ASS_CAPACITY_TXT"] = "Capacity",
+            ["ASS_EQUIPMENT_TAG_TXT"] = "Equipment Tag",
+            ["ASS_DEPARTMENT_ASSIGNMENT_TXT"] = "Department",
+            ["ASS_INST_DATE_TXT"] = "Install Date",
+            ["ASS_INST_DETAIL_TXT"] = "Install Detail",
+            ["ASS_WARRANTY_PERIOD_TXT"] = "Warranty Period",
+            ["ASS_WARRANTY_EXPIRATION_DATE_TXT"] = "Warranty Expiry",
+            ["ASS_MAINTENANCE_SCHEDULE_TXT"] = "Maintenance Schedule",
+            ["ASS_MAINTENANCE_FREQUENCY_MONTHS"] = "Maintenance Freq. (months)",
+            ["ASS_EXPECTED_LIFE_YEARS_YRS"] = "Expected Life (yrs)",
+            ["ASS_LOCAL_SERVICE_AVAILABLE_TXT"] = "Local Service Available",
+            ["ASS_OANDM_MANUALS_PROVIDED_TXT"] = "O&M Manuals Provided",
+            ["ASS_CRITICALITY_RATING_NR"] = "Criticality Rating",
+            // Cost fields
+            ["ASS_CST_QUANTITY_NR"] = "Quantity",
+            ["ASS_CST_UNIT_PRICE_UGX_NR"] = "Unit Price (UGX)",
+            ["ASS_CST_TOTAL_UGX_NR"] = "Total Cost (UGX)",
+            ["ASS_CST_INSTALL_UGX_NR"] = "Installation Cost (UGX)",
+            ["ASS_CST_ANNUAL_MAINTENANCE_UGX_NR"] = "Annual Maintenance (UGX)",
+            ["ASS_CST_LIFECYCLE_UGX_NR"] = "Lifecycle Cost (UGX)",
+            // Procurement
+            ["ASS_PMT_CST_UNIT_RATE_UGX_NR"] = "Unit Rate (UGX)",
+            ["ASS_PMT_CST_MAT_CST_UGX_NR"] = "Material Cost (UGX)",
+            ["ASS_PMT_CST_LABOUR_CST_UGX_NR"] = "Labour Cost (UGX)",
+            ["ASS_PMT_CST_TOTAL_CST_UGX_NR"] = "Total Cost (UGX)",
+            ["ASS_PMT_INV_UNIT_TXT"] = "Unit of Measure",
+            ["ASS_PMT_PRO_SUPPLIER_TXT"] = "Supplier",
+            ["ASS_PMT_PRO_PO_NR_TXT"] = "PO Number",
+            ["ASS_PMT_PRO_DELIVERY_DATE_TXT"] = "Delivery Date",
+            ["ASS_PMT_QTY_ORDERED_NR"] = "Qty Ordered",
+            // BLE fields
+            ["BLE_ELE_AREA_SQ_M"] = "Element Area (m\u00B2)",
+            ["BLE_ROOM_NAME_TXT"] = "Room Name",
+            ["BLE_ROOM_NUMBER_TXT"] = "Room Number",
+            ["BLE_WALL_LENGTH_MM"] = "Wall Length (mm)",
+            ["BLE_WALL_HEIGHT_MM"] = "Wall Height (mm)",
+            ["BLE_WALL_INTERIOR_FINISH_TXT"] = "Interior Finish",
+            ["BLE_FLR_THICKNESS_MM"] = "Floor Thickness (mm)",
+            ["BLE_FLR_LVL_NR"] = "Floor Level",
+            ["BLE_CEILING_HEIGHT_MM"] = "Ceiling Height (mm)",
+            ["BLE_DOOR_WIDTH_MM"] = "Door Width (mm)",
+            ["BLE_DOOR_HEIGHT_MM"] = "Door Height (mm)",
+            ["BLE_DOOR_MATERIAL_FINISH_TXT"] = "Door Material/Finish",
+            ["BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT"] = "Door Operation Type",
+            ["BLE_FINISH_TYPE_TXT"] = "Finish Type",
+            ["BLE_FINISH_PAINT_AREA_SQ_M"] = "Paint Area (m\u00B2)",
+            ["BLE_FINISH_PLASTER_AREA_SQ_M"] = "Plaster Area (m\u00B2)",
+            ["BLE_FINISH_TILE_AREA_SQ_M"] = "Tile Area (m\u00B2)",
+            ["BLE_STAIR_WIDTH_MM"] = "Stair Width (mm)",
+            ["BLE_STAIR_RISE_MM"] = "Stair Rise (mm)",
+            ["BLE_STAIR_GOING_MM"] = "Stair Going (mm)",
+            ["BLE_RAMP_WIDTH_MM"] = "Ramp Width (mm)",
+            ["BLE_RAMP_SLOPE_PCT"] = "Ramp Slope (%)",
+            ["BLE_ROOF_SLOPE_DEG"] = "Roof Slope (\u00B0)",
+            ["BLE_STRUCT_CONCRETE_GRADE_TXT"] = "Concrete Grade",
+            ["BLE_STRUCT_ELE_TYPE_TXT"] = "Structural Element Type",
+            ["BLE_STRUCT_STEEL_SECTION_TXT"] = "Steel Section",
+            ["BLE_STANDARDS_TXT"] = "Standards",
+            ["ASS_ROOM_AREA_SQ_M"] = "Room Area (m\u00B2)",
+            ["ASS_ROOM_VOLUME_CU_M"] = "Room Volume (m\u00B3)",
+            // Project fields
+            ["PRJ_COMMENTS_TXT"] = "Remarks",
+            ["PRJ_AREA_NAME_TXT"] = "Area Name",
+            ["PRJ_GRID_REF_TXT"] = "Grid Reference",
+        };
 
         /// <summary>
         /// Apply sorting from CSV sort spec.
