@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 namespace StingTools.UI
@@ -125,6 +126,20 @@ namespace StingTools.UI
                 Topmost = true,
                 Content = panel,
             };
+
+            // CRASH FIX: Set Owner to Revit main window to prevent the progress
+            // dialog from staying topmost over TaskDialogs, blocking their buttons
+            // and causing apparent freezes when users can't dismiss modal dialogs.
+            try
+            {
+                var revitProcess = System.Diagnostics.Process.GetCurrentProcess();
+                if (revitProcess.MainWindowHandle != IntPtr.Zero)
+                {
+                    var helper = new WindowInteropHelper(_window);
+                    helper.Owner = revitProcess.MainWindowHandle;
+                }
+            }
+            catch { /* Non-critical — dialog still works without owner */ }
         }
 
         /// <summary>
