@@ -405,10 +405,13 @@ namespace StingTools.Tags
             // Build HTML
             string html = BuildHtmlReport(doc, tagged);
 
-            // Save to file
-            string dataPath = StingToolsApp.DataPath ?? "";
-            string dir = Path.GetDirectoryName(dataPath);
-            if (string.IsNullOrEmpty(dir)) dir = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            // Save to project file location (fallback to data path, then temp)
+            string dir = !string.IsNullOrEmpty(doc.PathName)
+                ? Path.GetDirectoryName(doc.PathName) : null;
+            if (string.IsNullOrEmpty(dir))
+                dir = StingToolsApp.DataPath;
+            if (string.IsNullOrEmpty(dir))
+                dir = Path.GetTempPath();
             string filePath = Path.Combine(dir, $"STING_TAG7_Report_{DateTime.Now:yyyyMMdd_HHmmss}.html");
 
             File.WriteAllText(filePath, html);

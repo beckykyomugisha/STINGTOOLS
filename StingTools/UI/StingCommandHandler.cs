@@ -2378,10 +2378,13 @@ namespace StingTools.UI
             foreach (string zone in Core.TagConfig.ZoneCodes)
                 report.AppendLine($"  {zone}");
 
-            // Export to text file alongside data
-            string exportPath = System.IO.Path.Combine(
-                StingToolsApp.DataPath ?? System.IO.Path.GetTempPath(),
-                "TAG_DICTIONARY.txt");
+            // Export to project file location (fallback to data path)
+            string exportDir = !string.IsNullOrEmpty(app.ActiveUIDocument?.Document?.PathName)
+                ? System.IO.Path.GetDirectoryName(app.ActiveUIDocument.Document.PathName)
+                : null;
+            if (string.IsNullOrEmpty(exportDir))
+                exportDir = StingToolsApp.DataPath ?? System.IO.Path.GetTempPath();
+            string exportPath = System.IO.Path.Combine(exportDir, "TAG_DICTIONARY.txt");
             try
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());
@@ -2523,10 +2526,13 @@ namespace StingTools.UI
                 report.AppendLine($"[{kvp.Key}]  {paramValue,-20} {kvp.Value.elems.Count,-8} {string.Join(", ", catCounts.Take(3))}");
             }
 
-            // Export
-            string exportPath = System.IO.Path.Combine(
-                StingToolsApp.DataPath ?? System.IO.Path.GetTempPath(),
-                "COLOR_LEGEND.txt");
+            // Export to project file location (fallback to data path)
+            string clExportDir = !string.IsNullOrEmpty(app.ActiveUIDocument?.Document?.PathName)
+                ? System.IO.Path.GetDirectoryName(app.ActiveUIDocument.Document.PathName)
+                : null;
+            if (string.IsNullOrEmpty(clExportDir))
+                clExportDir = StingToolsApp.DataPath ?? System.IO.Path.GetTempPath();
+            string exportPath = System.IO.Path.Combine(clExportDir, "COLOR_LEGEND.txt");
             try
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());

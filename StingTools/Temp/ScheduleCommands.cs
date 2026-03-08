@@ -13,11 +13,12 @@ namespace StingTools.Temp
     /// <summary>
     /// Ported from STINGTemp 5_Schedules.panel — Batch Create Schedules.
     /// Multi-discipline schedule creation from MR_SCHEDULES.csv definition file.
-    /// Now uses ALL 15 CSV columns:
-    ///   0: Source_File, 1: Discipline, 2: Schedule_Name, 3: Category,
-    ///   4: Schedule_Type (Material Takeoff), 5: Multi_Categories,
-    ///   6: Fields, 7: Filters, 8: Sorting, 9: Grouping, 10: Totals,
-    ///   11: Formulas (field header aliases), 12-14: Header/Text/Background Color (reserved)
+    /// CSV columns (16 total):
+    ///   0: Record_Type, 1: Source_File, 2: Discipline, 3: Schedule_Name,
+    ///   4: Category, 5: Schedule_Type (Material Takeoff),
+    ///   6: Multi_Categories, 7: Fields, 8: Filters, 9: Sorting,
+    ///   10: Grouping, 11: Totals, 12: Formulas (field header aliases),
+    ///   13-15: Header/Text/Background Color (reserved)
     /// Also loads SCHEDULE_FIELD_REMAP.csv for deprecated field name auto-remapping.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
@@ -55,6 +56,161 @@ namespace StingTools.Temp
             if (remapCount > 0)
                 StingLog.Info($"Loaded {remapCount} field remaps from SCHEDULE_FIELD_REMAP.csv");
 
+            // ── Parse all CSV lines and collect available disciplines ──
+            var allLines = File.ReadAllLines(csvPath)
+                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
+                .Skip(1) // skip header row
+                .ToList();
+
+            // Gather unique disciplines from SCHEDULE records for the selection dialog
+            var disciplineSet = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            int totalScheduleRows = 0;
+            int totalFilterRows = 0;
+            foreach (string line in allLines)
+            {
+                string[] cols = StingToolsApp.ParseCsvLine(line);
+                if (cols.Length < 5) continue;
+                string rt = cols[0].Trim();
+                if (rt.Equals("SCHEDULE", StringComparison.OrdinalIgnoreCase) ||
+                    rt.Equals("MATERIAL_TAKEOFF", StringComparison.OrdinalIgnoreCase))
+                {
+                    totalScheduleRows++;
+                    string disc = cols[2].Trim();
+                    if (!string.IsNullOrEmpty(disc))
+                        disciplineSet.Add(disc);
+                }
+                else if (rt.Equals("VIEW_FILTER", StringComparison.OrdinalIgnoreCase))
+                {
+                    totalFilterRows++;
+                }
+            }
+
+            // ── Schedule type selection dialog ──
+            var td = new TaskDialog("STING Tools - Batch Schedules");
+            td.MainInstruction = "Choose which schedules to create";
+            td.MainContent =
+                $"MR_SCHEDULES.csv contains {totalScheduleRows} schedule definitions " +
+                $"across {disciplineSet.Count} disciplines, plus {totalFilterRows} view filters.\n\n" +
+                "Disciplines: " + string.Join(", ", disciplineSet) + "\n\n" +
+                "Choose what to create:";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                $"All Schedules ({totalScheduleRows} schedules + {totalFilterRows} filters)",
+                "Create every schedule and view filter defined in the CSV");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Choose by Discipline...",
+                "Select which discipline(s) to include");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "View Filters Only",
+                $"Create only the {totalFilterRows} view filters (no schedules)");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+            td.DefaultButton = TaskDialogResult.CommandLink1;
+
+            TaskDialogResult choice = td.Show();
+            if (choice == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            // Build allowed disciplines set
+            var allowedDisciplines = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool createSchedules = true;
+            bool createFilters = true;
+
+            if (choice == TaskDialogResult.CommandLink1)
+            {
+                // All
+                foreach (string d in disciplineSet) allowedDisciplines.Add(d);
+            }
+            else if (choice == TaskDialogResult.CommandLink2)
+            {
+                // Discipline picker: checkboxes via multi-command-link dialog
+                // Build a selection string for each discipline with count
+                var discCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                foreach (string line in allLines)
+                {
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 5) continue;
+                    string rt = cols[0].Trim();
+                    if (!rt.Equals("SCHEDULE", StringComparison.OrdinalIgnoreCase) &&
+                        !rt.Equals("MATERIAL_TAKEOFF", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    string disc = cols[2].Trim();
+                    if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
+                    discCounts[disc]++;
+                }
+
+                // Show discipline selection (use comma-separated input via TaskDialog)
+                var discList = disciplineSet.ToList();
+                var discDesc = new StringBuilder();
+                for (int i = 0; i < discList.Count; i++)
+                {
+                    int cnt = discCounts.TryGetValue(discList[i], out int c) ? c : 0;
+                    discDesc.AppendLine($"  {i + 1}. {discList[i]} ({cnt} schedules)");
+                }
+
+                var pickDlg = new TaskDialog("STING Tools - Select Disciplines");
+                pickDlg.MainInstruction = "Select disciplines to create";
+                pickDlg.MainContent =
+                    "Available disciplines:\n" + discDesc.ToString() +
+                    "\nChoose a scope:";
+
+                // Offer common groupings as command links
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "MEP Only (Mechanical + Electrical + Plumbing + Fire Protection)",
+                    "Most common for MEP engineers");
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Architecture + Structure Only",
+                    "Architectural and structural schedules");
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "All Disciplines",
+                    $"Create all {totalScheduleRows} schedules");
+                pickDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                pickDlg.DefaultButton = TaskDialogResult.CommandLink1;
+
+                TaskDialogResult pickResult = pickDlg.Show();
+                if (pickResult == TaskDialogResult.Cancel)
+                    return Result.Cancelled;
+
+                if (pickResult == TaskDialogResult.CommandLink1)
+                {
+                    // MEP
+                    foreach (string d in disciplineSet)
+                    {
+                        string dl = d.ToUpperInvariant();
+                        if (dl.Contains("MECH") || dl.Contains("ELEC") || dl.Contains("PLUMB") ||
+                            dl.Contains("FIRE") || dl.Contains("MEP") || dl.Contains("HVAC") ||
+                            dl.Contains("LIGHT") || dl.Contains("COMM") || dl.Contains("DATA") ||
+                            dl.Contains("SECUR") || dl.Contains("SPRINK"))
+                            allowedDisciplines.Add(d);
+                    }
+                }
+                else if (pickResult == TaskDialogResult.CommandLink2)
+                {
+                    // Architecture + Structure
+                    foreach (string d in disciplineSet)
+                    {
+                        string dl = d.ToUpperInvariant();
+                        if (dl.Contains("ARCH") || dl.Contains("STRUCT") || dl.Contains("GENERAL"))
+                            allowedDisciplines.Add(d);
+                    }
+                }
+                else
+                {
+                    // All
+                    foreach (string d in disciplineSet) allowedDisciplines.Add(d);
+                }
+
+                if (allowedDisciplines.Count == 0)
+                {
+                    TaskDialog.Show("Batch Schedules", "No disciplines matched. No schedules created.");
+                    return Result.Cancelled;
+                }
+            }
+            else if (choice == TaskDialogResult.CommandLink3)
+            {
+                // Filters only
+                createSchedules = false;
+                createFilters = true;
+            }
+
             int created = 0;
             int skipped = 0;
             int remapped = 0;
@@ -78,19 +234,21 @@ namespace StingTools.Temp
             {
                 tx.Start();
 
-                var lines = File.ReadAllLines(csvPath)
-                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                    .Skip(1); // skip header row
-
-                foreach (string line in lines)
+                foreach (string line in allLines)
                 {
                     string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 4) continue;
+                    if (cols.Length < 5) continue;
+
+                    // CSV columns (16): Record_Type(0), Source_File(1), Discipline(2),
+                    // Schedule_Name(3), Category(4), Schedule_Type(5), Multi_Categories(6),
+                    // Fields(7), Filters(8), Sorting(9), Grouping(10), Totals(11),
+                    // Formulas(12), Header_Color(13), Text_Color(14), Background_Color(15)
 
                     // DAT-004: Handle VIEW_FILTER records
                     string recordType = cols[0].Trim();
                     if (recordType.Equals("VIEW_FILTER", StringComparison.OrdinalIgnoreCase))
                     {
+                        if (!createFilters) continue;
                         string filterName = cols.Length > 3 ? cols[3].Trim() : "";
                         string filterCats = cols.Length > 4 ? cols[4].Trim() : "";
                         if (string.IsNullOrEmpty(filterName) || existingFilterNames.Contains(filterName))
@@ -125,17 +283,35 @@ namespace StingTools.Temp
                         continue;
                     }
 
-                    // Parse all 15 columns
-                    string name = cols[2].Trim();
-                    string category = cols[3].Trim();
-                    string scheduleType = cols.Length > 4 ? cols[4].Trim() : "";
-                    string multiCats = cols.Length > 5 ? cols[5].Trim() : "";
-                    string fieldsSpec = cols.Length > 6 ? cols[6].Trim() : "";
-                    string filterSpec = cols.Length > 7 ? cols[7].Trim() : "";
-                    string sortSpec = cols.Length > 8 ? cols[8].Trim() : "";
-                    string groupSpec = cols.Length > 9 ? cols[9].Trim() : "";
-                    string totalSpec = cols.Length > 10 ? cols[10].Trim() : "";
-                    string formulaSpec = cols.Length > 11 ? cols[11].Trim() : "";
+                    // Skip non-SCHEDULE records
+                    if (!recordType.Equals("SCHEDULE", StringComparison.OrdinalIgnoreCase) &&
+                        !recordType.Equals("MATERIAL_TAKEOFF", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (!createSchedules) continue;
+
+                    // FIX: Correct column indices — CSV has Record_Type at col 0
+                    // Col 0: Record_Type, 1: Source_File, 2: Discipline, 3: Schedule_Name,
+                    // 4: Category, 5: Schedule_Type, 6: Multi_Categories, 7: Fields,
+                    // 8: Filters, 9: Sorting, 10: Grouping, 11: Totals, 12: Formulas
+                    string discipline = cols[2].Trim();
+                    string name = cols[3].Trim();
+                    string category = cols.Length > 4 ? cols[4].Trim() : "";
+                    string scheduleType = cols.Length > 5 ? cols[5].Trim() : "";
+                    string multiCats = cols.Length > 6 ? cols[6].Trim() : "";
+                    string fieldsSpec = cols.Length > 7 ? cols[7].Trim() : "";
+                    string filterSpec = cols.Length > 8 ? cols[8].Trim() : "";
+                    string sortSpec = cols.Length > 9 ? cols[9].Trim() : "";
+                    string groupSpec = cols.Length > 10 ? cols[10].Trim() : "";
+                    string totalSpec = cols.Length > 11 ? cols[11].Trim() : "";
+                    string formulaSpec = cols.Length > 12 ? cols[12].Trim() : "";
+
+                    // Filter by selected discipline(s)
+                    if (allowedDisciplines.Count > 0 && !allowedDisciplines.Contains(discipline))
+                    {
+                        skipped++;
+                        continue;
+                    }
 
                     if (string.IsNullOrEmpty(name)) continue;
                     if (existingNames.Contains(name))
@@ -165,7 +341,7 @@ namespace StingTools.Temp
                         // Build formula map: custom param name → built-in field name (for fallback lookup)
                         var formulaMap = ScheduleHelper.ParseFormulaSpec(formulaSpec);
 
-                        // Add fields from CSV column 6, with field remap fallback + formula fallback
+                        // Add fields from CSV column 7, with field remap fallback + formula fallback
                         var addedFieldIds = new Dictionary<string, ScheduleFieldId>(
                             StringComparer.OrdinalIgnoreCase);
 
