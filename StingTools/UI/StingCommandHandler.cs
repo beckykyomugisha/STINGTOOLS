@@ -756,29 +756,24 @@ namespace StingTools.UI
             // (See commit history for rationale — FilteredElementCollector after
             // transaction commit causes native segfault during deferred regeneration.)
 
-            // CRASH FIX: Force document regeneration BEFORE returning control to Revit.
+            // NOTE: Post-command doc.Regenerate() REMOVED.
             //
-            // After a transaction commits, Revit queues deferred processing
-            // (ElementsGraphicCacheUpdater, undo buffer, graphics cache).
-            // When Execute() returns, Revit processes this deferred work AND
-            // fires other co-loaded plugins' event handlers / IUpdaters.
-            // If the model is in a partially-regenerated state at that point,
-            // those handlers (DiRoots, pyRevit, etc.) may access invalid elements
-            // causing a native crash (segfault that bypasses managed catch blocks).
+            // Previous versions called doc.Regenerate() here to force pending changes
+            // to complete before returning to Revit.  However, this causes native
+            // crashes (access violations that bypass managed exception handling) after
+            // heavy operations like:
+            //   - Creating 815+ materials (CreateBLEMaterials)
+            //   - Binding 200+ shared parameters (LoadSharedParams)
+            //   - Batch tagging thousands of elements
             //
-            // Calling doc.Regenerate() here forces all pending changes to complete
-            // while we're still on the API thread, ensuring a consistent model state
-            // before Revit dispatches to other addins.
-            try
-            {
-                var doc = app.ActiveUIDocument?.Document;
-                if (doc != null && doc.IsValidObject)
-                    doc.Regenerate();
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"Post-command regeneration failed: {ex.Message}");
-            }
+            // Revit already regenerates automatically when a transaction commits.
+            // The deferred processing is Revit's own mechanism and is safe.
+            // Co-loaded plugins (pyRevit, DiRoots) access the model through their
+            // own event handlers which fire AFTER regeneration completes.
+            //
+            // If a specific command needs forced regeneration for correctness,
+            // it should call doc.Regenerate() inside its own try/catch WITHIN
+            // the transaction (before tx.Commit()), not after.
         }
 
         // ── Current UIApplication (static fallback for panel commands) ──

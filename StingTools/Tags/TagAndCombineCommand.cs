@@ -251,10 +251,6 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-
-            // CRASH FIX: force regeneration before showing result dialog
-            try { doc.Regenerate(); } catch { }
-
             sw.Stop();
 
             var report = new StringBuilder();

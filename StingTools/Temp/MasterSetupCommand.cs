@@ -286,10 +286,6 @@ namespace StingTools.Temp
 
                 tg.Assimilate();
             }
-
-            // CRASH FIX: force regeneration before showing result dialog
-            try { doc.Regenerate(); } catch { }
-
             report.AppendLine(new string('─', 45));
             report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");
             report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");

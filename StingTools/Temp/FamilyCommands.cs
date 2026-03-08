@@ -294,10 +294,6 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
-
-            // CRASH FIX: force regeneration before showing result dialog
-            try { doc.Regenerate(); } catch { }
-
             string report = $"Created {created} {label.ToLower()} types.\n" +
                 $"Skipped {skipped} (exist or failed).\n" +
                 $"Materials created: {matCreated}\n" +

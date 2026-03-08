@@ -175,10 +175,6 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-
-            // CRASH FIX: force regeneration before showing result dialog
-            try { doc.Regenerate(); } catch { }
-
             sw.Stop();
 
             // Step 4: Rich reporting
@@ -380,10 +376,6 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-
-            // CRASH FIX: force regeneration before showing result dialog
-            try { doc.Regenerate(); } catch { }
-
             TaskDialog.Show("Tag Format Migration",
                 $"Migration complete.\n\n  Migrated: {migrated}\n  Total: {tagged.Count}");
             StingLog.Info($"Tag format migration: {migrated}/{tagged.Count} tags reformatted");
@@ -536,10 +528,6 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-
-            // CRASH FIX: force regeneration before showing result dialog
-            try { doc.Regenerate(); } catch { }
-
             TaskDialog.Show("Tag Changed",
                 $"Delta update complete.\n\n  Stale tokens: {stale}\n  Elements updated: {updated}\n  Tags rebuilt: {processedElements.Count}");
             StingLog.Info($"Delta tagging: {stale} stale tokens, {updated} elements updated");

@@ -234,10 +234,6 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-
-            // CRASH FIX: force regeneration before showing result dialog
-            try { doc.Regenerate(); } catch { }
-
             // Build report
             var report = new StringBuilder();
             report.AppendLine("Combine Parameters Complete");

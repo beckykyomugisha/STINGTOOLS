@@ -318,10 +318,6 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-
-            // CRASH FIX: force regeneration before showing result dialog
-            try { doc.Regenerate(); } catch { }
-
             sw.Stop();
             int totalPopulated = discSet + locSet + zoneSet + lvlSet + sysSet + funcSet + prodSet + statusSet + revSet;
 
