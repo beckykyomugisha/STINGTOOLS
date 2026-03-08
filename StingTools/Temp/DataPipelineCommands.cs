@@ -1550,11 +1550,25 @@ namespace StingTools.Temp
             // ═══════════════════════════════════════════════════════════════
             //  SAVE WORKBOOK
             // ═══════════════════════════════════════════════════════════════
-            string exportDir = StingToolsApp.DataPath ?? Path.GetTempPath();
+            // Let user choose save location
+            string defaultDir = Path.GetDirectoryName(doc.PathName);
+            if (string.IsNullOrEmpty(defaultDir))
+                defaultDir = StingToolsApp.DataPath ?? Path.GetTempPath();
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string safeTitle = string.Join("_", doc.Title.Split(Path.GetInvalidFileNameChars()));
             string fileName = $"STING_BOQ_{safeTitle}_{timestamp}.xlsx";
-            string exportPath = Path.Combine(exportDir, fileName);
+
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Save Bill of Quantities",
+                Filter = "Excel Files (*.xlsx)|*.xlsx|All Files (*.*)|*.*",
+                FileName = fileName,
+                InitialDirectory = defaultDir
+            };
+            if (dlg.ShowDialog() != true)
+                return Result.Cancelled;
+            string exportPath = dlg.FileName;
+
             try
             {
                 wb.SaveAs(exportPath);
@@ -1621,7 +1635,12 @@ namespace StingTools.Temp
             summary.AppendLine();
             summary.AppendLine($"Exported to: {exportPath}");
 
-            TaskDialog.Show("BOQ Export", summary.ToString());
+            var td = new TaskDialog("STING Tools - BOQ Export");
+            td.MainInstruction = "Bill of Quantities Export Complete";
+            td.MainContent = summary.ToString();
+            td.CommonButtons = TaskDialogCommonButtons.Ok;
+            td.DefaultButton = TaskDialogResult.Ok;
+            td.Show();
             return Result.Succeeded;
         }
 

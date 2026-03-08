@@ -301,6 +301,45 @@ namespace StingTools.UI
             txtBulkStatus.Text = message;
         }
 
+        // ── Dropdown population (called from StingCommandHandler) ──
+
+        /// <summary>
+        /// Populate all three parameter ComboBoxes (Bulk, Lookup, Anomaly) from
+        /// the Revit API thread via Dispatcher. Called after RefreshParamList scans
+        /// element parameters.
+        /// </summary>
+        public static void PopulateParamDropdowns(IEnumerable<string> paramNames)
+        {
+            if (_instance == null) return;
+            var list = paramNames is IList<string> l ? l : new List<string>(paramNames);
+            _instance.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    PopulateCombo(_instance.cmbBulkParam, list);
+                    PopulateCombo(_instance.cmbLookupParam, list);
+                    PopulateCombo(_instance.cmbAnomalyParam, list);
+                    Core.StingLog.Info($"Dropdowns populated with {list.Count} params");
+                }
+                catch (Exception ex)
+                {
+                    Core.StingLog.Warn($"PopulateParamDropdowns failed: {ex.Message}");
+                }
+            }));
+        }
+
+        private static void PopulateCombo(ComboBox cmb, IList<string> items)
+        {
+            if (cmb == null) return;
+            string currentText = cmb.Text;
+            cmb.Items.Clear();
+            foreach (string item in items)
+                cmb.Items.Add(item);
+            // Restore previous text if it was typed in
+            if (!string.IsNullOrEmpty(currentText))
+                cmb.Text = currentText;
+        }
+
         /// <summary>
         /// ENH-003: Static method to update compliance status bar from command handler.
         /// </summary>

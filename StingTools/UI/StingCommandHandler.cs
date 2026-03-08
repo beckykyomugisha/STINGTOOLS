@@ -1128,6 +1128,9 @@ namespace StingTools.UI
                     paramNames.Add(p.Definition.Name);
             }
 
+            // Populate all three parameter dropdowns in the dockable panel
+            StingDockPanel.PopulateParamDropdowns(paramNames);
+
             var msg = new StringBuilder();
             msg.AppendLine($"Parameters for {ParameterHelpers.GetCategoryName(target)} ({paramNames.Count} total):\n");
             int shown = 0;
@@ -1141,7 +1144,12 @@ namespace StingTools.UI
                     msg.AppendLine($"  {name}");
             }
 
-            TaskDialog.Show("Parameter List", msg.ToString());
+            var td = new TaskDialog("STING Tools - Parameter List");
+            td.MainInstruction = $"Parameters for {ParameterHelpers.GetCategoryName(target)} ({paramNames.Count} total)";
+            td.MainContent = msg.ToString();
+            td.CommonButtons = TaskDialogCommonButtons.Ok;
+            td.DefaultButton = TaskDialogResult.Ok;
+            td.Show();
             StingLog.Info($"RefreshParamList: {paramNames.Count} params for {ParameterHelpers.GetCategoryName(target)}");
         }
 
@@ -3688,6 +3696,10 @@ namespace StingTools.UI
 
             int total = 0, missingTag = 0, missingDisc = 0, missingSys = 0;
             int placeholders = 0, formatErrors = 0;
+            // Collect param names from scanned elements for dropdown population
+            var paramNames = new SortedSet<string>(StringComparer.Ordinal);
+            foreach (string p in ParamRegistry.AllParamGuids.Keys)
+                paramNames.Add(p);
 
             foreach (Element el in new FilteredElementCollector(doc, view.Id)
                 .WhereElementIsNotElementType())
@@ -3695,6 +3707,16 @@ namespace StingTools.UI
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!known.Contains(cat)) continue;
                 total++;
+
+                // Collect parameter names from first few elements for dropdown
+                if (total <= 3)
+                {
+                    foreach (Parameter p in el.Parameters)
+                    {
+                        if (p.Definition != null && !string.IsNullOrEmpty(p.Definition.Name))
+                            paramNames.Add(p.Definition.Name);
+                    }
+                }
 
                 string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
@@ -3714,6 +3736,9 @@ namespace StingTools.UI
                 }
             }
 
+            // Populate dropdown with discovered parameters
+            StingDockPanel.PopulateParamDropdowns(paramNames);
+
             int issues = missingTag + missingDisc + missingSys + placeholders + formatErrors;
             double healthPct = total > 0 ? ((total - Math.Min(issues, total)) / (double)total) * 100 : 0;
 
@@ -3732,7 +3757,12 @@ namespace StingTools.UI
             report.AppendLine();
             report.AppendLine($"  Total issues: {issues}");
 
-            TaskDialog.Show("Anomaly Scan", report.ToString());
+            var td = new TaskDialog("STING Tools - Anomaly Scan");
+            td.MainInstruction = $"Anomaly Scan — {view.Name}";
+            td.MainContent = report.ToString();
+            td.CommonButtons = TaskDialogCommonButtons.Ok;
+            td.DefaultButton = TaskDialogResult.Ok;
+            td.Show();
             StingLog.Info($"AnomalyRefresh: {total} elements, {issues} issues, health={healthPct:F0}%");
         }
 

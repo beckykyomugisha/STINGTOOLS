@@ -274,6 +274,15 @@ namespace StingTools.Tags
                                     }
                                 }
 
+                                // FIX: If no specific categories resolved (CSV-only param with
+                                // unmapped category names), bind to all categories as fallback.
+                                // This ensures all parameters in the shared param file get bound.
+                                if (cats.Size == 0 && allCats.Size > 0)
+                                {
+                                    cats = allCats;
+                                    csvExtras++;
+                                }
+
                                 if (cats.Size == 0)
                                 {
                                     pass2Skipped++;
@@ -320,7 +329,12 @@ namespace StingTools.Tags
                 report += $"\n\nErrors ({errors.Count}):\n" +
                     string.Join("\n", errors.Take(10));
 
-            TaskDialog.Show("STING Tools - Load Shared Params", report);
+            var td = new TaskDialog("STING Tools - Load Shared Params");
+            td.MainInstruction = "Shared parameter binding complete.";
+            td.MainContent = report;
+            td.CommonButtons = TaskDialogCommonButtons.Ok;
+            td.DefaultButton = TaskDialogResult.Ok;
+            td.Show();
             StingLog.Info($"LoadSharedParams complete: P1={pass1Bound}, P2={pass2Bound}");
 
             return Result.Succeeded;

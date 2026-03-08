@@ -3028,11 +3028,22 @@ namespace StingTools.Docs
                 if (fmScheduleCount == 0)
                     csv.AppendLine("(No FM schedules found in MR_SCHEDULES.csv),,,,");
 
-                // Write to file
-                string dir = Path.GetDirectoryName(doc.PathName);
-                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
+                // Let user choose save location
+                string defaultDir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(defaultDir)) defaultDir = Path.GetTempPath();
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string path = Path.Combine(dir, $"STING_FM_Handover_Manual_{timestamp}.csv");
+                string defaultName = $"STING_FM_Handover_Manual_{timestamp}.csv";
+
+                var dlg = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "Save FM Handover Manual",
+                    Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*",
+                    FileName = defaultName,
+                    InitialDirectory = defaultDir
+                };
+                if (dlg.ShowDialog() != true)
+                    return Result.Cancelled;
+                string path = dlg.FileName;
 
                 File.WriteAllText(path, csv.ToString(), Encoding.UTF8);
 
@@ -3069,7 +3080,12 @@ namespace StingTools.Docs
                 report.AppendLine();
                 report.AppendLine("Opens in Excel. COBie V2.4 aligned per ISO 19650-4.");
 
-                TaskDialog.Show("FM Handover Manual", report.ToString());
+                var td = new TaskDialog("STING Tools - FM Handover Manual");
+                td.MainInstruction = "FM O/M Handover Manual Generated";
+                td.MainContent = report.ToString();
+                td.CommonButtons = TaskDialogCommonButtons.Ok;
+                td.DefaultButton = TaskDialogResult.Ok;
+                td.Show();
                 StingLog.Info($"HandoverManual: {allElements.Count} assets, {cobieComponentCount} COBie components, " +
                     $"{bySys.Count} systems, {rooms.Count} rooms, {levels.Count} levels → {path}");
 
