@@ -763,18 +763,23 @@ namespace StingTools.Tags
                 "Active: " + (TagConfig.ActivePreset?.Name ?? "None (default section colors)");
 
             // Add command links for each preset
-            var linkMap = new Dictionary<TaskDialogResult, string>();
-            var links = new[]
+            var linkIds = new[]
+            {
+                TaskDialogCommandLinkId.CommandLink1, TaskDialogCommandLinkId.CommandLink2,
+                TaskDialogCommandLinkId.CommandLink3, TaskDialogCommandLinkId.CommandLink4,
+            };
+            var linkResults = new[]
             {
                 TaskDialogResult.CommandLink1, TaskDialogResult.CommandLink2,
                 TaskDialogResult.CommandLink3, TaskDialogResult.CommandLink4,
             };
+            var linkMap = new Dictionary<TaskDialogResult, string>();
 
-            for (int i = 0; i < presets.Length && i < links.Length; i++)
+            for (int i = 0; i < presets.Length && i < linkIds.Length; i++)
             {
                 string active = TagConfig.ActivePreset?.Name == presets[i].Name ? " [ACTIVE]" : "";
-                dlg.AddCommandLink(links[i], $"{presets[i].Name}{active}", presets[i].Description);
-                linkMap[links[i]] = presets[i].Name;
+                dlg.AddCommandLink(linkIds[i], $"{presets[i].Name}{active}", presets[i].Description);
+                linkMap[linkResults[i]] = presets[i].Name;
             }
 
             dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
