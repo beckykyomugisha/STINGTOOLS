@@ -38,8 +38,23 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            try { return ExecuteCore(commandData, ref message, elements); }
+            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("FamilyStagePopulateCommand crashed", ex);
+                try { TaskDialog.Show("STING Tools", $"Family Stage Populate failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteCore(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // Scope selection
             TaskDialog scopeDlg = new TaskDialog("Family-Stage Populate");
@@ -316,7 +331,6 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-
             sw.Stop();
             int totalPopulated = discSet + locSet + zoneSet + lvlSet + sysSet + funcSet + prodSet + statusSet + revSet;
 

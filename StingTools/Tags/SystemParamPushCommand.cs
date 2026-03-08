@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Plumbing;
@@ -505,8 +506,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // Get selected elements or prompt to select
             var selection = uidoc.Selection.GetElementIds();
@@ -670,8 +673,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // Discover all MEP systems in the project
             var allSystems = new FilteredElementCollector(doc)
@@ -825,8 +830,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selection = uidoc.Selection.GetElementIds();
             if (selection.Count == 0)

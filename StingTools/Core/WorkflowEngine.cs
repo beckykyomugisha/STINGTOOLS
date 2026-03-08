@@ -214,7 +214,13 @@ namespace StingTools.Core
         public static Result ExecutePreset(WorkflowPreset preset,
             ExternalCommandData commandData, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null)
+            {
+                TaskDialog.Show("Workflow", "No document is open.");
+                return Result.Failed;
+            }
+            Document doc = ctx.Doc;
             StingLog.Info($"Workflow '{preset.Name}': starting {preset.Steps.Count} steps");
 
             var report = new StringBuilder();

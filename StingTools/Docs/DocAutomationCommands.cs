@@ -22,7 +22,10 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var allViews = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
@@ -38,7 +41,7 @@ namespace StingTools.Docs
                     .SelectMany(s => s.GetAllPlacedViews()));
 
             // Get the active view to protect it
-            ElementId activeViewId = doc.ActiveView.Id;
+            ElementId activeViewId = ctx.ActiveView.Id;
 
             var unplaced = allViews
                 .Where(v => !placedViewIds.Contains(v.Id) && v.Id != activeViewId)
@@ -94,22 +97,37 @@ namespace StingTools.Docs
 
             int deleted = 0;
             int failedDel = 0;
+            var deleteList = toDelete.ToList();
+            var idsToDelete = deleteList.Select(v => v.Id).ToList();
             using (Transaction tx = new Transaction(doc, "STING Delete Unused Views"))
             {
                 tx.Start();
-                foreach (View v in toDelete)
+                try
                 {
-                    try
+                    // Batch delete — safer than one-by-one which can trigger
+                    // cascading graphics cache invalidation and crash Revit
+                    doc.Delete(idsToDelete);
+                    deleted = idsToDelete.Count;
+                }
+                catch
+                {
+                    // Fallback: delete individually
+                    foreach (View v in deleteList)
                     {
-                        doc.Delete(v.Id);
-                        deleted++;
-                    }
-                    catch (Exception ex)
-                    {
-                        failedDel++;
-                        StingLog.Warn($"Could not delete view '{v.Name}': {ex.Message}");
+                        try
+                        {
+                            doc.Delete(v.Id);
+                            deleted++;
+                        }
+                        catch (Exception ex)
+                        {
+                            failedDel++;
+                            StingLog.Warn($"Could not delete view '{v.Name}': {ex.Message}");
+                        }
                     }
                 }
+                try { doc.Regenerate(); }
+                catch (Exception ex) { StingLog.Warn($"Regenerate after view delete: {ex.Message}"); }
                 tx.Commit();
             }
 
@@ -179,7 +197,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
@@ -352,7 +372,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))

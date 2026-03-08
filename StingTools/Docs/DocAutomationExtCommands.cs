@@ -460,8 +460,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             var sw = Stopwatch.StartNew();
 
             // Collect levels
@@ -726,8 +727,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Get title blocks
             var titleBlocks = new FilteredElementCollector(doc)
@@ -970,8 +972,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var scopeBoxes = DocAutomationHelper.GetScopeBoxes(doc);
             if (scopeBoxes.Count == 0)
@@ -1032,7 +1035,7 @@ namespace StingTools.Docs
                         .ToList();
                     break;
                 case TaskDialogResult.CommandLink3:
-                    View active = doc.ActiveView;
+                    View active = ctx.ActiveView;
                     if (active is ViewSheet || active.IsTemplate)
                     {
                         TaskDialog.Show("Create Dependent Views", "Active view must be a plan view.");
@@ -1107,8 +1110,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var scopeBoxes = DocAutomationHelper.GetScopeBoxes(doc);
 
@@ -1336,7 +1340,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Collect templates and views
             var templates = new FilteredElementCollector(doc)
@@ -1480,8 +1486,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             var sw = Stopwatch.StartNew();
 
             var levels = new FilteredElementCollector(doc)
@@ -1722,7 +1729,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var grids = new FilteredElementCollector(doc)
                 .OfClass(typeof(Grid))
@@ -1864,8 +1873,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             ViewFamilyType elevType = DocAutomationHelper.FindViewFamilyType(doc, ViewFamily.Elevation);
             if (elevType == null)
@@ -1923,7 +1933,7 @@ namespace StingTools.Docs
 
                         for (int i = 0; i < 4; i++)
                         {
-                            if (marker.HasElevation(i)) continue;
+                            if (marker.GetViewId(i) != ElementId.InvalidElementId) continue;
                             try
                             {
                                 ViewSection elev = marker.CreateElevation(doc, hostView.Id, i);
@@ -1958,7 +1968,7 @@ namespace StingTools.Docs
                 else
                 {
                     // Interior elevations per room
-                    var rooms = uidoc.Selection.GetElementIds()
+                    var rooms = ctx.UIDoc.Selection.GetElementIds()
                         .Select(id => doc.GetElement(id) as Room)
                         .Where(r => r != null && r.Area > 0)
                         .ToList();
@@ -1996,7 +2006,7 @@ namespace StingTools.Docs
 
                             for (int i = 0; i < 4; i++)
                             {
-                                if (marker.HasElevation(i)) continue;
+                                if (marker.GetViewId(i) != ElementId.InvalidElementId) continue;
                                 try
                                 {
                                     ViewSection elev = marker.CreateElevation(doc, hostView.Id, i);
@@ -2048,7 +2058,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
@@ -2204,7 +2216,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var views = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
@@ -2399,7 +2413,9 @@ namespace StingTools.Docs
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             // Get the latest revision in the project (or create one)
             var revisions = new FilteredElementCollector(doc)

@@ -37,9 +37,11 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIApplication uiApp = ParameterHelpers.GetApp(commandData);
-            UIDocument uidoc = uiApp.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIApplication uiApp = ctx.App;
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // ── Phase 0: Pre-fetch Revit data and launch wizard ──────
 

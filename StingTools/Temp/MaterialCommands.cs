@@ -8,6 +8,26 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 
+// CRASH FIX: FailuresPreprocessor that silently deletes all warnings during
+// heavy batch operations (material creation, parameter binding).  Without this,
+// Revit can pop blocking warning dialogs mid-transaction that stall or crash.
+namespace StingTools
+{
+    internal class SilentWarningSwallower : IFailuresPreprocessor
+    {
+        public FailureProcessingResult PreprocessFailures(FailuresAccessor fa)
+        {
+            foreach (FailureMessageAccessor msg in fa.GetFailureMessages())
+            {
+                // Delete warnings; let errors bubble up normally
+                if (msg.GetSeverity() == FailureSeverity.Warning)
+                    fa.DeleteWarning(msg);
+            }
+            return FailureProcessingResult.Continue;
+        }
+    }
+}
+
 namespace StingTools.Temp
 {
     /// <summary>
@@ -272,16 +292,26 @@ namespace StingTools.Temp
         /// <summary>
         /// Shared material creation logic for BLE and MEP commands.
         /// Reads CSV, finds/duplicates base materials, applies all properties.
+        /// CRASH FIX: Batches materials into groups of 50 per transaction to avoid
+        /// transaction journal overflow that causes native Revit crashes.
+        /// Uses TransactionGroup for atomic rollback and SilentWarningSwallower
+        /// to suppress blocking warning dialogs.
         /// </summary>
+        private const int MaterialBatchSize = 50;
+
         public static Result CreateMaterialsFromCsv(Document doc, string csvFileName,
             string dialogTitle)
         {
             string csvPath = StingToolsApp.FindDataFile(csvFileName);
             if (csvPath == null)
             {
+                string dllDir = System.IO.Path.GetDirectoryName(StingToolsApp.AssemblyPath) ?? "(unknown)";
                 TaskDialog.Show(dialogTitle,
-                    $"{csvFileName} not found in the data directory.\n" +
-                    $"Searched: {StingToolsApp.DataPath}");
+                    $"{csvFileName} not found in the data directory.\n\n" +
+                    $"Primary search: {StingToolsApp.DataPath}\n" +
+                    $"DLL location:   {dllDir}\n\n" +
+                    "Ensure the data/ folder (with CSV files) is deployed\n" +
+                    "alongside StingTools.dll.");
                 return Result.Failed;
             }
 
@@ -293,78 +323,191 @@ namespace StingTools.Temp
             int created = 0;
             int skipped = 0;
             int duplicated = 0;
+            int batchErrors = 0;
 
-            using (Transaction tx = new Transaction(doc, $"STING {dialogTitle}"))
+            // Build caches OUTSIDE any transaction (read-only collectors)
+            var baseMaterialCache = BuildBaseMaterialCache(doc);
+            var existingNames = new HashSet<string>(
+                baseMaterialCache.Keys, StringComparer.OrdinalIgnoreCase);
+            var fillPatternCache = BuildFillPatternCache(doc);
+
+            // CRASH FIX: Cache duplicated AppearanceAssetElements by base material name.
+            // Without this, 100 materials sharing the same base each duplicate the asset
+            // separately, creating 100 document elements instead of 1.
+            var assetCache = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+
+            // Parse all rows upfront
+            var rows = new List<(string matName, string[] cols)>();
+            foreach (string line in lines)
             {
-                tx.Start();
+                string[] cols = StingToolsApp.ParseCsvLine(line);
+                if (cols.Length < 7) continue;
+                string matName = cols[ColName].Trim();
+                if (string.IsNullOrEmpty(matName)) continue;
+                if (existingNames.Contains(matName)) { skipped++; continue; }
+                rows.Add((matName, cols));
+            }
 
-                // Build base material cache from existing materials in project
-                var baseMaterialCache = BuildBaseMaterialCache(doc);
+            StingLog.Info($"{dialogTitle}: {rows.Count} materials to create in batches of {MaterialBatchSize} (skipping {skipped} existing)");
 
-                // Build existing names set (case-insensitive) for dedup
-                var existingNames = new HashSet<string>(
-                    baseMaterialCache.Keys, StringComparer.OrdinalIgnoreCase);
+            // CRASH FIX: Wrap ALL batches in a TransactionGroup for atomic rollback
+            using (TransactionGroup tg = new TransactionGroup(doc, $"STING {dialogTitle}"))
+            {
+                tg.Start();
 
-                // Build fill pattern cache for pattern assignment
-                var fillPatternCache = BuildFillPatternCache(doc);
-
-                foreach (string line in lines)
+                // Process in batches of MaterialBatchSize
+                for (int batchStart = 0; batchStart < rows.Count; batchStart += MaterialBatchSize)
                 {
-                    string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 7) continue;
+                    int batchEnd = Math.Min(batchStart + MaterialBatchSize, rows.Count);
+                    int batchNum = (batchStart / MaterialBatchSize) + 1;
 
-                    string matName = cols[ColName].Trim();
-                    if (string.IsNullOrEmpty(matName)) continue;
-
-                    if (existingNames.Contains(matName))
+                    using (Transaction tx = new Transaction(doc,
+                        $"STING Materials batch {batchNum}"))
                     {
-                        skipped++;
-                        continue;
-                    }
+                        // CRASH FIX: Suppress warning dialogs during batch operations
+                        var failOpts = tx.GetFailureHandlingOptions();
+                        failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                        tx.SetFailureHandlingOptions(failOpts);
 
-                    try
-                    {
-                        // Create material from base (duplicate native) or blank
-                        Material newMat = CreateFromBase(doc, matName, cols, baseMaterialCache);
-                        if (newMat != null)
+                        tx.Start();
+
+                        try
                         {
-                            // Apply all CSV properties (color, patterns, class, etc.)
-                            ApplyMaterialProperties(newMat, cols, doc, fillPatternCache);
+                            for (int i = batchStart; i < batchEnd; i++)
+                            {
+                                var (matName, cols) = rows[i];
 
-                            // Track whether base material was used
-                            string baseMatName = GetCol(cols, ColBaseMaterial);
-                            if (!string.IsNullOrEmpty(baseMatName) &&
-                                baseMaterialCache.ContainsKey(baseMatName))
-                                duplicated++;
+                                // Double-check: may have been created by an earlier batch
+                                if (existingNames.Contains(matName)) { skipped++; continue; }
 
-                            created++;
-                            existingNames.Add(matName);
-                            // Add to base cache so later rows can reference this material
-                            baseMaterialCache[matName] = newMat;
+                                try
+                                {
+                                    Material newMat = CreateFromBaseWithCache(
+                                        doc, matName, cols, baseMaterialCache, assetCache);
+                                    if (newMat != null)
+                                    {
+                                        ApplyMaterialProperties(newMat, cols, doc, fillPatternCache);
+
+                                        string baseMatName = GetCol(cols, ColBaseMaterial);
+                                        if (!string.IsNullOrEmpty(baseMatName) &&
+                                            baseMaterialCache.ContainsKey(baseMatName))
+                                            duplicated++;
+
+                                        created++;
+                                        existingNames.Add(matName);
+                                        baseMaterialCache[matName] = newMat;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    StingLog.Warn($"Material create failed '{matName}': {ex.Message}");
+                                }
+                            }
+
+                            tx.Commit();
+                            StingLog.Info($"{dialogTitle}: batch {batchNum} committed ({created} created so far)");
+                        }
+                        catch (Exception ex)
+                        {
+                            batchErrors++;
+                            StingLog.Error($"{dialogTitle}: batch {batchNum} failed, rolling back batch", ex);
+                            if (tx.HasStarted() && !tx.HasEnded())
+                                tx.RollBack();
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"Material create failed '{matName}': {ex.Message}");
-                    }
-
-                    // Progress logging every 100 materials
-                    if ((created + skipped) % 100 == 0)
-                        StingLog.Info($"{dialogTitle}: {created} created, {skipped} skipped so far...");
                 }
 
-                tx.Commit();
+                tg.Assimilate();
             }
 
             string report = $"Created {created} materials.\n" +
                 $"  Duplicated from base: {duplicated}\n" +
                 $"  Created blank: {created - duplicated}\n" +
                 $"Skipped {skipped} (already exist).\n" +
+                (batchErrors > 0 ? $"Batch errors: {batchErrors}\n" : "") +
                 $"Source: {Path.GetFileName(csvPath)} ({lines.Count} rows)";
             TaskDialog.Show(dialogTitle, report);
 
             StingLog.Info($"{dialogTitle}: {report.Replace("\n", " | ")}");
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// CRASH FIX: Create material with cached AppearanceAssetElement duplication.
+        /// If multiple materials share the same base, the appearance asset is duplicated
+        /// only once and reused — avoids creating hundreds of redundant document elements.
+        /// </summary>
+        public static Material CreateFromBaseWithCache(Document doc, string matName, string[] cols,
+            Dictionary<string, Material> baseMaterialCache,
+            Dictionary<string, ElementId> assetCache)
+        {
+            string baseMatName = GetCol(cols, ColBaseMaterial);
+            Material baseMat = null;
+
+            if (!string.IsNullOrEmpty(baseMatName) &&
+                baseMaterialCache.TryGetValue(baseMatName, out Material found))
+            {
+                baseMat = found;
+            }
+
+            ElementId newId = Material.Create(doc, matName);
+            if (newId == ElementId.InvalidElementId) return null;
+
+            Material newMat = doc.GetElement(newId) as Material;
+            if (newMat == null) return null;
+
+            if (baseMat != null)
+            {
+                try
+                {
+                    // CRASH FIX: Reuse cached appearance asset instead of duplicating per-material
+                    if (baseMat.AppearanceAssetId != ElementId.InvalidElementId)
+                    {
+                        if (assetCache.TryGetValue(baseMatName, out ElementId cachedAssetId))
+                        {
+                            // Reuse previously duplicated asset
+                            newMat.AppearanceAssetId = cachedAssetId;
+                        }
+                        else
+                        {
+                            // First time seeing this base — duplicate and cache
+                            AppearanceAssetElement baseAsset =
+                                doc.GetElement(baseMat.AppearanceAssetId) as AppearanceAssetElement;
+                            if (baseAsset != null)
+                            {
+                                try
+                                {
+                                    string assetName = "STING_" + baseMatName + "_Asset";
+                                    AppearanceAssetElement newAsset = baseAsset.Duplicate(assetName);
+                                    newMat.AppearanceAssetId = newAsset.Id;
+                                    assetCache[baseMatName] = newAsset.Id;
+                                }
+                                catch
+                                {
+                                    // Name collision — share the base asset directly
+                                    newMat.AppearanceAssetId = baseMat.AppearanceAssetId;
+                                    assetCache[baseMatName] = baseMat.AppearanceAssetId;
+                                }
+                            }
+                        }
+                    }
+
+                    if (baseMat.StructuralAssetId != ElementId.InvalidElementId)
+                        newMat.StructuralAssetId = baseMat.StructuralAssetId;
+                    if (baseMat.ThermalAssetId != ElementId.InvalidElementId)
+                        newMat.ThermalAssetId = baseMat.ThermalAssetId;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Asset copy for '{matName}' from '{baseMatName}': {ex.Message}");
+                }
+            }
+            else if (!string.IsNullOrEmpty(baseMatName))
+            {
+                StingLog.Warn($"Base material '{baseMatName}' not found for '{matName}' — created blank");
+            }
+
+            return newMat;
         }
 
         /// <summary>Parse "RGB 221-221-219" or "245,245,220" into a Color.</summary>
@@ -403,9 +546,20 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
-            return MaterialPropertyHelper.CreateMaterialsFromCsv(
-                doc, "BLE_MATERIALS.csv", "Create BLE Materials");
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+                return MaterialPropertyHelper.CreateMaterialsFromCsv(
+                    doc, "BLE_MATERIALS.csv", "STING Tools - Create BLE Materials");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CreateBLEMaterialsCommand crashed", ex);
+                try { TaskDialog.Show("STING Tools", $"BLE Materials failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
         }
     }
 
@@ -421,9 +575,20 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
-            return MaterialPropertyHelper.CreateMaterialsFromCsv(
-                doc, "MEP_MATERIALS.csv", "Create MEP Materials");
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+                return MaterialPropertyHelper.CreateMaterialsFromCsv(
+                    doc, "MEP_MATERIALS.csv", "STING Tools - Create MEP Materials");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CreateMEPMaterialsCommand crashed", ex);
+                try { TaskDialog.Show("STING Tools", $"MEP Materials failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
         }
     }
 }

@@ -39,8 +39,10 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
             View view = doc.ActiveView;
 
             if (view == null || view is ViewSheet)
@@ -383,8 +385,10 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // Collect all elements with TAG7
             var tagged = new FilteredElementCollector(doc)
@@ -668,8 +672,10 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds()
                 .Select(id => doc.GetElement(id))
@@ -757,20 +763,23 @@ namespace StingTools.Tags
                 "Active: " + (TagConfig.ActivePreset?.Name ?? "None (default section colors)");
 
             // Add command links for each preset
-            var linkMap = new Dictionary<TaskDialogResult, string>();
-            var links = new[]
+            var linkIds = new[]
+            {
+                TaskDialogCommandLinkId.CommandLink1, TaskDialogCommandLinkId.CommandLink2,
+                TaskDialogCommandLinkId.CommandLink3, TaskDialogCommandLinkId.CommandLink4,
+            };
+            var linkResults = new[]
             {
                 TaskDialogResult.CommandLink1, TaskDialogResult.CommandLink2,
                 TaskDialogResult.CommandLink3, TaskDialogResult.CommandLink4,
-                TaskDialogResult.CommandLink5, TaskDialogResult.CommandLink6,
-                TaskDialogResult.CommandLink7,
             };
+            var linkMap = new Dictionary<TaskDialogResult, string>();
 
-            for (int i = 0; i < presets.Length && i < links.Length; i++)
+            for (int i = 0; i < presets.Length && i < linkIds.Length; i++)
             {
                 string active = TagConfig.ActivePreset?.Name == presets[i].Name ? " [ACTIVE]" : "";
-                dlg.AddCommandLink(links[i], $"{presets[i].Name}{active}", presets[i].Description);
-                linkMap[links[i]] = presets[i].Name;
+                dlg.AddCommandLink(linkIds[i], $"{presets[i].Name}{active}", presets[i].Description);
+                linkMap[linkResults[i]] = presets[i].Name;
             }
 
             dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
@@ -821,8 +830,10 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
             View view = doc.ActiveView;
 
             if (view == null || view is ViewSheet)
@@ -1026,8 +1037,10 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds()
                 .Select(id => doc.GetElement(id))

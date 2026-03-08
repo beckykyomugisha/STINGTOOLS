@@ -31,15 +31,24 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View activeView = doc.ActiveView;
-
-            if (activeView == null)
+            try { return ExecuteCore(commandData, ref message, elements); }
+            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
             {
-                TaskDialog.Show("Auto Tag", "No active view.");
+                StingLog.Error("AutoTagCommand crashed", ex);
+                try { TaskDialog.Show("STING Tools", $"Auto Tag failed:\n{ex.Message}"); } catch { }
                 return Result.Failed;
             }
+        }
+
+        private Result ExecuteCore(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc; Document doc = ctx.Doc;
+            View activeView = ctx.ActiveView;
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
             var viewElements = new FilteredElementCollector(doc, activeView.Id)
@@ -128,6 +137,9 @@ namespace StingTools.Tags
 
             using (Transaction tx = new Transaction(doc, "STING Auto Tag"))
             {
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
                 tx.Start();
 
                 int processed = 0;
@@ -179,7 +191,6 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-
             var report = new StringBuilder();
             report.AppendLine($"Auto Tag — '{activeView.Name}'");
             report.AppendLine(new string('=', 50));
@@ -223,7 +234,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
@@ -270,6 +283,9 @@ namespace StingTools.Tags
 
             using (Transaction tx = new Transaction(doc, "STING Tag New Only"))
             {
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
                 tx.Start();
 
                 int processed = 0;
@@ -316,7 +332,6 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-
             sw.Stop();
 
             var report = new StringBuilder();

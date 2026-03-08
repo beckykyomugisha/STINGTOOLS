@@ -164,7 +164,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var existingNames = new HashSet<string>(
                 new FilteredElementCollector(doc)
@@ -176,6 +178,11 @@ namespace StingTools.Temp
 
             using (Transaction tx = new Transaction(doc, "STING Create Filters"))
             {
+                // CRASH FIX: Suppress warning dialogs during batch filter creation
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
+
                 tx.Start();
 
                 // ── Phase 1: Multi-category discipline filters (no parameter rules) ──
@@ -386,7 +393,6 @@ namespace StingTools.Temp
                 }
 
                 tx.Commit();
-
                 string paramNote = spLookup.Count > 0
                     ? $"\nParameter-based: {paramCreated} created, {paramSkipped} skipped."
                     : "\nParameter-based filters skipped (load shared parameters first).";
@@ -449,7 +455,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             if (!doc.IsWorkshared)
             {
@@ -469,6 +477,11 @@ namespace StingTools.Temp
 
             using (Transaction tx = new Transaction(doc, "STING Create Worksets"))
             {
+                // CRASH FIX: Suppress warning dialogs during batch workset creation
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
+
                 tx.Start();
 
                 foreach (string name in WorksetNames)
@@ -493,7 +506,6 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
-
             TaskDialog.Show("Create Worksets",
                 $"Created {created} worksets.\nSkipped {skipped} (exist or failed).\n" +
                 $"Total defined: {WorksetNames.Length}");
@@ -618,7 +630,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Find existing view templates
             var existingTemplates = new HashSet<string>(
@@ -641,7 +655,9 @@ namespace StingTools.Temp
             FillPatternElement solidFill = null;
             try
             {
-                solidFill = ParameterHelpers.GetSolidFillPattern(doc);
+                solidFill = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
             catch { /* OK — won't apply fill patterns */ }
 
@@ -697,6 +713,11 @@ namespace StingTools.Temp
 
             using (Transaction tx = new Transaction(doc, "STING Create View Templates"))
             {
+                // CRASH FIX: Suppress warning dialogs during batch template creation
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
+
                 tx.Start();
 
                 foreach (var (name, discipline, detailLevel, baseViewType) in TemplateDefs)
@@ -827,7 +848,6 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
-
             var baseReport = new StringBuilder();
             foreach (var kvp in baseViews)
                 baseReport.Append($"{kvp.Key}, ");

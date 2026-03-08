@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Windows.Media.Imaging;
 using Autodesk.Revit.DB;
@@ -29,6 +31,18 @@ namespace StingTools.Core
                     Path.GetDirectoryName(AssemblyPath) ?? string.Empty,
                     "data");
 
+                // Warn if data directory is missing — this is the root cause of
+                // "data file commands crash but selection commands work" issues
+                if (!Directory.Exists(DataPath))
+                {
+                    StingLog.Warn($"Data directory not found: {DataPath}");
+                    StingLog.Warn("Data-dependent commands (materials, schedules, parameters) will " +
+                        "use fallback defaults. Run extract_plugin.sh to deploy data files.");
+                }
+
+                // Pre-flight: log assembly environment for crash diagnostics
+                LogAssemblyEnvironment();
+
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
 
@@ -53,6 +67,68 @@ namespace StingTools.Core
             StingAutoTagger.Unregister();
             StingLog.Shutdown();
             return Result.Succeeded;
+        }
+
+        // ── Assembly Pre-Flight Check ────────────────────────────────
+
+        /// <summary>
+        /// Logs the assembly environment at startup for crash diagnostics.
+        /// Detects known conflict patterns (version mismatches for key assemblies)
+        /// that have been observed to cause native Revit crashes.
+        /// </summary>
+        private static void LogAssemblyEnvironment()
+        {
+            try
+            {
+                var stingAsm = Assembly.GetExecutingAssembly().GetName();
+                StingLog.Info($"STING Tools v{stingAsm.Version} loaded from {AssemblyPath}");
+
+                // Check for assemblies we depend on that may conflict with other addins
+                var criticalAssemblies = new[] {
+                    "Newtonsoft.Json", "ClosedXML", "DocumentFormat.OpenXml",
+                    "System.IO.Packaging", "WindowsBase", "RevitAPI", "RevitAPIUI"
+                };
+
+                var loaded = AppDomain.CurrentDomain.GetAssemblies();
+                var conflicts = new List<string>();
+
+                // Group loaded assemblies by short name to detect version conflicts
+                var grouped = loaded
+                    .Where(a => !a.IsDynamic)
+                    .GroupBy(a => a.GetName().Name, StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Count() > 1 || criticalAssemblies.Contains(g.Key));
+
+                foreach (var g in grouped)
+                {
+                    var versions = g.Select(a => a.GetName().Version?.ToString() ?? "?").Distinct().ToList();
+                    if (versions.Count > 1)
+                    {
+                        string msg = $"CONFLICT: {g.Key} loaded with {versions.Count} versions: " +
+                            string.Join(", ", versions);
+                        StingLog.Warn(msg);
+                        conflicts.Add(msg);
+                    }
+                    else if (criticalAssemblies.Contains(g.Key))
+                    {
+                        StingLog.Info($"Assembly: {g.Key} v{versions[0]}");
+                    }
+                }
+
+                if (conflicts.Count > 0)
+                {
+                    StingLog.Warn($"Assembly pre-flight: {conflicts.Count} version conflict(s) detected. " +
+                        "These may cause intermittent crashes. Check log for details.");
+                }
+                else
+                {
+                    StingLog.Info("Assembly pre-flight: no version conflicts detected.");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Pre-flight check is diagnostic only — never block startup
+                StingLog.Warn($"Assembly pre-flight check failed: {ex.Message}");
+            }
         }
 
         // ── Dockable Panel Registration ──────────────────────────────
@@ -94,27 +170,69 @@ namespace StingTools.Core
 
         // ── Data file utilities ───────────────────────────────────────
 
-        /// <summary>Find a data file by name, searching DataPath and subdirectories.</summary>
+        /// <summary>Find a data file by name, searching DataPath, subdirectories,
+        /// and common alternative locations relative to the DLL.</summary>
         public static string FindDataFile(string fileName)
         {
-            if (string.IsNullOrEmpty(DataPath))
+            if (string.IsNullOrEmpty(DataPath) && string.IsNullOrEmpty(AssemblyPath))
                 return null;
 
-            string direct = Path.Combine(DataPath, fileName);
-            if (File.Exists(direct)) return direct;
-
-            try
+            // 1. Primary: DataPath/fileName (e.g. .../CompiledPlugin/data/BLE_MATERIALS.csv)
+            if (!string.IsNullOrEmpty(DataPath))
             {
-                foreach (string f in Directory.GetFiles(
-                    DataPath, fileName, SearchOption.AllDirectories))
+                try
                 {
-                    return f;
+                    string direct = Path.Combine(DataPath, fileName);
+                    if (File.Exists(direct)) return direct;
+                }
+                catch { /* Path.Combine or File.Exists can fail on invalid paths */ }
+            }
+
+            // 2. Search DataPath subdirectories (only if directory actually exists)
+            if (!string.IsNullOrEmpty(DataPath))
+            {
+                try
+                {
+                    if (Directory.Exists(DataPath))
+                    {
+                        foreach (string f in Directory.GetFiles(
+                            DataPath, fileName, SearchOption.AllDirectories))
+                        {
+                            return f;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"FindDataFile '{fileName}': {ex.Message}");
                 }
             }
-            catch (Exception ex)
+
+            // 3. Fallback: search alternative paths relative to DLL location
+            //    Handles deployment where data/ is at a sibling or parent level
+            string dllDir = Path.GetDirectoryName(AssemblyPath) ?? "";
+            string[] alternativePaths = new[]
             {
-                StingLog.Warn($"FindDataFile '{fileName}': {ex.Message}");
+                Path.Combine(dllDir, "Data", fileName),          // Data/ (capital D, source layout)
+                Path.Combine(dllDir, "..", "data", fileName),    // ../data/ (parent)
+                Path.Combine(dllDir, "..", "Data", fileName),    // ../Data/ (parent, capital)
+                Path.Combine(dllDir, "..", "StingTools", "Data", fileName), // sibling project
+            };
+
+            foreach (string alt in alternativePaths)
+            {
+                try
+                {
+                    string resolved = Path.GetFullPath(alt);
+                    if (File.Exists(resolved))
+                    {
+                        StingLog.Info($"FindDataFile '{fileName}' found at fallback: {resolved}");
+                        return resolved;
+                    }
+                }
+                catch { /* path resolution failed, skip */ }
             }
+
             return null;
         }
 

@@ -21,7 +21,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Walls",
                 "BLE_MATERIALS.csv",
                 new[] { "A-STR", "A-ASM", "A-BLK" },
@@ -36,7 +38,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Floors",
                 "BLE_MATERIALS.csv",
                 new[] { "A-FLR" },
@@ -51,7 +55,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Ceilings",
                 "BLE_MATERIALS.csv",
                 new[] { "A-CLG" },
@@ -66,7 +72,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Roofs",
                 "BLE_MATERIALS.csv",
                 new[] { "A-RF" },
@@ -81,7 +89,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Ducts",
                 "MEP_MATERIALS.csv",
                 new[] { "M-DCT", "M-INS" },
@@ -96,7 +106,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Pipes",
                 "MEP_MATERIALS.csv",
                 new[] { "M-PPE", "P-DRN", "P-WSP" },
@@ -186,6 +198,11 @@ namespace StingTools.Temp
 
             using (Transaction tx = new Transaction(doc, $"Create {label} Types"))
             {
+                // CRASH FIX: Suppress warning dialogs during batch type creation
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
+
                 tx.Start();
 
                 foreach (string[] cols in rows)
@@ -282,7 +299,6 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
-
             string report = $"Created {created} {label.ToLower()} types.\n" +
                 $"Skipped {skipped} (exist or failed).\n" +
                 $"Materials created: {matCreated}\n" +
@@ -445,28 +461,28 @@ namespace StingTools.Temp
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
-                        .FirstOrDefault();
+                        .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 case ElementKind.Pipe:
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
-                        .FirstOrDefault();
+                        .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 case ElementKind.CableTray:
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType))
-                        .FirstOrDefault();
+                        .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 case ElementKind.Conduit:
                 {
                     var bt = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType))
-                        .FirstOrDefault();
+                        .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 default:

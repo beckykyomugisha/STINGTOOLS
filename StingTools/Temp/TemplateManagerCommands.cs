@@ -1101,7 +1101,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var stingTemplates = TemplateManager.GetStingTemplates(doc);
             if (stingTemplates.Count == 0)
@@ -1203,7 +1205,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var allTemplates = new FilteredElementCollector(doc)
                 .OfClass(typeof(View)).Cast<View>()
@@ -1377,7 +1381,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var stingTemplates = TemplateManager.GetStingTemplates(doc);
             if (stingTemplates.Count < 2)
@@ -1451,7 +1457,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             var views = TemplateManager.GetAssignableViews(doc);
 
             var excellent = new List<string>();
@@ -1530,7 +1538,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var stingTemplates = TemplateManager.GetStingTemplates(doc);
             if (stingTemplates.Count == 0)
@@ -1549,7 +1559,9 @@ namespace StingTools.Temp
             FillPatternElement solidFill = null;
             try
             {
-                solidFill = ParameterHelpers.GetSolidFillPattern(doc);
+                solidFill = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
             catch { }
 
@@ -1643,7 +1655,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var stingTemplates = TemplateManager.GetStingTemplates(doc);
             if (stingTemplates.Count == 0)
@@ -1660,7 +1674,9 @@ namespace StingTools.Temp
             FillPatternElement solidFill = null;
             try
             {
-                solidFill = ParameterHelpers.GetSolidFillPattern(doc);
+                solidFill = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
             catch { }
 
@@ -1717,7 +1733,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var existing = new HashSet<string>(
                 new FilteredElementCollector(doc)
@@ -1783,7 +1801,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             Category linesCat;
             try { linesCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines); }
@@ -1846,7 +1866,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Load from CSV (62 rows in v2.8), fall back to hardcoded (40)
             var csvStyles = TemplateManager.LoadObjectStylesFromCsv();
@@ -1898,7 +1920,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             TextNoteType baseType = new FilteredElementCollector(doc)
                 .OfClass(typeof(TextNoteType)).Cast<TextNoteType>().FirstOrDefault();
@@ -1964,7 +1988,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             DimensionType baseType = new FilteredElementCollector(doc)
                 .OfClass(typeof(DimensionType)).Cast<DimensionType>()
@@ -2073,8 +2099,10 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // Determine target views
             View activeView = uidoc.ActiveView;
@@ -2104,7 +2132,9 @@ namespace StingTools.Temp
             FillPatternElement solidFill = null;
             try
             {
-                solidFill = ParameterHelpers.GetSolidFillPattern(doc);
+                solidFill = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
             catch { }
 
@@ -2415,7 +2445,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Load the shared parameter file
             string spfPath = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
@@ -2440,8 +2472,8 @@ namespace StingTools.Temp
             DefinitionFile defFile;
             try
             {
-                ParameterHelpers.GetApp(commandData).Application.SharedParametersFilename = spfPath;
-                defFile = ParameterHelpers.GetApp(commandData).Application.OpenSharedParameterFile();
+                ctx.App.Application.SharedParametersFilename = spfPath;
+                defFile = ctx.App.Application.OpenSharedParameterFile();
                 if (defFile == null)
                 {
                     TaskDialog.Show("Batch Add Family Params",
@@ -2514,7 +2546,7 @@ namespace StingTools.Temp
                     paramsProcessed++;
 
                     // Build category set for this parameter
-                    CategorySet catSet = ParameterHelpers.GetApp(commandData).Application.Create.NewCategorySet();
+                    CategorySet catSet = ctx.App.Application.Create.NewCategorySet();
                     string bindingType = "Type"; // default
 
                     foreach (var entry in paramGroup)
@@ -2566,10 +2598,10 @@ namespace StingTools.Temp
                     {
                         ElementBinding binding;
                         if (bindingType.Equals("Instance", StringComparison.OrdinalIgnoreCase))
-                            binding = ParameterHelpers.GetApp(commandData).Application.Create
+                            binding = ctx.App.Application.Create
                                 .NewInstanceBinding(catSet);
                         else
-                            binding = ParameterHelpers.GetApp(commandData).Application.Create
+                            binding = ctx.App.Application.Create
                                 .NewTypeBinding(catSet);
 
                         bool success = bmap.Insert(extDef, binding,
@@ -2643,7 +2675,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
             if (string.IsNullOrEmpty(csvPath))
@@ -2798,7 +2832,9 @@ namespace StingTools.Temp
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             StingLog.Info("Template Setup Wizard: starting 15-step automation");
             var report = new StringBuilder();
             report.AppendLine("STING Template Setup Wizard Results");
@@ -2989,7 +3025,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Collect all view templates
             var allTemplates = new FilteredElementCollector(doc)
@@ -3158,7 +3196,9 @@ namespace StingTools.Temp
             FillPatternElement solidFill = null;
             try
             {
-                solidFill = ParameterHelpers.GetSolidFillPattern(doc);
+                solidFill = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
             catch { }
 
@@ -3247,7 +3287,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Mode selection
             TaskDialog modeDlg = new TaskDialog("Batch VG Reset");
@@ -3301,7 +3343,9 @@ namespace StingTools.Temp
                 FillPatternElement solidFill = null;
                 try
                 {
-                    solidFill = ParameterHelpers.GetSolidFillPattern(doc);
+                    solidFill = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
                 }
                 catch { }
 

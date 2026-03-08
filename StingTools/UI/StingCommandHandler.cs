@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Autodesk.Revit.DB;
@@ -751,20 +752,28 @@ namespace StingTools.UI
                 TaskDialog.Show("STING Tools", $"Command failed: {ex.Message}");
             }
 
-            // ENH-003: Update compliance status bar (uses cache — no full rescan)
-            try
-            {
-                var doc = app.ActiveUIDocument?.Document;
-                if (doc != null)
-                {
-                    // Use cached results (30s lifetime) — do NOT invalidate cache
-                    // here, as that forces a full element scan after every button click.
-                    // Cache is already invalidated by tagging commands that modify data.
-                    var scan = ComplianceScan.Scan(doc);
-                    StingDockPanel.UpdateComplianceStatus(scan.StatusBarText, scan.RAGStatus);
-                }
-            }
-            catch { /* Non-critical — don't interrupt user */ }
+            // ENH-003: Compliance status bar update REMOVED from post-command hook.
+            // (See commit history for rationale — FilteredElementCollector after
+            // transaction commit causes native segfault during deferred regeneration.)
+
+            // NOTE: Post-command doc.Regenerate() REMOVED.
+            //
+            // Previous versions called doc.Regenerate() here to force pending changes
+            // to complete before returning to Revit.  However, this causes native
+            // crashes (access violations that bypass managed exception handling) after
+            // heavy operations like:
+            //   - Creating 815+ materials (CreateBLEMaterials)
+            //   - Binding 200+ shared parameters (LoadSharedParams)
+            //   - Batch tagging thousands of elements
+            //
+            // Revit already regenerates automatically when a transaction commits.
+            // The deferred processing is Revit's own mechanism and is safe.
+            // Co-loaded plugins (pyRevit, DiRoots) access the model through their
+            // own event handlers which fire AFTER regeneration completes.
+            //
+            // If a specific command needs forced regeneration for correctness,
+            // it should call doc.Regenerate() inside its own try/catch WITHIN
+            // the transaction (before tx.Commit()), not after.
         }
 
         // ── Current UIApplication (static fallback for panel commands) ──
@@ -781,6 +790,10 @@ namespace StingTools.UI
         {
             try
             {
+                // Log command start so we have a breadcrumb if Revit crashes
+                // during execution (native crashes bypass catch blocks).
+                StingLog.Info($"RunCommand<{typeof(T).Name}>: start");
+
                 var cmd = new T();
                 string message = "";
                 var elements = new ElementSet();
@@ -790,6 +803,8 @@ namespace StingTools.UI
                 // This avoids the fragile RuntimeHelpers.GetUninitializedObject
                 // reflection hack that breaks across Revit versions.
                 cmd.Execute(null, ref message, elements);
+
+                StingLog.Info($"RunCommand<{typeof(T).Name}>: done");
             }
             catch (NullReferenceException nre)
             {
@@ -1048,6 +1063,12 @@ namespace StingTools.UI
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             var doc = uidoc.Document;
+            var view = doc.ActiveView;
+            if (view == null)
+            {
+                TaskDialog.Show("Parameter List", "No active view — switch to a model view first.");
+                return;
+            }
 
             // Collect parameter names from selected element (or first taggable in view)
             var ids = uidoc.Selection.GetElementIds();
@@ -1056,7 +1077,7 @@ namespace StingTools.UI
                 target = doc.GetElement(ids.First());
             if (target == null)
             {
-                target = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                target = new FilteredElementCollector(doc, view.Id)
                     .WhereElementIsNotElementType()
                     .FirstOrDefault(e => e.Category != null);
             }
@@ -1294,18 +1315,15 @@ namespace StingTools.UI
 
         private static string[] GetTokenOptions(string paramName)
         {
-            return paramName switch
-            {
-                ParamRegistry.SYS => new[] { "HVAC", "DCW", "SAN" },
-                ParamRegistry.FUNC => new[] { "SUP", "HTG", "PWR" },
-                ParamRegistry.PROD => new[] { "AHU", "DB", "DR" },
-                ParamRegistry.LVL => new[] { "GF", "L01", "B1" },
-                ParamRegistry.ORIGIN => new[] { "NEW", "EXISTING", "DEMOLISHED" },
-                ParamRegistry.PROJECT => new[] { "PRJ001", "PRJ002", "PRJ003" },
-                ParamRegistry.REV => new[] { "P01", "P02", "C01" },
-                ParamRegistry.VOLUME => new[] { "V01", "V02", "V03" },
-                _ => new[] { "VALUE1", "VALUE2", "VALUE3" }
-            };
+            if (paramName == ParamRegistry.SYS) return new[] { "HVAC", "DCW", "SAN" };
+            if (paramName == ParamRegistry.FUNC) return new[] { "SUP", "HTG", "PWR" };
+            if (paramName == ParamRegistry.PROD) return new[] { "AHU", "DB", "DR" };
+            if (paramName == ParamRegistry.LVL) return new[] { "GF", "L01", "B1" };
+            if (paramName == ParamRegistry.ORIGIN) return new[] { "NEW", "EXISTING", "DEMOLISHED" };
+            if (paramName == ParamRegistry.PROJECT) return new[] { "PRJ001", "PRJ002", "PRJ003" };
+            if (paramName == ParamRegistry.REV) return new[] { "P01", "P02", "C01" };
+            if (paramName == ParamRegistry.VOLUME) return new[] { "V01", "V02", "V03" };
+            return new[] { "VALUE1", "VALUE2", "VALUE3" };
         }
 
         // ── Connected elements selector ─────────────────────────────
@@ -1367,9 +1385,11 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
-            var ids = new FilteredElementCollector(uidoc.Document, uidoc.ActiveView.Id)
+            var view = uidoc.ActiveView;
+            if (view == null) { TaskDialog.Show("Select", "No active view."); return; }
+            var ids = new FilteredElementCollector(uidoc.Document, view.Id)
                 .WhereElementIsNotElementType()
-                .Where(e => !e.IsHidden(uidoc.ActiveView))
+                .Where(e => !e.IsHidden(view))
                 .Select(e => e.Id).ToList();
             uidoc.Selection.SetElementIds(ids);
             StingLog.Info($"SelectVisibleOnly: {ids.Count} elements");
@@ -1381,15 +1401,32 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            var view = uidoc.ActiveView;
+            if (view == null) { TaskDialog.Show("Color By Parameter", "No active view."); return; }
             if (string.IsNullOrEmpty(paramName))
             {
                 TaskDialog.Show("Color By Parameter", "Select a parameter name first.");
                 return;
             }
 
-            var elements = new FilteredElementCollector(uidoc.Document, uidoc.ActiveView.Id)
-                .WhereElementIsNotElementType()
-                .ToList();
+            // If elements are selected, color only the selection; otherwise color entire view
+            var selIds = uidoc.Selection.GetElementIds();
+            List<Element> elements;
+            string scope;
+            if (selIds.Count > 0)
+            {
+                elements = selIds.Select(id => uidoc.Document.GetElement(id))
+                    .Where(e => e != null && e.IsValidObject)
+                    .ToList();
+                scope = $"{elements.Count} selected elements";
+            }
+            else
+            {
+                elements = new FilteredElementCollector(uidoc.Document, view.Id)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                scope = $"{elements.Count} elements in view";
+            }
 
             var groups = new Dictionary<string, List<ElementId>>();
             foreach (var el in elements)
@@ -1437,14 +1474,14 @@ namespace StingTools.UI
                         ogs.SetSurfaceForegroundPatternColor(color);
                     }
                     foreach (ElementId id in kvp.Value)
-                        uidoc.ActiveView.SetElementOverrides(id, ogs);
+                        view.SetElementOverrides(id, ogs);
                     colorIdx++;
                 }
                 tx.Commit();
             }
 
             TaskDialog.Show("Color By Parameter",
-                $"Coloured {elements.Count} elements by '{paramName}'\n" +
+                $"Coloured {scope} by '{paramName}'\n" +
                 $"({groups.Count} unique values).");
         }
 
@@ -1452,6 +1489,8 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            var view = uidoc.ActiveView;
+            if (view == null) { TaskDialog.Show("Color", "No active view."); return; }
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Color", "Select elements first."); return; }
 
@@ -1486,7 +1525,7 @@ namespace StingTools.UI
                     ogs.SetSurfaceForegroundPatternColor(color);
                 }
                 foreach (ElementId id in ids)
-                    uidoc.ActiveView.SetElementOverrides(id, ogs);
+                    view.SetElementOverrides(id, ogs);
                 tx.Commit();
             }
         }
@@ -1495,6 +1534,8 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            var view = uidoc.ActiveView;
+            if (view == null) { TaskDialog.Show("Transparency", "No active view."); return; }
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Transparency", "Select elements first."); return; }
 
@@ -1508,7 +1549,7 @@ namespace StingTools.UI
                 var ogs = new OverrideGraphicSettings();
                 ogs.SetSurfaceTransparency(transparency);
                 foreach (ElementId id in ids)
-                    uidoc.ActiveView.SetElementOverrides(id, ogs);
+                    view.SetElementOverrides(id, ogs);
                 tx.Commit();
             }
         }
@@ -1971,7 +2012,7 @@ namespace StingTools.UI
                             if (leaders.Count > 0)
                                 tn.RemoveLeaders();
                             else
-                                tn.AddLeader(TextNoteLeaderType.TNLT_STRAIGHT_L);
+                                tn.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
                             toggled++;
                         }
                         catch { }
@@ -3617,12 +3658,18 @@ namespace StingTools.UI
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             var doc = uidoc.Document;
+            var view = doc.ActiveView;
+            if (view == null)
+            {
+                TaskDialog.Show("Anomaly Scan", "No active view — switch to a model view first.");
+                return;
+            }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             int total = 0, missingTag = 0, missingDisc = 0, missingSys = 0;
             int placeholders = 0, formatErrors = 0;
 
-            foreach (Element el in new FilteredElementCollector(doc, doc.ActiveView.Id)
+            foreach (Element el in new FilteredElementCollector(doc, view.Id)
                 .WhereElementIsNotElementType())
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
@@ -3651,7 +3698,7 @@ namespace StingTools.UI
             double healthPct = total > 0 ? ((total - Math.Min(issues, total)) / (double)total) * 100 : 0;
 
             var report = new StringBuilder();
-            report.AppendLine($"Anomaly Scan — {doc.ActiveView.Name}");
+            report.AppendLine($"Anomaly Scan — {view.Name}");
             report.AppendLine(new string('═', 45));
             report.AppendLine($"  Taggable elements: {total}");
             report.AppendLine($"  Health score:      {healthPct:F0}%");
@@ -3863,24 +3910,26 @@ namespace StingTools.UI
                         XYZ elbowPos;
                         if (effectiveMode == "0")
                         {
-                            elbowPos = (hostCenter + tagHead) / 2.0;
+                            // Straight: elbow on line near tag head
+                            XYZ dir = delta.Normalize();
+                            double len = delta.GetLength();
+                            elbowPos = hostCenter + dir * (len * 0.95);
                         }
                         else if (effectiveMode == "45")
                         {
+                            // 45° elbow near element (arrow side)
                             double absDx = Math.Abs(delta.X);
                             double absDy = Math.Abs(delta.Y);
                             double diag = Math.Min(absDx, absDy);
                             double signX = delta.X >= 0 ? 1 : -1;
                             double signY = delta.Y >= 0 ? 1 : -1;
 
-                            if (absDx > absDy)
-                                elbowPos = new XYZ(hostCenter.X + diag * signX, tagHead.Y, hostCenter.Z);
-                            else
-                                elbowPos = new XYZ(tagHead.X, hostCenter.Y + diag * signY, hostCenter.Z);
+                            elbowPos = new XYZ(hostCenter.X + diag * signX, hostCenter.Y + diag * signY, hostCenter.Z);
                         }
                         else // "90"
                         {
-                            elbowPos = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+                            // 90° elbow near element (arrow side): vertical from host then horizontal to tag
+                            elbowPos = new XYZ(hostCenter.X, tagHead.Y, hostCenter.Z);
                         }
 
                         var refs = tag.GetTaggedReferences();
@@ -3925,8 +3974,8 @@ namespace StingTools.UI
                 if (elbow.DistanceTo(mid) < 0.1)
                     return "90"; // Cycle: 0 → 90
 
-                // Check if elbow is at orthogonal position (90°)
-                XYZ ortho90 = new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+                // Check if elbow is at orthogonal position (90°) — arrow side
+                XYZ ortho90 = new XYZ(hostCenter.X, tagHead.Y, hostCenter.Z);
                 if (elbow.DistanceTo(ortho90) < 0.1)
                     return "45"; // Cycle: 90 → 45
 

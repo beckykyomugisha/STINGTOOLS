@@ -20,8 +20,10 @@ namespace StingTools.Tags
         public static Result WriteToken(ExternalCommandData cmd, string paramName,
             string label, string[] options)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // Build target set: selected elements or all taggable in view
             var targetIds = uidoc.Selection.GetElementIds();
@@ -29,8 +31,9 @@ namespace StingTools.Tags
 
             if (!usingSelection)
             {
+                if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
-                targetIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                targetIds = new FilteredElementCollector(doc, ctx.ActiveView.Id)
                     .WhereElementIsNotElementType()
                     .Where(e => known.Contains(ParameterHelpers.GetCategoryName(e)))
                     .Select(e => e.Id)
@@ -188,15 +191,18 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Determine scope
             var targetIds = uidoc.Selection.GetElementIds();
             if (targetIds.Count == 0)
             {
-                targetIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+                targetIds = new FilteredElementCollector(doc, ctx.ActiveView.Id)
                     .WhereElementIsNotElementType()
                     .Where(e => known.Contains(ParameterHelpers.GetCategoryName(e)))
                     .Select(e => e.Id).ToList();
@@ -269,14 +275,17 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var targetIds = uidoc.Selection.GetElementIds();
             if (targetIds.Count == 0)
             {
+                if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
-                targetIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                targetIds = new FilteredElementCollector(doc, ctx.ActiveView.Id)
                     .WhereElementIsNotElementType()
                     .Where(e => known.Contains(ParameterHelpers.GetCategoryName(e)))
                     .Select(e => e.Id).ToList();
@@ -474,7 +483,9 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            Document doc = ParameterHelpers.GetApp(cmd).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             var stats = new Dictionary<string, (int total, int valid, int resolved, int incomplete, int missing)>();

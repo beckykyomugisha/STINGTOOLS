@@ -35,6 +35,8 @@ namespace StingTools.UI
         // Content is re-attached on first tab selection.
         private readonly Dictionary<int, object> _deferredTabContent =
             new Dictionary<int, object>();
+        // Tracks tabs that have a pending BeginInvoke to prevent double-queuing
+        private readonly HashSet<int> _tabsLoading = new HashSet<int>();
         private bool _tabLoadingInitialized;
 
         public StingDockPanel()
@@ -131,19 +133,39 @@ namespace StingTools.UI
             int idx = tabMain.SelectedIndex;
             if (idx < 0) return;
 
-            // Lazy-load deferred tab content on first selection
-            if (_deferredTabContent.TryGetValue(idx, out object content))
+            // Lazy-load deferred tab content on first selection.
+            // Guard against double-queuing if user clicks the same tab rapidly
+            // before the BeginInvoke callback has run.
+            if (_deferredTabContent.ContainsKey(idx) && !_tabsLoading.Contains(idx))
             {
-                _deferredTabContent.Remove(idx);
-
                 if (tabMain.Items[idx] is TabItem tab)
                 {
+                    _tabsLoading.Add(idx);
+                    int capturedIdx = idx;
+
                     // Use Dispatcher.BeginInvoke to load content AFTER the tab
-                    // switch animation completes, preventing layout stutter
+                    // switch animation completes, preventing layout stutter.
+                    // Content is removed from _deferredTabContent only on success
+                    // so it can be retried if the callback fails.
                     Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
                     {
-                        tab.Content = content;
-                        Core.StingLog.Info($"Tab {idx} content loaded (lazy)");
+                        try
+                        {
+                            if (_deferredTabContent.TryGetValue(capturedIdx, out object content))
+                            {
+                                tab.Content = content;
+                                _deferredTabContent.Remove(capturedIdx);
+                                Core.StingLog.Info($"Tab {capturedIdx} content loaded (lazy)");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Core.StingLog.Error($"Tab {capturedIdx} lazy load failed", ex);
+                        }
+                        finally
+                        {
+                            _tabsLoading.Remove(capturedIdx);
+                        }
                     }));
                 }
             }

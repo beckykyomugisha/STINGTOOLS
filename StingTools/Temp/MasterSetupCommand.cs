@@ -40,6 +40,19 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            try { return ExecuteCore(commandData, ref message, elements); }
+            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("MasterSetupCommand crashed", ex);
+                try { TaskDialog.Show("STING Tools", $"Master Setup failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteCore(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
             TaskDialog confirm = new TaskDialog("STING Master Setup");
             confirm.MainInstruction = "Run full project setup?";
             confirm.MainContent =
@@ -68,7 +81,9 @@ namespace StingTools.Temp
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             StingLog.Info("Master Setup: starting full automation workflow");
             var report = new StringBuilder();
             report.AppendLine("STING Master Setup Results");
@@ -284,7 +299,6 @@ namespace StingTools.Temp
 
                 tg.Assimilate();
             }
-
             report.AppendLine(new string('─', 45));
             report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");
             report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");

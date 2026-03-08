@@ -11,14 +11,53 @@ namespace StingTools.Core
     /// <summary>
     /// Ported from tag_logic.py — parameter read/write helpers for Revit elements.
     /// </summary>
+    /// <summary>
+    /// Safe command execution context — null-checked UIApplication, UIDocument,
+    /// Document, and ActiveView. Use <see cref="ParameterHelpers.GetContext"/> to obtain.
+    /// </summary>
+    public class CommandContext
+    {
+        public UIApplication App { get; init; }
+        public UIDocument UIDoc { get; init; }
+        public Document Doc { get; init; }
+        /// <summary>Active view — may be null if in family editor or schedule is active.
+        /// Check before using with FilteredElementCollector(doc, view.Id).</summary>
+        public View ActiveView { get; init; }
+        /// <summary>True when ActiveView is a graphical view suitable for element collection.</summary>
+        public bool HasGraphicalView => ActiveView != null
+            && ActiveView.ViewType != ViewType.Schedule
+            && ActiveView.ViewType != ViewType.DrawingSheet
+            && ActiveView.ViewType != ViewType.Internal;
+    }
+
     public static class ParameterHelpers
     {
+        /// <summary>
+        /// Get a fully null-checked command execution context.
+        /// Returns null if no document is open (caller should return Result.Failed).
+        /// Usage:
+        ///   var ctx = ParameterHelpers.GetContext(commandData);
+        ///   if (ctx == null) { message = "No document open."; return Result.Failed; }
+        /// </summary>
+        public static CommandContext GetContext(ExternalCommandData commandData)
+        {
+            var app = GetApp(commandData);
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return null;
+            var doc = uidoc.Document;
+            if (doc == null) return null;
+            View activeView = null;
+            try { activeView = doc.ActiveView; } catch { /* family editor / no view */ }
+            return new CommandContext { App = app, UIDoc = uidoc, Doc = doc, ActiveView = activeView };
+        }
+
         /// <summary>
         /// Get UIApplication from ExternalCommandData with null-safe fallback to
         /// StingCommandHandler.CurrentApp. Use this at the top of every command:
         ///   UIApplication uiApp = ParameterHelpers.GetApp(commandData);
         ///   UIDocument uidoc = uiApp.ActiveUIDocument;
         ///   Document doc = uidoc.Document;
+        /// Prefer <see cref="GetContext"/> for full null-safety.
         /// </summary>
         public static UIApplication GetApp(ExternalCommandData commandData)
         {
@@ -131,15 +170,15 @@ namespace StingTools.Core
                     return "UG";
                 if (lower.StartsWith("sub-basement") || lower.StartsWith("sub basement") || lower == "sb")
                 {
-                    string digits = ExtractDigits(name);
-                    return "SB" + (digits.Length > 0 ? digits : "");
+                    string sbDigits = ExtractDigits(name);
+                    return "SB" + (sbDigits.Length > 0 ? sbDigits : "");
                 }
                 if (lower.StartsWith("basement") || lower == "b1" || lower == "b2" ||
                     lower == "b3" || lower == "b4" || lower == "b5" ||
                     (lower.Length >= 2 && lower[0] == 'b' && char.IsDigit(lower[1])))
                 {
-                    string digits = ExtractDigits(name);
-                    return "B" + (digits.Length > 0 ? digits : "1");
+                    string bDigits = ExtractDigits(name);
+                    return "B" + (bDigits.Length > 0 ? bDigits : "1");
                 }
                 if (lower.StartsWith("roof") || lower == "rf")
                     return "RF";
@@ -1778,6 +1817,15 @@ namespace StingTools.Core
         private static int SetIfEmptyInt(Element el, string paramName, string value)
         {
             return ParameterHelpers.SetIfEmpty(el, paramName, value) ? 1 : 0;
+        }
+
+        /// <summary>Find the solid fill pattern element in the document. Cached per document.</summary>
+        public static FillPatternElement GetSolidFillPattern(Document doc)
+        {
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(FillPatternElement))
+                .Cast<FillPatternElement>()
+                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
         }
     }
 }

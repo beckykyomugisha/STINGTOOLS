@@ -86,35 +86,86 @@ echo [2/3] Building %CONFIG%...
 dotnet build "%PROJECT%" -c %CONFIG% -p:RevitApiPath="%RevitApiPath%" --no-restore
 if errorlevel 1 (
     echo.
-    echo ═══════════════════════════════════════════════
+    echo ═══════════════════════════════════
     echo  BUILD FAILED — check errors above
-    echo ═══════════════════════════════════════════════
+    echo ═══════════════════════════════════
     exit /b 1
 )
 
-REM ── Report output ────────────────────────────────────────────────
+REM ── Locate output ──────────────────────────────────────────────
 echo.
 echo [3/3] Locating output...
-set "OUTDIR=StingTools\bin\%CONFIG%"
-if exist "%OUTDIR%\StingTools.dll" (
-    echo.
-    echo ═══════════════════════════════════════════════
-    echo  BUILD SUCCEEDED
-    echo ═══════════════════════════════════════════════
-    echo.
-    echo  Output:  %OUTDIR%\StingTools.dll
-    echo  Data:    %OUTDIR%\data\
-    echo.
-    echo  Deploy to Revit:
-    echo    1. Copy StingTools.dll + Newtonsoft.Json.dll + data\ to plugin folder
-    echo    2. Update Assembly path in StingTools.addin to match plugin folder
-    echo    3. Copy StingTools.addin to your Revit version addins folder:
-    echo       %%APPDATA%%\Autodesk\Revit\Addins\2025\  (or 2026, 2027)
-    echo    4. Restart Revit
-    echo.
-) else (
-    echo WARNING: StingTools.dll not found at expected location.
-    echo Check build output above for actual path.
+set "OUTDIR="
+
+REM Check possible output locations
+if exist "StingTools\bin\%CONFIG%\StingTools.dll" (
+    set "OUTDIR=StingTools\bin\%CONFIG%"
+)
+if exist "StingTools\bin\%CONFIG%\net8.0-windows\StingTools.dll" (
+    set "OUTDIR=StingTools\bin\%CONFIG%\net8.0-windows"
 )
 
+if "!OUTDIR!"=="" (
+    echo WARNING: StingTools.dll not found at expected location.
+    echo Searching...
+    for /r "StingTools\bin" %%F in (StingTools.dll) do (
+        set "OUTDIR=%%~dpF"
+        set "OUTDIR=!OUTDIR:~0,-1!"
+        echo Found at: !OUTDIR!
+        goto :deploy
+    )
+    echo ERROR: StingTools.dll not found anywhere in build output.
+    exit /b 1
+)
+
+:deploy
+echo.
+echo ═══════════════════════════════════
+echo  BUILD SUCCEEDED
+echo ═══════════════════════════════════
+echo.
+echo  Output: !OUTDIR!\StingTools.dll
+echo.
+
+REM ── Auto-deploy to CompiledPlugin ──────────────────────────────
+call :do_deploy
+goto :done
+
+:do_deploy
+echo [Deploy] Copying to CompiledPlugin...
+if not exist "CompiledPlugin" mkdir "CompiledPlugin"
+if not exist "CompiledPlugin\data" mkdir "CompiledPlugin\data"
+
+REM Copy all DLLs except Revit API
+for %%F in ("!OUTDIR!\*.dll") do (
+    set "DLLNAME=%%~nxF"
+    if /i not "!DLLNAME!"=="RevitAPI.dll" if /i not "!DLLNAME!"=="RevitAPIUI.dll" (
+        copy /y "%%F" "CompiledPlugin\" >nul
+    )
+)
+
+REM Copy data files
+if exist "!OUTDIR!\data" (
+    xcopy /y /e /q "!OUTDIR!\data\*" "CompiledPlugin\data\" >nul
+) else if exist "StingTools\Data" (
+    xcopy /y /e /q "StingTools\Data\*" "CompiledPlugin\data\" >nul
+)
+
+REM Copy addin manifest
+if exist "StingTools.addin" copy /y "StingTools.addin" "CompiledPlugin\" >nul
+
+echo.
+echo ═══════════════════════════════════
+echo  DEPLOYED TO CompiledPlugin\
+echo ═══════════════════════════════════
+echo.
+echo  Deploy to Revit:
+echo    1. Update Assembly path in StingTools.addin to match plugin folder
+echo    2. Copy StingTools.addin to your Revit addins folder:
+echo       %%APPDATA%%\Autodesk\Revit\Addins\2025\  (or 2026, 2027)
+echo    3. Restart Revit
+echo.
+exit /b 0
+
+:done
 endlocal

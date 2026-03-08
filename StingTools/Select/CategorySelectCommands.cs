@@ -19,13 +19,26 @@ namespace StingTools.Select
         public static Result SelectByCategory(ExternalCommandData commandData,
             BuiltInCategory bic, string label)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null)
+            {
+                TaskDialog.Show("Select", "No document is open.");
+                return Result.Failed;
+            }
+            if (ctx.ActiveView == null)
+            {
+                TaskDialog.Show("Select", "No active view. Open a view first.");
+                return Result.Failed;
+            }
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
-                .OfCategory(bic)
-                .WhereElementIsNotElementType()
-                .ToElementIds();
+            ICollection<ElementId> ids;
+            using (var collector = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id))
+            {
+                ids = collector
+                    .OfCategory(bic)
+                    .WhereElementIsNotElementType()
+                    .ToElementIds();
+            }
 
             if (ids.Count == 0)
             {
@@ -34,7 +47,7 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            uidoc.Selection.SetElementIds(ids);
+            ctx.UIDoc.Selection.SetElementIds(ids);
             StingLog.Info($"Selected {ids.Count} {label} elements");
             return Result.Succeeded;
         }
@@ -144,15 +157,23 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null)
+            {
+                TaskDialog.Show("Select All", "No active view. Open a view first.");
+                return Result.Failed;
+            }
 
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
-                .WhereElementIsNotElementType()
-                .Where(e => knownCategories.Contains(ParameterHelpers.GetCategoryName(e)))
-                .Select(e => e.Id)
-                .ToList();
+            List<ElementId> ids;
+            using (var collector = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id))
+            {
+                ids = collector
+                    .WhereElementIsNotElementType()
+                    .Where(e => knownCategories.Contains(ParameterHelpers.GetCategoryName(e)))
+                    .Select(e => e.Id)
+                    .ToList();
+            }
 
             if (ids.Count == 0)
             {
@@ -160,7 +181,7 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            uidoc.Selection.SetElementIds(ids);
+            ctx.UIDoc.Selection.SetElementIds(ids);
             StingLog.Info($"Selected {ids.Count} taggable elements");
             return Result.Succeeded;
         }

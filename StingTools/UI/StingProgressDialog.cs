@@ -150,30 +150,40 @@ namespace StingTools.UI
             {
                 try
                 {
-                    _window.Dispatcher.Invoke(() =>
+                    // CRASH FIX: Use BeginInvoke (fire-and-forget) instead of Invoke (blocking).
+                    // Dispatcher.Invoke can DEADLOCK if the WPF thread tries to call back
+                    // to the Revit API thread (e.g., cancel button raising ExternalEvent)
+                    // while the Revit thread is blocked waiting for Invoke to complete.
+                    int capturedVal = val;
+                    string capturedMsg = statusMessage;
+                    _window.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        _progressBar.Value = val;
-                        _countText.Text = $"{val:N0} / {_total:N0}";
-
-                        if (!string.IsNullOrEmpty(statusMessage))
-                            _statusText.Text = statusMessage;
-
-                        // ETA calculation
-                        double elapsed = _stopwatch.Elapsed.TotalSeconds;
-                        if (val > 0 && elapsed > 0.5)
+                        try
                         {
-                            double rate = val / elapsed;
-                            int remaining = _total - val;
-                            double etaSeconds = remaining / rate;
+                            _progressBar.Value = capturedVal;
+                            _countText.Text = $"{capturedVal:N0} / {_total:N0}";
 
-                            if (etaSeconds < 60)
-                                _etaText.Text = $"~{etaSeconds:F0}s remaining ({rate:F0} elem/s)";
-                            else
-                                _etaText.Text = $"~{etaSeconds / 60:F1}min remaining ({rate:F0} elem/s)";
+                            if (!string.IsNullOrEmpty(capturedMsg))
+                                _statusText.Text = capturedMsg;
+
+                            // ETA calculation
+                            double elapsed = _stopwatch.Elapsed.TotalSeconds;
+                            if (capturedVal > 0 && elapsed > 0.5)
+                            {
+                                double rate = capturedVal / elapsed;
+                                int remaining = _total - capturedVal;
+                                double etaSeconds = remaining / rate;
+
+                                if (etaSeconds < 60)
+                                    _etaText.Text = $"~{etaSeconds:F0}s remaining ({rate:F0} elem/s)";
+                                else
+                                    _etaText.Text = $"~{etaSeconds / 60:F1}min remaining ({rate:F0} elem/s)";
+                            }
                         }
-                    });
+                        catch { /* Window may have been closed */ }
+                    }));
                 }
-                catch { /* Window may have been closed */ }
+                catch { /* Dispatcher may be shut down */ }
             }
         }
 
@@ -185,10 +195,11 @@ namespace StingTools.UI
             _stopwatch.Stop();
             try
             {
-                _window.Dispatcher.Invoke(() =>
+                // CRASH FIX: Use BeginInvoke to avoid deadlock on close
+                _window.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     try { _window.Close(); } catch { }
-                });
+                }));
             }
             catch { }
         }
@@ -200,10 +211,12 @@ namespace StingTools.UI
         {
             try
             {
-                _window.Dispatcher.Invoke(() =>
+                // CRASH FIX: Use BeginInvoke to avoid deadlock
+                string msg = statusMessage ?? "";
+                _window.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    _statusText.Text = statusMessage ?? "";
-                });
+                    try { _statusText.Text = msg; } catch { }
+                }));
             }
             catch { }
         }

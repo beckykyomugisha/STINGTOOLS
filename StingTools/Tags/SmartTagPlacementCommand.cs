@@ -497,7 +497,10 @@ namespace StingTools.Tags
                     catch { }
                 }
                 if (hidden.Count > 0)
-                    doc.Regenerate();
+                {
+                    try { doc.Regenerate(); }
+                    catch (Exception rex) { StingLog.Warn($"SuppressAnnotations regenerate: {rex.Message}"); }
+                }
             }
             catch (Exception ex)
             {
@@ -924,9 +927,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             if (view is ViewSheet)
             {
@@ -1095,9 +1100,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             var allTags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
@@ -1244,9 +1251,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             var selectedIds = uidoc.Selection.GetElementIds();
             var selectedTags = selectedIds
@@ -1283,18 +1292,51 @@ namespace StingTools.Tags
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
 
+            StingLog.Info($"RemoveAnnotationTags: deleting {tagsToRemove.Count} tags ({scope})");
+
+            // Collect IDs upfront — batch deletion is safer and faster than one-by-one
+            var idsToDelete = new List<ElementId>(tagsToRemove.Count);
+            foreach (var tag in tagsToRemove)
+                idsToDelete.Add(tag.Id);
+
+            // Clear selection BEFORE deleting — if deleted tags remain in the
+            // active selection, Revit's deferred graphics update can crash
+            // accessing disposed element references.
+            try { uidoc.Selection.SetElementIds(new List<ElementId>()); }
+            catch { /* best effort */ }
+
             int removed = 0;
             using (Transaction tx = new Transaction(doc, "STING Remove Annotation Tags"))
             {
                 tx.Start();
-                foreach (var tag in tagsToRemove)
+                try
                 {
-                    try { doc.Delete(tag.Id); removed++; }
-                    catch (Exception ex) { StingLog.Warn($"Could not delete tag {tag.Id}: {ex.Message}"); }
+                    // Single batch delete — avoids per-element internal bookkeeping
+                    // that can trigger cascading graphics cache invalidation
+                    doc.Delete(idsToDelete);
+                    removed = idsToDelete.Count;
                 }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"RemoveAnnotationTags: batch delete failed, falling back to one-by-one", ex);
+                    // Fallback: delete individually
+                    foreach (var id in idsToDelete)
+                    {
+                        try { doc.Delete(id); removed++; }
+                        catch (Exception ex2) { StingLog.Warn($"Could not delete tag {id}: {ex2.Message}"); }
+                    }
+                }
+
+                // Force regeneration inside the transaction so the view's
+                // graphics state is consistent before Commit() triggers the
+                // deferred ElementsGraphicCacheUpdater.  Wrapped in try/catch
+                // to prevent native crashes from propagating.
+                try { doc.Regenerate(); }
+                catch (Exception rex) { StingLog.Warn($"RemoveAnnotationTags regenerate: {rex.Message}"); }
                 tx.Commit();
             }
 
+            StingLog.Info($"RemoveAnnotationTags: deleted {removed} of {idsToDelete.Count} tags");
             TaskDialog.Show("Remove Annotation Tags", $"Removed {removed} of {tagsToRemove.Count} annotation tags.");
             return Result.Succeeded;
         }
@@ -1311,7 +1353,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var views = new FilteredElementCollector(doc)
                 .OfClass(typeof(View)).Cast<View>()
@@ -1404,8 +1448,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             var tags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag)).Cast<IndependentTag>().ToList();
@@ -1454,8 +1501,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             if (view is ViewSheet)
             {
@@ -1528,9 +1578,11 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             var tags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
@@ -1680,9 +1732,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIApplication uiApp = ParameterHelpers.GetApp(commandData);
-            UIDocument uidoc = uiApp.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // Find tag families to modify
             var tagFamilies = new FilteredElementCollector(doc)
@@ -1882,7 +1935,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Pick line weight (pen number 1-16)
             TaskDialog dlg = new TaskDialog("Set Tag Category Line Weight");

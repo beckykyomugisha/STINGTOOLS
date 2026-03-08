@@ -29,7 +29,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             string dataPath = StingToolsApp.DataPath;
             if (string.IsNullOrEmpty(dataPath) || !Directory.Exists(dataPath))
@@ -567,7 +569,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             string bindingsPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
             if (bindingsPath == null)
@@ -1027,8 +1031,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
-            if (doc == null) return Result.Failed;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             StingLog.Info("BOQ Export starting...");
 
@@ -1395,7 +1400,7 @@ namespace StingTools.Temp
                 ws.Cell(row, 2).Style.Font.Italic = true;
 
                 // Print settings
-                ws.PageSetup.PrintTitleRows = 1;
+                ws.PageSetup.SetRowsToRepeatAtTop(1, 1);
                 ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
                 ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
                 ws.PageSetup.FitToPages(1, 0); // fit width to 1 page
@@ -1888,8 +1893,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
-            if (doc == null) return Result.Failed;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             var report = new StringBuilder();
             report.AppendLine("STING Template VG Consistency Audit");
@@ -2098,8 +2104,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
-            if (doc == null) return Result.Failed;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Load IFC mapping from PARAMETER_REGISTRY.json
             string regPath = StingToolsApp.FindDataFile("PARAMETER_REGISTRY.json");
@@ -2212,8 +2219,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
-            if (doc == null) return Result.Failed;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Load BEP from data directory
             string bepPath = StingToolsApp.FindDataFile("project_bep.json");
@@ -2351,7 +2359,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             // Define clash groups: MEP vs Structure
             var mepCats = new List<BuiltInCategory>
@@ -2589,7 +2599,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             if (string.IsNullOrEmpty(doc.PathName))
             {
@@ -2696,9 +2708,9 @@ namespace StingTools.Temp
             sb.AppendLine();
             sb.AppendLine("PropertySet:\tSTING_AssetIdentity\tI\t" +
                 "IfcBuildingElement,IfcDistributionElement");
-            string descParam = ParamRegistry.GetParamName("ASS_DESCRIPTION_TXT") ?? "ASS_DESCRIPTION_TXT";
-            string mfgParam = ParamRegistry.GetParamName("ASS_MANUFACTURER_TXT") ?? "ASS_MANUFACTURER_TXT";
-            string modelParam = ParamRegistry.GetParamName("ASS_MODEL_TXT") ?? "ASS_MODEL_TXT";
+            string descParam = "ASS_DESCRIPTION_TXT";
+            string mfgParam = "ASS_MANUFACTURER_TXT";
+            string modelParam = "ASS_MODEL_TXT";
             sb.AppendLine($"\t{descParam}\tText");
             sb.AppendLine($"\t{mfgParam}\tText");
             sb.AppendLine($"\t{modelParam}\tText");
@@ -2707,8 +2719,8 @@ namespace StingTools.Temp
             sb.AppendLine();
             sb.AppendLine("PropertySet:\tSTING_AssetCost\tI\t" +
                 "IfcBuildingElement,IfcDistributionElement");
-            string costParam = ParamRegistry.GetParamName("ASS_UNIT_COST_TXT") ?? "ASS_UNIT_COST_TXT";
-            string areaParam = ParamRegistry.GetParamName("ASS_AREA_M2_TXT") ?? "ASS_AREA_M2_TXT";
+            string costParam = "ASS_UNIT_COST_TXT";
+            string areaParam = "ASS_AREA_M2_TXT";
             sb.AppendLine($"\t{costParam}\tText");
             sb.AppendLine($"\t{areaParam}\tText");
 
@@ -2734,7 +2746,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             // Find Excel files in the project directory
             string projectDir = !string.IsNullOrEmpty(doc.PathName)
@@ -2899,7 +2913,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
 
             string outputDir = !string.IsNullOrEmpty(doc.PathName)
                 ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()
@@ -2947,22 +2963,15 @@ namespace StingTools.Temp
 
             File.WriteAllText(knoPath, sb.ToString());
 
-            // Load into Revit via KeynoteTable API
+            // Keynote file generated — user loads via Annotate > Keynoting Settings
             int entries = discCodes.Count + TagConfig.SysMap.Count + TagConfig.ProdMap.Count;
             try
             {
-                KeynoteTable kt = KeynoteTable.GetKeynoteTable(doc);
-                using (Transaction tx = new Transaction(doc, "STING Keynote Sync"))
-                {
-                    tx.Start();
-                    ModelPath mp = ModelPathUtils.ConvertUserVisiblePathToModelPath(knoPath);
-                    kt.LoadFrom(mp, null);
-                    tx.Commit();
-                }
+                StingLog.Info($"Keynote file generated at {knoPath} with {entries} entries");
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"Keynote table auto-load: {ex.Message} — file generated, load manually via Annotate > Keynoting Settings");
+                StingLog.Warn($"Keynote sync: {ex.Message}");
             }
 
             TaskDialog.Show("Keynote Sync",

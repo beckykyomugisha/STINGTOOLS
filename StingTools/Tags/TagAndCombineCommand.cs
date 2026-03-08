@@ -36,8 +36,23 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            try { return ExecuteCore(commandData, ref message, elements); }
+            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("TagAndCombineCommand crashed", ex);
+                try { TaskDialog.Show("STING Tools", $"Tag & Combine failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteCore(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // Step 0: Choose scope
             TaskDialog scopeDlg = new TaskDialog("Tag & Combine All");
@@ -123,6 +138,9 @@ namespace StingTools.Tags
 
             using (Transaction tx = new Transaction(doc, "STING Tag & Combine All"))
             {
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
                 tx.Start();
                 int loopIndex = 0;
                 foreach (ElementId id in targetIds)
@@ -249,7 +267,6 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-
             sw.Stop();
 
             var report = new StringBuilder();

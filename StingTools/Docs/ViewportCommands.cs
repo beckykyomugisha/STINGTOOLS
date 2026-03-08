@@ -17,9 +17,11 @@ namespace StingTools.Docs
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             if (!(view is ViewSheet sheet))
             {
@@ -206,9 +208,11 @@ namespace StingTools.Docs
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
             if (!(view is ViewSheet sheet))
             {
@@ -263,10 +267,12 @@ namespace StingTools.Docs
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
-            var selected = uidoc.Selection.GetElementIds();
+            var selected = ctx.UIDoc.Selection.GetElementIds();
             var textNotes = selected
                 .Select(id => doc.GetElement(id) as TextNote)
                 .Where(t => t != null).ToList();
@@ -274,7 +280,7 @@ namespace StingTools.Docs
             if (textNotes.Count == 0)
             {
                 // Fall back to all text notes in view
-                textNotes = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                textNotes = new FilteredElementCollector(doc, ctx.ActiveView.Id)
                     .OfClass(typeof(TextNote))
                     .Cast<TextNote>().ToList();
             }
@@ -356,10 +362,11 @@ namespace StingTools.Docs
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = ParameterHelpers.GetApp(cmd).ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
-            var selected = uidoc.Selection.GetElementIds();
+            var selected = ctx.UIDoc.Selection.GetElementIds();
             var rooms = selected.Select(id => doc.GetElement(id) as Room)
                 .Where(r => r != null && r.Area > 0).ToList();
 
