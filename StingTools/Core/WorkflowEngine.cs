@@ -231,7 +231,6 @@ namespace StingTools.Core
             int passed = 0;
             int failed = 0;
             int skipped = 0;
-            bool cancelled = false;
             var totalSw = Stopwatch.StartNew();
 
             foreach (var step in preset.Steps)
@@ -241,7 +240,6 @@ namespace StingTools.Core
                 // Check cancellation between steps
                 if (EscapeChecker.IsEscapePressed())
                 {
-                    cancelled = true;
                     report.AppendLine($"  {stepNum,2}. {step.Label} — CANCELLED (Escape)");
                     StingLog.Info($"Workflow step {stepNum}: cancelled by user");
                     break;
