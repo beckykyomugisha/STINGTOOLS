@@ -590,7 +590,24 @@ namespace StingTools.Select
                     bool any = false;
                     foreach (string p in clearParams)
                         if (ParameterHelpers.SetString(elem, p, "", overwrite: true)) any = true;
-                    if (any) cleared++;
+
+                    // Also clear discipline-specific containers and TAG7 sub-sections
+                    if (any)
+                    {
+                        try
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(elem);
+                            var emptyTokens = new string[8];
+                            for (int i = 0; i < emptyTokens.Length; i++) emptyTokens[i] = "";
+                            ParamRegistry.WriteContainers(elem, emptyTokens, catName, overwrite: true);
+                            TagConfig.WriteTag7All(doc, elem, catName, emptyTokens, overwrite: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"BulkClearTags: container clear failed for {elem.Id}: {ex.Message}");
+                        }
+                        cleared++;
+                    }
                 }
                 tx.Commit();
             }
@@ -614,7 +631,21 @@ namespace StingTools.Select
                         skipComplete: false,
                         existingTags: tagIndex,
                         collisionMode: TagCollisionMode.Overwrite))
+                    {
                         retagged++;
+
+                        // Write TAG7 + sub-sections with rebuilt tag
+                        try
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(elem);
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
+                            TagConfig.WriteTag7All(doc, elem, catName, tokenVals, overwrite: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"BulkRetag TAG7 for {elem.Id}: {ex.Message}");
+                        }
+                    }
                 }
                 tx.Commit();
             }

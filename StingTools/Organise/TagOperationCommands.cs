@@ -502,10 +502,11 @@ namespace StingTools.Organise
                             var emptyTokens = new string[8]; // All empty strings
                             for (int i = 0; i < emptyTokens.Length; i++) emptyTokens[i] = "";
                             ParamRegistry.WriteContainers(elem, emptyTokens, catName, overwrite: true);
+                            TagConfig.WriteTag7All(doc, elem, catName, emptyTokens, overwrite: true);
                         }
                         catch (Exception ex)
                         {
-                            StingLog.Warn($"DeleteTags: container clear failed for {elem.Id}: {ex.Message}");
+                            StingLog.Warn($"DeleteTags: container/TAG7 clear failed for {elem.Id}: {ex.Message}");
                         }
                         cleared++;
                     }
@@ -1003,7 +1004,8 @@ namespace StingTools.Organise
             foreach (string p in CopyParams)
                 values[p] = ParameterHelpers.GetString(source, p);
 
-            string sourceTag = values.TryGetValue(ParamRegistry.TAG1, out string t) ? t : "(empty)";
+            string sourceTag = ParameterHelpers.GetString(source, ParamRegistry.TAG1);
+            if (string.IsNullOrEmpty(sourceTag)) sourceTag = "(empty)";
 
             // Check for discipline mismatches between source and targets
             string sourceCat = ParameterHelpers.GetCategoryName(source);
@@ -1048,17 +1050,20 @@ namespace StingTools.Organise
                         ParameterHelpers.SetString(target, kvp.Key, kvp.Value, overwrite: true);
                     }
 
-                    // Update containers with copied values
+                    // Update containers and TAG7 with copied values
                     try
                     {
                         string catName = ParameterHelpers.GetCategoryName(target);
                         string[] tokenVals = ParamRegistry.ReadTokenValues(target);
                         if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                        {
                             ParamRegistry.WriteContainers(target, tokenVals, catName, overwrite: true);
+                            TagConfig.WriteTag7All(doc, target, catName, tokenVals, overwrite: true);
+                        }
                     }
                     catch (Exception ex)
                     {
-                        StingLog.Warn($"CopyTags: container write failed for {target.Id}: {ex.Message}");
+                        StingLog.Warn($"CopyTags: container/TAG7 write failed for {target.Id}: {ex.Message}");
                     }
 
                     copied++;
@@ -1139,16 +1144,22 @@ namespace StingTools.Organise
                     string catA = ParameterHelpers.GetCategoryName(a);
                     string[] tokensA = ParamRegistry.ReadTokenValues(a);
                     if (tokensA.Any(v => !string.IsNullOrEmpty(v)))
+                    {
                         ParamRegistry.WriteContainers(a, tokensA, catA, overwrite: true);
+                        TagConfig.WriteTag7All(doc, a, catA, tokensA, overwrite: true);
+                    }
 
                     string catB = ParameterHelpers.GetCategoryName(b);
                     string[] tokensB = ParamRegistry.ReadTokenValues(b);
                     if (tokensB.Any(v => !string.IsNullOrEmpty(v)))
+                    {
                         ParamRegistry.WriteContainers(b, tokensB, catB, overwrite: true);
+                        TagConfig.WriteTag7All(doc, b, catB, tokensB, overwrite: true);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    StingLog.Warn($"SwapTags: container write failed: {ex.Message}");
+                    StingLog.Warn($"SwapTags: container/TAG7 write failed: {ex.Message}");
                 }
 
                 tx.Commit();
@@ -4469,7 +4480,7 @@ namespace StingTools.Organise
             // Apply fixes
             int fixed_disc = 0, fixed_loc = 0, fixed_zone = 0, fixed_lvl = 0, fixed_sys = 0;
             int fixed_seq = 0, fixed_wrongDisc = 0;
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
 
             using (Transaction tx = new Transaction(doc, "STING Anomaly Auto-Fix"))
             {
@@ -4540,6 +4551,22 @@ namespace StingTools.Organise
                             ParameterHelpers.SetString(el, ParamRegistry.SEQ, newSeq, overwrite: true);
                             fixed_seq++;
                         }
+                    }
+
+                    // Rebuild TAG1, containers, and TAG7 after fixing tokens
+                    try
+                    {
+                        TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                            skipComplete: false,
+                            existingTags: tagIndex,
+                            collisionMode: TagCollisionMode.Overwrite);
+
+                        string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                        TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"AnomalyAutoFix tag rebuild for {el.Id}: {ex.Message}");
                     }
                 }
 

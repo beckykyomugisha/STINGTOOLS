@@ -349,9 +349,10 @@ namespace StingTools.Tags
                 }
             }
 
-            // Count total that would change
-            foreach (var (el, currentTag) in tagged)
+            // Count total that would change (skip samples already counted above)
+            for (int j = sampleCount; j < tagged.Count; j++)
             {
+                var (el, currentTag) = tagged[j];
                 string[] tokens = ParamRegistry.ReadTokenValues(el);
                 string rebuilt = string.Join(ParamRegistry.Separator, tokens);
                 if (!string.Equals(currentTag, rebuilt, StringComparison.Ordinal))
