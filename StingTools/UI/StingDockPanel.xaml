@@ -1082,14 +1082,20 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SCHEDULES"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource GreenBtn}" Content="Full AutoPop" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="Zero-input full pipeline"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Batch Create" Tag="BatchSchedules" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Mat Takeoff" Tag="MaterialSchedules" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="AutoPop Tok" Tag="AutoPopulate" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Formulas" Tag="FormulaEvaluator" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportCSV" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Full AutoPop" Tag="FullAutoPopulate" Click="Cmd_Click"
+                                        ToolTip="Zero-input: populate tokens + formulas + tags + combine (all-in-one)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="AutoPop Tok" Tag="AutoPopulate" Click="Cmd_Click"
+                                        ToolTip="Populate 7 tokens only (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD) — no tags or formulas"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Formulas" Tag="FormulaEvaluator" Click="Cmd_Click"
+                                        ToolTip="Evaluate 199 parameter formulas from CSV (standalone re-evaluation)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Batch Create" Tag="BatchSchedules" Click="Cmd_Click"
+                                        ToolTip="Create schedules from MR_SCHEDULES.csv (MEP/Arch/FM/COBie/BOQ)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Mat Takeoff" Tag="MaterialSchedules" Click="Cmd_Click"
+                                        ToolTip="Create 8 material takeoff schedules for BLE categories"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportCSV" Click="Cmd_Click"
+                                        ToolTip="Export all project schedules to CSV files"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="Export BOQ" Tag="BOQExport" Click="Cmd_Click"
-                                        ToolTip="Export grouped Bill of Quantities (NRM2 structure)"/>
+                                        ToolTip="Export Bill of Quantities to Excel (7 bills, NRM2, contingency, VAT)"/>
                             </WrapPanel>
                         </Border>
 
