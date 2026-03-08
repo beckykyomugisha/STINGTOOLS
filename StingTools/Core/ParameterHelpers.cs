@@ -134,8 +134,16 @@ namespace StingTools.Core
             if (existing.Length > 0 && !overwrite)
                 return false;
 
-            p.Set(value);
-            return true;
+            try
+            {
+                p.Set(value ?? string.Empty);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetString '{paramName}' on {el.Id} failed: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>Set only when the parameter is currently empty.</summary>
@@ -161,7 +169,12 @@ namespace StingTools.Core
                 string lower = name.ToLowerInvariant();
 
                 if (lower.StartsWith("level ") && name.Length > 6)
-                    return "L" + name.Substring(6).Trim().PadLeft(2, '0');
+                {
+                    string suffix = ExtractDigits(name.Substring(6));
+                    if (suffix.Length > 0 && suffix.Length <= 3)
+                        return "L" + suffix.PadLeft(2, '0');
+                    // Non-numeric suffix (e.g., "Level 1a") — fall through to digit extraction
+                }
                 if (lower == "ground" || lower == "ground floor" || lower == "ground level")
                     return "GF";
                 if (lower.StartsWith("lower ground") || lower == "lg")
@@ -209,7 +222,7 @@ namespace StingTools.Core
 
                 // Try to extract a floor number from patterns like "L01", "L1", "Floor 3"
                 string digits = ExtractDigits(name);
-                if (digits.Length > 0 && digits.Length <= 2)
+                if (digits.Length > 0 && digits.Length <= 3)
                     return "L" + digits.PadLeft(2, '0');
 
                 // Unrecognized pattern — return XX rather than truncating the name

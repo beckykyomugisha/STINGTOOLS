@@ -364,15 +364,13 @@ namespace StingTools.Tags
                         }
                     }
 
-                    // Auto-derive LVL if missing
-                    if (string.IsNullOrEmpty(tokenValues[3]))
+                    // Auto-derive LVL if missing (guaranteed default: never "XX" or empty)
+                    if (string.IsNullOrEmpty(tokenValues[3]) || tokenValues[3] == "XX")
                     {
                         string lvl = ParameterHelpers.GetLevelCode(doc, elem);
-                        if (!string.IsNullOrEmpty(lvl))
-                        {
-                            tokenValues[3] = lvl;
-                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
-                        }
+                        if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
+                        tokenValues[3] = lvl;
+                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
                     }
 
                     // Auto-derive FUNC if missing (smart subsystem, guaranteed default)
@@ -383,15 +381,6 @@ namespace StingTools.Tags
                             func = TagConfig.FuncMap.TryGetValue(tokenValues[4], out string fv) ? fv : "GEN";
                         tokenValues[5] = func;
                         ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func);
-                    }
-
-                    // Auto-derive LVL if missing (guaranteed default)
-                    if (string.IsNullOrEmpty(tokenValues[3]))
-                    {
-                        string lvl = ParameterHelpers.GetLevelCode(doc, elem);
-                        if (lvl == "XX") lvl = "L00";
-                        tokenValues[3] = lvl;
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
                     }
 
                     // Auto-derive LOC/ZONE if missing (guaranteed defaults)
@@ -420,17 +409,24 @@ namespace StingTools.Tags
                     string tag = string.Join(ParamRegistry.Separator, tokenValues);
 
                     // Collision detection: if tag exists, auto-increment SEQ
+                    string oldTag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                     if (existingTags.Contains(tag))
                     {
                         string sys = tokenValues[4];
                         string lvl = tokenValues[3];
-                        string seqKey = $"{disc}_{(string.IsNullOrEmpty(sys) ? "GEN" : sys)}_{(string.IsNullOrEmpty(lvl) ? "XX" : lvl)}";
+                        string seqKey = $"{disc}_{(string.IsNullOrEmpty(sys) ? "GEN" : sys)}_{(string.IsNullOrEmpty(lvl) ? "L00" : lvl)}";
                         if (!seqCounters.ContainsKey(seqKey)) seqCounters[seqKey] = 0;
 
                         int safety = 10000;
+                        int maxSeqVal = (int)Math.Pow(10, ParamRegistry.NumPad) - 1;
                         while (existingTags.Contains(tag) && safety-- > 0)
                         {
                             seqCounters[seqKey]++;
+                            if (seqCounters[seqKey] > maxSeqVal)
+                            {
+                                StingLog.Warn($"SEQ overflow in BuildTags collision: {seqKey} at {seqCounters[seqKey]}");
+                                break;
+                            }
                             seq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
                             tokenValues[7] = seq;
                             tag = string.Join(ParamRegistry.Separator, tokenValues);
@@ -441,7 +437,9 @@ namespace StingTools.Tags
                         collisions++;
                     }
 
-                    // Register tag in the index
+                    // Remove element's old tag from index to prevent ghost entries
+                    if (!string.IsNullOrEmpty(oldTag) && oldTag != tag)
+                        existingTags.Remove(oldTag);
                     existingTags.Add(tag);
 
                     // Write TAG1 (the master assembled tag)
