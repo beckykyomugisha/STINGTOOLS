@@ -57,32 +57,65 @@ namespace StingTools.Temp
                 StingLog.Info($"Loaded {remapCount} field remaps from SCHEDULE_FIELD_REMAP.csv");
 
             // ── Parse all CSV lines and collect available disciplines ──
-            var allLines = File.ReadAllLines(csvPath)
+            var rawLines = File.ReadAllLines(csvPath)
                 .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
                 .Skip(1) // skip header row
                 .ToList();
 
-            // Gather unique disciplines from SCHEDULE records for the selection dialog
-            var disciplineSet = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-            int totalScheduleRows = 0;
-            int totalFilterRows = 0;
-            foreach (string line in allLines)
+            // Deduplicate schedule names: keep the version with the most fields.
+            // Also skip junk schedules with fewer than 2 fields.
+            var bestByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var bestFieldCount = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var filterLines = new List<string>();
+
+            foreach (string line in rawLines)
             {
                 string[] cols = StingToolsApp.ParseCsvLine(line);
                 if (cols.Length < 5) continue;
                 string rt = cols[0].Trim();
-                if (rt.Equals("SCHEDULE", StringComparison.OrdinalIgnoreCase) ||
-                    rt.Equals("MATERIAL_TAKEOFF", StringComparison.OrdinalIgnoreCase))
+
+                if (rt.Equals("VIEW_FILTER", StringComparison.OrdinalIgnoreCase))
                 {
-                    totalScheduleRows++;
-                    string disc = cols[2].Trim();
-                    if (!string.IsNullOrEmpty(disc))
-                        disciplineSet.Add(disc);
+                    filterLines.Add(line);
+                    continue;
                 }
-                else if (rt.Equals("VIEW_FILTER", StringComparison.OrdinalIgnoreCase))
+                if (!rt.Equals("SCHEDULE", StringComparison.OrdinalIgnoreCase) &&
+                    !rt.Equals("MATERIAL_TAKEOFF", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string name = cols.Length > 3 ? cols[3].Trim() : "";
+                string fieldsSpec = cols.Length > 7 ? cols[7].Trim() : "";
+                int fieldCount = string.IsNullOrEmpty(fieldsSpec)
+                    ? 0
+                    : fieldsSpec.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Length;
+
+                // Skip junk schedules with fewer than 2 fields
+                if (fieldCount < 2) continue;
+
+                // Keep the version with the most fields
+                if (!bestByName.ContainsKey(name) || fieldCount > bestFieldCount[name])
                 {
-                    totalFilterRows++;
+                    bestByName[name] = line;
+                    bestFieldCount[name] = fieldCount;
                 }
+            }
+
+            // Build final line list: deduplicated schedules + all filter lines
+            var allLines = bestByName.Values.ToList();
+            allLines.AddRange(filterLines);
+
+            // Gather unique disciplines from SCHEDULE records for the selection dialog
+            var disciplineSet = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            int totalScheduleRows = 0;
+            int totalFilterRows = filterLines.Count;
+            foreach (string line in bestByName.Values)
+            {
+                string[] cols = StingToolsApp.ParseCsvLine(line);
+                if (cols.Length < 5) continue;
+                totalScheduleRows++;
+                string disc = cols[2].Trim();
+                if (!string.IsNullOrEmpty(disc))
+                    disciplineSet.Add(disc);
             }
 
             // ── Schedule type selection dialog ──
@@ -152,16 +185,45 @@ namespace StingTools.Temp
                     "Available disciplines:\n" + discDesc.ToString() +
                     "\nChoose a scope:";
 
-                // Offer common groupings as command links
+                // Count schedules per discipline for display
+                var discCountMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                foreach (string ln in bestByName.Values)
+                {
+                    string[] c = StingToolsApp.ParseCsvLine(ln);
+                    if (c.Length > 2)
+                    {
+                        string d = c[2].Trim();
+                        discCountMap[d] = discCountMap.TryGetValue(d, out int v) ? v + 1 : 1;
+                    }
+                }
+
+                int mepCount = discCountMap.Where(kv =>
+                    kv.Key.Contains("Mech", StringComparison.OrdinalIgnoreCase) ||
+                    kv.Key.Contains("Elec", StringComparison.OrdinalIgnoreCase) ||
+                    kv.Key.Contains("Plumb", StringComparison.OrdinalIgnoreCase) ||
+                    kv.Key.Contains("Fire", StringComparison.OrdinalIgnoreCase)).Sum(kv => kv.Value);
+                int archCount = discCountMap.Where(kv =>
+                    kv.Key.Contains("Arch", StringComparison.OrdinalIgnoreCase) ||
+                    kv.Key.Contains("Struct", StringComparison.OrdinalIgnoreCase)).Sum(kv => kv.Value);
+                int fmCount = discCountMap.Where(kv =>
+                    kv.Key.Contains("Facilit", StringComparison.OrdinalIgnoreCase)).Sum(kv => kv.Value);
+                int costCount = discCountMap.Where(kv =>
+                    kv.Key.Contains("Cost", StringComparison.OrdinalIgnoreCase) ||
+                    kv.Key.Contains("Corporate", StringComparison.OrdinalIgnoreCase)).Sum(kv => kv.Value);
+
+                // Offer common groupings as command links (max 4 command links in TaskDialog)
                 pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    "MEP Only (Mechanical + Electrical + Plumbing + Fire Protection)",
-                    "Most common for MEP engineers");
+                    $"MEP Only ({mepCount} schedules)",
+                    "Mechanical + Electrical + Plumbing + Fire Protection");
                 pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                    "Architecture + Structure Only",
+                    $"Architecture + Structure ({archCount} schedules)",
                     "Architectural and structural schedules");
                 pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                    "All Disciplines",
-                    $"Create all {totalScheduleRows} schedules");
+                    $"Facility Management + COBie ({fmCount} schedules)",
+                    "Asset registers, FM schedules, COBie data drops, maintenance, room data");
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                    $"All Disciplines ({totalScheduleRows} schedules)",
+                    "Create all schedules including Cost, BOQ, Template, Multi-Discipline");
                 pickDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
                 pickDlg.DefaultButton = TaskDialogResult.CommandLink1;
 
@@ -189,6 +251,16 @@ namespace StingTools.Temp
                     {
                         string dl = d.ToUpperInvariant();
                         if (dl.Contains("ARCH") || dl.Contains("STRUCT") || dl.Contains("GENERAL"))
+                            allowedDisciplines.Add(d);
+                    }
+                }
+                else if (pickResult == TaskDialogResult.CommandLink3)
+                {
+                    // Facility Management + COBie
+                    foreach (string d in disciplineSet)
+                    {
+                        string dl = d.ToUpperInvariant();
+                        if (dl.Contains("FACILIT") || dl.Contains("FM") || dl.Contains("COBIE"))
                             allowedDisciplines.Add(d);
                     }
                 }
