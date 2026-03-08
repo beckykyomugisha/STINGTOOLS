@@ -161,27 +161,62 @@ namespace StingTools.Core
 
         // ── Data file utilities ───────────────────────────────────────
 
-        /// <summary>Find a data file by name, searching DataPath and subdirectories.</summary>
+        /// <summary>Find a data file by name, searching DataPath, subdirectories,
+        /// and common alternative locations relative to the DLL.</summary>
         public static string FindDataFile(string fileName)
         {
-            if (string.IsNullOrEmpty(DataPath))
+            if (string.IsNullOrEmpty(DataPath) && string.IsNullOrEmpty(AssemblyPath))
                 return null;
 
-            string direct = Path.Combine(DataPath, fileName);
-            if (File.Exists(direct)) return direct;
-
-            try
+            // 1. Primary: DataPath/fileName (e.g. .../CompiledPlugin/data/BLE_MATERIALS.csv)
+            if (!string.IsNullOrEmpty(DataPath))
             {
-                foreach (string f in Directory.GetFiles(
-                    DataPath, fileName, SearchOption.AllDirectories))
+                string direct = Path.Combine(DataPath, fileName);
+                if (File.Exists(direct)) return direct;
+            }
+
+            // 2. Search DataPath subdirectories
+            if (!string.IsNullOrEmpty(DataPath) && Directory.Exists(DataPath))
+            {
+                try
                 {
-                    return f;
+                    foreach (string f in Directory.GetFiles(
+                        DataPath, fileName, SearchOption.AllDirectories))
+                    {
+                        return f;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"FindDataFile '{fileName}': {ex.Message}");
                 }
             }
-            catch (Exception ex)
+
+            // 3. Fallback: search alternative paths relative to DLL location
+            //    Handles deployment where data/ is at a sibling or parent level
+            string dllDir = Path.GetDirectoryName(AssemblyPath) ?? "";
+            string[] alternativePaths = new[]
             {
-                StingLog.Warn($"FindDataFile '{fileName}': {ex.Message}");
+                Path.Combine(dllDir, "Data", fileName),          // Data/ (capital D, source layout)
+                Path.Combine(dllDir, "..", "data", fileName),    // ../data/ (parent)
+                Path.Combine(dllDir, "..", "Data", fileName),    // ../Data/ (parent, capital)
+                Path.Combine(dllDir, "..", "StingTools", "Data", fileName), // sibling project
+            };
+
+            foreach (string alt in alternativePaths)
+            {
+                try
+                {
+                    string resolved = Path.GetFullPath(alt);
+                    if (File.Exists(resolved))
+                    {
+                        StingLog.Info($"FindDataFile '{fileName}' found at fallback: {resolved}");
+                        return resolved;
+                    }
+                }
+                catch { /* path resolution failed, skip */ }
             }
+
             return null;
         }
 

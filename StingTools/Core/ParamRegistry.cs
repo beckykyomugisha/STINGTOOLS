@@ -890,105 +890,104 @@ namespace StingTools.Core
                 { "line2", new[] {4,5,6,7} },
             };
 
-            // Extended params defaults
-            _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                // Identity
-                { "ID", "ASS_ID_TXT" }, { "DESC", "ASS_DESCRIPTION_TXT" },
-                { "MFR", "ASS_MANUFACTURER_TXT" }, { "MODEL", "ASS_MODEL_NR_TXT" },
-                { "TYPE_NAME", "ASS_TYPE_NAME_TXT" }, { "FAMILY_NAME", "ASS_FAMILY_NAME_TXT" },
-                { "CAT", "ASS_CAT_TXT" }, { "TYPE_MARK", "ASS_TYPE_MARK_TXT" },
-                { "TYPE_COMMENTS", "ASS_TYPE_COMMENTS_TXT" }, { "KEYNOTE", "ASS_KEYNOTE_TXT" },
-                { "UNIFORMAT", "ASS_UNIFORMAT_TXT" }, { "UNIFORMAT_DESC", "ASS_UNIFORMAT_DESC_TXT" },
-                { "OMNICLASS", "ASS_OMNICLASS_TXT" }, { "SIZE", "ASS_SIZE_TXT" },
-                { "COST", "ASS_CST_UNIT_PRICE_UGX_NR" }, { "PRJ_COMMENTS", "PRJ_COMMENTS_TXT" },
-                // Spatial
-                { "ROOM_NAME", "ASS_ROOM_NAME_TXT" }, { "ROOM_NUM", "ASS_ROOM_NUM_TXT" },
-                { "ROOM_AREA", "ASS_ROOM_AREA_SQ_M" }, { "ROOM_VOLUME", "ASS_ROOM_VOLUME_CU_M" },
-                { "DEPT", "ASS_DEPARTMENT_ASSIGNMENT_TXT" }, { "GRID_REF", "PRJ_GRID_REF_TXT" },
-                { "BLE_ROOM_NAME", "BLE_ROOM_NAME_TXT" }, { "BLE_ROOM_NUM", "BLE_ROOM_NUMBER_TXT" },
-                // Extended tokens
-                { "ORIGIN", "ASS_ORIGIN_TXT" }, { "PROJECT", "ASS_PROJECT_TXT" },
-                { "REV", "ASS_REV_TXT" }, { "VOLUME", "ASS_VOL_TXT" },
-                // BLE dimensional
-                { "WALL_HEIGHT", "BLE_WALL_HEIGHT_MM" }, { "WALL_LENGTH", "BLE_WALL_LENGTH_MM" },
-                { "WALL_THICKNESS", "BLE_WALL_THICKNESS_MM" }, { "DOOR_WIDTH", "BLE_DOOR_WIDTH_MM" },
-                { "DOOR_HEIGHT", "BLE_DOOR_HEIGHT_MM" }, { "WINDOW_WIDTH", "BLE_WINDOW_WIDTH_MM" },
-                { "WINDOW_HEIGHT", "BLE_WINDOW_HEIGHT_MM" },
-                { "WINDOW_SILL", "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM" },
-                { "FLR_THICKNESS", "BLE_FLR_THICKNESS_MM" }, { "ELE_AREA", "BLE_ELE_AREA_SQ_M" },
-                { "CEILING_HEIGHT", "BLE_CEILING_HEIGHT_MM" }, { "ROOF_SLOPE", "BLE_ROOF_SLOPE_DEG" },
-                { "STAIR_TREAD", "BLE_STAIR_GOING_MM" }, { "STAIR_RISE", "BLE_STAIR_RISE_MM" },
-                { "STAIR_WIDTH", "BLE_STAIR_WIDTH_MM" }, { "RAMP_SLOPE", "BLE_RAMP_SLOPE_PCT" },
-                { "RAMP_WIDTH", "BLE_RAMP_WIDTH_MM" }, { "STRUCT_TYPE", "BLE_STRUCT_ELE_TYPE_TXT" },
-                { "FIRE_RATING", "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN" },
-                // Electrical
-                { "ELC_POWER", "ELC_CKT_PWR_KW" }, { "ELC_VOLTAGE", "ELC_CKT_VLT_V" },
-                { "ELC_CIRCUIT_NR", "ELC_CKT_NR" }, { "ELC_PNL_NAME", "ELC_PNL_DESIGNATION_NAME_TXT" },
-                { "ELC_PNL_VOLTAGE", "ELC_VLT_PRIMARY_RATING_V" }, { "ELC_PHASES", "ELC_CKT_PHASE_COUNT_NR" },
-                { "ELC_PNL_LOAD", "ELC_PNL_CONNECTED_LOAD_KW" }, { "ELC_PNL_FED_FROM", "ELC_PNL_FED_FROM_PNL_TXT" },
-                { "ELC_MAIN_BRK", "ELC_PNL_MAIN_BRK_A" }, { "ELC_WAYS", "ELC_PNL_NUM_OF_WAYS_NR" },
-                { "ELC_IP_RATING", "ELC_IP_RATING_TXT" },
-                // Lighting
-                { "LTG_WATTAGE", "LTG_FIX_LMP_WATTAGE_W" }, { "LTG_LUMENS", "CST_FIX_LUMEN_OUTPUT_LM" },
-                { "LTG_EFFICACY", "LTG_FIX_EFFICACY_LM_W" }, { "LTG_LAMP_TYPE", "LTG_FIX_LAMP_TYPE_TXT" },
-                // HVAC
-                { "HVC_DUCT_FLOW", "HVC_DCT_FLW_CFM" }, { "HVC_VELOCITY", "HVC_VEL_MPS" },
-                { "HVC_PRESSURE", "HVC_PRESSURE_DROP_PA" }, { "HVC_AIRFLOW", "HVC_AIRFLOW_LPS" },
-                // Plumbing
-                { "PLM_PIPE_FLOW", "PLM_PPE_FLW_LPS" }, { "PLM_PIPE_SIZE", "PLM_PPE_SZ_MM" },
-                { "PLM_VELOCITY", "PLM_VEL_MPS" }, { "PLM_FLOW_RATE", "PLM_FLOW_RATE_LPS" },
-                { "PLM_PIPE_LENGTH", "PLM_PPE_LENGTH_M" },
-                // Volume, length, head heights, function
-                { "ELE_VOLUME", "BLE_ELE_VOLUME_CU_M" }, { "ELE_LENGTH", "BLE_ELE_LENGTH_M" },
-                { "DOOR_HEAD_HT", "BLE_DOOR_HEAD_HEIGHT_MM" }, { "DOOR_FUNC", "BLE_DOOR_FUNCTION_TXT" },
-                { "WINDOW_HEAD_HT", "BLE_WINDOW_HEAD_HEIGHT_MM" },
-                // Room finishes
-                { "ROOM_FINISH_FLR", "BLE_ROOM_FINISH_FLOOR_TXT" },
-                { "ROOM_FINISH_WALL", "BLE_ROOM_FINISH_WALL_TXT" },
-                { "ROOM_FINISH_CLG", "BLE_ROOM_FINISH_CEILING_TXT" },
-                { "ROOM_FINISH_BASE", "BLE_ROOM_FINISH_BASE_TXT" },
-                // Duct dimensions
-                { "HVC_DUCT_WIDTH", "HVC_DCT_WIDTH_MM" }, { "HVC_DUCT_HEIGHT", "HVC_DCT_HEIGHT_MM" },
-                { "HVC_INSULATION", "HVC_INS_THICKNESS_MM" }, { "HVC_DUCT_LENGTH", "HVC_DCT_LENGTH_M" },
-                // ISO 19650 naming
-                { "PROJECT_COD", "ASS_PROJECT_COD_TXT" }, { "ORIGINATOR_COD", "ASS_ORIGINATOR_COD_TXT" },
-                { "VOLUME_COD", "ASS_VOLUME_COD_TXT" }, { "STATUS_COD", "ASS_STATUS_COD_TXT" },
-                { "REV_COD", "ASS_REV_COD_TXT" },
-                // Paragraph containers
-                { "PARA_WALL", "ARCH_TAG_7_PARA_WALL_TXT" }, { "PARA_FLOOR", "ARCH_TAG_7_PARA_FLOOR_TXT" },
-                { "PARA_CEIL", "ARCH_TAG_7_PARA_CEIL_TXT" }, { "PARA_ROOF", "ARCH_TAG_7_PARA_ROOF_TXT" },
-                { "PARA_DOOR", "ARCH_TAG_7_PARA_DOOR_TXT" }, { "PARA_WIN", "ARCH_TAG_7_PARA_WIN_TXT" },
-                { "PARA_STAIR", "ARCH_TAG_7_PARA_STAIR_TXT" }, { "PARA_RAMP", "ARCH_TAG_7_PARA_RAMP_TXT" },
-                { "PARA_ROOM", "ARCH_TAG_7_PARA_ROOM_TXT" }, { "PARA_FACADE", "ARCH_TAG_7_PARA_FACADE_TXT" },
-                { "PARA_CASEWORK", "ARCH_TAG_7_PARA_CASEWORK_TXT" }, { "PARA_FURNITURE", "ARCH_TAG_7_PARA_FURNITURE_TXT" },
-                { "PARA_STR_FDN", "STR_TAG_7_PARA_FDN_TXT" }, { "PARA_STR_COL", "STR_TAG_7_PARA_COL_TXT" },
-                { "PARA_STR_BEAM", "STR_TAG_7_PARA_BEAM_TXT" },
-                { "PARA_HVC_SPEC", "HVC_TAG_7_PARA_SPEC_TXT" }, { "PARA_HVC_DUCT", "HVC_TAG_7_PARA_DUCT_TXT" },
-                { "PARA_HVC_AT", "HVC_TAG_7_PARA_AT_TXT" },
-                // MEP paragraph containers
-                { "PARA_ELC_PANEL", "ELC_TAG_7_PARA_PANEL_TXT" }, { "PARA_ELC_CIRCUIT", "ELC_TAG_7_PARA_CIRCUIT_TXT" },
-                { "PARA_LTG_SPEC", "LTG_TAG_7_PARA_SPEC_TXT" },
-                { "PARA_PLM_FIXTURE", "PLM_TAG_7_PARA_FIXTURE_TXT" }, { "PARA_PLM_PIPE", "PLM_TAG_7_PARA_PIPE_TXT" },
-                { "PARA_FLS_FA", "FLS_TAG_7_PARA_FA_TXT" }, { "PARA_FLS_SPR", "FLS_TAG_7_PARA_SPR_TXT" },
-                { "PARA_COM_BMS", "COM_TAG_7_PARA_BMS_TXT" },
-                // Extended paragraph containers (v4.3)
-                { "PARA_HVC_FLEXDUCT", "HVC_TAG_7_PARA_FLEXDUCT_TXT" }, { "PARA_HVC_DCTACC", "HVC_TAG_7_PARA_DCTACC_TXT" },
-                { "PARA_ELC_CONDUIT", "ELC_TAG_7_PARA_CONDUIT_TXT" }, { "PARA_ELC_TRAY", "ELC_TAG_7_PARA_TRAY_TXT" },
-                { "PARA_ELC_CABLE", "ELC_TAG_7_PARA_CABLE_TXT" },
-                { "PARA_PLM_EQUIP", "PLM_TAG_7_PARA_EQUIP_TXT" }, { "PARA_PLM_PIPEACC", "PLM_TAG_7_PARA_PIPEACC_TXT" },
-                { "PARA_PLM_DRAIN", "PLM_TAG_7_PARA_DRAIN_TXT" },
-                { "PARA_ICT_DATA", "ICT_TAG_7_PARA_DATA_TXT" }, { "PARA_NCL", "NCL_TAG_7_PARA_TXT" },
-                { "PARA_SEC", "SEC_TAG_7_PARA_TXT" }, { "PARA_ASS_EQUIP", "ASS_TAG_7_PARA_EQUIP_TXT" },
-                { "PARA_RGL_CMPL", "RGL_TAG_7_PARA_CMPL_TXT" }, { "PARA_PER_ENV", "PER_TAG_7_PARA_ENV_TXT" },
-                { "PARA_CST_CONC", "CST_TAG_7_PARA_CONC_TXT" },
-                // Warning threshold
-                { "ELC_PNL_RATED", "ELC_PNL_RATED_BOOL" },
-                // ISO 19650 project-level naming (PRJ_ prefix variants)
-                { "PRJ_PROJECT_COD", "PRJ_PROJECT_COD_TXT" }, { "PRJ_ORIGINATOR_COD", "PRJ_ORIGINATOR_COD_TXT" },
-                { "PRJ_VOLUME_COD", "PRJ_VOLUME_COD_TXT" }, { "PRJ_STATUS_COD", "PRJ_STATUS_COD_TXT" },
-                { "PRJ_REV_COD", "PRJ_REV_COD_TXT" },
-            };
+            // Extended params defaults — use indexer syntax (dict[key] = value) instead
+            // of collection initializer to prevent duplicate-key crashes if keys overlap.
+            _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
+            // Identity
+            _extendedParams["ID"] = "ASS_ID_TXT"; _extendedParams["DESC"] = "ASS_DESCRIPTION_TXT";
+            _extendedParams["MFR"] = "ASS_MANUFACTURER_TXT"; _extendedParams["MODEL"] = "ASS_MODEL_NR_TXT";
+            _extendedParams["TYPE_NAME"] = "ASS_TYPE_NAME_TXT"; _extendedParams["FAMILY_NAME"] = "ASS_FAMILY_NAME_TXT";
+            _extendedParams["CAT"] = "ASS_CAT_TXT"; _extendedParams["TYPE_MARK"] = "ASS_TYPE_MARK_TXT";
+            _extendedParams["TYPE_COMMENTS"] = "ASS_TYPE_COMMENTS_TXT"; _extendedParams["KEYNOTE"] = "ASS_KEYNOTE_TXT";
+            _extendedParams["UNIFORMAT"] = "ASS_UNIFORMAT_TXT"; _extendedParams["UNIFORMAT_DESC"] = "ASS_UNIFORMAT_DESC_TXT";
+            _extendedParams["OMNICLASS"] = "ASS_OMNICLASS_TXT"; _extendedParams["SIZE"] = "ASS_SIZE_TXT";
+            _extendedParams["COST"] = "ASS_CST_UNIT_PRICE_UGX_NR"; _extendedParams["PRJ_COMMENTS"] = "PRJ_COMMENTS_TXT";
+            // Spatial
+            _extendedParams["ROOM_NAME"] = "ASS_ROOM_NAME_TXT"; _extendedParams["ROOM_NUM"] = "ASS_ROOM_NUM_TXT";
+            _extendedParams["ROOM_AREA"] = "ASS_ROOM_AREA_SQ_M"; _extendedParams["ROOM_VOLUME"] = "ASS_ROOM_VOLUME_CU_M";
+            _extendedParams["DEPT"] = "ASS_DEPARTMENT_ASSIGNMENT_TXT"; _extendedParams["GRID_REF"] = "PRJ_GRID_REF_TXT";
+            _extendedParams["BLE_ROOM_NAME"] = "BLE_ROOM_NAME_TXT"; _extendedParams["BLE_ROOM_NUM"] = "BLE_ROOM_NUMBER_TXT";
+            // Extended tokens
+            _extendedParams["ORIGIN"] = "ASS_ORIGIN_TXT"; _extendedParams["PROJECT"] = "ASS_PROJECT_TXT";
+            _extendedParams["REV"] = "ASS_REV_TXT"; _extendedParams["VOLUME"] = "ASS_VOL_TXT";
+            // BLE dimensional
+            _extendedParams["WALL_HEIGHT"] = "BLE_WALL_HEIGHT_MM"; _extendedParams["WALL_LENGTH"] = "BLE_WALL_LENGTH_MM";
+            _extendedParams["WALL_THICKNESS"] = "BLE_WALL_THICKNESS_MM"; _extendedParams["DOOR_WIDTH"] = "BLE_DOOR_WIDTH_MM";
+            _extendedParams["DOOR_HEIGHT"] = "BLE_DOOR_HEIGHT_MM"; _extendedParams["WINDOW_WIDTH"] = "BLE_WINDOW_WIDTH_MM";
+            _extendedParams["WINDOW_HEIGHT"] = "BLE_WINDOW_HEIGHT_MM";
+            _extendedParams["WINDOW_SILL"] = "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM";
+            _extendedParams["FLR_THICKNESS"] = "BLE_FLR_THICKNESS_MM"; _extendedParams["ELE_AREA"] = "BLE_ELE_AREA_SQ_M";
+            _extendedParams["CEILING_HEIGHT"] = "BLE_CEILING_HEIGHT_MM"; _extendedParams["ROOF_SLOPE"] = "BLE_ROOF_SLOPE_DEG";
+            _extendedParams["STAIR_TREAD"] = "BLE_STAIR_GOING_MM"; _extendedParams["STAIR_RISE"] = "BLE_STAIR_RISE_MM";
+            _extendedParams["STAIR_WIDTH"] = "BLE_STAIR_WIDTH_MM"; _extendedParams["RAMP_SLOPE"] = "BLE_RAMP_SLOPE_PCT";
+            _extendedParams["RAMP_WIDTH"] = "BLE_RAMP_WIDTH_MM"; _extendedParams["STRUCT_TYPE"] = "BLE_STRUCT_ELE_TYPE_TXT";
+            _extendedParams["FIRE_RATING"] = "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN";
+            // Electrical
+            _extendedParams["ELC_POWER"] = "ELC_CKT_PWR_KW"; _extendedParams["ELC_VOLTAGE"] = "ELC_CKT_VLT_V";
+            _extendedParams["ELC_CIRCUIT_NR"] = "ELC_CKT_NR"; _extendedParams["ELC_PNL_NAME"] = "ELC_PNL_DESIGNATION_NAME_TXT";
+            _extendedParams["ELC_PNL_VOLTAGE"] = "ELC_VLT_PRIMARY_RATING_V"; _extendedParams["ELC_PHASES"] = "ELC_CKT_PHASE_COUNT_NR";
+            _extendedParams["ELC_PNL_LOAD"] = "ELC_PNL_CONNECTED_LOAD_KW"; _extendedParams["ELC_PNL_FED_FROM"] = "ELC_PNL_FED_FROM_PNL_TXT";
+            _extendedParams["ELC_MAIN_BRK"] = "ELC_PNL_MAIN_BRK_A"; _extendedParams["ELC_WAYS"] = "ELC_PNL_NUM_OF_WAYS_NR";
+            _extendedParams["ELC_IP_RATING"] = "ELC_IP_RATING_TXT";
+            // Lighting
+            _extendedParams["LTG_WATTAGE"] = "LTG_FIX_LMP_WATTAGE_W"; _extendedParams["LTG_LUMENS"] = "CST_FIX_LUMEN_OUTPUT_LM";
+            _extendedParams["LTG_EFFICACY"] = "LTG_FIX_EFFICACY_LM_W"; _extendedParams["LTG_LAMP_TYPE"] = "LTG_FIX_LAMP_TYPE_TXT";
+            // HVAC
+            _extendedParams["HVC_DUCT_FLOW"] = "HVC_DCT_FLW_CFM"; _extendedParams["HVC_VELOCITY"] = "HVC_VEL_MPS";
+            _extendedParams["HVC_PRESSURE"] = "HVC_PRESSURE_DROP_PA"; _extendedParams["HVC_AIRFLOW"] = "HVC_AIRFLOW_LPS";
+            // Plumbing
+            _extendedParams["PLM_PIPE_FLOW"] = "PLM_PPE_FLW_LPS"; _extendedParams["PLM_PIPE_SIZE"] = "PLM_PPE_SZ_MM";
+            _extendedParams["PLM_VELOCITY"] = "PLM_VEL_MPS"; _extendedParams["PLM_FLOW_RATE"] = "PLM_FLOW_RATE_LPS";
+            _extendedParams["PLM_PIPE_LENGTH"] = "PLM_PPE_LENGTH_M";
+            // Volume, length, head heights, function
+            _extendedParams["ELE_VOLUME"] = "BLE_ELE_VOLUME_CU_M"; _extendedParams["ELE_LENGTH"] = "BLE_ELE_LENGTH_M";
+            _extendedParams["DOOR_HEAD_HT"] = "BLE_DOOR_HEAD_HEIGHT_MM"; _extendedParams["DOOR_FUNC"] = "BLE_DOOR_FUNCTION_TXT";
+            _extendedParams["WINDOW_HEAD_HT"] = "BLE_WINDOW_HEAD_HEIGHT_MM";
+            // Room finishes
+            _extendedParams["ROOM_FINISH_FLR"] = "BLE_ROOM_FINISH_FLOOR_TXT";
+            _extendedParams["ROOM_FINISH_WALL"] = "BLE_ROOM_FINISH_WALL_TXT";
+            _extendedParams["ROOM_FINISH_CLG"] = "BLE_ROOM_FINISH_CEILING_TXT";
+            _extendedParams["ROOM_FINISH_BASE"] = "BLE_ROOM_FINISH_BASE_TXT";
+            // Duct dimensions
+            _extendedParams["HVC_DUCT_WIDTH"] = "HVC_DCT_WIDTH_MM"; _extendedParams["HVC_DUCT_HEIGHT"] = "HVC_DCT_HEIGHT_MM";
+            _extendedParams["HVC_INSULATION"] = "HVC_INS_THICKNESS_MM"; _extendedParams["HVC_DUCT_LENGTH"] = "HVC_DCT_LENGTH_M";
+            // ISO 19650 naming
+            _extendedParams["PROJECT_COD"] = "ASS_PROJECT_COD_TXT"; _extendedParams["ORIGINATOR_COD"] = "ASS_ORIGINATOR_COD_TXT";
+            _extendedParams["VOLUME_COD"] = "ASS_VOLUME_COD_TXT"; _extendedParams["STATUS_COD"] = "ASS_STATUS_COD_TXT";
+            _extendedParams["REV_COD"] = "ASS_REV_COD_TXT";
+            // Paragraph containers
+            _extendedParams["PARA_WALL"] = "ARCH_TAG_7_PARA_WALL_TXT"; _extendedParams["PARA_FLOOR"] = "ARCH_TAG_7_PARA_FLOOR_TXT";
+            _extendedParams["PARA_CEIL"] = "ARCH_TAG_7_PARA_CEIL_TXT"; _extendedParams["PARA_ROOF"] = "ARCH_TAG_7_PARA_ROOF_TXT";
+            _extendedParams["PARA_DOOR"] = "ARCH_TAG_7_PARA_DOOR_TXT"; _extendedParams["PARA_WIN"] = "ARCH_TAG_7_PARA_WIN_TXT";
+            _extendedParams["PARA_STAIR"] = "ARCH_TAG_7_PARA_STAIR_TXT"; _extendedParams["PARA_RAMP"] = "ARCH_TAG_7_PARA_RAMP_TXT";
+            _extendedParams["PARA_ROOM"] = "ARCH_TAG_7_PARA_ROOM_TXT"; _extendedParams["PARA_FACADE"] = "ARCH_TAG_7_PARA_FACADE_TXT";
+            _extendedParams["PARA_CASEWORK"] = "ARCH_TAG_7_PARA_CASEWORK_TXT"; _extendedParams["PARA_FURNITURE"] = "ARCH_TAG_7_PARA_FURNITURE_TXT";
+            _extendedParams["PARA_STR_FDN"] = "STR_TAG_7_PARA_FDN_TXT"; _extendedParams["PARA_STR_COL"] = "STR_TAG_7_PARA_COL_TXT";
+            _extendedParams["PARA_STR_BEAM"] = "STR_TAG_7_PARA_BEAM_TXT";
+            _extendedParams["PARA_HVC_SPEC"] = "HVC_TAG_7_PARA_SPEC_TXT"; _extendedParams["PARA_HVC_DUCT"] = "HVC_TAG_7_PARA_DUCT_TXT";
+            _extendedParams["PARA_HVC_AT"] = "HVC_TAG_7_PARA_AT_TXT";
+            // MEP paragraph containers
+            _extendedParams["PARA_ELC_PANEL"] = "ELC_TAG_7_PARA_PANEL_TXT"; _extendedParams["PARA_ELC_CIRCUIT"] = "ELC_TAG_7_PARA_CIRCUIT_TXT";
+            _extendedParams["PARA_LTG_SPEC"] = "LTG_TAG_7_PARA_SPEC_TXT";
+            _extendedParams["PARA_PLM_FIXTURE"] = "PLM_TAG_7_PARA_FIXTURE_TXT"; _extendedParams["PARA_PLM_PIPE"] = "PLM_TAG_7_PARA_PIPE_TXT";
+            _extendedParams["PARA_FLS_FA"] = "FLS_TAG_7_PARA_FA_TXT"; _extendedParams["PARA_FLS_SPR"] = "FLS_TAG_7_PARA_SPR_TXT";
+            _extendedParams["PARA_COM_BMS"] = "COM_TAG_7_PARA_BMS_TXT";
+            // Extended paragraph containers (v4.3)
+            _extendedParams["PARA_HVC_FLEXDUCT"] = "HVC_TAG_7_PARA_FLEXDUCT_TXT"; _extendedParams["PARA_HVC_DCTACC"] = "HVC_TAG_7_PARA_DCTACC_TXT";
+            _extendedParams["PARA_ELC_CONDUIT"] = "ELC_TAG_7_PARA_CONDUIT_TXT"; _extendedParams["PARA_ELC_TRAY"] = "ELC_TAG_7_PARA_TRAY_TXT";
+            _extendedParams["PARA_ELC_CABLE"] = "ELC_TAG_7_PARA_CABLE_TXT";
+            _extendedParams["PARA_PLM_EQUIP"] = "PLM_TAG_7_PARA_EQUIP_TXT"; _extendedParams["PARA_PLM_PIPEACC"] = "PLM_TAG_7_PARA_PIPEACC_TXT";
+            _extendedParams["PARA_PLM_DRAIN"] = "PLM_TAG_7_PARA_DRAIN_TXT";
+            _extendedParams["PARA_ICT_DATA"] = "ICT_TAG_7_PARA_DATA_TXT"; _extendedParams["PARA_NCL"] = "NCL_TAG_7_PARA_TXT";
+            _extendedParams["PARA_SEC"] = "SEC_TAG_7_PARA_TXT"; _extendedParams["PARA_ASS_EQUIP"] = "ASS_TAG_7_PARA_EQUIP_TXT";
+            _extendedParams["PARA_RGL_CMPL"] = "RGL_TAG_7_PARA_CMPL_TXT"; _extendedParams["PARA_PER_ENV"] = "PER_TAG_7_PARA_ENV_TXT";
+            _extendedParams["PARA_CST_CONC"] = "CST_TAG_7_PARA_CONC_TXT";
+            // Warning threshold
+            _extendedParams["ELC_PNL_RATED"] = "ELC_PNL_RATED_BOOL";
+            // ISO 19650 project-level naming (PRJ_ prefix variants)
+            _extendedParams["PRJ_PROJECT_COD"] = "PRJ_PROJECT_COD_TXT"; _extendedParams["PRJ_ORIGINATOR_COD"] = "PRJ_ORIGINATOR_COD_TXT";
+            _extendedParams["PRJ_VOLUME_COD"] = "PRJ_VOLUME_COD_TXT"; _extendedParams["PRJ_STATUS_COD"] = "PRJ_STATUS_COD_TXT";
+            _extendedParams["PRJ_REV_COD"] = "PRJ_REV_COD_TXT";
 
             ContainerGroups = Array.Empty<ContainerGroupDef>();
             UniversalParams = new[]

@@ -279,9 +279,13 @@ namespace StingTools.Temp
             string csvPath = StingToolsApp.FindDataFile(csvFileName);
             if (csvPath == null)
             {
+                string dllDir = System.IO.Path.GetDirectoryName(StingToolsApp.AssemblyPath) ?? "(unknown)";
                 TaskDialog.Show(dialogTitle,
-                    $"{csvFileName} not found in the data directory.\n" +
-                    $"Searched: {StingToolsApp.DataPath}");
+                    $"{csvFileName} not found in the data directory.\n\n" +
+                    $"Primary search: {StingToolsApp.DataPath}\n" +
+                    $"DLL location:   {dllDir}\n\n" +
+                    "Ensure the data/ folder (with CSV files) is deployed\n" +
+                    "alongside StingTools.dll.");
                 return Result.Failed;
             }
 
@@ -356,13 +360,9 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
-            // CRASH FIX: Force regeneration after large material creation.
-            // After committing 815+ materials in a single transaction, Revit queues
-            // massive deferred processing.  Regenerate now so the model is stable
-            // before showing the result dialog (whose message pump can trigger
-            // other plugins' handlers) and before returning to Revit.
-            try { doc.Regenerate(); }
-            catch (Exception ex) { StingLog.Warn($"Post-material regeneration: {ex.Message}"); }
+            // NOTE: doc.Regenerate() removed — it can trigger native Revit crashes
+            // after creating 815+ materials.  Revit regenerates automatically when
+            // the transaction commits.
 
             string report = $"Created {created} materials.\n" +
                 $"  Duplicated from base: {duplicated}\n" +
@@ -411,11 +411,20 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
-            Document doc = ctx.Doc;
-            return MaterialPropertyHelper.CreateMaterialsFromCsv(
-                doc, "BLE_MATERIALS.csv", "Create BLE Materials");
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+                return MaterialPropertyHelper.CreateMaterialsFromCsv(
+                    doc, "BLE_MATERIALS.csv", "STING Tools - Create BLE Materials");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CreateBLEMaterialsCommand crashed", ex);
+                try { TaskDialog.Show("STING Tools", $"BLE Materials failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
         }
     }
 
@@ -431,11 +440,20 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
-            Document doc = ctx.Doc;
-            return MaterialPropertyHelper.CreateMaterialsFromCsv(
-                doc, "MEP_MATERIALS.csv", "Create MEP Materials");
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+                return MaterialPropertyHelper.CreateMaterialsFromCsv(
+                    doc, "MEP_MATERIALS.csv", "STING Tools - Create MEP Materials");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CreateMEPMaterialsCommand crashed", ex);
+                try { TaskDialog.Show("STING Tools", $"MEP Materials failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
         }
     }
 }

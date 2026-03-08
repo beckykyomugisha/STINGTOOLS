@@ -23,6 +23,27 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            try
+            {
+                return ExecuteCore(commandData, ref message, elements);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("LoadSharedParamsCommand crashed", ex);
+                try
+                {
+                    TaskDialog.Show("STING Tools - Load Shared Params",
+                        $"Command failed with an unexpected error:\n\n{ex.Message}\n\n" +
+                        "Check StingTools.log for details.");
+                }
+                catch { /* If even the dialog fails, don't crash Revit */ }
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteCore(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
             var uiApp = ParameterHelpers.GetApp(commandData);
             Document doc = uiApp.ActiveUIDocument.Document;
             Autodesk.Revit.ApplicationServices.Application app =
@@ -31,7 +52,7 @@ namespace StingTools.Tags
             string spFile = app.SharedParametersFilename;
             if (string.IsNullOrEmpty(spFile) || !File.Exists(spFile))
             {
-                TaskDialog.Show("Load Shared Params",
+                TaskDialog.Show("STING Tools - Load Shared Params",
                     "No shared parameter file is set in Revit.\n\n" +
                     "Go to Manage → Shared Parameters and set the file path to " +
                     "MR_PARAMETERS.txt first.");
@@ -41,7 +62,7 @@ namespace StingTools.Tags
             DefinitionFile defFile = app.OpenSharedParameterFile();
             if (defFile == null)
             {
-                TaskDialog.Show("Load Shared Params",
+                TaskDialog.Show("STING Tools - Load Shared Params",
                     "Could not open shared parameter file:\n" + spFile);
                 return Result.Failed;
             }
@@ -99,7 +120,16 @@ namespace StingTools.Tags
                 }
 
                 // GAP-003: Load CSV-driven category bindings to supplement hardcoded DisciplineBindings
-                var csvBindings = Temp.TemplateManager.LoadCategoryBindings();
+                Dictionary<string, List<(string category, string bindingType, bool isShared)>> csvBindings;
+                try
+                {
+                    csvBindings = Temp.TemplateManager.LoadCategoryBindings();
+                }
+                catch (Exception ex)
+                {
+                    csvBindings = new Dictionary<string, List<(string, string, bool)>>();
+                    StingLog.Warn($"LoadCategoryBindings failed (continuing without CSV): {ex.Message}");
+                }
                 csvExtras = 0;
 
                 // Pass 2: Discipline-specific parameters → correct category subsets
@@ -189,8 +219,9 @@ namespace StingTools.Tags
                 tx.Commit();
             }
 
-            // CRASH FIX: force regeneration before showing result dialog
-            try { doc.Regenerate(); } catch { }
+            // NOTE: doc.Regenerate() intentionally NOT called here — it can trigger
+            // native Revit crashes after large parameter binding operations.
+            // Revit regenerates automatically when the transaction commits.
 
             int universalCount = SharedParamGuids.UniversalParams?.Length ?? 0;
             int catCount = SharedParamGuids.AllCategoryEnums?.Length ?? 0;
@@ -203,7 +234,7 @@ namespace StingTools.Tags
                 report += $"\n\nErrors ({errors.Count}):\n" +
                     string.Join("\n", errors.Take(10));
 
-            TaskDialog.Show("Load Shared Params", report);
+            TaskDialog.Show("STING Tools - Load Shared Params", report);
             StingLog.Info($"LoadSharedParams: P1={pass1Bound}, P2={pass2Bound}");
 
             return Result.Succeeded;
