@@ -693,7 +693,9 @@ namespace StingTools.Organise
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Red = missing, Orange = incomplete, Yellow = ISO violation, Purple = placeholder
-            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(doc);
+            FillPatternElement solidFill = new FilteredElementCollector(doc)
+                .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
 
             var red = new OverrideGraphicSettings();
             red.SetProjectionLineColor(new Color(255, 0, 0));

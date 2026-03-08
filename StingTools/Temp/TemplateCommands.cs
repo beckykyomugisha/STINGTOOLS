@@ -653,7 +653,9 @@ namespace StingTools.Temp
             FillPatternElement solidFill = null;
             try
             {
-                solidFill = ParameterHelpers.GetSolidFillPattern(doc);
+                solidFill = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
             catch { /* OK — won't apply fill patterns */ }
 
