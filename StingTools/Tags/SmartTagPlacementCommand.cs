@@ -1395,27 +1395,22 @@ namespace StingTools.Tags
             int totalPlaced = 0, totalSkipped = 0, totalCollisions = 0, viewsProcessed = 0;
             var perView = new List<(string name, int placed, int skipped)>();
 
-            using (TransactionGroup tg = new TransactionGroup(doc, "STING Batch Place Tags"))
+            // CRASH FIX: No TransactionGroup wrapper.  Each view gets its own
+            // standalone Transaction so Revit regenerates between views.
+            foreach (View v in targetViews)
             {
-                tg.Start();
-                foreach (View v in targetViews)
+                using (Transaction tx = new Transaction(doc, $"STING Tag {v.Name}"))
                 {
-                    using (Transaction tx = new Transaction(doc, $"STING Tag {v.Name}"))
-                    {
-                        tx.Start();
-                        var (p, s, c) = TagPlacementEngine.PlaceTagsInView(
-                            doc, v, addLeaders: false, tagOnlyUntagged: true);
-                        tx.Commit();
-                        totalPlaced += p; totalSkipped += s; totalCollisions += c;
-                        perView.Add((v.Name, p, s));
-                    }
-                    viewsProcessed++;
-                    if (viewsProcessed % 10 == 0)
-                        StingLog.Info($"BatchPlaceTags: {viewsProcessed}/{targetViews.Count} views done");
+                    tx.Start();
+                    var (p, s, c) = TagPlacementEngine.PlaceTagsInView(
+                        doc, v, addLeaders: false, tagOnlyUntagged: true);
+                    tx.Commit();
+                    totalPlaced += p; totalSkipped += s; totalCollisions += c;
+                    perView.Add((v.Name, p, s));
                 }
-                // CRASH FIX: Commit() avoids the native crash caused by
-                // Assimilate()'s single massive regeneration pass.
-                tg.Commit();
+                viewsProcessed++;
+                if (viewsProcessed % 10 == 0)
+                    StingLog.Info($"BatchPlaceTags: {viewsProcessed}/{targetViews.Count} views done");
             }
 
             sw.Stop();

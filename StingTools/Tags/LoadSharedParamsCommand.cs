@@ -10,11 +10,14 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Ported from shared_params.py LoadSharedParams logic.
     /// Bind shared parameters (universal + discipline-specific) to project categories.
-    /// Pass 1: 17 universal ASS_MNG parameters → all 53 categories (type-safe enum resolution).
-    /// Pass 2: discipline-specific tag containers → correct category subsets
-    ///         using DisciplineBindings map (no longer simplified — full discipline targeting).
+    /// Pass 1: universal ASS_MNG parameters → all 53 categories.
+    /// Pass 2: discipline-specific tag containers → correct category subsets.
+    ///
+    /// CRASH FIX: No TransactionGroup, no SilentWarningSwallower, small batch size.
+    /// Each batch is an independent Transaction so Revit regenerates between batches.
+    /// This prevents the native access violations caused by accumulating hundreds of
+    /// schema modifications before Revit can process them.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -42,11 +45,10 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// CRASH FIX: Batches parameter bindings into groups of BindingBatchSize
-        /// per transaction to avoid transaction journal overflow.  Uses TransactionGroup
-        /// for atomic rollback and SilentWarningSwallower to suppress blocking dialogs.
+        /// CRASH FIX: Reduced from 25 to 10 parameters per transaction.
+        /// Smaller batches = less native regeneration pressure per commit.
         /// </summary>
-        private const int BindingBatchSize = 25;
+        private const int BindingBatchSize = 10;
 
         private Result ExecuteCore(ExternalCommandData commandData,
             ref string message, ElementSet elements)
@@ -106,191 +108,178 @@ namespace StingTools.Tags
                 StingLog.Warn($"LoadCategoryBindings failed (continuing without CSV): {ex.Message}");
             }
 
-            // CRASH FIX: Wrap ALL passes in a TransactionGroup for atomic rollback
-            using (TransactionGroup tg = new TransactionGroup(doc, "STING Load Shared Params"))
+            // CRASH FIX: No TransactionGroup wrapper.  Each batch is a standalone
+            // Transaction so Revit fully regenerates between batches.  This avoids
+            // the native access violations caused by TransactionGroup accumulating
+            // hundreds of schema modifications before allowing regeneration.
+
+            // ── Pass 1: Universal parameters → all 53 categories ──
+            var universalParams = SharedParamGuids.UniversalParams ?? Array.Empty<string>();
+            for (int batchStart = 0; batchStart < universalParams.Length; batchStart += BindingBatchSize)
             {
-                tg.Start();
+                int batchEnd = Math.Min(batchStart + BindingBatchSize, universalParams.Length);
+                int batchNum = (batchStart / BindingBatchSize) + 1;
 
-                // ── Pass 1: Universal parameters → all 53 categories ──
-                var universalParams = SharedParamGuids.UniversalParams ?? Array.Empty<string>();
-                for (int batchStart = 0; batchStart < universalParams.Length; batchStart += BindingBatchSize)
+                using (Transaction tx = new Transaction(doc,
+                    $"STING Params P1 batch {batchNum}"))
                 {
-                    int batchEnd = Math.Min(batchStart + BindingBatchSize, universalParams.Length);
-                    int batchNum = (batchStart / BindingBatchSize) + 1;
+                    // CRASH FIX: No SilentWarningSwallower.  Swallowing warnings
+                    // can leave Revit's failure processing in a bad state, causing
+                    // delayed native crashes.  Let Revit handle warnings naturally.
 
-                    using (Transaction tx = new Transaction(doc,
-                        $"STING Params P1 batch {batchNum}"))
+                    tx.Start();
+
+                    try
                     {
-                        var failOpts = tx.GetFailureHandlingOptions();
-                        failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
-                        tx.SetFailureHandlingOptions(failOpts);
-
-                        tx.Start();
-
-                        try
+                        for (int i = batchStart; i < batchEnd; i++)
                         {
-                            for (int i = batchStart; i < batchEnd; i++)
+                            string paramName = universalParams[i];
+                            ExternalDefinition extDef = FindDefinition(defFile, paramName);
+                            if (extDef == null)
                             {
-                                string paramName = universalParams[i];
-                                ExternalDefinition extDef = FindDefinition(defFile, paramName);
-                                if (extDef == null)
-                                {
-                                    pass1Skipped++;
-                                    StingLog.Warn($"Pass 1: Definition not found: {paramName}");
-                                    continue;
-                                }
-
-                                try
-                                {
-                                    InstanceBinding binding = app.Create.NewInstanceBinding(allCats);
-                                    bool result = doc.ParameterBindings.Insert(
-                                        extDef, binding, GroupTypeId.General);
-                                    if (!result)
-                                    {
-                                        result = doc.ParameterBindings.ReInsert(
-                                            extDef, binding, GroupTypeId.General);
-                                    }
-                                    if (result) pass1Bound++;
-                                    else pass1Skipped++;
-                                }
-                                catch (Exception ex)
-                                {
-                                    pass1Skipped++;
-                                    errors.Add($"P1 {paramName}: {ex.Message}");
-                                    StingLog.Error($"Pass 1 bind failed: {paramName}", ex);
-                                }
+                                pass1Skipped++;
+                                StingLog.Warn($"Pass 1: Definition not found: {paramName}");
+                                continue;
                             }
 
-                            tx.Commit();
-                            StingLog.Info($"Pass 1 batch {batchNum} committed ({pass1Bound} bound so far)");
+                            try
+                            {
+                                InstanceBinding binding = app.Create.NewInstanceBinding(allCats);
+                                bool result = doc.ParameterBindings.Insert(
+                                    extDef, binding, GroupTypeId.General);
+                                if (!result)
+                                {
+                                    result = doc.ParameterBindings.ReInsert(
+                                        extDef, binding, GroupTypeId.General);
+                                }
+                                if (result) pass1Bound++;
+                                else pass1Skipped++;
+                            }
+                            catch (Exception ex)
+                            {
+                                pass1Skipped++;
+                                errors.Add($"P1 {paramName}: {ex.Message}");
+                                StingLog.Error($"Pass 1 bind failed: {paramName}", ex);
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            StingLog.Error($"Pass 1 batch {batchNum} failed", ex);
-                            if (tx.HasStarted() && !tx.HasEnded())
-                                tx.RollBack();
-                        }
+
+                        tx.Commit();
+                        StingLog.Info($"Pass 1 batch {batchNum} committed ({pass1Bound} bound so far)");
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error($"Pass 1 batch {batchNum} failed", ex);
+                        if (tx.HasStarted() && !tx.HasEnded())
+                            tx.RollBack();
                     }
                 }
+            }
 
-                // ── Pass 2: Discipline-specific parameters → correct category subsets ──
-                var allDisciplineParams = new HashSet<string>(
-                    SharedParamGuids.DisciplineBindings.Keys, StringComparer.OrdinalIgnoreCase);
-                foreach (string csvParam in csvBindings.Keys)
-                    allDisciplineParams.Add(csvParam);
+            // ── Pass 2: Discipline-specific parameters → correct category subsets ──
+            var allDisciplineParams = new HashSet<string>(
+                SharedParamGuids.DisciplineBindings.Keys, StringComparer.OrdinalIgnoreCase);
+            foreach (string csvParam in csvBindings.Keys)
+                allDisciplineParams.Add(csvParam);
 
-                var disciplineParamList = allDisciplineParams.ToList();
-                csvExtras = 0;
+            var disciplineParamList = allDisciplineParams.ToList();
+            csvExtras = 0;
 
-                for (int batchStart = 0; batchStart < disciplineParamList.Count; batchStart += BindingBatchSize)
+            for (int batchStart = 0; batchStart < disciplineParamList.Count; batchStart += BindingBatchSize)
+            {
+                int batchEnd = Math.Min(batchStart + BindingBatchSize, disciplineParamList.Count);
+                int batchNum = (batchStart / BindingBatchSize) + 1;
+
+                using (Transaction tx = new Transaction(doc,
+                    $"STING Params P2 batch {batchNum}"))
                 {
-                    int batchEnd = Math.Min(batchStart + BindingBatchSize, disciplineParamList.Count);
-                    int batchNum = (batchStart / BindingBatchSize) + 1;
+                    tx.Start();
 
-                    using (Transaction tx = new Transaction(doc,
-                        $"STING Params P2 batch {batchNum}"))
+                    try
                     {
-                        var failOpts = tx.GetFailureHandlingOptions();
-                        failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
-                        tx.SetFailureHandlingOptions(failOpts);
-
-                        tx.Start();
-
-                        try
+                        for (int i = batchStart; i < batchEnd; i++)
                         {
-                            for (int i = batchStart; i < batchEnd; i++)
+                            string paramName = disciplineParamList[i];
+                            ExternalDefinition extDef = FindDefinition(defFile, paramName);
+                            if (extDef == null)
                             {
-                                string paramName = disciplineParamList[i];
-                                ExternalDefinition extDef = FindDefinition(defFile, paramName);
-                                if (extDef == null)
+                                pass2Skipped++;
+                                StingLog.Warn($"Pass 2: Definition not found: {paramName}");
+                                continue;
+                            }
+
+                            try
+                            {
+                                CategorySet cats;
+                                if (SharedParamGuids.DisciplineBindings.TryGetValue(paramName,
+                                    out BuiltInCategory[] hardcodedCats))
                                 {
-                                    pass2Skipped++;
-                                    StingLog.Warn($"Pass 2: Definition not found: {paramName}");
-                                    continue;
+                                    cats = SharedParamGuids.BuildCategorySet(doc, hardcodedCats);
+                                }
+                                else
+                                {
+                                    cats = new CategorySet();
                                 }
 
-                                try
+                                if (csvBindings.TryGetValue(paramName, out var csvEntries))
                                 {
-                                    CategorySet cats;
-                                    if (SharedParamGuids.DisciplineBindings.TryGetValue(paramName,
-                                        out BuiltInCategory[] hardcodedCats))
+                                    foreach (var entry in csvEntries)
                                     {
-                                        cats = SharedParamGuids.BuildCategorySet(doc, hardcodedCats);
-                                    }
-                                    else
-                                    {
-                                        cats = new CategorySet();
-                                    }
-
-                                    if (csvBindings.TryGetValue(paramName, out var csvEntries))
-                                    {
-                                        foreach (var entry in csvEntries)
+                                        if (Temp.TemplateManager.CategoryNameToEnum.TryGetValue(
+                                            entry.category, out BuiltInCategory bic))
                                         {
-                                            if (Temp.TemplateManager.CategoryNameToEnum.TryGetValue(
-                                                entry.category, out BuiltInCategory bic))
+                                            try
                                             {
-                                                try
+                                                Category cat = doc.Settings.Categories.get_Item(bic);
+                                                if (cat != null && cat.AllowsBoundParameters)
                                                 {
-                                                    Category cat = doc.Settings.Categories.get_Item(bic);
-                                                    if (cat != null && cat.AllowsBoundParameters)
+                                                    if (!cats.Contains(cat))
                                                     {
-                                                        if (!cats.Contains(cat))
-                                                        {
-                                                            cats.Insert(cat);
-                                                            csvExtras++;
-                                                        }
+                                                        cats.Insert(cat);
+                                                        csvExtras++;
                                                     }
                                                 }
-                                                catch { }
                                             }
+                                            catch { }
                                         }
                                     }
-
-                                    if (cats.Size == 0)
-                                    {
-                                        pass2Skipped++;
-                                        StingLog.Warn($"Pass 2: No valid categories for {paramName}");
-                                        continue;
-                                    }
-
-                                    InstanceBinding binding = app.Create.NewInstanceBinding(cats);
-                                    bool result = doc.ParameterBindings.Insert(
-                                        extDef, binding, GroupTypeId.General);
-                                    if (!result)
-                                    {
-                                        result = doc.ParameterBindings.ReInsert(
-                                            extDef, binding, GroupTypeId.General);
-                                    }
-                                    if (result) pass2Bound++;
-                                    else pass2Skipped++;
                                 }
-                                catch (Exception ex)
+
+                                if (cats.Size == 0)
                                 {
                                     pass2Skipped++;
-                                    errors.Add($"P2 {paramName}: {ex.Message}");
-                                    StingLog.Error($"Pass 2 bind failed: {paramName}", ex);
+                                    StingLog.Warn($"Pass 2: No valid categories for {paramName}");
+                                    continue;
                                 }
-                            }
 
-                            tx.Commit();
-                            StingLog.Info($"Pass 2 batch {batchNum} committed ({pass2Bound} bound so far)");
+                                InstanceBinding binding = app.Create.NewInstanceBinding(cats);
+                                bool result = doc.ParameterBindings.Insert(
+                                    extDef, binding, GroupTypeId.General);
+                                if (!result)
+                                {
+                                    result = doc.ParameterBindings.ReInsert(
+                                        extDef, binding, GroupTypeId.General);
+                                }
+                                if (result) pass2Bound++;
+                                else pass2Skipped++;
+                            }
+                            catch (Exception ex)
+                            {
+                                pass2Skipped++;
+                                errors.Add($"P2 {paramName}: {ex.Message}");
+                                StingLog.Error($"Pass 2 bind failed: {paramName}", ex);
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            StingLog.Error($"Pass 2 batch {batchNum} failed", ex);
-                            if (tx.HasStarted() && !tx.HasEnded())
-                                tx.RollBack();
-                        }
+
+                        tx.Commit();
+                        StingLog.Info($"Pass 2 batch {batchNum} committed ({pass2Bound} bound so far)");
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error($"Pass 2 batch {batchNum} failed", ex);
+                        if (tx.HasStarted() && !tx.HasEnded())
+                            tx.RollBack();
                     }
                 }
-
-                // CRASH FIX: Use Commit() instead of Assimilate().
-                // Assimilate() merges all sub-transactions into one undo entry,
-                // forcing a single massive native regeneration that causes
-                // access violations (native crashes) after heavy operations
-                // like binding 200+ parameters.  Commit() allows Revit to
-                // handle regeneration incrementally per sub-transaction.
-                tg.Commit();
             }
 
             int universalCount = SharedParamGuids.UniversalParams?.Length ?? 0;

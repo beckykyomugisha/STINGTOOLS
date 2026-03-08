@@ -198,11 +198,6 @@ namespace StingTools.Temp
 
             using (Transaction tx = new Transaction(doc, $"Create {label} Types"))
             {
-                // CRASH FIX: Suppress warning dialogs during batch type creation
-                var failOpts = tx.GetFailureHandlingOptions();
-                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
-                tx.SetFailureHandlingOptions(failOpts);
-
                 tx.Start();
 
                 foreach (string[] cols in rows)

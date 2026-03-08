@@ -137,9 +137,6 @@ namespace StingTools.Tags
 
             using (Transaction tx = new Transaction(doc, "STING Auto Tag"))
             {
-                var failOpts = tx.GetFailureHandlingOptions();
-                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
-                tx.SetFailureHandlingOptions(failOpts);
                 tx.Start();
 
                 int processed = 0;
@@ -283,9 +280,6 @@ namespace StingTools.Tags
 
             using (Transaction tx = new Transaction(doc, "STING Tag New Only"))
             {
-                var failOpts = tx.GetFailureHandlingOptions();
-                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
-                tx.SetFailureHandlingOptions(failOpts);
                 tx.Start();
 
                 int processed = 0;

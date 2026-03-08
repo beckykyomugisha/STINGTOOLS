@@ -138,9 +138,6 @@ namespace StingTools.Tags
 
             using (Transaction tx = new Transaction(doc, "STING Tag & Combine All"))
             {
-                var failOpts = tx.GetFailureHandlingOptions();
-                failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
-                tx.SetFailureHandlingOptions(failOpts);
                 tx.Start();
                 int loopIndex = 0;
                 foreach (ElementId id in targetIds)

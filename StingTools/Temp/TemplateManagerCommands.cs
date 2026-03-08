@@ -2844,10 +2844,9 @@ namespace StingTools.Temp
             int passed = 0;
             var totalSw = Stopwatch.StartNew();
 
-            using (TransactionGroup tg = new TransactionGroup(doc, "STING Template Setup Wizard"))
+            // CRASH FIX: No TransactionGroup wrapper.  Each sub-command manages
+            // its own transactions so Revit regenerates between steps.
             {
-                tg.Start();
-
                 // Step 1: Fill Patterns
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Fill Patterns (12 ISO)",
@@ -2951,16 +2950,11 @@ namespace StingTools.Temp
 
                     if (rollDlg.Show() == TaskDialogResult.CommandLink2)
                     {
-                        tg.RollBack();
-                        StingLog.Info("Template Wizard: user chose rollback");
-                        TaskDialog.Show("Template Setup Wizard", "All changes rolled back.");
+                        StingLog.Info("Template Wizard: user chose to stop");
+                        TaskDialog.Show("Template Setup Wizard", "Completed steps are committed. Use Ctrl+Z to undo.");
                         return Result.Cancelled;
                     }
                 }
-
-                // CRASH FIX: Commit() avoids the native crash caused by
-                // Assimilate()'s single massive regeneration pass.
-                tg.Commit();
             }
 
             report.AppendLine(new string('─', 55));

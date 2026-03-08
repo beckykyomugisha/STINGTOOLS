@@ -89,10 +89,9 @@ namespace StingTools.Temp
             int failed = 0;
             var totalSw = Stopwatch.StartNew();
 
-            using (TransactionGroup tg = new TransactionGroup(doc, "STING Project Setup"))
+            // CRASH FIX: No TransactionGroup wrapper.  Each sub-command manages
+            // its own transactions.  TransactionGroup was causing native crashes.
             {
-                tg.Start();
-
                 // ════════════════════════════════════════════════════
                 // PHASE 1: FOUNDATION
                 // ════════════════════════════════════════════════════
@@ -171,8 +170,7 @@ namespace StingTools.Temp
                         "Rollback all", "Undo all changes");
                     if (critDlg.Show() == TaskDialogResult.CommandLink2)
                     {
-                        tg.RollBack();
-                        TaskDialog.Show("Project Setup", "All changes rolled back.");
+                        TaskDialog.Show("Project Setup", "Setup aborted. Use Ctrl+Z to undo.");
                         return Result.Cancelled;
                     }
                 }
@@ -459,16 +457,11 @@ namespace StingTools.Temp
 
                     if (rollbackDlg.Show() == TaskDialogResult.CommandLink2)
                     {
-                        tg.RollBack();
-                        StingLog.Info("Project Setup: user chose rollback after failures");
-                        TaskDialog.Show("Project Setup", "All changes rolled back.");
+                        StingLog.Info("Project Setup: user chose to stop after failures");
+                        TaskDialog.Show("Project Setup", "Completed steps are committed. Use Ctrl+Z to undo.");
                         return Result.Cancelled;
                     }
                 }
-
-                // CRASH FIX: Commit() avoids the native crash caused by
-                // Assimilate()'s single massive regeneration pass.
-                tg.Commit();
             }
 
             // GAP-006: Persist wizard settings to project_config.json

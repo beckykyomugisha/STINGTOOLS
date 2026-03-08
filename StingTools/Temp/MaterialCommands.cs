@@ -292,10 +292,8 @@ namespace StingTools.Temp
         /// <summary>
         /// Shared material creation logic for BLE and MEP commands.
         /// Reads CSV, finds/duplicates base materials, applies all properties.
-        /// CRASH FIX: Batches materials into groups of 50 per transaction to avoid
-        /// transaction journal overflow that causes native Revit crashes.
-        /// Uses TransactionGroup for atomic rollback and SilentWarningSwallower
-        /// to suppress blocking warning dialogs.
+        /// CRASH FIX: No TransactionGroup, no SilentWarningSwallower.
+        /// Each batch is a standalone Transaction so Revit regenerates between batches.
         /// </summary>
         private const int MaterialBatchSize = 50;
 
@@ -350,76 +348,62 @@ namespace StingTools.Temp
 
             StingLog.Info($"{dialogTitle}: {rows.Count} materials to create in batches of {MaterialBatchSize} (skipping {skipped} existing)");
 
-            // CRASH FIX: Wrap ALL batches in a TransactionGroup for atomic rollback
-            using (TransactionGroup tg = new TransactionGroup(doc, $"STING {dialogTitle}"))
+            // CRASH FIX: No TransactionGroup wrapper.  Each batch is a standalone
+            // Transaction so Revit fully regenerates between batches.
+            for (int batchStart = 0; batchStart < rows.Count; batchStart += MaterialBatchSize)
             {
-                tg.Start();
+                int batchEnd = Math.Min(batchStart + MaterialBatchSize, rows.Count);
+                int batchNum = (batchStart / MaterialBatchSize) + 1;
 
-                // Process in batches of MaterialBatchSize
-                for (int batchStart = 0; batchStart < rows.Count; batchStart += MaterialBatchSize)
+                using (Transaction tx = new Transaction(doc,
+                    $"STING Materials batch {batchNum}"))
                 {
-                    int batchEnd = Math.Min(batchStart + MaterialBatchSize, rows.Count);
-                    int batchNum = (batchStart / MaterialBatchSize) + 1;
+                    tx.Start();
 
-                    using (Transaction tx = new Transaction(doc,
-                        $"STING Materials batch {batchNum}"))
+                    try
                     {
-                        // CRASH FIX: Suppress warning dialogs during batch operations
-                        var failOpts = tx.GetFailureHandlingOptions();
-                        failOpts.SetFailuresPreprocessor(new SilentWarningSwallower());
-                        tx.SetFailureHandlingOptions(failOpts);
-
-                        tx.Start();
-
-                        try
+                        for (int i = batchStart; i < batchEnd; i++)
                         {
-                            for (int i = batchStart; i < batchEnd; i++)
+                            var (matName, cols) = rows[i];
+
+                            // Double-check: may have been created by an earlier batch
+                            if (existingNames.Contains(matName)) { skipped++; continue; }
+
+                            try
                             {
-                                var (matName, cols) = rows[i];
-
-                                // Double-check: may have been created by an earlier batch
-                                if (existingNames.Contains(matName)) { skipped++; continue; }
-
-                                try
+                                Material newMat = CreateFromBaseWithCache(
+                                    doc, matName, cols, baseMaterialCache, assetCache);
+                                if (newMat != null)
                                 {
-                                    Material newMat = CreateFromBaseWithCache(
-                                        doc, matName, cols, baseMaterialCache, assetCache);
-                                    if (newMat != null)
-                                    {
-                                        ApplyMaterialProperties(newMat, cols, doc, fillPatternCache);
+                                    ApplyMaterialProperties(newMat, cols, doc, fillPatternCache);
 
-                                        string baseMatName = GetCol(cols, ColBaseMaterial);
-                                        if (!string.IsNullOrEmpty(baseMatName) &&
-                                            baseMaterialCache.ContainsKey(baseMatName))
-                                            duplicated++;
+                                    string baseMatName = GetCol(cols, ColBaseMaterial);
+                                    if (!string.IsNullOrEmpty(baseMatName) &&
+                                        baseMaterialCache.ContainsKey(baseMatName))
+                                        duplicated++;
 
-                                        created++;
-                                        existingNames.Add(matName);
-                                        baseMaterialCache[matName] = newMat;
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    StingLog.Warn($"Material create failed '{matName}': {ex.Message}");
+                                    created++;
+                                    existingNames.Add(matName);
+                                    baseMaterialCache[matName] = newMat;
                                 }
                             }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"Material create failed '{matName}': {ex.Message}");
+                            }
+                        }
 
-                            tx.Commit();
-                            StingLog.Info($"{dialogTitle}: batch {batchNum} committed ({created} created so far)");
-                        }
-                        catch (Exception ex)
-                        {
-                            batchErrors++;
-                            StingLog.Error($"{dialogTitle}: batch {batchNum} failed, rolling back batch", ex);
-                            if (tx.HasStarted() && !tx.HasEnded())
-                                tx.RollBack();
-                        }
+                        tx.Commit();
+                        StingLog.Info($"{dialogTitle}: batch {batchNum} committed ({created} created so far)");
+                    }
+                    catch (Exception ex)
+                    {
+                        batchErrors++;
+                        StingLog.Error($"{dialogTitle}: batch {batchNum} failed, rolling back batch", ex);
+                        if (tx.HasStarted() && !tx.HasEnded())
+                            tx.RollBack();
                     }
                 }
-
-                // CRASH FIX: Commit() avoids the native crash caused by
-                // Assimilate()'s single massive regeneration pass.
-                tg.Commit();
             }
 
             string report = $"Created {created} materials.\n" +
