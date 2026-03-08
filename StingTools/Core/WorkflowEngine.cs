@@ -51,37 +51,62 @@ namespace StingTools.Core
                 return Result.Cancelled;
             }
 
-            // Let user pick a preset
-            TaskDialog picker = new TaskDialog("Run Workflow Preset");
-            picker.MainInstruction = "Select a workflow preset to run";
-            var sb = new StringBuilder();
-            for (int i = 0; i < Math.Min(presets.Count, 4); i++)
-            {
-                var p = presets[i];
-                sb.AppendLine($"  {p.Name}: {p.Description} ({p.Steps.Count} steps)");
-            }
-            picker.MainContent = sb.ToString();
-
-            if (presets.Count >= 1)
-                picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    presets[0].Name, $"{presets[0].Description} ({presets[0].Steps.Count} steps)");
-            if (presets.Count >= 2)
-                picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                    presets[1].Name, $"{presets[1].Description} ({presets[1].Steps.Count} steps)");
-            if (presets.Count >= 3)
-                picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                    presets[2].Name, $"{presets[2].Description} ({presets[2].Steps.Count} steps)");
-            if (presets.Count >= 4)
-                picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                    presets[3].Name, $"{presets[3].Description} ({presets[3].Steps.Count} steps)");
-
-            var result = picker.Show();
+            // WF-01 FIX: Support unlimited presets via paged selection.
+            // If ≤4 presets, use CommandLinks directly. If >4, show pages of 3 + "More..." link.
             WorkflowPreset selected = null;
-            if (result == TaskDialogResult.CommandLink1) selected = presets[0];
-            else if (result == TaskDialogResult.CommandLink2 && presets.Count >= 2) selected = presets[1];
-            else if (result == TaskDialogResult.CommandLink3 && presets.Count >= 3) selected = presets[2];
-            else if (result == TaskDialogResult.CommandLink4 && presets.Count >= 4) selected = presets[3];
-            else return Result.Cancelled;
+            int pageStart = 0;
+
+            while (selected == null)
+            {
+                TaskDialog picker = new TaskDialog("Run Workflow Preset");
+                picker.MainInstruction = "Select a workflow preset to run";
+
+                int remaining = presets.Count - pageStart;
+                int showCount = Math.Min(remaining, presets.Count <= 4 ? 4 : 3);
+                bool hasMore = remaining > showCount;
+
+                var sb = new StringBuilder();
+                for (int i = pageStart; i < pageStart + showCount; i++)
+                {
+                    var p = presets[i];
+                    sb.AppendLine($"  {i + 1}. {p.Name}: {p.Description} ({p.Steps.Count} steps)");
+                }
+                if (hasMore)
+                    sb.AppendLine($"\n  ({remaining - showCount} more preset(s) available...)");
+                picker.MainContent = sb.ToString();
+
+                var linkIds = new[] {
+                    TaskDialogCommandLinkId.CommandLink1,
+                    TaskDialogCommandLinkId.CommandLink2,
+                    TaskDialogCommandLinkId.CommandLink3,
+                    TaskDialogCommandLinkId.CommandLink4,
+                };
+
+                for (int i = 0; i < showCount; i++)
+                {
+                    var p = presets[pageStart + i];
+                    picker.AddCommandLink(linkIds[i],
+                        p.Name, $"{p.Description} ({p.Steps.Count} steps)");
+                }
+
+                if (hasMore)
+                {
+                    picker.AddCommandLink(linkIds[showCount],
+                        "More presets...", $"Show next page ({remaining - showCount} more)");
+                }
+
+                var result = picker.Show();
+
+                if (result == TaskDialogResult.CommandLink1) selected = presets[pageStart];
+                else if (result == TaskDialogResult.CommandLink2 && showCount >= 2) selected = presets[pageStart + 1];
+                else if (result == TaskDialogResult.CommandLink3 && showCount >= 3) selected = presets[pageStart + 2];
+                else if (result == TaskDialogResult.CommandLink4)
+                {
+                    if (hasMore && showCount == 3) { pageStart += 3; continue; }
+                    else if (showCount >= 4) selected = presets[pageStart + 3];
+                }
+                else return Result.Cancelled;
+            }
 
             return WorkflowEngine.ExecutePreset(selected, commandData, elements);
         }

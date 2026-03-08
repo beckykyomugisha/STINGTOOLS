@@ -1586,6 +1586,35 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- TAG STYLE ENGINE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG STYLE ENGINE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <StackPanel>
+                                <TextBlock Text="Control tag size, style, and colour via shared BOOL parameters" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="TAG APPEARANCE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Apply Tag Style" Tag="ApplyTagStyle" Click="Cmd_Click" ToolTip="Pick size/style/colour for tag label visibility"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="By Discipline" Tag="SwitchTagStyleByDisc" Click="Cmd_Click" ToolTip="Auto-assign tag styles per discipline"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Style Report" Tag="TagStyleReport" Click="Cmd_Click" ToolTip="Audit current tag style usage"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="VIEW COLOUR SCHEME"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Apply Scheme" Tag="ApplyColorScheme" Click="Cmd_Click" ToolTip="Apply named colour scheme to view"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Batch Scheme" Tag="BatchApplyColorScheme" Click="Cmd_Click" ToolTip="Apply scheme to ALL views"/>
+                                    <Button Style="{StaticResource RedBtn}" Content="Clear Scheme" Tag="ClearColorScheme" Click="Cmd_Click" ToolTip="Remove all colour overrides"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="COLOUR BY VARIABLE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="By Variable" Tag="ColorByVariable" Click="Cmd_Click" ToolTip="Color by System/Status/Zone/Level/Function/Location"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Box Color" Tag="SetBoxColor" Click="Cmd_Click" ToolTip="Set tag bounding box fill colour (separate from text)"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="PARAGRAPH DEPTH"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Set Depth (1-10)" Tag="SetParagraphDepthExt" Click="Cmd_Click" ToolTip="Control TAG7 paragraph visibility tiers"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- VIEW CONTROLS -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="[Eye] VIEW CONTROLS"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -1614,6 +1643,84 @@
 
                         <!-- Always on top -->
                         <TextBlock Text="Always on top: ON" FontSize="10" Foreground="#888" Margin="0,4,0,0"/>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- =============== MODEL TAB =============== -->
+            <TabItem Header="MODEL">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+
+                        <!-- HEADER -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#E65100">
+                            <StackPanel>
+                                <TextBlock Text="MODEL — Auto-Modeling Engine" FontWeight="Bold" FontSize="11" Foreground="#E65100"/>
+                                <TextBlock Text="Create BIM elements from scratch or from DWG imports" FontSize="9" Foreground="#888"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- QUICK BUILD -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="QUICK BUILD"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#E65100">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Building Shell" Tag="ModelBuildingShell" Click="Cmd_Click" ToolTip="Create complete building: 4 walls + floor + roof"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Room" Tag="ModelCreateRoom" Click="Cmd_Click" ToolTip="Create rectangular room enclosure (4 walls + room)"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ARCHITECTURAL -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="ARCHITECTURAL"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Wall" Tag="ModelCreateWall" Click="Cmd_Click" ToolTip="Pick two points to create a wall"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Floor" Tag="ModelCreateFloor" Click="Cmd_Click" ToolTip="Create rectangular floor slab"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Ceiling" Tag="ModelCreateCeiling" Click="Cmd_Click" ToolTip="Create rectangular ceiling"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Roof" Tag="ModelCreateRoof" Click="Cmd_Click" ToolTip="Create footprint roof"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource BlueBtn}" Content="Door" Tag="ModelPlaceDoor" Click="Cmd_Click" ToolTip="Place door in selected wall"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Window" Tag="ModelPlaceWindow" Click="Cmd_Click" ToolTip="Place window in selected wall"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- STRUCTURAL -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="STRUCTURAL"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Column" Tag="ModelPlaceColumn" Click="Cmd_Click" ToolTip="Place structural column at point"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Column Grid" Tag="ModelColumnGrid" Click="Cmd_Click" ToolTip="Create rectangular column grid"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Beam" Tag="ModelCreateBeam" Click="Cmd_Click" ToolTip="Create beam between two points"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- MEP -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="MEP"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource TealBtn}" Content="Duct" Tag="ModelCreateDuct" Click="Cmd_Click" ToolTip="Create duct run between two points"/>
+                                <Button Style="{StaticResource TealBtn}" Content="Pipe" Tag="ModelCreatePipe" Click="Cmd_Click" ToolTip="Create pipe run between two points"/>
+                                <Button Style="{StaticResource TealBtn}" Content="Fixture" Tag="ModelPlaceFixture" Click="Cmd_Click" ToolTip="Place MEP fixture (light, plumbing, electrical)"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- DWG TO MODEL -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DWG TO MODEL"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#E65100">
+                            <StackPanel>
+                                <TextBlock Text="Convert imported/linked DWG to BIM elements" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="DWG → Model" Tag="ModelDWGToModel" Click="Cmd_Click" ToolTip="Convert DWG import to walls, floors, rooms"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Preview DWG" Tag="ModelDWGPreview" Click="Cmd_Click" ToolTip="Audit DWG layers and entities without creating elements"/>
+                                </WrapPanel>
+                                <TextBlock Text="Pipeline: parallel lines → walls → PlanTopology → rooms → closed loops → floors" FontSize="8" Foreground="#AAA" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
 
                     </StackPanel>
                 </ScrollViewer>

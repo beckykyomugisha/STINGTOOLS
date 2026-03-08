@@ -2901,13 +2901,48 @@ namespace StingTools.Core
 
             var lifecyclePlain = new System.Text.StringBuilder();
             var lifecycleMarked = new System.Text.StringBuilder();
-            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Status", status);
-            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Revision", rev);
-            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Origin", origin);
-            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Project", project);
-            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Volume", volume);
-            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Maintenance", mntType);
-            AppendLabelValue(lifecyclePlain, lifecycleMarked, "Detail", detailNum);
+            // Use natural language connectors instead of just commas
+            if (!string.IsNullOrEmpty(status))
+            {
+                lifecyclePlain.Append($"This element is {status.ToLower()}");
+                lifecycleMarked.Append($"This element is \u00ABV\u00BB{status.ToLower()}\u00AB/V\u00BB");
+            }
+            if (!string.IsNullOrEmpty(rev))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(", currently at "); lifecycleMarked.Append(", currently at "); }
+                lifecyclePlain.Append($"revision {rev}");
+                lifecycleMarked.Append($"\u00ABL\u00BBrevision\u00AB/L\u00BB \u00ABV\u00BB{rev}\u00AB/V\u00BB");
+            }
+            if (!string.IsNullOrEmpty(origin))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(", originating from "); lifecycleMarked.Append(", originating from "); }
+                lifecyclePlain.Append(origin);
+                lifecycleMarked.Append($"\u00ABV\u00BB{origin}\u00AB/V\u00BB");
+            }
+            if (!string.IsNullOrEmpty(project))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(" within "); lifecycleMarked.Append(" within "); }
+                else { lifecyclePlain.Append("Part of "); lifecycleMarked.Append("Part of "); }
+                lifecyclePlain.Append($"project {project}");
+                lifecycleMarked.Append($"\u00ABL\u00BBproject\u00AB/L\u00BB \u00ABV\u00BB{project}\u00AB/V\u00BB");
+            }
+            if (!string.IsNullOrEmpty(volume))
+            {
+                lifecyclePlain.Append($" (volume {volume})");
+                lifecycleMarked.Append($" (\u00ABL\u00BBvolume\u00AB/L\u00BB \u00ABV\u00BB{volume}\u00AB/V\u00BB)");
+            }
+            if (!string.IsNullOrEmpty(mntType))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(". "); lifecycleMarked.Append(". "); }
+                lifecyclePlain.Append($"Requires {mntType.ToLower()} maintenance");
+                lifecycleMarked.Append($"Requires \u00ABV\u00BB{mntType.ToLower()}\u00AB/V\u00BB \u00ABL\u00BBmaintenance\u00AB/L\u00BB");
+            }
+            if (!string.IsNullOrEmpty(detailNum))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(", see "); lifecycleMarked.Append(", see "); }
+                lifecyclePlain.Append($"detail {detailNum}");
+                lifecycleMarked.Append($"\u00ABL\u00BBdetail\u00AB/L\u00BB \u00ABV\u00BB{detailNum}\u00AB/V\u00BB");
+            }
 
             if (lifecyclePlain.Length > 0)
             {
@@ -2950,8 +2985,8 @@ namespace StingTools.Core
             var classMarked = new System.Text.StringBuilder();
             if (!string.IsNullOrEmpty(uniformat))
             {
-                classPlain.Append($"Uniformat {uniformat}");
-                classMarked.Append($"\u00ABL\u00BBUniformat\u00AB/L\u00BB \u00ABV\u00BB{uniformat}\u00AB/V\u00BB");
+                classPlain.Append($"Uniformat code {uniformat}");
+                classMarked.Append($"\u00ABL\u00BBUniformat code\u00AB/L\u00BB \u00ABV\u00BB{uniformat}\u00AB/V\u00BB");
                 if (!string.IsNullOrEmpty(uniformatDesc))
                 {
                     classPlain.Append($" ({uniformatDesc})");
@@ -2960,49 +2995,120 @@ namespace StingTools.Core
             }
             if (!string.IsNullOrEmpty(omniclass))
             {
-                if (classPlain.Length > 0) { classPlain.Append(", "); classMarked.Append(", "); }
-                classPlain.Append($"OmniClass {omniclass}");
-                classMarked.Append($"\u00ABL\u00BBOmniClass\u00AB/L\u00BB \u00ABV\u00BB{omniclass}\u00AB/V\u00BB");
+                if (classPlain.Length > 0) { classPlain.Append(", with OmniClass reference "); classMarked.Append(", with \u00ABL\u00BBOmniClass reference\u00AB/L\u00BB "); }
+                else { classPlain.Append("OmniClass reference "); classMarked.Append("\u00ABL\u00BBOmniClass reference\u00AB/L\u00BB "); }
+                classPlain.Append(omniclass);
+                classMarked.Append($"\u00ABV\u00BB{omniclass}\u00AB/V\u00BB");
             }
             if (!string.IsNullOrEmpty(keynote))
             {
-                if (classPlain.Length > 0) { classPlain.Append(", "); classMarked.Append(", "); }
-                classPlain.Append($"Keynote {keynote}");
-                classMarked.Append($"\u00ABL\u00BBKeynote\u00AB/L\u00BB \u00ABV\u00BB{keynote}\u00AB/V\u00BB");
+                if (classPlain.Length > 0) { classPlain.Append(", keynote "); classMarked.Append(", \u00ABL\u00BBkeynote\u00AB/L\u00BB "); }
+                else { classPlain.Append("Keynote "); classMarked.Append("\u00ABL\u00BBKeynote\u00AB/L\u00BB "); }
+                classPlain.Append(keynote);
+                classMarked.Append($"\u00ABV\u00BB{keynote}\u00AB/V\u00BB");
             }
             if (!string.IsNullOrEmpty(typeMark))
             {
-                if (classPlain.Length > 0) { classPlain.Append(", "); classMarked.Append(", "); }
-                classPlain.Append($"Type Mark {typeMark}");
-                classMarked.Append($"\u00ABL\u00BBType Mark\u00AB/L\u00BB \u00ABV\u00BB{typeMark}\u00AB/V\u00BB");
+                if (classPlain.Length > 0) { classPlain.Append(", identified as type mark "); classMarked.Append(", identified as \u00ABL\u00BBtype mark\u00AB/L\u00BB "); }
+                else { classPlain.Append("Type mark "); classMarked.Append("\u00ABL\u00BBType mark\u00AB/L\u00BB "); }
+                classPlain.Append(typeMark);
+                classMarked.Append($"\u00ABV\u00BB{typeMark}\u00AB/V\u00BB");
             }
             if (!string.IsNullOrEmpty(cost))
             {
-                if (classPlain.Length > 0) { classPlain.Append(", "); classMarked.Append(", "); }
-                classPlain.Append($"Unit Cost: {cost}");
-                classMarked.Append($"\u00ABL\u00BBUnit Cost:\u00AB/L\u00BB \u00ABV\u00BB{cost}\u00AB/V\u00BB");
+                if (classPlain.Length > 0) { classPlain.Append(", with an estimated unit cost of "); classMarked.Append(", with an estimated \u00ABL\u00BBunit cost\u00AB/L\u00BB of "); }
+                else { classPlain.Append("Estimated unit cost of "); classMarked.Append("Estimated \u00ABL\u00BBunit cost\u00AB/L\u00BB of "); }
+                classPlain.Append(cost);
+                classMarked.Append($"\u00ABV\u00BB{cost}\u00AB/V\u00BB");
             }
 
-            // ISO reference always added
+            // ISO reference always added with connecting language
             string fullTag = string.Join(Separator, tokenValues);
-            if (classPlain.Length > 0) { classPlain.Append(", "); classMarked.Append(", "); }
-            classPlain.Append($"ISO 19650 Tag: {fullTag}");
-            classMarked.Append($"\u00ABL\u00BBISO 19650 Tag:\u00AB/L\u00BB \u00ABH\u00BB{fullTag}\u00AB/H\u00BB");
+            if (classPlain.Length > 0) { classPlain.Append(". Assigned "); classMarked.Append(". Assigned "); }
+            classPlain.Append($"ISO 19650 tag {fullTag}");
+            classMarked.Append($"\u00ABL\u00BBISO 19650 tag\u00AB/L\u00BB \u00ABH\u00BB{fullTag}\u00AB/H\u00BB");
 
             result.SectionF = classPlain.ToString();
             markedSections.Add(classMarked.ToString());
 
-            // ── Assemble final narratives ─────────────────────────────────────
-            var plainSections = new List<string>();
-            if (!string.IsNullOrEmpty(result.SectionA)) plainSections.Add(result.SectionA);
-            if (!string.IsNullOrEmpty(result.SectionB)) plainSections.Add(result.SectionB);
-            if (!string.IsNullOrEmpty(result.SectionC)) plainSections.Add(result.SectionC);
-            if (!string.IsNullOrEmpty(result.SectionD)) plainSections.Add(result.SectionD);
-            if (!string.IsNullOrEmpty(result.SectionE)) plainSections.Add(result.SectionE);
-            if (!string.IsNullOrEmpty(result.SectionF)) plainSections.Add(result.SectionF);
+            // ── Assemble final narratives with meaningful connecting phrases ──
+            // Instead of pipe separators, connect sections with logical transition words
+            // that form a coherent description of the asset.
+            var plainParts = new System.Text.StringBuilder();
+            var markedParts = new System.Text.StringBuilder();
 
-            result.PlainNarrative = string.Join(" | ", plainSections);
-            result.MarkedUpNarrative = string.Join(" \u00ABS\u00BB|\u00AB/S\u00BB ", markedSections);
+            // A: Identity — opening statement, no prefix needed
+            if (!string.IsNullOrEmpty(result.SectionA))
+            {
+                plainParts.Append(result.SectionA);
+                markedParts.Append(markedSections.Count > 0 ? markedSections[0] : result.SectionA);
+            }
+            // B: System context — connects with "which is part of" or ". This asset operates within"
+            if (!string.IsNullOrEmpty(result.SectionB))
+            {
+                if (plainParts.Length > 0)
+                {
+                    plainParts.Append(". This asset operates within the ");
+                    markedParts.Append(". \u00ABS\u00BBThis asset operates within the\u00AB/S\u00BB ");
+                }
+                plainParts.Append(markedSections.Count > 1 ? result.SectionB : result.SectionB);
+                markedParts.Append(markedSections.Count > 1 ? markedSections[1] : result.SectionB);
+            }
+            // C: Spatial — connects with ". It is" (already starts with "Located in")
+            if (!string.IsNullOrEmpty(result.SectionC))
+            {
+                if (plainParts.Length > 0)
+                {
+                    plainParts.Append(". ");
+                    markedParts.Append(". ");
+                }
+                int cIdx = 2;
+                plainParts.Append(result.SectionC);
+                markedParts.Append(markedSections.Count > cIdx ? markedSections[cIdx] : result.SectionC);
+            }
+            // D: Lifecycle — connects with ". Regarding its lifecycle,"
+            if (!string.IsNullOrEmpty(result.SectionD))
+            {
+                if (plainParts.Length > 0)
+                {
+                    plainParts.Append(". ");
+                    markedParts.Append(". ");
+                }
+                int dIdx = string.IsNullOrEmpty(result.SectionC) ? 2 : 3;
+                plainParts.Append(result.SectionD);
+                markedParts.Append(markedSections.Count > dIdx ? markedSections[dIdx] : result.SectionD);
+            }
+            // E: Technical — connects with ". Technical specifications include"
+            if (!string.IsNullOrEmpty(result.SectionE))
+            {
+                if (plainParts.Length > 0)
+                {
+                    plainParts.Append(". Technical specifications include ");
+                    markedParts.Append(". \u00ABS\u00BBTechnical specifications include\u00AB/S\u00BB ");
+                }
+                // Determine correct index for marked sections
+                int eIdx = 2;
+                if (!string.IsNullOrEmpty(result.SectionB)) eIdx++;
+                if (!string.IsNullOrEmpty(result.SectionC)) eIdx++;
+                if (!string.IsNullOrEmpty(result.SectionD)) eIdx++;
+                plainParts.Append(result.SectionE);
+                markedParts.Append(markedSections.Count > eIdx ? markedSections[eIdx] : result.SectionE);
+            }
+            // F: Classification — connects with ". Classified under"
+            if (!string.IsNullOrEmpty(result.SectionF))
+            {
+                if (plainParts.Length > 0)
+                {
+                    plainParts.Append(". Classified under ");
+                    markedParts.Append(". \u00ABS\u00BBClassified under\u00AB/S\u00BB ");
+                }
+                int fIdx = markedSections.Count - 1; // F is always last
+                plainParts.Append(result.SectionF);
+                markedParts.Append(markedSections.Count > fIdx && fIdx >= 0 ? markedSections[fIdx] : result.SectionF);
+            }
+
+            result.PlainNarrative = plainParts.ToString();
+            result.MarkedUpNarrative = markedParts.ToString();
 
             return result;
         }
