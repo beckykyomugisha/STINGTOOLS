@@ -1546,13 +1546,10 @@ namespace StingTools.Docs
             int errors = 0;
             var nameCache = DocAutomationHelper.BuildViewNameIndex(doc);
 
-            // CRASH FIX: No TransactionGroup wrapper.  Each phase uses its own
-            // standalone Transaction so Revit regenerates between phases.
+            // Phase 1: Create Views
+            using (Transaction tx1 = new Transaction(doc, "STING Doc Package — Create Views"))
             {
-                // Phase 1: Create Views
-                using (Transaction tx1 = new Transaction(doc, "STING Doc Package — Create Views"))
-                {
-                    tx1.Start();
+                tx1.Start();
 
                     foreach (var disc in selectedDiscs)
                     {
@@ -1685,8 +1682,6 @@ namespace StingTools.Docs
 
                     tx2.Commit();
                 }
-
-            }
 
             sw.Stop();
 

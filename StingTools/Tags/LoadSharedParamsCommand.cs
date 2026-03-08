@@ -14,10 +14,7 @@ namespace StingTools.Tags
     /// Pass 1: universal ASS_MNG parameters → all 53 categories.
     /// Pass 2: discipline-specific tag containers → correct category subsets.
     ///
-    /// CRASH FIX: No TransactionGroup, no SilentWarningSwallower, small batch size.
     /// Each batch is an independent Transaction so Revit regenerates between batches.
-    /// This prevents the native access violations caused by accumulating hundreds of
-    /// schema modifications before Revit can process them.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -44,10 +41,6 @@ namespace StingTools.Tags
             }
         }
 
-        /// <summary>
-        /// CRASH FIX: Reduced from 25 to 10 parameters per transaction.
-        /// Smaller batches = less native regeneration pressure per commit.
-        /// </summary>
         private const int BindingBatchSize = 10;
 
         private Result ExecuteCore(ExternalCommandData commandData,
@@ -75,6 +68,13 @@ namespace StingTools.Tags
                     "Could not open shared parameter file:\n" + spFile);
                 return Result.Failed;
             }
+
+            // Build definition lookup ONCE — avoids O(groups*defs) scan per parameter
+            var defLookup = new Dictionary<string, ExternalDefinition>(StringComparer.Ordinal);
+            foreach (DefinitionGroup group in defFile.Groups)
+                foreach (Definition def in group.Definitions)
+                    if (def is ExternalDefinition ext)
+                        defLookup[def.Name] = ext;
 
             int pass1Bound = 0;
             int pass1Skipped = 0;
@@ -108,11 +108,6 @@ namespace StingTools.Tags
                 StingLog.Warn($"LoadCategoryBindings failed (continuing without CSV): {ex.Message}");
             }
 
-            // CRASH FIX: No TransactionGroup wrapper.  Each batch is a standalone
-            // Transaction so Revit fully regenerates between batches.  This avoids
-            // the native access violations caused by TransactionGroup accumulating
-            // hundreds of schema modifications before allowing regeneration.
-
             // ── Pass 1: Universal parameters → all 53 categories ──
             var universalParams = SharedParamGuids.UniversalParams ?? Array.Empty<string>();
             for (int batchStart = 0; batchStart < universalParams.Length; batchStart += BindingBatchSize)
@@ -123,10 +118,6 @@ namespace StingTools.Tags
                 using (Transaction tx = new Transaction(doc,
                     $"STING Params P1 batch {batchNum}"))
                 {
-                    // CRASH FIX: No SilentWarningSwallower.  Swallowing warnings
-                    // can leave Revit's failure processing in a bad state, causing
-                    // delayed native crashes.  Let Revit handle warnings naturally.
-
                     tx.Start();
 
                     try
@@ -134,8 +125,7 @@ namespace StingTools.Tags
                         for (int i = batchStart; i < batchEnd; i++)
                         {
                             string paramName = universalParams[i];
-                            ExternalDefinition extDef = FindDefinition(defFile, paramName);
-                            if (extDef == null)
+                            if (!defLookup.TryGetValue(paramName, out ExternalDefinition extDef))
                             {
                                 pass1Skipped++;
                                 StingLog.Warn($"Pass 1: Definition not found: {paramName}");
@@ -199,8 +189,7 @@ namespace StingTools.Tags
                         for (int i = batchStart; i < batchEnd; i++)
                         {
                             string paramName = disciplineParamList[i];
-                            ExternalDefinition extDef = FindDefinition(defFile, paramName);
-                            if (extDef == null)
+                            if (!defLookup.TryGetValue(paramName, out ExternalDefinition extDef))
                             {
                                 pass2Skipped++;
                                 StingLog.Warn($"Pass 2: Definition not found: {paramName}");
@@ -299,17 +288,5 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
 
-        private static ExternalDefinition FindDefinition(DefinitionFile defFile, string name)
-        {
-            foreach (DefinitionGroup group in defFile.Groups)
-            {
-                foreach (Definition def in group.Definitions)
-                {
-                    if (def.Name == name && def is ExternalDefinition extDef)
-                        return extDef;
-                }
-            }
-            return null;
-        }
     }
 }

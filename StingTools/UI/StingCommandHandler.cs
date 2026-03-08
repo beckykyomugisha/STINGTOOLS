@@ -773,19 +773,8 @@ namespace StingTools.UI
 
             // NOTE: Post-command doc.Regenerate() REMOVED (see commit history).
             //
-            // CRASH FIX: All TransactionGroup.Assimilate() calls replaced with
-            // Commit().  Assimilate() merges sub-transactions into one undo entry,
-            // forcing a single massive native regeneration that causes access
-            // violations (native crashes bypassing managed exception handling)
-            // after heavy operations like:
-            //   - Creating 815+ materials (CreateBLEMaterials)
-            //   - Binding 200+ shared parameters (LoadSharedParams)
-            //   - Batch tagging thousands of elements
-            //
-            // Commit() preserves sub-transactions as separate undo entries,
-            // allowing Revit to regenerate incrementally.  The only trade-off
-            // is multiple Ctrl+Z steps instead of one, which is far preferable
-            // to crashing Revit.
+            // NOTE: TransactionGroup removed from all commands — each batch/step
+            // uses standalone Transactions so Revit regenerates between them.
         }
 
         // ── Current UIApplication (static fallback for panel commands) ──

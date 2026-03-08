@@ -18,7 +18,7 @@ namespace StingTools.Tags
     ///
     /// Key improvements over v1:
     ///   - Grid-based spatial index for O(1) average overlap queries (was O(n²))
-    ///   - Actual tag bounding box measurement via TransactionGroup rollback
+    ///   - Actual tag bounding box measurement via temporary transaction rollback
     ///   - 16 candidate positions (8 cardinal + 8 intermediate at 1.5x offset)
     ///   - Alignment bonus: tags aligned with existing nearby tags score higher
     ///   - Performance: suppress annotation regeneration during batch placement
@@ -1395,8 +1395,6 @@ namespace StingTools.Tags
             int totalPlaced = 0, totalSkipped = 0, totalCollisions = 0, viewsProcessed = 0;
             var perView = new List<(string name, int placed, int skipped)>();
 
-            // CRASH FIX: No TransactionGroup wrapper.  Each view gets its own
-            // standalone Transaction so Revit regenerates between views.
             foreach (View v in targetViews)
             {
                 using (Transaction tx = new Transaction(doc, $"STING Tag {v.Name}"))

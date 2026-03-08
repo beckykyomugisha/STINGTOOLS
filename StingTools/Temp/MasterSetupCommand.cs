@@ -29,9 +29,7 @@ namespace StingTools.Temp
     ///  16.  Auto-assign templates + auto-fix health
     ///  17.  Auto-create legends (discipline + system + filter)
     ///
-    /// Wrapped in a TransactionGroup for atomic rollback: if any critical step
-    /// fails, the user can choose to rollback all changes or keep partial results.
-    /// Each step reports its result with timing information.
+    /// Each step runs in its own transaction with timing information.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -74,8 +72,8 @@ namespace StingTools.Temp
                 " 15.  Batch family parameters (4,686 from CSV)\n" +
                 " 16.  Auto-assign templates + auto-fix health\n" +
                 " 17.  Auto-create legends (discipline + system)\n\n" +
-                "All steps are grouped atomically — if critical steps fail,\n" +
-                "you can rollback all changes.\n\n" +
+                "Each step runs independently.\n" +
+                "Use Ctrl+Z to undo individual steps if needed.\n\n" +
                 "This may take several minutes for a new project.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
@@ -109,12 +107,6 @@ namespace StingTools.Temp
                 StingLog.Info("Master Setup: project_config.json not found, using defaults");
                 report.AppendLine($"   0. Load project_config.json — SKIPPED (using defaults)");
             }
-
-            // CRASH FIX: No TransactionGroup wrapper.  Each sub-command manages its
-            // own transactions.  TransactionGroup wrapping ALL sub-commands was causing
-            // native Revit crashes because Revit couldn't regenerate between steps —
-            // hundreds of schema/model modifications accumulated before any native
-            // processing could occur.
 
             // Step 1: Load shared parameters (critical — other steps depend on it)
             passed += RunStep(ref stepNum, report, "Load Shared Parameters",

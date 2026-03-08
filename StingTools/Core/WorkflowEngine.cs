@@ -23,7 +23,7 @@ namespace StingTools.Core
     //    - JSON-based workflow presets (data/ directory)
     //    - Per-step progress reporting to WPF status bar
     //    - Escape key cancellation between steps
-    //    - Atomic TransactionGroup with rollback on failure
+    //    - Each step runs in its own transaction
     //    - Built-in presets: ProjectKickoff, DailyQA, DocumentPackage
     //
     //  Commands:
@@ -35,7 +35,7 @@ namespace StingTools.Core
     /// <summary>
     /// Run a named workflow preset — chained command sequence with cancel support.
     /// Presets are JSON files in the data/ directory or built-in defaults.
-    /// Wrapped in TransactionGroup for atomic rollback.
+    /// Each step runs in its own transaction.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -234,8 +234,6 @@ namespace StingTools.Core
             bool cancelled = false;
             var totalSw = Stopwatch.StartNew();
 
-            // CRASH FIX: No TransactionGroup wrapper.  Each sub-command manages
-            // its own transactions so Revit regenerates between steps.
             foreach (var step in preset.Steps)
             {
                 stepNum++;

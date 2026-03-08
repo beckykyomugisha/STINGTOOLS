@@ -757,7 +757,7 @@
                                      Padding="8"/>
                         </Border>
 
-                        <TextBlock Text="All changes are wrapped in a TransactionGroup for atomic rollback."
+                        <TextBlock Text="Each step runs independently. Use Ctrl+Z to undo if needed."
                                    FontSize="10" Foreground="#777" Margin="0,4,0,0"/>
                     </StackPanel>
                 </ScrollViewer>

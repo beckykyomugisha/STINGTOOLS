@@ -2798,7 +2798,7 @@ namespace StingTools.Temp
     ///  14. Auto-Assign Templates (5-layer matching)
     ///  15. Auto-Fix + Compliance Audit
     ///
-    /// Wrapped in TransactionGroup for atomic rollback on failure.
+    /// Each step runs in its own transaction.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -2826,7 +2826,7 @@ namespace StingTools.Temp
                 " 13.  Worksets (35 ISO 19650, if workshared)\n" +
                 " 14.  Auto-Assign Templates (5-layer matching)\n" +
                 " 15.  Auto-Fix + Final Audit\n\n" +
-                "All steps grouped atomically for rollback.\n" +
+                "Each step runs independently.\n" +
                 "This may take 1-2 minutes.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
@@ -2844,9 +2844,6 @@ namespace StingTools.Temp
             int passed = 0;
             var totalSw = Stopwatch.StartNew();
 
-            // CRASH FIX: No TransactionGroup wrapper.  Each sub-command manages
-            // its own transactions so Revit regenerates between steps.
-            {
                 // Step 1: Fill Patterns
                 passed += TemplateManager.RunWizardStep(ref stepNum, report,
                     "Fill Patterns (12 ISO)",
@@ -2938,24 +2935,8 @@ namespace StingTools.Temp
                     report.AppendLine(new string('─', 55));
                     report.AppendLine($"  {passed}/{stepNum} succeeded, {failed} failed");
                     report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
-
-                    TaskDialog rollDlg = new TaskDialog("Template Wizard — Failures");
-                    rollDlg.MainInstruction = $"{failed} step(s) failed";
-                    rollDlg.MainContent = report.ToString() +
-                        "\n\nKeep partial results or rollback all?";
-                    rollDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                        "Keep results", $"Commit {passed} successful steps");
-                    rollDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                        "Rollback all", "Undo all changes");
-
-                    if (rollDlg.Show() == TaskDialogResult.CommandLink2)
-                    {
-                        StingLog.Info("Template Wizard: user chose to stop");
-                        TaskDialog.Show("Template Setup Wizard", "Completed steps are committed. Use Ctrl+Z to undo.");
-                        return Result.Cancelled;
-                    }
+                    report.AppendLine("  Use Ctrl+Z to undo individual steps if needed.");
                 }
-            }
 
             report.AppendLine(new string('─', 55));
             report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");

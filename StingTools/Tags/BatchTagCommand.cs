@@ -127,8 +127,6 @@ namespace StingTools.Tags
             // ENH-001: Show progress dialog with cancel support
             var progress = StingProgressDialog.Show("Batch Tag", totalTaggable);
 
-            // CRASH FIX: No TransactionGroup wrapper.  Each batch is a standalone
-            // Transaction so Revit fully regenerates between batches.
             for (int batchStart = 0; batchStart < sorted.Count; batchStart += TagBatchSize)
             {
                 if (cancelled) break;

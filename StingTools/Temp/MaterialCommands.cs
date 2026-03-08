@@ -8,26 +8,6 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 
-// CRASH FIX: FailuresPreprocessor that silently deletes all warnings during
-// heavy batch operations (material creation, parameter binding).  Without this,
-// Revit can pop blocking warning dialogs mid-transaction that stall or crash.
-namespace StingTools
-{
-    internal class SilentWarningSwallower : IFailuresPreprocessor
-    {
-        public FailureProcessingResult PreprocessFailures(FailuresAccessor fa)
-        {
-            foreach (FailureMessageAccessor msg in fa.GetFailureMessages())
-            {
-                // Delete warnings; let errors bubble up normally
-                if (msg.GetSeverity() == FailureSeverity.Warning)
-                    fa.DeleteWarning(msg);
-            }
-            return FailureProcessingResult.Continue;
-        }
-    }
-}
-
 namespace StingTools.Temp
 {
     /// <summary>
@@ -292,7 +272,6 @@ namespace StingTools.Temp
         /// <summary>
         /// Shared material creation logic for BLE and MEP commands.
         /// Reads CSV, finds/duplicates base materials, applies all properties.
-        /// CRASH FIX: No TransactionGroup, no SilentWarningSwallower.
         /// Each batch is a standalone Transaction so Revit regenerates between batches.
         /// </summary>
         private const int MaterialBatchSize = 50;
@@ -348,8 +327,6 @@ namespace StingTools.Temp
 
             StingLog.Info($"{dialogTitle}: {rows.Count} materials to create in batches of {MaterialBatchSize} (skipping {skipped} existing)");
 
-            // CRASH FIX: No TransactionGroup wrapper.  Each batch is a standalone
-            // Transaction so Revit fully regenerates between batches.
             for (int batchStart = 0; batchStart < rows.Count; batchStart += MaterialBatchSize)
             {
                 int batchEnd = Math.Min(batchStart + MaterialBatchSize, rows.Count);

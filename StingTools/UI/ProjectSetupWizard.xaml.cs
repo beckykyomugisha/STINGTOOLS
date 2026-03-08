@@ -831,7 +831,7 @@ namespace StingTools.UI
             sb.AppendLine();
             sb.AppendLine(new string('═', 55));
             sb.AppendLine($"  TOTAL: {enabledCount} of {stepCount} steps will execute");
-            sb.AppendLine("  All changes wrapped in TransactionGroup for rollback");
+            sb.AppendLine("  Each step runs independently. Use Ctrl+Z to undo.");
             sb.AppendLine();
             sb.AppendLine("  Click 'Run Setup' to begin.");
 
