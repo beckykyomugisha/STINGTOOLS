@@ -6,6 +6,7 @@ using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Newtonsoft.Json.Linq;
 using StingTools.Core;
 
 namespace StingTools.Tags
@@ -169,6 +170,13 @@ namespace StingTools.Tags
             ParamRegistry.TAG4,  // Short label (PROD-SEQ)
             ParamRegistry.TAG5,  // Description tag (PROD + family name)
             ParamRegistry.TAG6,  // Status tag (multi-line)
+            ParamRegistry.TAG7,  // Rich narrative (full marked-up text)
+            ParamRegistry.TAG7A, // Section A: Identity Header (Bold)
+            ParamRegistry.TAG7B, // Section B: System & Function (Italic)
+            ParamRegistry.TAG7C, // Section C: Spatial Context
+            ParamRegistry.TAG7D, // Section D: Lifecycle & Status
+            ParamRegistry.TAG7E, // Section E: Technical Specs (Bold)
+            ParamRegistry.TAG7F, // Section F: Classification (Italic)
         };
 
         /// <summary>
@@ -237,32 +245,27 @@ namespace StingTools.Tags
             string basePath = app.FamilyTemplatePath;
             if (!string.IsNullOrEmpty(basePath))
             {
-                // Try common annotation template subdirectory names
-                string[] annotDirs = new[]
+                // PRIORITY 1: Directories containing *Tag.rft files (annotation tag templates).
+                // These are the specific templates needed for tag family creation.
+                // Order matters: deeper annotation-specific paths come first.
+                string[] tagDirs = new[]
                 {
-                    "Annotations",                      // English
-                    "English",                          // Some installations
-                    "English_I",                        // Imperial
-                    "English-Imperial\\Annotations",    // Nested Imperial
+                    "English\\Annotations",             // Revit 2025+ typical (tag templates here)
+                    "English_I\\Annotations",           // Imperial variant
                     "Metric\\Annotations",              // Metric
+                    "English-Imperial\\Annotations",    // Nested Imperial
+                    "Annotations",                      // Direct Annotations/ subfolder
                 };
 
-                foreach (string sub in annotDirs)
+                foreach (string sub in tagDirs)
                 {
                     string candidate = Path.Combine(basePath, sub);
-                    if (Directory.Exists(candidate))
-                    {
-                        // Verify it has .rft files
-                        if (Directory.GetFiles(candidate, "*.rft").Length > 0)
-                            return candidate;
-                    }
+                    if (Directory.Exists(candidate) &&
+                        Directory.GetFiles(candidate, "*Tag.rft").Length > 0)
+                        return candidate;
                 }
 
-                // Try the base path itself
-                if (Directory.GetFiles(basePath, "*.rft").Length > 0)
-                    return basePath;
-
-                // Search recursively for any directory containing "Tag.rft" files
+                // PRIORITY 2: Recursive search for any directory containing *Tag.rft
                 try
                 {
                     foreach (string dir in Directory.GetDirectories(basePath, "*", SearchOption.AllDirectories))
@@ -272,6 +275,29 @@ namespace StingTools.Tags
                     }
                 }
                 catch { /* permission issues */ }
+
+                // PRIORITY 3: Directories containing any .rft (may have Generic Annotation.rft
+                // which can be used as fallback for all categories).
+                string[] generalDirs = new[]
+                {
+                    "English\\Annotations",
+                    "English",
+                    "English_I",
+                    "Metric",
+                    "Annotations",
+                };
+
+                foreach (string sub in generalDirs)
+                {
+                    string candidate = Path.Combine(basePath, sub);
+                    if (Directory.Exists(candidate) &&
+                        Directory.GetFiles(candidate, "*.rft").Length > 0)
+                        return candidate;
+                }
+
+                // Try the base path itself
+                if (Directory.GetFiles(basePath, "*.rft").Length > 0)
+                    return basePath;
             }
 
             // Fallback: search common Revit installation paths
@@ -281,6 +307,10 @@ namespace StingTools.Tags
                 @"C:\ProgramData\Autodesk\RVT 2026\Family Templates",
                 @"C:\ProgramData\Autodesk\RVT 2025\Family Templates",
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                    "Autodesk", "RVT 2027", "Family Templates"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                    "Autodesk", "RVT 2026", "Family Templates"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
                     "Autodesk", "RVT 2025", "Family Templates"),
             };
 
@@ -289,9 +319,16 @@ namespace StingTools.Tags
                 if (!Directory.Exists(rp)) continue;
                 try
                 {
+                    // First: look for directories with tag templates specifically
                     foreach (string dir in Directory.GetDirectories(rp, "*", SearchOption.AllDirectories))
                     {
                         if (Directory.GetFiles(dir, "*Tag.rft").Length > 0)
+                            return dir;
+                    }
+                    // Then: any directory with .rft files
+                    foreach (string dir in Directory.GetDirectories(rp, "*", SearchOption.AllDirectories))
+                    {
+                        if (Directory.GetFiles(dir, "*.rft").Length > 0)
                             return dir;
                     }
                 }
@@ -310,19 +347,38 @@ namespace StingTools.Tags
         {
             if (string.IsNullOrEmpty(templateDir)) return null;
 
-            // Try specific category template
+            // Build list of directories to search (templateDir + parent + sibling Annotations/)
+            var searchDirs = new List<string> { templateDir };
+            string parentDir = Path.GetDirectoryName(templateDir);
+            if (!string.IsNullOrEmpty(parentDir))
+            {
+                searchDirs.Add(parentDir);
+                // Check sibling directories (e.g., if we're in English/, also check English/Annotations/)
+                string annotSub = Path.Combine(templateDir, "Annotations");
+                if (Directory.Exists(annotSub))
+                    searchDirs.Insert(0, annotSub); // Higher priority
+                // Check parent's Annotations/ subfolder
+                annotSub = Path.Combine(parentDir, "Annotations");
+                if (Directory.Exists(annotSub) && !searchDirs.Contains(annotSub))
+                    searchDirs.Add(annotSub);
+            }
+
+            // Try specific category template in all search directories
             if (CategoryTemplateMap.TryGetValue(bic, out string templateName))
             {
-                string specific = Path.Combine(templateDir, templateName);
-                if (File.Exists(specific)) return specific;
+                foreach (string dir in searchDirs)
+                {
+                    string specific = Path.Combine(dir, templateName);
+                    if (File.Exists(specific)) return specific;
 
-                // Try with "Metric " prefix
-                string metric = Path.Combine(templateDir, "Metric " + templateName);
-                if (File.Exists(metric)) return metric;
+                    // Try with "Metric " prefix
+                    string metric = Path.Combine(dir, "Metric " + templateName);
+                    if (File.Exists(metric)) return metric;
 
-                // Try without spaces (some locales)
-                string noSpace = Path.Combine(templateDir, templateName.Replace(" ", ""));
-                if (File.Exists(noSpace)) return noSpace;
+                    // Try without spaces (some locales)
+                    string noSpace = Path.Combine(dir, templateName.Replace(" ", ""));
+                    if (File.Exists(noSpace)) return noSpace;
+                }
             }
 
             // Fallback chain: Generic Tag → Multi-Category Tag → Generic Annotation
@@ -338,13 +394,24 @@ namespace StingTools.Tags
 
             foreach (string fb in fallbacks)
             {
-                string path = Path.Combine(templateDir, fb);
-                if (File.Exists(path)) return path;
+                foreach (string dir in searchDirs)
+                {
+                    string path = Path.Combine(dir, fb);
+                    if (File.Exists(path)) return path;
+                }
             }
 
-            // Last resort: pick any .rft file in the directory
-            string[] rftFiles = Directory.GetFiles(templateDir, "*Tag.rft");
-            if (rftFiles.Length > 0) return rftFiles[0];
+            // Last resort: pick any .rft file in the template directory tree
+            foreach (string dir in searchDirs)
+            {
+                string[] rftFiles = Directory.GetFiles(dir, "*Tag.rft");
+                if (rftFiles.Length > 0) return rftFiles[0];
+            }
+            foreach (string dir in searchDirs)
+            {
+                string[] rftFiles = Directory.GetFiles(dir, "*.rft");
+                if (rftFiles.Length > 0) return rftFiles[0];
+            }
 
             return null;
         }
@@ -442,7 +509,11 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
-            StingLog.Info($"Tag family templates directory: {templateDir}");
+            // Log template directory and available .rft files for diagnostics
+            string[] availableRft = Directory.GetFiles(templateDir, "*.rft");
+            int tagRftCount = availableRft.Count(f => f.IndexOf("Tag", StringComparison.OrdinalIgnoreCase) >= 0);
+            StingLog.Info($"Tag family templates directory: {templateDir} " +
+                $"({availableRft.Length} .rft files, {tagRftCount} tag templates)");
 
             // ── Step 2: Locate shared parameter file ──
             string sharedParamFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
@@ -499,6 +570,7 @@ namespace StingTools.Tags
                 $"Already loaded: {alreadyLoaded}\n" +
                 $"To create: {toCreate}\n\n" +
                 $"Templates: {templateDir}\n" +
+                $"Tag .rft files found: {tagRftCount} of {availableRft.Length} total\n" +
                 $"Output: {TagFamilyConfig.GetOutputDirectory()}\n\n" +
                 "Each family will be created from a Revit annotation template\n" +
                 "and loaded into the project with STING shared parameters.";
@@ -1032,15 +1104,15 @@ namespace StingTools.Tags
 
     /// <summary>
     /// Guided wizard that opens each STING tag family in the Family Editor
-    /// for Label configuration. Walks the user through setting the Label
-    /// parameter to ASS_TAG_1_TXT for each family, one at a time.
+    /// for Label configuration. For each family, provides the EXACT Edit Label
+    /// specification from LABEL_DEFINITIONS.json — parameters, prefixes, suffixes,
+    /// calculated value formulas, and break settings.
     ///
-    /// This command overcomes the Revit API limitation (no NewLabel API) by:
-    ///   1. Finding all loaded STING tag families in the project
-    ///   2. Opening each in the Family Editor via Document.EditFamily()
-    ///   3. Showing step-by-step instructions for configuring the Label
-    ///   4. Automatically reloading the family after the user saves
-    ///   5. Tracking progress and allowing skip/stop at any point
+    /// The user's ONLY manual step is:
+    ///   1. Click the Label text element in the family
+    ///   2. Click 'Edit Label'
+    ///   3. Add the parameters listed (all text/formulas are provided)
+    ///   4. Load into Project and Close
     ///
     /// Workflow: Run after CreateTagFamiliesCommand to complete tag family setup.
     /// </summary>
@@ -1068,7 +1140,7 @@ namespace StingTools.Tags
 
             if (stingFamilies.Count == 0)
             {
-                TaskDialog.Show("Configure Tag Labels",
+                TaskDialog.Show("STING Tools - Configure Tag Labels",
                     "No STING tag families loaded in this project.\n\n" +
                     "Run 'Create Tag Families' first to generate and load them.");
                 return Result.Failed;
@@ -1077,19 +1149,28 @@ namespace StingTools.Tags
             // Sort alphabetically for consistent order
             stingFamilies = stingFamilies.OrderBy(f => f.Name).ToList();
 
+            // Load label definitions for exact Edit Label instructions
+            var catLabels = LabelDefinitionHelper.LoadCategoryLabels();
+            var paramText = LabelDefinitionHelper.LoadParameterText();
+            bool hasLabelDefs = catLabels.Count > 0;
+
             // Introduction dialog
             TaskDialog intro = new TaskDialog("Configure Tag Labels");
             intro.MainInstruction = $"Configure Labels for {stingFamilies.Count} STING tag families";
             intro.MainContent =
-                "This wizard will open each tag family in the Family Editor.\n\n" +
-                "For each family, you need to:\n" +
-                "  1. Select the existing Label text (usually shows 'Type Mark')\n" +
-                "  2. Click 'Edit Label' in the Properties panel\n" +
-                "  3. Remove the current parameter\n" +
-                "  4. Add 'ASS_TAG_1_TXT' from the list\n" +
-                "  5. Click OK, then Save (Ctrl+S)\n" +
-                "  6. Click 'Load into Project and Close'\n\n" +
-                "The wizard will guide you through each family.";
+                "This wizard opens each tag family in the Family Editor and\n" +
+                "provides the EXACT Edit Label configuration.\n\n" +
+                "For each family:\n" +
+                "  1. Click the Label text element (shows 'Type Mark')\n" +
+                "  2. Click 'Edit Label' in Properties panel\n" +
+                "  3. Remove the default parameter\n" +
+                "  4. Add the parameters shown (exact text provided)\n" +
+                "  5. Set Prefix/Suffix/Spaces/Break as listed\n" +
+                "  6. Load into Project and Close\n\n" +
+                (hasLabelDefs
+                    ? $"Label definitions loaded: {catLabels.Count} categories from LABEL_DEFINITIONS.json\n"
+                    : "WARNING: LABEL_DEFINITIONS.json not found — basic instructions only.\n") +
+                "All parameters have already been added to the families.";
             intro.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (intro.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
@@ -1102,21 +1183,22 @@ namespace StingTools.Tags
             {
                 remaining--;
 
+                // Extract category name from family name: "STING - Walls Tag" → "Walls"
+                string catName = ExtractCategoryName(fam.Name);
+
+                // Build the Edit Label specification for this category
+                string labelSpec = BuildLabelSpec(catName, catLabels, paramText);
+
                 // Show instructions for this family
                 TaskDialog step = new TaskDialog("Configure Tag Label");
-                step.MainInstruction = $"Family: {fam.Name}";
+                step.MainInstruction = $"[{configured + skipped + 1}/{stingFamilies.Count}] {fam.Name}";
                 step.MainContent =
-                    $"[{configured + skipped + 1}/{stingFamilies.Count}] " +
                     $"({remaining} remaining after this)\n\n" +
-                    "Steps:\n" +
-                    "  1. Select the Label text in the family\n" +
-                    "  2. Edit Label → remove default → add ASS_TAG_1_TXT\n" +
-                    "  3. Save and Load into Project\n\n" +
-                    "Click 'Open' to open this family in the Editor,\n" +
-                    "or 'Skip' to move to the next one.";
+                    "Click 'Open' to edit this family, or 'Skip' to move on.";
+                step.ExpandedContent = labelSpec;
                 step.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                     "Open in Family Editor",
-                    "Opens this tag family for Label configuration");
+                    "Opens this tag family — the Edit Label spec will show after opening");
                 step.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                     "Skip this family",
                     "Move to the next tag family");
@@ -1146,19 +1228,18 @@ namespace StingTools.Tags
                     if (famDoc != null)
                     {
                         // Family is now open in the editor.
-                        // Show a reminder dialog (non-blocking since the family editor is active)
-                        TaskDialog reminder = new TaskDialog("Label Configuration");
+                        // Show the FULL Edit Label spec as the reminder
+                        TaskDialog reminder = new TaskDialog("Edit Label Specification");
                         reminder.MainInstruction = $"Now editing: {fam.Name}";
                         reminder.MainContent =
-                            "The family is open in the Family Editor.\n\n" +
-                            "Configure the Label:\n" +
-                            "  1. Click the Label text element\n" +
-                            "  2. In Properties → Edit Label\n" +
-                            "  3. Remove the existing parameter\n" +
-                            "  4. Add 'ASS_TAG_1_TXT'\n" +
-                            "  5. Click OK\n" +
-                            "  6. Save (Ctrl+S) → Load into Project and Close\n\n" +
-                            "Click OK when you've finished configuring this family.";
+                            "1. Click the Label text element in the family view\n" +
+                            "2. In Properties panel → click 'Edit Label'\n" +
+                            "3. Remove the existing parameter (select → Remove)\n" +
+                            "4. Add parameters below in order (use Add →)\n" +
+                            "5. Set Prefix, Suffix, Spaces, Break as listed\n" +
+                            "6. Check 'Wrap between parameters only'\n" +
+                            "7. Click OK → Load into Project and Close";
+                        reminder.ExpandedContent = labelSpec;
                         reminder.CommonButtons = TaskDialogCommonButtons.Ok;
                         reminder.Show();
 
@@ -1188,11 +1269,193 @@ namespace StingTools.Tags
                 $"Total STING tag families: {stingFamilies.Count}\n\n" +
                 (configured < stingFamilies.Count
                     ? "Run this command again to configure remaining families."
-                    : "All tag families have been opened for configuration.");
+                    : "All tag families have been opened for configuration.\n\n" +
+                      "TIP: Copy finished .rfa files from Data/TagFamilies/ to\n" +
+                      "Data/TagFamilies/Seeds/ so they auto-load next time.");
             summary.Show();
 
             StingLog.Info($"ConfigureTagLabels: configured={configured}, skipped={skipped}");
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Extract category display name from STING family name.
+        /// "STING - Mechanical Equipment Tag" → "Mechanical Equipment"
+        /// "STING - Walls Tag" → "Walls"
+        /// </summary>
+        private string ExtractCategoryName(string familyName)
+        {
+            string name = familyName;
+            if (name.StartsWith("STING - ", StringComparison.OrdinalIgnoreCase))
+                name = name.Substring(8);
+            if (name.EndsWith(" Tag", StringComparison.OrdinalIgnoreCase))
+                name = name.Substring(0, name.Length - 4);
+            return name.Trim();
+        }
+
+        /// <summary>
+        /// Build the exact Edit Label specification for a category from LABEL_DEFINITIONS.json.
+        /// Produces a formatted table showing Parameter | Prefix | Suffix | Spaces | Break
+        /// for each tier, with calculated value formulas for tier 2/3 gating.
+        /// </summary>
+        private string BuildLabelSpec(string catName,
+            Dictionary<string, JObject> catLabels,
+            Dictionary<string, JObject> paramText)
+        {
+            var sb = new StringBuilder();
+
+            // Try to find label definition for this category
+            JObject catDef = null;
+            if (catLabels.TryGetValue(catName, out catDef))
+            {
+                sb.AppendLine($"EDIT LABEL SPECIFICATION: {catName}");
+                sb.AppendLine(new string('─', 60));
+                sb.AppendLine();
+
+                // Tier 1 — Always visible
+                sb.AppendLine("── TIER 1 (Always Visible) ──");
+                sb.AppendLine("Add these parameters directly:");
+                sb.AppendLine();
+                FormatTierTable(sb, catDef["tier_1"] as JArray, paramText);
+
+                // Tier 2 — Gated by TAG_PARA_STATE_2_BOOL
+                var tier2 = catDef["tier_2"] as JArray;
+                if (tier2 != null && tier2.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("── TIER 2 (Standard+) ──");
+                    sb.AppendLine("Use CALCULATED VALUES for each parameter:");
+                    sb.AppendLine("  Formula: if(TAG_PARA_STATE_2_BOOL, <param>, \"\")");
+                    sb.AppendLine();
+                    FormatTierTable(sb, tier2, paramText);
+                }
+
+                // Tier 3 — Gated by TAG_PARA_STATE_3_BOOL
+                var tier3 = catDef["tier_3"] as JArray;
+                if (tier3 != null && tier3.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("── TIER 3 (Comprehensive) ──");
+                    sb.AppendLine("Use CALCULATED VALUES for each parameter:");
+                    sb.AppendLine("  Formula: if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
+                    sb.AppendLine();
+                    FormatTierTable(sb, tier3, paramText);
+                }
+
+                // Paragraph container
+                string paraCont = catDef["paragraph_container"]?.ToString();
+                if (!string.IsNullOrEmpty(paraCont) && paraCont != "null")
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"── PARAGRAPH CONTAINER ──");
+                    sb.AppendLine($"  Add: {paraCont}");
+                    sb.AppendLine($"  Formula: if(TAG_PARA_STATE_3_BOOL, {paraCont}, \"\")");
+                    sb.AppendLine($"  Break: YES (new line)");
+                }
+
+                // TAG7 — Rich Descriptive Narrative (6 sub-sections A-F)
+                sb.AppendLine();
+                sb.AppendLine("── TAG7 NARRATIVE (Rich Description — Auto-Generated) ──");
+                sb.AppendLine("TAG7 is auto-populated by Tag & Combine / Full Auto-Populate.");
+                sb.AppendLine("Add these TAG7 sub-section parameters to the label for");
+                sb.AppendLine("multi-line rich display (each gated by visibility booleans):");
+                sb.AppendLine();
+                sb.AppendLine("  Parameter                    | Content           | Style    | Brk");
+                sb.AppendLine("  " + new string('─', 72));
+                sb.AppendLine("  ASS_TAG_7A_TXT               | Identity Header   | Bold     | YES");
+                sb.AppendLine("  ASS_TAG_7B_TXT               | System & Function | Italic   | YES");
+                sb.AppendLine("  ASS_TAG_7C_TXT               | Spatial Context   | Normal   | YES");
+                sb.AppendLine("  ASS_TAG_7D_TXT               | Lifecycle/Status  | Normal   | YES");
+                sb.AppendLine("  ASS_TAG_7E_TXT               | Technical Specs   | Bold     | YES");
+                sb.AppendLine("  ASS_TAG_7F_TXT               | Classification    | Italic   | YES");
+                sb.AppendLine();
+                sb.AppendLine("  For all TAG7 rows, use Calculated Values:");
+                sb.AppendLine("    if(TAG_PARA_STATE_3_BOOL, ASS_TAG_7x_TXT, \"\")");
+                sb.AppendLine("  This makes TAG7 visible only in Full Specification mode.");
+
+                // Paragraph template (if defined)
+                string paraTpl = catDef["paragraph_template"]?.ToString();
+                if (!string.IsNullOrEmpty(paraTpl))
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("  Paragraph template (auto-generated text):");
+                    // Wrap at ~70 chars for readability
+                    string wrapped = paraTpl.Length > 140
+                        ? "  " + paraTpl.Substring(0, 140) + "..."
+                        : "  " + paraTpl;
+                    sb.AppendLine(wrapped);
+                }
+
+                sb.AppendLine();
+                sb.AppendLine("Settings: Check 'Wrap between parameters only'");
+            }
+            else
+            {
+                // No label definition — provide basic instructions
+                sb.AppendLine($"EDIT LABEL: {catName}");
+                sb.AppendLine(new string('─', 60));
+                sb.AppendLine();
+                sb.AppendLine("No detailed spec in LABEL_DEFINITIONS.json.");
+                sb.AppendLine("Use this standard configuration:");
+                sb.AppendLine();
+                sb.AppendLine("── TIER 1 (Always Visible) ──");
+                sb.AppendLine("  ASS_TAG_1_TXT                | (no prefix/suffix) | Break=YES");
+                sb.AppendLine("  ASS_DESCRIPTION_TXT          | (no prefix/suffix) | Break=YES");
+                sb.AppendLine();
+                sb.AppendLine("── TAG7 (Full Specification mode only) ──");
+                sb.AppendLine("  Use Calculated Values: if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
+                sb.AppendLine("  ASS_TAG_7A_TXT  (Identity)   | Break=YES");
+                sb.AppendLine("  ASS_TAG_7B_TXT  (System)     | Break=YES");
+                sb.AppendLine("  ASS_TAG_7C_TXT  (Spatial)    | Break=YES");
+                sb.AppendLine("  ASS_TAG_7D_TXT  (Lifecycle)  | Break=YES");
+                sb.AppendLine("  ASS_TAG_7E_TXT  (Technical)  | Break=YES");
+                sb.AppendLine("  ASS_TAG_7F_TXT  (Class.)     | Break=YES");
+                sb.AppendLine();
+                sb.AppendLine("Settings: Check 'Wrap between parameters only'");
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>Format a tier's parameters as a table for the Edit Label dialog.</summary>
+        private void FormatTierTable(StringBuilder sb,
+            JArray tierParams,
+            Dictionary<string, JObject> paramText)
+        {
+            if (tierParams == null || tierParams.Count == 0)
+            {
+                sb.AppendLine("  (none)");
+                return;
+            }
+
+            sb.AppendLine("  Parameter                    | Prefix         | Suffix         | Spc | Brk");
+            sb.AppendLine("  " + new string('─', 80));
+
+            foreach (JObject entry in tierParams)
+            {
+                string param = entry["param"]?.ToString() ?? "";
+                int spaces = entry["spaces"]?.Value<int>() ?? 0;
+                bool brk = entry["break"]?.Value<bool>() ?? false;
+
+                // Get prefix/suffix: override from tier entry, else from global paramText
+                string prefix = entry["prefix_override"]?.ToString();
+                string suffix = entry["suffix_override"]?.ToString();
+
+                if (prefix == null && paramText.TryGetValue(param, out var ptDef))
+                    prefix = ptDef["prefix"]?.ToString() ?? "";
+                if (suffix == null && paramText.TryGetValue(param, out var ptDef2))
+                    suffix = ptDef2["suffix"]?.ToString() ?? "";
+
+                prefix = prefix ?? "";
+                suffix = suffix ?? "";
+
+                // Truncate long param names for display
+                string paramShort = param.Length > 28 ? param.Substring(0, 25) + "..." : param;
+                string prefixDisp = prefix.Length > 0 ? $"\"{prefix}\"" : "";
+                string suffixDisp = suffix.Length > 0 ? $"\"{suffix}\"" : "";
+
+                sb.AppendLine($"  {paramShort,-30} | {prefixDisp,-14} | {suffixDisp,-14} | {spaces,-3} | {(brk ? "YES" : "")}");
+            }
         }
     }
 

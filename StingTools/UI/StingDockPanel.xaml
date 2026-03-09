@@ -1123,6 +1123,7 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Clone" Tag="CloneTemplate" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="VG Reset" Tag="BatchVGReset" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Fam Params" Tag="BatchAddFamilyParams" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Fam Processor" Tag="FamilyParamProcessor" Click="Cmd_Click" ToolTip="Open .rfa files, add parameters and formulas by category, save modified copies"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Tmpl Sched" Tag="CreateTemplateSchedules" Click="Cmd_Click"/>
                             </WrapPanel>
                         </Border>

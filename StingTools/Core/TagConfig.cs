@@ -2856,23 +2856,23 @@ namespace StingTools.Core
             }
             if (!string.IsNullOrEmpty(familyName) && string.IsNullOrEmpty(mfr) && string.IsNullOrEmpty(model))
             {
-                identityPlain.Append($", family: {familyName}");
-                identityMarked.Append($", \u00ABL\u00BBfamily:\u00AB/L\u00BB \u00ABV\u00BB{familyName}\u00AB/V\u00BB");
+                identityPlain.Append($" from the {familyName} family");
+                identityMarked.Append($" \u00ABL\u00BBfrom the\u00AB/L\u00BB \u00ABV\u00BB{familyName}\u00AB/V\u00BB \u00ABL\u00BBfamily\u00AB/L\u00BB");
                 if (!string.IsNullOrEmpty(typeName))
                 {
-                    identityPlain.Append($", type: {typeName}");
-                    identityMarked.Append($", \u00ABL\u00BBtype:\u00AB/L\u00BB \u00ABV\u00BB{typeName}\u00AB/V\u00BB");
+                    identityPlain.Append($" configured as {typeName}");
+                    identityMarked.Append($" \u00ABL\u00BBconfigured as\u00AB/L\u00BB \u00ABV\u00BB{typeName}\u00AB/V\u00BB");
                 }
             }
             if (!string.IsNullOrEmpty(description))
             {
-                identityPlain.Append($" — {description}");
-                identityMarked.Append($" — \u00ABV\u00BB{description}\u00AB/V\u00BB");
+                identityPlain.Append($" described as {description}");
+                identityMarked.Append($" \u00ABL\u00BBdescribed as\u00AB/L\u00BB \u00ABV\u00BB{description}\u00AB/V\u00BB");
             }
             if (!string.IsNullOrEmpty(size))
             {
-                identityPlain.Append($" [{size}]");
-                identityMarked.Append($" [\u00ABV\u00BB{size}\u00AB/V\u00BB]");
+                identityPlain.Append($" sized at {size}");
+                identityMarked.Append($" \u00ABL\u00BBsized at\u00AB/L\u00BB \u00ABV\u00BB{size}\u00AB/V\u00BB");
             }
 
             result.SectionA = identityPlain.ToString().Trim();
@@ -2888,12 +2888,12 @@ namespace StingTools.Core
                 var sysMarked = new System.Text.StringBuilder($"\u00ABH\u00BB{sysDesc}\u00AB/H\u00BB");
                 if (!string.IsNullOrEmpty(funcDesc) && funcDesc != sysDesc)
                 {
-                    sysPlain.Append($" {funcDesc}");
-                    sysMarked.Append($" \u00ABV\u00BB{funcDesc}\u00AB/V\u00BB");
+                    sysPlain.Append($" providing {funcDesc}");
+                    sysMarked.Append($" \u00ABL\u00BBproviding\u00AB/L\u00BB \u00ABV\u00BB{funcDesc}\u00AB/V\u00BB");
                 }
-                string servingText = $" serving Zone {zone}, Level {lvl} of Building {loc}";
+                string servingText = $" serving Zone {zone} on Level {lvl} within Building {loc}";
                 sysPlain.Append(servingText);
-                sysMarked.Append($" \u00ABL\u00BBserving\u00AB/L\u00BB Zone \u00ABV\u00BB{zone}\u00AB/V\u00BB, Level \u00ABV\u00BB{lvl}\u00AB/V\u00BB of Building \u00ABV\u00BB{loc}\u00AB/V\u00BB");
+                sysMarked.Append($" \u00ABL\u00BBserving\u00AB/L\u00BB Zone \u00ABV\u00BB{zone}\u00AB/V\u00BB \u00ABL\u00BBon\u00AB/L\u00BB Level \u00ABV\u00BB{lvl}\u00AB/V\u00BB \u00ABL\u00BBwithin\u00AB/L\u00BB Building \u00ABV\u00BB{loc}\u00AB/V\u00BB");
 
                 result.SectionB = sysPlain.ToString();
                 markedSections.Add(sysMarked.ToString());
@@ -2925,13 +2925,13 @@ namespace StingTools.Core
                 }
                 if (!string.IsNullOrEmpty(dept))
                 {
-                    spatialPlain.Append($", Department: {dept}");
-                    spatialMarked.Append($", \u00ABL\u00BBDepartment:\u00AB/L\u00BB \u00ABV\u00BB{dept}\u00AB/V\u00BB");
+                    spatialPlain.Append($" within the {dept} department");
+                    spatialMarked.Append($" \u00ABL\u00BBwithin the\u00AB/L\u00BB \u00ABV\u00BB{dept}\u00AB/V\u00BB \u00ABL\u00BBdepartment\u00AB/L\u00BB");
                 }
                 if (!string.IsNullOrEmpty(gridRef))
                 {
-                    spatialPlain.Append($", Grid Reference {gridRef}");
-                    spatialMarked.Append($", \u00ABL\u00BBGrid Reference\u00AB/L\u00BB \u00ABV\u00BB{gridRef}\u00AB/V\u00BB");
+                    spatialPlain.Append($" near grid reference {gridRef}");
+                    spatialMarked.Append($" \u00ABL\u00BBnear grid reference\u00AB/L\u00BB \u00ABV\u00BB{gridRef}\u00AB/V\u00BB");
                 }
                 result.SectionC = spatialPlain.ToString();
                 markedSections.Add(spatialMarked.ToString());
@@ -3010,7 +3010,7 @@ namespace StingTools.Core
             }
             if (!string.IsNullOrEmpty(dimData))
             {
-                if (techPlain.Length > 0) { techPlain.Append(", "); techMarked.Append(", "); }
+                if (techPlain.Length > 0) { techPlain.Append(". In terms of its dimensions, it is "); techMarked.Append(". \u00ABS\u00BBIn terms of its dimensions, it is\u00AB/S\u00BB "); }
                 techPlain.Append(dimData);
                 techMarked.Append(BuildMarkedDimSection(el, categoryName));
             }
@@ -3101,13 +3101,24 @@ namespace StingTools.Core
                 plainParts.Append(markedSections.Count > 1 ? result.SectionB : result.SectionB);
                 markedParts.Append(markedSections.Count > 1 ? markedSections[1] : result.SectionB);
             }
-            // C: Spatial — connects with ". It is" (already starts with "Located in")
+            // C: Spatial — connects with ". It is" (SectionC already starts with "Located in")
             if (!string.IsNullOrEmpty(result.SectionC))
             {
                 if (plainParts.Length > 0)
                 {
-                    plainParts.Append(". ");
-                    markedParts.Append(". ");
+                    plainParts.Append(". It is ");
+                    markedParts.Append(". \u00ABS\u00BBIt is\u00AB/S\u00BB ");
+                    // SectionC starts with "Located in" — lowercase it after "It is"
+                    result.SectionC = char.ToLower(result.SectionC[0]) + result.SectionC.Substring(1);
+                    // Also lowercase the marked section (starts with «L»Located in«/L»)
+                    int cIdxFix = 2;
+                    if (markedSections.Count > cIdxFix)
+                    {
+                        string mc = markedSections[cIdxFix];
+                        // Replace «L»Located in«/L» with «L»located in«/L»
+                        mc = mc.Replace("\u00ABL\u00BBLocated in\u00AB/L\u00BB", "\u00ABL\u00BBlocated in\u00AB/L\u00BB");
+                        markedSections[cIdxFix] = mc;
+                    }
                 }
                 int cIdx = 2;
                 plainParts.Append(result.SectionC);
@@ -3118,8 +3129,19 @@ namespace StingTools.Core
             {
                 if (plainParts.Length > 0)
                 {
-                    plainParts.Append(". ");
-                    markedParts.Append(". ");
+                    plainParts.Append(". Regarding its lifecycle, ");
+                    markedParts.Append(". \u00ABS\u00BBRegarding its lifecycle,\u00AB/S\u00BB ");
+                    // SectionD starts with "This element is" — lowercase it after connector
+                    if (result.SectionD.StartsWith("This element is"))
+                        result.SectionD = "this element is" + result.SectionD.Substring("This element is".Length);
+                    // Also fix in marked sections
+                    int dIdxFix = string.IsNullOrEmpty(result.SectionC) ? 2 : 3;
+                    if (markedSections.Count > dIdxFix)
+                    {
+                        string md = markedSections[dIdxFix];
+                        md = md.Replace("This element is", "this element is");
+                        markedSections[dIdxFix] = md;
+                    }
                 }
                 int dIdx = string.IsNullOrEmpty(result.SectionC) ? 2 : 3;
                 plainParts.Append(result.SectionD);
@@ -3215,98 +3237,120 @@ namespace StingTools.Core
         private static string BuildMarkedTechSection(Element el, string disc, string categoryName)
         {
             var sb = new System.Text.StringBuilder();
-            void AddM(string paramName, string label, string unit)
+            void AddM(string paramName, string connector, string unit)
             {
                 string v = ParameterHelpers.GetString(el, paramName);
                 if (!string.IsNullOrEmpty(v))
                 {
                     if (sb.Length > 0) sb.Append(", ");
-                    sb.Append($"\u00ABL\u00BB{label}:\u00AB/L\u00BB \u00ABV\u00BB{v}{(string.IsNullOrEmpty(unit) ? "" : $" {unit}")}\u00AB/V\u00BB");
+                    sb.Append($"\u00ABL\u00BB{connector}\u00AB/L\u00BB \u00ABV\u00BB{v}{(string.IsNullOrEmpty(unit) ? "" : $" {unit}")}\u00AB/V\u00BB");
                 }
             }
             if (disc == "E" || categoryName == "Electrical Equipment" || categoryName == "Electrical Fixtures")
             {
-                AddM(ParamRegistry.ELC_POWER, "Power", "kW"); AddM(ParamRegistry.ELC_VOLTAGE, "Voltage", "V");
-                AddM(ParamRegistry.ELC_CIRCUIT_NR, "Circuit", ""); AddM(ParamRegistry.ELC_PNL_NAME, "Panel", "");
-                AddM(ParamRegistry.ELC_PHASES, "Phases", ""); AddM(ParamRegistry.ELC_PNL_FED_FROM, "Fed from", "");
-                AddM(ParamRegistry.ELC_MAIN_BRK, "Main Breaker", "A"); AddM(ParamRegistry.ELC_WAYS, "Ways", "");
-                AddM(ParamRegistry.ELC_IP_RATING, "IP Rating", ""); AddM(ParamRegistry.ELC_PNL_LOAD, "Connected Load", "kW");
+                AddM(ParamRegistry.ELC_POWER, "rated at", "kW");
+                AddM(ParamRegistry.ELC_VOLTAGE, "operating at", "V");
+                AddM(ParamRegistry.ELC_CIRCUIT_NR, "connected to circuit", "");
+                AddM(ParamRegistry.ELC_PNL_NAME, "supplied by panel", "");
+                AddM(ParamRegistry.ELC_PHASES, "configured for", "phase supply");
+                AddM(ParamRegistry.ELC_PNL_FED_FROM, "fed from", "");
+                AddM(ParamRegistry.ELC_MAIN_BRK, "protected by a", "A main breaker");
+                AddM(ParamRegistry.ELC_WAYS, "with", "ways");
+                AddM(ParamRegistry.ELC_IP_RATING, "sealed to IP", "");
+                AddM(ParamRegistry.ELC_PNL_LOAD, "carrying a connected load of", "kW");
             }
             else if (categoryName == "Lighting Fixtures" || categoryName == "Lighting Devices")
             {
-                AddM(ParamRegistry.LTG_WATTAGE, "Wattage", "W"); AddM(ParamRegistry.LTG_LUMENS, "Output", "lm");
-                AddM(ParamRegistry.LTG_EFFICACY, "Efficacy", "lm/W"); AddM(ParamRegistry.LTG_LAMP_TYPE, "Lamp", "");
-                AddM(ParamRegistry.ELC_CIRCUIT_NR, "Circuit", "");
+                AddM(ParamRegistry.LTG_WATTAGE, "consuming", "W");
+                AddM(ParamRegistry.LTG_LUMENS, "delivering", "lm of luminous output");
+                AddM(ParamRegistry.LTG_EFFICACY, "achieving an efficacy of", "lm/W");
+                AddM(ParamRegistry.LTG_LAMP_TYPE, "using a", "lamp");
+                AddM(ParamRegistry.ELC_CIRCUIT_NR, "wired to circuit", "");
             }
             else if (disc == "M" || categoryName == "Mechanical Equipment" || categoryName == "Ducts" ||
                      categoryName == "Air Terminals" || categoryName == "Duct Fittings")
             {
-                AddM(ParamRegistry.HVC_AIRFLOW, "Airflow", "L/s"); AddM(ParamRegistry.HVC_DUCT_FLOW, "Duct Flow", "CFM");
-                AddM(ParamRegistry.HVC_VELOCITY, "Velocity", "m/s"); AddM(ParamRegistry.HVC_PRESSURE, "Pressure Drop", "Pa");
+                AddM(ParamRegistry.HVC_AIRFLOW, "delivering an airflow of", "L/s");
+                AddM(ParamRegistry.HVC_DUCT_FLOW, "with a duct flow of", "CFM");
+                AddM(ParamRegistry.HVC_VELOCITY, "at a velocity of", "m/s");
+                AddM(ParamRegistry.HVC_PRESSURE, "against a pressure drop of", "Pa");
             }
             else if (disc == "P" || categoryName == "Pipes" || categoryName == "Plumbing Fixtures" || categoryName == "Pipe Fittings")
             {
-                AddM(ParamRegistry.PLM_PIPE_FLOW, "Pipe Flow", "L/s"); AddM(ParamRegistry.PLM_PIPE_SIZE, "Pipe Size", "mm");
-                AddM(ParamRegistry.PLM_VELOCITY, "Velocity", "m/s"); AddM(ParamRegistry.PLM_FLOW_RATE, "Flow Rate", "L/s");
-                AddM(ParamRegistry.PLM_PIPE_LENGTH, "Pipe Length", "m");
+                AddM(ParamRegistry.PLM_PIPE_FLOW, "conveying a flow of", "L/s");
+                AddM(ParamRegistry.PLM_PIPE_SIZE, "through", "mm diameter pipework");
+                AddM(ParamRegistry.PLM_VELOCITY, "at a velocity of", "m/s");
+                AddM(ParamRegistry.PLM_FLOW_RATE, "with a design flow rate of", "L/s");
+                AddM(ParamRegistry.PLM_PIPE_LENGTH, "running", "m in length");
             }
             else if (disc == "FP" || categoryName == "Sprinklers" || categoryName == "Fire Alarm Devices")
             {
-                AddM(ParamRegistry.FIRE_RATING, "Fire Resistance", "min");
+                AddM(ParamRegistry.FIRE_RATING, "providing", "minutes of fire resistance");
             }
             return sb.ToString();
         }
 
-        /// <summary>Build marked-up dimensional data with «L»label«/L» «V»value«/V» tokens.</summary>
+        /// <summary>Build marked-up dimensional data with natural language connectors and «L»/«V» tokens.</summary>
         private static string BuildMarkedDimSection(Element el, string categoryName)
         {
             var sb = new System.Text.StringBuilder();
-            void AddM(string paramName, string label, string unit)
+            void AddM(string paramName, string connector, string unit)
             {
                 string v = ParameterHelpers.GetString(el, paramName);
                 if (!string.IsNullOrEmpty(v))
                 {
                     if (sb.Length > 0) sb.Append(", ");
-                    sb.Append($"\u00ABL\u00BB{label}:\u00AB/L\u00BB \u00ABV\u00BB{v}{(string.IsNullOrEmpty(unit) ? "" : $" {unit}")}\u00AB/V\u00BB");
+                    sb.Append($"\u00ABL\u00BB{connector}\u00AB/L\u00BB \u00ABV\u00BB{v}{(string.IsNullOrEmpty(unit) ? "" : $" {unit}")}\u00AB/V\u00BB");
                 }
             }
             if (categoryName == "Walls")
             {
-                AddM(ParamRegistry.WALL_HEIGHT, "Height", "mm"); AddM(ParamRegistry.WALL_LENGTH, "Length", "mm");
-                AddM(ParamRegistry.WALL_THICKNESS, "Thickness", "mm"); AddM(ParamRegistry.ELE_AREA, "Area", "m\u00B2");
-                AddM(ParamRegistry.FIRE_RATING, "Fire Resistance", "min"); AddM(ParamRegistry.STRUCT_TYPE, "Structural", "");
+                AddM(ParamRegistry.WALL_HEIGHT, "standing", "mm high");
+                AddM(ParamRegistry.WALL_LENGTH, "spanning", "mm in length");
+                AddM(ParamRegistry.WALL_THICKNESS, "with a thickness of", "mm");
+                AddM(ParamRegistry.ELE_AREA, "covering an area of", "m\u00B2");
+                AddM(ParamRegistry.FIRE_RATING, "achieving", "minutes of fire resistance");
+                AddM(ParamRegistry.STRUCT_TYPE, "classified structurally as", "");
             }
             else if (categoryName == "Doors")
             {
-                AddM(ParamRegistry.DOOR_WIDTH, "Width", "mm"); AddM(ParamRegistry.DOOR_HEIGHT, "Height", "mm");
-                AddM(ParamRegistry.FIRE_RATING, "Fire Resistance", "min");
+                AddM(ParamRegistry.DOOR_WIDTH, "measuring", "mm wide");
+                AddM(ParamRegistry.DOOR_HEIGHT, "by", "mm high");
+                AddM(ParamRegistry.FIRE_RATING, "with", "minutes of fire resistance");
             }
             else if (categoryName == "Windows")
             {
-                AddM(ParamRegistry.WINDOW_WIDTH, "Width", "mm"); AddM(ParamRegistry.WINDOW_HEIGHT, "Height", "mm");
-                AddM(ParamRegistry.WINDOW_SILL, "Sill Height", "mm");
+                AddM(ParamRegistry.WINDOW_WIDTH, "measuring", "mm wide");
+                AddM(ParamRegistry.WINDOW_HEIGHT, "by", "mm high");
+                AddM(ParamRegistry.WINDOW_SILL, "set at a sill height of", "mm");
             }
             else if (categoryName == "Floors")
             {
-                AddM(ParamRegistry.FLR_THICKNESS, "Thickness", "mm"); AddM(ParamRegistry.ELE_AREA, "Area", "m\u00B2");
-                AddM(ParamRegistry.STRUCT_TYPE, "Structural", ""); AddM(ParamRegistry.FIRE_RATING, "Fire Resistance", "min");
+                AddM(ParamRegistry.FLR_THICKNESS, "with a build-up of", "mm thick");
+                AddM(ParamRegistry.ELE_AREA, "covering an area of", "m\u00B2");
+                AddM(ParamRegistry.STRUCT_TYPE, "classified structurally as", "");
+                AddM(ParamRegistry.FIRE_RATING, "achieving", "minutes of fire resistance");
             }
             else if (categoryName == "Ceilings")
             {
-                AddM(ParamRegistry.CEILING_HEIGHT, "Height", "mm"); AddM(ParamRegistry.ELE_AREA, "Area", "m\u00B2");
+                AddM(ParamRegistry.CEILING_HEIGHT, "suspended at", "mm above floor level");
+                AddM(ParamRegistry.ELE_AREA, "covering an area of", "m\u00B2");
             }
             else if (categoryName == "Roofs")
             {
-                AddM(ParamRegistry.ROOF_SLOPE, "Slope", "\u00B0"); AddM(ParamRegistry.ELE_AREA, "Area", "m\u00B2");
+                AddM(ParamRegistry.ROOF_SLOPE, "pitched at", "degrees");
+                AddM(ParamRegistry.ELE_AREA, "covering an area of", "m\u00B2");
             }
             else if (categoryName == "Stairs")
             {
-                AddM(ParamRegistry.STAIR_TREAD, "Tread", "mm"); AddM(ParamRegistry.STAIR_RISE, "Riser", "mm");
-                AddM(ParamRegistry.STAIR_WIDTH, "Width", "mm");
+                AddM(ParamRegistry.STAIR_TREAD, "with treads", "mm deep");
+                AddM(ParamRegistry.STAIR_RISE, "risers of", "mm");
+                AddM(ParamRegistry.STAIR_WIDTH, "and a clear width of", "mm");
             }
             else if (categoryName == "Ramps")
             {
-                AddM(ParamRegistry.RAMP_SLOPE, "Slope", "%"); AddM(ParamRegistry.RAMP_WIDTH, "Width", "mm");
+                AddM(ParamRegistry.RAMP_SLOPE, "inclined at", "%");
+                AddM(ParamRegistry.RAMP_WIDTH, "with a clear width of", "mm");
             }
             return sb.ToString();
         }
@@ -3322,45 +3366,45 @@ namespace StingTools.Core
 
             if (disc == "E" || categoryName == "Electrical Equipment" || categoryName == "Electrical Fixtures")
             {
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_POWER), "Power: {0} kW");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_VOLTAGE), "Voltage: {0} V");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_CIRCUIT_NR), "Circuit: {0}");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_NAME), "Panel: {0}");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PHASES), "Phases: {0}");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_FED_FROM), "Fed from: {0}");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_MAIN_BRK), "Main Breaker: {0} A");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_WAYS), "Ways: {0}");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_IP_RATING), "IP Rating: {0}");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_LOAD), "Connected Load: {0} kW");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_POWER), "rated at {0} kW");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_VOLTAGE), "operating at {0} V");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_CIRCUIT_NR), "connected to circuit {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_NAME), "supplied by panel {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PHASES), "configured for {0} phase supply");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_FED_FROM), "fed from {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_MAIN_BRK), "protected by a {0} A main breaker");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_WAYS), "with {0} ways");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_IP_RATING), "sealed to IP {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_LOAD), "carrying a connected load of {0} kW");
             }
             else if (categoryName == "Lighting Fixtures" || categoryName == "Lighting Devices")
             {
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_WATTAGE), "Wattage: {0} W");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_LUMENS), "Luminous Output: {0} lm");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_EFFICACY), "Efficacy: {0} lm/W");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_LAMP_TYPE), "Lamp Type: {0}");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_CIRCUIT_NR), "Circuit: {0}");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_WATTAGE), "consuming {0} W");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_LUMENS), "delivering {0} lm of luminous output");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_EFFICACY), "achieving an efficacy of {0} lm/W");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_LAMP_TYPE), "using a {0} lamp");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_CIRCUIT_NR), "wired to circuit {0}");
             }
             else if (disc == "M" || categoryName == "Mechanical Equipment" || categoryName == "Ducts" ||
                      categoryName == "Air Terminals" || categoryName == "Duct Fittings")
             {
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_AIRFLOW), "Airflow: {0} L/s");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_DUCT_FLOW), "Duct Flow: {0} CFM");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_VELOCITY), "Velocity: {0} m/s");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_PRESSURE), "Pressure Drop: {0} Pa");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_AIRFLOW), "delivering an airflow of {0} L/s");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_DUCT_FLOW), "with a duct flow of {0} CFM");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_VELOCITY), "at a velocity of {0} m/s");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_PRESSURE), "against a pressure drop of {0} Pa");
             }
             else if (disc == "P" || categoryName == "Pipes" || categoryName == "Plumbing Fixtures" ||
                      categoryName == "Pipe Fittings")
             {
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_FLOW), "Pipe Flow: {0} L/s");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_SIZE), "Pipe Size: {0} mm");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_VELOCITY), "Velocity: {0} m/s");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_FLOW_RATE), "Flow Rate: {0} L/s");
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_LENGTH), "Pipe Length: {0} m");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_FLOW), "conveying a flow of {0} L/s");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_SIZE), "through {0} mm diameter pipework");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_VELOCITY), "at a velocity of {0} m/s");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_FLOW_RATE), "with a design flow rate of {0} L/s");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_LENGTH), "running {0} m in length");
             }
             else if (disc == "FP" || categoryName == "Sprinklers" || categoryName == "Fire Alarm Devices")
             {
-                AppendIfNotEmpty(tech, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "Fire Resistance Rating: {0} minutes");
+                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "providing {0} minutes of fire resistance");
             }
 
             return tech.Length > 0 ? tech.ToString() : "";
@@ -3377,59 +3421,73 @@ namespace StingTools.Core
 
             if (categoryName == "Walls")
             {
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_HEIGHT), "Wall Height: {0} mm");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_LENGTH), "Wall Length: {0} mm");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_THICKNESS), "Wall Thickness: {0} mm");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "Area: {0} m²");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "Fire Resistance: {0} min");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STRUCT_TYPE), "Structural Type: {0}");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_HEIGHT), "standing {0} mm high");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_LENGTH), "spanning {0} mm in length");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_THICKNESS), "with a thickness of {0} mm");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "covering an area of {0} m\u00B2");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "achieving {0} minutes of fire resistance");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.STRUCT_TYPE), "classified structurally as {0}");
             }
             else if (categoryName == "Doors")
             {
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.DOOR_WIDTH), "Door Width: {0} mm");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.DOOR_HEIGHT), "Door Height: {0} mm");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "Fire Resistance: {0} min");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.DOOR_WIDTH), "measuring {0} mm wide");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.DOOR_HEIGHT), "by {0} mm high");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "with {0} minutes of fire resistance");
             }
             else if (categoryName == "Windows")
             {
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_WIDTH), "Window Width: {0} mm");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_HEIGHT), "Window Height: {0} mm");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_SILL), "Sill Height: {0} mm");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_WIDTH), "measuring {0} mm wide");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_HEIGHT), "by {0} mm high");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_SILL), "set at a sill height of {0} mm");
             }
             else if (categoryName == "Floors")
             {
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.FLR_THICKNESS), "Floor Thickness: {0} mm");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "Area: {0} m²");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STRUCT_TYPE), "Structural Type: {0}");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "Fire Resistance: {0} min");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.FLR_THICKNESS), "with a build-up of {0} mm thick");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "covering an area of {0} m\u00B2");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.STRUCT_TYPE), "classified structurally as {0}");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "achieving {0} minutes of fire resistance");
             }
             else if (categoryName == "Ceilings")
             {
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.CEILING_HEIGHT), "Ceiling Height: {0} mm");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "Area: {0} m²");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.CEILING_HEIGHT), "suspended at {0} mm above floor level");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "covering an area of {0} m\u00B2");
             }
             else if (categoryName == "Roofs")
             {
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ROOF_SLOPE), "Roof Slope: {0}°");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "Area: {0} m²");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.ROOF_SLOPE), "pitched at {0} degrees");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "covering an area of {0} m\u00B2");
             }
             else if (categoryName == "Stairs")
             {
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_TREAD), "Tread Depth: {0} mm");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_RISE), "Riser Height: {0} mm");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_WIDTH), "Stair Width: {0} mm");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_TREAD), "with treads {0} mm deep");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_RISE), "risers of {0} mm");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_WIDTH), "and a clear width of {0} mm");
             }
             else if (categoryName == "Ramps")
             {
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.RAMP_SLOPE), "Ramp Slope: {0}%");
-                AppendIfNotEmpty(dim, ParameterHelpers.GetString(el, ParamRegistry.RAMP_WIDTH), "Ramp Width: {0} mm");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.RAMP_SLOPE), "inclined at {0}%");
+                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.RAMP_WIDTH), "with a clear width of {0} mm");
             }
 
             return dim.Length > 0 ? dim.ToString() : "";
         }
 
-        /// <summary>Append a formatted value to a StringBuilder if the value is not empty.</summary>
+        /// <summary>Append a formatted value to a StringBuilder if the value is not empty (legacy comma separator).</summary>
         private static void AppendIfNotEmpty(System.Text.StringBuilder sb, string value, string format)
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                if (sb.Length > 0) sb.Append(", ");
+                sb.Append(string.Format(format, value));
+            }
+        }
+
+        /// <summary>
+        /// Append a natural-language phrase to a StringBuilder using contextual conjunctions.
+        /// Uses "and" before the last item when building up a list, otherwise uses commas
+        /// to create prose-like flow: "rated at 22 kW, operating at 480 V and connected to circuit 3".
+        /// </summary>
+        private static void AppendNatural(System.Text.StringBuilder sb, string value, string format)
         {
             if (!string.IsNullOrEmpty(value))
             {

@@ -434,6 +434,7 @@ namespace StingTools.UI
                     case "CloneTemplate": RunCommand<Temp.CloneTemplateCommand>(app); break;
                     case "BatchVGReset": RunCommand<Temp.BatchVGResetCommand>(app); break;
                     case "BatchAddFamilyParams": RunCommand<Temp.BatchAddFamilyParamsCommand>(app); break;
+                    case "FamilyParamProcessor": RunCommand<Temp.FamilyParameterProcessorCommand>(app); break;
                     case "CreateTemplateSchedules": RunCommand<Temp.CreateTemplateSchedulesCommand>(app); break;
 
                     // ── Styles ──

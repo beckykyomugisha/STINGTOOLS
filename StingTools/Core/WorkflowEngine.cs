@@ -418,6 +418,7 @@ namespace StingTools.Core
                 case "DynamicBindings": return new Temp.DynamicBindingsCommand();
                 case "BOQExport": return new Temp.BOQExportCommand();
                 case "BatchFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
+                case "FamilyParamProcessor": return new Temp.FamilyParameterProcessorCommand();
 
                 // Legends
                 case "AutoCreateLegends": return new Tags.AutoCreateLegendsCommand();

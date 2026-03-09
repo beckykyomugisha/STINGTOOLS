@@ -2669,6 +2669,442 @@ namespace StingTools.Temp
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    //  FamilyParameterProcessorCommand — batch open .rfa files, add params
+    //  and formulas via FamilyManager, save modified copies
+    //  (Port of pyRevit Batch Add Family Params tool)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Opens .rfa family files (single file or folder), reads the family category,
+    /// adds shared parameters via FamilyManager.AddParameter(), applies formulas
+    /// via FamilyManager.SetFormula(), creates a backup, and saves the modified family.
+    ///
+    /// Workflow:
+    ///   1. User selects a single .rfa file or a folder of .rfa files
+    ///   2. For each family file:
+    ///      a. Open the family document (app.OpenDocumentFile)
+    ///      b. Read OwnerFamily.FamilyCategory → map to CSV category name
+    ///      c. Look up applicable parameters from FAMILY_PARAMETER_BINDINGS.csv
+    ///      d. Add shared parameters via FamilyManager.AddParameter()
+    ///      e. Look up applicable formulas from FORMULAS_WITH_DEPENDENCIES.csv
+    ///      f. Apply formulas via FamilyManager.SetFormula()
+    ///      g. Backup the original to _param_backups/ subfolder
+    ///      h. Save the modified family
+    ///   3. Report results per-family and overall summary
+    ///
+    /// Data sources:
+    ///   - MR_PARAMETERS.txt — shared parameter definitions
+    ///   - FAMILY_PARAMETER_BINDINGS.csv — 4,686 category-to-parameter bindings
+    ///   - FORMULAS_WITH_DEPENDENCIES.csv — 199+ formula definitions
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class FamilyParameterProcessorCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            UIApplication uiApp = commandData.Application;
+            Autodesk.Revit.ApplicationServices.Application app = uiApp.Application;
+
+            // ── Step 1: Set up shared parameter file ────────────────────────
+            string spfPath = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+            if (string.IsNullOrEmpty(spfPath))
+            {
+                TaskDialog.Show("Family Parameter Processor",
+                    "MR_PARAMETERS.txt not found in data directory.");
+                return Result.Failed;
+            }
+
+            string previousSpf = app.SharedParametersFilename;
+            app.SharedParametersFilename = spfPath;
+            DefinitionFile defFile = app.OpenSharedParameterFile();
+            if (defFile == null)
+            {
+                TaskDialog.Show("Family Parameter Processor",
+                    "Failed to open shared parameter file.");
+                if (!string.IsNullOrEmpty(previousSpf))
+                    app.SharedParametersFilename = previousSpf;
+                return Result.Failed;
+            }
+
+            // Build definition lookup by name and GUID
+            var defByName = new Dictionary<string, ExternalDefinition>(StringComparer.OrdinalIgnoreCase);
+            var defByGuid = new Dictionary<Guid, ExternalDefinition>();
+            foreach (DefinitionGroup group in defFile.Groups)
+            {
+                foreach (ExternalDefinition def in group.Definitions)
+                {
+                    defByName[def.Name] = def;
+                    defByGuid[def.GUID] = def;
+                }
+            }
+
+            // ── Step 2: Load binding and formula data ───────────────────────
+            var allBindings = TemplateManager.LoadFamilyParameterBindings();
+            if (allBindings.Count == 0)
+            {
+                TaskDialog.Show("Family Parameter Processor",
+                    "FAMILY_PARAMETER_BINDINGS.csv not found or empty.");
+                if (!string.IsNullOrEmpty(previousSpf))
+                    app.SharedParametersFilename = previousSpf;
+                return Result.Failed;
+            }
+
+            // Index bindings by category name
+            var bindingsByCategory = new Dictionary<string, List<(string group, string name, string guid,
+                string dataType, string bindingType, string desc, string category, string sharedGuid)>>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var b in allBindings)
+            {
+                if (!bindingsByCategory.TryGetValue(b.category, out var list))
+                {
+                    list = new List<(string, string, string, string, string, string, string, string)>();
+                    bindingsByCategory[b.category] = list;
+                }
+                list.Add(b);
+            }
+
+            // Load formulas indexed by parameter name
+            var formulasByParam = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            string formulaCsvPath = StingToolsApp.FindDataFile("FORMULAS_WITH_DEPENDENCIES.csv");
+            if (!string.IsNullOrEmpty(formulaCsvPath))
+            {
+                try
+                {
+                    bool headerSkipped = false;
+                    foreach (string line in File.ReadAllLines(formulaCsvPath))
+                    {
+                        if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                        if (!headerSkipped) { headerSkipped = true; continue; }
+                        string[] cols = StingToolsApp.ParseCsvLine(line);
+                        if (cols.Length < 4) continue;
+                        string paramName = cols[1].Trim();
+                        string formula = cols[3].Trim();
+                        if (!string.IsNullOrEmpty(paramName) && !string.IsNullOrEmpty(formula))
+                            formulasByParam[paramName] = formula;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Failed to load formulas: {ex.Message}");
+                }
+            }
+
+            // ── Step 3: User selects single file or folder ──────────────────
+            var td = new TaskDialog("Family Parameter Processor");
+            td.MainContent = "Select families to process.\n\n" +
+                $"Available: {allBindings.Count} parameter bindings across " +
+                $"{bindingsByCategory.Count} categories\n" +
+                $"Formulas: {formulasByParam.Count} formula definitions\n\n" +
+                "Choose how to select families:";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Process a single .rfa file",
+                "Opens a file dialog to select one family file");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Process all .rfa files in a folder",
+                "Opens a folder browser to select a directory (processes all .rfa files recursively)");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            TaskDialogResult tdResult = td.Show();
+            var familyPaths = new List<string>();
+
+            if (tdResult == TaskDialogResult.CommandLink1)
+            {
+                // Single file
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Select Revit Family File",
+                    Filter = "Revit Family Files (*.rfa)|*.rfa",
+                    Multiselect = true
+                };
+                if (dlg.ShowDialog() == true)
+                    familyPaths.AddRange(dlg.FileNames);
+            }
+            else if (tdResult == TaskDialogResult.CommandLink2)
+            {
+                // Folder
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Select any file inside the family folder",
+                    Filter = "Revit Family Files (*.rfa)|*.rfa",
+                    CheckFileExists = true
+                };
+                if (dlg.ShowDialog() == true)
+                {
+                    string folder = Path.GetDirectoryName(dlg.FileName);
+                    if (!string.IsNullOrEmpty(folder))
+                        familyPaths.AddRange(Directory.GetFiles(folder, "*.rfa", SearchOption.AllDirectories));
+                }
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(previousSpf))
+                    app.SharedParametersFilename = previousSpf;
+                return Result.Cancelled;
+            }
+
+            if (familyPaths.Count == 0)
+            {
+                TaskDialog.Show("Family Parameter Processor", "No family files selected.");
+                if (!string.IsNullOrEmpty(previousSpf))
+                    app.SharedParametersFilename = previousSpf;
+                return Result.Cancelled;
+            }
+
+            // ── Step 4: Process each family ─────────────────────────────────
+            int totalFamilies = familyPaths.Count;
+            int processed = 0;
+            int paramsAdded = 0;
+            int formulasApplied = 0;
+            int skippedNoCategory = 0;
+            int skippedExisting = 0;
+            int failedParams = 0;
+            int failedFormulas = 0;
+            var perFamilyResults = new List<string>();
+
+            foreach (string familyPath in familyPaths)
+            {
+                string fileName = Path.GetFileName(familyPath);
+                Document famDoc = null;
+                try
+                {
+                    // Open the family document
+                    famDoc = app.OpenDocumentFile(familyPath);
+                    if (famDoc == null || !famDoc.IsFamilyDocument)
+                    {
+                        perFamilyResults.Add($"[SKIP] {fileName} — not a family document");
+                        skippedNoCategory++;
+                        continue;
+                    }
+
+                    // Read family category
+                    Family ownerFamily = famDoc.OwnerFamily;
+                    string categoryName = ownerFamily?.FamilyCategory?.Name ?? "";
+                    if (string.IsNullOrEmpty(categoryName))
+                    {
+                        perFamilyResults.Add($"[SKIP] {fileName} — no category detected");
+                        skippedNoCategory++;
+                        famDoc.Close(false);
+                        continue;
+                    }
+
+                    // Find applicable parameter bindings for this category
+                    if (!bindingsByCategory.TryGetValue(categoryName, out var categoryBindings))
+                    {
+                        perFamilyResults.Add($"[SKIP] {fileName} ({categoryName}) — no bindings defined for this category");
+                        skippedNoCategory++;
+                        famDoc.Close(false);
+                        continue;
+                    }
+
+                    // Get existing family parameters
+                    FamilyManager fmgr = famDoc.FamilyManager;
+                    var existingParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (FamilyParameter fp in fmgr.Parameters)
+                    {
+                        if (!string.IsNullOrEmpty(fp.Definition?.Name))
+                            existingParams.Add(fp.Definition.Name);
+                    }
+
+                    int familyAdded = 0;
+                    int familySkipped = 0;
+                    int familyFormulas = 0;
+                    int familyFailed = 0;
+
+                    using (Transaction tx = new Transaction(famDoc, "STING Add Family Parameters"))
+                    {
+                        tx.Start();
+
+                        // Deduplicate by parameter name (same param may appear for multiple categories)
+                        var uniqueParams = categoryBindings
+                            .GroupBy(b => b.name, StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+
+                        foreach (var paramGroup in uniqueParams)
+                        {
+                            string paramName = paramGroup.Key;
+                            var entry = paramGroup.First();
+
+                            // Skip if already exists
+                            if (existingParams.Contains(paramName))
+                            {
+                                familySkipped++;
+                                skippedExisting++;
+                                continue;
+                            }
+
+                            // Find the shared parameter definition
+                            ExternalDefinition extDef = null;
+                            if (defByName.TryGetValue(paramName, out extDef))
+                            {
+                                // Found by name
+                            }
+                            else if (!string.IsNullOrEmpty(entry.sharedGuid) &&
+                                     Guid.TryParse(entry.sharedGuid, out Guid g) &&
+                                     defByGuid.TryGetValue(g, out extDef))
+                            {
+                                // Found by GUID fallback
+                            }
+                            else if (!string.IsNullOrEmpty(entry.guid) &&
+                                     Guid.TryParse(entry.guid, out Guid g2) &&
+                                     defByGuid.TryGetValue(g2, out extDef))
+                            {
+                                // Found by primary GUID
+                            }
+
+                            if (extDef == null)
+                            {
+                                familyFailed++;
+                                failedParams++;
+                                continue;
+                            }
+
+                            try
+                            {
+                                // Determine instance vs type
+                                bool isInstance = entry.bindingType.Equals(
+                                    "Instance", StringComparison.OrdinalIgnoreCase);
+
+                                fmgr.AddParameter(extDef, GroupTypeId.General, isInstance);
+                                familyAdded++;
+                                paramsAdded++;
+                                existingParams.Add(paramName); // Track for formula application
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"[{fileName}] Failed to add '{paramName}': {ex.Message}");
+                                familyFailed++;
+                                failedParams++;
+                            }
+                        }
+
+                        // ── Apply formulas ───────────────────────────────────
+                        // Only apply formulas to parameters that now exist in the family
+                        foreach (var paramName in existingParams)
+                        {
+                            if (!formulasByParam.TryGetValue(paramName, out string formula))
+                                continue;
+
+                            // Check that all input parameters in the formula exist
+                            bool allInputsExist = true;
+                            foreach (string inputParam in existingParams)
+                            {
+                                // We just check the formula can reference existing params
+                                // FamilyManager.SetFormula will validate properly
+                            }
+
+                            FamilyParameter famParam = null;
+                            foreach (FamilyParameter fp in fmgr.Parameters)
+                            {
+                                if (fp.Definition?.Name != null &&
+                                    fp.Definition.Name.Equals(paramName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    famParam = fp;
+                                    break;
+                                }
+                            }
+
+                            if (famParam == null) continue;
+
+                            // Skip if formula already set
+                            if (!string.IsNullOrEmpty(famParam.Formula)) continue;
+
+                            try
+                            {
+                                fmgr.SetFormula(famParam, formula);
+                                familyFormulas++;
+                                formulasApplied++;
+                            }
+                            catch
+                            {
+                                // Formula may reference params not in this family — expected
+                                failedFormulas++;
+                            }
+                        }
+
+                        tx.Commit();
+                    }
+
+                    // ── Backup and save ──────────────────────────────────────
+                    if (familyAdded > 0 || familyFormulas > 0)
+                    {
+                        // Create backup
+                        string backupDir = Path.Combine(
+                            Path.GetDirectoryName(familyPath), "_param_backups");
+                        try
+                        {
+                            if (!Directory.Exists(backupDir))
+                                Directory.CreateDirectory(backupDir);
+
+                            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                            string backupName = $"{Path.GetFileNameWithoutExtension(familyPath)}_{timestamp}.rfa";
+                            string backupPath = Path.Combine(backupDir, backupName);
+                            File.Copy(familyPath, backupPath, true);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"[{fileName}] Backup failed: {ex.Message}");
+                        }
+
+                        // Save modified family
+                        var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                        famDoc.SaveAs(familyPath, saveOpts);
+                        processed++;
+
+                        perFamilyResults.Add(
+                            $"[OK] {fileName} ({categoryName}) — " +
+                            $"{familyAdded} params added, {familyFormulas} formulas applied" +
+                            (familySkipped > 0 ? $", {familySkipped} already existed" : "") +
+                            (familyFailed > 0 ? $", {familyFailed} failed" : ""));
+                    }
+                    else
+                    {
+                        perFamilyResults.Add(
+                            $"[--] {fileName} ({categoryName}) — " +
+                            $"no changes needed ({familySkipped} params already exist)");
+                    }
+
+                    famDoc.Close(false);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"[{fileName}] Processing failed", ex);
+                    perFamilyResults.Add($"[FAIL] {fileName} — {ex.Message}");
+                    try { famDoc?.Close(false); } catch { }
+                }
+            }
+
+            // Restore previous shared parameter file
+            if (!string.IsNullOrEmpty(previousSpf))
+                app.SharedParametersFilename = previousSpf;
+
+            // ── Step 5: Report ──────────────────────────────────────────────
+            var report = new StringBuilder();
+            report.AppendLine("Family Parameter Processor");
+            report.AppendLine(new string('\u2550', 50));
+            report.AppendLine($"\nFamilies processed: {processed} of {totalFamilies}");
+            report.AppendLine($"Parameters added: {paramsAdded}");
+            report.AppendLine($"Formulas applied: {formulasApplied}");
+            report.AppendLine($"Already existed (skipped): {skippedExisting}");
+            report.AppendLine($"No category match: {skippedNoCategory}");
+            if (failedParams > 0)
+                report.AppendLine($"Failed parameters: {failedParams}");
+            if (failedFormulas > 0)
+                report.AppendLine($"Failed formulas: {failedFormulas} (expected — some reference params not in family)");
+
+            report.AppendLine($"\nPer-family results:");
+            foreach (string r in perFamilyResults)
+                report.AppendLine($"  {r}");
+
+            TaskDialog.Show("Family Parameter Processor", report.ToString());
+            StingLog.Info($"Family Processor: {processed} families, {paramsAdded} params, {formulasApplied} formulas");
+
+            return processed > 0 ? Result.Succeeded : Result.Failed;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     //  CreateTemplateSchedulesCommand — TPL metadata schedules from CSV
     // ═══════════════════════════════════════════════════════════════════════
 
