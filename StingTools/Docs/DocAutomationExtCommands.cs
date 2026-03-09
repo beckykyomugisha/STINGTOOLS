@@ -2736,9 +2736,9 @@ namespace StingTools.Docs
                 //  Compliant with: BS 1192-4:2014 / BS EN ISO 19650-4:2022
                 //  Column order per COBie V2.4 / COBie V3 specification
                 // ══════════════════════════════════════════════════════════════════
+                int cobieComponentCount = 0;
                 using (var wb = new XLWorkbook())
                 {
-                    int cobieComponentCount = 0;
 
                     // ── 1. INSTRUCTION worksheet ────────────────────────────────
                     var wsInst = wb.AddWorksheet("Instruction");
