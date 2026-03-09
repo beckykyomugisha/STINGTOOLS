@@ -22,10 +22,11 @@ This guide covers the end-to-end process for building STING tag families that di
 12. [Viewing and Exporting Label Specifications](#12-viewing-and-exporting-label-specifications)
 13. [Paragraph Container Parameters (39 Category-Specific)](#13-paragraph-container-parameters-39-category-specific)
 14. [Visual Tagging Integration (Smart Tag Placement)](#14-visual-tagging-integration-smart-tag-placement)
-15. [Category Reference Table](#15-category-reference-table)
-16. [Parameter Reference](#16-parameter-reference)
-17. [Troubleshooting](#17-troubleshooting)
-18. [File Reference](#18-file-reference)
+15. [Tag Legend Generation](#15-tag-legend-generation)
+16. [Category Reference Table](#16-category-reference-table)
+17. [Parameter Reference](#17-parameter-reference)
+18. [Troubleshooting](#18-troubleshooting)
+19. [File Reference](#19-file-reference)
 
 ---
 
@@ -768,6 +769,31 @@ The following categories have full tier specs in `category_labels`:
 
 Categories **without** label specs in JSON (4): Furniture Systems, Telephone Devices, Parking, Site — these still get tag families but use a default label layout (ASS_TAG_1_TXT + ASS_DESCRIPTION_TXT only).
 
+### TAG7 Heading Style Definition
+
+The `tag7_heading_style` section at the bottom of `LABEL_DEFINITIONS.json` controls how the short tag heading (ASS_TAG_2_TXT) is formatted in tier 2 and tier 3:
+
+```json
+"tag7_heading_style": {
+  "tier_2_heading": {
+    "param": "ASS_TAG_2_TXT",
+    "bold": false, "italic": false, "underline": true,
+    "note": "Underlined in State 2 (Technical) — functional emphasis without visual dominance"
+  },
+  "tier_3_heading": {
+    "param": "ASS_TAG_2_TXT",
+    "bold": true, "italic": false, "underline": true,
+    "note": "Bold + Underlined in State 3 (Full Specification) — primary heading treatment"
+  },
+  "batch_control": {
+    "command": "SetTag7HeadingStyleCommand",
+    "applies_to": "ASS_TAG_2_TXT label row in all STING tag families"
+  }
+}
+```
+
+This is applied in the Family Editor when configuring labels: the ASS_TAG_2_TXT row in Tier 2 should be set to **Underline**, and in Tier 3 to **Bold + Underline**. The **`TAG7 Heading Style`** button (CREATE tab → ⚙ PARAGRAPH & PRESENTATION) lets you batch-update this across all families.
+
 ---
 
 ## 12. Viewing and Exporting Label Specifications
@@ -966,7 +992,39 @@ Step 12: Copy .rfa → Seeds/     → Save for future zero-config deployments
 
 ---
 
-## 15. Category Reference Table
+## 15. Tag Legend Generation
+
+After tag families are loaded and tags are placed, you can generate **tag legends** — drafting views showing which STING tag families are loaded per category with sample ISO 19650 tag values. These legends can be placed on sheets as reference keys.
+
+### Legend Commands
+
+All buttons are in the **CREATE tab → ⚙ LEGENDS** section:
+
+| Button Name | Tag | What It Does |
+|-------------|-----|--------------|
+| **`Tag Legend`** | CreateTagLegend | Create a drafting view legend showing all loaded STING tag families per category with sample ISO 19650 tags |
+| **`Sheet Tags`** | SheetTagLegend | Create a tag legend for the **active sheet only** — shows only categories present on that sheet, auto-placed |
+| **`Batch Tags`** | BatchTagLegends | Create per-sheet tag legends for **ALL sheets** — each legend shows only its sheet's categories |
+| **`One-Click`** | OneClickLegendPipeline | Full pipeline: create color + tag + segment legends and place on all sheets |
+
+### How Legends Use Tag Families
+
+```
+Loaded STING tag families (from Create Tag Families / Load)
+  └── Legend Builder reads family names per BuiltInCategory
+       └── Creates FilledRegion + TextNote legend entries
+            └── Shows: Category | Tag Family Name | Sample Tag Value
+                └── Placed as a drafting view on designated sheet
+```
+
+Legends are useful for:
+- **Drawing issue sheets** — show which tag coding system is in use per discipline
+- **Client handover** — explain the ISO 19650 tag structure
+- **QA review** — verify all categories have STING tags loaded
+
+---
+
+## 16. Category Reference Table
 
 ### 50 Taggable Categories with Template Mapping
 
@@ -1038,7 +1096,7 @@ If the specific .rft template is not found:
 
 ---
 
-## 16. Parameter Reference
+## 17. Parameter Reference
 
 ### Tag Container Parameters (13 — added to every family)
 
@@ -1096,7 +1154,7 @@ Set via **`Box Color`** button (VIEW tab → TAG STYLE ENGINE → COLOUR BY VARI
 
 ---
 
-## 17. Troubleshooting
+## 18. Troubleshooting
 
 ### "Cannot find Revit annotation tag templates (.rft)"
 
@@ -1160,7 +1218,7 @@ Set via **`Box Color`** button (VIEW tab → TAG STYLE ENGINE → COLOUR BY VARI
 
 ---
 
-## 18. File Reference
+## 19. File Reference
 
 ### Source Files
 
@@ -1174,6 +1232,7 @@ Set via **`Box Color`** button (VIEW tab → TAG STYLE ENGINE → COLOUR BY VARI
 | `Tags/SmartTagPlacementCommand.cs` | 1,995 | 9 visual tag commands (SmartPlace, Arrange, Remove, BatchPlace, Learn, ApplyTemplate, Overlap, TextSize, LineWeight) |
 | `Temp/TemplateManagerCommands.cs` | 3,892 | BatchAddFamilyParamsCommand (line 2452) + FamilyParameterProcessorCommand (line 2702) |
 | `Core/ParamRegistry.cs` | 1,464 | Tag style param names (TagStyleSizes/Styles/Colors), AllTagStyleParams, TagStyleParamName() |
+| `Tags/LegendBuilderCommands.cs` | 7,110 | Tag legend commands (TagLegend, SheetTags, BatchTags, OneClick) + LegendEngine |
 
 ### Data Files
 
