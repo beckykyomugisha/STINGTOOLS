@@ -25,30 +25,156 @@ Every element in a STING-managed Revit project receives an **8-segment asset tag
 
 ---
 
+## CREATE Tab — Panel Layout
+
+The **CREATE** tab is the primary tagging interface. All buttons referenced in this guide are located here unless otherwise stated.
+
+### Header Controls
+
+| Button | What it does |
+|--------|-------------|
+| **Scope: View** | Toggle tagging scope: View → Selection → Project (click to cycle) |
+| **Overwrite: No** | Toggle overwrite mode: No (safe) → Yes (force re-derive all tokens) |
+
+### SETUP Section
+
+| Button | What it does |
+|--------|-------------|
+| **Load Shared Params** | Bind 200+ shared parameters to Revit categories (Step 1) |
+| **Project Config** | View/edit/save `project_config.json` (tag maps, codes, format) |
+| **Tag Config** | Display current tag lookup tables (DISC, SYS, PROD, FUNC maps) |
+| **Sync Schema** | Propagate PARAMETER_REGISTRY.json changes to project bindings |
+| **Audit Schema** | Verify parameter bindings match registry definitions |
+| **Add Remap** | Add a field deprecation remap (old param name → new param name) |
+| **Create Tag Families** | Generate Revit tag families (.rfa) for all 50 tagged categories |
+| **Configure Labels** | Set which parameters appear in tag family labels |
+| **Load** | Load tag families into the current project |
+| **Audit** | Audit tag family configuration against current parameter schema |
+
+### POPULATE TOKENS Section
+
+| Button | What it does |
+|--------|-------------|
+| **Auto Populate** | One-click full automation: tokens + dimensions + MEP + formulas + tags + combine |
+| **Assign Numbers** | Sequential SEQ numbering within DISC/SYS/LVL groups |
+| **[Brain] Smart Tokens** | Pre-populate all 7 derivable tokens using spatial + family intelligence (Step 2) |
+| **Build Tags** | Rebuild TAG1 from current token values on selected/view/project elements |
+| **T3 Tags** | Build TAG3 (location subset: LOC-ZONE-LVL) |
+| **Mat Tags** | Build material tag containers (MAT_TAG_1 through MAT_TAG_6) |
+| **Build ALL** | Build all tag containers (TAG1-TAG6 + discipline-specific + material) |
+
+**Manual token buttons** (13 individual tokens — click to set on selected elements):
+
+| PROJ | ORIG | VOL | LVL | DISC | LOC | ZONE | SYS | FUNC | PROD | SEQ | STATUS | REV |
+
+### QUALITY ASSURANCE Section
+
+| Button | What it does |
+|--------|-------------|
+| **Validate** | ISO 19650 compliance check on all tokens and tag format (Step 5) |
+| **Highlight** | Colour-code elements: red = missing tag, orange = incomplete tag |
+| **Clear Art** | Reset graphic overrides in active view (remove highlight colours) |
+| **Pre-Flight** | Dry-run combine: check what containers would be written without writing |
+| **Completeness %** | Per-discipline compliance dashboard with RAG percentage |
+| **Find Duplicates** | Locate elements sharing the same tag value |
+
+### PARAGRAPH & PRESENTATION Section
+
+| Button | What it does |
+|--------|-------------|
+| **Presentation Mode** | Switch all types between Compact/Technical/Full/Presentation/BOQ modes |
+| **Paragraph Depth** | Set TAG7 paragraph depth: State 1 (compact) / 2 (standard) / 3 (comprehensive) |
+| **Toggle Warnings** | Show/hide threshold warning text in tags (e.g., `[!U > 0.70]`) |
+| **View Label Spec** | Display current label specification for tag families |
+| **Export Label Guide** | Export label configuration as reference document |
+| **TAG7 Heading Style** | Configure TAG7 section heading appearance |
+
+### ISO COMPLETENESS DASHBOARD
+
+| Button | What it does |
+|--------|-------------|
+| **Load** | Scan project and populate the dashboard grid (Id, Cat, %, RAG, Missing) |
+| **Export** | Export dashboard data as CSV audit file |
+
+Filter controls: **Min %** slider (filter by minimum completeness) and **All** dropdown (filter by discipline).
+
+### EXPORT Section
+
+| Button | What it does |
+|--------|-------------|
+| **Export Tag Register** | Export comprehensive 40+ column asset register CSV |
+| **Combine Parameters** | Write assembled tag to all 36 discipline-specific containers (Step 6) |
+
+### TOKEN INSPECTOR Section
+
+| Button | What it does |
+|--------|-------------|
+| **[Find] Inspect Selection** | Dry-run audit: predict tags, collisions, ISO violations for selected elements (Step 3) |
+| **Resolve All Issues** | One-click ISO 19650 compliance resolution: fix missing tokens, duplicates, invalid codes |
+
+---
+
+## ORGANISE Tab — Tagging Buttons
+
+The ORGANISE tab contains additional tagging commands for tag operations and annotation placement:
+
+| Button | What it does |
+|--------|-------------|
+| **Auto Tag** | Tag elements in active view with collision mode selection (Step 4) |
+| **Batch Tag** | Tag ALL elements in entire project with progress dialog |
+| **Tag+Combine** | One-click: populate tokens + tag + combine all 36 containers |
+| **Tag New** | Tag only new/untagged elements (incremental — skips already-tagged) |
+| **Pre-Audit** | Dry-run: predict tags, collisions, ISO violations before committing |
+| **Re-Tag** | Force re-derive and overwrite tags on selected elements |
+| **Copy Tags** | Copy tag values from first selected element to all others |
+| **Swap Tags** | Swap all tag values between exactly 2 selected elements |
+| **Tag Sel** | Tag selected elements only |
+| **Del Tags** | Clear all 15 tag parameters from selection (with confirmation) |
+| **Renumb** | Re-sequence tags within DISC/SYS/LVL groups |
+| **Fix Dups** | Auto-resolve duplicate tags by incrementing SEQ numbers |
+
+---
+
+## VIEW Tab — Auto-Tagger
+
+| Button | What it does |
+|--------|-------------|
+| **Auto-Tagger** | Toggle real-time auto-tagging on/off (tags elements as they are placed) |
+
+---
+
+## TEMP Tab — Full Automation
+
+| Button | What it does |
+|--------|-------------|
+| **Full AutoPop** | Same as CREATE > **Auto Populate** — full automation pipeline |
+
+---
+
 ## Tag Creation Pipeline — Step by Step
 
-The tagging process follows a 6-step pipeline. Each step can be run individually or combined via one-click automation commands.
+The tagging process follows a 6-step pipeline. Each step maps to specific buttons on the CREATE tab.
 
 ### Overview
 
 ```
-Step 1: Load Parameters    ─── Bind 200+ shared parameters to Revit categories
-Step 2: Populate Tokens    ─── Auto-derive DISC/LOC/ZONE/LVL/SYS/FUNC/PROD
-Step 3: Pre-Tag Audit      ─── Dry-run: predict tags, find issues before committing
-Step 4: Tag                ─── Assign SEQ numbers, assemble 8-segment tags
-Step 5: Validate           ─── ISO 19650 compliance check
-Step 6: Combine            ─── Write tag to all 36 discipline-specific containers
+Step 1: Load Shared Params     ─── Bind 200+ shared parameters to Revit categories
+Step 2: [Brain] Smart Tokens   ─── Auto-derive DISC/LOC/ZONE/LVL/SYS/FUNC/PROD
+Step 3: [Find] Inspect Selection ─ Dry-run: predict tags, find issues before committing
+Step 4: Auto Tag / Batch Tag   ─── Assign SEQ numbers, assemble 8-segment tags
+Step 5: Validate               ─── ISO 19650 compliance check
+Step 6: Combine Parameters     ─── Write tag to all 36 discipline-specific containers
 ```
 
-Steps 2-6 are automatically combined by **Tag & Combine** or **Full Auto-Populate** for one-click operation.
+Steps 2-6 are automatically combined by ORGANISE > **Tag+Combine** or CREATE > **Auto Populate** for one-click operation.
 
 ---
 
-### Step 1: Load Shared Parameters
+### Step 1: Load Shared Params
 
-**Command**: Load Params (CREATE tab > Setup section)
-**Class**: `Tags.LoadSharedParamsCommand`
-**What it does**: Binds all STING shared parameters to Revit categories so they can hold tag data.
+**Button**: CREATE > SETUP > **Load Shared Params**
+
+Binds all STING shared parameters to Revit categories so they can hold tag data.
 
 **Two-pass binding**:
 
@@ -67,13 +193,11 @@ Steps 2-6 are automatically combined by **Tag & Combine** or **Full Auto-Populat
 
 ---
 
-### Step 2: Populate Tokens
+### Step 2: [Brain] Smart Tokens
 
-**Command**: Family-Stage Populate (CREATE tab > More section)
-**Class**: `Tags.FamilyStagePopulateCommand`
-**What it does**: Pre-populates all 7 derivable tokens on every element before tagging.
+**Button**: CREATE > POPULATE TOKENS > **[Brain] Smart Tokens**
 
-Each token is derived automatically from element context:
+Pre-populates all 7 derivable tokens on every element before tagging. Each token is derived automatically from element context.
 
 #### DISC — Discipline Code
 
@@ -95,6 +219,8 @@ Derived from the element's **Revit category** using the Discipline Map (41 mappi
 - Connected to FP system → **FP** (Fire Protection)
 - Connected to HVAC system → stays **M** (Mechanical)
 
+Or set manually: CREATE > POPULATE TOKENS > **DISC** button.
+
 #### LOC — Location Code
 
 Derived by `SpatialAutoDetect` using 3 sources (in priority order):
@@ -111,6 +237,8 @@ Derived by `SpatialAutoDetect` using 3 sources (in priority order):
 | EXT  | External / site |
 | XX   | Unknown (placeholder — triggers validation warning) |
 
+Or set manually: CREATE > POPULATE TOKENS > **LOC** button.
+
 #### ZONE — Zone Code
 
 Derived by `SpatialAutoDetect` from the **Room Department** field or room name patterns:
@@ -124,9 +252,11 @@ Derived by `SpatialAutoDetect` from the **Room Department** field or room name p
 | ZZ   | Unzoned area |
 | XX   | Unknown |
 
+Or set manually: CREATE > POPULATE TOKENS > **ZONE** button.
+
 #### LVL — Level Code
 
-Derived by `ParameterHelpers.GetLevelCode()` from the element's **Revit Level** name:
+Derived from the element's **Revit Level** name:
 
 | Pattern in Level Name | LVL Code | Example |
 |-----------------------|----------|---------|
@@ -139,14 +269,16 @@ Derived by `ParameterHelpers.GetLevelCode()` from the element's **Revit Level** 
 | Penthouse | PH | Penthouse → PH |
 | (no level / unresolved) | L00 | Guaranteed default |
 
+Or set manually: CREATE > POPULATE TOKENS > **LVL** button.
+
 #### SYS — System Type Code
 
-Derived by `TagConfig.GetMepSystemAwareSysCode()` using a **6-layer intelligence stack** (first match wins):
+Derived using a **6-layer intelligence stack** (first match wins):
 
 | Layer | Source | What it checks | Example |
 |-------|--------|----------------|---------|
-| 1 | MEP Connector | Connected system name via `FamilyInstance.MEPModel.ConnectorManager` | Pipe connected to "Domestic Cold Water" → DCW |
-| 2 | System Type Param | `RBS_DUCT_SYSTEM_TYPE` / `RBS_PIPING_SYSTEM_TYPE` built-in parameter | Duct with Supply Air system → HVAC |
+| 1 | MEP Connector | Connected system name via connector API | Pipe connected to "Domestic Cold Water" → DCW |
+| 2 | System Type Param | Built-in duct/pipe system type parameter | Duct with Supply Air system → HVAC |
 | 3 | Electrical Circuit | Panel name analysis from circuit | Circuit on "DB-LTG-L01" → LV |
 | 4 | Family Name | Pattern matching on family name | "Exhaust Fan" → HVAC |
 | 5 | Room Type | Room name inference | Element in "Server Room" → ICT |
@@ -177,9 +309,11 @@ Derived by `TagConfig.GetMepSystemAwareSysCode()` using a **6-layer intelligence
 **Discipline-based defaults** (when all 6 layers fail):
 M→HVAC, E→LV, P→DCW, A→ARC, S→STR, FP→FP, LV→LV, G→GEN
 
+Or set manually: CREATE > POPULATE TOKENS > **SYS** button.
+
 #### FUNC — Function Code
 
-Derived by `TagConfig.GetSmartFuncCode()` with sub-system awareness:
+Derived with sub-system awareness:
 
 **HVAC sub-functions** (from duct/pipe system name analysis):
 | Connected System Contains | FUNC |
@@ -197,9 +331,11 @@ Derived by `TagConfig.GetSmartFuncCode()` with sub-system awareness:
 
 **All other systems**: Uses the SYS→FUNC map (see System Codes table above).
 
+Or set manually: CREATE > POPULATE TOKENS > **FUNC** button.
+
 #### PROD — Product Code
 
-Derived by `TagConfig.GetFamilyAwareProdCode()` which inspects the **family name** for 35+ specific product codes before falling back to the category default.
+Inspects the **family name** for 35+ specific product codes before falling back to the category default.
 
 **Family name pattern matching examples**:
 
@@ -240,13 +376,16 @@ Derived by `TagConfig.GetFamilyAwareProdCode()` which inspects the **family name
 | Furniture | FUR |
 | Generic Models | GEN |
 
+Or set manually: CREATE > POPULATE TOKENS > **PROD** button.
+
 ---
 
-### Step 3: Pre-Tag Audit (Optional)
+### Step 3: [Find] Inspect Selection (Optional)
 
-**Command**: Pre-Tag Audit (CREATE tab > More section)
-**Class**: `Tags.PreTagAuditCommand`
-**What it does**: Performs a complete **dry-run** of the tagging process without writing anything. Predicts:
+**Button**: CREATE > TOKEN INSPECTOR > **[Find] Inspect Selection**
+Also available on ORGANISE tab as: **Pre-Audit**
+
+Performs a complete **dry-run** of the tagging process without writing anything. Predicts:
 
 - What tag each element would receive
 - Which elements would collide (duplicate tags)
@@ -256,45 +395,46 @@ Derived by `TagConfig.GetFamilyAwareProdCode()` which inspects the **family name
 
 Outputs a detailed report to TaskDialog and optionally exports to CSV.
 
-**When to use**: Before running Tag on large projects (1000+ elements) to catch issues early.
+**When to use**: Before running tagging on large projects (1000+ elements) to catch issues early.
 
 ---
 
 ### Step 4: Tag
 
-**Commands** (choose one):
+**Buttons** (choose one — all on the ORGANISE tab):
 
-| Command | Scope | Best For |
-|---------|-------|----------|
-| Auto Tag | Active view only | Quick tagging of visible elements |
-| Batch Tag | Entire project | Full project tagging |
-| Tag New Only | Untagged elements only | Adding new elements to tagged project |
-| Tag & Combine | View/selection/project | One-click: populate + tag + combine |
+| Button | Scope | Best For |
+|--------|-------|----------|
+| **Auto Tag** | Active view only | Quick tagging of visible elements |
+| **Batch Tag** | Entire project | Full project tagging |
+| **Tag New** | Untagged elements only | Adding new elements to tagged project |
+| **Tag+Combine** | View/selection/project | One-click: populate + tag + combine |
 
-**What happens during tagging** (inside `TagConfig.BuildAndWriteTag()`):
+The **Scope: View** / **Overwrite: No** toggles on the CREATE tab header control the behaviour of all tagging commands.
+
+**What happens during tagging**:
 
 1. **Check existing tag**: Read ASS_TAG_1 from element
-2. **Collision mode decision**:
-   - **Skip**: Leave already-tagged elements untouched
-   - **Overwrite**: Regenerate all tokens and replace tag
-   - **AutoIncrement**: Skip complete tags by default; increment SEQ on collision
+2. **Collision mode decision** (controlled by **Overwrite** toggle):
+   - **Overwrite: No** + element has tag → Skip (leave untouched)
+   - **Overwrite: Yes** → Regenerate all tokens and replace tag
+   - **AutoIncrement** → If collision found, increment SEQ automatically
 3. **Derive all 8 tokens** using the intelligence layers described in Step 2
 4. **Generate SEQ number**:
    - Group key = `DISC_SYS_LVL` (e.g., `M_HVAC_L02`)
    - Counter increments within each group
    - Starting value = highest existing SEQ in that group + 1
    - Zero-padded to 4 digits (0001, 0002, ...)
-5. **Collision detection**: Check assembled tag against `HashSet<string>` of all existing tags
+5. **Collision detection**: Check assembled tag against all existing tags in project
    - If collision found: increment SEQ and retry (up to 100 attempts)
    - Record collision depth in stats
 6. **Write tokens**: Set all 8 parameter values on the element
-   - Overwrite mode: always writes
-   - Default mode: `SetIfEmpty` — preserves manually-set values
 7. **Assemble TAG1**: Join tokens with separator → `M-BLD1-Z01-L02-HVAC-SUP-AHU-0003`
 8. **Write TAG1**: Set `ASS_TAG_1_TXT` with the full tag
 9. **Auto-populate STATUS**: Derive from Revit phase (NEW/EXISTING/DEMOLISHED/TEMPORARY)
 10. **Auto-populate REV**: Derive from project revision sequence (P01, P02...)
 11. **Write all 36 containers**: Automatically propagate to discipline-specific containers
+12. **Write TAG7**: Generate rich descriptive narrative (see [TAG7 Creation](#tag7--rich-descriptive-narrative-creation))
 
 #### Sequence Numbering Logic
 
@@ -306,17 +446,19 @@ Group: E_LV_L02       → DB: 0001; LUM: 0002, 0003, 0004
 Group: P_DCW_GF       → FIX: 0001, 0002
 ```
 
-Before tagging begins, `GetExistingSequenceCounters()` scans all elements to find the highest SEQ in each group, ensuring new tags continue from where existing numbering left off.
+Before tagging begins, the engine scans all elements to find the highest SEQ in each group, ensuring new tags continue from where existing numbering left off.
+
+The **Assign Numbers** button on the CREATE tab can also be used to renumber SEQ values independently.
 
 ---
 
 ### Step 5: Validate
 
-**Command**: Validate (CREATE tab > QA section)
-**Class**: `Tags.ValidateTagsCommand`
-**What it does**: Checks every tagged element for ISO 19650 compliance.
+**Button**: CREATE > QUALITY ASSURANCE > **Validate**
 
-**Validation checks performed by `ISO19650Validator`**:
+Checks every tagged element for ISO 19650 compliance.
+
+**Validation checks**:
 
 | Check | Rule | Example Failure |
 |-------|------|-----------------|
@@ -334,15 +476,23 @@ Before tagging begins, `GetExistingSequenceCounters()` scans all elements to fin
 
 **Output**: Per-discipline compliance percentage and list of failing elements.
 
+**Related QA buttons**:
+- **Highlight** — visually colour-code elements by tag status (red = missing, orange = incomplete)
+- **Clear Art** — remove highlight colour overrides from the view
+- **Completeness %** — open the compliance dashboard with RAG percentages
+- **Find Duplicates** — locate and select elements with duplicate tag values
+
 ---
 
-### Step 6: Combine to Containers
+### Step 6: Combine Parameters
 
-**Command**: Combine Parameters (CREATE tab > Tokens section)
-**Class**: `Tags.CombineParametersCommand`
-**What it does**: Writes the assembled tag into all 36 discipline-specific container parameters.
+**Button**: CREATE > EXPORT > **Combine Parameters**
 
-> **Note**: As of the current version, Step 4 (Tag) automatically writes containers, so a separate Combine step is only needed if tokens were manually edited after tagging.
+Writes the assembled tag into all 36 discipline-specific container parameters.
+
+> **Note**: Step 4 (Auto Tag / Batch Tag / Tag+Combine) automatically writes containers, so a separate **Combine Parameters** step is only needed if tokens were manually edited after tagging using the individual token buttons.
+
+**Pre-flight check**: Use **Pre-Flight** (in QUALITY ASSURANCE) to preview what containers would be written without actually writing.
 
 #### Tag Container Parameters (36 total)
 
@@ -387,25 +537,35 @@ Before tagging begins, `GetExistingSequenceCounters()` scans all elements to fin
 | ICT_DEV | Data Devices | ICT_DEV_TAG_01 |
 | MAT_TAG | Walls, Floors, Ceilings, Roofs, Doors, Windows | MAT_TAG_1 through MAT_TAG_6 |
 
+**Additional container buttons**:
+- **Build Tags** — rebuild TAG1 only from current token values
+- **T3 Tags** — build TAG3 (location subset) only
+- **Mat Tags** — build material containers (MAT_TAG_1-6) only
+- **Build ALL** — build all containers at once
+
 ---
 
 ## One-Click Automation Commands
 
-### Tag & Combine (Recommended for most users)
+### Tag+Combine (Recommended for most users)
 
-**Button**: CREATE tab > "Tag & Combine"
-**What it does in one click**:
+**Button**: ORGANISE tab > **Tag+Combine**
+
+What it does in one click:
 
 1. Auto-detect LOC/ZONE from spatial data
 2. Populate all 7 derivable tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD)
 3. Tag all elements with SEQ assignment and collision detection
 4. Combine into all 36 containers
-5. Scope options: Active view, Selection, or Entire project
+5. Write TAG7 rich narrative
+6. Scope controlled by CREATE tab > **Scope: View** toggle
 
-### Full Auto-Populate
+### Auto Populate (Full Automation)
 
-**Button**: TEMP tab > Schedules section > "Full Auto"
-**What it does in one click**:
+**Button**: CREATE > POPULATE TOKENS > **Auto Populate**
+Also on TEMP tab as: **Full AutoPop**
+
+What it does in one click:
 
 1. Token population (all 7 tokens)
 2. Dimension mapping (width, height, area, volume from Revit)
@@ -414,11 +574,21 @@ Before tagging begins, `GetExistingSequenceCounters()` scans all elements to fin
 5. Tag assembly and container writing
 6. Grid/spatial reference population
 
+### Resolve All Issues
+
+**Button**: CREATE > TOKEN INSPECTOR > **Resolve All Issues**
+
+One-click ISO 19650 compliance resolution:
+1. Fills missing tokens with guaranteed defaults
+2. Fixes duplicate tags by incrementing SEQ
+3. Corrects invalid codes to nearest valid match
+4. Rebuilds incomplete containers
+
 ---
 
 ## Collision Handling
 
-When two elements would receive the same tag, STING offers three collision modes (user selects before tagging):
+When two elements would receive the same tag, STING offers three collision modes:
 
 | Mode | Behaviour | Use Case |
 |------|-----------|----------|
@@ -426,7 +596,9 @@ When two elements would receive the same tag, STING offers three collision modes
 | **Skip** | Leave already-tagged elements untouched | Re-running on a partially tagged project |
 | **Overwrite** | Regenerate all tokens and replace existing tag | Fixing incorrect tags; re-tagging after changes |
 
-**Collision detection**: Before writing, the tag is checked against a `HashSet<string>` of all existing tags in the project. On collision:
+The **Overwrite: No** / **Overwrite: Yes** toggle on the CREATE tab header controls whether tagging commands skip or overwrite existing tags.
+
+**Collision detection**: Before writing, the tag is checked against all existing tags in the project. On collision:
 - SEQ increments (0003 → 0004 → 0005...) up to 100 attempts
 - If still colliding after 100 attempts, a warning is logged
 - The collision depth is tracked for reporting
@@ -435,13 +607,12 @@ When two elements would receive the same tag, STING offers three collision modes
 
 ## Real-Time Auto-Tagging
 
-**Toggle**: CREATE tab > "Auto-Tagger" toggle button
-**Class**: `Core.StingAutoTagger` (IUpdater)
+**Button**: VIEW tab > **Auto-Tagger**
 
 When enabled, newly placed elements are **automatically tagged in real-time** as they are added to the model. The auto-tagger:
 
 1. Monitors 22 taggable categories for element additions
-2. Triggers on `Element.GetChangeTypeElementAddition()`
+2. Triggers on element placement
 3. Runs the full token population + tag assembly pipeline
 4. Suppresses redundant triggers via processed element ID tracking
 
@@ -451,24 +622,35 @@ When enabled, newly placed elements are **automatically tagged in real-time** as
 
 ## Manual Token Overrides
 
-Individual tokens can be set manually before or after auto-tagging:
+Individual tokens can be set manually using the 13 token buttons in CREATE > POPULATE TOKENS:
 
-| Button | Command | What it sets |
-|--------|---------|-------------|
-| Set Discipline | `Tags.SetDiscCommand` | DISC token (user picks from M/E/P/A/S/FP/LV/G) |
-| Set Location | `Tags.SetLocCommand` | LOC token (user picks from configured codes) |
-| Set Zone | `Tags.SetZoneCommand` | ZONE token (user picks from configured codes) |
-| Set Status | `Tags.SetStatusCommand` | STATUS (EXISTING/NEW/DEMOLISHED/TEMPORARY) |
-| Assign Numbers | `Tags.AssignNumbersCommand` | SEQ — renumber within DISC/SYS/LVL groups |
-| Build Tags | `Tags.BuildTagsCommand` | Rebuild TAG1 from current token values |
+| Button | What it sets |
+|--------|-------------|
+| **DISC** | Discipline code (user picks from M/E/P/A/S/FP/LV/G) |
+| **LOC** | Location code (user picks from configured codes) |
+| **ZONE** | Zone code (user picks from configured codes) |
+| **LVL** | Level code |
+| **SYS** | System type code |
+| **FUNC** | Function code |
+| **PROD** | Product code |
+| **SEQ** | Sequence number (same as **Assign Numbers**) |
+| **STATUS** | Construction status (EXISTING/NEW/DEMOLISHED/TEMPORARY) |
+| **REV** | Revision code |
+| **PROJ** | Project code |
+| **ORIG** | Origin/source |
+| **VOL** | Volume reference |
 
-Manually set tokens are **preserved** by the default tagging mode (`SetIfEmpty`). Only the Overwrite collision mode replaces manually-set values.
+After setting tokens manually, use **Build Tags** or **Build ALL** to reassemble the tag containers from the updated values.
+
+Manually set tokens are **preserved** by the default tagging mode (Overwrite: No). Only **Overwrite: Yes** replaces manually-set values.
 
 ---
 
 ## Configuration
 
-### project_config.json
+### Project Config
+
+**Button**: CREATE > SETUP > **Project Config**
 
 Tag configuration can be customised per-project via `project_config.json` (saved alongside the Revit model):
 
@@ -488,7 +670,11 @@ Tag configuration can be customised per-project via `project_config.json` (saved
 }
 ```
 
-**Edit via**: CREATE tab > Setup section > "Configure" button
+### Tag Config
+
+**Button**: CREATE > SETUP > **Tag Config**
+
+Displays the current tag lookup tables (read-only view). To edit, use **Project Config**.
 
 ### What you can customise:
 
@@ -499,34 +685,69 @@ Tag configuration can be customised per-project via `project_config.json` (saved
 - **Change SEQ padding** (e.g., 5 digits for very large projects)
 - **Reorder segments** (e.g., put SYS before LOC)
 
+### Schema Management
+
+| Button | What it does |
+|--------|-------------|
+| **Sync Schema** | Push PARAMETER_REGISTRY.json changes to project parameter bindings |
+| **Audit Schema** | Verify all bindings match the registry (reports mismatches) |
+| **Add Remap** | Add field deprecation remap (old name → new name) |
+
 ---
 
 ## QA & Analysis Commands
 
-| Command | What it does |
-|---------|-------------|
-| Completeness Dashboard | Per-discipline compliance % with RAG status |
-| Find Duplicates | Locate elements sharing the same tag |
-| Fix Duplicates | Auto-resolve by incrementing SEQ numbers |
-| Highlight Invalid | Color-code: red = missing, orange = incomplete |
-| Audit to CSV | Export full tag audit (40+ columns) |
-| Tag Statistics | Quick counts by discipline/system/level |
-| Tag Register Export | Comprehensive asset register CSV |
+All in CREATE > QUALITY ASSURANCE:
+
+| Button | What it does |
+|--------|-------------|
+| **Validate** | ISO 19650 compliance check on all tokens and tag format |
+| **Highlight** | Colour-code: red = missing tag, orange = incomplete tag |
+| **Clear Art** | Reset graphic overrides in active view |
+| **Pre-Flight** | Dry-run combine check (preview without writing) |
+| **Completeness %** | Per-discipline compliance dashboard with RAG status |
+| **Find Duplicates** | Locate elements sharing the same tag value |
+
+Additional in CREATE > ISO COMPLETENESS DASHBOARD:
+
+| Button | What it does |
+|--------|-------------|
+| **Load** | Scan project and populate dashboard grid |
+| **Export** | Export dashboard data to CSV |
+
+Additional in CREATE > EXPORT:
+
+| Button | What it does |
+|--------|-------------|
+| **Export Tag Register** | Comprehensive 40+ column asset register CSV |
+
+Additional on ORGANISE tab:
+
+| Button | What it does |
+|--------|-------------|
+| **Stats** | Quick tag counts by discipline/system/level |
+| **AuditCSV** | Export full tag audit to CSV file |
+| **Fix Dups** | Auto-resolve duplicate tags by incrementing SEQ |
 
 ---
 
-## Quick Reference: Which Command to Use
+## Quick Reference: Which Button to Use
 
-| Situation | Command | Tab |
-|-----------|---------|-----|
-| First time tagging a project | Tag & Combine | CREATE |
-| Adding new elements to tagged project | Tag New Only | CREATE > More |
-| Re-tagging after design changes | Auto Tag (Overwrite mode) | CREATE |
-| Full project re-tag from scratch | Batch Tag (Overwrite mode) | CREATE |
-| Check before committing tags | Pre-Tag Audit | CREATE > More |
-| Verify tag quality after tagging | Validate | CREATE > QA |
-| Zero-touch real-time tagging | Auto-Tagger Toggle | CREATE |
-| Complete automation (tags + data + formulas) | Full Auto-Populate | TEMP > Schedules |
+| Situation | Button | Tab |
+|-----------|--------|-----|
+| First time setting up a project | **Load Shared Params** | CREATE > SETUP |
+| First time tagging a project | **Tag+Combine** | ORGANISE |
+| Complete automation (tags + data + formulas) | **Auto Populate** | CREATE > POPULATE TOKENS |
+| Adding new elements to tagged project | **Tag New** | ORGANISE |
+| Re-tagging after design changes | **Auto Tag** + Overwrite: Yes | ORGANISE + CREATE header |
+| Full project re-tag from scratch | **Batch Tag** + Overwrite: Yes | ORGANISE + CREATE header |
+| Check before committing tags | **[Find] Inspect Selection** | CREATE > TOKEN INSPECTOR |
+| Verify tag quality after tagging | **Validate** | CREATE > QA |
+| View compliance percentages | **Completeness %** or **Load** | CREATE > QA / DASHBOARD |
+| Fix all issues at once | **Resolve All Issues** | CREATE > TOKEN INSPECTOR |
+| Zero-touch real-time tagging | **Auto-Tagger** | VIEW |
+| Export asset register | **Export Tag Register** | CREATE > EXPORT |
+| Manually edit then rebuild tags | Token buttons + **Build ALL** | CREATE > POPULATE TOKENS |
 
 ---
 
@@ -550,11 +771,7 @@ TAG7 (the main parameter) holds the **marked-up** narrative with embedded format
 
 ### When TAG7 is Written
 
-TAG7 is written automatically during Step 4 (Tag) as part of `BuildAndWriteTag()`. After assembling the 8-segment tag and writing TAG1-TAG6, the tagging engine calls `TagConfig.WriteTag7All()` which:
-
-1. Calls `BuildTag7Sections()` to generate all 6 sections
-2. Writes the marked-up narrative to `ASS_TAG_7_TXT`
-3. Writes each plain section to `ASS_TAG_7A_TXT` through `ASS_TAG_7F_TXT`
+TAG7 is written automatically during Step 4 (tagging) as part of **Auto Tag**, **Batch Tag**, **Tag+Combine**, and **Auto Populate**. After assembling the 8-segment tag and writing TAG1-TAG6, the tagging engine generates all 6 sections and writes them.
 
 ### Section A: Identity Header
 
@@ -764,7 +981,7 @@ TAG7A-TAG7F sub-parameters hold **plain text only** (no markup) for use in Revit
 
 ### Display Presets
 
-TAG7 rendering can be styled per-element using **display presets** (`TagConfig.ActivePreset`). Each preset maps a discriminator value to a colour scheme:
+TAG7 rendering can be styled per-element using display presets. Each preset maps a discriminator value to a colour scheme:
 
 | Preset | Discriminator | Example Styles |
 |--------|--------------|----------------|
@@ -780,6 +997,8 @@ Each style defines: `HeaderColor`, `BackgroundTint`, `Label`, and `SectionColors
 
 ### Paragraph Depth Control
 
+**Button**: CREATE > PARAGRAPH & PRESENTATION > **Paragraph Depth**
+
 TAG7 tag family labels support **paragraph depth** — controlling how much detail is visible in annotation tags:
 
 | Depth | State Parameters | Content Shown |
@@ -790,11 +1009,13 @@ TAG7 tag family labels support **paragraph depth** — controlling how much deta
 
 These are **Type parameters** (`TAG_PARA_STATE_1_BOOL` through `TAG_PARA_STATE_10_BOOL`) — all instances of the same type change together.
 
-**Commands**:
-- **Set Paragraph Depth** (`Tags.SetParagraphDepthCommand`) — directly set state 1/2/3
-- **Toggle Warning Visibility** (`Tags.ToggleWarningVisibilityCommand`) — show/hide threshold warning text (e.g., `[!U > 0.70]`, `[!VD > 4%]`)
+**Related buttons**:
+- **Toggle Warnings** — show/hide threshold warning text in tags (e.g., `[!U > 0.70]`, `[!VD > 4%]`)
+- **TAG7 Heading Style** — configure section heading appearance
 
 ### Presentation Modes
+
+**Button**: CREATE > PARAGRAPH & PRESENTATION > **Presentation Mode**
 
 Presentation modes combine paragraph depth + warning visibility into named presets for one-click switching:
 
@@ -806,7 +1027,9 @@ Presentation modes combine paragraph depth + warning visibility into named prese
 | **Presentation** | 1+2 | OFF | Client presentations (clean, no warnings) |
 | **BOQ** | 1+2 | OFF | Cost schedules and quantity extraction |
 
-**Command**: Set Presentation Mode (VIEW tab) — `Tags.SetPresentationModeCommand`
+**Related buttons**:
+- **View Label Spec** — display current label specification for tag families
+- **Export Label Guide** — export label configuration as reference document
 
 ---
 
@@ -818,4 +1041,5 @@ Presentation modes combine paragraph depth + warning visibility into named prese
 | `MR_PARAMETERS.txt` | Revit shared parameter definitions (200+ params, 18 groups) |
 | `CATEGORY_BINDINGS.csv` | 10,661 parameter-to-category bindings for discipline-specific binding |
 | `TAG_GUIDE_V3.csv` | Tag format specification, validation rules, auto-population logic |
+| `LABEL_DEFINITIONS.json` | 3,623-line label/legend definition specs for tag display styles |
 | `project_config.json` | Per-project tag configuration overrides (user-editable) |
