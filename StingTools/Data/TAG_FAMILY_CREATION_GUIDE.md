@@ -2,7 +2,7 @@
 
 ## Complete Workflow for Creating, Configuring, and Deploying ISO 19650 Tag Families
 
-This guide covers the end-to-end process for building STING tag families that display ISO 19650 asset tags (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ) on Revit model elements. It spans four commands, one data file, one engine, and manual Family Editor steps.
+This guide covers the end-to-end process for building STING tag families that display ISO 19650 asset tags (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ) on Revit model elements. It spans creation, label configuration, loading, auditing, styling, presentation modes, batch parameter binding, paragraph containers, visual tag placement, and seed distribution — with exact button names from the STING dockable panel.
 
 ---
 
@@ -18,10 +18,14 @@ This guide covers the end-to-end process for building STING tag families that di
 8. [Phase 6 — Tag Style Engine (Visual Appearance)](#8-phase-6--tag-style-engine-visual-appearance)
 9. [Phase 7 — Seed Family Strategy (Skip Phase 2 Next Time)](#9-phase-7--seed-family-strategy-skip-phase-2-next-time)
 10. [Batch Family Parameter Binding](#10-batch-family-parameter-binding)
-11. [Category Reference Table](#11-category-reference-table)
-12. [Parameter Reference](#12-parameter-reference)
-13. [Troubleshooting](#13-troubleshooting)
-14. [File Reference](#14-file-reference)
+11. [LABEL_DEFINITIONS.json — Master Label Specification](#11-label_definitionsjson--master-label-specification)
+12. [Viewing and Exporting Label Specifications](#12-viewing-and-exporting-label-specifications)
+13. [Paragraph Container Parameters (39 Category-Specific)](#13-paragraph-container-parameters-39-category-specific)
+14. [Visual Tagging Integration (Smart Tag Placement)](#14-visual-tagging-integration-smart-tag-placement)
+15. [Category Reference Table](#15-category-reference-table)
+16. [Parameter Reference](#16-parameter-reference)
+17. [Troubleshooting](#17-troubleshooting)
+18. [File Reference](#18-file-reference)
 
 ---
 
@@ -445,13 +449,15 @@ The TagStyleEngine controls tag appearance through a **BOOL parameter matrix**. 
 
 Parameter naming convention: `TAG_{SIZE}{STYLE}_{COLOR}_BOOL`
 
-| Component | Options | Examples |
-|-----------|---------|---------|
-| **Size** | 2, 2.5, 3, 3.5 (mm) | TAG_**2**BOLD_BLUE_BOOL |
-| **Style** | NOM (Normal), BOLD, ITALIC | TAG_2**BOLD**_BLUE_BOOL |
-| **Color** | BLACK, BLUE, GREEN, RED | TAG_2BOLD_**BLUE**_BOOL |
+| Component | Options | Count | Examples |
+|-----------|---------|-------|---------|
+| **Size** | 2, 2.5, 3, 3.5 (mm text height) | 4 | TAG_**2**BOLD_BLUE_BOOL |
+| **Style** | NOM (Normal), BOLD, ITALIC, BOLDITALIC | 4 | TAG_2**BOLD**_BLUE_BOOL |
+| **Color** | BLACK, BLUE, GREEN, RED, ORANGE, PURPLE, GREY, WHITE | 8 | TAG_2BOLD_**BLUE**_BOOL |
 
-This produces **128 combinations** (4 sizes × 3 styles × ~10 colors).
+This produces **128 combinations** (4 sizes × 4 styles × 8 colors).
+
+**Backwards compatibility**: Projects created before the v2 expansion have a **48-param core** subset (4 sizes × 3 styles × 4 colors: NOM/BOLD/ITALIC × BLACK/BLUE/GREEN/RED). The extended params (BOLDITALIC style + ORANGE/PURPLE/GREY/WHITE colors) are added automatically when `Create Tag Families` or `Fam Params` runs.
 
 ### Style Commands
 
@@ -632,7 +638,335 @@ Fam Processor ──────── Opens existing .rfa files and adds params
 
 ---
 
-## 11. Category Reference Table
+## 11. LABEL_DEFINITIONS.json — Master Label Specification
+
+`LABEL_DEFINITIONS.json` is the single source of truth for what each tag family's Edit Label should contain. It is loaded by `ConfigureTagLabelsCommand` (the **`Configure Labels`** button) and `LabelDefinitionHelper` (used by **`View Label Spec`** and **`Export Label Guide`** buttons).
+
+### JSON Structure Overview
+
+```json
+{
+  "version": "1.0",
+  "presentation_modes": {
+    "Compact":            { "state_1": true, "state_2": false, "state_3": false, "warnings": false },
+    "Technical":          { "state_1": true, "state_2": true,  "state_3": false, "warnings": true  },
+    "Full_Specification": { "state_1": true, "state_2": true,  "state_3": true,  "warnings": true  },
+    "Presentation":       { "state_1": true, "state_2": true,  "state_3": false, "warnings": false },
+    "BOQ":                { "state_1": true, "state_2": true,  "state_3": false, "warnings": false }
+  },
+  "calculated_value_templates": {
+    "cv_show_tier2":   { "formula": "if(TAG_PARA_STATE_2_BOOL, <param>, \"\")" },
+    "cv_show_tier3":   { "formula": "if(TAG_PARA_STATE_3_BOOL, <param>, \"\")" },
+    "cv_show_warning": { "formula": "if(TAG_WARN_VISIBLE_BOOL, <param>, \"\")" }
+  },
+  "parameter_text": {
+    "ASS_TAG_1_TXT":    { "prefix": "",           "suffix": "",       "label": "Full Tag" },
+    "BLE_WALL_THICKNESS_MM": { "prefix": "",      "suffix": " mm",    "label": "Wall Thickness" },
+    "ELC_PWR_KW":       { "prefix": "Power: ",    "suffix": " kW",    "label": "Electrical Power" },
+    "PLM_PPE_SZ_MM":    { "prefix": "DN",          "suffix": "",       "label": "Pipe Size" }
+  },
+  "category_labels": {
+    "Walls":   { "family_name": "...", "paragraph_container": "...", "paragraph_template": "...",
+                 "tier_1": [...], "tier_2": [...], "tier_3": [...], "warnings": [...] },
+    "Floors":  { ... },
+    "Mechanical Equipment": { ... }
+  }
+}
+```
+
+### Per-Category Label Entry Structure
+
+Each category entry in `category_labels` contains:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `family_name` | string | Expected STING family name (e.g., "STING - Wall Tag") |
+| `paragraph_container` | string | TAG7 paragraph parameter name (e.g., "ARCH_TAG_7_PARA_WALL_TXT") |
+| `paragraph_template` | string | Natural language specification template with `{placeholder}` tokens |
+| `tier_1` | array | Parameters always visible (Compact+) — added directly to Edit Label |
+| `tier_2` | array | Parameters visible in Standard+ — gated by `if(TAG_PARA_STATE_2_BOOL, ...)` |
+| `tier_3` | array | Parameters visible in Comprehensive only — gated by `if(TAG_PARA_STATE_3_BOOL, ...)` |
+| `warnings` | array | Warning parameter names (gated by `TAG_WARN_VISIBLE_BOOL`) |
+
+Each parameter entry in a tier array:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `param` | string | Shared parameter name |
+| `spaces` | int | Spaces between this and previous parameter (Edit Label "Spaces" column) |
+| `break` | bool | Line break after this parameter (Edit Label "Break" checkbox) |
+| `prefix_override` | string | Override the global prefix from `parameter_text` section |
+| `suffix_override` | string | Override the global suffix from `parameter_text` section |
+| `note` | string | Description for the Configure Labels wizard |
+
+### Worked Example: Walls Category
+
+This is the complete label spec for Walls as defined in `LABEL_DEFINITIONS.json`:
+
+**Family Name**: `STING - Wall Tag`
+**Paragraph Container**: `ARCH_TAG_7_PARA_WALL_TXT`
+
+#### Tier 1 (Always Visible — Compact+)
+
+| # | Parameter | Prefix | Suffix | Spc | Brk | Note |
+|---|-----------|--------|--------|-----|-----|------|
+| 1 | `ASS_TAG_1_TXT` | | | 0 | YES | Full 8-segment tag |
+| 2 | `BLE_WALL_FUNCTION_TXT` | | | 0 | NO | Wall function |
+| 3 | `BLE_WALL_THICKNESS_MM` | `[` | ` mm]` | 1 | YES | Thickness in brackets |
+
+**Compact display**: `M-BLD1-Z01-L02-ARC-WAL-WL-0001` / `External [300 mm]`
+
+#### Tier 2 (Standard+ — gated by `TAG_PARA_STATE_2_BOOL`)
+
+| # | Parameter | Prefix Override | Suffix Override | Brk | Note |
+|---|-----------|-----------------|-----------------|-----|------|
+| 1 | `ASS_TAG_2_TXT` | | | YES | Short tag heading (underlined) |
+| 2 | `BLE_WALL_FUNCTION_TXT` | | | NO | Wall function |
+| 3 | `BLE_WALL_TYPE_CLASSIFICATION_TXT` | ` \| ` | | YES | Classification |
+| 4 | `BLE_WALL_PRIMARY_WALL_MAT_TXT` | | | NO | Primary material |
+| 5 | `BLE_WALL_CST_METHOD_TXT` | ` \| ` | | YES | Construction method |
+| 6 | `PER_THERM_U_VALUE_W_M2K_NR` | | | NO | U-value |
+| 7 | `PER_THERM_R_VALUE_M2K_W` | ` \| R=` | | NO | R-value |
+| 8 | `PER_THERM_CONDENSATION_RISK_TXT` | ` \| ` | | YES | Condensation |
+| 9 | `FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN` | `FRR: ` | | NO | Fire resistance |
+| 10 | `BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR` | ` \| STC: ` | ` dB` | YES | Acoustic |
+| 11 | `BLE_WALL_INTERIOR_FINISH_TXT` | `Int: ` | | NO | Internal finish |
+| 12 | `BLE_WALL_EXTERIOR_FINISH_TXT` | ` \| Ext: ` | | NO | External finish |
+| 13 | `BLE_WALL_MOISTURE_BARRIER_INCLUDED_TXT` | ` \| Moisture: ` | | YES | Moisture barrier |
+| 14 | `PER_SUST_RECYCLED_CONTENT_PCT` | `Recycled: ` | `%` | NO | Sustainability |
+| 15 | `PER_SUST_CARBON_FOOTPRINT_KG` | ` \| CO₂: ` | ` kg` | YES | Embodied carbon |
+| 16 | `RGL_STD_TXT` | `Std: ` | | YES | Compliance standard |
+
+#### Tier 3 (Comprehensive — gated by `TAG_PARA_STATE_3_BOOL`)
+
+| # | Parameter | Brk | Note |
+|---|-----------|-----|------|
+| 1 | `ASS_TAG_2_TXT` | YES | Short tag heading (bold + underlined) |
+| 2 | `ARCH_TAG_7_PARA_WALL_TXT` | YES | Natural language paragraph |
+
+**Paragraph template**:
+> This {function} wall is {thickness} mm thick, constructed using {method} with {material} as the primary material. The wall is classified as {type} and achieves a thermal transmittance of {U-value} with a thermal resistance of {R-value}, assessed as {condensation} condensation risk. It provides {FRR} minutes of fire resistance with an acoustic rating of {STC} decibels. The assembly incorporates {recycled}% recycled content with an embodied carbon of {carbon} per unit. Internal finish is {int_finish} and external finish is {ext_finish}, with {moisture} moisture barrier provision. Compliant with {standard}.
+
+#### Warnings
+
+- `WARN_BLE_WALL_U` — threshold warning on U-value exceedance
+
+### Categories Covered in LABEL_DEFINITIONS.json (41)
+
+The following categories have full tier specs in `category_labels`:
+
+| Discipline | Categories |
+|------------|-----------|
+| **Architecture** | Walls, Floors, Ceilings, Roofs, Doors, Windows, Stairs, Ramps, Rooms, Furniture, Casework |
+| **Structural** | Structural Columns, Structural Framing, Structural Foundations |
+| **Mechanical** | Mechanical Equipment, Ducts, Duct Fittings, Duct Accessories, Air Terminals, Flex Ducts |
+| **Electrical** | Electrical Equipment, Electrical Fixtures, Lighting Fixtures, Lighting Devices, Conduits, Conduit Fittings, Cable Trays, Cable Tray Fittings |
+| **Plumbing** | Plumbing Fixtures, Pipes, Pipe Fittings, Pipe Accessories, Flex Pipes |
+| **Fire Protection** | Sprinklers, Fire Alarm Devices |
+| **Low Voltage** | Communication Devices, Data Devices, Nurse Call Devices, Security Devices |
+| **General** | Generic Models, Specialty Equipment |
+
+Categories **without** label specs in JSON (4): Furniture Systems, Telephone Devices, Parking, Site — these still get tag families but use a default label layout (ASS_TAG_1_TXT + ASS_DESCRIPTION_TXT only).
+
+---
+
+## 12. Viewing and Exporting Label Specifications
+
+Two commands let you inspect and export the Edit Label specs without opening the Family Editor.
+
+### View Label Spec
+
+**Command**: `ViewLabelSpecCommand`
+**Button**: **`View Label Spec`** — CREATE tab → ⚙ PARAGRAPH & PRESENTATION section
+**Transaction**: ReadOnly
+
+Displays the complete Edit Label specification for a selected category in a TaskDialog. Shows all tiers, parameters, prefixes/suffixes, calculated value formulas, and paragraph templates.
+
+User workflow:
+1. Click **`View Label Spec`**
+2. Select a category from the list (e.g., "Walls", "Mechanical Equipment")
+3. The spec is displayed as a formatted table matching the Family Editor Edit Label dialog columns
+
+### Export Label Guide
+
+**Command**: `ExportLabelGuideCommand`
+**Button**: **`Export Label Guide`** — CREATE tab → ⚙ PARAGRAPH & PRESENTATION section
+**Transaction**: ReadOnly
+
+Exports the complete label specification for ALL 41 categories to a text file (`Data/LABEL_CONFIGURATION_GUIDE.txt`). This file can be printed and used as a desk reference when manually configuring labels in the Family Editor.
+
+The exported file includes:
+- Per-category tier tables with parameter names, prefixes, suffixes, spaces, breaks
+- Calculated value formulas for each gated parameter
+- TAG7 paragraph templates
+- Warning parameter lists
+- Summary statistics (total parameters per category, tier breakdown)
+
+---
+
+## 13. Paragraph Container Parameters (39 Category-Specific)
+
+In addition to the universal TAG7 sub-sections (A-F), each category has its own **paragraph container** parameter that stores a pre-assembled natural language specification paragraph. These are populated by the formula engine from `FORMULAS_WITH_DEPENDENCIES.csv` and displayed in Tier 3 (Comprehensive mode).
+
+### Architecture Paragraphs (12)
+
+| Parameter | Category | Example Content |
+|-----------|----------|-----------------|
+| `ARCH_TAG_7_PARA_WALL_TXT` | Walls | "This External wall is 300 mm thick, constructed using..." |
+| `ARCH_TAG_7_PARA_FLOOR_TXT` | Floors | "This floor slab is 200 mm thick with a Ceramic Tile finish..." |
+| `ARCH_TAG_7_PARA_CEIL_TXT` | Ceilings | "This ceiling is a Suspended Grid type installed at 2700 mm..." |
+| `ARCH_TAG_7_PARA_ROOF_TXT` | Roofs | "This roof assembly is pitched at 15 degrees with..." |
+| `ARCH_TAG_7_PARA_DOOR_TXT` | Doors | "This door is 900 x 2100 mm in Hardwood..." |
+| `ARCH_TAG_7_PARA_WIN_TXT` | Windows | "This window is 1200 x 1500 mm with Aluminium frame..." |
+| `ARCH_TAG_7_PARA_STAIR_TXT` | Stairs | "This staircase has 175 mm rise and 280 mm going..." |
+| `ARCH_TAG_7_PARA_RAMP_TXT` | Ramps | "This ramp has a gradient of 1:12 with 1500 mm width..." |
+| `ARCH_TAG_7_PARA_ROOM_TXT` | Rooms | "Room specification paragraph..." |
+| `ARCH_TAG_7_PARA_FACADE_TXT` | Curtain Walls | "Facade specification paragraph..." |
+| `ARCH_TAG_7_PARA_CASEWORK_TXT` | Casework | "Casework specification paragraph..." |
+| `ARCH_TAG_7_PARA_FURNITURE_TXT` | Furniture | "Furniture specification paragraph..." |
+
+### Structural Paragraphs (3)
+
+| Parameter | Category |
+|-----------|----------|
+| `STR_TAG_7_PARA_COL_TXT` | Structural Columns |
+| `STR_TAG_7_PARA_BEAM_TXT` | Structural Framing |
+| `STR_TAG_7_PARA_FDN_TXT` | Structural Foundations |
+
+### MEP — HVAC Paragraphs (5)
+
+| Parameter | Category |
+|-----------|----------|
+| `HVC_TAG_7_PARA_SPEC_TXT` | Mechanical Equipment |
+| `HVC_TAG_7_PARA_DUCT_TXT` | Ducts |
+| `HVC_TAG_7_PARA_DCTACC_TXT` | Duct Accessories |
+| `HVC_TAG_7_PARA_AT_TXT` | Air Terminals |
+| `HVC_TAG_7_PARA_FLEXDUCT_TXT` | Flex Ducts |
+
+### MEP — Electrical Paragraphs (4)
+
+| Parameter | Category |
+|-----------|----------|
+| `ELC_TAG_7_PARA_PANEL_TXT` | Electrical Equipment (Distribution Boards) |
+| `ELC_TAG_7_PARA_CIRCUIT_TXT` | Electrical Fixtures (Circuits) |
+| `ELC_TAG_7_PARA_CONDUIT_TXT` | Conduits |
+| `ELC_TAG_7_PARA_TRAY_TXT` | Cable Trays |
+
+### MEP — Lighting Paragraph (1)
+
+| Parameter | Category |
+|-----------|----------|
+| `LTG_TAG_7_PARA_SPEC_TXT` | Lighting Fixtures |
+
+### MEP — Plumbing Paragraphs (4)
+
+| Parameter | Category |
+|-----------|----------|
+| `PLM_TAG_7_PARA_PIPE_TXT` | Pipes |
+| `PLM_TAG_7_PARA_FIXTURE_TXT` | Plumbing Fixtures |
+| `PLM_TAG_7_PARA_EQUIPMENT_TXT` | Plumbing Equipment |
+| `PLM_TAG_7_PARA_PIPEACC_TXT` | Pipe Accessories |
+
+### Fire Protection Paragraphs (2)
+
+| Parameter | Category |
+|-----------|----------|
+| `FLS_TAG_7_PARA_FA_TXT` | Fire Alarm Devices |
+| `FLS_TAG_7_PARA_SPR_TXT` | Sprinklers |
+
+### Low Voltage / Communications Paragraphs (4)
+
+| Parameter | Category |
+|-----------|----------|
+| `COM_TAG_7_PARA_BMS_TXT` | Communication Devices (BMS) |
+| `ICT_TAG_7_PARA_DATA_TXT` | Data Devices |
+| `NCL_TAG_7_PARA_NURSECALL_TXT` | Nurse Call Devices |
+| `SEC_TAG_7_PARA_SECURITY_TXT` | Security Devices |
+
+### General Equipment Paragraphs (4)
+
+| Parameter | Category |
+|-----------|----------|
+| `ASS_TAG_7_PARA_EQUIPMENT_TXT` | Generic/Specialty Equipment |
+
+### How Paragraph Containers Work
+
+```
+Formula Engine (FORMULAS_WITH_DEPENDENCIES.csv)
+  └── Evaluates paragraph template with element data
+       └── Writes natural language text to paragraph container
+            └── e.g. ARCH_TAG_7_PARA_WALL_TXT = "This External wall is 300 mm thick..."
+
+Tag Family (Edit Label — Tier 3 row)
+  └── Calculated Value: if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_WALL_TXT, "")
+       └── Visible only in Full Specification / Comprehensive mode
+```
+
+---
+
+## 14. Visual Tagging Integration (Smart Tag Placement)
+
+After creating tag families, populating data, and loading families into the project, the final step is **placing visual annotation tags** in views. This is where data tagging (writing parameters) meets visual tagging (creating `IndependentTag` annotations).
+
+### Data Tagging vs Visual Tagging
+
+| Layer | What It Does | Commands |
+|-------|-------------|----------|
+| **Data tagging** | Writes DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ to element parameters | `▶ Auto Populate`, `[Brain] Smart Tokens`, `Auto Tag`, `Batch Tag`, `Tag & Combine` |
+| **Visual tagging** | Creates `IndependentTag` annotations in views displaying tag values | `Smart Place Tags`, `Arrange Tags`, `Batch Place Tags` |
+
+### Visual Tag Placement Workflow
+
+After completing the tag family creation pipeline (Sections 3-6), use these buttons to place annotation tags:
+
+| # | Button Name | Location | What It Does |
+|---|-------------|----------|--------------|
+| 1 | **`Smart Place Tags`** | CREATE tab → ⚙ TAG PLACEMENT section | Priority-based placement with 8-position collision avoidance |
+| 2 | **`Arrange Tags`** | CREATE tab → ⚙ TAG PLACEMENT section | Auto-arrange placed tags into aligned grid patterns |
+| 3 | **`Batch Place Tags`** | CREATE tab → ⚙ TAG PLACEMENT section | Place tags across multiple views |
+| 4 | **`Learn Placement`** | CREATE tab → ⚙ TAG PLACEMENT section | Analyze existing placements to learn rules |
+| 5 | **`Apply Tag Template`** | CREATE tab → ⚙ TAG PLACEMENT section | Apply saved placement template to view |
+| 6 | **`Tag Overlap Analysis`** | CREATE tab → ⚙ TAG PLACEMENT section | Detect and report overlapping tags |
+
+### How Tag Families Connect to Visual Tags
+
+```
+1. Tag family MUST be loaded for the element's category
+   └── "STING - Mechanical Equipment Tag" loaded for OST_MechanicalEquipment
+
+2. Element MUST have tag data populated
+   └── ASS_TAG_1_TXT = "M-BLD1-Z01-L02-HVAC-SUP-AHU-0003"
+
+3. Smart Place Tags creates IndependentTag:
+   └── IndependentTag.Create(doc, tagTypeId, viewId, new Reference(element), ...)
+   └── Tag family's Edit Label displays ASS_TAG_1_TXT value
+
+4. Presentation Mode controls what's visible:
+   └── Compact: tag code only (Tier 1)
+   └── Technical: tag + properties (Tiers 1+2)
+   └── Full Spec: tag + properties + paragraph (Tiers 1+2+3)
+```
+
+### End-to-End Example
+
+```
+Step 1:  [Check Data]           → Verify data files present
+Step 2:  [Load Shared Params]   → Bind 200+ params to categories
+Step 3:  [Fam Params]           → Batch-bind from CSV (4,686 entries)
+Step 4:  [Create Tag Families]  → Create 50 .rfa files
+Step 5:  [Configure Labels]     → Set Edit Label in Family Editor
+Step 6:  [Load]                 → Load families into project
+Step 7:  [Audit]                → Verify 50/50 coverage
+Step 8:  [▶ Auto Populate]      → Populate all tag data on elements
+Step 9:  [Smart Place Tags]     → Place visual annotations in views
+Step 10: [Presentation Mode]    → Switch to Technical/Full Spec/Compact
+Step 11: [Apply Tag Style]      → Set discipline colors and sizes
+Step 12: Copy .rfa → Seeds/     → Save for future zero-config deployments
+```
+
+---
+
+## 15. Category Reference Table
 
 ### 50 Taggable Categories with Template Mapping
 
@@ -704,7 +1038,7 @@ If the specific .rft template is not found:
 
 ---
 
-## 12. Parameter Reference
+## 16. Parameter Reference
 
 ### Tag Container Parameters (13 — added to every family)
 
@@ -733,20 +1067,36 @@ If the specific .rft template is not found:
 | `TAG_PARA_STATE_3_BOOL` | Type / Yes-No | Tier 3 visibility (Comprehensive) |
 | `TAG_WARN_VISIBLE_BOOL` | Type / Yes-No | Warning text visibility |
 
-### Style Matrix Parameters (128 — for advanced multi-style families)
+### Style Matrix Parameters (128 — for multi-style families)
 
 Pattern: `TAG_{SIZE}{STYLE}_{COLOR}_BOOL`
+
+| Sizes | Styles | Colors (Core) | Colors (Extended) |
+|-------|--------|---------------|-------------------|
+| 2, 2.5, 3, 3.5 | NOM, BOLD, ITALIC, BOLDITALIC | BLACK, BLUE, GREEN, RED | ORANGE, PURPLE, GREY, WHITE |
 
 Examples:
 - `TAG_2NOM_BLACK_BOOL` — 2mm Normal Black
 - `TAG_2BOLD_BLUE_BOOL` — 2mm Bold Blue
 - `TAG_2.5BOLD_RED_BOOL` — 2.5mm Bold Red
 - `TAG_3ITALIC_GREEN_BOOL` — 3mm Italic Green
-- `TAG_3.5NOM_BLACK_BOOL` — 3.5mm Normal Black
+- `TAG_3.5BOLDITALIC_PURPLE_BOOL` — 3.5mm Bold-Italic Purple
+- `TAG_2NOM_ORANGE_BOOL` — 2mm Normal Orange
+- `TAG_2.5BOLD_WHITE_BOOL` — 2.5mm Bold White (for dark backgrounds)
+
+### Bounding Box Color Parameters (3 — per-element box fill)
+
+| Parameter | Type | Purpose |
+|-----------|------|---------|
+| `TAG_BOX_COLOR_R_INT` | Type / Integer | Box fill red channel (0-255) |
+| `TAG_BOX_COLOR_G_INT` | Type / Integer | Box fill green channel (0-255) |
+| `TAG_BOX_COLOR_B_INT` | Type / Integer | Box fill blue channel (0-255) |
+
+Set via **`Box Color`** button (VIEW tab → TAG STYLE ENGINE → COLOUR BY VARIABLE).
 
 ---
 
-## 13. Troubleshooting
+## 17. Troubleshooting
 
 ### "Cannot find Revit annotation tag templates (.rft)"
 
@@ -810,7 +1160,7 @@ Examples:
 
 ---
 
-## 14. File Reference
+## 18. File Reference
 
 ### Source Files
 
@@ -821,7 +1171,9 @@ Examples:
 | `Tags/TagStyleCommands.cs` | 752 | 9 tag style commands (ApplyStyle, ColorScheme, ClearScheme, ParagraphDepth, Report, DiscStyle, BatchStyle, ColorByVariable, SetBoxColor) |
 | `Tags/PresentationModeCommand.cs` | 926 | 4 commands (SetMode, ViewLabelSpec, ExportLabelGuide, SetTag7HeadingStyle) + LabelDefinitionHelper |
 | `Tags/ParagraphDepthCommand.cs` | 213 | 2 commands (SetParagraphDepth, ToggleWarningVisibility) |
+| `Tags/SmartTagPlacementCommand.cs` | 1,995 | 9 visual tag commands (SmartPlace, Arrange, Remove, BatchPlace, Learn, ApplyTemplate, Overlap, TextSize, LineWeight) |
 | `Temp/TemplateManagerCommands.cs` | 3,892 | BatchAddFamilyParamsCommand (line 2452) + FamilyParameterProcessorCommand (line 2702) |
+| `Core/ParamRegistry.cs` | 1,464 | Tag style param names (TagStyleSizes/Styles/Colors), AllTagStyleParams, TagStyleParamName() |
 
 ### Data Files
 
@@ -854,9 +1206,11 @@ Examples:
 □  6. CREATE tab  → ⚙ SETUP (row 2)      → [Configure Labels]      Open each family → Edit Label → add params
 □  7. CREATE tab  → ⚙ SETUP (row 2)      → [Load]                  Batch-load all .rfa into project
 □  8. CREATE tab  → ⚙ SETUP (row 2)      → [Audit]                 Verify coverage: 50/50 categories
-□  9. CREATE tab  → ⚙ PARAGRAPH & PRES.  → [Presentation Mode]     Choose Compact / Technical / Full Spec / Presentation
-□ 10. VIEW tab    → TAG STYLE ENGINE      → [Apply Tag Style]       Set size × style × color for discipline
-□ 11. Manual: Copy configured .rfa to Data/TagFamilies/Seeds/        Seed for future zero-config deployments
+□  9. CREATE tab  → ⚙ POPULATE TOKENS    → [▶ Auto Populate]       Populate all tag data on elements (one-click)
+□ 10. CREATE tab  → ⚙ TAG PLACEMENT      → [Smart Place Tags]      Place visual annotations in views
+□ 11. CREATE tab  → ⚙ PARAGRAPH & PRES.  → [Presentation Mode]     Choose Compact / Technical / Full Spec / Presentation
+□ 12. VIEW tab    → TAG STYLE ENGINE      → [Apply Tag Style]       Set size × style × color for discipline
+□ 13. Manual: Copy configured .rfa to Data/TagFamilies/Seeds/        Seed for future zero-config deployments
 ```
 
-**One-click alternative**: If seed families exist, steps 3-5 collapse into a single `Create Tag Families` button press.
+**One-click alternative**: If seed families exist, steps 4-6 collapse into a single `Create Tag Families` button press.
