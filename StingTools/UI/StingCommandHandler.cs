@@ -488,6 +488,9 @@ namespace StingTools.UI
                     case "COBieJobTemplates": RunCommand<Temp.COBieJobTemplatesCommand>(app); break;
                     case "COBieSpareParts": RunCommand<Temp.COBieSparePartsCommand>(app); break;
                     case "COBieAttributes": RunCommand<Temp.COBieAttributeTemplatesCommand>(app); break;
+                    case "COBieZoneTypes": RunCommand<Temp.COBieZoneTypesCommand>(app); break;
+                    case "COBieSystemMap": RunCommand<Temp.COBieSystemMapCommand>(app); break;
+                    case "COBieDocTypes": RunCommand<Temp.COBieDocumentTypesCommand>(app); break;
                     case "COBieDataSummary": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
 
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;

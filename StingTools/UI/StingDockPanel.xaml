@@ -1184,6 +1184,9 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Jobs" Tag="COBieJobTemplates" Click="Cmd_Click" ToolTip="SFG20 / BS 8210 maintenance job templates"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Spares" Tag="COBieSpareParts" Click="Cmd_Click" ToolTip="Spare parts catalogue per equipment type"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Attributes" Tag="COBieAttributes" Click="Cmd_Click" ToolTip="Expected COBie attributes per Type/Space/Component"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Zones" Tag="COBieZoneTypes" Click="Cmd_Click" ToolTip="COBie zone classifications — fire, HVAC, lighting, security, acoustic"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Systems" Tag="COBieSystemMap" Click="Cmd_Click" ToolTip="Building system map — Uniclass/CIBSE codes with STING token mapping"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Doc Types" Tag="COBieDocTypes" Click="Cmd_Click" ToolTip="O&amp;M document types — regulatory refs, retention periods, naming conventions"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Summary" Tag="COBieDataSummary" Click="Cmd_Click" ToolTip="Overview of all COBie reference data loaded"/>
                             </WrapPanel>
                         </Border>

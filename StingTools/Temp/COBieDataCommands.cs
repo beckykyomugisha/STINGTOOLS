@@ -20,6 +20,9 @@ namespace StingTools.Temp
     //    COBIE_JOB_TEMPLATES.csv   — SFG20/BS 8210 maintenance job templates
     //    COBIE_SPARE_PARTS.csv     — Spare parts per equipment type
     //    COBIE_ATTRIBUTE_TEMPLATES.csv — Expected attributes per Type/Space/Component
+    //    COBIE_ZONE_TYPES.csv      — 16 zone type classifications (fire, HVAC, lighting, etc.)
+    //    COBIE_SYSTEM_MAP.csv      — 31 building system mappings with Uniclass/CIBSE codes
+    //    COBIE_DOCUMENT_TYPES.csv  — 28 O&M document types with regulatory refs
     // ══════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -723,6 +726,250 @@ namespace StingTools.Temp
     }
 
     /// <summary>
+    /// Browse COBie Zone Types — fire, HVAC, lighting, security, acoustic zones.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class COBieZoneTypesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var zones = COBieDataHelper.LoadZoneTypes();
+            if (zones.Count == 0)
+            {
+                TaskDialog.Show("COBie Zones", "COBIE_ZONE_TYPES.csv not found or empty.");
+                return Result.Failed;
+            }
+
+            var byCategory = zones.GroupBy(z => z.Category)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            int page = 0;
+            while (true)
+            {
+                int start = page * 3;
+                int remaining = byCategory.Count - start;
+                if (remaining <= 0) { page = 0; continue; }
+                bool hasMore = remaining > 4;
+                int show = hasMore ? 3 : Math.Min(remaining, 4);
+
+                TaskDialog td = new TaskDialog("COBie Zone Types");
+                td.MainInstruction = $"COBie Zone Classifications ({zones.Count} types)";
+                td.MainContent = $"Select zone category (page {page + 1}):";
+
+                for (int i = 0; i < show; i++)
+                {
+                    var grp = byCategory[start + i];
+                    td.AddCommandLink((TaskDialogCommandLinkId)(i + 1001),
+                        $"{grp.Key} — {grp.Count()} zone types",
+                        grp.First().ZoneTypeName);
+                }
+                if (hasMore)
+                    td.AddCommandLink((TaskDialogCommandLinkId)(show + 1001),
+                        "More categories \u2192", $"{remaining - show} more");
+
+                td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                int idx = -1;
+                switch (td.Show())
+                {
+                    case TaskDialogResult.CommandLink1: idx = 0; break;
+                    case TaskDialogResult.CommandLink2: idx = 1; break;
+                    case TaskDialogResult.CommandLink3: idx = 2; break;
+                    case TaskDialogResult.CommandLink4: idx = 3; break;
+                    default: return Result.Cancelled;
+                }
+
+                if (hasMore && idx == show) { page++; continue; }
+                if (idx < 0 || idx >= show) return Result.Cancelled;
+
+                var selectedGroup = byCategory[start + idx].ToList();
+                var sb = new StringBuilder();
+                sb.AppendLine($"COBie Zone Types: {byCategory[start + idx].Key}");
+                sb.AppendLine();
+                foreach (var z in selectedGroup)
+                {
+                    sb.AppendLine($"  {z.ZoneTypeCode}: {z.ZoneTypeName}");
+                    sb.AppendLine($"    {z.Description}");
+                    sb.AppendLine($"    Classification: {z.ClassificationCode}");
+                    sb.AppendLine($"    Regulatory: {z.RegulatoryDriver}");
+                    sb.AppendLine($"    Properties: {z.Properties}");
+                    sb.AppendLine();
+                }
+
+                TaskDialog.Show($"COBie Zones: {byCategory[start + idx].Key}", sb.ToString());
+                return Result.Succeeded;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Browse COBie System Map — building systems with Uniclass/CIBSE codes and STING mapping.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class COBieSystemMapCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var systems = COBieDataHelper.LoadSystemMap();
+            if (systems.Count == 0)
+            {
+                TaskDialog.Show("COBie Systems", "COBIE_SYSTEM_MAP.csv not found or empty.");
+                return Result.Failed;
+            }
+
+            var byCategory = systems.GroupBy(s => s.Category)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            int page = 0;
+            while (true)
+            {
+                int start = page * 3;
+                int remaining = byCategory.Count - start;
+                if (remaining <= 0) { page = 0; continue; }
+                bool hasMore = remaining > 4;
+                int show = hasMore ? 3 : Math.Min(remaining, 4);
+
+                TaskDialog td = new TaskDialog("COBie System Map");
+                td.MainInstruction = $"Building Systems ({systems.Count} systems)";
+                td.MainContent = $"Select system category (page {page + 1}):";
+
+                for (int i = 0; i < show; i++)
+                {
+                    var grp = byCategory[start + i];
+                    td.AddCommandLink((TaskDialogCommandLinkId)(i + 1001),
+                        $"{grp.Key} — {grp.Count()} systems",
+                        grp.First().SystemName);
+                }
+                if (hasMore)
+                    td.AddCommandLink((TaskDialogCommandLinkId)(show + 1001),
+                        "More categories \u2192", $"{remaining - show} more");
+
+                td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                int idx = -1;
+                switch (td.Show())
+                {
+                    case TaskDialogResult.CommandLink1: idx = 0; break;
+                    case TaskDialogResult.CommandLink2: idx = 1; break;
+                    case TaskDialogResult.CommandLink3: idx = 2; break;
+                    case TaskDialogResult.CommandLink4: idx = 3; break;
+                    default: return Result.Cancelled;
+                }
+
+                if (hasMore && idx == show) { page++; continue; }
+                if (idx < 0 || idx >= show) return Result.Cancelled;
+
+                var selectedGroup = byCategory[start + idx].ToList();
+                var sb = new StringBuilder();
+                sb.AppendLine($"COBie Systems: {byCategory[start + idx].Key}");
+                sb.AppendLine();
+                foreach (var s in selectedGroup)
+                {
+                    sb.AppendLine($"  {s.SystemCode}: {s.SystemName}");
+                    sb.AppendLine($"    {s.Description}");
+                    sb.AppendLine($"    Uniclass: {s.UniclassSsCode}  |  CIBSE: {s.CIBSECode}");
+                    sb.AppendLine($"    STING: DISC={s.Discipline}  SYS={s.StingSysCode}  FUNC={s.StingFuncCode}");
+                    sb.AppendLine($"    Components: {s.ComponentTypes}");
+                    if (!string.IsNullOrEmpty(s.DesignCapacity))
+                        sb.AppendLine($"    Capacity: {s.DesignCapacity}  |  Redundancy: {s.Redundancy}");
+                    sb.AppendLine();
+                }
+
+                TaskDialog.Show($"COBie Systems: {byCategory[start + idx].Key}", sb.ToString());
+                return Result.Succeeded;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Browse COBie Document Types — O&amp;M document types with regulatory refs and naming conventions.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class COBieDocumentTypesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var docs = COBieDataHelper.LoadDocumentTypes();
+            if (docs.Count == 0)
+            {
+                TaskDialog.Show("COBie Documents", "COBIE_DOCUMENT_TYPES.csv not found or empty.");
+                return Result.Failed;
+            }
+
+            var byCategory = docs.GroupBy(d => d.Category)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            int page = 0;
+            while (true)
+            {
+                int start = page * 3;
+                int remaining = byCategory.Count - start;
+                if (remaining <= 0) { page = 0; continue; }
+                bool hasMore = remaining > 4;
+                int show = hasMore ? 3 : Math.Min(remaining, 4);
+
+                TaskDialog td = new TaskDialog("COBie Document Types");
+                td.MainInstruction = $"O&M Document Types ({docs.Count} types)";
+                td.MainContent = $"Select document category (page {page + 1}):";
+
+                for (int i = 0; i < show; i++)
+                {
+                    var grp = byCategory[start + i];
+                    td.AddCommandLink((TaskDialogCommandLinkId)(i + 1001),
+                        $"{grp.Key} — {grp.Count()} document types",
+                        grp.First().DocTypeName);
+                }
+                if (hasMore)
+                    td.AddCommandLink((TaskDialogCommandLinkId)(show + 1001),
+                        "More categories \u2192", $"{remaining - show} more");
+
+                td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                int idx = -1;
+                switch (td.Show())
+                {
+                    case TaskDialogResult.CommandLink1: idx = 0; break;
+                    case TaskDialogResult.CommandLink2: idx = 1; break;
+                    case TaskDialogResult.CommandLink3: idx = 2; break;
+                    case TaskDialogResult.CommandLink4: idx = 3; break;
+                    default: return Result.Cancelled;
+                }
+
+                if (hasMore && idx == show) { page++; continue; }
+                if (idx < 0 || idx >= show) return Result.Cancelled;
+
+                var selectedGroup = byCategory[start + idx].ToList();
+                var sb = new StringBuilder();
+                sb.AppendLine($"COBie Documents: {byCategory[start + idx].Key}");
+                sb.AppendLine();
+                foreach (var d in selectedGroup)
+                {
+                    sb.AppendLine($"  {d.DocTypeCode}: {d.DocTypeName}");
+                    sb.AppendLine($"    {d.Description}");
+                    sb.AppendLine($"    Applies to: {d.ApplicableTo}  |  Mandatory: {d.Mandatory}");
+                    if (!string.IsNullOrEmpty(d.RegulatoryRef))
+                        sb.AppendLine($"    Regulation: {d.RegulatoryRef}");
+                    sb.AppendLine($"    Retention: {d.RetentionPeriod}  |  Format: {d.Format}");
+                    sb.AppendLine($"    Naming: {d.NamingConvention}");
+                    sb.AppendLine();
+                }
+
+                TaskDialog.Show($"COBie Documents: {byCategory[start + idx].Key}", sb.ToString());
+                return Result.Succeeded;
+            }
+        }
+    }
+
+    /// <summary>
     /// COBie Data Summary — overview of all COBie reference data loaded.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
@@ -737,16 +984,22 @@ namespace StingTools.Temp
             var jobs = COBieDataHelper.LoadJobTemplates();
             var spares = COBieDataHelper.LoadSpareParts();
             var attrs = COBieDataHelper.LoadAttributeTemplates();
+            var zones = COBieDataHelper.LoadZoneTypes();
+            var systems = COBieDataHelper.LoadSystemMap();
+            var docs = COBieDataHelper.LoadDocumentTypes();
 
             var sb = new StringBuilder();
             sb.AppendLine("COBie Reference Data Summary");
-            sb.AppendLine("════════════════════════════════════════");
+            sb.AppendLine("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
             sb.AppendLine();
             sb.AppendLine($"  COBIE_TYPE_MAP.csv:            {types.Count} equipment types");
             sb.AppendLine($"  COBIE_PICKLISTS.csv:           {picklists.Count} picklist values");
             sb.AppendLine($"  COBIE_JOB_TEMPLATES.csv:       {jobs.Count} maintenance jobs");
             sb.AppendLine($"  COBIE_SPARE_PARTS.csv:         {spares.Count} spare parts");
             sb.AppendLine($"  COBIE_ATTRIBUTE_TEMPLATES.csv:  {attrs.Count} attribute definitions");
+            sb.AppendLine($"  COBIE_ZONE_TYPES.csv:          {zones.Count} zone classifications");
+            sb.AppendLine($"  COBIE_SYSTEM_MAP.csv:          {systems.Count} building systems");
+            sb.AppendLine($"  COBIE_DOCUMENT_TYPES.csv:      {docs.Count} document types");
             sb.AppendLine();
 
             if (types.Count > 0)
@@ -770,7 +1023,35 @@ namespace StingTools.Temp
                 sb.AppendLine();
             }
 
-            sb.AppendLine("  Standards: COBie V2.4, SFG20, BS 8210, Uniclass 2015");
+            if (zones.Count > 0)
+            {
+                var zoneCats = zones.Select(z => z.Category).Distinct().OrderBy(c => c).ToList();
+                sb.AppendLine($"  Zone categories: {zoneCats.Count}");
+                foreach (string cat in zoneCats)
+                    sb.AppendLine($"    \u2022 {cat}: {zones.Count(z => z.Category == cat)} types");
+                sb.AppendLine();
+            }
+
+            if (systems.Count > 0)
+            {
+                var sysCats = systems.Select(s => s.Category).Distinct().OrderBy(c => c).ToList();
+                sb.AppendLine($"  System categories: {sysCats.Count}");
+                foreach (string cat in sysCats)
+                    sb.AppendLine($"    \u2022 {cat}: {systems.Count(s => s.Category == cat)} systems");
+                sb.AppendLine();
+            }
+
+            if (docs.Count > 0)
+            {
+                var docCats = docs.Select(d => d.Category).Distinct().OrderBy(c => c).ToList();
+                sb.AppendLine($"  Document categories: {docCats.Count}");
+                foreach (string cat in docCats)
+                    sb.AppendLine($"    \u2022 {cat}: {docs.Count(d => d.Category == cat)} types");
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("  Standards: COBie V2.4, SFG20, BS 8210, Uniclass 2015,");
+            sb.AppendLine("    BS EN ISO 19650, CIBSE, BS 9999, BS 7671, CDM 2015");
             sb.AppendLine("  All files are in Data/ folder and can be edited in Excel/text editor.");
 
             TaskDialog.Show("COBie Data Summary", sb.ToString());
@@ -963,6 +1244,115 @@ namespace StingTools.Temp
             return result;
         }
 
+        // ── Zone Types ────────────────────────────────────────────────
+
+        internal static List<COBieZoneTypeRecord> LoadZoneTypes()
+        {
+            string path = StingToolsApp.FindDataFile("COBIE_ZONE_TYPES.csv");
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new List<COBieZoneTypeRecord>();
+
+            var result = new List<COBieZoneTypeRecord>();
+            bool first = true;
+            foreach (string line in File.ReadLines(path))
+            {
+                if (first) { first = false; continue; }
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                var fields = StingToolsApp.ParseCsvLine(line);
+                if (fields.Length < 7) continue;
+                result.Add(new COBieZoneTypeRecord
+                {
+                    ZoneTypeCode = fields[0].Trim(),
+                    ZoneTypeName = fields[1].Trim(),
+                    Category = fields[2].Trim(),
+                    Description = fields[3].Trim(),
+                    ClassificationCode = fields[4].Trim(),
+                    RegulatoryDriver = fields[5].Trim(),
+                    Properties = fields[6].Trim(),
+                });
+            }
+            return result;
+        }
+
+        // ── System Map ───────────────────────────────────────────────────
+
+        internal static List<COBieSystemRecord> LoadSystemMap()
+        {
+            string path = StingToolsApp.FindDataFile("COBIE_SYSTEM_MAP.csv");
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new List<COBieSystemRecord>();
+
+            var result = new List<COBieSystemRecord>();
+            bool first = true;
+            foreach (string line in File.ReadLines(path))
+            {
+                if (first) { first = false; continue; }
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                var fields = StingToolsApp.ParseCsvLine(line);
+                if (fields.Length < 12) continue;
+                try
+                {
+                    result.Add(new COBieSystemRecord
+                    {
+                        SystemCode = fields[0].Trim(),
+                        SystemName = fields[1].Trim(),
+                        Category = fields[2].Trim(),
+                        Description = fields[3].Trim(),
+                        UniclassSsCode = fields[4].Trim(),
+                        CIBSECode = fields[5].Trim(),
+                        Discipline = fields[6].Trim(),
+                        StingSysCode = fields[7].Trim(),
+                        StingFuncCode = fields[8].Trim(),
+                        ComponentTypes = fields[9].Trim(),
+                        DesignCapacity = fields[10].Trim(),
+                        Redundancy = fields[11].Trim(),
+                    });
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"COBie SystemMap parse error: {ex.Message}");
+                }
+            }
+            return result;
+        }
+
+        // ── Document Types ───────────────────────────────────────────────
+
+        internal static List<COBieDocumentTypeRecord> LoadDocumentTypes()
+        {
+            string path = StingToolsApp.FindDataFile("COBIE_DOCUMENT_TYPES.csv");
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new List<COBieDocumentTypeRecord>();
+
+            var result = new List<COBieDocumentTypeRecord>();
+            bool first = true;
+            foreach (string line in File.ReadLines(path))
+            {
+                if (first) { first = false; continue; }
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                var fields = StingToolsApp.ParseCsvLine(line);
+                if (fields.Length < 10) continue;
+                try
+                {
+                    result.Add(new COBieDocumentTypeRecord
+                    {
+                        DocTypeCode = fields[0].Trim(),
+                        DocTypeName = fields[1].Trim(),
+                        Category = fields[2].Trim(),
+                        Description = fields[3].Trim(),
+                        ApplicableTo = fields[4].Trim(),
+                        Mandatory = fields[5].Trim(),
+                        RegulatoryRef = fields[6].Trim(),
+                        RetentionPeriod = fields[7].Trim(),
+                        Format = fields[8].Trim(),
+                        NamingConvention = fields[9].Trim(),
+                    });
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"COBie DocTypes parse error: {ex.Message}");
+                }
+            }
+            return result;
+        }
+
         // ── Parse helpers ──────────────────────────────────────────────
 
         private static int ParseInt(string s)
@@ -1052,5 +1442,46 @@ namespace StingTools.Temp
         public string Description { get; set; }
         public string AllowedValues { get; set; }
         public string StingParamKey { get; set; }
+    }
+
+    internal class COBieZoneTypeRecord
+    {
+        public string ZoneTypeCode { get; set; }
+        public string ZoneTypeName { get; set; }
+        public string Category { get; set; }
+        public string Description { get; set; }
+        public string ClassificationCode { get; set; }
+        public string RegulatoryDriver { get; set; }
+        public string Properties { get; set; }
+    }
+
+    internal class COBieSystemRecord
+    {
+        public string SystemCode { get; set; }
+        public string SystemName { get; set; }
+        public string Category { get; set; }
+        public string Description { get; set; }
+        public string UniclassSsCode { get; set; }
+        public string CIBSECode { get; set; }
+        public string Discipline { get; set; }
+        public string StingSysCode { get; set; }
+        public string StingFuncCode { get; set; }
+        public string ComponentTypes { get; set; }
+        public string DesignCapacity { get; set; }
+        public string Redundancy { get; set; }
+    }
+
+    internal class COBieDocumentTypeRecord
+    {
+        public string DocTypeCode { get; set; }
+        public string DocTypeName { get; set; }
+        public string Category { get; set; }
+        public string Description { get; set; }
+        public string ApplicableTo { get; set; }
+        public string Mandatory { get; set; }
+        public string RegulatoryRef { get; set; }
+        public string RetentionPeriod { get; set; }
+        public string Format { get; set; }
+        public string NamingConvention { get; set; }
     }
 }

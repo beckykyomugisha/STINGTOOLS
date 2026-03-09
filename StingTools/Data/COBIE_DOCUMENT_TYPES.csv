@@ -1,0 +1,29 @@
+DocTypeCode,DocTypeName,Category,Description,ApplicableTo,Mandatory,RegulatoryRef,RetentionPeriod,Format,NamingConvention
+O&M-001,Operation and Maintenance Manual,O&M,General O&M manual for system/equipment,Type;System,Yes,CDM 2015 Reg.12,Life of building,PDF,{Project}-{System}-O&M-{Rev}
+O&M-002,Installation Certificate,Certificate,Certificate of installation and commissioning,Component;System,Yes,BS 7671; BSRIA BG 44,Life of building,PDF,{Project}-{System}-INSTCERT-{Date}
+O&M-003,Product Data Sheet,Specification,Manufacturer technical data sheet,Type,Yes,,Life of building,PDF,{Project}-{Product}-TDS-{Rev}
+O&M-004,Warranty Certificate,Warranty,Manufacturer/installer warranty document,Type;Component,Yes,,Warranty + 6 years,PDF,{Project}-{Product}-WARRANTY-{Date}
+O&M-005,Test and Commissioning Report,Commissioning,Commissioning test results and sign-off,System;Component,Yes,BSRIA BG 44; CIBSE Code M,Life of building,PDF,{Project}-{System}-TCR-{Date}
+O&M-006,Risk Assessment,Health & Safety,Specific risk assessment for maintenance,Type;System,Yes,CDM 2015,Life of building + 40 years,PDF,{Project}-{System}-RA-{Rev}
+O&M-007,As-Built Drawing,Drawing,Record drawing showing as-installed,System;Space,Yes,BS 1192:2007,Life of building,PDF/DWG,{Project}-{Disc}-{Level}-{Type}-{Rev}
+O&M-008,Electrical Installation Certificate,Certificate,BS 7671 Electrical Installation Certificate,System,Yes,BS 7671:2018+A2:2022,Life of installation,PDF,{Project}-EIC-{Board}-{Date}
+O&M-009,Fire Alarm Completion Certificate,Certificate,BS 5839-1 system completion certificate,System,Yes,BS 5839-1:2017,Life of building,PDF,{Project}-FA-CERT-{Date}
+O&M-010,Pressure Test Certificate,Certificate,Pressure test for pipework systems,System,Yes,BS EN 806; PSSR 2000,Life of building,PDF,{Project}-{System}-PTEST-{Date}
+O&M-011,F-Gas Certificate,Certificate,F-Gas regulation compliance,Component,Conditional,EU 517/2014,Life of equipment,PDF,{Project}-FGAS-{Unit}-{Date}
+O&M-012,BREEAM Evidence,Sustainability,Evidence for BREEAM credit compliance,Type;System,Conditional,BREEAM NC,Life of building,PDF/XLS,{Project}-BREEAM-{Credit}-{Rev}
+O&M-013,Energy Performance Certificate,Certificate,EPC/DEC energy rating,Facility,Yes,EPBD; Part L,10 years,PDF,{Project}-EPC-{Date}
+O&M-014,Fire Risk Assessment,Health & Safety,Fire safety risk assessment,Facility;Space,Yes,RRO 2005,Reviewed annually,PDF,{Project}-FRA-{Date}
+O&M-015,Asbestos Survey,Health & Safety,Asbestos management survey/R&D,Facility;Space,Yes,CAR 2012,Life of building,PDF,{Project}-ASBESTOS-{Date}
+O&M-016,Water Hygiene Risk Assessment,Health & Safety,Legionella risk assessment,System,Yes,HSG 274; L8 ACoP,Reviewed 2 years,PDF,{Project}-LEGIONELLA-{Date}
+O&M-017,Lift LOLER Certificate,Certificate,Thorough examination report,Component,Yes,LOLER 1998,Life of equipment,PDF,{Project}-LOLER-{Lift}-{Date}
+O&M-018,Lightning Protection Certificate,Certificate,Lightning protection test report,System,Conditional,BS EN 62305,Annual,PDF,{Project}-LPS-{Date}
+O&M-019,PAT Testing Certificate,Certificate,Portable appliance test schedule,Component,Conditional,IET Code of Practice,Annual,PDF/XLS,{Project}-PAT-{Date}
+O&M-020,Emergency Lighting Certificate,Certificate,BS 5266 compliance certificate,System,Yes,BS 5266-1:2016,Life of building,PDF,{Project}-EMLIGHT-{Date}
+O&M-021,Gas Safe Certificate,Certificate,Gas installation safety certificate,System,Conditional,Gas Safety Regulations,Annual,PDF,{Project}-GASSAFE-{Date}
+O&M-022,Sprinkler System Certificate,Certificate,BS EN 12845 completion certificate,System,Conditional,BS EN 12845,Life of building,PDF,{Project}-SPRINKLER-{Date}
+O&M-023,Health and Safety File,Health & Safety,CDM H&S file for building,Facility,Yes,CDM 2015 Reg.12,Life of building,PDF,{Project}-H&S-FILE-{Rev}
+O&M-024,Building Log Book,O&M,CIBSE TM31 building log book,Facility,Yes,CIBSE TM31; Part L,Life of building,PDF/XLS,{Project}-LOGBOOK-{Rev}
+O&M-025,BIM Execution Plan,BIM,Project BIM Execution Plan (BEP),Facility,Yes,BS EN ISO 19650-2,Life of building,PDF,{Project}-BEP-{Rev}
+O&M-026,Asset Information Model,BIM,Handover AIM (IFC + COBie),Facility,Yes,BS EN ISO 19650-3,Life of building,IFC/XLSX,{Project}-AIM-{Rev}
+O&M-027,Training Record,Training,Operator/FM training record,System;Type,Yes,CDM 2015,5 years,PDF,{Project}-{System}-TRAINING-{Date}
+O&M-028,Spare Parts Schedule,O&M,Recommended spare parts inventory,Type;System,Yes,,Life of equipment,PDF/XLS,{Project}-{System}-SPARES-{Rev}
