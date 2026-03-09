@@ -2733,8 +2733,9 @@ namespace StingTools.Temp
             var defByGuid = new Dictionary<Guid, ExternalDefinition>();
             foreach (DefinitionGroup group in defFile.Groups)
             {
-                foreach (ExternalDefinition def in group.Definitions)
+                foreach (Definition rawDef in group.Definitions)
                 {
+                    if (rawDef is not ExternalDefinition def) continue;
                     defByName[def.Name] = def;
                     defByGuid[def.GUID] = def;
                 }
@@ -2962,9 +2963,9 @@ namespace StingTools.Temp
 
                             try
                             {
-                                // Determine instance vs type
-                                bool isInstance = entry.bindingType.Equals(
-                                    "Instance", StringComparison.OrdinalIgnoreCase);
+                                // Determine instance vs type (default to Instance if not specified)
+                                bool isInstance = string.IsNullOrEmpty(entry.bindingType) ||
+                                    entry.bindingType.Equals("Instance", StringComparison.OrdinalIgnoreCase);
 
                                 fmgr.AddParameter(extDef, GroupTypeId.General, isInstance);
                                 familyAdded++;
@@ -3021,7 +3022,7 @@ namespace StingTools.Temp
                     // ── Backup and save ──────────────────────────────────────
                     if (familyAdded > 0 || familyFormulas > 0)
                     {
-                        // Create backup
+                        // Save modified family to a temp path first, then backup original
                         string backupDir = Path.Combine(
                             Path.GetDirectoryName(familyPath), "_param_backups");
                         try
@@ -3032,16 +3033,33 @@ namespace StingTools.Temp
                             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                             string backupName = $"{Path.GetFileNameWithoutExtension(familyPath)}_{timestamp}.rfa";
                             string backupPath = Path.Combine(backupDir, backupName);
+                            // Save current (modified) to temp, close, copy original to backup, rename temp
+                            string tempPath = familyPath + ".sting_tmp";
+                            var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                            famDoc.SaveAs(tempPath, saveOpts);
+                            famDoc.Close(false);
+                            famDoc = null; // prevent double-close below
                             File.Copy(familyPath, backupPath, true);
+                            File.Copy(tempPath, familyPath, true);
+                            try { File.Delete(tempPath); } catch { }
                         }
                         catch (Exception ex)
                         {
                             StingLog.Warn($"[{fileName}] Backup failed: {ex.Message}");
+                            // If temp save worked but backup/rename failed, try direct save fallback
+                            if (famDoc != null)
+                            {
+                                try
+                                {
+                                    var fallbackOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                                    famDoc.SaveAs(familyPath, fallbackOpts);
+                                }
+                                catch (Exception ex2)
+                                {
+                                    StingLog.Error($"[{fileName}] Fallback save also failed", ex2);
+                                }
+                            }
                         }
-
-                        // Save modified family
-                        var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
-                        famDoc.SaveAs(familyPath, saveOpts);
                         processed++;
 
                         perFamilyResults.Add(
@@ -3057,7 +3075,9 @@ namespace StingTools.Temp
                             $"no changes needed ({familySkipped} params already exist)");
                     }
 
-                    famDoc.Close(false);
+                    // Close if not already closed during backup/save
+                    if (famDoc != null)
+                        famDoc.Close(false);
                 }
                 catch (Exception ex)
                 {
