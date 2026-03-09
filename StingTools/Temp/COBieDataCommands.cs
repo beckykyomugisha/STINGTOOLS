@@ -947,24 +947,70 @@ namespace StingTools.Temp
                 if (hasMore && idx == show) { page++; continue; }
                 if (idx < 0 || idx >= show) return Result.Cancelled;
 
+                string catName = byCategory[start + idx].Key;
                 var selectedGroup = byCategory[start + idx].ToList();
-                var sb = new StringBuilder();
-                sb.AppendLine($"COBie Documents: {byCategory[start + idx].Key}");
-                sb.AppendLine();
-                foreach (var d in selectedGroup)
-                {
-                    sb.AppendLine($"  {d.DocTypeCode}: {d.DocTypeName}");
-                    sb.AppendLine($"    {d.Description}");
-                    sb.AppendLine($"    Applies to: {d.ApplicableTo}  |  Mandatory: {d.Mandatory}");
-                    if (!string.IsNullOrEmpty(d.RegulatoryRef))
-                        sb.AppendLine($"    Regulation: {d.RegulatoryRef}");
-                    sb.AppendLine($"    Retention: {d.RetentionPeriod}  |  Format: {d.Format}");
-                    sb.AppendLine($"    Naming: {d.NamingConvention}");
-                    sb.AppendLine();
-                }
 
-                TaskDialog.Show($"COBie Documents: {byCategory[start + idx].Key}", sb.ToString());
-                return Result.Succeeded;
+                // Second level: pick a specific document within the category
+                int docPage = 0;
+                while (true)
+                {
+                    int docStart = docPage * 3;
+                    int docRemaining = selectedGroup.Count - docStart;
+                    if (docRemaining <= 0) { docPage = 0; continue; }
+                    bool docHasMore = docRemaining > 4;
+                    int docShow = docHasMore ? 3 : Math.Min(docRemaining, 4);
+
+                    TaskDialog td2 = new TaskDialog($"COBie Documents: {catName}");
+                    td2.MainInstruction = $"{catName} — {selectedGroup.Count} document types";
+                    td2.MainContent = docPage > 0
+                        ? $"Select a document to view details (page {docPage + 1}):"
+                        : "Select a document to view details:";
+
+                    for (int j = 0; j < docShow; j++)
+                    {
+                        var d = selectedGroup[docStart + j];
+                        string mandatory = d.Mandatory == "Yes" ? " [MANDATORY]" : "";
+                        td2.AddCommandLink((TaskDialogCommandLinkId)(j + 1001),
+                            $"{d.DocTypeCode}: {d.DocTypeName}{mandatory}",
+                            d.Description);
+                    }
+                    if (docHasMore)
+                        td2.AddCommandLink((TaskDialogCommandLinkId)(docShow + 1001),
+                            "More documents \u2192", $"{docRemaining - docShow} more");
+
+                    td2.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                    int docIdx = -1;
+                    switch (td2.Show())
+                    {
+                        case TaskDialogResult.CommandLink1: docIdx = 0; break;
+                        case TaskDialogResult.CommandLink2: docIdx = 1; break;
+                        case TaskDialogResult.CommandLink3: docIdx = 2; break;
+                        case TaskDialogResult.CommandLink4: docIdx = 3; break;
+                        default: return Result.Cancelled;
+                    }
+
+                    if (docHasMore && docIdx == docShow) { docPage++; continue; }
+                    if (docIdx < 0 || docIdx >= docShow) return Result.Cancelled;
+
+                    // Third level: show full detail for selected document
+                    var sel = selectedGroup[docStart + docIdx];
+                    var sb = new StringBuilder();
+                    sb.AppendLine($"{sel.DocTypeCode}: {sel.DocTypeName}");
+                    sb.AppendLine();
+                    sb.AppendLine($"  Description:  {sel.Description}");
+                    sb.AppendLine($"  Category:     {sel.Category}");
+                    sb.AppendLine($"  Applies to:   {sel.ApplicableTo}");
+                    sb.AppendLine($"  Mandatory:    {sel.Mandatory}");
+                    if (!string.IsNullOrEmpty(sel.RegulatoryRef))
+                        sb.AppendLine($"  Regulation:   {sel.RegulatoryRef}");
+                    sb.AppendLine($"  Retention:    {sel.RetentionPeriod}");
+                    sb.AppendLine($"  Format:       {sel.Format}");
+                    sb.AppendLine($"  Naming:       {sel.NamingConvention}");
+
+                    TaskDialog.Show($"COBie Document: {sel.DocTypeCode}", sb.ToString());
+                    return Result.Succeeded;
+                }
             }
         }
     }
