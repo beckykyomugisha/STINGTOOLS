@@ -17,10 +17,11 @@ This guide covers the end-to-end process for building STING tag families that di
 7. [Phase 5 — Presentation Mode and Paragraph Depth](#7-phase-5--presentation-mode-and-paragraph-depth)
 8. [Phase 6 — Tag Style Engine (Visual Appearance)](#8-phase-6--tag-style-engine-visual-appearance)
 9. [Phase 7 — Seed Family Strategy (Skip Phase 2 Next Time)](#9-phase-7--seed-family-strategy-skip-phase-2-next-time)
-10. [Category Reference Table](#10-category-reference-table)
-11. [Parameter Reference](#11-parameter-reference)
-12. [Troubleshooting](#12-troubleshooting)
-13. [File Reference](#13-file-reference)
+10. [Batch Family Parameter Binding](#10-batch-family-parameter-binding)
+11. [Category Reference Table](#11-category-reference-table)
+12. [Parameter Reference](#12-parameter-reference)
+13. [Troubleshooting](#13-troubleshooting)
+14. [File Reference](#14-file-reference)
 
 ---
 
@@ -553,7 +554,85 @@ Seeds can be distributed with the plugin for zero-configuration deployments:
 
 ---
 
-## 10. Category Reference Table
+## 10. Batch Family Parameter Binding
+
+Two commands handle adding shared parameters to families in bulk — one works on the **project** binding map, the other opens and modifies **.rfa files** directly.
+
+### 10a. Batch Add Family Params (Project Bindings)
+
+**Command**: `BatchAddFamilyParamsCommand`
+**Button**: **`Fam Params`** — TEMP tab → TEMPLATE MANAGER section
+**Transaction**: Manual
+
+Reads `FAMILY_PARAMETER_BINDINGS.csv` (4,686 entries) and binds shared parameters to categories in the **current project's** BindingMap. This complements the `Load Shared Params` button by covering the full parameter-to-category matrix.
+
+**What It Does**:
+
+1. Opens `MR_PARAMETERS.txt` to get shared parameter definitions
+2. Loads `FAMILY_PARAMETER_BINDINGS.csv` — each row maps a parameter name + GUID to a category and binding type (Instance/Type)
+3. Groups bindings by parameter name for batch efficiency
+4. For each parameter:
+   - Resolves the `ExternalDefinition` by name, then GUID fallback
+   - Builds a `CategorySet` from all categories listed for that parameter
+   - Checks if already bound (skips if so — idempotent)
+   - Creates `InstanceBinding` or `TypeBinding` per the CSV's `bindingType` column
+   - Inserts into the project's `BindingMap`
+5. Reports per-category coverage with binding counts
+
+**Data File**: `FAMILY_PARAMETER_BINDINGS.csv` — columns: `group`, `name`, `guid`, `dataType`, `bindingType`, `description`, `category`, `sharedGuid`
+
+### 10b. Family Parameter Processor (Modify .rfa Files)
+
+**Command**: `FamilyParameterProcessorCommand`
+**Button**: **`Fam Processor`** — TEMP tab → TEMPLATE MANAGER section (next to Fam Params)
+**Transaction**: Manual
+
+Opens .rfa family files on disk, adds shared parameters via `FamilyManager.AddParameter()`, applies formulas via `FamilyManager.SetFormula()`, creates backups, and saves the modified families.
+
+**What It Does**:
+
+1. User selects a **single .rfa file** or a **folder** of .rfa files (recursive)
+2. For each family file:
+   a. Opens with `app.OpenDocumentFile()`
+   b. Reads `OwnerFamily.FamilyCategory` to determine the Revit category
+   c. Looks up applicable parameters from `FAMILY_PARAMETER_BINDINGS.csv` by category name
+   d. Adds shared parameters via `FamilyManager.AddParameter()` (skips already-existing)
+   e. Looks up applicable formulas from `FORMULAS_WITH_DEPENDENCIES.csv` by parameter name
+   f. Applies formulas via `FamilyManager.SetFormula()` (only for parameters that exist in the family)
+   g. Backs up the original .rfa to a `_param_backups/` subfolder
+   h. Saves the modified family
+3. Reports per-family results: parameters added, formulas applied, skipped, failed
+
+**Data Files Used**:
+
+| File | Purpose |
+|------|---------|
+| `MR_PARAMETERS.txt` | Shared parameter definitions (name → GUID resolution) |
+| `FAMILY_PARAMETER_BINDINGS.csv` | 4,686 category-to-parameter mappings |
+| `FORMULAS_WITH_DEPENDENCIES.csv` | 199+ formula definitions (applied after param add) |
+
+**Typical Use Case**: Preparing a library of .rfa families with all STING parameters pre-loaded, so they work immediately when loaded into a STING-enabled project. This is especially useful for:
+- Company family libraries (batch-process hundreds of .rfa files)
+- Tag family preparation (add parameters before configuring labels)
+- Template family enrichment (ensure all families have the full parameter set)
+
+### Relationship to Tag Family Creation
+
+```
+Create Tag Families ─── Creates new .rfa tag families from .rft templates
+  └── adds 13 tag + 4 visibility + category-specific params via FamilyManager
+
+Fam Params ─────────── Binds params to categories in the project BindingMap
+  └── reads FAMILY_PARAMETER_BINDINGS.csv (4,686 entries)
+
+Fam Processor ──────── Opens existing .rfa files and adds params + formulas
+  └── reads FAMILY_PARAMETER_BINDINGS.csv + FORMULAS_WITH_DEPENDENCIES.csv
+  └── works on any .rfa family, not just tag families
+```
+
+---
+
+## 11. Category Reference Table
 
 ### 50 Taggable Categories with Template Mapping
 
@@ -625,7 +704,7 @@ If the specific .rft template is not found:
 
 ---
 
-## 11. Parameter Reference
+## 12. Parameter Reference
 
 ### Tag Container Parameters (13 — added to every family)
 
@@ -667,7 +746,7 @@ Examples:
 
 ---
 
-## 12. Troubleshooting
+## 13. Troubleshooting
 
 ### "Cannot find Revit annotation tag templates (.rft)"
 
@@ -731,7 +810,7 @@ Examples:
 
 ---
 
-## 13. File Reference
+## 14. File Reference
 
 ### Source Files
 
@@ -742,6 +821,7 @@ Examples:
 | `Tags/TagStyleCommands.cs` | 752 | 9 tag style commands (ApplyStyle, ColorScheme, ClearScheme, ParagraphDepth, Report, DiscStyle, BatchStyle, ColorByVariable, SetBoxColor) |
 | `Tags/PresentationModeCommand.cs` | 926 | 4 commands (SetMode, ViewLabelSpec, ExportLabelGuide, SetTag7HeadingStyle) + LabelDefinitionHelper |
 | `Tags/ParagraphDepthCommand.cs` | 213 | 2 commands (SetParagraphDepth, ToggleWarningVisibility) |
+| `Temp/TemplateManagerCommands.cs` | 3,892 | BatchAddFamilyParamsCommand (line 2452) + FamilyParameterProcessorCommand (line 2702) |
 
 ### Data Files
 
@@ -750,6 +830,8 @@ Examples:
 | `Data/LABEL_DEFINITIONS.json` | Master label spec: presentation modes, calculated value templates, parameter text (prefix/suffix), category-specific tier layouts, paragraph templates, TAG7 heading styles |
 | `Data/MR_PARAMETERS.txt` | Revit shared parameter file (200+ params with GUIDs) |
 | `Data/PARAMETER_REGISTRY.json` | Parameter names, containers, category bindings, tag format config |
+| `Data/FAMILY_PARAMETER_BINDINGS.csv` | 4,686 parameter-to-category mappings for batch binding (used by `Fam Params` and `Fam Processor`) |
+| `Data/FORMULAS_WITH_DEPENDENCIES.csv` | 199 formula definitions applied by `Fam Processor` to family parameters |
 
 ### Output Directories
 
@@ -764,15 +846,17 @@ Examples:
 ## Quick Reference — Complete Workflow Checklist
 
 ```
-□ 1. TEMP tab    → ⚙ SETUP              → [Check Data]            Verify MR_PARAMETERS.txt, LABEL_DEFINITIONS.json
-□ 2. CREATE tab  → ⚙ SETUP (row 1)      → [Load Shared Params]    Bind 200+ shared params to 53 categories
-□ 3. CREATE tab  → ⚙ SETUP (row 2)      → [Create Tag Families]   Create 50 .rfa files from .rft templates
-□ 4. CREATE tab  → ⚙ SETUP (row 2)      → [Configure Labels]      Open each family → Edit Label → add params
-□ 5. CREATE tab  → ⚙ SETUP (row 2)      → [Load]                  Batch-load all .rfa into project
-□ 6. CREATE tab  → ⚙ SETUP (row 2)      → [Audit]                 Verify coverage: 50/50 categories
-□ 7. CREATE tab  → ⚙ PARAGRAPH & PRES.  → [Presentation Mode]     Choose Compact / Technical / Full Spec / Presentation
-□ 8. VIEW tab    → TAG STYLE ENGINE      → [Apply Tag Style]       Set size × style × color for discipline
-□ 9. Manual: Copy configured .rfa to Data/TagFamilies/Seeds/        Seed for future zero-config deployments
+□  1. TEMP tab    → ⚙ SETUP              → [Check Data]            Verify MR_PARAMETERS.txt, LABEL_DEFINITIONS.json
+□  2. CREATE tab  → ⚙ SETUP (row 1)      → [Load Shared Params]    Bind 200+ shared params to 53 categories
+□  3. TEMP tab    → TEMPLATE MANAGER      → [Fam Params]            Batch-bind params to categories from CSV (4,686 entries)
+□  4. CREATE tab  → ⚙ SETUP (row 2)      → [Create Tag Families]   Create 50 .rfa files from .rft templates
+□  5. TEMP tab    → TEMPLATE MANAGER      → [Fam Processor]         Add params + formulas to .rfa files (optional — bulk prep)
+□  6. CREATE tab  → ⚙ SETUP (row 2)      → [Configure Labels]      Open each family → Edit Label → add params
+□  7. CREATE tab  → ⚙ SETUP (row 2)      → [Load]                  Batch-load all .rfa into project
+□  8. CREATE tab  → ⚙ SETUP (row 2)      → [Audit]                 Verify coverage: 50/50 categories
+□  9. CREATE tab  → ⚙ PARAGRAPH & PRES.  → [Presentation Mode]     Choose Compact / Technical / Full Spec / Presentation
+□ 10. VIEW tab    → TAG STYLE ENGINE      → [Apply Tag Style]       Set size × style × color for discipline
+□ 11. Manual: Copy configured .rfa to Data/TagFamilies/Seeds/        Seed for future zero-config deployments
 ```
 
 **One-click alternative**: If seed families exist, steps 3-5 collapse into a single `Create Tag Families` button press.
