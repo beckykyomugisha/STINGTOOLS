@@ -103,6 +103,21 @@ namespace StingTools.UI
                     // ── Bulk param write ──
                     case "BulkParamWrite": RunCommand<Select.BulkParamWriteCommand>(app); break;
 
+                    // ── Tag selector (multi-criteria) ──
+                    case "TagSelector": RunCommand<Select.TagSelectorCommand>(app); break;
+                    case "SelectTagsByText": RunCommand<Select.SelectTagsByTextCommand>(app); break;
+                    case "SelectTagsByTextSize": RunCommand<Select.SelectTagsByTextSizeCommand>(app); break;
+                    case "SelectTagsByArrowhead": RunCommand<Select.SelectTagsByArrowheadCommand>(app); break;
+                    case "SelectTagsByLineWeight": RunCommand<Select.SelectTagsByLineWeightCommand>(app); break;
+                    case "SelectTagsByElbowAngle": RunCommand<Select.SelectTagsByElbowAngleCommand>(app); break;
+                    case "SelectTagsByFamily": RunCommand<Select.SelectTagsByFamilyCommand>(app); break;
+                    case "SelectTagsByHostCategory": RunCommand<Select.SelectTagsByHostCategoryCommand>(app); break;
+                    case "SelectTagsByLeaderState": RunCommand<Select.SelectTagsByLeaderStateCommand>(app); break;
+                    case "SelectTagsByOrientation": RunCommand<Select.SelectTagsByOrientationCommand>(app); break;
+                    case "SelectTagsByDiscipline": RunCommand<Select.SelectTagsByDisciplineCodeCommand>(app); break;
+                    case "SelectTagsByToken": RunCommand<Select.SelectTagsByTokenCommand>(app); break;
+                    case "SelectOverlappingTags": RunCommand<Select.SelectOverlappingTagsCommand>(app); break;
+
                     // ── View isolate/hide (inline) ──
                     case "ViewIsolate": ViewIsolateSelected(app); break;
                     case "ViewHide": ViewHideSelected(app); break;

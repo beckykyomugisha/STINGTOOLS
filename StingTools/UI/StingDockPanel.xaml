@@ -240,6 +240,26 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- TAG SELECTOR (multi-criteria) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG SELECTOR"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="★ Tag Selector" Tag="TagSelector" Click="Cmd_Click" ToolTip="Multi-criteria annotation tag selector" HorizontalAlignment="Stretch"/>
+                                <Button Style="{StaticResource CatBtn}" Content="By Text" Tag="SelectTagsByText" Click="Cmd_Click" ToolTip="Select tags by displayed text"/>
+                                <Button Style="{StaticResource CatBtn}" Content="By Size" Tag="SelectTagsByTextSize" Click="Cmd_Click" ToolTip="Select tags by text size (mm)"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Arrow" Tag="SelectTagsByArrowhead" Click="Cmd_Click" ToolTip="Select tags by arrowhead style"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Wt" Tag="SelectTagsByLineWeight" Click="Cmd_Click" ToolTip="Select tags by leader line weight"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Elbow" Tag="SelectTagsByElbowAngle" Click="Cmd_Click" ToolTip="Select tags by leader elbow angle"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Family" Tag="SelectTagsByFamily" Click="Cmd_Click" ToolTip="Select tags by tag family/type"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Host" Tag="SelectTagsByHostCategory" Click="Cmd_Click" ToolTip="Select tags by host element category"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Leader" Tag="SelectTagsByLeaderState" Click="Cmd_Click" ToolTip="Select tags by leader state"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Orient" Tag="SelectTagsByOrientation" Click="Cmd_Click" ToolTip="Select horizontal or vertical tags"/>
+                                <Button Style="{StaticResource CatBtn}" Content="DISC" Tag="SelectTagsByDiscipline" Click="Cmd_Click" ToolTip="Select tags by discipline code"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Token" Tag="SelectTagsByToken" Click="Cmd_Click" ToolTip="Select tags by any tag token segment"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Overlap" Tag="SelectOverlappingTags" Click="Cmd_Click" ToolTip="Select overlapping tags"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- PROJECT FILTER -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="PROJECT FILTER"/>
                         <Border Style="{StaticResource GroupBorder}">
