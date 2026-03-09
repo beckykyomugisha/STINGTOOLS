@@ -2890,8 +2890,13 @@ namespace StingTools.Temp
                         continue;
                     }
 
+                    // Tag annotation families report category as "Door Tags",
+                    // "Room Tags", "Generic Model Tags" etc. Map back to the
+                    // host element category used in FAMILY_PARAMETER_BINDINGS.csv.
+                    string lookupCategory = MapTagCategoryToHost(categoryName);
+
                     // Find applicable parameter bindings for this category
-                    if (!bindingsByCategory.TryGetValue(categoryName, out var categoryBindings))
+                    if (!bindingsByCategory.TryGetValue(lookupCategory, out var categoryBindings))
                     {
                         perFamilyResults.Add($"[SKIP] {fileName} ({categoryName}) — no bindings defined for this category");
                         skippedNoCategory++;
@@ -3113,6 +3118,85 @@ namespace StingTools.Temp
             StingLog.Info($"Family Processor: {processed} families, {paramsAdded} params, {formulasApplied} formulas");
 
             return processed > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>
+        /// Maps Revit tag annotation category names (e.g. "Door Tags", "Generic Model Tags")
+        /// back to host element category names used in FAMILY_PARAMETER_BINDINGS.csv.
+        /// If no mapping is found, returns the original name unchanged.
+        /// </summary>
+        private static string MapTagCategoryToHost(string categoryName)
+        {
+            if (string.IsNullOrEmpty(categoryName)) return categoryName;
+
+            // Direct match — not a tag category, use as-is
+            // (handles host element families like "Doors", "Mechanical Equipment")
+            if (!categoryName.EndsWith(" Tags", StringComparison.OrdinalIgnoreCase))
+                return categoryName;
+
+            // Strip " Tags" suffix and apply known mappings
+            string stem = categoryName.Substring(0, categoryName.Length - 5).Trim();
+
+            // Most tag categories follow the pattern "<PluralHostCategory> Tags"
+            // but some need special mapping:
+            var specialMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Generic Model", "Generic Models" },
+                { "Room", "Rooms" },
+                { "Door", "Doors" },
+                { "Window", "Windows" },
+                { "Wall", "Walls" },
+                { "Floor", "Floors" },
+                { "Ceiling", "Ceilings" },
+                { "Roof", "Roofs" },
+                { "Stair", "Stairs" },
+                { "Ramp", "Ramps" },
+                { "Parking", "Parking" },
+                { "Site", "Site" },
+                { "Curtain Panel", "Curtain Panels" },
+                { "Curtain Wall Mullion", "Curtain Wall Mullions" },
+                { "Structural Column", "Structural Columns" },
+                { "Structural Foundation", "Structural Foundations" },
+                { "Structural Framing", "Structural Framing" },
+                { "Mechanical Equipment", "Mechanical Equipment" },
+                { "Plumbing Equipment", "Plumbing Equipment" },
+                { "Plumbing Fixture", "Plumbing Fixtures" },
+                { "Electrical Equipment", "Electrical Equipment" },
+                { "Electrical Fixture", "Electrical Fixtures" },
+                { "Lighting Fixture", "Lighting Fixtures" },
+                { "Lighting Device", "Lighting Devices" },
+                { "Air Terminal", "Air Terminals" },
+                { "Duct", "Ducts" },
+                { "Duct Fitting", "Duct Fittings" },
+                { "Duct Accessory", "Duct Accessories" },
+                { "Flex Duct", "Flex Ducts" },
+                { "Pipe", "Pipes" },
+                { "Pipe Fitting", "Pipe Fittings" },
+                { "Pipe Accessory", "Pipe Accessories" },
+                { "Flex Pipe", "Flex Pipes" },
+                { "Sprinkler", "Sprinklers" },
+                { "Fire Alarm Device", "Fire Alarm Devices" },
+                { "Communication Device", "Communication Devices" },
+                { "Data Device", "Data Devices" },
+                { "Nurse Call Device", "Nurse Call Devices" },
+                { "Security Device", "Security Devices" },
+                { "Telephone Device", "Telephone Devices" },
+                { "Cable Tray", "Cable Trays" },
+                { "Cable Tray Fitting", "Cable Tray Fittings" },
+                { "Conduit", "Conduits" },
+                { "Conduit Fitting", "Conduit Fittings" },
+                { "Casework", "Casework" },
+                { "Furniture", "Furniture" },
+                { "Specialty Equipment", "Specialty Equipment" },
+                { "Furniture System", "Furniture Systems" },
+            };
+
+            if (specialMappings.TryGetValue(stem, out string hostCategory))
+                return hostCategory;
+
+            // Fallback: try adding 's' for simple pluralization
+            // (e.g., "Widget" → "Widgets")
+            return stem + "s";
         }
     }
 
