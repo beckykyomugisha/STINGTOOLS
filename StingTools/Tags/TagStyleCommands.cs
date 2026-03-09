@@ -37,7 +37,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             // Step 1: Pick size
@@ -131,7 +131,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -236,7 +236,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             var view = doc.ActiveView;
@@ -267,7 +267,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             var dlg = new TaskDialog("Paragraph Depth — Extended");
@@ -354,7 +354,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             string report = TagStyleEngine.GenerateStyleReport(doc);
@@ -378,7 +378,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             if (!TagStyleEngine.BuiltInSchemes.TryGetValue("Discipline", out ColorScheme scheme))
@@ -421,7 +421,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             var dlg = new TaskDialog("Batch Color Scheme");
@@ -498,7 +498,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -647,7 +647,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 

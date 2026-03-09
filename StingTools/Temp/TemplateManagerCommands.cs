@@ -2704,7 +2704,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIApplication uiApp = commandData.Application;
+            UIApplication uiApp = ParameterHelpers.GetApp(commandData);
             Autodesk.Revit.ApplicationServices.Application app = uiApp.Application;
 
             // ── Step 1: Set up shared parameter file ────────────────────────
