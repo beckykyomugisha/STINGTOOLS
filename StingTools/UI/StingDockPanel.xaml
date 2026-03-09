@@ -1174,6 +1174,20 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- COBie REFERENCE DATA -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="COBie REFERENCE DATA"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00695C">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="★ Type Map" Tag="COBieTypeMap" Click="Cmd_Click" ToolTip="Browse COBie equipment types — push warranty, cost, material data to elements" HorizontalAlignment="Stretch"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Auto-Match" Tag="COBieAutoMatch" Click="Cmd_Click" ToolTip="Auto-match ALL elements to COBie types by category + PROD code"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="PickLists" Tag="COBiePickLists" Click="Cmd_Click" ToolTip="Browse COBie V2.4 controlled vocabulary lists"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Jobs" Tag="COBieJobTemplates" Click="Cmd_Click" ToolTip="SFG20 / BS 8210 maintenance job templates"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Spares" Tag="COBieSpareParts" Click="Cmd_Click" ToolTip="Spare parts catalogue per equipment type"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Attributes" Tag="COBieAttributes" Click="Cmd_Click" ToolTip="Expected COBie attributes per Type/Space/Component"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Summary" Tag="COBieDataSummary" Click="Cmd_Click" ToolTip="Overview of all COBie reference data loaded"/>
+                            </WrapPanel>
+                        </Border>
+
                         <TextBlock Style="{StaticResource SectionLabel}" Text="WORKFLOW AUTOMATION"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
                             <WrapPanel>

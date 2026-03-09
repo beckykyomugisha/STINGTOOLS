@@ -1,0 +1,38 @@
+TypeCodePattern,SpareName,Category,PartNumber,SetNumber,Description,Supplier
+AHU-*,"Pre-Filter G4",Filter,FLT-G4-592,FLTSET-AHU,"G4 panel filter 592x592x48mm",Generic
+AHU-*,"Final Filter F7",Filter,FLT-F7-592,FLTSET-AHU,"F7 bag filter 592x592x600mm",Generic
+AHU-*,"Fan Belt",Drive,BLT-V-SPA,BLTSET-AHU,"V-belt A-section (size per AHU)",Generic
+AHU-*,"Fan Bearing",Bearing,BRG-6205,BRGSET-AHU,"Ball bearing 6205-2RS",Generic
+FCU-*,"FCU Filter",Filter,FLT-FCU-01,FLTSET-FCU,"FCU washable panel filter",Generic
+CHR-*,"Compressor Oil",Lubricant,OIL-POE-5L,OILSET-CHR,"POE compressor oil 5L",Generic
+CHR-*,"Condenser Fan Motor",Motor,MTR-COND-01,MTRSET-CHR,"Condenser fan motor (size per unit)",Generic
+BLR-*,"Ignition Electrode",Ignition,IGN-ELEC-01,IGNSET-BLR,"Burner ignition electrode set",Generic
+BLR-*,"Burner Gasket Set",Seal,GSK-BNR-01,GSKSET-BLR,"Burner gasket and seal set",Generic
+BLR-*,"Flame Sensor",Sensor,FLM-SNS-01,SNSSET-BLR,"UV flame detection sensor",Generic
+PMP-*,"Mechanical Seal",Seal,SL-MECH-01,SLSET-PMP,"Mechanical shaft seal (size per pump)",Generic
+PMP-*,"Impeller",Impeller,IMP-01,IMPSET-PMP,"Replacement impeller (size per pump)",Generic
+DB-*,"MCB 6A Type B",MCB,MCB-B06,MCBSET-DB,"Miniature circuit breaker 6A Type B",Generic
+DB-*,"MCB 16A Type B",MCB,MCB-B16,MCBSET-DB,"Miniature circuit breaker 16A Type B",Generic
+DB-*,"MCB 32A Type B",MCB,MCB-B32,MCBSET-DB,"Miniature circuit breaker 32A Type B",Generic
+DB-*,"RCBO 30mA 16A",RCBO,RCBO-30-16,RCBOSET-DB,"RCBO 30mA 16A Type A",Generic
+DB-*,"RCBO 30mA 32A",RCBO,RCBO-30-32,RCBOSET-DB,"RCBO 30mA 32A Type A",Generic
+UPS-*,"UPS Battery Module",Battery,BAT-UPS-12V,BATSET-UPS,"12V 7Ah sealed lead acid battery",Generic
+LTG-01,"LED Driver",Driver,DRV-LED-40W,DRVSET-LTG,"LED driver 40W constant current",Generic
+LTG-03,"Emergency Battery Pack",Battery,BAT-EM-3HR,BATSET-EM,"NiCd battery pack 3.6V 4Ah 3hr",Generic
+FA-02,"Smoke Detector Head",Detector,DET-OPT-01,DETSET-FA,"Optical smoke detector head",Generic
+FA-03,"Heat Detector Head",Detector,DET-HT-01,DETSET-FA,"Rate of rise heat detector head",Generic
+FA-04,"MCP Glass",Glass,MCP-GL-01,MGLSET-FA,"Replacement call point glass",Generic
+FA-05,"Sounder/Beacon Unit",Sounder,SND-01,SNDSET-FA,"Combined sounder/beacon unit",Generic
+SPR-*,"Sprinkler Head Pendant",Sprinkler,SPR-PND-68,SPRSET,"Pendant sprinkler 68°C K80",Generic
+SPR-*,"Sprinkler Head Upright",Sprinkler,SPR-UPR-68,SPRSET,"Upright sprinkler 68°C K80",Generic
+SPR-*,"Sprinkler Escutcheon",Accessory,SPR-ESC-01,SPRSET,"Sprinkler recessed escutcheon plate",Generic
+BMS-02,"Room Sensor",Sensor,SNS-TMP-RM,SNSSET-BMS,"Room temperature sensor element",Generic
+BMS-03,"CO2 Sensor Element",Sensor,SNS-CO2-01,SNSSET-BMS,"NDIR CO2 sensor element",Generic
+ACC-02,"Card Reader Unit",Reader,RDR-PROX-01,RDRSET-ACC,"Proximity card reader module",Generic
+VLV-04,"TMV Cartridge",Cartridge,TMV-CRT-01,CRTSET-VLV,"TMV3 thermostatic cartridge",Generic
+SAN-01,"WC Flush Valve",Valve,FV-WC-01,FVSET-SAN,"Dual flush valve mechanism",Generic
+SAN-03,"Basin Tap Cartridge",Cartridge,TAP-CRT-01,CRTSET-SAN,"Quarter-turn ceramic cartridge",Generic
+DR-03,"Door Closer",Closer,DC-FD30-01,DCSET-DR,"Overhead door closer BS EN 1154",Generic
+DR-03,"Intumescent Strip",Seal,ITM-15-01,ITMSET-DR,"Intumescent strip 15x4mm",Generic
+DR-03,"Smoke Seal",Seal,SMK-SEAL-01,SEALSET-DR,"Cold smoke seal brush/blade",Generic
+FLV-*,"Fire Damper Fusible Link",Link,FL-72-01,FLSET-FDM,"Fusible link 72°C",Generic

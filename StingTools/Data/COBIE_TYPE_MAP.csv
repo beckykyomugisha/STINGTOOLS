@@ -1,0 +1,75 @@
+TypeCode,TypeName,Category,AssetType,Manufacturer,ModelNumber,WarrantyDurationYears,ReplacementCostGBP,ExpectedLifeYears,DurationUnit,MaintenanceFreqMonths,Description,Material,Finish,SFG20Code,UniclassCode,RevitCategory,StingDiscCode,StingSysCode,StingFuncCode,StingProdCode
+AHU-01,"Air Handling Unit - Small",HVAC Equipment,Fixed,Generic,AHU-S-01,5,15000,25,year,6,"Small AHU 0.5-2.0 m³/s",Galvanised Steel,Powder Coated,3-50-70,Ss_45_10_02,Mechanical Equipment,M,HVAC,SUP,AHU
+AHU-02,"Air Handling Unit - Medium",HVAC Equipment,Fixed,Generic,AHU-M-01,5,35000,25,year,6,"Medium AHU 2.0-5.0 m³/s",Galvanised Steel,Powder Coated,3-50-70,Ss_45_10_02,Mechanical Equipment,M,HVAC,SUP,AHU
+AHU-03,"Air Handling Unit - Large",HVAC Equipment,Fixed,Generic,AHU-L-01,5,75000,25,year,6,"Large AHU 5.0-20.0 m³/s",Galvanised Steel,Powder Coated,3-50-70,Ss_45_10_02,Mechanical Equipment,M,HVAC,SUP,AHU
+FCU-01,"Fan Coil Unit - Ceiling",HVAC Equipment,Fixed,Generic,FCU-C-01,3,2500,20,year,6,"Ceiling concealed fan coil unit",Galvanised Steel,Factory Finish,3-50-71,Ss_45_10_30,Mechanical Equipment,M,HVAC,SUP,FCU
+FCU-02,"Fan Coil Unit - Floor",HVAC Equipment,Fixed,Generic,FCU-F-01,3,3000,20,year,6,"Floor standing fan coil unit",Galvanised Steel,Factory Finish,3-50-71,Ss_45_10_30,Mechanical Equipment,M,HVAC,SUP,FCU
+VAV-01,"Variable Air Volume Box",HVAC Equipment,Fixed,Generic,VAV-01,3,4500,20,year,12,"VAV terminal unit with actuator",Galvanised Steel,Galvanised,3-50-72,Ss_45_10_90,Mechanical Equipment,M,HVAC,SUP,VAV
+CHR-01,"Chiller - Air Cooled",HVAC Equipment,Fixed,Generic,CHR-AC-01,5,50000,20,year,3,"Air cooled chiller 100-500kW",Steel,Powder Coated,3-50-50,Ss_55_30_15,Mechanical Equipment,M,HVAC,CLG,CHR
+CHR-02,"Chiller - Water Cooled",HVAC Equipment,Fixed,Generic,CHR-WC-01,5,65000,25,year,3,"Water cooled chiller 200-1000kW",Steel,Powder Coated,3-50-51,Ss_55_30_15,Mechanical Equipment,M,HVAC,CLG,CHR
+BLR-01,"Boiler - Gas Condensing",HVAC Equipment,Fixed,Generic,BLR-GC-01,5,8000,20,year,6,"Gas condensing boiler 50-200kW",Steel,Enamel,3-50-60,Ss_55_30_10,Mechanical Equipment,M,HVAC,HTG,BLR
+BLR-02,"Boiler - Gas Commercial",HVAC Equipment,Fixed,Generic,BLR-GX-01,5,25000,25,year,6,"Commercial gas boiler 200-500kW",Steel,Enamel,3-50-61,Ss_55_30_10,Mechanical Equipment,M,HVAC,HTG,BLR
+PMP-01,"Pump - Heating Circuit",HVAC Equipment,Fixed,Generic,PMP-HT-01,2,3500,15,year,12,"Heating circuit pump",Cast Iron,Factory Finish,3-50-62,Ss_60_40_63,Mechanical Equipment,M,HVAC,HTG,PMP
+PMP-02,"Pump - Chilled Water",HVAC Equipment,Fixed,Generic,PMP-CW-01,2,4000,15,year,12,"Chilled water circuit pump",Cast Iron,Factory Finish,3-50-52,Ss_60_40_63,Mechanical Equipment,M,HVAC,CLG,PMP
+PMP-03,"Pump - Domestic Cold Water",Plumbing Equipment,Fixed,Generic,PMP-DCW-01,2,2500,15,year,12,"Cold water booster pump",Cast Iron/Stainless,Factory Finish,3-52-20,Ss_60_40_63,Plumbing Fixtures,P,DCW,DCW,PMP
+PMP-04,"Pump - Domestic Hot Water",Plumbing Equipment,Fixed,Generic,PMP-DHW-01,2,2800,15,year,12,"Hot water circulation pump",Cast Iron/Bronze,Factory Finish,3-52-21,Ss_60_40_63,Plumbing Fixtures,P,DHW,DHW,PMP
+CYL-01,"Calorifier / Hot Water Cylinder",Plumbing Equipment,Fixed,Generic,CYL-01,5,4000,20,year,12,"Indirect hot water cylinder 200-500L",Stainless Steel,Brushed,3-52-22,Ss_55_30_40,Plumbing Fixtures,P,DHW,DHW,CYL
+TNK-01,"Cold Water Storage Tank",Plumbing Equipment,Fixed,Generic,TNK-CW-01,5,3000,25,year,12,"GRP cold water storage tank 500-2000L",GRP,Factory Finish,3-52-10,Ss_55_70_90,Plumbing Fixtures,P,DCW,DCW,TNK
+SAN-01,"WC - Close Coupled",Sanitary Equipment,Fixed,Generic,WC-CC-01,2,350,25,year,12,"Close coupled WC suite",Vitreous China,Glazed,3-52-50,Ss_40_20_94,Plumbing Fixtures,P,SAN,SAN,WC
+SAN-02,"WC - Wall Hung",Sanitary Equipment,Fixed,Generic,WC-WH-01,2,500,25,year,12,"Wall hung WC with concealed cistern",Vitreous China,Glazed,3-52-51,Ss_40_20_94,Plumbing Fixtures,P,SAN,SAN,WC
+SAN-03,"Wash Hand Basin",Sanitary Equipment,Fixed,Generic,WHB-01,2,250,25,year,12,"Wall mounted wash hand basin",Vitreous China,Glazed,3-52-52,Ss_40_20_93,Plumbing Fixtures,P,SAN,SAN,WHB
+SAN-04,"Shower Unit",Sanitary Equipment,Fixed,Generic,SHR-01,2,800,20,year,12,"Thermostatic shower with tray",Stainless Steel/Acrylic,Chrome/White,3-52-53,Ss_40_20_75,Plumbing Fixtures,P,SAN,SAN,SHR
+SAN-05,"Kitchen Sink",Sanitary Equipment,Fixed,Generic,SNK-01,2,400,25,year,12,"Stainless steel kitchen sink unit",Stainless Steel,Brushed,3-52-54,Ss_40_20_76,Plumbing Fixtures,P,SAN,SAN,SNK
+DB-01,"Distribution Board - Single Phase",Electrical Equipment,Fixed,Generic,DB-SP-01,2,1200,30,year,12,"Single phase distribution board 6-12 way",Steel,Powder Coated,3-54-10,Ss_60_40_23,Electrical Equipment,E,LV,PWR,DB
+DB-02,"Distribution Board - Three Phase",Electrical Equipment,Fixed,Generic,DB-TP-01,2,2500,30,year,12,"Three phase distribution board 12-24 way",Steel,Powder Coated,3-54-11,Ss_60_40_23,Electrical Equipment,E,LV,PWR,DB
+DB-03,"Main Switchboard (MSB)",Electrical Equipment,Fixed,Generic,MSB-01,5,15000,30,year,6,"Main switchboard 400-800A",Steel,Powder Coated,3-54-12,Ss_60_40_23,Electrical Equipment,E,LV,PWR,MSB
+TRF-01,"Transformer - Dry Type",Electrical Equipment,Fixed,Generic,TRF-DT-01,5,12000,30,year,12,"Dry type transformer 500-2000kVA",Steel/Copper,Factory Finish,3-54-20,Ss_60_40_86,Electrical Equipment,E,LV,PWR,TRF
+UPS-01,"UPS System",Electrical Equipment,Fixed,Generic,UPS-01,3,8000,15,year,6,"Uninterruptible power supply 10-100kVA",Steel,Powder Coated,3-54-25,Ss_60_40_89,Electrical Equipment,E,LV,PWR,UPS
+GEN-01,"Standby Generator",Electrical Equipment,Fixed,Generic,GEN-01,5,50000,25,year,3,"Diesel standby generator 100-500kVA",Steel,Powder Coated,3-54-30,Ss_60_40_36,Electrical Equipment,E,LV,PWR,GEN
+LTG-01,"Luminaire - LED Panel",Lighting Equipment,Fixed,Generic,LED-PNL-01,2,120,15,year,24,"600x600 LED panel 30-40W",Aluminium/Acrylic,White,3-54-50,Ss_60_30_42,Lighting Fixtures,E,LV,LTG,LUM
+LTG-02,"Luminaire - LED Downlight",Lighting Equipment,Fixed,Generic,LED-DWN-01,2,80,15,year,24,"Recessed LED downlight 10-20W",Aluminium,White/Brushed Chrome,3-54-51,Ss_60_30_42,Lighting Fixtures,E,LV,LTG,LUM
+LTG-03,"Luminaire - Emergency",Lighting Equipment,Fixed,Generic,EM-LTG-01,2,150,10,year,6,"Emergency bulkhead with 3hr battery",Polycarbonate,White,3-54-52,Ss_60_30_42,Lighting Fixtures,E,LV,LTG,LUM
+LTG-04,"Luminaire - External",Lighting Equipment,Fixed,Generic,EXT-LTG-01,2,350,15,year,12,"External LED wall/post light IP65",Aluminium,Anodised,3-54-53,Ss_60_30_42,Lighting Fixtures,E,LV,LTG,LUM
+FA-01,"Fire Alarm Panel",Fire Safety,Fixed,Generic,FA-PNL-01,3,5000,15,year,3,"Analogue addressable fire alarm panel",Steel,Red RAL3000,3-56-10,Ss_60_10_30,Fire Alarm Devices,FP,FLS,FLS,FAP
+FA-02,"Smoke Detector - Optical",Fire Safety,Fixed,Generic,SD-OPT-01,1,50,10,year,12,"Optical smoke detector with base",ABS Plastic,White,3-56-11,Ss_60_10_84,Fire Alarm Devices,FP,FLS,FLS,SD
+FA-03,"Heat Detector",Fire Safety,Fixed,Generic,HD-01,1,45,10,year,12,"Rate of rise heat detector with base",ABS Plastic,White,3-56-12,Ss_60_10_84,Fire Alarm Devices,FP,FLS,FLS,HD
+FA-04,"Manual Call Point",Fire Safety,Fixed,Generic,MCP-01,1,35,15,year,12,"Manual call point (break glass)",ABS Plastic,Red,3-56-13,Ss_60_10_84,Fire Alarm Devices,FP,FLS,FLS,MCP
+FA-05,"Sounder / Beacon",Fire Safety,Fixed,Generic,SND-01,1,60,10,year,12,"Fire alarm sounder/visual beacon",ABS Plastic,Red/White,3-56-14,Ss_60_10_84,Fire Alarm Devices,FP,FLS,FLS,SND
+SPR-01,"Sprinkler Head - Pendant",Fire Safety,Fixed,Generic,SPR-PND-01,1,25,30,year,12,"Pendant sprinkler head K80 68°C",Brass,Chrome/White,3-56-20,Ss_60_10_84,Sprinklers,FP,FP,FLS,SPR
+SPR-02,"Sprinkler Head - Upright",Fire Safety,Fixed,Generic,SPR-UPR-01,1,25,30,year,12,"Upright sprinkler head K80 68°C",Brass,Chrome,3-56-21,Ss_60_10_84,Sprinklers,FP,FP,FLS,SPR
+EXT-01,"Fire Extinguisher - CO2",Fire Safety,Moveable,Generic,FE-CO2-01,1,80,10,year,12,"CO2 fire extinguisher 2kg",Steel,Red,3-56-30,Ss_25_30_33,Fire Alarm Devices,FP,FLS,FLS,EXT
+EXT-02,"Fire Extinguisher - Dry Powder",Fire Safety,Moveable,Generic,FE-DP-01,1,50,10,year,12,"Dry powder fire extinguisher 6kg",Steel,Red,3-56-31,Ss_25_30_33,Fire Alarm Devices,FP,FLS,FLS,EXT
+BMS-01,"BMS Controller - DDC",Controls,Fixed,Generic,BMS-DDC-01,3,3000,15,year,12,"DDC controller 16-32 I/O points",ABS/Metal,Factory Finish,3-58-10,Ss_60_40_14,Communication Devices,LV,COM,COM,BMS
+BMS-02,"BMS Sensor - Temperature",Controls,Fixed,Generic,BMS-TMP-01,1,150,10,year,24,"Room temperature sensor",ABS Plastic,White,3-58-11,Ss_60_40_14,Communication Devices,LV,COM,COM,SNS
+BMS-03,"BMS Sensor - CO2",Controls,Fixed,Generic,BMS-CO2-01,1,300,8,year,12,"CO2 sensor for demand ventilation",ABS Plastic,White,3-58-12,Ss_60_40_14,Communication Devices,LV,COM,COM,SNS
+ACC-01,"Access Control Panel",Security,Fixed,Generic,ACC-PNL-01,3,4000,15,year,12,"Access control door controller 4-door",Steel,Factory Finish,3-58-20,Ss_60_10_03,Security Devices,LV,SEC,SEC,ACC
+ACC-02,"Card Reader",Security,Fixed,Generic,ACC-RDR-01,2,250,10,year,24,"Proximity card reader IP65",ABS Plastic,Black/Grey,3-58-21,Ss_60_10_03,Security Devices,LV,SEC,SEC,RDR
+CCTV-01,"CCTV Camera - Internal",Security,Fixed,Generic,CCTV-INT-01,2,500,10,year,12,"Internal IP dome camera 4MP",Metal/Plastic,White,3-58-22,Ss_60_10_13,Security Devices,LV,SEC,SEC,CAM
+CCTV-02,"CCTV Camera - External",Security,Fixed,Generic,CCTV-EXT-01,2,800,10,year,12,"External IP bullet camera 4MP IP67",Metal,White,3-58-23,Ss_60_10_13,Security Devices,LV,SEC,SEC,CAM
+LFT-01,"Passenger Lift",Vertical Transport,Fixed,Generic,LFT-PSG-01,5,80000,25,year,1,"Passenger lift 8-person 1.0m/s",Steel/Glass,Stainless/Glass,3-50-80,Ss_70_80_47,Mechanical Equipment,M,GEN,GEN,LFT
+LFT-02,"Goods Lift",Vertical Transport,Fixed,Generic,LFT-GDS-01,5,60000,25,year,1,"Goods lift 1000kg 0.5m/s",Steel,Powder Coated,3-50-81,Ss_70_80_47,Mechanical Equipment,M,GEN,GEN,LFT
+ESC-01,"Escalator",Vertical Transport,Fixed,Generic,ESC-01,5,120000,25,year,1,"Escalator 600mm width 0.5m/s",Steel/Aluminium,Stainless,3-50-82,Ss_70_80_27,Mechanical Equipment,M,GEN,GEN,ESC
+DR-01,"Door - Single Leaf Internal",Architectural,Fixed,Generic,DR-SGL-01,1,350,30,year,24,"Single leaf internal flush door",Timber,Painted/Laminate,3-50-90,Ss_25_10_25,Doors,A,ARC,ARC,DR
+DR-02,"Door - Double Leaf Internal",Architectural,Fixed,Generic,DR-DBL-01,1,600,30,year,24,"Double leaf internal flush door",Timber,Painted/Laminate,3-50-91,Ss_25_10_25,Doors,A,ARC,ARC,DR
+DR-03,"Door - Fire Rated FD30",Architectural,Fixed,Generic,DR-FD30-01,1,500,30,year,12,"FD30 fire rated door with closer",Timber/Steel,Painted,3-50-92,Ss_25_10_25,Doors,A,ARC,ARC,DR
+DR-04,"Door - Fire Rated FD60",Architectural,Fixed,Generic,DR-FD60-01,1,700,30,year,12,"FD60 fire rated door with closer",Timber/Steel,Painted,3-50-93,Ss_25_10_25,Doors,A,ARC,ARC,DR
+DR-05,"Door - External",Architectural,Fixed,Generic,DR-EXT-01,1,1200,30,year,12,"External entrance door aluminium",Aluminium/Glass,Anodised,3-50-94,Ss_25_10_25,Doors,A,ARC,ARC,DR
+WIN-01,"Window - Aluminium Frame",Architectural,Fixed,Generic,WIN-AL-01,2,800,30,year,24,"Aluminium framed window double glazed",Aluminium/Glass,Anodised/Clear,3-50-95,Ss_25_10_95,Windows,A,ARC,ARC,WIN
+WIN-02,"Window - uPVC Frame",Architectural,Fixed,Generic,WIN-PVC-01,2,500,25,year,24,"uPVC window double glazed",uPVC/Glass,White/Clear,3-50-96,Ss_25_10_95,Windows,A,ARC,ARC,WIN
+FRN-01,"Office Desk",Furniture,Moveable,Generic,DSK-01,1,400,15,year,0,"Office desk 1600x800",MFC/Steel,Various,3-50-97,Ss_25_80_15,Furniture,A,ARC,ARC,FRN
+FRN-02,"Office Chair",Furniture,Moveable,Generic,CHR-OFC-01,1,350,10,year,0,"Task chair with arms",Fabric/Steel/Nylon,Various,3-50-98,Ss_25_80_15,Furniture,A,ARC,ARC,FRN
+DCT-01,"Ductwork - Rectangular",HVAC Distribution,Fixed,Generic,DCT-REC-01,2,0,30,year,24,"Rectangular galvanised steel ductwork",Galvanised Steel,Galvanised,3-50-73,Ss_55_70_21,Ducts,M,HVAC,SUP,DCT
+DCT-02,"Ductwork - Circular",HVAC Distribution,Fixed,Generic,DCT-CIR-01,2,0,30,year,24,"Circular spiral ductwork",Galvanised Steel,Galvanised,3-50-74,Ss_55_70_21,Ducts,M,HVAC,SUP,DCT
+PIP-01,"Pipework - Copper",Plumbing Distribution,Fixed,Generic,PIP-CU-01,2,0,40,year,0,"Copper pipework",Copper,Natural/Insulated,3-52-70,Ss_55_70_60,Pipes,P,DCW,DCW,PIP
+PIP-02,"Pipework - Steel",HVAC Distribution,Fixed,Generic,PIP-STL-01,2,0,30,year,0,"Mild steel pipework for LTHW/CHW",Mild Steel,Painted/Insulated,3-50-75,Ss_55_70_60,Pipes,M,HVAC,SUP,PIP
+CDT-01,"Conduit - Steel",Electrical Distribution,Fixed,Generic,CDT-STL-01,2,0,40,year,0,"Steel conduit 20-25mm",Steel,Galvanised,3-54-70,Ss_55_70_14,Conduits,E,LV,PWR,CDT
+CTR-01,"Cable Tray - Perforated",Electrical Distribution,Fixed,Generic,CTR-PRF-01,2,0,30,year,0,"Perforated cable tray 300-600mm",Steel,Hot Dip Galvanised,3-54-71,Ss_55_70_10,Cable Trays,E,LV,PWR,CTR
+AT-01,"Air Terminal - Diffuser Square",HVAC Distribution,Fixed,Generic,AT-SQ-01,1,80,20,year,24,"Square ceiling diffuser 600x600",Aluminium,White RAL9010,3-50-76,Ss_55_70_21,Air Terminals,M,HVAC,SUP,DIF
+AT-02,"Air Terminal - Linear Grille",HVAC Distribution,Fixed,Generic,AT-LIN-01,1,120,20,year,24,"Linear slot diffuser",Aluminium,Anodised,3-50-77,Ss_55_70_21,Air Terminals,M,HVAC,SUP,GRL
+AT-03,"Air Terminal - Extract Grille",HVAC Distribution,Fixed,Generic,AT-EXT-01,1,60,20,year,24,"Extract grille with damper",Aluminium,White RAL9010,3-50-78,Ss_55_70_21,Air Terminals,M,HVAC,EXT,GRL
+FLV-01,"Fire Damper",Fire Safety,Fixed,Generic,FD-01,2,250,25,year,12,"Intumescent fire damper",Galvanised Steel,Galvanised,3-56-40,Ss_60_10_30,Duct Accessories,FP,FP,FLS,FDM
+SMK-01,"Smoke Damper",Fire Safety,Fixed,Generic,SMD-01,2,450,25,year,12,"Motorised smoke control damper",Galvanised Steel,Galvanised,3-56-41,Ss_60_10_84,Duct Accessories,FP,FP,FLS,SDM
+VLV-01,"Valve - Isolation Gate",Plumbing Equipment,Fixed,Generic,VLV-GT-01,1,150,25,year,24,"Gate valve brass/DZR",Brass/DZR,Natural,3-52-30,Ss_60_40_90,Pipe Accessories,P,DCW,DCW,VLV
+VLV-02,"Valve - Check/Non-Return",Plumbing Equipment,Fixed,Generic,VLV-NR-01,1,120,20,year,24,"Spring check valve",Brass/Stainless,Natural,3-52-31,Ss_60_40_90,Pipe Accessories,P,DCW,DCW,VLV
+VLV-03,"Valve - Pressure Reducing",Plumbing Equipment,Fixed,Generic,VLV-PR-01,1,350,15,year,12,"Pressure reducing valve",Bronze,Factory Finish,3-52-32,Ss_60_40_90,Pipe Accessories,P,DCW,DCW,VLV
+VLV-04,"Valve - Thermostatic Mixing",Plumbing Equipment,Fixed,Generic,VLV-TM-01,1,250,10,year,12,"TMV3 thermostatic mixing valve",Brass/Chrome,Chrome,3-52-33,Ss_60_40_90,Pipe Accessories,P,DHW,DHW,VLV

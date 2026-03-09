@@ -1,0 +1,82 @@
+SheetName,RowNamePattern,AttributeName,Unit,Description,AllowedValues,StingParamKey
+Type,AHU-*,AirFlowRate,m³/s,Design air volume flow rate,,HVC_AIRFLOW
+Type,AHU-*,FanStaticPressure,Pa,Total fan static pressure,,HVC_PRESSURE
+Type,AHU-*,MotorPower,kW,Fan motor power rating,,ELC_POWER
+Type,AHU-*,HeatRecoveryEfficiency,%,Heat recovery effectiveness,,
+Type,AHU-*,FilterClass,,Pre-filter and final filter class,"G3,G4,M5,F6,F7,F8,F9",
+Type,AHU-*,NoiseLevel,dB(A),Sound power level at 1m,,
+Type,FCU-*,CoolingCapacity,kW,Total cooling capacity,,
+Type,FCU-*,HeatingCapacity,kW,Total heating capacity,,
+Type,FCU-*,AirFlowRate,l/s,Air volume flow rate,,HVC_AIRFLOW
+Type,FCU-*,FanSpeed,,Number of fan speeds,"2,3,EC Variable",
+Type,CHR-*,CoolingCapacity,kW,Rated cooling capacity,,
+Type,CHR-*,EER,,Energy efficiency ratio,,
+Type,CHR-*,RefrigerantType,,Refrigerant type,"R410A,R32,R134a,R1234ze",
+Type,CHR-*,RefrigerantCharge,kg,Refrigerant charge,,
+Type,CHR-*,CompressorType,,Compressor type,"Scroll,Screw,Centrifugal",
+Type,BLR-*,OutputCapacity,kW,Net heating output,,
+Type,BLR-*,GrossEfficiency,%,Gross seasonal efficiency,,
+Type,BLR-*,FuelType,,Fuel type,"Natural Gas,LPG,Oil,Dual Fuel",
+Type,BLR-*,FlueType,,Flue arrangement,"Room Sealed,Open Flue,Balanced Flue",
+Type,BLR-*,NOxClass,,NOx emission class,"Class 5,Class 6",
+Type,PMP-*,FlowRate,l/s,Design flow rate,,PLM_PIPE_FLOW
+Type,PMP-*,Head,m,Total head at duty point,,
+Type,PMP-*,MotorPower,kW,Motor rated power,,ELC_POWER
+Type,PMP-*,Speed,rpm,Rated speed,,
+Type,PMP-*,NPSH,m,Net positive suction head,,
+Type,DB-*,RatedCurrent,A,Rated incoming current,,
+Type,DB-*,Ways,,Number of outgoing ways,,ELC_WAYS
+Type,DB-*,ShortCircuitRating,kA,Prospective short circuit rating,,
+Type,DB-*,IPRating,,Ingress protection rating,"IP2X,IP31,IP41,IP54,IP65",ELC_IP_RATING
+Type,DB-*,FedFrom,,Fed from (upstream panel),,ELC_PNL_FED_FROM
+Type,TRF-*,RatedPower,kVA,Rated apparent power,,ELC_POWER
+Type,TRF-*,PrimaryVoltage,V,Primary winding voltage,,ELC_VOLTAGE
+Type,TRF-*,SecondaryVoltage,V,Secondary winding voltage,,
+Type,TRF-*,ImpedanceVoltage,%,Short circuit impedance voltage,,
+Type,UPS-*,RatedPower,kVA,Rated output power,,ELC_POWER
+Type,UPS-*,BatteryAutonomy,minutes,Battery backup time at full load,,
+Type,UPS-*,Topology,,UPS topology,"Online Double Conversion,Line Interactive,Standby",
+Type,GEN-*,RatedPower,kVA,Rated standby power,,ELC_POWER
+Type,GEN-*,FuelType,,Fuel type,"Diesel,Gas,Bi-Fuel",
+Type,GEN-*,FuelTankCapacity,litres,Integral fuel tank capacity,,
+Type,GEN-*,RunTime,hours,Run time at 75% load,,
+Type,LTG-*,LampWattage,W,Total luminaire wattage,,LTG_WATTAGE
+Type,LTG-*,LuminousFlux,lm,Total luminous flux,,LTG_LUMENS
+Type,LTG-*,Efficacy,lm/W,Luminous efficacy,,LTG_EFFICACY
+Type,LTG-*,ColourTemperature,K,Correlated colour temperature,"3000,4000,5000,6500",
+Type,LTG-*,CRI,,Colour rendering index,,
+Type,LTG-*,IPRating,,Ingress protection,"IP20,IP40,IP44,IP54,IP65,IP67",ELC_IP_RATING
+Type,LTG-*,L70Lifetime,hours,L70 rated lifetime,,
+Type,LTG-03,EmergencyDuration,hours,Emergency mode duration,"1,2,3",
+Type,FA-01,Loops,,Number of detection loops,,
+Type,FA-01,Zones,,Number of alarm zones,,
+Type,FA-01,Protocol,,Communication protocol,"Analogue Addressable,Conventional,Wireless",
+Type,SPR-*,KFactor,,K-factor discharge coefficient,"K57,K80,K115,K160",
+Type,SPR-*,ActivationTemp,°C,Activation temperature,"57,68,79,93,141",
+Type,SPR-*,ResponseTime,,Response time index,"Standard,Quick,Special",
+Type,LFT-*,Capacity,persons,Rated passenger capacity,,
+Type,LFT-*,RatedLoad,kg,Rated load capacity,,
+Type,LFT-*,Speed,m/s,Rated travel speed,,
+Type,LFT-*,Floors,,Number of floors served,,
+Type,LFT-*,DriveType,,Drive system,"Geared Traction,Gearless Traction,Hydraulic,MRL",
+Type,DR-*,FireRating,,Fire resistance rating,"FD30,FD60,FD90,FD120,None",FIRE_RATING
+Type,DR-*,AcousticRating,dB Rw,Sound reduction rating,,
+Type,DR-*,SecurityRating,,Physical security rating,"SR1,SR2,SR3,SR4,None",
+Type,DR-*,CloserType,,Door closer type,"Overhead,Concealed,Floor Spring,None",
+Type,WIN-*,ThermalTransmittance,W/m²K,U-value of complete window,,
+Type,WIN-*,GlazingType,,Glazing specification,"Single,Double,Triple",
+Type,WIN-*,FrameMaterial,,Frame material,"Aluminium,uPVC,Timber,Steel",
+Type,WIN-*,FireRating,,Fire resistance rating,"E30,EW30,EI30,EI60,None",FIRE_RATING
+Space,*,DesignTemperatureHeating,°C,Design room temperature (heating),,,
+Space,*,DesignTemperatureCooling,°C,Design room temperature (cooling),,,
+Space,*,DesignHumidity,%RH,Design relative humidity,,,
+Space,*,VentilationRate,l/s/person,Fresh air ventilation rate,,,
+Space,*,LuxLevel,lux,Design illuminance level,,,
+Space,*,NoiseRating,NR,Design noise rating,,,
+Space,*,OccupantDensity,m²/person,Floor area per person,,,
+Space,*,FireCompartment,,Fire compartment reference,,,
+Space,*,MeansOfEscape,,Escape route reference,,,
+Component,*,CommissioningDate,,Date of commissioning,,,
+Component,*,CommissioningStatus,,Commissioning status,"Passed,Failed,Pending,N/A",
+Component,*,HandoverStatus,,Handover status,"Complete,Incomplete,Snagged",
+Component,*,SnaggingNotes,,Snagging/defect notes,,,

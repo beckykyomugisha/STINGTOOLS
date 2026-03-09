@@ -480,6 +480,16 @@ namespace StingTools.UI
                     case "IFCExport": RunCommand<Temp.IFCExportCommand>(app); break;
                     case "ExcelImport": RunCommand<Temp.ExcelBOQImportCommand>(app); break;
                     case "KeynoteSync": RunCommand<Temp.KeynoteSyncCommand>(app); break;
+
+                    // ── COBie Reference Data ──
+                    case "COBieTypeMap": RunCommand<Temp.COBieTypeMapCommand>(app); break;
+                    case "COBieAutoMatch": RunCommand<Temp.COBieAutoMatchCommand>(app); break;
+                    case "COBiePickLists": RunCommand<Temp.COBiePickListsCommand>(app); break;
+                    case "COBieJobTemplates": RunCommand<Temp.COBieJobTemplatesCommand>(app); break;
+                    case "COBieSpareParts": RunCommand<Temp.COBieSparePartsCommand>(app); break;
+                    case "COBieAttributes": RunCommand<Temp.COBieAttributeTemplatesCommand>(app); break;
+                    case "COBieDataSummary": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
+
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
 
                     // ════════════════════════════════════════════════════════
