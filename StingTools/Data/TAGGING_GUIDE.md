@@ -357,17 +357,17 @@ Before tagging begins, `GetExistingSequenceCounters()` scans all elements to fin
 | ASS_TAG_5_TXT | line1 (top half) | Multi-line top | M-BLD1-Z01-L02 |
 | ASS_TAG_6_TXT | line2 (bottom half) | Multi-line bottom | HVAC-SUP-AHU-0003 |
 
-**TAG7 — Rich narrative** (6 sub-sections):
+**TAG7 — Rich descriptive narrative** (see [TAG7 Creation](#tag7--rich-descriptive-narrative-creation) section below for full details):
 
 | Parameter | Section | Content |
 |-----------|---------|---------|
-| ASS_TAG_7_TXT | Full | Complete narrative with markup |
-| ASS_TAG_7A_TXT | Identity | Asset name, product code, manufacturer, model |
-| ASS_TAG_7B_TXT | System | System type, function code |
-| ASS_TAG_7C_TXT | Spatial | Room, department, grid reference |
-| ASS_TAG_7D_TXT | Lifecycle | Status, revision, origin |
-| ASS_TAG_7E_TXT | Technical | Capacity, flow, voltage (discipline-specific) |
-| ASS_TAG_7F_TXT | Classification | Uniformat, OmniClass, keynote, ISO tag |
+| ASS_TAG_7_TXT | Full | Complete narrative with markup tokens |
+| ASS_TAG_7A_TXT | A: Identity | Asset name, product code, manufacturer, model |
+| ASS_TAG_7B_TXT | B: System | System type, function code, serving context |
+| ASS_TAG_7C_TXT | C: Spatial | Room, department, grid reference |
+| ASS_TAG_7D_TXT | D: Lifecycle | Status, revision, origin, maintenance |
+| ASS_TAG_7E_TXT | E: Technical | Capacity, flow, voltage (discipline-specific) + dimensions |
+| ASS_TAG_7F_TXT | F: Classification | Uniformat, OmniClass, keynote, cost, ISO tag |
 
 **Discipline-specific containers** (written only to matching categories):
 
@@ -527,6 +527,286 @@ Tag configuration can be customised per-project via `project_config.json` (saved
 | Verify tag quality after tagging | Validate | CREATE > QA |
 | Zero-touch real-time tagging | Auto-Tagger Toggle | CREATE |
 | Complete automation (tags + data + formulas) | Full Auto-Populate | TEMP > Schedules |
+
+---
+
+## TAG7 — Rich Descriptive Narrative Creation
+
+TAG7 is a comprehensive human-readable asset narrative that describes each element in natural language. Unlike TAG1-TAG6 which are structured code strings, TAG7 produces flowing prose suitable for asset registers, FM handover documents, and rich tag annotations.
+
+### Parameters
+
+| Parameter | Storage | Content |
+|-----------|---------|---------|
+| `ASS_TAG_7_TXT` | Marked-up full narrative | Contains `«H»`/`«L»`/`«V»` markup tokens for rich rendering |
+| `ASS_TAG_7A_TXT` | Plain text — Section A | Identity Header |
+| `ASS_TAG_7B_TXT` | Plain text — Section B | System & Function |
+| `ASS_TAG_7C_TXT` | Plain text — Section C | Spatial Context |
+| `ASS_TAG_7D_TXT` | Plain text — Section D | Lifecycle & Status |
+| `ASS_TAG_7E_TXT` | Plain text — Section E | Technical Specifications |
+| `ASS_TAG_7F_TXT` | Plain text — Section F | Classification & Reference |
+
+TAG7 (the main parameter) holds the **marked-up** narrative with embedded formatting tokens. TAG7A-TAG7F hold **plain text** sections for use in tag family labels (which cannot render markup).
+
+### When TAG7 is Written
+
+TAG7 is written automatically during Step 4 (Tag) as part of `BuildAndWriteTag()`. After assembling the 8-segment tag and writing TAG1-TAG6, the tagging engine calls `TagConfig.WriteTag7All()` which:
+
+1. Calls `BuildTag7Sections()` to generate all 6 sections
+2. Writes the marked-up narrative to `ASS_TAG_7_TXT`
+3. Writes each plain section to `ASS_TAG_7A_TXT` through `ASS_TAG_7F_TXT`
+
+### Section A: Identity Header
+
+**Colour**: Blue (`#1565C0`) | **Style**: Bold + Underline
+
+Builds an asset identity statement from:
+
+| Source Parameter | Used For | Example |
+|------------------|----------|---------|
+| DISC token | Discipline description lookup | "M" → "Mechanical" |
+| PROD token | Product description lookup | "AHU" → "Air Handling Unit" |
+| Category name | Fallback if no PROD description | "Mechanical Equipment" |
+| `ASS_MFR_TXT` | Manufacturer name | "Daikin" |
+| `ASS_MODEL_TXT` | Model number | "FXS125" |
+| `ASS_FAMILY_NAME_TXT` | Family name (if no mfr/model) | "M_FCU_Horizontal" |
+| `ASS_TYPE_NAME_TXT` | Type configuration | "1200mm - 4 Pipe" |
+| `ASS_DESC_TXT` | Description | "Ceiling-mounted FCU" |
+| `ASS_SIZE_TXT` | Size specification | "600x400mm" |
+
+**Example output**:
+> Mechanical Air Handling Unit (AHU) manufactured by Daikin Model FXS125, sized at 600x400mm
+
+**Without manufacturer data**:
+> Mechanical Air Handling Unit (AHU) from the M_AHU_Horizontal family configured as 2500 L/s
+
+### Section B: System & Function Context
+
+**Colour**: Green (`#2E7D32`) | **Style**: Italic
+
+Describes the engineering system context using description lookup tables:
+
+| Code | System Description | Function Description |
+|------|--------------------|----------------------|
+| HVAC | Heating Ventilation and Air Conditioning | SUP → Supply, RTN → Return, EXH → Exhaust, FRA → Fresh Air Intake |
+| DCW | Domestic Cold Water | DCW → Domestic Cold Water Distribution |
+| HWS | Hot Water Supply | HTG → Heating, DHW → Domestic Hot Water Distribution |
+| SAN | Sanitary Drainage | SAN → Sanitary Waste Disposal |
+| LV | Low Voltage Distribution | PWR → Power Distribution, LTG → Lighting |
+| FP | Fire Protection | FP → Fire Protection Suppression |
+| FLS | Fire Life Safety | FLS → Fire Detection and Alarm |
+| COM | Communications | COM → Voice and Data Communications |
+| ICT | Information and Communications Technology | ICT → Data Network and Infrastructure |
+| SEC | Security Systems | SEC → Security and Access Control |
+| NCL | Nurse Call Systems | NCL → Patient Nurse Call |
+| ARC | Architectural Fabric | FIT → Finishes and Fitout |
+| STR | Structural Elements | STR → Primary Structure |
+
+Includes the serving context: zone, level, and building from the element's token values.
+
+**Example output**:
+> Heating Ventilation and Air Conditioning providing Supply serving Zone Z01 on Level L02 within Building BLD1
+
+### Section C: Spatial Context
+
+**Colour**: Orange (`#E65100`) | **Style**: Normal
+
+Built from room and spatial data parameters:
+
+| Source Parameter | Used For | Example |
+|------------------|----------|---------|
+| `ASS_ROOM_NAME_TXT` | Room name | "Office 201" |
+| `ASS_ROOM_NUM_TXT` | Room number | "2.01" |
+| `ASS_DEPT_TXT` | Department | "Engineering" |
+| `ASS_GRID_REF_TXT` | Grid reference | "C4-D5" |
+| `BLE_ROOM_NAME_TXT` | BLE room name (fallback) | Used if ASS_ROOM_NAME is empty |
+| `BLE_ROOM_NUM_TXT` | BLE room number (fallback) | Used if ASS_ROOM_NUM is empty |
+
+**Example output**:
+> Located in Office 201 (Room 2.01) within the Engineering department near grid reference C4-D5
+
+### Section D: Lifecycle & Status
+
+**Colour**: Red (`#C62828`) | **Style**: Normal
+
+Built from lifecycle and project context parameters:
+
+| Source Parameter | Used For | Example |
+|------------------|----------|---------|
+| `ASS_STATUS_TXT` | Construction status | "NEW", "EXISTING" |
+| `ASS_REV_TXT` | Revision code | "P02" |
+| `ASS_ORIGIN_TXT` | Origin/source | "Design Intent" |
+| `ASS_PROJECT_TXT` | Project name | "Hospital Phase 2" |
+| `ASS_VOLUME_TXT` | Volume reference | "Vol 3" |
+| `ASS_MNT_TYPE_TXT` | Maintenance type | "Planned Preventative" |
+| `ASS_DETAIL_NUM_TXT` | Detail reference | "D-M-101" |
+
+**Example output**:
+> This element is new, currently at revision P02, originating from Design Intent within project Hospital Phase 2. Requires planned preventative maintenance, see detail D-M-101
+
+### Section E: Technical Specifications
+
+**Colour**: Purple (`#6A1B9A`) | **Style**: Bold
+
+Technical data is **discipline-specific** — the builder reads different parameters based on the element's discipline and category:
+
+#### Electrical Equipment / Fixtures (DISC = E)
+
+| Parameter | Narrative Template | Unit |
+|-----------|--------------------|------|
+| `ELC_POWER_TXT` | "rated at {0} kW" | kW |
+| `ELC_VOLTAGE_TXT` | "operating at {0} V" | V |
+| `ELC_CIRCUIT_NR_TXT` | "connected to circuit {0}" | — |
+| `ELC_PNL_NAME_TXT` | "supplied by panel {0}" | — |
+| `ELC_PHASES_TXT` | "configured for {0} phase supply" | — |
+| `ELC_PNL_FED_FROM_TXT` | "fed from {0}" | — |
+| `ELC_MAIN_BRK_TXT` | "protected by a {0} A main breaker" | A |
+| `ELC_WAYS_TXT` | "with {0} ways" | — |
+| `ELC_IP_RATING_TXT` | "sealed to IP {0}" | — |
+| `ELC_PNL_LOAD_TXT` | "carrying a connected load of {0} kW" | kW |
+
+#### Lighting Fixtures / Devices
+
+| Parameter | Narrative Template | Unit |
+|-----------|--------------------|------|
+| `LTG_WATTAGE_TXT` | "consuming {0} W" | W |
+| `LTG_LUMENS_TXT` | "delivering {0} lm of luminous output" | lm |
+| `LTG_EFFICACY_TXT` | "achieving an efficacy of {0} lm/W" | lm/W |
+| `LTG_LAMP_TYPE_TXT` | "using a {0} lamp" | — |
+| `ELC_CIRCUIT_NR_TXT` | "wired to circuit {0}" | — |
+
+#### Mechanical / HVAC (DISC = M, Ducts, Air Terminals)
+
+| Parameter | Narrative Template | Unit |
+|-----------|--------------------|------|
+| `HVC_AIRFLOW_TXT` | "delivering an airflow of {0} L/s" | L/s |
+| `HVC_DUCT_FLOW_TXT` | "with a duct flow of {0} CFM" | CFM |
+| `HVC_VELOCITY_TXT` | "at a velocity of {0} m/s" | m/s |
+| `HVC_PRESSURE_TXT` | "against a pressure drop of {0} Pa" | Pa |
+
+#### Plumbing (DISC = P, Pipes, Plumbing Fixtures)
+
+| Parameter | Narrative Template | Unit |
+|-----------|--------------------|------|
+| `PLM_PIPE_FLOW_TXT` | "conveying a flow of {0} L/s" | L/s |
+| `PLM_PIPE_SIZE_TXT` | "through {0} mm diameter pipework" | mm |
+| `PLM_VELOCITY_TXT` | "at a velocity of {0} m/s" | m/s |
+| `PLM_FLOW_RATE_TXT` | "with a design flow rate of {0} L/s" | L/s |
+| `PLM_PIPE_LENGTH_TXT` | "running {0} m in length" | m |
+
+#### Fire Protection (DISC = FP, Sprinklers, Fire Alarm Devices)
+
+| Parameter | Narrative Template | Unit |
+|-----------|--------------------|------|
+| `FIRE_RATING_TXT` | "providing {0} minutes of fire resistance" | min |
+
+#### Dimensional Data (BLE categories)
+
+After the discipline-specific data, Section E appends dimensional properties based on category:
+
+| Category | Parameters Read | Example Output |
+|----------|----------------|----------------|
+| Walls | Height, Length, Thickness, Area, Fire Rating, Structural Type | "standing 3000 mm high, spanning 5400 mm in length, with a thickness of 200 mm" |
+| Doors | Width, Height, Fire Rating | "measuring 900 mm wide, by 2100 mm high, with 60 minutes of fire resistance" |
+| Windows | Width, Height, Sill Height | "measuring 1200 mm wide, by 1500 mm high, set at a sill height of 900 mm" |
+| Floors | Thickness, Area, Structural Type, Fire Rating | "with a build-up of 350 mm thick, covering an area of 45 m²" |
+| Ceilings | Height, Area | "suspended at 2700 mm above floor level, covering an area of 30 m²" |
+| Roofs | Slope, Area | "pitched at 15 degrees, covering an area of 200 m²" |
+| Stairs | Tread, Rise, Width | "with treads 280 mm deep, risers of 170 mm, and a clear width of 1200 mm" |
+| Ramps | Slope, Width | "inclined at 8%, with a clear width of 1500 mm" |
+
+### Section F: Classification & Reference
+
+**Colour**: Grey (`#37474F`) | **Style**: Italic
+
+Built from classification and cost parameters:
+
+| Source Parameter | Narrative Template |
+|------------------|--------------------|
+| `ASS_UNIFORMAT_TXT` | "Uniformat code {0}" |
+| `ASS_UNIFORMAT_DESC_TXT` | Appended as "({description})" |
+| `ASS_OMNICLASS_TXT` | "with OmniClass reference {0}" |
+| `ASS_KEYNOTE_TXT` | "keynote {0}" |
+| `ASS_TYPE_MARK_TXT` | "identified as type mark {0}" |
+| `ASS_COST_TXT` | "with an estimated unit cost of {0}" |
+
+The ISO 19650 tag is always appended at the end:
+> Assigned ISO 19650 tag M-BLD1-Z01-L02-HVAC-SUP-AHU-0003
+
+### Narrative Assembly
+
+The 6 sections are joined into a single flowing paragraph with natural-language connectors:
+
+| From → To | Connector |
+|-----------|-----------|
+| A → B | ". This asset operates within the " |
+| B → C | ". It is " (Section C starts with "located in...") |
+| C → D | ". Regarding its lifecycle, " |
+| D → E | ". Technical specifications include " |
+| E → F | ". Classified under " |
+
+**Full example narrative** (for a distribution board):
+
+> **Electrical Distribution Board (DB)** manufactured by Schneider Electric Model Prisma P — *This asset operates within the* **Low Voltage Distribution** *providing* Power Distribution *serving* Zone Z01 *on* Level L02 *within* Building BLD1. *It is* located in Plant Room (Room 0.12) within the Electrical department near grid reference B3-C3. *Regarding its lifecycle,* this element is new, currently at revision P01. *Technical specifications include* rated at 125 kW, operating at 415 V, configured for 3 phase supply, protected by a 400 A main breaker, with 48 ways. *Classified under* Uniformat code D5010 (Electrical Service and Distribution), keynote 260000, with an estimated unit cost of £12,500. Assigned ISO 19650 tag E-BLD1-Z01-L02-LV-PWR-DB-0001
+
+### Markup Tokens
+
+TAG7 (the main parameter) embeds formatting tokens that are parsed by rich rendering surfaces:
+
+| Token | Meaning | TextNote Rendering | WPF Rendering | HTML Rendering |
+|-------|---------|-------------------|---------------|----------------|
+| `«H»text«/H»` | Header / emphasis | Bold + Underline | Bold | `<strong>` |
+| `«L»text«/L»` | Label text | Italic | Muted colour | `<em>` |
+| `«V»text«/V»` | Value text | Normal weight | Accent colour | Highlighted `<span>` |
+| `«S»text«/S»` | Section separator | Normal | Normal | Normal |
+
+TAG7A-TAG7F sub-parameters hold **plain text only** (no markup) for use in Revit tag family labels via the Edit Label dialog.
+
+### Display Presets
+
+TAG7 rendering can be styled per-element using **display presets** (`TagConfig.ActivePreset`). Each preset maps a discriminator value to a colour scheme:
+
+| Preset | Discriminator | Example Styles |
+|--------|--------------|----------------|
+| **Discipline** (default) | DISC code | M=Blue, E=Yellow, P=Green, A=Grey, S=Red, FP=Orange, LV=Purple |
+| **Status** | STATUS value | NEW=Green, EXISTING=Blue, DEMOLISHED=Red, TEMPORARY=Orange |
+| **System** | SYS code | HVAC=Blue, DCW=Cyan, HWS=Red, SAN=Brown, LV=Yellow, FP=Orange |
+| **Compliance** | Tag completeness | COMPLETE=Green, PARTIAL=Yellow, INCOMPLETE=Red |
+| **Monochrome** | — | All elements: Black header on light grey |
+| **Accessible** | DISC code | Colorblind-safe palette (viridis-like) |
+| **Engineering Review** | — | All elements: Purple header on light purple |
+
+Each style defines: `HeaderColor`, `BackgroundTint`, `Label`, and `SectionColors[A-F]`.
+
+### Paragraph Depth Control
+
+TAG7 tag family labels support **paragraph depth** — controlling how much detail is visible in annotation tags:
+
+| Depth | State Parameters | Content Shown |
+|-------|-----------------|---------------|
+| **Compact** (State 1) | PARA_STATE_1=Yes | Tier 1 only — basic identity and dimensions |
+| **Standard** (State 2) | PARA_STATE_1+2=Yes | Tiers 1+2 — adds materials, thermal, acoustic data |
+| **Comprehensive** (State 3) | PARA_STATE_1+2+3=Yes | Tiers 1+2+3 — full specification with regulatory, sustainability, QA |
+
+These are **Type parameters** (`TAG_PARA_STATE_1_BOOL` through `TAG_PARA_STATE_10_BOOL`) — all instances of the same type change together.
+
+**Commands**:
+- **Set Paragraph Depth** (`Tags.SetParagraphDepthCommand`) — directly set state 1/2/3
+- **Toggle Warning Visibility** (`Tags.ToggleWarningVisibilityCommand`) — show/hide threshold warning text (e.g., `[!U > 0.70]`, `[!VD > 4%]`)
+
+### Presentation Modes
+
+Presentation modes combine paragraph depth + warning visibility into named presets for one-click switching:
+
+| Mode | States | Warnings | Use Case |
+|------|--------|----------|----------|
+| **Compact** | 1 only | OFF | Quick labels, drawing title blocks |
+| **Technical** | 1+2 | ON | Engineering documentation, design review |
+| **Full Specification** | 1+2+3 | ON | Detail sheets, specifications |
+| **Presentation** | 1+2 | OFF | Client presentations (clean, no warnings) |
+| **BOQ** | 1+2 | OFF | Cost schedules and quantity extraction |
+
+**Command**: Set Presentation Mode (VIEW tab) — `Tags.SetPresentationModeCommand`
 
 ---
 
