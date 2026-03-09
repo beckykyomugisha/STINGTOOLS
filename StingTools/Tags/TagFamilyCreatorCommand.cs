@@ -170,6 +170,13 @@ namespace StingTools.Tags
             ParamRegistry.TAG4,  // Short label (PROD-SEQ)
             ParamRegistry.TAG5,  // Description tag (PROD + family name)
             ParamRegistry.TAG6,  // Status tag (multi-line)
+            ParamRegistry.TAG7,  // Rich narrative (full marked-up text)
+            ParamRegistry.TAG7A, // Section A: Identity Header (Bold)
+            ParamRegistry.TAG7B, // Section B: System & Function (Italic)
+            ParamRegistry.TAG7C, // Section C: Spatial Context
+            ParamRegistry.TAG7D, // Section D: Lifecycle & Status
+            ParamRegistry.TAG7E, // Section E: Technical Specs (Bold)
+            ParamRegistry.TAG7F, // Section F: Classification (Italic)
         };
 
         /// <summary>
@@ -1346,6 +1353,39 @@ namespace StingTools.Tags
                     sb.AppendLine($"  Break: YES (new line)");
                 }
 
+                // TAG7 — Rich Descriptive Narrative (6 sub-sections A-F)
+                sb.AppendLine();
+                sb.AppendLine("── TAG7 NARRATIVE (Rich Description — Auto-Generated) ──");
+                sb.AppendLine("TAG7 is auto-populated by Tag & Combine / Full Auto-Populate.");
+                sb.AppendLine("Add these TAG7 sub-section parameters to the label for");
+                sb.AppendLine("multi-line rich display (each gated by visibility booleans):");
+                sb.AppendLine();
+                sb.AppendLine("  Parameter                    | Content           | Style    | Brk");
+                sb.AppendLine("  " + new string('─', 72));
+                sb.AppendLine("  ASS_TAG_7A_TXT               | Identity Header   | Bold     | YES");
+                sb.AppendLine("  ASS_TAG_7B_TXT               | System & Function | Italic   | YES");
+                sb.AppendLine("  ASS_TAG_7C_TXT               | Spatial Context   | Normal   | YES");
+                sb.AppendLine("  ASS_TAG_7D_TXT               | Lifecycle/Status  | Normal   | YES");
+                sb.AppendLine("  ASS_TAG_7E_TXT               | Technical Specs   | Bold     | YES");
+                sb.AppendLine("  ASS_TAG_7F_TXT               | Classification    | Italic   | YES");
+                sb.AppendLine();
+                sb.AppendLine("  For all TAG7 rows, use Calculated Values:");
+                sb.AppendLine("    if(TAG_PARA_STATE_3_BOOL, ASS_TAG_7x_TXT, \"\")");
+                sb.AppendLine("  This makes TAG7 visible only in Full Specification mode.");
+
+                // Paragraph template (if defined)
+                string paraTpl = catDef["paragraph_template"]?.ToString();
+                if (!string.IsNullOrEmpty(paraTpl))
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("  Paragraph template (auto-generated text):");
+                    // Wrap at ~70 chars for readability
+                    string wrapped = paraTpl.Length > 140
+                        ? "  " + paraTpl.Substring(0, 140) + "..."
+                        : "  " + paraTpl;
+                    sb.AppendLine(wrapped);
+                }
+
                 sb.AppendLine();
                 sb.AppendLine("Settings: Check 'Wrap between parameters only'");
             }
@@ -1355,13 +1395,21 @@ namespace StingTools.Tags
                 sb.AppendLine($"EDIT LABEL: {catName}");
                 sb.AppendLine(new string('─', 60));
                 sb.AppendLine();
-                sb.AppendLine("No detailed spec in LABEL_DEFINITIONS.json for this category.");
-                sb.AppendLine("Use the basic configuration:");
+                sb.AppendLine("No detailed spec in LABEL_DEFINITIONS.json.");
+                sb.AppendLine("Use this standard configuration:");
                 sb.AppendLine();
-                sb.AppendLine("  Row 1: ASS_TAG_1_TXT  (no prefix, no suffix, Break=YES)");
-                sb.AppendLine("  Row 2: ASS_DESCRIPTION_TXT  (no prefix, no suffix, Break=YES)");
+                sb.AppendLine("── TIER 1 (Always Visible) ──");
+                sb.AppendLine("  ASS_TAG_1_TXT                | (no prefix/suffix) | Break=YES");
+                sb.AppendLine("  ASS_DESCRIPTION_TXT          | (no prefix/suffix) | Break=YES");
                 sb.AppendLine();
-                sb.AppendLine("This gives a two-line tag: full ISO tag + description.");
+                sb.AppendLine("── TAG7 (Full Specification mode only) ──");
+                sb.AppendLine("  Use Calculated Values: if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
+                sb.AppendLine("  ASS_TAG_7A_TXT  (Identity)   | Break=YES");
+                sb.AppendLine("  ASS_TAG_7B_TXT  (System)     | Break=YES");
+                sb.AppendLine("  ASS_TAG_7C_TXT  (Spatial)    | Break=YES");
+                sb.AppendLine("  ASS_TAG_7D_TXT  (Lifecycle)  | Break=YES");
+                sb.AppendLine("  ASS_TAG_7E_TXT  (Technical)  | Break=YES");
+                sb.AppendLine("  ASS_TAG_7F_TXT  (Class.)     | Break=YES");
                 sb.AppendLine();
                 sb.AppendLine("Settings: Check 'Wrap between parameters only'");
             }
