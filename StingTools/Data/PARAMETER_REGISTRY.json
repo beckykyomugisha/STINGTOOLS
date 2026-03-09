@@ -567,6 +567,35 @@
     ],
     "warning_thresholds": [
       { "key": "ELC_PNL_RATED",    "param_name": "ELC_PNL_RATED_KW",              "guid": "ce012518-4b1d-5cfd-b57d-fbfa5d9e2a23", "description": "Panel rated capacity kW (for overload check)" }
+    ],
+    "cobie_fm": [
+      { "key": "INSTALL_DATE",     "param_name": "ASS_INSTALLATION_DATE_TXT",      "guid": "6bfd80f1-6655-5ea7-b29c-0947f8bcdee9", "description": "Installation date" },
+      { "key": "BARCODE",          "param_name": "ASS_BARCODE_TXT",                "guid": "9395d909-d8be-5423-9eb0-b9fb1370c3c4", "description": "Barcode identifier" },
+      { "key": "ASSET_ID",         "param_name": "ASS_ASSET_IDENTIFIER_TXT",       "guid": "0fe1935a-aedb-547c-a022-7aae7ead5964", "description": "Asset identifier" },
+      { "key": "COLOR",            "param_name": "ASS_COLOR_TXT",                  "guid": "25d5cf60-95b9-5fa3-931a-075f892021b2", "description": "Element colour" },
+      { "key": "FINISH",           "param_name": "ASS_FINISH_TXT",                 "guid": "66c79408-a759-533c-a110-87599634a733", "description": "Surface finish" },
+      { "key": "GRADE",            "param_name": "ASS_GRADE_TXT",                  "guid": "7e35d995-bdbb-538a-87b3-006248062c50", "description": "Material grade" },
+      { "key": "MATERIAL",         "param_name": "ASS_MATERIAL_TXT",               "guid": "8968a745-2f2a-5023-9160-e1545ded415b", "description": "Primary material" },
+      { "key": "SHAPE",            "param_name": "ASS_SHAPE_TXT",                  "guid": "751a19c4-f523-5ec4-95cc-b6467b285a5d", "description": "Element shape" },
+      { "key": "FEATURES",         "param_name": "ASS_FEATURES_TXT",               "guid": "5b9f0292-3404-5536-bfc0-62b54ea45fab", "description": "Element features" },
+      { "key": "CONSTITUENTS",     "param_name": "ASS_CONSTITUENTS_TXT",            "guid": "9646a6bb-fc0b-5eee-aba8-b78dcb219c5a", "description": "Element constituents" },
+      { "key": "ACCESS_PERF",      "param_name": "ASS_ACCESSIBILITY_PERF_TXT",      "guid": "9c1dafc9-1716-56d9-bc0a-6edc3e92b0ce", "description": "Accessibility performance" },
+      { "key": "SUSTAIN_PERF",     "param_name": "ASS_SUSTAINABILITY_PERF_TXT",     "guid": "9b7a4053-8fff-5b11-a031-128dedcc9b6b", "description": "Sustainability performance" },
+      { "key": "CODE_PERF",        "param_name": "ASS_CODE_PERF_TXT",              "guid": "32a63484-e16f-5655-a2ed-83ff5b206846", "description": "Code compliance performance" },
+      { "key": "REPLACE_COST",     "param_name": "ASS_REPLACEMENT_COST_UGX_NR",     "guid": "60fdfd5f-3935-517f-aa62-e71d95a49b70", "description": "Replacement cost UGX" },
+      { "key": "SUPPLIER",         "param_name": "ASS_SUPPLIER_TXT",               "guid": "3b48e3cb-5383-5dd8-8e51-ff79a048258f", "description": "Supplier / vendor" },
+      { "key": "WARRANTY_START",   "param_name": "ASS_WARRANTY_START_DATE_TXT",     "guid": "2b029baf-9f67-58ee-a309-061ee824d61b", "description": "Warranty start date" },
+      { "key": "CONDITION",        "param_name": "ASS_CONDITION_TXT",              "guid": "f102a903-9df9-5f4e-b0e0-a4e1feace1a5", "description": "Condition assessment" },
+      { "key": "WARR_GUAR_PARTS",  "param_name": "ASS_WARRANTY_GUARANTOR_PARTS_TXT","guid": "b2e25258-56f7-5230-bf05-4c442cfbe42b", "description": "Warranty guarantor parts" },
+      { "key": "WARR_DUR_PARTS",   "param_name": "ASS_WARRANTY_DURATION_PARTS_TXT", "guid": "510bbc42-f0b0-5727-9754-70ae3c57bf38", "description": "Warranty duration parts" },
+      { "key": "WARR_GUAR_LABOR",  "param_name": "ASS_WARRANTY_GUARANTOR_LABOR_TXT","guid": "bc642aa3-a020-504e-8fac-e6675cae84e7", "description": "Warranty guarantor labor" },
+      { "key": "WARR_DUR_LABOR",   "param_name": "ASS_WARRANTY_DURATION_LABOR_TXT", "guid": "7ee9663a-736d-5fef-ab84-47f6fda6d340", "description": "Warranty duration labor" },
+      { "key": "WARR_DUR_UNIT",    "param_name": "ASS_WARRANTY_DURATION_UNIT_TXT",  "guid": "f56594a2-a454-5310-8cfd-d0070d8b2e31", "description": "Warranty duration unit" },
+      { "key": "NOM_LENGTH",       "param_name": "ASS_NOMINAL_LENGTH_MM",           "guid": "79ab7185-9a60-565c-bbde-8842a423b4a9", "description": "Nominal length mm" },
+      { "key": "NOM_WIDTH",        "param_name": "ASS_NOMINAL_WIDTH_MM",            "guid": "4d98f4b0-9dc2-50d3-aa7a-b41af44dc399", "description": "Nominal width mm" },
+      { "key": "NOM_HEIGHT",       "param_name": "ASS_NOMINAL_HEIGHT_MM",           "guid": "93d34b41-2a53-5d39-8315-252ee69d56b2", "description": "Nominal height mm" },
+      { "key": "MODEL_REF",        "param_name": "ASS_MODEL_REFERENCE_TXT",         "guid": "7bdd4aff-4c5f-5e52-a550-27b0e904d3fa", "description": "Model reference" },
+      { "key": "DUR_UNIT",         "param_name": "ASS_DURATION_UNIT_TXT",           "guid": "1a2b13b9-b93f-550f-ac6e-50e64ac01ffa", "description": "Expected life duration unit" }
     ]
   },
 

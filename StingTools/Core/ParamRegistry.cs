@@ -393,6 +393,40 @@ namespace StingTools.Core
         public static string STATUS_COD     => Ext("STATUS_COD");
         public static string REV_COD        => Ext("REV_COD");
 
+        // ── COBie FM parameters (ISO 19650-4 / BS 1192-4) ──────────────
+        public static string INSTALL_DATE     => Ext("INSTALL_DATE");
+        public static string BARCODE          => Ext("BARCODE");
+        public static string ASSET_ID         => Ext("ASSET_ID");
+        public static string COLOR            => Ext("COLOR");
+        public static string FINISH           => Ext("FINISH");
+        public static string GRADE            => Ext("GRADE");
+        public static string MATERIAL         => Ext("MATERIAL");
+        public static string SHAPE            => Ext("SHAPE");
+        public static string FEATURES         => Ext("FEATURES");
+        public static string CONSTITUENTS     => Ext("CONSTITUENTS");
+        public static string ACCESS_PERF      => Ext("ACCESS_PERF");
+        public static string SUSTAIN_PERF     => Ext("SUSTAIN_PERF");
+        public static string CODE_PERF        => Ext("CODE_PERF");
+        public static string REPLACE_COST     => Ext("REPLACE_COST");
+        public static string SUPPLIER         => Ext("SUPPLIER");
+        public static string WARRANTY_START   => Ext("WARRANTY_START");
+        public static string CONDITION        => Ext("CONDITION");
+        public static string WARR_GUAR_PARTS  => Ext("WARR_GUAR_PARTS");
+        public static string WARR_DUR_PARTS   => Ext("WARR_DUR_PARTS");
+        public static string WARR_GUAR_LABOR  => Ext("WARR_GUAR_LABOR");
+        public static string WARR_DUR_LABOR   => Ext("WARR_DUR_LABOR");
+        public static string WARR_DUR_UNIT    => Ext("WARR_DUR_UNIT");
+        public static string NOM_LENGTH       => Ext("NOM_LENGTH");
+        public static string NOM_WIDTH        => Ext("NOM_WIDTH");
+        public static string NOM_HEIGHT       => Ext("NOM_HEIGHT");
+        public static string MODEL_REF        => Ext("MODEL_REF");
+        public static string DUR_UNIT         => Ext("DUR_UNIT");
+        // Existing params used by COBie (already in identity/support sections):
+        // SERIAL_NR => "ASS_SERIAL_NR_TXT"  (from MR_PARAMETERS GROUP 1)
+        // WARRANTY_PERIOD => "ASS_WARRANTY_PERIOD_TXT"  (from MR_PARAMETERS GROUP 1)
+        // WARRANTY_EXPIRY => "ASS_WARRANTY_EXPIRATION_DATE_TXT"  (from MR_PARAMETERS GROUP 1)
+        // EXPECTED_LIFE => "ASS_EXPECTED_LIFE_YEARS_YRS"  (from MR_PARAMETERS GROUP 1)
+
         // ── Warning threshold parameter ─────────────────────────────────
         public static string ELC_PNL_RATED  => Ext("ELC_PNL_RATED");
 

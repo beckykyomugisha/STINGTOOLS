@@ -8,6 +8,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
+using ClosedXML.Excel;
 using StingTools.Core;
 
 namespace StingTools.Docs
@@ -2627,8 +2628,11 @@ namespace StingTools.Docs
                 string projectNumber = doc.ProjectInformation?.Number ?? "000";
                 string projectAddress = doc.ProjectInformation?.Address ?? "";
                 string projectStatus = doc.ProjectInformation?.Status ?? "";
+                string clientName = doc.ProjectInformation?.ClientName ?? "";
                 string projLoc = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.LOC);
                 string projZone = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.ZONE);
+                string createdBy = Environment.UserName;
+                string createdOn = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
 
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
 
@@ -2638,13 +2642,10 @@ namespace StingTools.Docs
                     .Where(e => e.Category != null && known.Contains(e.Category.Name))
                     .ToList();
 
-                // Group by discipline
+                // Group by discipline, system, level
                 var byDisc = new Dictionary<string, List<Element>>(StringComparer.OrdinalIgnoreCase);
-                // Group by system
                 var bySys = new Dictionary<string, List<Element>>(StringComparer.OrdinalIgnoreCase);
-                // Group by level
                 var byLevel = new Dictionary<string, List<Element>>(StringComparer.OrdinalIgnoreCase);
-
                 int tagged = 0, untagged = 0;
 
                 foreach (var el in allElements)
@@ -2679,78 +2680,14 @@ namespace StingTools.Docs
                     .ThenBy(r => r.Number)
                     .ToList();
 
-                // Build CSV output
-                var csv = new StringBuilder();
-                csv.Append('\uFEFF'); // BOM for Excel
+                // Collect levels
+                var levels = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Level))
+                    .Cast<Level>()
+                    .OrderBy(l => l.Elevation)
+                    .ToList();
 
-                // ── Section 1: Project Summary ──
-                csv.AppendLine("SECTION,FM O/M HANDOVER MANUAL");
-                csv.AppendLine($"Generated,{DateTime.Now:yyyy-MM-dd HH:mm}");
-                csv.AppendLine($"Standard,ISO 19650 / BS 8210");
-                csv.AppendLine();
-                csv.AppendLine("SECTION,1. PROJECT INFORMATION");
-                csv.AppendLine($"Project Name,\"{projectName}\"");
-                csv.AppendLine($"Project Number,\"{projectNumber}\"");
-                csv.AppendLine($"Address,\"{projectAddress}\"");
-                csv.AppendLine($"Status,\"{projectStatus}\"");
-                csv.AppendLine($"Location Code,{projLoc}");
-                csv.AppendLine($"Zone Code,{projZone}");
-                csv.AppendLine($"Total Assets,{allElements.Count}");
-                csv.AppendLine($"Tagged Complete,{tagged}");
-                csv.AppendLine($"Untagged/Incomplete,{untagged}");
-                double pct = allElements.Count > 0 ? (tagged * 100.0 / allElements.Count) : 0;
-                csv.AppendLine($"Compliance,{pct:F1}%");
-                csv.AppendLine();
-
-                // ── Section 2: System Summary ──
-                csv.AppendLine("SECTION,2. SYSTEM SUMMARY");
-                csv.AppendLine("System Code,System Description,Asset Count,Disciplines");
-                foreach (var kvp in bySys.OrderBy(x => x.Key))
-                {
-                    string sysDesc = GetSystemDescription(kvp.Key);
-                    var discs = kvp.Value
-                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.DISC))
-                        .Where(d => !string.IsNullOrEmpty(d))
-                        .Distinct()
-                        .OrderBy(d => d);
-                    csv.AppendLine($"{kvp.Key},\"{sysDesc}\",{kvp.Value.Count},\"{string.Join("; ", discs)}\"");
-                }
-                csv.AppendLine();
-
-                // ── Section 3: Asset Register by Discipline ──
-                csv.AppendLine("SECTION,3. ASSET REGISTER");
-                csv.AppendLine("Discipline,Category,Family,Type,Tag,Level,Room,System,Status,Manufacturer,Model,Description");
-                foreach (var discGroup in byDisc.OrderBy(x => x.Key))
-                {
-                    foreach (var el in discGroup.Value.OrderBy(e => ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
-                    {
-                        string cat = el.Category?.Name ?? "";
-                        string family = ParameterHelpers.GetFamilyName(el);
-                        string typeName = ParameterHelpers.GetFamilySymbolName(el);
-                        string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                        string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
-                        string roomName = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
-                        if (string.IsNullOrEmpty(roomName))
-                            roomName = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
-                        string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                        string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
-                        string mfr = ParameterHelpers.GetString(el, ParamRegistry.MFR);
-                        string model = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
-                        string desc = ParameterHelpers.GetString(el, ParamRegistry.DESC);
-
-                        csv.AppendLine($"{discGroup.Key},\"{Esc(cat)}\",\"{Esc(family)}\",\"{Esc(typeName)}\"," +
-                            $"\"{tag1}\",{lvl},\"{Esc(roomName)}\",{sys},{status}," +
-                            $"\"{Esc(mfr)}\",\"{Esc(model)}\",\"{Esc(desc)}\"");
-                    }
-                }
-                csv.AppendLine();
-
-                // ── Section 4: Spatial Summary (Rooms) ──
-                csv.AppendLine("SECTION,4. SPATIAL SUMMARY");
-                csv.AppendLine("Level,Room Number,Room Name,Department,Area (m2),Asset Count");
-
-                // PERF FIX: Pre-build room→count index O(elements) instead of
-                // O(rooms × elements) nested loop that caused slow/crash on large models
+                // PERF: Pre-build room→asset count index O(n)
                 var roomAssetCounts = new Dictionary<string, int>(StringComparer.Ordinal);
                 foreach (var el in allElements)
                 {
@@ -2764,125 +2701,7 @@ namespace StingTools.Docs
                     }
                 }
 
-                foreach (var room in rooms)
-                {
-                    string levelName = room.Level?.Name ?? "Unknown";
-                    string dept = "";
-                    try { dept = room.LookupParameter("Department")?.AsString() ?? ""; } catch { /* no dept param */ }
-                    double areaM2 = room.Area * 0.092903; // sq ft to m2
-
-                    roomAssetCounts.TryGetValue(room.Number, out int assetsInRoom);
-
-                    csv.AppendLine($"\"{Esc(levelName)}\",\"{room.Number}\",\"{Esc(room.Name)}\"," +
-                        $"\"{Esc(dept)}\",{areaM2:F2},{assetsInRoom}");
-                }
-                csv.AppendLine();
-
-                // ── Section 5: Maintenance Schedule Recommendations ──
-                csv.AppendLine("SECTION,5. MAINTENANCE SCHEDULE");
-                csv.AppendLine("System,Category,Maintenance Type,Frequency,Priority,Notes");
-                foreach (var kvp in bySys.OrderBy(x => x.Key))
-                {
-                    var categories = kvp.Value
-                        .GroupBy(e => e.Category?.Name ?? "Unknown")
-                        .OrderBy(g => g.Key);
-
-                    foreach (var catGroup in categories)
-                    {
-                        var (maintType, frequency, priority, notes) =
-                            GetMaintenanceSchedule(kvp.Key, catGroup.Key);
-                        csv.AppendLine($"{kvp.Key},\"{Esc(catGroup.Key)}\",{maintType},{frequency}," +
-                            $"{priority},\"{Esc(notes)} ({catGroup.Count()} assets)\"");
-                    }
-                }
-                csv.AppendLine();
-
-                // ── Section 6: Level Summary ──
-                csv.AppendLine("SECTION,6. LEVEL SUMMARY");
-                csv.AppendLine("Level Code,Asset Count,Systems Present");
-                foreach (var kvp in byLevel.OrderBy(x => x.Key))
-                {
-                    var systems = kvp.Value
-                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.SYS))
-                        .Where(s => !string.IsNullOrEmpty(s))
-                        .Distinct()
-                        .OrderBy(s => s);
-                    csv.AppendLine($"{kvp.Key},{kvp.Value.Count},\"{string.Join("; ", systems)}\"");
-                }
-                csv.AppendLine();
-
-                // ── Section 7: COBie Data Extract (V2.4 / ISO 19650-4) ──
-                // Structured per COBie V2.4 worksheet tabs for FM system import
-
-                // 7A. Contact (project stakeholders)
-                csv.AppendLine("SECTION,7A. COBie CONTACT");
-                csv.AppendLine("Email,Category,Company,Phone,Department,Street,PostalCode,Country");
-                csv.AppendLine($"\"project@{Esc(projectName)}\",Facility Manager,\"{Esc(projectName)}\",," +
-                    $"\"{Esc(projectAddress)}\",,");
-                csv.AppendLine();
-
-                // 7B. Floor (levels / storeys)
-                csv.AppendLine("SECTION,7B. COBie FLOOR");
-                csv.AppendLine("Name,Category,ExternalSystem,ExternalObject,Description,Elevation,Height");
-                var levels = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Level))
-                    .Cast<Level>()
-                    .OrderBy(l => l.Elevation)
-                    .ToList();
-                foreach (var level in levels)
-                {
-                    string lvlCode = ParameterHelpers.GetLevelCode(doc, level);
-                    double elevM = level.Elevation * 0.3048; // ft to m
-                    csv.AppendLine($"\"{Esc(level.Name)}\",Floor,Revit,IfcBuildingStorey," +
-                        $"\"{lvlCode}\",{elevM:F3},");
-                }
-                csv.AppendLine();
-
-                // 7C. Space (rooms mapped to COBie Space)
-                csv.AppendLine("SECTION,7C. COBie SPACE");
-                csv.AppendLine("Name,FloorName,Category,Description,RoomTag,UsableHeight,GrossArea,NetArea");
-                foreach (var room in rooms)
-                {
-                    string levelName = room.Level?.Name ?? "Unknown";
-                    string dept = "";
-                    try { dept = room.LookupParameter("Department")?.AsString() ?? ""; } catch { }
-                    double areaM2 = room.Area * 0.092903;
-                    double heightM = 0;
-                    try
-                    {
-                        var ubh = room.LookupParameter("Unbounded Height");
-                        if (ubh != null) heightM = ubh.AsDouble() * 0.3048;
-                    }
-                    catch { }
-
-                    csv.AppendLine($"\"{room.Number} - {Esc(room.Name)}\",\"{Esc(levelName)}\"," +
-                        $"\"{Esc(dept)}\",\"{Esc(room.Name)}\",\"{room.Number}\"," +
-                        $"{heightM:F2},{areaM2:F2},{areaM2:F2}");
-                }
-                csv.AppendLine();
-
-                // 7D. Zone (zone groupings)
-                csv.AppendLine("SECTION,7D. COBie ZONE");
-                csv.AppendLine("Name,Category,SpaceNames,Description");
-                var zoneGroups = rooms
-                    .GroupBy(r =>
-                    {
-                        string dept = "";
-                        try { dept = r.LookupParameter("Department")?.AsString() ?? ""; } catch { }
-                        return string.IsNullOrEmpty(dept) ? "General" : dept;
-                    })
-                    .OrderBy(g => g.Key);
-                foreach (var zg in zoneGroups)
-                {
-                    var spaceNames = zg.Select(r => $"{r.Number}").Take(20);
-                    csv.AppendLine($"\"{Esc(zg.Key)}\",Department," +
-                        $"\"{string.Join("; ", spaceNames)}\",\"{zg.Count()} spaces\"");
-                }
-                csv.AppendLine();
-
-                // 7E. Type (asset types — grouped by family type)
-                csv.AppendLine("SECTION,7E. COBie TYPE");
-                csv.AppendLine("Name,Category,Manufacturer,ModelNumber,Description,ExpectedLife,ReplacementCost,NominalLength,NominalWidth,NominalHeight");
+                // Group types
                 var typeGroups = allElements
                     .GroupBy(e =>
                     {
@@ -2892,165 +2711,701 @@ namespace StingTools.Docs
                     })
                     .OrderBy(g => g.Key)
                     .ToList();
-                foreach (var tg in typeGroups)
-                {
-                    var sample = tg.First();
-                    string family = ParameterHelpers.GetFamilyName(sample);
-                    string typeName = ParameterHelpers.GetFamilySymbolName(sample);
-                    string cat = sample.Category?.Name ?? "";
-                    string mfr = ParameterHelpers.GetString(sample, ParamRegistry.MFR);
-                    string modelNr = ParameterHelpers.GetString(sample, ParamRegistry.MODEL);
-                    string desc = ParameterHelpers.GetString(sample, ParamRegistry.DESC);
-                    if (string.IsNullOrEmpty(desc)) desc = typeName;
-                    string cost = ParameterHelpers.GetString(sample, "ASS_CST_UNIT_PRICE_UGX_NR");
 
-                    csv.AppendLine($"\"{Esc(typeName)}\",\"{Esc(cat)}\",\"{Esc(mfr)}\"," +
-                        $"\"{Esc(modelNr)}\",\"{Esc(desc)}\",,{cost},,,");
-                }
-                csv.AppendLine();
+                double pct = allElements.Count > 0 ? (tagged * 100.0 / allElements.Count) : 0;
 
-                // 7F. Component (individual assets — the core COBie sheet)
-                csv.AppendLine("SECTION,7F. COBie COMPONENT");
-                csv.AppendLine("Name,TypeName,Space,Tag,SerialNumber,InstallationDate,WarrantyStartDate," +
-                    "WarrantyDurationParts,WarrantyDurationLabour,Description,Manufacturer,Model,Floor,System");
-                int cobieComponentCount = 0;
-                foreach (var el in allElements)
-                {
-                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                    if (string.IsNullOrEmpty(tag1)) continue;
-
-                    string assetName = ParameterHelpers.GetString(el, ParamRegistry.DESC);
-                    if (string.IsNullOrEmpty(assetName))
-                        assetName = ParameterHelpers.GetFamilySymbolName(el);
-                    string typeName = ParameterHelpers.GetFamilySymbolName(el);
-                    string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                    string mfr = ParameterHelpers.GetString(el, ParamRegistry.MFR);
-                    string modelNr = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
-                    string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
-                    string installDate = ParameterHelpers.GetString(el, "ASS_INSTALLATION_DATE_TXT");
-                    string warranty = ParameterHelpers.GetString(el, "ASS_WARRANTY_TXT");
-                    string roomName = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
-                    if (string.IsNullOrEmpty(roomName))
-                        roomName = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
-                    string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
-
-                    csv.AppendLine($"\"{Esc(assetName)}\",\"{Esc(typeName)}\",\"{Esc(roomName)}\"," +
-                        $"\"{tag1}\",\"{Esc(serial)}\",\"{Esc(installDate)}\"," +
-                        $"\"{Esc(installDate)}\",,," +
-                        $"\"{Esc(assetName)}\",\"{Esc(mfr)}\",\"{Esc(modelNr)}\",{lvl},{sys}");
-                    cobieComponentCount++;
-                }
-                csv.AppendLine();
-
-                // 7G. System (MEP systems mapped to COBie System)
-                csv.AppendLine("SECTION,7G. COBie SYSTEM");
-                csv.AppendLine("Name,Category,ComponentNames,Description");
-                foreach (var kvp in bySys.OrderBy(x => x.Key))
-                {
-                    if (kvp.Key == "Unassigned") continue;
-                    string sysDesc = GetSystemDescription(kvp.Key);
-                    var componentTags = kvp.Value
-                        .Select(e => ParameterHelpers.GetString(e, ParamRegistry.TAG1))
-                        .Where(t => !string.IsNullOrEmpty(t))
-                        .Take(20);
-                    csv.AppendLine($"\"{kvp.Key} - {Esc(sysDesc)}\",\"{kvp.Key}\"," +
-                        $"\"{string.Join("; ", componentTags)}\",\"{Esc(sysDesc)} ({kvp.Value.Count} components)\"");
-                }
-                csv.AppendLine();
-
-                // 7H. Job (maintenance tasks derived from BS 8210/SFG20)
-                csv.AppendLine("SECTION,7H. COBie JOB");
-                csv.AppendLine("Name,TypeName,TaskNumber,Description,Duration,Frequency,Priors");
-                int jobNum = 1;
-                foreach (var kvp in bySys.OrderBy(x => x.Key))
-                {
-                    if (kvp.Key == "Unassigned") continue;
-                    var (maintType, frequency, priority, notes) =
-                        GetMaintenanceSchedule(kvp.Key, kvp.Value.FirstOrDefault()?.Category?.Name ?? "");
-                    csv.AppendLine($"\"{kvp.Key} {maintType}\",\"{kvp.Key}\",{jobNum:D3}," +
-                        $"\"{Esc(notes)}\",\"{frequency}\",\"{frequency}\",\"{priority}\"");
-                    jobNum++;
-                }
-                csv.AppendLine();
-
-                // 7I. Document (project documents reference)
-                csv.AppendLine("SECTION,7I. COBie DOCUMENT");
-                csv.AppendLine("Name,Category,ApprovalBy,Stage,Reference,Description");
-                csv.AppendLine($"\"FM Handover Manual\",Handover,\"{Esc(projectName)}\",As-Built," +
-                    $"\"{projectNumber}\",\"ISO 19650 FM O/M Handover Manual\"");
-                csv.AppendLine($"\"Asset Tag Register\",Register,\"{Esc(projectName)}\",As-Built," +
-                    $"\"{projectNumber}\",\"Complete STING asset tag register\"");
-                csv.AppendLine($"\"Maintenance Schedule\",Schedule,\"{Esc(projectName)}\",As-Built," +
-                    $"\"{projectNumber}\",\"BS 8210/SFG20 maintenance recommendations\"");
-                csv.AppendLine();
-
-                // ── Section 8: FM Schedules Available (from MR_SCHEDULES.csv) ──
-                csv.AppendLine("SECTION,8. FM SCHEDULES AVAILABLE (MR_SCHEDULES.csv)");
-                csv.AppendLine("Schedule Name,Category,Discipline,Source,Fields");
-                int fmScheduleCount = 0;
-                try
-                {
-                    string scheduleCsv = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
-                    if (scheduleCsv != null)
-                    {
-                        foreach (string line in File.ReadAllLines(scheduleCsv))
-                        {
-                            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                            string[] cols = StingToolsApp.ParseCsvLine(line);
-                            if (cols.Length < 8) continue;
-                            string recType = cols[0].Trim();
-                            string source = cols[1].Trim();
-                            string disc = cols[2].Trim();
-                            string schedName = cols[3].Trim();
-                            string category = cols[4].Trim();
-                            string fields = cols.Length > 7 ? cols[7].Trim() : "";
-
-                            // Include FM_Revit, COBie_V24, and related schedules
-                            if (recType == "SCHEDULE" &&
-                                (source.StartsWith("FM", StringComparison.OrdinalIgnoreCase) ||
-                                 source.StartsWith("COBie", StringComparison.OrdinalIgnoreCase) ||
-                                 schedName.Contains("COBie", StringComparison.OrdinalIgnoreCase) ||
-                                 schedName.Contains("Maintenance", StringComparison.OrdinalIgnoreCase) ||
-                                 schedName.Contains("Handover", StringComparison.OrdinalIgnoreCase) ||
-                                 schedName.Contains("Asset", StringComparison.OrdinalIgnoreCase) ||
-                                 disc.Equals("Facilities", StringComparison.OrdinalIgnoreCase)))
-                            {
-                                csv.AppendLine($"\"{Esc(schedName)}\",\"{Esc(category)}\",{disc},{source},\"{Esc(fields)}\"");
-                                fmScheduleCount++;
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"HandoverManual: FM schedule scan failed: {ex.Message}");
-                }
-                if (fmScheduleCount == 0)
-                    csv.AppendLine("(No FM schedules found in MR_SCHEDULES.csv),,,,");
-
-                // Let user choose save location
+                // ── Save dialog (.xlsx) ─────────────────────────────────────────
                 string defaultDir = Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(defaultDir)) defaultDir = Path.GetTempPath();
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string defaultName = $"STING_FM_Handover_Manual_{timestamp}.csv";
+                string defaultName = $"STING_COBie_FM_Handover_{timestamp}.xlsx";
 
                 var dlg = new Microsoft.Win32.SaveFileDialog
                 {
-                    Title = "Save FM Handover Manual",
-                    Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*",
+                    Title = "Export COBie FM Handover Manual (.xlsx)",
+                    Filter = "Excel Workbook (*.xlsx)|*.xlsx",
                     FileName = defaultName,
                     InitialDirectory = defaultDir
                 };
                 if (dlg.ShowDialog() != true)
                     return Result.Cancelled;
-                string path = dlg.FileName;
+                string exportPath = dlg.FileName;
 
-                File.WriteAllText(path, csv.ToString(), Encoding.UTF8);
+                // ══════════════════════════════════════════════════════════════════
+                //  BUILD COBie 2.4 XLSX WORKBOOK (20 worksheets per NBIMS-US V3)
+                //  Compliant with: BS 1192-4:2014 / BS EN ISO 19650-4:2022
+                //  Column order per COBie V2.4 / COBie V3 specification
+                // ══════════════════════════════════════════════════════════════════
+                using (var wb = new XLWorkbook())
+                {
+                    int cobieComponentCount = 0;
 
-                // Summary dialog
+                    // ── 1. INSTRUCTION worksheet ────────────────────────────────
+                    var wsInst = wb.AddWorksheet("Instruction");
+                    WriteRow(wsInst, 1, "Sheet Name", "Row Count", "Description");
+                    StyleHeader(wsInst, 1, 3);
+                    // Populated at end after all sheets are built
+                    var instructionData = new List<(string sheet, int rows, string desc)>();
+
+                    // ── 2. CONTACT worksheet ────────────────────────────────────
+                    var wsCon = wb.AddWorksheet("Contact");
+                    WriteRow(wsCon, 1,
+                        "Email", "CreatedBy", "CreatedOn", "Category", "Company", "Phone",
+                        "ExternalSystem", "ExternalObject", "ExternalIdentifier",
+                        "Department", "OrganizationCode", "GivenName", "FamilyName",
+                        "Street", "PostalBox", "Town", "StateRegion", "PostalCode", "Country");
+                    StyleHeader(wsCon, 1, 19);
+                    int conRow = 2;
+                    // Project contact
+                    WriteRow(wsCon, conRow++,
+                        $"project@{projectName.Replace(" ", "").ToLower()}.com",
+                        createdBy, createdOn, "Facility Manager", projectName, "",
+                        "Revit", "IfcOrganization", projectNumber,
+                        "", "", "", "",
+                        projectAddress, "", "", "", "", "");
+                    // Client contact
+                    if (!string.IsNullOrEmpty(clientName))
+                    {
+                        WriteRow(wsCon, conRow++,
+                            $"client@{clientName.Replace(" ", "").ToLower()}.com",
+                            createdBy, createdOn, "Client / Owner", clientName, "",
+                            "Revit", "IfcOrganization", "",
+                            "", "", "", "",
+                            "", "", "", "", "", "");
+                    }
+                    instructionData.Add(("Contact", conRow - 2, "Project stakeholders and contacts"));
+
+                    // ── 3. FACILITY worksheet ───────────────────────────────────
+                    var wsFac = wb.AddWorksheet("Facility");
+                    WriteRow(wsFac, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Category", "ProjectName", "SiteName",
+                        "LinearUnits", "AreaUnits", "VolumeUnits", "CurrencyUnit",
+                        "AreaMeasurement", "ExternalSystem", "ExternalProjectObject",
+                        "ExternalProjectIdentifier", "ExternalSiteObject", "ExternalSiteIdentifier",
+                        "ExternalFacilityObject", "ExternalFacilityIdentifier", "Description",
+                        "ProjectDescription", "SiteDescription", "Phase");
+                    StyleHeader(wsFac, 1, 22);
+                    WriteRow(wsFac, 2,
+                        projectName, createdBy, createdOn, "Office", projectName, projectAddress,
+                        "meters", "square meters", "cubic meters", "UGX",
+                        "ISO 19650", "Revit", "IfcProject",
+                        projectNumber, "IfcSite", projLoc,
+                        "IfcBuilding", projLoc, $"ISO 19650 compliant BIM facility",
+                        projectStatus, projectAddress, "As-Built");
+                    instructionData.Add(("Facility", 1, "Building / facility identification"));
+
+                    // ── 4. FLOOR worksheet ──────────────────────────────────────
+                    var wsFlr = wb.AddWorksheet("Floor");
+                    WriteRow(wsFlr, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Category",
+                        "ExternalSystem", "ExternalObject", "ExternalIdentifier",
+                        "Description", "Elevation", "Height");
+                    StyleHeader(wsFlr, 1, 10);
+                    int flrRow = 2;
+                    foreach (var level in levels)
+                    {
+                        string lvlCode = ParameterHelpers.GetLevelCode(doc, level);
+                        double elevM = level.Elevation * 0.3048;
+                        // Compute floor height (distance to next level)
+                        int idx = levels.IndexOf(level);
+                        double heightM = idx < levels.Count - 1
+                            ? (levels[idx + 1].Elevation - level.Elevation) * 0.3048 : 0;
+                        WriteRow(wsFlr, flrRow++,
+                            level.Name, createdBy, createdOn, "Floor",
+                            "Revit", "IfcBuildingStorey", level.Id.ToString(),
+                            lvlCode, elevM.ToString("F3"), heightM > 0 ? heightM.ToString("F3") : "");
+                    }
+                    instructionData.Add(("Floor", levels.Count, "Building levels / storeys"));
+
+                    // ── 5. SPACE worksheet ──────────────────────────────────────
+                    var wsSpc = wb.AddWorksheet("Space");
+                    WriteRow(wsSpc, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Category",
+                        "FloorName", "Description", "ExternalSystem", "ExternalObject",
+                        "ExternalIdentifier", "RoomTag", "UsableHeight", "GrossArea", "NetArea");
+                    StyleHeader(wsSpc, 1, 13);
+                    int spcRow = 2;
+                    foreach (var room in rooms)
+                    {
+                        string levelName = room.Level?.Name ?? "Unknown";
+                        string dept = "";
+                        try { dept = room.LookupParameter("Department")?.AsString() ?? ""; } catch { }
+                        double areaM2 = room.Area * 0.092903;
+                        double heightM = 0;
+                        try
+                        {
+                            var ubh = room.LookupParameter("Unbounded Height");
+                            if (ubh != null) heightM = ubh.AsDouble() * 0.3048;
+                        }
+                        catch { }
+
+                        WriteRow(wsSpc, spcRow++,
+                            $"{room.Number} - {room.Name}", createdBy, createdOn,
+                            string.IsNullOrEmpty(dept) ? "Room" : dept,
+                            levelName, room.Name, "Revit", "IfcSpace",
+                            room.Id.ToString(), room.Number,
+                            heightM.ToString("F2"), areaM2.ToString("F2"), areaM2.ToString("F2"));
+                    }
+                    instructionData.Add(("Space", rooms.Count, "Rooms / spaces"));
+
+                    // ── 6. ZONE worksheet ───────────────────────────────────────
+                    var wsZone = wb.AddWorksheet("Zone");
+                    WriteRow(wsZone, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Category",
+                        "SpaceNames", "ExternalSystem", "ExternalObject", "ExternalIdentifier",
+                        "Description");
+                    StyleHeader(wsZone, 1, 9);
+                    int zoneRow = 2;
+                    var zoneGroups = rooms
+                        .GroupBy(r =>
+                        {
+                            string dept = "";
+                            try { dept = r.LookupParameter("Department")?.AsString() ?? ""; } catch { }
+                            return string.IsNullOrEmpty(dept) ? "General" : dept;
+                        })
+                        .OrderBy(g => g.Key);
+                    foreach (var zg in zoneGroups)
+                    {
+                        var spaceNames = string.Join(", ", zg.Select(r => $"{r.Number} - {r.Name}").Take(50));
+                        WriteRow(wsZone, zoneRow++,
+                            zg.Key, createdBy, createdOn, "Occupancy Zone",
+                            spaceNames, "Revit", "IfcZone", "",
+                            $"{zg.Count()} spaces in {zg.Key} department");
+                    }
+                    instructionData.Add(("Zone", zoneGroups.Count(), "Spatial zone groupings"));
+
+                    // ── 7. TYPE worksheet (mapped to MR_PARAMETERS) ─────────────
+                    var wsType = wb.AddWorksheet("Type");
+                    WriteRow(wsType, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Category", "Description",
+                        "AssetType", "Manufacturer", "ModelNumber",
+                        "WarrantyGuarantorParts", "WarrantyDurationParts", "WarrantyGuarantorLabor",
+                        "WarrantyDurationLabor", "WarrantyDurationUnit",
+                        "ExternalSystem", "ExternalObject", "ExternalIdentifier",
+                        "ReplacementCost", "ExpectedLife", "DurationUnit",
+                        "NominalLength", "NominalWidth", "NominalHeight",
+                        "ModelReference", "Shape", "Size", "Color",
+                        "Finish", "Grade", "Material", "Constituents",
+                        "Features", "AccessibilityPerformance", "CodePerformance",
+                        "SustainabilityPerformance");
+                    StyleHeader(wsType, 1, 34);
+                    int typeRow = 2;
+                    foreach (var tg in typeGroups)
+                    {
+                        var sample = tg.First();
+                        string typeName = ParameterHelpers.GetFamilySymbolName(sample);
+                        string cat = sample.Category?.Name ?? "";
+                        string mfr = ParameterHelpers.GetString(sample, ParamRegistry.MFR);
+                        string modelNr = ParameterHelpers.GetString(sample, ParamRegistry.MODEL);
+                        string desc = ParameterHelpers.GetString(sample, ParamRegistry.DESC);
+                        if (string.IsNullOrEmpty(desc)) desc = typeName;
+                        string cost = ParameterHelpers.GetString(sample, ParamRegistry.COST);
+                        string size = ParameterHelpers.GetString(sample, ParamRegistry.SIZE);
+
+                        // COBie fields mapped to MR_PARAMETERS via ParamRegistry
+                        string disc = ParameterHelpers.GetString(sample, ParamRegistry.DISC);
+                        string assetType = disc switch
+                        {
+                            "M" or "E" or "P" or "FP" => "Fixed",
+                            "A" or "S" => "Fixed",
+                            _ => "Moveable"
+                        };
+                        string warrGuarParts = ParameterHelpers.GetString(sample, ParamRegistry.WARR_GUAR_PARTS);
+                        if (string.IsNullOrEmpty(warrGuarParts)) warrGuarParts = mfr;
+                        string warrDurParts = ParameterHelpers.GetString(sample, ParamRegistry.WARR_DUR_PARTS);
+                        string warrGuarLabor = ParameterHelpers.GetString(sample, ParamRegistry.WARR_GUAR_LABOR);
+                        if (string.IsNullOrEmpty(warrGuarLabor)) warrGuarLabor = mfr;
+                        string warrDurLabor = ParameterHelpers.GetString(sample, ParamRegistry.WARR_DUR_LABOR);
+                        string warrDurUnit = ParameterHelpers.GetString(sample, ParamRegistry.WARR_DUR_UNIT);
+                        if (string.IsNullOrEmpty(warrDurUnit)) warrDurUnit = "year";
+                        string replaceCost = ParameterHelpers.GetString(sample, ParamRegistry.REPLACE_COST);
+                        if (string.IsNullOrEmpty(replaceCost)) replaceCost = cost;
+                        string expectedLife = ParameterHelpers.GetString(sample, "ASS_EXPECTED_LIFE_YEARS_YRS");
+                        string durUnit = ParameterHelpers.GetString(sample, ParamRegistry.DUR_UNIT);
+                        if (string.IsNullOrEmpty(durUnit)) durUnit = "year";
+                        string nomLen = ParameterHelpers.GetString(sample, ParamRegistry.NOM_LENGTH);
+                        string nomWid = ParameterHelpers.GetString(sample, ParamRegistry.NOM_WIDTH);
+                        string nomHt = ParameterHelpers.GetString(sample, ParamRegistry.NOM_HEIGHT);
+                        string modelRef = ParameterHelpers.GetString(sample, ParamRegistry.MODEL_REF);
+                        string shape = ParameterHelpers.GetString(sample, ParamRegistry.SHAPE);
+                        string color = ParameterHelpers.GetString(sample, ParamRegistry.COLOR);
+                        string finish = ParameterHelpers.GetString(sample, ParamRegistry.FINISH);
+                        string grade = ParameterHelpers.GetString(sample, ParamRegistry.GRADE);
+                        string material = ParameterHelpers.GetString(sample, ParamRegistry.MATERIAL);
+                        string constituents = ParameterHelpers.GetString(sample, ParamRegistry.CONSTITUENTS);
+                        string features = ParameterHelpers.GetString(sample, ParamRegistry.FEATURES);
+                        string accessPerf = ParameterHelpers.GetString(sample, ParamRegistry.ACCESS_PERF);
+                        string codePerf = ParameterHelpers.GetString(sample, ParamRegistry.CODE_PERF);
+                        string sustainPerf = ParameterHelpers.GetString(sample, ParamRegistry.SUSTAIN_PERF);
+
+                        WriteRow(wsType, typeRow++,
+                            typeName, createdBy, createdOn, cat, desc,
+                            assetType, mfr, modelNr,
+                            warrGuarParts, warrDurParts, warrGuarLabor, warrDurLabor, warrDurUnit,
+                            "Revit", "IfcTypeObject", "",
+                            replaceCost, expectedLife, durUnit,
+                            nomLen, nomWid, nomHt,
+                            modelRef, shape, size, color,
+                            finish, grade, material, constituents,
+                            features, accessPerf, codePerf, sustainPerf);
+                    }
+                    instructionData.Add(("Type", typeGroups.Count, "Asset types / product categories"));
+
+                    // ── 8. COMPONENT worksheet (mapped to MR_PARAMETERS) ────────
+                    var wsComp = wb.AddWorksheet("Component");
+                    WriteRow(wsComp, 1,
+                        "Name", "CreatedBy", "CreatedOn", "TypeName", "Space",
+                        "Description", "ExternalSystem", "ExternalObject", "ExternalIdentifier",
+                        "SerialNumber", "InstallationDate", "WarrantyStartDate",
+                        "TagNumber", "BarCode", "AssetIdentifier");
+                    StyleHeader(wsComp, 1, 15);
+                    int compRow = 2;
+                    foreach (var el in allElements)
+                    {
+                        string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                        if (string.IsNullOrEmpty(tag1)) continue;
+
+                        string assetName = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+                        if (string.IsNullOrEmpty(assetName))
+                            assetName = ParameterHelpers.GetFamilySymbolName(el);
+                        string typeName = ParameterHelpers.GetFamilySymbolName(el);
+                        string roomName = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
+                        if (string.IsNullOrEmpty(roomName))
+                            roomName = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
+                        // All COBie Component fields mapped to MR_PARAMETERS
+                        string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
+                        string installDate = ParameterHelpers.GetString(el, ParamRegistry.INSTALL_DATE);
+                        string warrStart = ParameterHelpers.GetString(el, ParamRegistry.WARRANTY_START);
+                        if (string.IsNullOrEmpty(warrStart)) warrStart = installDate;
+                        string barcode = ParameterHelpers.GetString(el, ParamRegistry.BARCODE);
+                        if (string.IsNullOrEmpty(barcode)) barcode = tag1;
+                        string assetId = ParameterHelpers.GetString(el, ParamRegistry.ASSET_ID);
+                        if (string.IsNullOrEmpty(assetId)) assetId = tag1;
+
+                        WriteRow(wsComp, compRow++,
+                            assetName, createdBy, createdOn, typeName, roomName,
+                            assetName, "Revit", "IfcElement", el.Id.ToString(),
+                            serial, installDate, warrStart,
+                            tag1, barcode, assetId);
+                        cobieComponentCount++;
+                    }
+                    instructionData.Add(("Component", cobieComponentCount, "Individual asset instances"));
+
+                    // ── 9. SYSTEM worksheet ─────────────────────────────────────
+                    var wsSys = wb.AddWorksheet("System");
+                    WriteRow(wsSys, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Category",
+                        "ComponentNames", "ExternalSystem", "ExternalObject", "ExternalIdentifier",
+                        "Description");
+                    StyleHeader(wsSys, 1, 9);
+                    int sysRow = 2;
+                    foreach (var kvp in bySys.OrderBy(x => x.Key))
+                    {
+                        if (kvp.Key == "Unassigned") continue;
+                        string sysDesc = GetSystemDescription(kvp.Key);
+                        var componentTags = string.Join(", ",
+                            kvp.Value
+                            .Select(e => ParameterHelpers.GetString(e, ParamRegistry.TAG1))
+                            .Where(t => !string.IsNullOrEmpty(t))
+                            .Take(50));
+                        WriteRow(wsSys, sysRow++,
+                            $"{kvp.Key} - {sysDesc}", createdBy, createdOn, kvp.Key,
+                            componentTags, "Revit", "IfcSystem", "",
+                            $"{sysDesc} ({kvp.Value.Count} components)");
+                    }
+                    int sysCount = sysRow - 2;
+                    instructionData.Add(("System", sysCount, "MEP building systems"));
+
+                    // ── 10. ASSEMBLY worksheet ──────────────────────────────────
+                    var wsAsm = wb.AddWorksheet("Assembly");
+                    WriteRow(wsAsm, 1,
+                        "Name", "CreatedBy", "CreatedOn", "SheetName", "ParentName",
+                        "ChildNames", "AssemblyType", "ExternalSystem", "ExternalObject",
+                        "ExternalIdentifier", "Description");
+                    StyleHeader(wsAsm, 1, 11);
+                    instructionData.Add(("Assembly", 0, "Assembly relationships (populated during commissioning)"));
+
+                    // ── 11. CONNECTION worksheet ────────────────────────────────
+                    var wsConn = wb.AddWorksheet("Connection");
+                    WriteRow(wsConn, 1,
+                        "Name", "CreatedBy", "CreatedOn", "ConnectionType",
+                        "SheetName", "RowName1", "RowName2",
+                        "RealizingElement", "PortName1", "PortName2",
+                        "ExternalSystem", "ExternalObject", "ExternalIdentifier",
+                        "Description");
+                    StyleHeader(wsConn, 1, 14);
+                    instructionData.Add(("Connection", 0, "Element connections (populated during commissioning)"));
+
+                    // ── 12. SPARE worksheet ─────────────────────────────────────
+                    var wsSpare = wb.AddWorksheet("Spare");
+                    WriteRow(wsSpare, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Category",
+                        "TypeName", "Suppliers",
+                        "ExternalSystem", "ExternalObject", "ExternalIdentifier",
+                        "Description", "SetNumber", "PartNumber");
+                    StyleHeader(wsSpare, 1, 12);
+                    instructionData.Add(("Spare", 0, "Spare parts (populated by commissioning agent)"));
+
+                    // ── 13. RESOURCE worksheet ──────────────────────────────────
+                    var wsRes = wb.AddWorksheet("Resource");
+                    WriteRow(wsRes, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Category",
+                        "ExternalSystem", "ExternalObject", "ExternalIdentifier",
+                        "Description");
+                    StyleHeader(wsRes, 1, 8);
+                    instructionData.Add(("Resource", 0, "Materials, tools, training (populated by commissioning agent)"));
+
+                    // ── 14. JOB worksheet ───────────────────────────────────────
+                    var wsJob = wb.AddWorksheet("Job");
+                    WriteRow(wsJob, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Category",
+                        "Status", "TypeName", "Description",
+                        "Duration", "DurationUnit", "Start",
+                        "TaskStartUnit", "Frequency", "FrequencyUnit",
+                        "ExternalSystem", "ExternalObject", "ExternalIdentifier",
+                        "TaskNumber", "Priors");
+                    StyleHeader(wsJob, 1, 18);
+                    int jobRow = 2;
+                    int jobNum = 1;
+                    foreach (var kvp in bySys.OrderBy(x => x.Key))
+                    {
+                        if (kvp.Key == "Unassigned") continue;
+                        var (maintType, frequency, priority, notes) =
+                            GetMaintenanceSchedule(kvp.Key, kvp.Value.FirstOrDefault()?.Category?.Name ?? "");
+
+                        string freqUnit = frequency switch
+                        {
+                            "Quarterly" => "quarter",
+                            "6-Monthly" => "month",
+                            "Annually" => "year",
+                            "5-Yearly" => "year",
+                            _ => "year"
+                        };
+                        string freqVal = frequency switch
+                        {
+                            "Quarterly" => "3",
+                            "6-Monthly" => "6",
+                            "Annually" => "12",
+                            "5-Yearly" => "60",
+                            _ => "12"
+                        };
+
+                        WriteRow(wsJob, jobRow++,
+                            $"{kvp.Key} - {maintType} Maintenance", createdBy, createdOn, maintType,
+                            "Not Started", kvp.Key, notes,
+                            "1", "day", "",
+                            "", freqVal, freqUnit,
+                            "BS 8210/SFG20", "IfcTask", "",
+                            jobNum.ToString("D3"), priority);
+                        jobNum++;
+                    }
+                    instructionData.Add(("Job", jobNum - 1, "Maintenance tasks (BS 8210 / SFG20)"));
+
+                    // ── 15. IMPACT worksheet ────────────────────────────────────
+                    var wsImp = wb.AddWorksheet("Impact");
+                    WriteRow(wsImp, 1,
+                        "Name", "CreatedBy", "CreatedOn", "ImpactType",
+                        "ImpactStage", "SheetName", "RowName",
+                        "Value", "Unit", "LeadInTime", "Duration", "LeadOutTime",
+                        "ExternalSystem", "ExternalObject", "ExternalIdentifier",
+                        "Description");
+                    StyleHeader(wsImp, 1, 16);
+                    instructionData.Add(("Impact", 0, "Environmental impacts (populated at handover)"));
+
+                    // ── 16. DOCUMENT worksheet ──────────────────────────────────
+                    var wsDoc = wb.AddWorksheet("Document");
+                    WriteRow(wsDoc, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Category",
+                        "ApprovalBy", "Stage", "SheetName", "RowName",
+                        "Directory", "File", "ExternalSystem", "ExternalObject",
+                        "ExternalIdentifier", "Description", "Reference");
+                    StyleHeader(wsDoc, 1, 15);
+                    int docRow = 2;
+                    WriteRow(wsDoc, docRow++,
+                        "FM Handover Manual", createdBy, createdOn, "Handover",
+                        projectName, "As-Built", "Facility", projectName,
+                        "", exportPath, "STING Tools", "IfcDocumentInformation",
+                        projectNumber, "ISO 19650 FM O/M Handover Manual", projectNumber);
+                    WriteRow(wsDoc, docRow++,
+                        "Asset Tag Register", createdBy, createdOn, "Register",
+                        projectName, "As-Built", "Component", "",
+                        "", "", "STING Tools", "IfcDocumentInformation",
+                        "", "Complete STING ISO 19650 asset tag register", "");
+                    WriteRow(wsDoc, docRow++,
+                        "Maintenance Schedule", createdBy, createdOn, "Schedule",
+                        projectName, "As-Built", "Job", "",
+                        "", "", "STING Tools", "IfcDocumentInformation",
+                        "", "BS 8210/SFG20 maintenance recommendations", "");
+                    WriteRow(wsDoc, docRow++,
+                        "O&M Manual", createdBy, createdOn, "Operation",
+                        projectName, "As-Built", "Facility", projectName,
+                        "", "", "STING Tools", "IfcDocumentInformation",
+                        "", "Operations & Maintenance Manual", "");
+                    WriteRow(wsDoc, docRow++,
+                        "Health & Safety File", createdBy, createdOn, "Safety",
+                        projectName, "As-Built", "Facility", projectName,
+                        "", "", "STING Tools", "IfcDocumentInformation",
+                        "", "CDM Health & Safety File", "");
+                    instructionData.Add(("Document", docRow - 2, "Project document references"));
+
+                    // ── 17. ATTRIBUTE worksheet (all STING parameters per component) ──
+                    var wsAttr = wb.AddWorksheet("Attribute");
+                    WriteRow(wsAttr, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Category",
+                        "SheetName", "RowName", "Value", "Unit",
+                        "ExtSystem", "ExtObject", "ExtIdentifier",
+                        "Description", "AllowedValues");
+                    StyleHeader(wsAttr, 1, 13);
+                    int attrRow = 2;
+                    // Project-level attributes
+                    WriteRow(wsAttr, attrRow++,
+                        "TagCompliance", createdBy, createdOn, "ISO 19650",
+                        "Facility", projectName, $"{pct:F1}%", "percent",
+                        "STING Tools", "IfcPropertySingleValue", "",
+                        "ISO 19650 tag completeness percentage", "");
+                    WriteRow(wsAttr, attrRow++,
+                        "TotalAssets", createdBy, createdOn, "Asset",
+                        "Facility", projectName, allElements.Count.ToString(), "count",
+                        "STING Tools", "IfcPropertySingleValue", "",
+                        "Total taggable assets in project", "");
+                    WriteRow(wsAttr, attrRow++,
+                        "GrossFloorArea", createdBy, createdOn, "Spatial",
+                        "Facility", projectName,
+                        (rooms.Sum(r => r.Area) * 0.092903).ToString("F2"), "m2",
+                        "Revit", "IfcPropertySingleValue", "",
+                        "Gross internal floor area", "");
+
+                    // Per-component STING parameter attributes (aligned with MR_PARAMETERS)
+                    // Export all non-empty STING parameters as COBie Attributes per component
+                    var attrParams = new (string Key, string ParamName, string Unit, string Desc)[]
+                    {
+                        ("DISC", ParamRegistry.DISC, "", "Discipline code"),
+                        ("LOC", ParamRegistry.LOC, "", "Location code"),
+                        ("ZONE", ParamRegistry.ZONE, "", "Zone code"),
+                        ("LVL", ParamRegistry.LVL, "", "Level code"),
+                        ("SYS", ParamRegistry.SYS, "", "System type"),
+                        ("FUNC", ParamRegistry.FUNC, "", "Function code"),
+                        ("PROD", ParamRegistry.PROD, "", "Product code"),
+                        ("SEQ", ParamRegistry.SEQ, "", "Sequence number"),
+                        ("STATUS", ParamRegistry.STATUS, "", "Asset status"),
+                        ("MFR", ParamRegistry.MFR, "", "Manufacturer"),
+                        ("MODEL", ParamRegistry.MODEL, "", "Model number"),
+                        ("SERIAL", "ASS_SERIAL_NR_TXT", "", "Serial number"),
+                        ("COST", ParamRegistry.COST, "UGX", "Unit cost"),
+                        ("REPLACE_COST", ParamRegistry.REPLACE_COST, "UGX", "Replacement cost"),
+                        ("EXPECTED_LIFE", "ASS_EXPECTED_LIFE_YEARS_YRS", "year", "Expected life"),
+                        ("WARRANTY_PERIOD", "ASS_WARRANTY_PERIOD_TXT", "", "Warranty period"),
+                        ("WARRANTY_EXPIRY", "ASS_WARRANTY_EXPIRATION_DATE_TXT", "", "Warranty expiration"),
+                        ("CONDITION", ParamRegistry.CONDITION, "", "Condition assessment"),
+                        ("FIRE_RATING", ParamRegistry.FIRE_RATING, "min", "Fire resistance rating"),
+                        ("COLOR", ParamRegistry.COLOR, "", "Element colour"),
+                        ("FINISH", ParamRegistry.FINISH, "", "Surface finish"),
+                        ("MATERIAL", ParamRegistry.MATERIAL, "", "Primary material"),
+                        ("SUPPLIER", ParamRegistry.SUPPLIER, "", "Supplier / vendor"),
+                        ("UNIFORMAT", ParamRegistry.UNIFORMAT, "", "Uniformat code"),
+                        ("OMNICLASS", ParamRegistry.OMNICLASS, "", "OmniClass code"),
+                        ("KEYNOTE", ParamRegistry.KEYNOTE, "", "Keynote"),
+                        ("ROOM_NAME", ParamRegistry.ROOM_NAME, "", "Room name"),
+                        ("ROOM_NUM", ParamRegistry.ROOM_NUM, "", "Room number"),
+                        ("DEPT", ParamRegistry.DEPT, "", "Department"),
+                        ("GRID_REF", ParamRegistry.GRID_REF, "", "Grid reference"),
+                        ("ELC_POWER", ParamRegistry.ELC_POWER, "kW", "Circuit power"),
+                        ("ELC_VOLTAGE", ParamRegistry.ELC_VOLTAGE, "V", "Voltage"),
+                        ("HVC_AIRFLOW", ParamRegistry.HVC_AIRFLOW, "L/s", "Airflow"),
+                        ("PLM_PIPE_SIZE", ParamRegistry.PLM_PIPE_SIZE, "mm", "Pipe size"),
+                        ("LTG_WATTAGE", ParamRegistry.LTG_WATTAGE, "W", "Lamp wattage"),
+                        ("LTG_LUMENS", ParamRegistry.LTG_LUMENS, "lm", "Lumen output"),
+                    };
+                    foreach (var el in allElements)
+                    {
+                        string compTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                        if (string.IsNullOrEmpty(compTag)) continue;
+                        string compName = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+                        if (string.IsNullOrEmpty(compName))
+                            compName = ParameterHelpers.GetFamilySymbolName(el);
+
+                        foreach (var (key, paramName, unit, attrDesc) in attrParams)
+                        {
+                            if (string.IsNullOrEmpty(paramName)) continue;
+                            string val = ParameterHelpers.GetString(el, paramName);
+                            if (string.IsNullOrEmpty(val)) continue;
+                            WriteRow(wsAttr, attrRow++,
+                                key, createdBy, createdOn, "STING Parameter",
+                                "Component", compTag, val, unit,
+                                "STING Tools", "IfcPropertySingleValue", "",
+                                attrDesc, "");
+                        }
+                    }
+                    instructionData.Add(("Attribute", attrRow - 2, "Extended STING parameter data per component"));
+
+                    // ── 18. COORDINATE worksheet ────────────────────────────────
+                    var wsCoord = wb.AddWorksheet("Coordinate");
+                    WriteRow(wsCoord, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Category",
+                        "SheetName", "RowName",
+                        "CoordinateXAxis", "CoordinateYAxis", "CoordinateZAxis",
+                        "ExtSystem", "ExtObject", "ExtIdentifier",
+                        "ClockwiseRotation", "ElevationalRotation", "YawRotation");
+                    StyleHeader(wsCoord, 1, 15);
+                    instructionData.Add(("Coordinate", 0, "Element coordinates (export via IFC)"));
+
+                    // ── 19. ISSUE worksheet ─────────────────────────────────────
+                    var wsIssue = wb.AddWorksheet("Issue");
+                    WriteRow(wsIssue, 1,
+                        "Name", "CreatedBy", "CreatedOn", "Type",
+                        "Risk", "Chance", "Impact",
+                        "SheetName1", "RowName1", "SheetName2", "RowName2",
+                        "Description", "Owner", "Mitigation");
+                    StyleHeader(wsIssue, 1, 14);
+                    int issueRow = 2;
+                    // Report untagged assets as issues
+                    if (untagged > 0)
+                    {
+                        WriteRow(wsIssue, issueRow++,
+                            "Incomplete Asset Tags", createdBy, createdOn, "Non-Compliance",
+                            "Medium", "High", "Medium",
+                            "Component", "", "", "",
+                            $"{untagged} assets have incomplete ISO 19650 tags ({pct:F1}% compliance)",
+                            "BIM Manager", "Run STING Tag & Combine to complete all asset tags");
+                    }
+                    instructionData.Add(("Issue", issueRow - 2, "Project issues and risks"));
+
+                    // ── 20. PICKLISTS worksheet ─────────────────────────────────
+                    var wsPick = wb.AddWorksheet("PickLists");
+                    WriteRow(wsPick, 1,
+                        "CategoryType", "FloorType", "SpaceType", "ZoneType",
+                        "AssetType", "ComponentType", "ImpactType", "ImpactStage",
+                        "ImpactUnit", "ConnectionType", "ApprovalType", "StageType",
+                        "objType", "ResourceType", "StatusType", "UnitType",
+                        "AreaUnit", "LinearUnit", "VolumeUnit", "CostUnit",
+                        "DurationUnit", "FrequencyUnit");
+                    StyleHeader(wsPick, 1, 22);
+                    // Standard pick list values per COBie 2.4 / Uniclass 2015
+                    string[] floorTypes = { "Site", "Floor", "Roof", "Basement" };
+                    string[] assetTypes = { "Fixed", "Moveable" };
+                    string[] statusTypes = { "Not Started", "Started", "Completed", "In Progress" };
+                    string[] durationUnits = { "day", "week", "month", "year" };
+                    string[] areaUnits = { "square meters", "square feet" };
+                    string[] linearUnits = { "meters", "millimeters", "feet" };
+                    string[] volumeUnits = { "cubic meters", "cubic feet" };
+                    string[] approvalTypes = { "Approved", "Pending", "Rejected" };
+                    int maxRows = Math.Max(Math.Max(floorTypes.Length, assetTypes.Length),
+                        Math.Max(statusTypes.Length, durationUnits.Length));
+                    for (int i = 0; i < maxRows; i++)
+                    {
+                        int r = i + 2;
+                        if (i < floorTypes.Length) wsPick.Cell(r, 2).Value = floorTypes[i];
+                        if (i < assetTypes.Length) wsPick.Cell(r, 5).Value = assetTypes[i];
+                        if (i < approvalTypes.Length) wsPick.Cell(r, 11).Value = approvalTypes[i];
+                        if (i < statusTypes.Length) wsPick.Cell(r, 15).Value = statusTypes[i];
+                        if (i < areaUnits.Length) wsPick.Cell(r, 17).Value = areaUnits[i];
+                        if (i < linearUnits.Length) wsPick.Cell(r, 18).Value = linearUnits[i];
+                        if (i < volumeUnits.Length) wsPick.Cell(r, 19).Value = volumeUnits[i];
+                        if (i < durationUnits.Length) wsPick.Cell(r, 21).Value = durationUnits[i];
+                    }
+                    instructionData.Add(("PickLists", maxRows, "Standard enumeration values (Uniclass 2015)"));
+
+                    // ── BONUS: Asset Register worksheet (all STING MR_PARAMETERS) ──
+                    var wsAsset = wb.AddWorksheet("Asset Register");
+                    WriteRow(wsAsset, 1,
+                        "Discipline", "Category", "Family", "Type", "ISO 19650 Tag",
+                        "Level", "Room", "System", "Function", "Status",
+                        "Manufacturer", "Model", "Serial Nr", "Description",
+                        "Cost (UGX)", "Condition", "Warranty Period", "Fire Rating",
+                        "Material", "Supplier", "Barcode", "Uniformat", "OmniClass");
+                    StyleHeader(wsAsset, 1, 23);
+                    int assetRow = 2;
+                    foreach (var discGroup in byDisc.OrderBy(x => x.Key))
+                    {
+                        foreach (var el in discGroup.Value.OrderBy(e => ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
+                        {
+                            string cat = el.Category?.Name ?? "";
+                            string family = ParameterHelpers.GetFamilyName(el);
+                            string typeName = ParameterHelpers.GetFamilySymbolName(el);
+                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                            string roomName = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
+                            if (string.IsNullOrEmpty(roomName))
+                                roomName = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
+                            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                            string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                            string mfr = ParameterHelpers.GetString(el, ParamRegistry.MFR);
+                            string model = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
+                            string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
+                            string desc = ParameterHelpers.GetString(el, ParamRegistry.DESC);
+                            string cost = ParameterHelpers.GetString(el, ParamRegistry.COST);
+                            string condition = ParameterHelpers.GetString(el, ParamRegistry.CONDITION);
+                            string warranty = ParameterHelpers.GetString(el, "ASS_WARRANTY_PERIOD_TXT");
+                            string fireRating = ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING);
+                            string material = ParameterHelpers.GetString(el, ParamRegistry.MATERIAL);
+                            string supplier = ParameterHelpers.GetString(el, ParamRegistry.SUPPLIER);
+                            string barcode = ParameterHelpers.GetString(el, ParamRegistry.BARCODE);
+                            string uniformat = ParameterHelpers.GetString(el, ParamRegistry.UNIFORMAT);
+                            string omniclass = ParameterHelpers.GetString(el, ParamRegistry.OMNICLASS);
+
+                            WriteRow(wsAsset, assetRow++,
+                                discGroup.Key, cat, family, typeName, tag1,
+                                lvl, roomName, sys, func, status,
+                                mfr, model, serial, desc,
+                                cost, condition, warranty, fireRating,
+                                material, supplier, barcode, uniformat, omniclass);
+                        }
+                    }
+
+                    // ── BONUS: Maintenance Schedule worksheet ───────────────────
+                    var wsMaint = wb.AddWorksheet("Maintenance Schedule");
+                    WriteRow(wsMaint, 1,
+                        "System", "System Description", "Category", "Asset Count",
+                        "Maintenance Type", "Frequency", "Priority", "BS 8210 Notes");
+                    StyleHeader(wsMaint, 1, 8);
+                    int maintRow = 2;
+                    foreach (var kvp in bySys.OrderBy(x => x.Key))
+                    {
+                        var categories = kvp.Value
+                            .GroupBy(e => e.Category?.Name ?? "Unknown")
+                            .OrderBy(g => g.Key);
+                        foreach (var catGroup in categories)
+                        {
+                            var (maintType, frequency, priority, notes) =
+                                GetMaintenanceSchedule(kvp.Key, catGroup.Key);
+                            WriteRow(wsMaint, maintRow++,
+                                kvp.Key, GetSystemDescription(kvp.Key), catGroup.Key,
+                                catGroup.Count().ToString(),
+                                maintType, frequency, priority, notes);
+                        }
+                    }
+
+                    // ── Populate Instruction sheet ──────────────────────────────
+                    int instRow = 2;
+                    foreach (var (sheet, rowCount, desc) in instructionData)
+                    {
+                        WriteRow(wsInst, instRow++, sheet, rowCount.ToString(), desc);
+                    }
+                    WriteRow(wsInst, instRow++, "Asset Register", (assetRow - 2).ToString(), "Full STING asset register by discipline");
+                    WriteRow(wsInst, instRow++, "Maintenance Schedule", (maintRow - 2).ToString(), "BS 8210/SFG20 maintenance recommendations");
+                    WriteRow(wsInst, instRow, "", "", "");
+                    WriteRow(wsInst, instRow + 1, "Standard", "", "COBie V2.4 / BS EN ISO 19650-4:2022 / BS 8210 / SFG20");
+                    WriteRow(wsInst, instRow + 2, "Generated", "", createdOn);
+                    WriteRow(wsInst, instRow + 3, "Tool", "", "STING Tools for Revit");
+
+                    // ── Format all sheets ───────────────────────────────────────
+                    foreach (var ws in wb.Worksheets)
+                    {
+                        ws.Columns().AdjustToContents(1, 80);
+                        ws.SheetView.FreezeRows(1);
+                        ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+                        ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+                    }
+
+                    wb.SaveAs(exportPath);
+                }
+
+                // ── Summary dialog ──────────────────────────────────────────────
                 var report = new StringBuilder();
-                report.AppendLine("FM O/M Handover Manual Generated");
-                report.AppendLine(new string('═', 50));
+                report.AppendLine("COBie FM Handover Manual Generated (.xlsx)");
+                report.AppendLine(new string('\u2550', 55));
+                report.AppendLine($"  Standard:         COBie V2.4 / BS EN ISO 19650-4:2022");
                 report.AppendLine($"  Project:          {projectName}");
                 report.AppendLine($"  Total assets:     {allElements.Count}");
                 report.AppendLine($"  Tagged complete:  {tagged} ({pct:F1}%)");
@@ -3059,44 +3414,61 @@ namespace StingTools.Docs
                 report.AppendLine($"  Levels:           {levels.Count}");
                 report.AppendLine($"  Asset types:      {typeGroups.Count}");
                 report.AppendLine($"  COBie components: {cobieComponentCount}");
-                report.AppendLine($"  FM Schedules:     {fmScheduleCount} (from MR_SCHEDULES.csv)");
                 report.AppendLine();
-                report.AppendLine("  Sections:");
-                report.AppendLine("    1. Project Information");
-                report.AppendLine("    2. System Summary");
-                report.AppendLine("    3. Asset Register (by discipline)");
-                report.AppendLine("    4. Spatial Summary (rooms)");
-                report.AppendLine("    5. Maintenance Schedule (BS 8210)");
-                report.AppendLine("    6. Level Summary");
-                report.AppendLine("  COBie V2.4 Worksheets:");
-                report.AppendLine("    7A. Contact      7E. Type");
-                report.AppendLine("    7B. Floor        7F. Component");
-                report.AppendLine("    7C. Space        7G. System");
-                report.AppendLine("    7D. Zone         7H. Job");
-                report.AppendLine("                     7I. Document");
-                report.AppendLine("    8. FM Schedules Available");
+                report.AppendLine("  COBie V2.4 Worksheets (20 standard + 2 STING):");
+                report.AppendLine("    1.  Instruction     11. Connection");
+                report.AppendLine("    2.  Contact         12. Spare");
+                report.AppendLine("    3.  Facility        13. Resource");
+                report.AppendLine("    4.  Floor           14. Job");
+                report.AppendLine("    5.  Space           15. Impact");
+                report.AppendLine("    6.  Zone            16. Document");
+                report.AppendLine("    7.  Type            17. Attribute");
+                report.AppendLine("    8.  Component       18. Coordinate");
+                report.AppendLine("    9.  System          19. Issue");
+                report.AppendLine("    10. Assembly        20. PickLists");
+                report.AppendLine("    + Asset Register    + Maintenance Schedule");
                 report.AppendLine();
-                report.AppendLine($"  File: {path}");
-                report.AppendLine();
-                report.AppendLine("Opens in Excel. COBie V2.4 aligned per ISO 19650-4.");
+                report.AppendLine($"  File: {exportPath}");
 
-                var td = new TaskDialog("STING Tools - FM Handover Manual");
-                td.MainInstruction = "FM O/M Handover Manual Generated";
+                var td = new TaskDialog("STING Tools - COBie FM Handover");
+                td.MainInstruction = "COBie FM Handover Manual Generated";
                 td.MainContent = report.ToString();
                 td.CommonButtons = TaskDialogCommonButtons.Ok;
                 td.DefaultButton = TaskDialogResult.Ok;
                 td.Show();
-                StingLog.Info($"HandoverManual: {allElements.Count} assets, {cobieComponentCount} COBie components, " +
-                    $"{bySys.Count} systems, {rooms.Count} rooms, {levels.Count} levels → {path}");
+                StingLog.Info($"COBie Handover: {allElements.Count} assets, {cobieComponentCount} components, " +
+                    $"{bySys.Count} systems, {rooms.Count} rooms, {levels.Count} levels → {exportPath}");
 
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
                 StingLog.Error("HandoverManualCommand crashed", ex);
-                TaskDialog.Show("STING Tools", $"FM Handover Manual failed:\n{ex.Message}");
+                TaskDialog.Show("STING Tools", $"COBie FM Handover Manual failed:\n{ex.Message}");
                 return Result.Failed;
             }
+        }
+
+        // ── Helper methods ──────────────────────────────────────────────────
+
+        /// <summary>Write a row of values to a worksheet.</summary>
+        private static void WriteRow(IXLWorksheet ws, int row, params string[] values)
+        {
+            for (int i = 0; i < values.Length; i++)
+                ws.Cell(row, i + 1).Value = values[i] ?? "";
+        }
+
+        /// <summary>Style header row with bold, background colour, and borders.</summary>
+        private static void StyleHeader(IXLWorksheet ws, int row, int colCount)
+        {
+            var range = ws.Range(row, 1, row, colCount);
+            range.Style.Font.Bold = true;
+            range.Style.Font.FontSize = 10;
+            range.Style.Font.FontName = "Arial";
+            range.Style.Fill.BackgroundColor = XLColor.FromArgb(79, 129, 189); // COBie blue
+            range.Style.Font.FontColor = XLColor.White;
+            range.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+            range.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
         }
 
         /// <summary>Get human-readable system description from code.</summary>
@@ -3125,44 +3497,39 @@ namespace StingTools.Docs
             };
         }
 
-        /// <summary>Get maintenance schedule recommendation based on system and category.</summary>
+        /// <summary>Get maintenance schedule recommendation based on system and category (BS 8210 / SFG20).</summary>
         private static (string MaintType, string Frequency, string Priority, string Notes)
             GetMaintenanceSchedule(string sysCode, string category)
         {
-            // BS 8210 / SFG20 inspired maintenance frequencies
             return sysCode switch
             {
                 "HVAC" => ("Preventive", "Quarterly", "High",
-                    "Filter replacement, belt inspection, refrigerant check"),
+                    "Filter replacement, belt inspection, refrigerant check per SFG20 schedule 1-010"),
                 "DCW" or "DHW" => ("Preventive", "6-Monthly", "High",
-                    "Legionella risk assessment, TMV testing, flush dead legs"),
+                    "Legionella risk assessment (L8/HSG274), TMV testing, flush dead legs"),
                 "HWS" => ("Preventive", "Quarterly", "High",
-                    "Boiler service, pump inspection, valve check"),
+                    "Boiler service, pump inspection, valve check per SFG20 schedule 3-030"),
                 "SAN" or "RWD" => ("Preventive", "Annually", "Medium",
-                    "Drain survey, gully clean, interceptor maintenance"),
+                    "Drain survey, gully clean, interceptor maintenance per SFG20 schedule 4-010"),
                 "GAS" => ("Statutory", "Annually", "Critical",
-                    "Gas safety inspection, leak detection, emergency valve test"),
+                    "Gas safety inspection (Gas Safety Regulations 1998), leak detection, emergency valve test"),
                 "FP" => ("Statutory", "6-Monthly", "Critical",
-                    "Sprinkler flow test, extinguisher service, hydrant test"),
+                    "Sprinkler flow test (BS EN 12845), extinguisher service (BS 5306), hydrant test"),
                 "FLS" => ("Statutory", "Quarterly", "Critical",
-                    "Fire alarm test, emergency lighting, smoke detector service"),
+                    "Fire alarm test (BS 5839), emergency lighting (BS 5266), smoke detector service"),
                 "LV" or "COM" or "ICT" => ("Preventive", "Annually", "Medium",
-                    "Thermal imaging, connection check, UPS battery test"),
+                    "Thermal imaging, connection check, UPS battery test per SFG20 schedule 6-010"),
                 "SEC" => ("Preventive", "Quarterly", "Medium",
-                    "Access control audit, CCTV review, intruder alarm test"),
+                    "Access control audit, CCTV review, intruder alarm test (BS EN 50131)"),
                 "NCL" => ("Preventive", "6-Monthly", "High",
-                    "System function test, battery replacement, handset check"),
+                    "System function test, battery replacement, handset check per HTM 08-03"),
                 "ARC" => ("Reactive", "As-needed", "Low",
-                    "Fabric inspection, decorative maintenance"),
+                    "Fabric inspection, decorative maintenance per BS 8210 Section 4"),
                 "STR" => ("Condition", "5-Yearly", "Medium",
-                    "Structural survey, movement monitoring"),
+                    "Structural survey, movement monitoring per BS 8210 Section 3"),
                 _ => ("Planned", "Annually", "Medium",
-                    "General inspection and maintenance")
+                    "General inspection and maintenance per BS 8210")
             };
         }
-
-        /// <summary>Escape CSV field.</summary>
-        private static string Esc(string v) =>
-            v?.Replace("\"", "\"\"") ?? "";
     }
 }
