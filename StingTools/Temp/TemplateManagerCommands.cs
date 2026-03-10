@@ -2986,14 +2986,6 @@ namespace StingTools.Temp
                             if (!formulasByParam.TryGetValue(paramName, out string formula))
                                 continue;
 
-                            // Check that all input parameters in the formula exist
-                            bool allInputsExist = true;
-                            foreach (string inputParam in existingParams)
-                            {
-                                // We just check the formula can reference existing params
-                                // FamilyManager.SetFormula will validate properly
-                            }
-
                             FamilyParameter famParam = null;
                             foreach (FamilyParameter fp in fmgr.Parameters)
                             {
