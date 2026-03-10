@@ -393,8 +393,20 @@ namespace StingTools.Core
         public static string STATUS_COD     => Ext("STATUS_COD");
         public static string REV_COD        => Ext("REV_COD");
 
-        // ── Warning threshold parameter ─────────────────────────────────
+        // ── Warning threshold parameters ────────────────────────────────
         public static string ELC_PNL_RATED  => Ext("ELC_PNL_RATED");
+        public static string WARN_RAMP_SLOPE      => Ext("WARN_RAMP_SLOPE");
+        public static string WARN_VLT_DROP         => Ext("WARN_VLT_DROP");
+        public static string WARN_SPR_COVER        => Ext("WARN_SPR_COVER");
+        public static string WARN_NOISE            => Ext("WARN_NOISE");
+        public static string WARN_COP_EER          => Ext("WARN_COP_EER");
+        public static string WARN_FLEX_VEL         => Ext("WARN_FLEX_VEL");
+        public static string WARN_CARBON           => Ext("WARN_CARBON");
+        public static string WARN_UVAL_FLR         => Ext("WARN_UVAL_FLR");
+        public static string WARN_UVAL_ROOF        => Ext("WARN_UVAL_ROOF");
+        public static string WARN_UVAL_WALL        => Ext("WARN_UVAL_WALL");
+        public static string WARN_HW_FLOW          => Ext("WARN_HW_FLOW");
+        public static string WARN_ACCESS_WIDTH     => Ext("WARN_ACCESS_WIDTH");
 
         // ── Universal tag container names (convenience) ─────────────────
         /// <summary>Full 8-segment tag: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ</summary>
@@ -1227,8 +1239,55 @@ namespace StingTools.Core
             _extendedParams["PARA_SEC"] = "SEC_TAG_7_PARA_TXT"; _extendedParams["PARA_ASS_EQUIP"] = "ASS_TAG_7_PARA_EQUIP_TXT";
             _extendedParams["PARA_RGL_CMPL"] = "RGL_TAG_7_PARA_CMPL_TXT"; _extendedParams["PARA_PER_ENV"] = "PER_TAG_7_PARA_ENV_TXT";
             _extendedParams["PARA_CST_CONC"] = "CST_TAG_7_PARA_CONC_TXT";
-            // Warning threshold
+            // v5.0 paragraph containers (new categories)
+            _extendedParams["PARA_FURN_SYS"] = "ARCH_TAG_7_PARA_FURN_SYS_TXT";
+            _extendedParams["PARA_PARKING"] = "ARCH_TAG_7_PARA_PARKING_TXT";
+            _extendedParams["PARA_SITE"] = "ARCH_TAG_7_PARA_SITE_TXT";
+            _extendedParams["PARA_TEL"] = "ICT_TAG_7_PARA_TEL_TXT";
+            _extendedParams["PARA_AV_DEV"] = "ICT_TAG_7_PARA_AV_DEV_TXT";
+            _extendedParams["PARA_MED_EQUIP"] = "MED_TAG_7_PARA_MED_EQUIP_TXT";
+            _extendedParams["PARA_FIRE_PROT"] = "FLS_TAG_7_PARA_FIRE_PROT_TXT";
+            _extendedParams["PARA_MECH_CTRL"] = "HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT";
+            _extendedParams["PARA_MECH_SETS"] = "HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT";
+            _extendedParams["PARA_DUCT_INS"] = "HVC_TAG_7_PARA_DUCT_INSULATION_TXT";
+            _extendedParams["PARA_DUCT_LINING"] = "HVC_TAG_7_PARA_DUCT_LINING_TXT";
+            _extendedParams["PARA_PIPE_INS"] = "PLM_TAG_7_PARA_PIPE_INSULATION_TXT";
+            _extendedParams["PARA_PLM_EQUIP2"] = "PLM_TAG_7_PARA_PLM_EQUIP_TXT";
+            _extendedParams["PARA_ELC_CONN"] = "ELC_TAG_7_PARA_ELC_CONNECTORS_TXT";
+            _extendedParams["PARA_FAB_CONT"] = "ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT";
+            _extendedParams["PARA_FAB_DUCT"] = "HVC_TAG_7_PARA_FAB_DUCTWORK_TXT";
+            _extendedParams["PARA_FAB_STIFF"] = "HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT";
+            _extendedParams["PARA_FAB_HANG"] = "MEP_TAG_7_PARA_FAB_HANGERS_TXT";
+            _extendedParams["PARA_FAB_PIPE"] = "PLM_TAG_7_PARA_FAB_PIPEWORK_TXT";
+            _extendedParams["PARA_ANCILLARY"] = "MEP_TAG_7_PARA_ANCILLARY_TXT";
+            _extendedParams["PARA_MATERIALS"] = "PROP_TAG_7_PARA_MATERIALS_TXT";
+            _extendedParams["PARA_CURTAIN_PNL"] = "BLE_TAG_7_PARA_CURTAIN_PANELS_TXT";
+            _extendedParams["PARA_CURTAIN_MUL"] = "BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT";
+            _extendedParams["PARA_WALL_SWEEP"] = "BLE_TAG_7_PARA_WALL_SWEEPS_TXT";
+            _extendedParams["PARA_SLAB_EDGE"] = "BLE_TAG_7_PARA_SLAB_EDGES_TXT";
+            _extendedParams["PARA_ROOF_SOFFIT"] = "BLE_TAG_7_PARA_ROOF_SOFFITS_TXT";
+            _extendedParams["PARA_FASCIA"] = "BLE_TAG_7_PARA_FASCIA_TXT";
+            _extendedParams["PARA_GUTTER"] = "BLE_TAG_7_PARA_GUTTER_TXT";
+            _extendedParams["PARA_HANDRAILS"] = "BLE_TAG_7_PARA_HANDRAILS_TXT";
+            _extendedParams["PARA_RAILINGS"] = "BLE_TAG_7_PARA_RAILINGS_TXT";
+            _extendedParams["PARA_TOP_RAILS"] = "BLE_TAG_7_PARA_TOP_RAILS_TXT";
+            _extendedParams["PARA_STAIR_RUNS"] = "BLE_TAG_7_PARA_STAIR_RUNS_TXT";
+            _extendedParams["PARA_STAIR_LAND"] = "BLE_TAG_7_PARA_STAIR_LANDINGS_TXT";
+            _extendedParams["PARA_STAIR_SUPP"] = "BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT";
+            // Warning thresholds
             _extendedParams["ELC_PNL_RATED"] = "ELC_PNL_RATED_BOOL";
+            _extendedParams["WARN_RAMP_SLOPE"] = "WARN_BLE_RAMP_SLOPE_PCT_RAMPS";
+            _extendedParams["WARN_VLT_DROP"] = "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI";
+            _extendedParams["WARN_SPR_COVER"] = "WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR";
+            _extendedParams["WARN_NOISE"] = "WARN_HVC_DCT_SOUNDLVL_DB";
+            _extendedParams["WARN_COP_EER"] = "WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI";
+            _extendedParams["WARN_FLEX_VEL"] = "WARN_HVC_VEL_MPS_FLEX_DUCTS";
+            _extendedParams["WARN_CARBON"] = "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__";
+            _extendedParams["WARN_UVAL_FLR"] = "WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS";
+            _extendedParams["WARN_UVAL_ROOF"] = "WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS";
+            _extendedParams["WARN_UVAL_WALL"] = "WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS";
+            _extendedParams["WARN_HW_FLOW"] = "WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE";
+            _extendedParams["WARN_ACCESS_WIDTH"] = "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C";
             // ISO 19650 project-level naming (PRJ_ prefix variants)
             _extendedParams["PRJ_PROJECT_COD"] = "PRJ_PROJECT_COD_TXT"; _extendedParams["PRJ_ORIGINATOR_COD"] = "PRJ_ORIGINATOR_COD_TXT";
             _extendedParams["PRJ_VOLUME_COD"] = "PRJ_VOLUME_COD_TXT"; _extendedParams["PRJ_STATUS_COD"] = "PRJ_STATUS_COD_TXT";
@@ -1259,72 +1318,143 @@ namespace StingTools.Core
                 }
             }
 
-            // CRASH FIX: Initialize CategoryEnumMap with the 53 standard categories.
+            // CRASH FIX: Initialize CategoryEnumMap with all 124 taggable categories.
             // Without this, ResolveUniversalCategoryEnums() returns empty array →
             // AllCategoryEnums = empty → BuildCategorySet = empty → 0 params bound →
             // LoadSharedParamsCommand silently does nothing, leaving project unconfigured.
             CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 { "Air Terminals", "OST_DuctTerminal" },
+                { "Analytical Duct Segments", "OST_AnalyticalDuctSegments" },
+                { "Analytical Links", "OST_AnalyticalLinks" },
+                { "Analytical Members", "OST_AnalyticalMember" },
+                { "Analytical Nodes", "OST_AnalyticalNodes" },
+                { "Analytical Openings", "OST_AnalyticalOpenings" },
+                { "Analytical Panels", "OST_AnalyticalPanels" },
+                { "Analytical Pipe Segments", "OST_AnalyticalPipeSegments" },
+                { "Area Based Loads", "OST_AreaLoads" },
+                { "Area Loads", "OST_AreaLoads" },
+                { "Areas", "OST_Areas" },
+                { "Assemblies", "OST_Assemblies" },
+                { "Audio Visual Devices", "OST_AudioVisualDevices" },
                 { "Cable Tray Fittings", "OST_CableTrayFitting" },
                 { "Cable Trays", "OST_CableTray" },
                 { "Casework", "OST_Casework" },
                 { "Ceilings", "OST_Ceilings" },
+                { "Columns", "OST_Columns" },
                 { "Communication Devices", "OST_CommunicationDevices" },
                 { "Conduit Fittings", "OST_ConduitFitting" },
                 { "Conduits", "OST_Conduit" },
                 { "Curtain Panels", "OST_CurtainWallPanels" },
                 { "Curtain Wall Mullions", "OST_CurtainWallMullions" },
+                { "Curtain Systems", "OST_Curtain_Systems" },
                 { "Data Devices", "OST_DataDevices" },
+                { "Detail Items", "OST_DetailComponents" },
                 { "Doors", "OST_Doors" },
                 { "Duct Accessories", "OST_DuctAccessory" },
                 { "Duct Fittings", "OST_DuctFitting" },
-                { "Duct Insulations", "OST_DuctInsulations" },
+                { "Duct Insulation", "OST_DuctInsulations" },
+                { "Duct Lining", "OST_DuctLinings" },
                 { "Ducts", "OST_DuctCurves" },
+                { "Electrical Connectors", "OST_ElectricalInternalCircuits" },
                 { "Electrical Equipment", "OST_ElectricalEquipment" },
                 { "Electrical Fixtures", "OST_ElectricalFixtures" },
+                { "Entourage", "OST_Entourage" },
+                { "Fascia", "OST_Fascia" },
                 { "Fire Alarm Devices", "OST_FireAlarmDevices" },
+                { "Fire Protection", "OST_FireProtection" },
                 { "Flex Ducts", "OST_FlexDuctCurves" },
                 { "Flex Pipes", "OST_FlexPipeCurves" },
                 { "Floors", "OST_Floors" },
+                { "Food Service Equipment", "OST_FoodServiceEquipment" },
                 { "Furniture", "OST_Furniture" },
                 { "Furniture Systems", "OST_FurnitureSystems" },
                 { "Generic Models", "OST_GenericModel" },
+                { "Gutter", "OST_Gutter" },
+                { "Handrails", "OST_StairsRailingBaluster" },
+                { "Hardscape", "OST_Hardscape" },
+                { "Internal Area Loads", "OST_InternalAreaLoads" },
+                { "Internal Line Loads", "OST_InternalLineLoads" },
+                { "Internal Point Loads", "OST_InternalPointLoads" },
                 { "Lighting Devices", "OST_LightingDevices" },
                 { "Lighting Fixtures", "OST_LightingFixtures" },
+                { "Line Loads", "OST_LineLoads" },
+                { "MEP Ancillary", "OST_MechanicalEquipment" },
+                { "MEP Fabrication Containment", "OST_FabricationContainment" },
+                { "MEP Fabrication Ductwork", "OST_FabricationDuctwork" },
+                { "MEP Fabrication Ductwork Stiffeners", "OST_FabricationDuctwork" },
+                { "MEP Fabrication Hangers", "OST_FabricationHangers" },
+                { "MEP Fabrication Pipework", "OST_FabricationPipework" },
                 { "Mass", "OST_Mass" },
+                { "Materials", "OST_Materials" },
+                { "Mechanical Control Devices", "OST_MechanicalControlDevices" },
                 { "Mechanical Equipment", "OST_MechanicalEquipment" },
+                { "Mechanical Equipment Sets", "OST_MechanicalEquipmentSets" },
+                { "Medical Equipment", "OST_MedicalEquipment" },
+                { "Model Groups", "OST_IOSModelGroups" },
                 { "Nurse Call Devices", "OST_NurseCallDevices" },
+                { "Pads", "OST_BuildingPad" },
                 { "Parking", "OST_Parking" },
+                { "Parts", "OST_Parts" },
                 { "Pipe Accessories", "OST_PipeAccessory" },
                 { "Pipe Fittings", "OST_PipeFitting" },
-                { "Pipe Insulations", "OST_PipeInsulations" },
+                { "Pipe Insulation", "OST_PipeInsulations" },
                 { "Pipes", "OST_PipeCurves" },
                 { "Planting", "OST_Planting" },
+                { "Plumbing Equipment", "OST_PlumbingEquipment" },
                 { "Plumbing Fixtures", "OST_PlumbingFixtures" },
+                { "Point Loads", "OST_PointLoads" },
+                { "Profiles", "OST_ProfileFamilies" },
+                { "Property Line Segments", "OST_SitePropertyLineSegment" },
+                { "Property Lines", "OST_SiteProperty" },
+                { "RVT Links", "OST_RvtLinks" },
                 { "Railings", "OST_StairsRailing" },
                 { "Ramps", "OST_Ramps" },
+                { "Roads", "OST_Roads" },
+                { "Roof Soffits", "OST_RoofSoffit" },
                 { "Roofs", "OST_Roofs" },
                 { "Rooms", "OST_Rooms" },
                 { "Security Devices", "OST_SecurityDevices" },
+                { "Signage", "OST_Signage" },
                 { "Site", "OST_Site" },
+                { "Slab Edges", "OST_SlabEdges" },
+                { "Spaces", "OST_MEPSpaces" },
                 { "Specialty Equipment", "OST_SpecialityEquipment" },
                 { "Sprinklers", "OST_Sprinklers" },
+                { "Stair Landings", "OST_StairsLandings" },
+                { "Stair Runs", "OST_StairsRuns" },
+                { "Stair Supports", "OST_StairsSupports" },
                 { "Stairs", "OST_Stairs" },
+                { "Structural Area Reinforcement", "OST_AreaRein" },
+                { "Structural Beam Systems", "OST_StructuralFramingSystem" },
                 { "Structural Columns", "OST_StructuralColumns" },
                 { "Structural Connections", "OST_StructConnections" },
+                { "Structural Fabric Reinforcement", "OST_FabricReinforcement" },
                 { "Structural Foundations", "OST_StructuralFoundation" },
                 { "Structural Framing", "OST_StructuralFraming" },
+                { "Structural Path Reinforcement", "OST_PathRein" },
+                { "Structural Rebar", "OST_Rebar" },
+                { "Structural Rebar Couplers", "OST_RebarCoupler" },
+                { "Structural Stiffeners", "OST_StructuralStiffener" },
+                { "Structural Trusses", "OST_StructuralTruss" },
                 { "Telephone Devices", "OST_TelephoneDevices" },
+                { "Temporary Structures", "OST_TemporaryStructure" },
+                { "Top Rails", "OST_RailingTopRail" },
+                { "Toposolid", "OST_Toposolid" },
+                { "Toposolid Links", "OST_Toposolid" },
+                { "Vertical Circulation", "OST_VerticalCirculation" },
+                { "Wall Sweeps", "OST_WallSweeps" },
                 { "Walls", "OST_Walls" },
+                { "Wash", "OST_Planting" },
                 { "Windows", "OST_Windows" },
+                { "Zones", "OST_Zones" },
             };
 
-            // Set UniversalCategories to the full 53-category list so
+            // Set UniversalCategories to the full 124-category list so
             // ResolveUniversalCategoryEnums returns all categories even without JSON.
             UniversalCategories = CategoryEnumMap.Keys.ToArray();
 
-            StingLog.Info($"LoadDefaults: {_guidByName.Count} GUIDs, {CategoryEnumMap.Count} categories, {UniversalParams.Length} universal params");
+            StingLog.Info($"LoadDefaults: {_guidByName.Count} GUIDs, {CategoryEnumMap.Count} categories (v5.0), {UniversalParams.Length} universal params");
         }
 
         // ════════════════════════════════════════════════════════════════

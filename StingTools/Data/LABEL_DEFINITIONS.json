@@ -1,58 +1,58 @@
 {
   "version": "1.0",
-  "description": "Master label specification for STING seed tag families. Maps directly to Revit Edit Label dialog columns (Prefix, Suffix, Spaces, Break). The 'scheduled text words' — static natural language text that wraps around parameter values to produce corporate-standard presentation.",
+  "description": "Master label specification for STING seed tag families. Maps directly to Revit Edit Label dialog columns (Prefix, Suffix, Spaces, Break). The 'scheduled text words' \u2014 static natural language text that wraps around parameter values to produce corporate-standard presentation.",
   "presentation_modes": {
     "Compact": {
       "state_1": true,
       "state_2": false,
       "state_3": false,
       "warnings": false,
-      "description": "Basic identification — tag code + type name only"
+      "description": "Basic identification \u2014 tag code + type name only"
     },
     "Technical": {
       "state_1": true,
       "state_2": true,
       "state_3": false,
       "warnings": true,
-      "description": "Engineering documentation — key properties + threshold warnings"
+      "description": "Engineering documentation \u2014 key properties + threshold warnings"
     },
     "Full_Specification": {
       "state_1": true,
       "state_2": true,
       "state_3": true,
       "warnings": true,
-      "description": "Complete specification — all tiers + paragraph + warnings"
+      "description": "Complete specification \u2014 all tiers + paragraph + warnings"
     },
     "Presentation": {
       "state_1": true,
       "state_2": true,
       "state_3": false,
       "warnings": false,
-      "description": "Client presentation — clean tags without warning text"
+      "description": "Client presentation \u2014 clean tags without warning text"
     },
     "BOQ": {
       "state_1": true,
       "state_2": true,
       "state_3": false,
       "warnings": false,
-      "description": "Bill of Quantities — identity + quantities for cost schedules"
+      "description": "Bill of Quantities \u2014 identity + quantities for cost schedules"
     }
   },
   "calculated_value_templates": {
     "cv_show_tier2": {
       "name": "Show Tier 2",
       "formula": "if(TAG_PARA_STATE_2_BOOL, <param>, \"\")",
-      "description": "Gates tier 2 parameters — visible when Standard or above"
+      "description": "Gates tier 2 parameters \u2014 visible when Standard or above"
     },
     "cv_show_tier3": {
       "name": "Show Tier 3",
       "formula": "if(TAG_PARA_STATE_3_BOOL, <param>, \"\")",
-      "description": "Gates tier 3 parameters — visible when Comprehensive"
+      "description": "Gates tier 3 parameters \u2014 visible when Comprehensive"
     },
     "cv_show_warning": {
       "name": "Show Warning",
       "formula": "if(TAG_WARN_VISIBLE_BOOL, <param>, \"\")",
-      "description": "Gates warning text — visible when warnings enabled"
+      "description": "Gates warning text \u2014 visible when warnings enabled"
     }
   },
   "parameter_text": {
@@ -70,7 +70,7 @@
         "tier_2": "underline",
         "tier_3": "bold underline"
       },
-      "note": "Heading line in TAG7 — underlined in State 2, bold+underlined in State 3. Style controlled via batch command."
+      "note": "Heading line in TAG7 \u2014 underlined in State 2, bold+underlined in State 3. Style controlled via batch command."
     },
     "ASS_TAG_4_TXT": {
       "prefix": "",
@@ -149,7 +149,7 @@
     },
     "BLE_ROOF_SLOPE_DEG": {
       "prefix": "Slope: ",
-      "suffix": "°",
+      "suffix": "\u00b0",
       "label": "Roof Slope"
     },
     "BLE_ROOF_COVERING_MAT_TXT": {
@@ -189,7 +189,7 @@
     },
     "BLE_WINDOW_U_VALUE_W_M_2K_NR": {
       "prefix": "U=",
-      "suffix": " W/m²K",
+      "suffix": " W/m\u00b2K",
       "label": "Window U-Value"
     },
     "BLE_WINDOW_FRAME_MAT_TXT": {
@@ -259,12 +259,12 @@
     },
     "PER_THERM_U_VALUE_W_M2K_NR": {
       "prefix": "U=",
-      "suffix": " W/m²K",
+      "suffix": " W/m\u00b2K",
       "label": "Thermal U-Value"
     },
     "PER_THERM_R_VALUE_M2K_W": {
       "prefix": "R=",
-      "suffix": " m²K/W",
+      "suffix": " m\u00b2K/W",
       "label": "Thermal R-Value"
     },
     "PER_THERM_CONDENSATION_RISK_TXT": {
@@ -404,7 +404,7 @@
     },
     "FLS_SFTY_COVERAGE_AREA_SQ_M": {
       "prefix": "Coverage: ",
-      "suffix": " m²",
+      "suffix": " m\u00b2",
       "label": "Sprinkler Coverage"
     },
     "FLS_SFTY_K_FACTOR_NR": {
@@ -459,10 +459,10 @@
     },
     "PER_SUST_EMBODIED_CARBON_KG": {
       "prefix": "",
-      "suffix": " kgCO₂e",
+      "suffix": " kgCO\u2082e",
       "label": "Embodied Carbon"
     },
-    "_paragraph_comment": "TAG7 paragraph containers — tier_3 natural-language specification paragraphs. No prefix/suffix needed as content is a pre-assembled descriptive statement from the formula engine.",
+    "_paragraph_comment": "TAG7 paragraph containers \u2014 tier_3 natural-language specification paragraphs. No prefix/suffix needed as content is a pre-assembled descriptive statement from the formula engine.",
     "ARCH_TAG_7_PARA_WALL_TXT": {
       "prefix": "",
       "suffix": "",
@@ -642,6 +642,36 @@
       "prefix": "",
       "suffix": "",
       "label": "Equipment Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_FURN_SYS_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Furniture Systems Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_PARKING_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Parking Specification Paragraph"
+    },
+    "ARCH_TAG_7_PARA_SITE_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Site Element Specification Paragraph"
+    },
+    "ICT_TAG_7_PARA_TEL_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Telephone Device Specification Paragraph"
+    },
+    "ICT_TEL_PORT_TYPE_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Telephone Port Type"
+    },
+    "ICT_TEL_OUTLET_QTY_NR": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Telephone Outlet Quantity"
     }
   },
   "category_labels": {
@@ -677,7 +707,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "BLE_WALL_FUNCTION_TXT",
@@ -773,7 +803,7 @@
           "param": "PER_SUST_CARBON_FOOTPRINT_KG",
           "spaces": 0,
           "break": true,
-          "prefix_override": " | CO₂: ",
+          "prefix_override": " | CO\u2082: ",
           "suffix_override": " kg",
           "note": "Embodied carbon"
         },
@@ -790,13 +820,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ARCH_TAG_7_PARA_WALL_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": [
@@ -826,7 +856,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "BLE_FLR_TYPE_TXT",
@@ -873,7 +903,7 @@
           "param": "PER_SUST_CARBON_FOOTPRINT_KG",
           "spaces": 0,
           "break": true,
-          "prefix_override": " | CO₂: ",
+          "prefix_override": " | CO\u2082: ",
           "suffix_override": " kg",
           "note": "Embodied carbon"
         },
@@ -890,13 +920,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ARCH_TAG_7_PARA_FLOOR_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": [
@@ -931,7 +961,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "BLE_CEILING_SYSTEM_TXT",
@@ -973,13 +1003,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ARCH_TAG_7_PARA_CEIL_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -1010,7 +1040,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "BLE_ROOF_PRIMARY_MAT_TXT",
@@ -1050,7 +1080,7 @@
           "param": "PER_SUST_CARBON_FOOTPRINT_KG",
           "spaces": 0,
           "break": true,
-          "prefix_override": " | CO₂: ",
+          "prefix_override": " | CO\u2082: ",
           "suffix_override": " kg",
           "note": "Embodied carbon"
         },
@@ -1067,13 +1097,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ARCH_TAG_7_PARA_ROOF_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": [
@@ -1107,7 +1137,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "BLE_DOOR_OPERATION_TYPE_TXT",
@@ -1163,13 +1193,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ARCH_TAG_7_PARA_DOOR_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": [
@@ -1203,7 +1233,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "BLE_WINDOW_FRAME_MAT_TXT",
@@ -1237,13 +1267,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ARCH_TAG_7_PARA_WIN_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": [
@@ -1266,7 +1296,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "BLE_STAIR_RISE_MM",
@@ -1301,13 +1331,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ARCH_TAG_7_PARA_STAIR_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": [
@@ -1331,7 +1361,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "BLE_RAMP_SLOPE_PCT",
@@ -1359,13 +1389,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ARCH_TAG_7_PARA_RAMP_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": [
@@ -1388,7 +1418,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "BLE_STRUCT_COLUMN_SZ_TXT",
@@ -1436,13 +1466,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "STR_TAG_7_PARA_COL_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -1463,7 +1493,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "BLE_STRUCT_BEAM_SZ_TXT",
@@ -1511,13 +1541,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "STR_TAG_7_PARA_BEAM_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -1538,7 +1568,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "BLE_STRUCT_FOUNDATION_TYPE_TXT",
@@ -1594,13 +1624,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "STR_TAG_7_PARA_FDN_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -1621,7 +1651,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ASS_DESCRIPTION_TXT",
@@ -1704,13 +1734,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "HVC_TAG_7_PARA_SPEC_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -1738,7 +1768,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "HVC_DCT_FLW_CFM",
@@ -1787,13 +1817,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "HVC_TAG_7_PARA_DUCT_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": [
@@ -1816,7 +1846,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "HVC_DCT_PROPERTY_TXT",
@@ -1837,13 +1867,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "HVC_TAG_7_PARA_DCTACC_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -1864,7 +1894,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ASS_DESCRIPTION_TXT",
@@ -1892,13 +1922,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "HVC_TAG_7_PARA_DCTACC_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -1919,7 +1949,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ASS_DESCRIPTION_TXT",
@@ -1961,13 +1991,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "HVC_TAG_7_PARA_AT_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -1988,7 +2018,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "HVC_DCT_FLW_CFM",
@@ -2009,13 +2039,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "HVC_TAG_7_PARA_FLEXDUCT_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -2041,7 +2071,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ELC_PNL_VLT_V",
@@ -2117,7 +2147,7 @@
           "spaces": 0,
           "break": false,
           "prefix_override": "Feeder: ",
-          "suffix_override": " mm²",
+          "suffix_override": " mm\u00b2",
           "note": "Feeder cable"
         },
         {
@@ -2140,13 +2170,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ELC_TAG_7_PARA_PANEL_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": [
@@ -2169,7 +2199,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ELC_PWR_KW",
@@ -2218,13 +2248,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ELC_TAG_7_PARA_CIRCUIT_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -2250,7 +2280,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "LTG_FIX_LMP_WATTAGE_W",
@@ -2320,13 +2350,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ELC_TAG_7_PARA_CIRCUIT_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -2347,7 +2377,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ELC_CKT_NR",
@@ -2383,13 +2413,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ELC_TAG_7_PARA_CIRCUIT_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -2415,7 +2445,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ELC_CKT_NR",
@@ -2441,7 +2471,7 @@
           "param": "ELC_CBL_DEST_TXT",
           "spaces": 0,
           "break": true,
-          "prefix_override": " → ",
+          "prefix_override": " \u2192 ",
           "note": "Destination"
         },
         {
@@ -2464,13 +2494,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ELC_TAG_7_PARA_CONDUIT_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": [
@@ -2493,7 +2523,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ELC_CDT_SZ_MM",
@@ -2514,13 +2544,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ELC_TAG_7_PARA_CONDUIT_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -2541,7 +2571,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ELC_CTR_MAT_TXT",
@@ -2570,13 +2600,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ELC_TAG_7_PARA_TRAY_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -2597,7 +2627,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ELC_CTR_MAT_TXT",
@@ -2618,13 +2648,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ELC_TAG_7_PARA_TRAY_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -2645,7 +2675,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "PLM_PPE_SZ_MM",
@@ -2686,13 +2716,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "PLM_TAG_7_PARA_FIXTURE_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -2718,7 +2748,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "PLM_PPE_FLW_LPS",
@@ -2767,13 +2797,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "PLM_TAG_7_PARA_PIPE_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": [
@@ -2797,7 +2827,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "PLM_PPE_SZ_MM",
@@ -2825,13 +2855,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "PLM_TAG_7_PARA_PIPEACC_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -2852,7 +2882,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "PLM_PPE_SZ_MM",
@@ -2880,13 +2910,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "PLM_TAG_7_PARA_PIPEACC_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -2907,7 +2937,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "PLM_PPE_SZ_MM",
@@ -2935,13 +2965,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "PLM_TAG_7_PARA_PIPE_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -2962,7 +2992,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "FLS_SFTY_COVERAGE_AREA_SQ_M",
@@ -2998,13 +3028,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "FLS_TAG_7_PARA_SPR_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -3025,7 +3055,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "FLS_SFTY_DEV_TYPE_TXT",
@@ -3061,13 +3091,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "FLS_TAG_7_PARA_FA_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -3088,7 +3118,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "COM_C_PROTOCOL_TXT",
@@ -3124,13 +3154,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "COM_TAG_7_PARA_BMS_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -3151,7 +3181,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ICT_OUTLET_TYPE_TXT",
@@ -3180,13 +3210,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ICT_TAG_7_PARA_DATA_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -3207,7 +3237,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "NCL_ZONE_TXT",
@@ -3236,13 +3266,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "NCL_TAG_7_PARA_NURSECALL_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -3263,7 +3293,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "SEC_DEV_ZONE_TXT",
@@ -3299,13 +3329,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "SEC_TAG_7_PARA_SECURITY_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -3325,7 +3355,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ASS_DESCRIPTION_TXT",
@@ -3359,7 +3389,7 @@
           "spaces": 0,
           "break": true,
           "prefix_override": "Area: ",
-          "suffix_override": " m²",
+          "suffix_override": " m\u00b2",
           "note": "Room area"
         }
       ],
@@ -3381,7 +3411,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ASS_DESCRIPTION_TXT",
@@ -3428,7 +3458,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ASS_DESCRIPTION_TXT",
@@ -3476,7 +3506,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ASS_DESCRIPTION_TXT",
@@ -3518,13 +3548,13 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ASS_TAG_7_PARA_EQUIPMENT_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
         }
       ],
       "warnings": []
@@ -3545,7 +3575,7 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
         },
         {
           "param": "ASS_DESCRIPTION_TXT",
@@ -3587,13 +3617,5026 @@
           "param": "ASS_TAG_2_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 bold underlined in family"
         },
         {
           "param": "ASS_TAG_7_PARA_EQUIPMENT_TXT",
           "spaces": 0,
           "break": true,
-          "note": "Natural language paragraph — purely descriptive, no technical codes"
+          "note": "Natural language paragraph \u2014 purely descriptive, no technical codes"
+        }
+      ],
+      "warnings": []
+    },
+    "Furniture Systems": {
+      "family_name": "STING - Furniture Systems Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_FURN_SYS_TXT",
+      "paragraph_template": "This furniture system is a {description} manufactured by {manufacturer}, model {model}. It occupies a plan area of {width} x {depth} millimetres and is specified to {standard}.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description / system type"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_FURN_SYS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph \u2014 purely descriptive"
+        }
+      ],
+      "warnings": []
+    },
+    "Parking": {
+      "family_name": "STING - Parking Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_PARKING_TXT",
+      "paragraph_template": "This parking space is designated for {function} use and located in {zone}, level {level}. It has a plan area of {area} square metres and is compliant with {standard}.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Bay type / description"
+        },
+        {
+          "param": "ASS_FUNC_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Use: ",
+          "note": "Parking use / function code"
+        },
+        {
+          "param": "ASS_ZONE_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Zone: ",
+          "note": "Zone"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_PARKING_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph \u2014 purely descriptive"
+        }
+      ],
+      "warnings": []
+    },
+    "Site": {
+      "family_name": "STING - Site Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_SITE_TXT",
+      "paragraph_template": "This site element is a {description} located in zone {zone}, level {level}. It is specified to {standard}.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Site feature description"
+        },
+        {
+          "param": "ASS_FUNC_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Use: ",
+          "note": "Function / use code"
+        },
+        {
+          "param": "ASS_ZONE_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | Zone: ",
+          "note": "Zone"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_SITE_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph \u2014 purely descriptive"
+        }
+      ],
+      "warnings": []
+    },
+    "Telephone Devices": {
+      "family_name": "STING - Telephone Devices Tag",
+      "paragraph_container": "ICT_TAG_7_PARA_TEL_TXT",
+      "paragraph_template": "This telephone outlet is a {type} connection point serving the PABX voice network. It is mounted at {height} millimetres above finished floor level and terminated at patch panel {panel}, port {port}, compliant with {standard}.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ICT_OUTLET_TYPE_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Outlet type (RJ11/RJ45-VOICE/etc.)"
+        },
+        {
+          "param": "ICT_PORT_NR_TXT",
+          "spaces": 0,
+          "break": false,
+          "prefix_override": "Port: ",
+          "note": "Patch panel port"
+        },
+        {
+          "param": "ICT_PATCH_PANEL_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | PP: ",
+          "note": "Patch panel ID"
+        },
+        {
+          "param": "MNT_HGT_MM",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Ht: ",
+          "suffix_override": " mm",
+          "note": "Mount height"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ICT_TAG_7_PARA_TEL_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph \u2014 purely descriptive"
+        }
+      ],
+      "warnings": []
+    },
+    "Analytical Duct Segments": {
+      "family_name": "STING - Analytical Duct Segments Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_ANAL_DUCTS_TXT",
+      "paragraph_template": "This analytical duct segments element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_ANAL_DUCTS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Analytical Links": {
+      "family_name": "STING - Analytical Links Tag",
+      "paragraph_container": "STR_TAG_7_PARA_ANAL_LINKS_TXT",
+      "paragraph_template": "This analytical links element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_ANAL_LINKS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Analytical Members": {
+      "family_name": "STING - Analytical Members Tag",
+      "paragraph_container": "STR_TAG_7_PARA_ANAL_MEMBERS_TXT",
+      "paragraph_template": "This analytical members element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_ANAL_MEMBERS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Analytical Nodes": {
+      "family_name": "STING - Analytical Nodes Tag",
+      "paragraph_container": "STR_TAG_7_PARA_ANAL_NODES_TXT",
+      "paragraph_template": "This analytical nodes element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_ANAL_NODES_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Analytical Openings": {
+      "family_name": "STING - Analytical Openings Tag",
+      "paragraph_container": "STR_TAG_7_PARA_ANAL_OPENINGS_TXT",
+      "paragraph_template": "This analytical openings element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_ANAL_OPENINGS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Analytical Panels": {
+      "family_name": "STING - Analytical Panels Tag",
+      "paragraph_container": "STR_TAG_7_PARA_ANAL_PANELS_TXT",
+      "paragraph_template": "This analytical panels element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_ANAL_PANELS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Analytical Pipe Segments": {
+      "family_name": "STING - Analytical Pipe Segments Tag",
+      "paragraph_container": "PLM_TAG_7_PARA_ANAL_PIPES_TXT",
+      "paragraph_template": "This analytical pipe segments element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "PLM_TAG_7_PARA_ANAL_PIPES_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Area Based Loads": {
+      "family_name": "STING - Area Based Loads Tag",
+      "paragraph_container": "STR_TAG_7_PARA_AREA_BASED_LOADS_TXT",
+      "paragraph_template": "This area based loads element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_AREA_BASED_LOADS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Area Loads": {
+      "family_name": "STING - Area Loads Tag",
+      "paragraph_container": "STR_TAG_7_PARA_AREA_LOADS_TXT",
+      "paragraph_template": "This area loads element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_AREA_LOADS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Areas": {
+      "family_name": "STING - Areas Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_AREAS_TXT",
+      "paragraph_template": "This areas element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_AREAS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Assemblies": {
+      "family_name": "STING - Assemblies Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_ASSEMBLIES_TXT",
+      "paragraph_template": "This assemblies element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_ASSEMBLIES_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Audio Visual Devices": {
+      "family_name": "STING - Audio Visual Devices Tag",
+      "paragraph_container": "ICT_TAG_7_PARA_AV_DEV_TXT",
+      "paragraph_template": "This audio visual devices element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ICT_TAG_7_PARA_AV_DEV_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Columns": {
+      "family_name": "STING - Columns Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_COLUMNS_TXT",
+      "paragraph_template": "This columns element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_COLUMNS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Curtain Panels": {
+      "family_name": "STING - Curtain Panels Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_CURTAIN_PANELS_TXT",
+      "paragraph_template": "This curtain panels element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_CURTAIN_PANELS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Curtain Wall Mullions": {
+      "family_name": "STING - Curtain Wall Mullions Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT",
+      "paragraph_template": "This curtain wall mullions element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Detail Items": {
+      "family_name": "STING - Detail Items Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT",
+      "paragraph_template": "This detail items element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Duct Insulation": {
+      "family_name": "STING - Duct Insulation Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_DUCT_INSULATION_TXT",
+      "paragraph_template": "This duct insulation element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_DUCT_INSULATION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Duct Lining": {
+      "family_name": "STING - Duct Lining Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_DUCT_LINING_TXT",
+      "paragraph_template": "This duct lining element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_DUCT_LINING_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Electrical Connectors": {
+      "family_name": "STING - Electrical Connectors Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_ELC_CONNECTORS_TXT",
+      "paragraph_template": "This electrical connectors element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ELC_TAG_7_PARA_ELC_CONNECTORS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Entourage": {
+      "family_name": "STING - Entourage Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_ENTOURAGE_TXT",
+      "paragraph_template": "This entourage element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_ENTOURAGE_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Fascia": {
+      "family_name": "STING - Fascia Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_FASCIA_TXT",
+      "paragraph_template": "This fascia element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_FASCIA_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Fire Protection": {
+      "family_name": "STING - Fire Protection Tag",
+      "paragraph_container": "FLS_TAG_7_PARA_FIRE_PROT_TXT",
+      "paragraph_template": "This fire protection element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "FLS_TAG_7_PARA_FIRE_PROT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Food Service Equipment": {
+      "family_name": "STING - Food Service Equipment Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_FOOD_EQUIP_TXT",
+      "paragraph_template": "This food service equipment element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_FOOD_EQUIP_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Gutter": {
+      "family_name": "STING - Gutter Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_GUTTER_TXT",
+      "paragraph_template": "This gutter element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_GUTTER_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Handrails": {
+      "family_name": "STING - Handrails Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_HANDRAILS_TXT",
+      "paragraph_template": "This handrails element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_HANDRAILS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Hardscape": {
+      "family_name": "STING - Hardscape Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_HARDSCAPE_TXT",
+      "paragraph_template": "This hardscape element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_HARDSCAPE_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Internal Area Loads": {
+      "family_name": "STING - Internal Area Loads Tag",
+      "paragraph_container": "STR_TAG_7_PARA_INT_AREA_LOADS_TXT",
+      "paragraph_template": "This internal area loads element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_INT_AREA_LOADS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Internal Line Loads": {
+      "family_name": "STING - Internal Line Loads Tag",
+      "paragraph_container": "STR_TAG_7_PARA_INT_LINE_LOADS_TXT",
+      "paragraph_template": "This internal line loads element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_INT_LINE_LOADS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Internal Point Loads": {
+      "family_name": "STING - Internal Point Loads Tag",
+      "paragraph_container": "STR_TAG_7_PARA_INT_POINT_LOADS_TXT",
+      "paragraph_template": "This internal point loads element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_INT_POINT_LOADS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Line Loads": {
+      "family_name": "STING - Line Loads Tag",
+      "paragraph_container": "STR_TAG_7_PARA_LINE_LOADS_TXT",
+      "paragraph_template": "This line loads element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_LINE_LOADS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "MEP Ancillary": {
+      "family_name": "STING - MEP Ancillary Tag",
+      "paragraph_container": "MEP_TAG_7_PARA_ANCILLARY_TXT",
+      "paragraph_template": "This mep ancillary element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "MEP_TAG_7_PARA_ANCILLARY_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "MEP Fabrication Containment": {
+      "family_name": "STING - MEP Fabrication Containment Tag",
+      "paragraph_container": "ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT",
+      "paragraph_template": "This mep fabrication containment element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "MEP Fabrication Ductwork": {
+      "family_name": "STING - MEP Fabrication Ductwork Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_FAB_DUCTWORK_TXT",
+      "paragraph_template": "This mep fabrication ductwork element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_FAB_DUCTWORK_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "MEP Fabrication Ductwork Stiffeners": {
+      "family_name": "STING - MEP Fabrication Ductwork Stiffeners Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT",
+      "paragraph_template": "This mep fabrication ductwork stiffeners element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "MEP Fabrication Hangers": {
+      "family_name": "STING - MEP Fabrication Hangers Tag",
+      "paragraph_container": "MEP_TAG_7_PARA_FAB_HANGERS_TXT",
+      "paragraph_template": "This mep fabrication hangers element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "MEP_TAG_7_PARA_FAB_HANGERS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "MEP Fabrication Pipework": {
+      "family_name": "STING - MEP Fabrication Pipework Tag",
+      "paragraph_container": "PLM_TAG_7_PARA_FAB_PIPEWORK_TXT",
+      "paragraph_template": "This mep fabrication pipework element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "PLM_TAG_7_PARA_FAB_PIPEWORK_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Mass": {
+      "family_name": "STING - Mass Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_MASS_TXT",
+      "paragraph_template": "This mass element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_MASS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Materials": {
+      "family_name": "STING - Materials Tag",
+      "paragraph_container": "PROP_TAG_7_PARA_MATERIALS_TXT",
+      "paragraph_template": "This materials element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "PROP_TAG_7_PARA_MATERIALS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Mechanical Control Devices": {
+      "family_name": "STING - Mechanical Control Devices Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT",
+      "paragraph_template": "This mechanical control devices element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Mechanical Equipment Sets": {
+      "family_name": "STING - Mechanical Equipment Sets Tag",
+      "paragraph_container": "HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT",
+      "paragraph_template": "This mechanical equipment sets element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Medical Equipment": {
+      "family_name": "STING - Medical Equipment Tag",
+      "paragraph_container": "MED_TAG_7_PARA_MED_EQUIP_TXT",
+      "paragraph_template": "This medical equipment element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "MED_TAG_7_PARA_MED_EQUIP_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Model Groups": {
+      "family_name": "STING - Model Groups Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_MODEL_GROUPS_TXT",
+      "paragraph_template": "This model groups element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_MODEL_GROUPS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Pads": {
+      "family_name": "STING - Pads Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_PADS_TXT",
+      "paragraph_template": "This pads element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_PADS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Parts": {
+      "family_name": "STING - Parts Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_PARTS_TXT",
+      "paragraph_template": "This parts element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_PARTS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Pipe Insulation": {
+      "family_name": "STING - Pipe Insulation Tag",
+      "paragraph_container": "PLM_TAG_7_PARA_PIPE_INSULATION_TXT",
+      "paragraph_template": "This pipe insulation element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "PLM_TAG_7_PARA_PIPE_INSULATION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Planting": {
+      "family_name": "STING - Planting Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_PLANTING_TXT",
+      "paragraph_template": "This planting element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_PLANTING_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Plumbing Equipment": {
+      "family_name": "STING - Plumbing Equipment Tag",
+      "paragraph_container": "PLM_TAG_7_PARA_PLM_EQUIP_TXT",
+      "paragraph_template": "This plumbing equipment element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "PLM_TAG_7_PARA_PLM_EQUIP_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Point Loads": {
+      "family_name": "STING - Point Loads Tag",
+      "paragraph_container": "STR_TAG_7_PARA_POINT_LOADS_TXT",
+      "paragraph_template": "This point loads element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_POINT_LOADS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Profiles": {
+      "family_name": "STING - Profiles Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_PROFILES_TXT",
+      "paragraph_template": "This profiles element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_PROFILES_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Property Line Segments": {
+      "family_name": "STING - Property Line Segments Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT",
+      "paragraph_template": "This property line segments element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Property Lines": {
+      "family_name": "STING - Property Lines Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_PROPERTY_LINES_TXT",
+      "paragraph_template": "This property lines element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_PROPERTY_LINES_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "RVT Links": {
+      "family_name": "STING - RVT Links Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_RVT_LINKS_TXT",
+      "paragraph_template": "This rvt links element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_RVT_LINKS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Railings": {
+      "family_name": "STING - Railings Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_RAILINGS_TXT",
+      "paragraph_template": "This railings element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_RAILINGS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Roads": {
+      "family_name": "STING - Roads Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_ROADS_TXT",
+      "paragraph_template": "This roads element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_ROADS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Roof Soffits": {
+      "family_name": "STING - Roof Soffits Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_ROOF_SOFFITS_TXT",
+      "paragraph_template": "This roof soffits element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_ROOF_SOFFITS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Signage": {
+      "family_name": "STING - Signage Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_SIGNAGE_TXT",
+      "paragraph_template": "This signage element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_SIGNAGE_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Slab Edges": {
+      "family_name": "STING - Slab Edges Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_SLAB_EDGES_TXT",
+      "paragraph_template": "This slab edges element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_SLAB_EDGES_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Spaces": {
+      "family_name": "STING - Spaces Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_SPACES_TXT",
+      "paragraph_template": "This spaces element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_SPACES_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Stair Landings": {
+      "family_name": "STING - Stair Landings Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_STAIR_LANDINGS_TXT",
+      "paragraph_template": "This stair landings element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_STAIR_LANDINGS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Stair Runs": {
+      "family_name": "STING - Stair Runs Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_STAIR_RUNS_TXT",
+      "paragraph_template": "This stair runs element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_STAIR_RUNS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Stair Supports": {
+      "family_name": "STING - Stair Supports Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT",
+      "paragraph_template": "This stair supports element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Structural Area Reinforcement": {
+      "family_name": "STING - Structural Area Reinforcement Tag",
+      "paragraph_container": "STR_TAG_7_PARA_STR_AREA_REINF_TXT",
+      "paragraph_template": "This structural area reinforcement element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_STR_AREA_REINF_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Structural Beam Systems": {
+      "family_name": "STING - Structural Beam Systems Tag",
+      "paragraph_container": "STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT",
+      "paragraph_template": "This structural beam systems element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Structural Connections": {
+      "family_name": "STING - Structural Connections Tag",
+      "paragraph_container": "STR_TAG_7_PARA_STR_CONNECTIONS_TXT",
+      "paragraph_template": "This structural connections element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_STR_CONNECTIONS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Structural Fabric Reinforcement": {
+      "family_name": "STING - Structural Fabric Reinforcement Tag",
+      "paragraph_container": "STR_TAG_7_PARA_STR_FABRIC_REINF_TXT",
+      "paragraph_template": "This structural fabric reinforcement element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_STR_FABRIC_REINF_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Structural Path Reinforcement": {
+      "family_name": "STING - Structural Path Reinforcement Tag",
+      "paragraph_container": "STR_TAG_7_PARA_STR_PATH_REINF_TXT",
+      "paragraph_template": "This structural path reinforcement element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_STR_PATH_REINF_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Structural Rebar": {
+      "family_name": "STING - Structural Rebar Tag",
+      "paragraph_container": "STR_TAG_7_PARA_STR_REBAR_TXT",
+      "paragraph_template": "This structural rebar element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_STR_REBAR_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Structural Rebar Couplers": {
+      "family_name": "STING - Structural Rebar Couplers Tag",
+      "paragraph_container": "STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT",
+      "paragraph_template": "This structural rebar couplers element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Structural Stiffeners": {
+      "family_name": "STING - Structural Stiffeners Tag",
+      "paragraph_container": "STR_TAG_7_PARA_STR_STIFFENERS_TXT",
+      "paragraph_template": "This structural stiffeners element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_STR_STIFFENERS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Structural Trusses": {
+      "family_name": "STING - Structural Trusses Tag",
+      "paragraph_container": "STR_TAG_7_PARA_STR_TRUSSES_TXT",
+      "paragraph_template": "This structural trusses element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "STR_TAG_7_PARA_STR_TRUSSES_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Temporary Structures": {
+      "family_name": "STING - Temporary Structures Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_TEMP_STRUCT_TXT",
+      "paragraph_template": "This temporary structures element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_TEMP_STRUCT_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Top Rails": {
+      "family_name": "STING - Top Rails Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_TOP_RAILS_TXT",
+      "paragraph_template": "This top rails element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_TOP_RAILS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Toposolid": {
+      "family_name": "STING - Toposolid Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_TOPOSOLID_TXT",
+      "paragraph_template": "This toposolid element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_TOPOSOLID_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Toposolid Links": {
+      "family_name": "STING - Toposolid Links Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT",
+      "paragraph_template": "This toposolid links element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Vertical Circulation": {
+      "family_name": "STING - Vertical Circulation Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_VERT_CIRC_TXT",
+      "paragraph_template": "This vertical circulation element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_VERT_CIRC_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Wall Sweeps": {
+      "family_name": "STING - Wall Sweeps Tag",
+      "paragraph_container": "BLE_TAG_7_PARA_WALL_SWEEPS_TXT",
+      "paragraph_template": "This wall sweeps element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "BLE_TAG_7_PARA_WALL_SWEEPS_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Wash": {
+      "family_name": "STING - Wash Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_WASH_TXT",
+      "paragraph_template": "This wash element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_WASH_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
+        }
+      ],
+      "warnings": []
+    },
+    "Zones": {
+      "family_name": "STING - Zones Tag",
+      "paragraph_container": "ARCH_TAG_7_PARA_ZONES_TXT",
+      "paragraph_template": "This zones element is characterized by its technical specification and regulatory compliance requirements.",
+      "tier_1": [
+        {
+          "param": "ASS_TAG_1_TXT",
+          "spaces": 0,
+          "break": true
+        }
+      ],
+      "tier_2": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading (FUNC-PROD-SEQ) \u2014 underlined in family"
+        },
+        {
+          "param": "ASS_DESCRIPTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Description"
+        },
+        {
+          "param": "ASS_MANUFACTURER_TXT",
+          "spaces": 0,
+          "break": false,
+          "note": "Manufacturer"
+        },
+        {
+          "param": "ASS_MODEL_NR_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": " | ",
+          "note": "Model number"
+        },
+        {
+          "param": "RGL_STD_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "Std: ",
+          "note": "Compliance standard"
+        }
+      ],
+      "tier_3": [
+        {
+          "param": "ASS_TAG_2_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Short tag heading \u2014 bold underlined in family"
+        },
+        {
+          "param": "ARCH_TAG_7_PARA_ZONES_TXT",
+          "spaces": 0,
+          "break": true,
+          "note": "Natural language paragraph"
         }
       ],
       "warnings": []
@@ -3606,14 +8649,14 @@
       "bold": false,
       "italic": false,
       "underline": true,
-      "note": "Underlined in State 2 (Technical) — functional emphasis without visual dominance"
+      "note": "Underlined in State 2 (Technical) \u2014 functional emphasis without visual dominance"
     },
     "tier_3_heading": {
       "param": "ASS_TAG_2_TXT",
       "bold": true,
       "italic": false,
       "underline": true,
-      "note": "Bold + Underlined in State 3 (Full Specification) — primary heading treatment"
+      "note": "Bold + Underlined in State 3 (Full Specification) \u2014 primary heading treatment"
     },
     "batch_control": {
       "description": "Use the Set TAG7 Heading Style command to batch-update the heading format across all tag families. Supported styles: bold, italic, underline, bold+underline, bold+italic, all.",
