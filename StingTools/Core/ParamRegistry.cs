@@ -252,6 +252,93 @@ namespace StingTools.Core
         /// <summary>Warning severity filter: CRITICAL, HIGH, MEDIUM, ALL.</summary>
         public static string WARN_SEVERITY_FILTER { get; private set; } = "TAG_WARN_SEVERITY_FILTER_TXT";
 
+        // ── Warning threshold definitions (v5.5) ─────────────────────────
+        // Loaded from warning_thresholds section of PARAMETER_REGISTRY.json.
+        // Each entry defines a compliance check with threshold, unit, and severity.
+
+        /// <summary>Warning threshold definition loaded from PARAMETER_REGISTRY.json.</summary>
+        public class WarningThresholdDef
+        {
+            public string ParamName { get; set; }
+            public string Guid { get; set; }
+            public string Description { get; set; }
+            public string Threshold { get; set; }
+            public string Unit { get; set; }
+            public string Severity { get; set; } // CRITICAL, HIGH, MEDIUM, LOW
+        }
+
+        /// <summary>All warning threshold definitions keyed by param name.</summary>
+        public static Dictionary<string, WarningThresholdDef> WarningThresholds { get; private set; }
+            = new Dictionary<string, WarningThresholdDef>(StringComparer.Ordinal);
+
+        /// <summary>Get warning thresholds applicable to a category (looked up from LABEL_DEFINITIONS).</summary>
+        private static Dictionary<string, List<string>> _categoryWarnings
+            = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Register which warning params apply to a given category.
+        /// Called during LABEL_DEFINITIONS loading in TagConfig or presentation commands.
+        /// </summary>
+        public static void RegisterCategoryWarnings(string categoryName, List<string> warningParamNames)
+        {
+            if (!string.IsNullOrEmpty(categoryName) && warningParamNames != null)
+                _categoryWarnings[categoryName] = warningParamNames;
+        }
+
+        /// <summary>Get warning param names for a category (empty list if none registered).</summary>
+        public static List<string> GetCategoryWarnings(string categoryName)
+        {
+            if (string.IsNullOrEmpty(categoryName)) return new List<string>();
+            return _categoryWarnings.TryGetValue(categoryName, out var list) ? list : new List<string>();
+        }
+
+        /// <summary>
+        /// Evaluate a warning threshold against an element's current value.
+        /// Returns a warning message if threshold is exceeded, or null if compliant.
+        /// </summary>
+        public static string EvaluateWarning(WarningThresholdDef def, string currentValue)
+        {
+            if (def == null || string.IsNullOrEmpty(currentValue) || string.IsNullOrEmpty(def.Threshold))
+                return null;
+            // Try numeric comparison
+            if (double.TryParse(currentValue, out double val) && double.TryParse(def.Threshold, out double thresh))
+            {
+                // For most thresholds: value exceeding limit is a warning
+                // For minimums (coverage, width, depth): value below threshold is a warning
+                bool isMinimum = def.Description.Contains("minimum") || def.Description.Contains("min ");
+                bool isLimit = def.Description.Contains("limit") || def.Description.Contains("maximum") || def.Description.Contains("max ");
+
+                if (isMinimum && val < thresh)
+                    return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} < {def.Threshold} {def.Unit}]";
+                else if (isLimit && val > thresh)
+                    return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} > {def.Threshold} {def.Unit}]";
+                else if (!isMinimum && !isLimit && val > thresh)
+                    return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} exceeds {def.Threshold} {def.Unit}]";
+            }
+            return null;
+        }
+
+        // ── Paragraph container mapping (v5.5) ──────────────────────────
+        // Maps category names to their paragraph container parameter names.
+        // Loaded from LABEL_DEFINITIONS.json category_labels.
+
+        private static Dictionary<string, string> _paragraphContainers
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Register a paragraph container param for a category.</summary>
+        public static void RegisterParagraphContainer(string categoryName, string paramName)
+        {
+            if (!string.IsNullOrEmpty(categoryName) && !string.IsNullOrEmpty(paramName))
+                _paragraphContainers[categoryName] = paramName;
+        }
+
+        /// <summary>Get the paragraph container param name for a category (null if none).</summary>
+        public static string GetParagraphContainer(string categoryName)
+        {
+            if (string.IsNullOrEmpty(categoryName)) return null;
+            return _paragraphContainers.TryGetValue(categoryName, out string p) ? p : null;
+        }
+
         /// <summary>All 10 paragraph state parameter names indexed by tier (1-based: index 0 = state 1).</summary>
         public static string[] AllParaStates => new[]
         {
@@ -668,6 +755,9 @@ namespace StingTools.Core
                 _loaded = false;
                 _allContainers = null;
                 _containersByCategory = null;
+                WarningThresholds = new Dictionary<string, WarningThresholdDef>(StringComparer.Ordinal);
+                _categoryWarnings = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                _paragraphContainers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
             // Invalidate downstream caches that depend on our data
             SharedParamGuids.InvalidateCache();
@@ -957,6 +1047,10 @@ namespace StingTools.Core
                 LoadExtendedParams(root);
                 StingLog.Info($"ParamRegistry.LoadFromFile: {_extendedParams?.Count ?? 0} extended params loaded");
 
+                // Load warning thresholds (v5.5)
+                LoadWarningThresholds(root);
+                StingLog.Info($"ParamRegistry.LoadFromFile: {WarningThresholds.Count} warning thresholds loaded");
+
                 // Build GUID lookups
                 StingLog.Info("ParamRegistry.LoadFromFile: building GUID maps");
                 BuildGuidMaps(root);
@@ -1003,6 +1097,29 @@ namespace StingTools.Core
                     if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(paramName))
                         _extendedParams[key] = paramName;
                 }
+            }
+        }
+
+        /// <summary>Load warning threshold definitions from PARAMETER_REGISTRY.json.</summary>
+        private static void LoadWarningThresholds(JObject root)
+        {
+            WarningThresholds = new Dictionary<string, WarningThresholdDef>(StringComparer.Ordinal);
+            var warnArr = root["warning_thresholds"] as JArray;
+            if (warnArr == null) return;
+
+            foreach (JObject w in warnArr)
+            {
+                var def = new WarningThresholdDef
+                {
+                    ParamName   = w["param_name"]?.ToString() ?? "",
+                    Guid        = w["guid"]?.ToString() ?? "",
+                    Description = w["description"]?.ToString() ?? "",
+                    Threshold   = w["threshold"]?.ToString() ?? "",
+                    Unit        = w["unit"]?.ToString() ?? "",
+                    Severity    = w["severity"]?.ToString() ?? "MEDIUM",
+                };
+                if (!string.IsNullOrEmpty(def.ParamName))
+                    WarningThresholds[def.ParamName] = def;
             }
         }
 
@@ -1068,6 +1185,16 @@ namespace StingTools.Core
                             _nameByGuid[g] = name;
                         }
                     }
+                }
+            }
+
+            // Warning thresholds — add GUIDs to lookup
+            foreach (var wt in WarningThresholds.Values)
+            {
+                if (System.Guid.TryParse(wt.Guid, out Guid wg))
+                {
+                    _guidByName[wt.ParamName] = wg;
+                    _nameByGuid[wg] = wt.ParamName;
                 }
             }
         }
