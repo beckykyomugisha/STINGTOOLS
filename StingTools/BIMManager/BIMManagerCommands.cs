@@ -80,17 +80,21 @@ namespace StingTools.BIMManager
         // ── Document Types (BS EN ISO 19650) ──
         internal static readonly Dictionary<string, string> DocumentTypes = new Dictionary<string, string>
         {
-            ["AF"] = "Animation File",
-            ["CM"] = "Combined Model",
+            ["AF"] = "Animation / Fly-through",
+            ["BQ"] = "Bill of Quantities",
+            ["CA"] = "Calculations",
+            ["CM"] = "Combined Model (Federated)",
+            ["CP"] = "Cost Plan",
             ["CR"] = "Correspondence",
             ["DB"] = "Database",
             ["DR"] = "Drawing (2D)",
             ["FN"] = "File Note",
             ["HS"] = "Health and Safety",
-            ["IE"] = "Information Exchange",
+            ["IE"] = "Information Exchange (COBie)",
             ["M2"] = "2D Model",
             ["M3"] = "3D Model",
-            ["MI"] = "Minutes",
+            ["MI"] = "Minutes / Action Notes",
+            ["MO"] = "Model (2021 NA — replaces M2/M3)",
             ["MR"] = "Model-derived Report",
             ["MS"] = "Method Statement",
             ["PP"] = "Presentation",
@@ -100,11 +104,12 @@ namespace StingTools.BIMManager
             ["RP"] = "Report",
             ["SA"] = "Schedule of Accommodation",
             ["SH"] = "Schedule",
+            ["SK"] = "Sketch",
             ["SN"] = "Snagging List",
             ["SP"] = "Specification",
             ["SU"] = "Survey",
             ["TN"] = "Technical Note",
-            ["VS"] = "Visualization"
+            ["VS"] = "Visualisation"
         };
 
         // ── Originator/Role Codes ──
