@@ -505,6 +505,12 @@ namespace StingTools.Core
 
         public static string ConfigSource { get; private set; }
 
+        /// <summary>GAP-019: Default STATUS value from project_config.json (null = use "NEW").</summary>
+        public static string StatusDefault { get; internal set; }
+
+        /// <summary>GAP-019: Default REV value from project_config.json (null = use "P01").</summary>
+        public static string RevDefault { get; internal set; }
+
         /// <summary>Reverse lookup: category name → SYS code. Built lazily from SysMap.</summary>
         private static Dictionary<string, List<string>> _reverseSysMap;
 
@@ -603,6 +609,16 @@ namespace StingTools.Core
                     }
                 }
 
+                // GAP-019: Load STATUS/REV defaults from config (optional)
+                StatusDefault = null;
+                RevDefault = null;
+                if (data.TryGetValue("STATUS_DEFAULT", out object statusObj) && statusObj is string statusStr
+                    && !string.IsNullOrWhiteSpace(statusStr))
+                    StatusDefault = statusStr;
+                if (data.TryGetValue("REV_DEFAULT", out object revObj) && revObj is string revStr
+                    && !string.IsNullOrWhiteSpace(revStr))
+                    RevDefault = revStr;
+
                 ConfigSource = "project_config.json";
 
                 // GAP-009: Restore persisted active preset
@@ -630,6 +646,8 @@ namespace StingTools.Core
             ZoneCodes = DefaultZoneCodes();
             _reverseSysMap = null; // Invalidate cache
             ParamRegistry.ClearTagFormatOverrides();
+            StatusDefault = null;
+            RevDefault = null;
             ConfigSource = "built-in defaults";
         }
 
@@ -832,12 +850,14 @@ namespace StingTools.Core
         {
             string familyName = ParameterHelpers.GetFamilyName(el);
             string symbolName = ParameterHelpers.GetFamilySymbolName(el);
+            // Combined name checks both family AND type name for broader pattern matching
             string combinedName = $"{familyName} {symbolName}".ToUpperInvariant();
 
             // Only apply family-level overrides for categories with diverse equipment
             if (!string.IsNullOrEmpty(familyName))
             {
-                string upper = familyName.ToUpperInvariant();
+                // Search both family name and combined (family + type) name for patterns
+                string upper = combinedName;
 
                 // Mechanical Equipment — distinguish AHU, FCU, VAV, CHR, BLR, PMP, FAN, etc.
                 if (categoryName == "Mechanical Equipment")
@@ -928,7 +948,10 @@ namespace StingTools.Core
             }
 
             // Fall back to category-based PROD code
-            return ProdMap.TryGetValue(categoryName, out string prod) ? prod : "GEN";
+            string fallbackProd = ProdMap.TryGetValue(categoryName, out string prod) ? prod : "GEN";
+            if (!string.IsNullOrEmpty(familyName))
+                StingLog.Info($"PROD fallback: '{familyName}' (cat={categoryName}) → using category default '{fallbackProd}'");
+            return fallbackProd;
         }
 
         /// <summary>
@@ -1097,6 +1120,16 @@ namespace StingTools.Core
                 if (zone == "Z01" && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
                     stats.RecordWarning($"Element {el.Id}: ZONE defaulted to Z01");
             }
+
+            // GAP-025: Validate-before-write — guarantee all 7 tokens are non-empty
+            // before building the tag string. Applies hardcoded defaults as a safety net.
+            if (string.IsNullOrEmpty(disc)) disc = "A";
+            if (string.IsNullOrEmpty(loc))  loc  = "BLD1";
+            if (string.IsNullOrEmpty(zone)) zone = "Z01";
+            if (string.IsNullOrEmpty(lvl))  lvl  = "XX";
+            if (string.IsNullOrEmpty(sys))  sys  = "GEN";
+            if (string.IsNullOrEmpty(func)) func = "GEN";
+            if (string.IsNullOrEmpty(prod)) prod = "GEN";
 
             string seqKey = $"{disc}_{sys}_{lvl}";
             if (!sequenceCounters.ContainsKey(seqKey))
@@ -1833,7 +1866,7 @@ namespace StingTools.Core
                     lvl = "L00";
 
                 string key = $"{disc}_{sys}_{lvl}";
-                if (int.TryParse(seqStr, out int seqNum) && seqNum > 0)
+                if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {
                     if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
                         maxSeq[key] = seqNum;
@@ -1892,7 +1925,7 @@ namespace StingTools.Core
                     lvl = "L00";
 
                 string key = $"{disc}_{sys}_{lvl}";
-                if (int.TryParse(seqStr, out int seqNum) && seqNum > 0)
+                if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {
                     if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
                         maxSeq[key] = seqNum;
@@ -1935,7 +1968,7 @@ namespace StingTools.Core
                 // MEP — Plumbing
                 { "Plumbing Fixtures", "P" }, { "Plumbing Equipment", "P" },
                 // MEP — Fire Protection
-                { "Sprinklers", "FP" }, { "Fire Alarm Devices", "FP" },
+                { "Sprinklers", "FP" }, { "Fire Alarm Devices", "FLS" },
                 { "Fire Protection", "FP" },
                 // MEP — Electrical
                 { "Electrical Equipment", "E" }, { "Electrical Fixtures", "E" },
@@ -2108,7 +2141,7 @@ namespace StingTools.Core
                 { "Structural Connections", "SCN" }, { "Structural Beam Systems", "SBS" },
                 { "Structural Rebar", "RBR" }, { "Structural Rebar Couplers", "RBC" },
                 { "Structural Area Reinforcement", "SAR" },
-                { "Structural Path Reinforcement", "SPR" },
+                { "Structural Path Reinforcement", "SPT" },
                 { "Structural Fabric Reinforcement", "SFR" },
                 // Structure — Analytical
                 { "Analytical Members", "AMB" }, { "Analytical Nodes", "AND" },
@@ -2171,6 +2204,7 @@ namespace StingTools.Core
         //   «L»text«/L»  — Label text (Italic in TextNote, muted color in WPF)
         //   «V»text«/V»  — Value text (Normal weight, accent color in WPF/HTML)
         //   «S»text«/S»  — Section separator (pipe "|" with spacing)
+        //   «C»text«/C»  — Connector phrase (prose joining words between sections)
         //
         // Sub-section parameters (TAG7A-TAG7F) hold PLAIN text versions for
         // tag family labels. TAG7 holds the MARKED-UP full narrative.
@@ -2742,7 +2776,8 @@ namespace StingTools.Core
                 .Replace("«H»", "").Replace("«/H»", "")
                 .Replace("«L»", "").Replace("«/L»", "")
                 .Replace("«V»", "").Replace("«/V»", "")
-                .Replace("«S»", "").Replace("«/S»", "");
+                .Replace("«S»", "").Replace("«/S»", "")
+                .Replace("«C»", "").Replace("«/C»", "");
         }
 
         /// <summary>
@@ -3048,7 +3083,8 @@ namespace StingTools.Core
                 markedSections.Add(spatialMarked.ToString());
             }
 
-            // ── Section D: Lifecycle Status, Revision, and Origin ─────────────
+            // ── Section D: Lifecycle Status, Revision, Origin, Workset, Phase,
+            //    Design Option, Maintenance, Commissioning ─────────────────────
             string status  = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
             string rev     = ParameterHelpers.GetString(el, ParamRegistry.REV);
             string origin  = ParameterHelpers.GetString(el, ParamRegistry.ORIGIN);
@@ -3056,6 +3092,15 @@ namespace StingTools.Core
             string volume  = ParameterHelpers.GetString(el, ParamRegistry.VOLUME);
             string mntType = ParameterHelpers.GetString(el, ParamRegistry.MNT_TYPE);
             string detailNum = ParameterHelpers.GetString(el, ParamRegistry.DETAIL_NUM);
+            // New exploited parameters — workset, phase, design option, maintenance, commissioning
+            string workset       = ParameterHelpers.GetString(el, "ASS_WORKSET_TXT");
+            string phaseCreated  = ParameterHelpers.GetString(el, "ASS_PHASE_CREATED_TXT");
+            string designOption  = ParameterHelpers.GetString(el, "ASS_DESIGN_OPTION_TXT");
+            string mntFreq       = ParameterHelpers.GetString(el, "MNT_FREQUENCY_TXT");
+            string mntWarranty   = ParameterHelpers.GetString(el, "MNT_WARRANTY_EXPIRY_TXT");
+            string comStatus     = ParameterHelpers.GetString(el, "COM_COMMISSIONING_STATUS_TXT");
+            string expectedLife  = ParameterHelpers.GetString(el, "PER_EXPECTED_LIFE_YEARS");
+            string accessReqs    = ParameterHelpers.GetString(el, "MNT_ACCESS_REQUIREMENTS_TXT");
 
             var lifecyclePlain = new System.Text.StringBuilder();
             var lifecycleMarked = new System.Text.StringBuilder();
@@ -3089,11 +3134,68 @@ namespace StingTools.Core
                 lifecyclePlain.Append($" (volume {volume})");
                 lifecycleMarked.Append($" (\u00ABL\u00BBvolume\u00AB/L\u00BB \u00ABV\u00BB{volume}\u00AB/V\u00BB)");
             }
+            // Workset and phase — unexploited data not in schedules
+            if (!string.IsNullOrEmpty(workset))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(". "); lifecycleMarked.Append(". "); }
+                lifecyclePlain.Append($"Managed under the {workset} workset");
+                lifecycleMarked.Append($"Managed under the \u00ABV\u00BB{workset}\u00AB/V\u00BB \u00ABL\u00BBworkset\u00AB/L\u00BB");
+            }
+            if (!string.IsNullOrEmpty(phaseCreated))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(", created during the "); lifecycleMarked.Append(", created during the "); }
+                lifecyclePlain.Append($"{phaseCreated} phase");
+                lifecycleMarked.Append($"\u00ABV\u00BB{phaseCreated}\u00AB/V\u00BB \u00ABL\u00BBphase\u00AB/L\u00BB");
+            }
+            if (!string.IsNullOrEmpty(designOption))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(", part of design option "); lifecycleMarked.Append(", part of \u00ABL\u00BBdesign option\u00AB/L\u00BB "); }
+                lifecyclePlain.Append(designOption);
+                lifecycleMarked.Append($"\u00ABV\u00BB{designOption}\u00AB/V\u00BB");
+            }
+            // Maintenance and FM
             if (!string.IsNullOrEmpty(mntType))
             {
                 if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(". "); lifecycleMarked.Append(". "); }
                 lifecyclePlain.Append($"Requires {mntType.ToLower()} maintenance");
                 lifecycleMarked.Append($"Requires \u00ABV\u00BB{mntType.ToLower()}\u00AB/V\u00BB \u00ABL\u00BBmaintenance\u00AB/L\u00BB");
+            }
+            if (!string.IsNullOrEmpty(mntFreq))
+            {
+                if (!string.IsNullOrEmpty(mntType))
+                {
+                    lifecyclePlain.Append($" on a {mntFreq.ToLower()} basis");
+                    lifecycleMarked.Append($" on a \u00ABV\u00BB{mntFreq.ToLower()}\u00AB/V\u00BB basis");
+                }
+                else if (lifecyclePlain.Length > 0)
+                {
+                    lifecyclePlain.Append($". Maintenance frequency: {mntFreq.ToLower()}");
+                    lifecycleMarked.Append($". \u00ABL\u00BBMaintenance frequency:\u00AB/L\u00BB \u00ABV\u00BB{mntFreq.ToLower()}\u00AB/V\u00BB");
+                }
+            }
+            if (!string.IsNullOrEmpty(expectedLife))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(", with an expected service life of "); lifecycleMarked.Append(", with an expected \u00ABL\u00BBservice life\u00AB/L\u00BB of "); }
+                lifecyclePlain.Append($"{expectedLife} years");
+                lifecycleMarked.Append($"\u00ABV\u00BB{expectedLife}\u00AB/V\u00BB years");
+            }
+            if (!string.IsNullOrEmpty(mntWarranty))
+            {
+                lifecyclePlain.Append($" (warranty expires {mntWarranty})");
+                lifecycleMarked.Append($" (\u00ABL\u00BBwarranty expires\u00AB/L\u00BB \u00ABV\u00BB{mntWarranty}\u00AB/V\u00BB)");
+            }
+            if (!string.IsNullOrEmpty(accessReqs))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(". "); lifecycleMarked.Append(". "); }
+                lifecyclePlain.Append($"Maintenance access requires {accessReqs.ToLower()}");
+                lifecycleMarked.Append($"\u00ABL\u00BBMaintenance access requires\u00AB/L\u00BB \u00ABV\u00BB{accessReqs.ToLower()}\u00AB/V\u00BB");
+            }
+            // Commissioning status
+            if (!string.IsNullOrEmpty(comStatus))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(". "); lifecycleMarked.Append(". "); }
+                lifecyclePlain.Append($"Commissioning status: {comStatus.ToLower()}");
+                lifecycleMarked.Append($"\u00ABL\u00BBCommissioning status:\u00AB/L\u00BB \u00ABV\u00BB{comStatus.ToLower()}\u00AB/V\u00BB");
             }
             if (!string.IsNullOrEmpty(detailNum))
             {
@@ -3121,7 +3223,7 @@ namespace StingTools.Core
             }
             if (!string.IsNullOrEmpty(dimData))
             {
-                if (techPlain.Length > 0) { techPlain.Append(". In terms of its dimensions, it is "); techMarked.Append(". \u00ABS\u00BBIn terms of its dimensions, it is\u00AB/S\u00BB "); }
+                if (techPlain.Length > 0) { techPlain.Append(". In terms of its dimensions, it is "); techMarked.Append(". \u00ABC\u00BBIn terms of its dimensions, it is\u00AB/C\u00BB "); }
                 techPlain.Append(dimData);
                 techMarked.Append(BuildMarkedDimSection(el, categoryName));
             }
@@ -3201,16 +3303,19 @@ namespace StingTools.Core
                 plainParts.Append(result.SectionA);
                 markedParts.Append(markedSections.Count > 0 ? markedSections[0] : result.SectionA);
             }
-            // B: System context — connects with "which is part of" or ". This asset operates within"
+            // Use a running index to track position in markedSections (only non-empty sections are added)
+            int mIdx = 1; // 0 = Section A (already consumed above)
+            // B: System context — connects with ". This asset operates within"
             if (!string.IsNullOrEmpty(result.SectionB))
             {
                 if (plainParts.Length > 0)
                 {
                     plainParts.Append(". This asset operates within the ");
-                    markedParts.Append(". \u00ABS\u00BBThis asset operates within the\u00AB/S\u00BB ");
+                    markedParts.Append(". \u00ABC\u00BBThis asset operates within the\u00AB/C\u00BB ");
                 }
-                plainParts.Append(markedSections.Count > 1 ? result.SectionB : result.SectionB);
-                markedParts.Append(markedSections.Count > 1 ? markedSections[1] : result.SectionB);
+                plainParts.Append(result.SectionB);
+                markedParts.Append(markedSections.Count > mIdx ? markedSections[mIdx] : result.SectionB);
+                mIdx++;
             }
             // C: Spatial — connects with ". It is" (SectionC already starts with "Located in")
             if (!string.IsNullOrEmpty(result.SectionC))
@@ -3218,22 +3323,20 @@ namespace StingTools.Core
                 if (plainParts.Length > 0)
                 {
                     plainParts.Append(". It is ");
-                    markedParts.Append(". \u00ABS\u00BBIt is\u00AB/S\u00BB ");
+                    markedParts.Append(". \u00ABC\u00BBIt is\u00AB/C\u00BB ");
                     // SectionC starts with "Located in" — lowercase it after "It is"
                     result.SectionC = char.ToLower(result.SectionC[0]) + result.SectionC.Substring(1);
-                    // Also lowercase the marked section (starts with «L»Located in«/L»)
-                    int cIdxFix = 2;
-                    if (markedSections.Count > cIdxFix)
+                    // Also lowercase the marked section
+                    if (markedSections.Count > mIdx)
                     {
-                        string mc = markedSections[cIdxFix];
-                        // Replace «L»Located in«/L» with «L»located in«/L»
+                        string mc = markedSections[mIdx];
                         mc = mc.Replace("\u00ABL\u00BBLocated in\u00AB/L\u00BB", "\u00ABL\u00BBlocated in\u00AB/L\u00BB");
-                        markedSections[cIdxFix] = mc;
+                        markedSections[mIdx] = mc;
                     }
                 }
-                int cIdx = 2;
                 plainParts.Append(result.SectionC);
-                markedParts.Append(markedSections.Count > cIdx ? markedSections[cIdx] : result.SectionC);
+                markedParts.Append(markedSections.Count > mIdx ? markedSections[mIdx] : result.SectionC);
+                mIdx++;
             }
             // D: Lifecycle — connects with ". Regarding its lifecycle,"
             if (!string.IsNullOrEmpty(result.SectionD))
@@ -3241,22 +3344,20 @@ namespace StingTools.Core
                 if (plainParts.Length > 0)
                 {
                     plainParts.Append(". Regarding its lifecycle, ");
-                    markedParts.Append(". \u00ABS\u00BBRegarding its lifecycle,\u00AB/S\u00BB ");
+                    markedParts.Append(". \u00ABC\u00BBRegarding its lifecycle,\u00AB/C\u00BB ");
                     // SectionD starts with "This element is" — lowercase it after connector
                     if (result.SectionD.StartsWith("This element is"))
                         result.SectionD = "this element is" + result.SectionD.Substring("This element is".Length);
-                    // Also fix in marked sections
-                    int dIdxFix = string.IsNullOrEmpty(result.SectionC) ? 2 : 3;
-                    if (markedSections.Count > dIdxFix)
+                    if (markedSections.Count > mIdx)
                     {
-                        string md = markedSections[dIdxFix];
+                        string md = markedSections[mIdx];
                         md = md.Replace("This element is", "this element is");
-                        markedSections[dIdxFix] = md;
+                        markedSections[mIdx] = md;
                     }
                 }
-                int dIdx = string.IsNullOrEmpty(result.SectionC) ? 2 : 3;
                 plainParts.Append(result.SectionD);
-                markedParts.Append(markedSections.Count > dIdx ? markedSections[dIdx] : result.SectionD);
+                markedParts.Append(markedSections.Count > mIdx ? markedSections[mIdx] : result.SectionD);
+                mIdx++;
             }
             // E: Technical — connects with ". Technical specifications include"
             if (!string.IsNullOrEmpty(result.SectionE))
@@ -3264,15 +3365,11 @@ namespace StingTools.Core
                 if (plainParts.Length > 0)
                 {
                     plainParts.Append(". Technical specifications include ");
-                    markedParts.Append(". \u00ABS\u00BBTechnical specifications include\u00AB/S\u00BB ");
+                    markedParts.Append(". \u00ABC\u00BBTechnical specifications include\u00AB/C\u00BB ");
                 }
-                // Determine correct index for marked sections
-                int eIdx = 2;
-                if (!string.IsNullOrEmpty(result.SectionB)) eIdx++;
-                if (!string.IsNullOrEmpty(result.SectionC)) eIdx++;
-                if (!string.IsNullOrEmpty(result.SectionD)) eIdx++;
                 plainParts.Append(result.SectionE);
-                markedParts.Append(markedSections.Count > eIdx ? markedSections[eIdx] : result.SectionE);
+                markedParts.Append(markedSections.Count > mIdx ? markedSections[mIdx] : result.SectionE);
+                mIdx++;
             }
             // F: Classification — connects with ". Classified under"
             if (!string.IsNullOrEmpty(result.SectionF))
@@ -3280,11 +3377,10 @@ namespace StingTools.Core
                 if (plainParts.Length > 0)
                 {
                     plainParts.Append(". Classified under ");
-                    markedParts.Append(". \u00ABS\u00BBClassified under\u00AB/S\u00BB ");
+                    markedParts.Append(". \u00ABC\u00BBClassified under\u00AB/C\u00BB ");
                 }
-                int fIdx = markedSections.Count - 1; // F is always last
                 plainParts.Append(result.SectionF);
-                markedParts.Append(markedSections.Count > fIdx && fIdx >= 0 ? markedSections[fIdx] : result.SectionF);
+                markedParts.Append(markedSections.Count > mIdx ? markedSections[mIdx] : result.SectionF);
             }
 
             result.PlainNarrative = plainParts.ToString();
@@ -3583,20 +3679,9 @@ namespace StingTools.Core
             return dim.Length > 0 ? dim.ToString() : "";
         }
 
-        /// <summary>Append a formatted value to a StringBuilder if the value is not empty (legacy comma separator).</summary>
-        private static void AppendIfNotEmpty(System.Text.StringBuilder sb, string value, string format)
-        {
-            if (!string.IsNullOrEmpty(value))
-            {
-                if (sb.Length > 0) sb.Append(", ");
-                sb.Append(string.Format(format, value));
-            }
-        }
-
         /// <summary>
-        /// Append a natural-language phrase to a StringBuilder using contextual conjunctions.
-        /// Uses "and" before the last item when building up a list, otherwise uses commas
-        /// to create prose-like flow: "rated at 22 kW, operating at 480 V and connected to circuit 3".
+        /// Append a natural-language phrase to a StringBuilder if the value is not empty.
+        /// Uses comma separators between items for prose-like flow.
         /// </summary>
         private static void AppendNatural(System.Text.StringBuilder sb, string value, string format)
         {

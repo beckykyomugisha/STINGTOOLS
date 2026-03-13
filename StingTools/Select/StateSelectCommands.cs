@@ -27,6 +27,7 @@ namespace StingTools.Select
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
+                    if (e.Category == null) return false;
                     string cat = ParameterHelpers.GetCategoryName(e);
                     if (!known.Contains(cat)) return false;
                     string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
@@ -53,6 +54,7 @@ namespace StingTools.Select
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
+                    if (e.Category == null) return false;
                     string cat = ParameterHelpers.GetCategoryName(e);
                     if (!known.Contains(cat)) return false;
                     string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);

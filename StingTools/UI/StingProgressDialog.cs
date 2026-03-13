@@ -123,7 +123,6 @@ namespace StingTools.UI
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 ResizeMode = ResizeMode.NoResize,
                 ShowInTaskbar = false,
-                Topmost = true,
                 Content = panel,
             };
 

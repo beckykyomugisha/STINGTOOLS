@@ -309,9 +309,18 @@ namespace StingTools.Model
             return symbols[0];
         }
 
-        private void EnsureActive(FamilySymbol symbol)
+        internal void EnsureActive(FamilySymbol symbol)
         {
-            if (!symbol.IsActive) { symbol.Activate(); _doc.Regenerate(); }
+            if (!symbol.IsActive)
+            {
+                using (var tx = new Transaction(_doc, "STING MODEL: Activate Symbol"))
+                {
+                    tx.Start();
+                    symbol.Activate();
+                    _doc.Regenerate();
+                    tx.Commit();
+                }
+            }
         }
 
         private ResolveResult ResolveSystemType<T>(Type typeClass, string keyword, string label)
@@ -457,9 +466,11 @@ namespace StingTools.Model
                     thicknessMm > 0 ? thicknessMm : (double?)null);
                 if (!typeResult.Success) return ModelResult.Fail(typeResult.Message);
 
-                var line = Line.CreateBound(
-                    new XYZ(Units.Mm(startXMm), Units.Mm(startYMm), 0),
-                    new XYZ(Units.Mm(endXMm), Units.Mm(endYMm), 0));
+                var startPt = new XYZ(Units.Mm(startXMm), Units.Mm(startYMm), 0);
+                var endPt = new XYZ(Units.Mm(endXMm), Units.Mm(endYMm), 0);
+                if (startPt.DistanceTo(endPt) < 0.01) // ~3mm tolerance
+                    return ModelResult.Fail("Start and end points are too close together to create a wall.");
+                var line = Line.CreateBound(startPt, endPt);
                 var heightFt = Units.Mm(heightMm);
 
                 Wall wall = null;
@@ -604,6 +615,7 @@ namespace StingTools.Model
                         }
                     }
 
+                    // Assimilate merges sub-transactions into one undo entry (intentional pattern)
                     tg.Assimilate();
                 }
 
@@ -893,7 +905,7 @@ namespace StingTools.Model
 
                 var symbol = _doc.GetElement(typeResult.TypeId) as FamilySymbol;
                 if (symbol == null) return ModelResult.Fail($"No {label} family symbol found.");
-                if (!symbol.IsActive) { symbol.Activate(); _doc.Regenerate(); }
+                _resolver.EnsureActive(symbol);
 
                 var level = _doc.GetElement(hostWall.LevelId) as Level;
                 var wallLoc = hostWall.Location as LocationCurve;
@@ -954,7 +966,7 @@ namespace StingTools.Model
                 if (!typeResult.Success) return ModelResult.Fail(typeResult.Message);
 
                 var symbol = _doc.GetElement(typeResult.TypeId) as FamilySymbol;
-                if (symbol != null && !symbol.IsActive) { symbol.Activate(); _doc.Regenerate(); }
+                if (symbol != null) _resolver.EnsureActive(symbol);
 
                 FamilyInstance col = null;
                 using (var tx = new Transaction(_doc, "STING MODEL: Place Column"))
@@ -1003,7 +1015,7 @@ namespace StingTools.Model
                 if (!typeResult.Success) return ModelResult.Fail(typeResult.Message);
 
                 var symbol = _doc.GetElement(typeResult.TypeId) as FamilySymbol;
-                if (symbol != null && !symbol.IsActive) { symbol.Activate(); _doc.Regenerate(); }
+                if (symbol != null) _resolver.EnsureActive(symbol);
 
                 var placedIds = new List<ElementId>();
                 var fh = new ModelFailureHandler();
@@ -1065,7 +1077,7 @@ namespace StingTools.Model
                 if (!typeResult.Success) return ModelResult.Fail(typeResult.Message);
 
                 var symbol = _doc.GetElement(typeResult.TypeId) as FamilySymbol;
-                if (symbol != null && !symbol.IsActive) { symbol.Activate(); _doc.Regenerate(); }
+                if (symbol != null) _resolver.EnsureActive(symbol);
 
                 var beamLine = Line.CreateBound(
                     new XYZ(Units.Mm(startXMm), Units.Mm(startYMm), Units.Mm(startZMm)),
@@ -1265,7 +1277,8 @@ namespace StingTools.Model
             string levelName = null,
             string wallTypeName = null,
             string floorTypeName = null,
-            string roofTypeName = null)
+            string roofTypeName = null,
+            double originXMm = 0, double originYMm = 0)
         {
             var results = new List<string>();
             var allIds = new List<ElementId>();
@@ -1280,7 +1293,7 @@ namespace StingTools.Model
                     // Walls
                     step = 1;
                     var wallResult = CreateRectangularRoom(widthMm, depthMm,
-                        "Building", levelName, wallHeightMm, wallTypeName, placeRoom: false);
+                        "Building", levelName, wallHeightMm, wallTypeName, originXMm, originYMm, placeRoom: false);
                     if (!wallResult.Success)
                     {
                         tg.RollBack();

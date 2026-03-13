@@ -1,0 +1,180 @@
+# TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv
+# ISO 19650 Discipline, System, and Function code mappings
+# Version: 5.0 | Updated: 2026-03-13
+# Used by: TagConfig.DiscMap, TagConfig.SysMap, TagConfig.FuncMap, TagConfig.ProdMap
+# Changes from v4: Added system-aware DISC correction, smart FUNC detection,
+#   expanded PROD codes (70+ family-aware), BIMManager integration parameters,
+#   Procore Briefcase fields, Ideate Sticky parameters, 4D/5D scheduling tokens.
+#
+# SECTION 1: DISCIPLINE MAP (Category → DISC code)
+# Format: DISC,CategoryName,DiscCode,Description
+#
+DISC,Mechanical Equipment,M,Mechanical discipline — HVAC equipment
+DISC,Duct Systems,M,Ductwork systems
+DISC,Ducts,M,Individual duct segments
+DISC,Duct Fittings,M,Duct transitions and junctions
+DISC,Duct Accessories,M,Dampers and duct accessories
+DISC,Duct Insulations,M,Duct insulation
+DISC,Flex Ducts,M,Flexible ductwork
+DISC,Air Terminals,M,Supply/return/exhaust grilles and diffusers
+DISC,Electrical Equipment,E,Electrical distribution equipment
+DISC,Electrical Fixtures,E,Electrical outlets and switches
+DISC,Lighting Fixtures,E,Luminaires and lighting
+DISC,Lighting Devices,E,Lighting control devices
+DISC,Cable Tray Fittings,E,Cable tray junctions
+DISC,Cable Trays,E,Cable containment trays
+DISC,Conduit Fittings,E,Conduit junctions
+DISC,Conduits,E,Electrical conduits
+DISC,Plumbing Fixtures,P,Sanitary ware and plumbing
+DISC,Plumbing Equipment,P,Plumbing plant equipment
+DISC,Pipe Systems,P,Piping systems (corrected by system detection)
+DISC,Pipes,P,Individual pipe segments (corrected by system detection)
+DISC,Pipe Fittings,P,Pipe junctions and transitions
+DISC,Pipe Accessories,P,Valves and pipe accessories
+DISC,Pipe Insulations,P,Pipe insulation
+DISC,Flex Pipes,P,Flexible piping
+DISC,Walls,A,Architectural walls
+DISC,Floors,A,Floor slabs
+DISC,Ceilings,A,Ceiling elements
+DISC,Roofs,A,Roof elements
+DISC,Doors,A,Door elements
+DISC,Windows,A,Window elements
+DISC,Stairs,A,Stair elements
+DISC,Railings,A,Railing elements
+DISC,Ramps,A,Ramp elements
+DISC,Rooms,A,Room elements
+DISC,Furniture,A,Furniture
+DISC,Casework,A,Built-in casework
+DISC,Generic Models,A,Generic model instances
+DISC,Structural Columns,S,Structural columns
+DISC,Structural Framing,S,Beams and structural framing
+DISC,Structural Foundations,S,Foundation elements
+DISC,Sprinklers,FP,Fire protection sprinklers
+DISC,Fire Alarm Devices,FP,Fire alarm detectors and devices
+DISC,Communication Devices,LV,Communications devices
+DISC,Data Devices,LV,Data/ICT devices
+DISC,Security Devices,LV,Security/CCTV devices
+DISC,Nurse Call Devices,LV,Nurse call system devices
+#
+# SECTION 2: SYSTEM MAP (System code → Category groups)
+# Format: SYS,SystemCode,CategoryList,Description
+#
+SYS,HVAC,"Mechanical Equipment,Ducts,Duct Fittings,Duct Accessories,Duct Insulations,Flex Ducts,Air Terminals",Heating ventilation and air conditioning
+SYS,DCW,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulations,Flex Pipes",Domestic cold water
+SYS,DHW,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulations",Domestic hot water
+SYS,HWS,"Pipes,Pipe Fittings,Pipe Accessories,Mechanical Equipment",Heating hot water / LTHW / MTHW
+SYS,SAN,"Plumbing Fixtures,Pipes,Pipe Fittings,Pipe Accessories",Sanitary / above-ground drainage
+SYS,RWD,"Pipes,Pipe Fittings,Pipe Accessories",Rainwater drainage
+SYS,GAS,"Pipes,Pipe Fittings,Pipe Accessories",Natural gas distribution
+SYS,FP,"Sprinklers,Pipes,Pipe Fittings,Fire Alarm Devices",Fire protection (sprinklers + alarm)
+SYS,FLS,"Fire Alarm Devices",Fire/life safety detection
+SYS,LV,"Electrical Equipment,Electrical Fixtures,Cable Trays,Conduits",Low voltage distribution
+SYS,COM,"Communication Devices",Communications systems
+SYS,ICT,"Data Devices",Information and communications technology
+SYS,NCL,"Nurse Call Devices",Nurse call / assisted living
+SYS,SEC,"Security Devices",Security and access control
+SYS,ARC,"Walls,Floors,Ceilings,Roofs,Doors,Windows,Stairs,Railings,Ramps,Rooms,Furniture,Casework",Architectural elements
+SYS,STR,"Structural Columns,Structural Framing,Structural Foundations",Structural elements
+SYS,GEN,"Generic Models",General / unclassified
+#
+# SECTION 3: FUNCTION MAP (System → Function code)
+# Format: FUNC,SystemCode,FuncCode,Description
+#
+FUNC,HVAC,SUP,Supply air — detected from connector/system name
+FUNC,HVAC,RTN,Return air — detected from connector/system name
+FUNC,HVAC,EXH,Extract/exhaust air — detected from connector/system name
+FUNC,HVAC,FRA,Fresh air / outside air — detected from connector/system name
+FUNC,DCW,DCW,Domestic cold water supply
+FUNC,DHW,DHW,Domestic hot water supply
+FUNC,HWS,HTG,Heating — LTHW/MTHW for radiators/AHU coils
+FUNC,HWS,DHW,Domestic hot water — distinguished from heating by connector
+FUNC,SAN,SAN,Sanitary drainage
+FUNC,RWD,RWD,Rainwater drainage
+FUNC,GAS,GAS,Gas distribution
+FUNC,FP,FP,Fire protection
+FUNC,FLS,FLS,Fire/life safety
+FUNC,LV,PWR,Power distribution
+FUNC,COM,COM,Communications
+FUNC,ICT,ICT,ICT/Data
+FUNC,NCL,NCL,Nurse call
+FUNC,SEC,SEC,Security
+FUNC,ARC,ARC,Architectural function
+FUNC,STR,STR,Structural function
+FUNC,GEN,GEN,General / unclassified
+#
+# SECTION 4: PRODUCT MAP (Category → default PROD code)
+# Plus family-aware overrides (70+ patterns in GetFamilyAwareProdCode)
+# Format: PROD,CategoryName,DefaultProdCode,FamilyOverrideCount,Description
+#
+PROD,Mechanical Equipment,AHU,14,Air handling units (family: FCU VAV CHR BLR PMP FAN HRU SPL IND RAD DAM CLT VFD AHU)
+PROD,Ducts,DCT,0,Ductwork segments
+PROD,Duct Fittings,DCT,0,Duct transitions
+PROD,Duct Accessories,DAM,0,Duct accessories
+PROD,Duct Insulations,INS,0,Duct insulation
+PROD,Flex Ducts,FLX,0,Flexible ductwork
+PROD,Air Terminals,GRL,0,Grilles and diffusers
+PROD,Electrical Equipment,DB,14,Distribution boards (family: MCC MSB SWB UPS TRF GEN ATS VFD SPD RCD ISO SFS BKP DB)
+PROD,Electrical Fixtures,GPO,0,General purpose outlets
+PROD,Lighting Fixtures,LUM,10,Luminaires (family: EML TRK DEC DWN LIN SPT WSH BOL UPL FLD)
+PROD,Lighting Devices,LDV,0,Lighting control devices
+PROD,Cable Trays,CTR,0,Cable containment trays
+PROD,Cable Tray Fittings,CTR,0,Cable tray fittings
+PROD,Conduits,CDT,0,Electrical conduits
+PROD,Conduit Fittings,CDT,0,Conduit fittings
+PROD,Plumbing Fixtures,SNK,12,Sanitaryware (family: WC WHB URN SNK SHW BTH DRK CWL TRP BID EWS MOP)
+PROD,Plumbing Equipment,PMP,0,Plumbing plant
+PROD,Pipes,PIP,0,Pipe segments
+PROD,Pipe Fittings,PIP,0,Pipe transitions
+PROD,Pipe Accessories,VLV,6,Valves (family: BLV TRV IVL NRV PRV STN)
+PROD,Pipe Insulations,INS,0,Pipe insulation
+PROD,Flex Pipes,FLX,0,Flexible piping
+PROD,Walls,WLL,0,Wall elements
+PROD,Floors,FLR,0,Floor slabs
+PROD,Ceilings,CLG,0,Ceiling elements
+PROD,Roofs,ROF,0,Roof elements
+PROD,Doors,DR,0,Door elements
+PROD,Windows,WN,0,Window elements
+PROD,Stairs,STR,0,Stair elements
+PROD,Railings,RLG,0,Railing elements
+PROD,Ramps,RMP,0,Ramp elements
+PROD,Rooms,RM,0,Room elements
+PROD,Furniture,FRN,0,Furniture
+PROD,Casework,CSW,0,Built-in casework
+PROD,Generic Models,GEN,0,Generic instances
+PROD,Structural Columns,COL,0,Structural columns
+PROD,Structural Framing,BM,0,Beams/framing
+PROD,Structural Foundations,FND,0,Foundations
+PROD,Sprinklers,SPK,0,Sprinkler heads
+PROD,Fire Alarm Devices,FAD,6,Fire alarm (family: SML MCP BLL STB HTD FIM)
+PROD,Communication Devices,COM,0,Comms devices
+PROD,Data Devices,DAT,0,Data outlets
+PROD,Security Devices,CAM,0,CCTV/access control
+PROD,Nurse Call Devices,NCL,0,Nurse call devices
+#
+# SECTION 5: SYSTEM-AWARE DISC CORRECTION
+# When pipe/duct SYS detection returns a plumbing system, override DISC from M to P
+# Format: DISC_OVERRIDE,OriginalDisc,SystemCode,CorrectedDisc,Description
+#
+DISC_OVERRIDE,M,DCW,P,Cold water pipes → Plumbing
+DISC_OVERRIDE,M,DHW,P,Hot water pipes → Plumbing
+DISC_OVERRIDE,M,SAN,P,Sanitary pipes → Plumbing
+DISC_OVERRIDE,M,RWD,P,Rainwater pipes → Plumbing
+DISC_OVERRIDE,M,GAS,P,Gas pipes → Plumbing
+DISC_OVERRIDE,M,FP,FP,Fire protection → Fire Protection
+DISC_OVERRIDE,E,FLS,FP,Fire/life safety → Fire Protection
+DISC_OVERRIDE,E,COM,LV,Communications → Low Voltage
+DISC_OVERRIDE,E,ICT,LV,ICT → Low Voltage
+DISC_OVERRIDE,E,SEC,LV,Security → Low Voltage
+DISC_OVERRIDE,E,NCL,LV,Nurse call → Low Voltage
+#
+# SECTION 6: BIM MANAGER PARAMETERS (new in v5.0)
+# Format: BIMGR,ParameterName,Description,Usage
+#
+BIMGR,STING_STICKY_NOTE_TXT,Element sticky note text,Ideate-style persistent annotations
+BIMGR,STING_NOTE_AUTHOR_TXT,Sticky note author,QA tracking
+BIMGR,STING_NOTE_DATE_TXT,Sticky note timestamp,Audit trail
+BIMGR,STING_PREDECESSOR_TAGS_TXT,Predecessor element tags (semicolon-delimited),4D construction sequencing
+BIMGR,STING_4D_START_DATE_TXT,Construction start date (yyyy-MM-dd),4D timeline export
+BIMGR,STING_4D_END_DATE_TXT,Construction end date (yyyy-MM-dd),4D timeline export
+BIMGR,STING_5D_COST_RATE_NUM,Estimated unit cost rate (GBP),5D cost data export
+BIMGR,STING_BRIEFCASE_EXPORT_TXT,Last briefcase export timestamp,Document management

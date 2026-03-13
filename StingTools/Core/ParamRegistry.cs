@@ -43,16 +43,33 @@ namespace StingTools.Core
 
         public static string Separator => _overrideSeparator ?? _baseSeparator;
         public static int NumPad => _overrideNumPad ?? _baseNumPad;
-        public static string[] SegmentOrder => _overrideSegmentOrder ?? _baseSegmentOrder;
+        public static string[] SegmentOrder => (string[])(_overrideSegmentOrder ?? _baseSegmentOrder).Clone();
+
+        private static readonly HashSet<string> ValidSegmentNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
 
         /// <summary>
         /// Apply project-level tag format overrides (from project_config.json).
+        /// Validates segment order contains only known segment names.
         /// </summary>
         public static void ApplyTagFormatOverrides(string separator, int? numPad, string[] segmentOrder)
         {
             _overrideSeparator = separator;
             _overrideNumPad = numPad;
-            _overrideSegmentOrder = segmentOrder;
+            if (segmentOrder != null)
+            {
+                foreach (var seg in segmentOrder)
+                {
+                    if (!ValidSegmentNames.Contains(seg))
+                    {
+                        StingLog.Warn($"Invalid segment name '{seg}' in tag format override — ignoring segment order override");
+                        _overrideSegmentOrder = null;
+                        StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length} (segment order rejected)");
+                        return;
+                    }
+                }
+                _overrideSegmentOrder = (string[])segmentOrder.Clone();
+            }
             StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length}");
         }
 
@@ -278,36 +295,46 @@ namespace StingTools.Core
         public static string TagStyleParamName(string size, string style, string color)
             => $"TAG_{size}{style}_{color}_BOOL";
 
+        private static string[] _cachedAllTagStyleParams;
+        private static string[] _cachedCoreTagStyleParams;
+
         /// <summary>
-        /// Get ALL tag style parameter names (4 sizes x 4 styles x 8 colors = 128).
+        /// Get ALL tag style parameter names (4 sizes x 4 styles x 8 colors = 128). Cached.
         /// </summary>
         public static string[] AllTagStyleParams
         {
             get
             {
-                var list = new List<string>();
-                foreach (var sz in TagStyleSizes)
-                    foreach (var st in TagStyleStyles)
-                        foreach (var co in TagStyleColors)
-                            list.Add(TagStyleParamName(sz, st, co));
-                return list.ToArray();
+                if (_cachedAllTagStyleParams == null)
+                {
+                    var list = new List<string>();
+                    foreach (var sz in TagStyleSizes)
+                        foreach (var st in TagStyleStyles)
+                            foreach (var co in TagStyleColors)
+                                list.Add(TagStyleParamName(sz, st, co));
+                    _cachedAllTagStyleParams = list.ToArray();
+                }
+                return _cachedAllTagStyleParams;
             }
         }
 
         /// <summary>
-        /// Get CORE tag style parameter names only (4 sizes x 3 styles x 4 colors = 48).
-        /// For projects that haven't loaded extended parameters yet.
+        /// Get CORE tag style parameter names only (4 sizes x 3 styles x 4 colors = 48). Cached.
         /// </summary>
         public static string[] CoreTagStyleParams
         {
             get
             {
-                var list = new List<string>();
-                foreach (var sz in TagStyleSizes)
-                    foreach (var st in TagStyleStylesCore)
-                        foreach (var co in TagStyleColorsCore)
-                            list.Add(TagStyleParamName(sz, st, co));
-                return list.ToArray();
+                if (_cachedCoreTagStyleParams == null)
+                {
+                    var list = new List<string>();
+                    foreach (var sz in TagStyleSizes)
+                        foreach (var st in TagStyleStylesCore)
+                            foreach (var co in TagStyleColorsCore)
+                                list.Add(TagStyleParamName(sz, st, co));
+                    _cachedCoreTagStyleParams = list.ToArray();
+                }
+                return _cachedCoreTagStyleParams;
             }
         }
 
@@ -1356,7 +1383,7 @@ namespace StingTools.Core
                 { "Duct Insulation", "OST_DuctInsulations" },
                 { "Duct Lining", "OST_DuctLinings" },
                 { "Ducts", "OST_DuctCurves" },
-                { "Electrical Connectors", "OST_ElectricalInternalCircuits" },
+                { "Electrical Connectors", "OST_ElectricalConnectors" },
                 { "Electrical Equipment", "OST_ElectricalEquipment" },
                 { "Electrical Fixtures", "OST_ElectricalFixtures" },
                 { "Entourage", "OST_Entourage" },
@@ -1371,7 +1398,7 @@ namespace StingTools.Core
                 { "Furniture Systems", "OST_FurnitureSystems" },
                 { "Generic Models", "OST_GenericModel" },
                 { "Gutter", "OST_Gutter" },
-                { "Handrails", "OST_StairsRailingBaluster" },
+                { "Handrails", "OST_StairsRailingHandRail" },
                 { "Hardscape", "OST_Hardscape" },
                 { "Internal Area Loads", "OST_InternalAreaLoads" },
                 { "Internal Line Loads", "OST_InternalLineLoads" },
@@ -1382,7 +1409,7 @@ namespace StingTools.Core
                 { "MEP Ancillary", "OST_MechanicalEquipment" },
                 { "MEP Fabrication Containment", "OST_FabricationContainment" },
                 { "MEP Fabrication Ductwork", "OST_FabricationDuctwork" },
-                { "MEP Fabrication Ductwork Stiffeners", "OST_FabricationDuctwork" },
+                { "MEP Fabrication Ductwork Stiffeners", "OST_FabricationDuctworkStiffeners" },
                 { "MEP Fabrication Hangers", "OST_FabricationHangers" },
                 { "MEP Fabrication Pipework", "OST_FabricationPipework" },
                 { "Mass", "OST_Mass" },
@@ -1417,7 +1444,7 @@ namespace StingTools.Core
                 { "Security Devices", "OST_SecurityDevices" },
                 { "Signage", "OST_Signage" },
                 { "Site", "OST_Site" },
-                { "Slab Edges", "OST_SlabEdges" },
+                { "Slab Edges", "OST_EdgeSlab" },
                 { "Spaces", "OST_MEPSpaces" },
                 { "Specialty Equipment", "OST_SpecialityEquipment" },
                 { "Sprinklers", "OST_Sprinklers" },
@@ -1518,6 +1545,8 @@ namespace StingTools.Core
                 {
                     if (ParameterHelpers.SetString(el, c.ParamName, assembled, overwrite))
                         written++;
+                    else
+                        StingLog.Warn($"WriteContainers: failed to write {c.ParamName} on element {el.Id.Value}");
                 }
             }
             return written;

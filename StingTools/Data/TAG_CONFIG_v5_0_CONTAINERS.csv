@@ -1,0 +1,123 @@
+# TAG_CONFIG_v5_0_CONTAINERS.csv
+# ISO 19650 Tag Container definitions — all 53 container parameters
+# Version: 5.0 | Updated: 2026-03-13
+# Used by: ParamRegistry.WriteContainers(), CombineParametersCommand
+# Changes from v4: Added MAT_TAG containers, FIN/ENV/STR/COMP/PERF/SUST/EQP groups,
+#   BIMManager integration containers, TAG7 section visibility controls.
+#
+# Format: Group,ContainerParam,TokenSlots,Separator,Description,CategoryFilter
+#
+# TOKEN SLOT INDICES: 0=DISC, 1=LOC, 2=ZONE, 3=LVL, 4=SYS, 5=FUNC, 6=PROD, 7=SEQ
+#
+# SECTION 1: UNIVERSAL CONTAINERS (all categories)
+#
+UNIVERSAL,ASS_TAG_1_TXT,"0,1,2,3,4,5,6,7",-,Full 8-segment ISO 19650 tag,ALL
+UNIVERSAL,ASS_TAG_2_TXT,"0,4,6,7",-,Short: DISC-SYS-PROD-SEQ,ALL
+UNIVERSAL,ASS_TAG_3_TXT,"0,4,6",-,Abbreviated: DISC-SYS-PROD,ALL
+UNIVERSAL,ASS_TAG_4_TXT,"0,1,2,3",/,Multi-line top: DISC/LOC/ZONE/LVL,ALL
+UNIVERSAL,ASS_TAG_5_TXT,"4,5,6,7",/,Multi-line mid: SYS/FUNC/PROD/SEQ,ALL
+UNIVERSAL,ASS_TAG_6_TXT,"1,2,3",/,Multi-line bottom: LOC/ZONE/LVL,ALL
+#
+# SECTION 2: HVAC CONTAINERS
+#
+HVAC,HVC_EQP_TAG,"0,1,2,3,4,5,6,7",-,HVAC equipment full tag,"Mechanical Equipment,Air Terminals"
+HVAC,HVC_DCT_TAG,"0,1,2,3,4,5,6,7",-,HVAC duct full tag,"Ducts,Duct Fittings,Duct Accessories,Duct Insulations"
+HVAC,HVC_FLX_TAG,"0,1,2,3,4,5,6,7",-,HVAC flex duct full tag,"Flex Ducts"
+#
+# SECTION 3: ELECTRICAL CONTAINERS
+#
+ELECTRICAL,ELC_EQP_TAG,"0,1,2,3,4,5,6,7",-,Electrical equipment full tag,"Electrical Equipment"
+ELECTRICAL,ELE_FIX_TAG,"0,1,2,3,4,5,6,7",-,Electrical fixture full tag,"Electrical Fixtures"
+ELECTRICAL,LTG_FIX_TAG,"0,1,2,3,4,5,6,7",-,Lighting fixture full tag,"Lighting Fixtures,Lighting Devices"
+ELECTRICAL,ELC_CDT_TAG,"0,1,2,3,4,5,6,7",-,Conduit full tag,"Conduits,Conduit Fittings"
+ELECTRICAL,ELC_CTR_TAG,"0,1,2,3,4,5,6,7",-,Cable tray full tag,"Cable Trays,Cable Tray Fittings"
+#
+# SECTION 4: PLUMBING CONTAINERS
+#
+PLUMBING,PLM_EQP_TAG,"0,1,2,3,4,5,6,7",-,Plumbing equipment full tag,"Plumbing Fixtures,Plumbing Equipment,Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulations,Flex Pipes"
+#
+# SECTION 5: FIRE/SAFETY CONTAINERS
+#
+FIRE,FLS_DEV_TAG,"0,1,2,3,4,5,6,7",-,Fire/life safety device tag,"Fire Alarm Devices,Sprinklers"
+#
+# SECTION 6: COMMS/LV CONTAINERS
+#
+COMMS,COM_DEV_TAG,"0,1,2,3,4,5,6,7",-,Communications device tag,"Communication Devices"
+COMMS,SEC_DEV_TAG,"0,1,2,3,4,5,6,7",-,Security device tag,"Security Devices"
+COMMS,NCL_DEV_TAG,"0,1,2,3,4,5,6,7",-,Nurse call device tag,"Nurse Call Devices"
+COMMS,ICT_DEV_TAG,"0,1,2,3,4,5,6,7",-,ICT device tag,"Data Devices"
+#
+# SECTION 7: MATERIAL CONTAINERS (all categories)
+#
+MATERIAL,MAT_TAG_1_TXT,"0,1,2,3,4,5,6,7",-,Material tag variant 1,ALL
+MATERIAL,MAT_TAG_2_TXT,"0,4,6,7",-,Material tag short,ALL
+MATERIAL,MAT_TAG_3_TXT,"0,4,6",-,Material tag abbreviated,ALL
+MATERIAL,MAT_TAG_4_TXT,"0,1,2,3",/,Material multi-line top,ALL
+MATERIAL,MAT_TAG_5_TXT,"4,5,6,7",/,Material multi-line mid,ALL
+MATERIAL,MAT_TAG_6_TXT,"1,2,3",/,Material multi-line bottom,ALL
+#
+# SECTION 8: EXTENDED CONTAINERS (v5.0 additions)
+#
+FINISH,FIN_TAG_1_TXT,"0,1,2,3,4,5,6,7",-,Finishes tag,"Walls,Floors,Ceilings"
+ENVELOPE,ENV_TAG_1_TXT,"0,1,2,3,4,5,6,7",-,Building envelope tag,"Walls,Roofs,Windows,Doors"
+STRUCTURAL,STR_TAG_1_TXT,"0,1,2,3,4,5,6,7",-,Structural tag,"Structural Columns,Structural Framing,Structural Foundations"
+COMPOSITE,COMP_TAG_1_TXT,"0,4,6,7",-,Composite short tag,ALL
+PERFORMANCE,PERF_TAG_1_TXT,"0,4,5,6",-,Performance tag (no SEQ),ALL
+SUSTAINABILITY,SUST_TAG_1_TXT,"0,1,4,6",-,Sustainability reference tag,ALL
+EQUIPMENT,EQP_TAG_1_TXT,"0,1,2,3,4,5,6,7",-,Equipment register tag,"Mechanical Equipment,Electrical Equipment,Plumbing Equipment"
+#
+# SECTION 9: TAG7 RICH NARRATIVE (all categories)
+# TAG7 is NOT assembled from token slots — it's built by TagConfig.WriteTag7All()
+# which generates descriptive narrative from element properties
+#
+TAG7,ASS_TAG_7_TXT,NARRATIVE,,Complete TAG7 narrative (all sections A-F),ALL
+TAG7,ASS_TAG_7A_TXT,NARRATIVE,,Section A: Identity Header (asset name/product/manufacturer),ALL
+TAG7,ASS_TAG_7B_TXT,NARRATIVE,,Section B: System & Function (system type/function code),ALL
+TAG7,ASS_TAG_7C_TXT,NARRATIVE,,Section C: Spatial Context (room/department/grid),ALL
+TAG7,ASS_TAG_7D_TXT,NARRATIVE,,Section D: Lifecycle & Status (status/revision/origin),ALL
+TAG7,ASS_TAG_7E_TXT,NARRATIVE,,Section E: Technical Specs (discipline-specific performance),ALL
+TAG7,ASS_TAG_7F_TXT,NARRATIVE,,Section F: Classification (Uniformat/OmniClass/keynote/cost),ALL
+#
+# SECTION 10: PARAGRAPH CONTAINERS (category-specific TAG7 narratives)
+# These are populated by FORMULAS_WITH_DEPENDENCIES.csv formulas
+#
+PARAGRAPH,ARCH_TAG_7_PARA_WALL_TXT,FORMULA,,Architectural wall narrative paragraph,Walls
+PARAGRAPH,ARCH_TAG_7_PARA_FLOOR_TXT,FORMULA,,Architectural floor narrative paragraph,Floors
+PARAGRAPH,ARCH_TAG_7_PARA_DOOR_TXT,FORMULA,,Door narrative paragraph,Doors
+PARAGRAPH,ARCH_TAG_7_PARA_WIN_TXT,FORMULA,,Window narrative paragraph,Windows
+PARAGRAPH,ARCH_TAG_7_PARA_ROOM_TXT,FORMULA,,Room narrative paragraph,Rooms
+PARAGRAPH,ARCH_TAG_7_PARA_CEIL_TXT,FORMULA,,Ceiling narrative paragraph,Ceilings
+PARAGRAPH,ARCH_TAG_7_PARA_ROOF_TXT,FORMULA,,Roof narrative paragraph,Roofs
+PARAGRAPH,ARCH_TAG_7_PARA_STAIR_TXT,FORMULA,,Stair narrative paragraph,Stairs
+PARAGRAPH,ARCH_TAG_7_PARA_RAMP_TXT,FORMULA,,Ramp narrative paragraph,Ramps
+PARAGRAPH,ARCH_TAG_7_PARA_CASEWORK_TXT,FORMULA,,Casework narrative paragraph,Casework
+PARAGRAPH,ARCH_TAG_7_PARA_FURNITURE_TXT,FORMULA,,Furniture narrative paragraph,Furniture
+PARAGRAPH,STR_TAG_7_PARA_COL_TXT,FORMULA,,Structural column paragraph,Structural Columns
+PARAGRAPH,STR_TAG_7_PARA_BEAM_TXT,FORMULA,,Structural beam paragraph,Structural Framing
+PARAGRAPH,STR_TAG_7_PARA_FDN_TXT,FORMULA,,Structural foundation paragraph,Structural Foundations
+PARAGRAPH,HVC_TAG_7_PARA_DUCT_TXT,FORMULA,,HVAC duct paragraph,"Ducts,Duct Fittings"
+PARAGRAPH,HVC_TAG_7_PARA_FLEXDUCT_TXT,FORMULA,,HVAC flex duct paragraph,Flex Ducts
+PARAGRAPH,HVC_TAG_7_PARA_SPEC_TXT,FORMULA,,HVAC specification paragraph,Mechanical Equipment
+PARAGRAPH,ELC_TAG_7_PARA_PANEL_TXT,FORMULA,,Electrical panel paragraph,Electrical Equipment
+PARAGRAPH,ELC_TAG_7_PARA_FIXTURE_TXT,FORMULA,,Electrical fixture paragraph,Electrical Fixtures
+PARAGRAPH,LTG_TAG_7_PARA_FIXTURE_TXT,FORMULA,,Lighting fixture paragraph,Lighting Fixtures
+PARAGRAPH,PLM_TAG_7_PARA_FIXTURE_TXT,FORMULA,,Plumbing fixture paragraph,Plumbing Fixtures
+PARAGRAPH,PIP_TAG_7_PARA_PIPE_TXT,FORMULA,,Piping paragraph,"Pipes,Pipe Fittings"
+PARAGRAPH,FLS_TAG_7_PARA_DEVICE_TXT,FORMULA,,Fire alarm device paragraph,Fire Alarm Devices
+PARAGRAPH,SPK_TAG_7_PARA_HEAD_TXT,FORMULA,,Sprinkler head paragraph,Sprinklers
+#
+# SECTION 11: COLLISION HANDLING
+# Format: COLLISION,Mode,Description
+#
+COLLISION,AutoIncrement,Auto-increment SEQ on duplicate tag detection (default)
+COLLISION,Skip,Skip elements that already have a complete tag
+COLLISION,Overwrite,Force overwrite existing tags with new values
+#
+# SECTION 12: SEQ KEY FORMAT
+# SEQ counters are grouped by: DISC_SYS_LVL
+# Example key: M_HVAC_L02 → separate counter for each combination
+# Overflow warning at 9999 (NumPad=4)
+#
+SEQKEY,FORMAT,DISC_SYS_LVL,Sequence counter grouping key
+SEQKEY,MAX,9999,Maximum sequence number (10^NumPad - 1)
+SEQKEY,OVERFLOW_ACTION,WARN,Action on overflow: WARN (log + continue)

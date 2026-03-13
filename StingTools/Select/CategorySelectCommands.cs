@@ -164,13 +164,18 @@ namespace StingTools.Select
                 return Result.Failed;
             }
 
-            var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var knownCatIds = new HashSet<ElementId>();
+            foreach (string catName in TagConfig.DiscMap.Keys)
+            {
+                Category cat = ctx.Doc.Settings.Categories.get_Item(catName);
+                if (cat != null) knownCatIds.Add(cat.Id);
+            }
             List<ElementId> ids;
             using (var collector = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id))
             {
                 ids = collector
                     .WhereElementIsNotElementType()
-                    .Where(e => knownCategories.Contains(ParameterHelpers.GetCategoryName(e)))
+                    .Where(e => e.Category != null && knownCatIds.Contains(e.Category.Id))
                     .Select(e => e.Id)
                     .ToList();
             }
@@ -220,15 +225,10 @@ namespace StingTools.Select
                     try { bic = (BuiltInCategory)cat.Id.Value; }
                     catch { continue; }
 
-                    if (catCounts.ContainsKey(name))
-                    {
-                        var existing = catCounts[name];
+                    if (catCounts.TryGetValue(name, out var existing))
                         catCounts[name] = (existing.bic, existing.count + 1);
-                    }
                     else
-                    {
                         catCounts[name] = (bic, 1);
-                    }
                 }
             }
 

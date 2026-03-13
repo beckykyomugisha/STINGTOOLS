@@ -1,0 +1,181 @@
+# TAG_CONFIG_v5_0_VALIDATION.csv
+# ISO 19650 Tag Validation Rules — token validation, cross-checks, warnings
+# Version: 5.0 | Updated: 2026-03-13
+# Used by: ISO19650Validator, ValidateTagsCommand, PreTagAuditCommand, FormulaEvaluatorCommand
+# Changes from v4: Added warning severity filtering, formula skip tracking,
+#   cross-validation rules, BIMManager compliance checks, cached phase detection.
+#
+# SECTION 1: VALID DISCIPLINE CODES
+# Format: VALID_DISC,Code,FullName,Description
+#
+VALID_DISC,M,Mechanical,HVAC and mechanical services
+VALID_DISC,E,Electrical,Power and lighting
+VALID_DISC,P,Plumbing,Water supply and drainage
+VALID_DISC,A,Architectural,Building fabric and interior
+VALID_DISC,S,Structural,Structural elements
+VALID_DISC,FP,Fire Protection,Sprinklers and fire systems
+VALID_DISC,LV,Low Voltage,Communications/ICT/security
+VALID_DISC,G,Generic,Unclassified elements
+#
+# SECTION 2: VALID SYSTEM CODES (CIBSE / Uniclass 2015)
+# Format: VALID_SYS,Code,FullName,DisciplineAssociation
+#
+VALID_SYS,HVAC,Heating Ventilation and Air Conditioning,M
+VALID_SYS,DCW,Domestic Cold Water,P
+VALID_SYS,DHW,Domestic Hot Water,P
+VALID_SYS,HWS,Heating Water System (LTHW/MTHW),M
+VALID_SYS,SAN,Sanitary / Above-Ground Drainage,P
+VALID_SYS,RWD,Rainwater Drainage,P
+VALID_SYS,GAS,Natural Gas Distribution,P
+VALID_SYS,FP,Fire Protection (Sprinklers),FP
+VALID_SYS,FLS,Fire/Life Safety Detection,FP
+VALID_SYS,LV,Low Voltage Distribution,E
+VALID_SYS,COM,Communications Systems,LV
+VALID_SYS,ICT,Information and Communications Technology,LV
+VALID_SYS,NCL,Nurse Call / Assisted Living,LV
+VALID_SYS,SEC,Security and Access Control,LV
+VALID_SYS,ARC,Architectural Elements,A
+VALID_SYS,STR,Structural Elements,S
+VALID_SYS,GEN,General / Unclassified,G
+VALID_SYS,CHW,Chilled Water,M
+VALID_SYS,CDW,Condenser Water,M
+VALID_SYS,REF,Refrigerant,M
+VALID_SYS,STM,Steam,M
+VALID_SYS,VNT,Ventilation (supply/extract),M
+VALID_SYS,SMK,Smoke Extract / Pressurisation,M
+VALID_SYS,CMP,Compressed Air,M
+VALID_SYS,VAC,Vacuum,M
+VALID_SYS,MED,Medical Gas,P
+VALID_SYS,BWD,Below-Ground Drainage,P
+VALID_SYS,TRD,Trade Waste,P
+VALID_SYS,IND,Industrial Process,M
+VALID_SYS,BMS,Building Management System,LV
+VALID_SYS,AV,Audio Visual,LV
+VALID_SYS,ACC,Access Control,LV
+VALID_SYS,CCTV,CCTV / Surveillance,LV
+VALID_SYS,PA,Public Address,LV
+VALID_SYS,LTG,Lighting Control,E
+VALID_SYS,ELV,Elevators / Lifts,M
+#
+# SECTION 3: VALID FUNCTION CODES (CIBSE / Uniclass sub-functions)
+# Format: VALID_FUNC,Code,FullName,SystemAssociation
+#
+VALID_FUNC,SUP,Supply Air,HVAC
+VALID_FUNC,RTN,Return Air,HVAC
+VALID_FUNC,EXH,Extract / Exhaust Air,HVAC
+VALID_FUNC,FRA,Fresh Air / Outside Air,HVAC
+VALID_FUNC,HTG,Heating (LTHW/MTHW),HWS
+VALID_FUNC,CLG,Cooling (CHW/CDW),HVAC
+VALID_FUNC,DCW,Domestic Cold Water,DCW
+VALID_FUNC,DHW,Domestic Hot Water,DHW
+VALID_FUNC,SAN,Sanitary Drainage,SAN
+VALID_FUNC,RWD,Rainwater Drainage,RWD
+VALID_FUNC,GAS,Gas Distribution,GAS
+VALID_FUNC,FP,Fire Protection,FP
+VALID_FUNC,FLS,Fire/Life Safety,FLS
+VALID_FUNC,PWR,Power Distribution,LV
+VALID_FUNC,LTG,Lighting,LV
+VALID_FUNC,COM,Communications,COM
+VALID_FUNC,ICT,ICT/Data,ICT
+VALID_FUNC,NCL,Nurse Call,NCL
+VALID_FUNC,SEC,Security,SEC
+VALID_FUNC,ARC,Architectural Function,ARC
+VALID_FUNC,STR,Structural Function,STR
+VALID_FUNC,GEN,General / Unclassified,GEN
+VALID_FUNC,SMK,Smoke Control,SMK
+VALID_FUNC,BMS,Building Management,BMS
+VALID_FUNC,MNT,Maintenance,ALL
+#
+# SECTION 4: VALID LOCATION CODES
+# Format: VALID_LOC,Code,Description
+#
+VALID_LOC,BLD1,Building 1 (primary)
+VALID_LOC,BLD2,Building 2
+VALID_LOC,BLD3,Building 3
+VALID_LOC,EXT,External / Site
+VALID_LOC,XX,Unknown / unresolved
+#
+# SECTION 5: VALID ZONE CODES
+# Format: VALID_ZONE,Code,Description
+#
+VALID_ZONE,Z01,Zone 01
+VALID_ZONE,Z02,Zone 02
+VALID_ZONE,Z03,Zone 03
+VALID_ZONE,Z04,Zone 04
+VALID_ZONE,ZZ,Unzoned area
+VALID_ZONE,XX,Unknown / unresolved
+#
+# SECTION 6: VALID STATUS CODES
+# Format: VALID_STATUS,Code,Description,PhaseMapping
+#
+VALID_STATUS,NEW,New construction,Created in last/active phase
+VALID_STATUS,EXISTING,Existing infrastructure,Created in earlier phase
+VALID_STATUS,DEMOLISHED,Demolished element,Has DemolishedPhaseId set
+VALID_STATUS,TEMPORARY,Temporary works,Phase name contains TEMP
+#
+# SECTION 7: CROSS-VALIDATION RULES
+# Format: XVAL,Rule,Token1,Token2,Condition,Message
+#
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=M AND SYS NOT IN (HVAC;HWS;CHW;CDW;REF;STM;VNT;SMK;CMP;VAC;IND;ELV),Mechanical DISC should have mechanical SYS code
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=E AND SYS NOT IN (LV;LTG),Electrical DISC should have electrical SYS code
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=P AND SYS NOT IN (DCW;DHW;SAN;RWD;GAS;MED;BWD;TRD),Plumbing DISC should have plumbing SYS code
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=FP AND SYS NOT IN (FP;FLS),Fire Protection DISC should have fire SYS code
+XVAL,DISC_SYS_MATCH,DISC,SYS,DISC=LV AND SYS NOT IN (COM;ICT;NCL;SEC;BMS;AV;ACC;CCTV;PA),Low Voltage DISC should have LV SYS code
+XVAL,SYS_FUNC_MATCH,SYS,FUNC,SYS=HVAC AND FUNC NOT IN (SUP;RTN;EXH;FRA;HTG;CLG;SMK;GEN),HVAC system should have HVAC function code
+XVAL,SYS_FUNC_MATCH,SYS,FUNC,SYS=HWS AND FUNC NOT IN (HTG;DHW;GEN),HWS system should have heating or DHW function
+XVAL,SEQ_FORMAT,SEQ,,SEQ length != NumPad OR SEQ contains non-digit,SEQ must be zero-padded numeric of length NumPad
+XVAL,TAG_FORMAT,TAG1,,TAG1 segment count != 8,Full tag must have exactly 8 segments
+XVAL,LOC_PLACEHOLDER,LOC,,LOC=XX,Location code is unresolved placeholder
+XVAL,ZONE_PLACEHOLDER,ZONE,,ZONE=XX,Zone code is unresolved placeholder
+#
+# SECTION 8: WARNING SEVERITY LEVELS
+# Used by FormulaEvaluatorCommand and TAG_WARN_SEVERITY_FILTER_TXT parameter
+# Format: WARN_SEVERITY,Level,MinThreshold,Color,Description
+#
+WARN_SEVERITY,CRITICAL,0,Red,Immediate attention required — safety or compliance failure
+WARN_SEVERITY,HIGH,1,Orange,Should be resolved before next deliverable
+WARN_SEVERITY,MEDIUM,2,Yellow,Review recommended — may affect quality
+WARN_SEVERITY,LOW,3,Blue,Minor observation — for information only
+WARN_SEVERITY,INFO,4,Grey,Informational notice — no action required
+#
+# SECTION 9: WARNING THRESHOLD RULES (from formulas)
+# Format: WARN_RULE,ParameterName,Condition,Severity,Message
+#
+WARN_RULE,WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,U > 0.70,HIGH,Wall U-value exceeds Part L threshold (0.70 W/m2K)
+WARN_RULE,WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,U > 0.25,HIGH,Floor U-value exceeds Part L threshold (0.25 W/m2K)
+WARN_RULE,WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,U > 0.20,HIGH,Roof U-value exceeds Part L threshold (0.20 W/m2K)
+WARN_RULE,WARN_PER_THERM_U_VALUE_W_M2K_NR_WINDOWS,U > 2.00,HIGH,Window U-value exceeds Part L threshold (2.00 W/m2K)
+WARN_RULE,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,VD > 4%,CRITICAL,Voltage drop exceeds BS 7671 limit (4%)
+WARN_RULE,WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Slope > 1:12,HIGH,Ramp slope exceeds Part M accessibility limit
+WARN_RULE,WARN_PER_ACOUSTIC_STC_RATING_NR_WALLS,STC < 50,MEDIUM,Wall STC rating below minimum standard
+WARN_RULE,WARN_PER_FIRE_RATING_HR_NR_WALLS,Rating < 1.0,CRITICAL,Wall fire rating below 1 hour minimum
+WARN_RULE,WARN_BLE_HEADROOM_MM_NR_ROOMS,Headroom < 2100,HIGH,Room headroom below minimum (2100mm)
+WARN_RULE,WARN_HVC_DUCT_VELOCITY_M_S_NR,Velocity > 10.0,MEDIUM,Duct velocity exceeds recommended limit (10 m/s)
+WARN_RULE,WARN_PLM_PIPE_VELOCITY_M_S_NR,Velocity > 3.0,MEDIUM,Pipe velocity exceeds recommended limit (3 m/s)
+WARN_RULE,WARN_ELC_CIRCUIT_LOADING_PCT,Loading > 80%,HIGH,Circuit loading exceeds 80% capacity
+WARN_RULE,WARN_PER_CONDENSATION_RISK_BOOL,Risk=TRUE,HIGH,Condensation risk detected (dew point analysis)
+WARN_RULE,WARN_PER_EMBODIED_CARBON_KG_CO2_M2,Carbon > 500,MEDIUM,Embodied carbon exceeds target (500 kgCO2/m2)
+#
+# SECTION 10: COMPLETENESS THRESHOLDS (for ComplianceScan RAG status)
+# Format: RAG,Threshold,Status,Color,Description
+#
+RAG,80,GREEN,#00AA00,80%+ elements fully tagged — compliant
+RAG,50,AMBER,#FF8800,50-79% elements tagged — needs attention
+RAG,0,RED,#CC0000,Below 50% tagged — non-compliant
+#
+# SECTION 11: FORMULA EVALUATION SETTINGS (v5.0)
+# Format: FORMULA_SETTING,Key,Value,Description
+#
+FORMULA_SETTING,EMPTY_STRING_IS_INPUT,TRUE,Empty strings included in formula context (v5.0 fix)
+FORMULA_SETTING,LOG_SKIPPED_FORMULAS,TRUE,Log formulas skipped due to missing inputs
+FORMULA_SETTING,SEVERITY_FILTER_ENABLED,TRUE,Enable TAG_WARN_SEVERITY_FILTER_TXT filtering
+FORMULA_SETTING,MAX_DEPENDENCY_LEVEL,6,Maximum formula dependency level (DAG depth)
+FORMULA_SETTING,SKIP_REPORT_TOP_N,5,Number of top-skipped formulas to report
+#
+# SECTION 12: CACHED DETECTION SETTINGS (v5.0 performance)
+# Format: CACHE_SETTING,Key,Value,Description
+#
+CACHE_SETTING,PHASE_CACHE_ENABLED,TRUE,Cache phase list in PopulationContext for batch operations
+CACHE_SETTING,ROOM_INDEX_ENABLED,TRUE,Pre-build room spatial index for LOC/ZONE detection
+CACHE_SETTING,COMPLIANCE_CACHE_TTL_SEC,30,ComplianceScan cache stale duration
+CACHE_SETTING,AUTO_TAGGER_DEDUP_LIMIT,10000,StingAutoTagger processed ID cache clear threshold

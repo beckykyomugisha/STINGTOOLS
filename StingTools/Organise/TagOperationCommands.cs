@@ -166,27 +166,9 @@ namespace StingTools.Organise
             XYZ center = LeaderHelper.GetElementCenter(elem);
             if (center == null) return;
 
-            // Find a matching tag type for this element's category
+            // Verify element has a category
             Category cat = elem.Category;
             if (cat == null) return;
-            BuiltInCategory bic = (BuiltInCategory)cat.Id.Value;
-
-            // Look for any loaded tag family that targets this category
-            var tagTypes = new FilteredElementCollector(doc)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .Where(fs =>
-                {
-                    try
-                    {
-                        Family fam = fs.Family;
-                        if (fam == null) return false;
-                        // Tag families have a specific category assignment
-                        return fam.FamilyPlacementType == FamilyPlacementType.ViewBased;
-                    }
-                    catch { return false; }
-                })
-                .ToList();
 
             // Offset tag head slightly above-right of element center for visibility
             double offset = view.Scale * 0.005; // Scale-aware offset
@@ -305,8 +287,17 @@ namespace StingTools.Organise
 
             // Find all duplicates
             var tagMap = new Dictionary<string, List<Element>>();
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> allElements;
+            if (catEnums != null && catEnums.Length > 0)
+                allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            else
+                allElements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            foreach (Element elem in allElements)
             {
+                if (elem.Category == null) continue;
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
                 string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
@@ -419,10 +410,17 @@ namespace StingTools.Organise
             }
 
             // GAP-010: Post-fix duplicate scan to verify all tags are now unique
-            var postIndex = TagConfig.BuildExistingTagIndex(doc);
             var postTagMap = new Dictionary<string, int>();
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            IEnumerable<Element> postElements;
+            if (catEnums != null && catEnums.Length > 0)
+                postElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            else
+                postElements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            foreach (Element elem in postElements)
             {
+                if (elem.Category == null) continue;
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
                 string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
@@ -678,8 +676,17 @@ namespace StingTools.Organise
             sb.AppendLine("ElementId,Category,Tag,DISC,LOC,ZONE,LVL,SYS,FUNC,PROD,SEQ,STATUS,REV,Valid,FullyResolved");
 
             int total = 0;
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> auditElements;
+            if (catEnums != null && catEnums.Length > 0)
+                auditElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            else
+                auditElements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            foreach (Element elem in auditElements)
             {
+                if (elem.Category == null) continue;
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
 
@@ -741,8 +748,17 @@ namespace StingTools.Organise
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             var tagMap = new Dictionary<string, List<ElementId>>();
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> findElements;
+            if (catEnums != null && catEnums.Length > 0)
+                findElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            else
+                findElements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            foreach (Element elem in findElements)
             {
+                if (elem.Category == null) continue;
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
 
@@ -862,6 +878,7 @@ namespace StingTools.Organise
                     // CRASH FIX: Skip invalid/deleted elements — log error showed
                     // "The referenced object is not valid" crash in production
                     if (elem == null || !elem.IsValidObject) continue;
+                    if (elem.Category == null) continue;
                     string cat = ParameterHelpers.GetCategoryName(elem);
                     if (!known.Contains(cat)) continue;
 

@@ -203,6 +203,7 @@ namespace StingTools.Select
         public static List<string> GetAvailableParameters(Document doc, IEnumerable<Element> elements)
         {
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var typeCache = new Dictionary<ElementId, Element>();
             int sampled = 0;
             foreach (Element elem in elements)
             {
@@ -211,11 +212,14 @@ namespace StingTools.Select
                     if (p.Definition != null && !string.IsNullOrEmpty(p.Definition.Name))
                         names.Add(p.Definition.Name);
                 }
-                // Also check type parameters
                 ElementId typeId = elem.GetTypeId();
                 if (typeId != ElementId.InvalidElementId)
                 {
-                    Element type = doc.GetElement(typeId);
+                    if (!typeCache.TryGetValue(typeId, out Element type))
+                    {
+                        type = doc.GetElement(typeId);
+                        typeCache[typeId] = type;
+                    }
                     if (type != null)
                     {
                         foreach (Parameter p in type.Parameters)
@@ -225,7 +229,7 @@ namespace StingTools.Select
                         }
                     }
                 }
-                if (++sampled >= 50) break; // Sample enough for parameter list
+                if (++sampled >= 10) break;
             }
             var sorted = names.ToList();
             sorted.Sort(StringComparer.OrdinalIgnoreCase);

@@ -663,6 +663,7 @@ namespace StingTools.Model
 
                         try
                         {
+                            if (wall.CenterStart.DistanceTo(wall.CenterEnd) < 0.01) continue; // skip degenerate
                             var line = Line.CreateBound(wall.CenterStart, wall.CenterEnd);
                             var created = Wall.Create(_doc, line, typeResult.TypeId,
                                 level.Id, Units.Mm(heightMm), 0, false, false);

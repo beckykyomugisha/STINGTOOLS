@@ -374,7 +374,7 @@ namespace StingTools.Temp
                         break;
                 }
             }
-            catch { /* Parameter not bound to Material category — skip silently */ }
+            catch { /* Expected: parameter not bound to Material category */ }
         }
 
         /// <summary>Set a string BuiltInParameter on the material if the value is non-empty.</summary>

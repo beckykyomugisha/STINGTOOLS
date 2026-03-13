@@ -78,10 +78,8 @@ namespace StingTools.Core
                 {
                     EnsureWriter();
                     _writer.WriteLine(line);
-                    // CRASH FIX: Flush both the StreamWriter AND the underlying FileStream
-                    // to OS disk buffers. This ensures log lines are visible in the file
-                    // even if Revit crashes natively (C++ segfault) immediately after.
-                    _writer.Flush();
+                    // AutoFlush handles StreamWriter→FileStream; this flushes FileStream→disk
+                    // so log entries survive native Revit crashes (C++ segfault).
                     ((FileStream)_writer.BaseStream).Flush(flushToDisk: true);
                 }
             }
