@@ -38,7 +38,7 @@ namespace StingTools.BIMManager
         // ── Construction Trade Sequence (standard UK/international order) ──
         // Each trade has a weight determining build order (lower = earlier)
         internal static readonly Dictionary<string, (int order, string trade, int daysPerUnit)> TradeSequence =
-            new Dictionary<string, (int, string, int)>
+            new Dictionary<string, (int order, string trade, int daysPerUnit)>
         {
             // Substructure
             ["FOUNDATIONS"]    = (100, "Substructure — Foundations", 14),
@@ -201,12 +201,12 @@ namespace StingTools.BIMManager
                 foreach (string cat in sortedCats)
                 {
                     int count = catCounts[cat];
-                    var trade = TradeSequence.ContainsKey(cat)
+                    (int order, string trade, int daysPerUnit) tradeInfo = TradeSequence.ContainsKey(cat)
                         ? TradeSequence[cat]
                         : (999, $"General — {cat}", 3);
 
                     // Duration scales with element count
-                    int baseDays = trade.daysPerUnit;
+                    int baseDays = tradeInfo.daysPerUnit;
                     int duration = Math.Max(1, Math.Min((int)(baseDays * (1.0 + count / 50.0)), 30));
 
                     DateTime taskStart = currentDate;
@@ -222,14 +222,14 @@ namespace StingTools.BIMManager
                         ["level"] = level.Name
                     };
 
-                    tasks.Add(CreateTask(taskId++, $"{trade.trade} — {level.Name}",
+                    tasks.Add(CreateTask(taskId++, $"{tradeInfo.trade} — {level.Name}",
                         cat, taskStart, taskEnd, count,
                         new JArray(elementFilter), levelTaskId));
 
                     // Overlap: structure tasks are sequential, MEP can overlap
-                    if (trade.order < 400) // Structure/envelope — sequential
+                    if (tradeInfo.order < 400) // Structure/envelope — sequential
                         currentDate = taskEnd;
-                    else if (trade.order < 600) // Internal — 50% overlap
+                    else if (tradeInfo.order < 600) // Internal — 50% overlap
                         currentDate = taskStart.AddDays(duration / 2);
                     // MEP and finishes can run in parallel, so currentDate stays
                 }

@@ -1010,7 +1010,7 @@ namespace StingTools.BIMManager
             foreach (var sys in systems)
             {
                 string code = sys["Name"];
-                var mf = maintFreq.ContainsKey(code) ? maintFreq[code] : ("12", "months");
+                (string f, string u) mf = maintFreq.ContainsKey(code) ? maintFreq[code] : ("12", "months");
                 jobs.Add(new Dictionary<string, string>
                 {
                     ["Name"] = $"PPM-{code}", ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,

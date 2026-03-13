@@ -309,7 +309,7 @@ namespace StingTools.Model
             return symbols[0];
         }
 
-        private void EnsureActive(FamilySymbol symbol)
+        internal void EnsureActive(FamilySymbol symbol)
         {
             if (!symbol.IsActive)
             {
@@ -401,7 +401,7 @@ namespace StingTools.Model
                 if (ws == null) return;
                 var p = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
                 if (p != null && !p.IsReadOnly)
-                    p.Set(ws.Id.Value);
+                    p.Set(ws.Id.IntegerValue);
             }
             catch { /* Non-critical */ }
         }
@@ -905,7 +905,7 @@ namespace StingTools.Model
 
                 var symbol = _doc.GetElement(typeResult.TypeId) as FamilySymbol;
                 if (symbol == null) return ModelResult.Fail($"No {label} family symbol found.");
-                EnsureActive(symbol);
+                _resolver.EnsureActive(symbol);
 
                 var level = _doc.GetElement(hostWall.LevelId) as Level;
                 var wallLoc = hostWall.Location as LocationCurve;
@@ -966,7 +966,7 @@ namespace StingTools.Model
                 if (!typeResult.Success) return ModelResult.Fail(typeResult.Message);
 
                 var symbol = _doc.GetElement(typeResult.TypeId) as FamilySymbol;
-                if (symbol != null) EnsureActive(symbol);
+                if (symbol != null) _resolver.EnsureActive(symbol);
 
                 FamilyInstance col = null;
                 using (var tx = new Transaction(_doc, "STING MODEL: Place Column"))
@@ -1015,7 +1015,7 @@ namespace StingTools.Model
                 if (!typeResult.Success) return ModelResult.Fail(typeResult.Message);
 
                 var symbol = _doc.GetElement(typeResult.TypeId) as FamilySymbol;
-                if (symbol != null) EnsureActive(symbol);
+                if (symbol != null) _resolver.EnsureActive(symbol);
 
                 var placedIds = new List<ElementId>();
                 var fh = new ModelFailureHandler();
@@ -1077,7 +1077,7 @@ namespace StingTools.Model
                 if (!typeResult.Success) return ModelResult.Fail(typeResult.Message);
 
                 var symbol = _doc.GetElement(typeResult.TypeId) as FamilySymbol;
-                if (symbol != null) EnsureActive(symbol);
+                if (symbol != null) _resolver.EnsureActive(symbol);
 
                 var beamLine = Line.CreateBound(
                     new XYZ(Units.Mm(startXMm), Units.Mm(startYMm), Units.Mm(startZMm)),
