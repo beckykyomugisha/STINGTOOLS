@@ -2875,6 +2875,7 @@ namespace StingTools.Temp
                     {
                         perFamilyResults.Add($"[SKIP] {fileName} — not a family document");
                         skippedNoCategory++;
+                        try { famDoc?.Close(false); } catch { }
                         continue;
                     }
 

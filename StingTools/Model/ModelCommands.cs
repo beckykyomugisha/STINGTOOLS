@@ -832,7 +832,7 @@ namespace StingTools.Model
 
                 var engine = new ModelEngine(doc);
                 var result = engine.CreateBuildingShell(widthMm, depthMm,
-                    wallHeightMm: heightMm);
+                    wallHeightMm: heightMm, originXMm: originXMm, originYMm: originYMm);
 
                 if (result.Success)
                 {

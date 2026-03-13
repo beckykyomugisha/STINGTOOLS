@@ -126,6 +126,8 @@ namespace StingTools.Tags
             const int TagBatchSize = 500;
 
             // ENH-001: Show progress dialog with cancel support
+            // NOTE: On cancellation, previously committed batches remain (partial commit by design).
+            // The current in-progress batch is rolled back. User is notified of partial completion.
             var progress = StingProgressDialog.Show("Batch Tag", totalTaggable);
 
             for (int batchStart = 0; batchStart < sorted.Count; batchStart += TagBatchSize)
