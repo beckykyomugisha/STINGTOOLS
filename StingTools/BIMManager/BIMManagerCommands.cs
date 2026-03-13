@@ -965,6 +965,10 @@ namespace StingTools.BIMManager
                     else if (t != null) typeName = t.Name;
                 }
 
+                // GAP-011: Map STING tag data to COBie Component fields
+                string stingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                string assetId = !string.IsNullOrEmpty(stingTag) ? stingTag : tag;
+
                 components.Add(new Dictionary<string, string>
                 {
                     ["Name"] = tag, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
@@ -972,7 +976,8 @@ namespace StingTools.BIMManager
                     ["Description"] = ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT"),
                     ["ExternalSystem"] = "Revit", ["ExternalObject"] = cat,
                     ["ExternalIdentifier"] = el.UniqueId,
-                    ["TagNumber"] = tag, ["AssetIdentifier"] = tag
+                    ["TagNumber"] = assetId, ["AssetIdentifier"] = assetId,
+                    ["Category"] = cat
                 });
                 if (components.Count >= 5000) break;
             }
@@ -1614,6 +1619,43 @@ namespace StingTools.BIMManager
             string oldRev = existingBep["project_information"]?["bep_revision"]?.ToString() ?? "P01";
 
             var updated = BIMManagerEngine.UpdateBEPFromModel(doc, existingBep);
+
+            // GAP-014: Auto-enrich BEP with element counts, parameter bindings, and tag completeness
+            try
+            {
+                var enrichment = new JObject();
+
+                // Element count summary per category
+                var catCounts = new JObject();
+                var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
+                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                {
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (!knownCats.Contains(cat)) continue;
+                    int cur = catCounts[cat]?.Value<int>() ?? 0;
+                    catCounts[cat] = cur + 1;
+                }
+                enrichment["element_counts_by_category"] = catCounts;
+
+                // Parameter binding count from ParamRegistry
+                enrichment["parameter_binding_count"] = ParamRegistry.AllParamGuids.Count;
+
+                // Tag completeness from ComplianceScan
+                var compliance = ComplianceScan.Scan(doc);
+                enrichment["tag_completeness_pct"] = Math.Round(compliance.CompliancePercent, 1);
+                enrichment["tag_rag_status"] = compliance.RAGStatus;
+                enrichment["tagged_elements"] = compliance.TaggedComplete;
+                enrichment["untagged_elements"] = compliance.Untagged;
+
+                updated["auto_enrichment"] = enrichment;
+                if (updated["model_data"] is JObject md)
+                    md["enriched_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BEP auto-enrichment failed: {ex.Message}");
+            }
+
             BIMManagerEngine.SaveJsonFile(bepPath, updated);
 
             string newRev = updated["project_information"]?["bep_revision"]?.ToString() ?? "";
@@ -1634,6 +1676,19 @@ namespace StingTools.BIMManager
                 if (ws != null) report.AppendLine($"  Worksets:     {ws.Count}");
                 var lm = modelData["linked_models"] as JArray;
                 if (lm != null) report.AppendLine($"  Linked Models: {lm.Count}");
+            }
+            var autoEnrich = updated["auto_enrichment"] as JObject;
+            if (autoEnrich != null)
+            {
+                report.AppendLine();
+                report.AppendLine("  AUTO-ENRICHMENT");
+                report.AppendLine($"    Parameters:     {autoEnrich["parameter_binding_count"]}");
+                report.AppendLine($"    Tag Complete:   {autoEnrich["tag_completeness_pct"]}%  ({autoEnrich["tag_rag_status"]})");
+                report.AppendLine($"    Tagged:         {autoEnrich["tagged_elements"]}");
+                report.AppendLine($"    Untagged:       {autoEnrich["untagged_elements"]}");
+                var catCnts = autoEnrich["element_counts_by_category"] as JObject;
+                if (catCnts != null)
+                    report.AppendLine($"    Categories:     {catCnts.Count}  ({catCnts.Properties().Sum(p => p.Value.Value<int>())} elements)");
             }
             report.AppendLine();
             report.AppendLine($"Saved: {bepPath}");
@@ -1871,6 +1926,29 @@ namespace StingTools.BIMManager
                 report.AppendLine($"    Revision: {dashboard["bep_revision"]}");
                 report.AppendLine($"    Stage: {dashboard["bep_stage"]}");
             }
+            report.AppendLine();
+
+            // GAP-009: Check tag completeness against BEP minimum threshold
+            try
+            {
+                var compliance = ComplianceScan.Scan(doc);
+                int pct = (int)Math.Round(compliance.CompliancePercent);
+                const int bepMinThreshold = 80;
+                report.AppendLine("  COMPLIANCE");
+                report.AppendLine($"    Tag Completeness: {pct}%  (RAG: {compliance.RAGStatus})");
+                string topIssues = compliance.TopIssues;
+                if (!string.IsNullOrEmpty(topIssues) && topIssues != "No issues")
+                    report.AppendLine($"    Top Issues: {topIssues}");
+                if (pct < bepMinThreshold)
+                {
+                    report.AppendLine();
+                    report.AppendLine($"  \u26a0 WARNING: Tag completeness ({pct}%) is below BEP minimum threshold ({bepMinThreshold}%)");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Dashboard compliance scan failed: {ex.Message}");
+            }
 
             TaskDialog.Show("STING BIM Manager", report.ToString());
             StingLog.Info($"Dashboard: RAG={rag}, tagged={dashboard["tagged"]}/{dashboard["total_elements"]}");
@@ -2101,6 +2179,21 @@ namespace StingTools.BIMManager
                 report.AppendLine($"    {issue["issue_id"],-16} {issue["status"],-12} {issue["priority"],-10} {title}");
             }
             report.AppendLine();
+            // GAP-021: Add element count context and compliance tie-in
+            int issuesWithElements = issues.Count(i =>
+            {
+                var elIds = i["element_ids"];
+                return elIds != null && elIds.HasValues;
+            });
+            if (issuesWithElements > 0)
+                report.AppendLine($"  Issues with element links: {issuesWithElements}");
+
+            // Show compliance context if available
+            var compScan = ComplianceScan.Scan(doc);
+            if (compScan != null)
+                report.AppendLine($"  Model compliance: {compScan.StatusBarText}");
+
+            report.AppendLine();
             report.AppendLine($"  File: {issuesPath}");
 
             TaskDialog.Show("STING Issue Tracker", report.ToString());
@@ -2222,7 +2315,35 @@ namespace StingTools.BIMManager
             if (updated > 0)
             {
                 BIMManagerEngine.SaveJsonFile(issuesPath, issues);
-                TaskDialog.Show("STING Issue Tracker", $"{updated} issue(s) updated.");
+
+                // GAP-016: When issues are closed/accepted, check if linked elements are tagged
+                var closeReport = new StringBuilder();
+                closeReport.AppendLine($"{updated} issue(s) updated.");
+                foreach (var issue in issues.Where(i =>
+                {
+                    string s = i["status"]?.ToString() ?? "";
+                    return s == "CLOSED" || s == "ACCEPTED";
+                }))
+                {
+                    var ids = issue["element_ids"] as JArray;
+                    if (ids != null && ids.Count > 0)
+                    {
+                        int untagged = 0;
+                        foreach (var id in ids)
+                        {
+                            if (long.TryParse(id.ToString(), out long idVal))
+                            {
+                                Element el = doc.GetElement(new ElementId(idVal));
+                                if (el != null && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.TAG1)))
+                                    untagged++;
+                            }
+                        }
+                        if (untagged > 0)
+                            closeReport.AppendLine($"  \u26a0 {issue["issue_id"]}: {untagged} linked element(s) still untagged");
+                    }
+                }
+
+                TaskDialog.Show("STING Issue Tracker", closeReport.ToString());
             }
             return Result.Succeeded;
         }
@@ -2435,6 +2556,10 @@ namespace StingTools.BIMManager
 
             string typeDesc = BIMManagerEngine.DocumentTypes.ContainsKey(docType) ? BIMManagerEngine.DocumentTypes[docType] : docType;
             var entry = BIMManagerEngine.CreateDocumentEntry(docId, typeDesc, docType, "Z", suitability, "WIP", direction);
+
+            // GAP-013: Store current project revision in document entry
+            entry["revision"] = PhaseAutoDetect.DetectProjectRevision(doc) ?? "P01";
+
             docs.Add(entry);
             BIMManagerEngine.SaveJsonFile(docsPath, docs);
 
@@ -2560,6 +2685,19 @@ namespace StingTools.BIMManager
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
+
+            // GAP-015: CDE status pre-flight check before transmittal
+            string cdeStatus = ParameterHelpers.GetString(doc.ProjectInformation, "ASS_CDE_STATUS_TXT");
+            if (string.IsNullOrEmpty(cdeStatus) || cdeStatus == "WIP")
+            {
+                var warn = new TaskDialog("STING Transmittal Pre-Flight");
+                warn.MainInstruction = "CDE Status Warning";
+                warn.MainContent = $"Current CDE status is '{(string.IsNullOrEmpty(cdeStatus) ? "NOT SET" : cdeStatus)}'.\n" +
+                    "ISO 19650 requires SHARED or PUBLISHED status before transmittal.\n\n" +
+                    "Continue anyway?";
+                warn.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                if (warn.Show() == TaskDialogResult.No) return Result.Cancelled;
+            }
 
             // Suitability
             var suitDlg = new TaskDialog("STING Transmittal — Suitability");

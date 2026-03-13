@@ -201,6 +201,7 @@ namespace StingTools.Tags
             }
 
             progress.Close();
+            ComplianceScan.InvalidateCache();
 
             if (cancelled)
             {
@@ -227,6 +228,15 @@ namespace StingTools.Tags
                 $"collisions={stats.TotalCollisions}, populated={populated}, " +
                 $"statusDetect={statusDetected}, revSet={revSet}, " +
                 $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
+
+            // GAP-017: Post-batch compliance summary for workflow chain visibility
+            var postScan = ComplianceScan.Scan(doc);
+            if (postScan != null)
+            {
+                report.AppendLine();
+                report.AppendLine($"Compliance: {postScan.StatusBarText}");
+                StingLog.Info($"Batch Tag post-compliance: {postScan.StatusBarText}");
+            }
 
             TaskDialog td = new TaskDialog("Batch Tag");
             td.MainInstruction = $"Tagged {stats.TotalTagged:N0} of {totalTaggable:N0} elements";

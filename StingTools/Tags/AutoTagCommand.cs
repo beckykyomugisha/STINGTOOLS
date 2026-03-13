@@ -124,6 +124,9 @@ namespace StingTools.Tags
                 }
             }
 
+            // GAP-020: Pre-flight audit trail log
+            StingLog.Info($"AutoTag pre-flight: {taggable} taggable, {alreadyTagged} tagged, {untagged} new, mode={collisionMode}");
+
             // Smart sort for contiguous SEQ assignment
             var sorted = BatchTagCommand.SmartSortElements(doc, taggableElements);
 
@@ -188,6 +191,7 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            ComplianceScan.InvalidateCache();
             var report = new StringBuilder();
             report.AppendLine($"Auto Tag — '{activeView.Name}'");
             report.AppendLine(new string('=', 50));
@@ -327,6 +331,7 @@ namespace StingTools.Tags
                 tx.Commit();
             }
             sw.Stop();
+            ComplianceScan.InvalidateCache();
 
             var report = new StringBuilder();
             report.AppendLine($"Tag New Only — {untagged.Count} elements");

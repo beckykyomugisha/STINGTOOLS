@@ -962,6 +962,12 @@ namespace StingTools.Core
             /// <summary>Last phase ID in the project sequence — used for EXISTING inference.</summary>
             public ElementId LastPhaseId { get; set; }
 
+            /// <summary>GAP-019: Configurable default STATUS (from project_config.json or "NEW").</summary>
+            public string DefaultStatus { get; set; } = "NEW";
+
+            /// <summary>GAP-019: Configurable default REV (from project_config.json or "P01").</summary>
+            public string DefaultRev { get; set; } = "P01";
+
             /// <summary>
             /// Build a PopulationContext once for a batch operation.
             /// Caches all project-level lookups: room index, LOC, REV, phases.
@@ -980,6 +986,9 @@ namespace StingTools.Core
                     KnownCategories = new HashSet<string>(TagConfig.DiscMap.Keys),
                     CachedPhases = phases,
                     LastPhaseId = phases.Count > 0 ? phases.Last().Id : ElementId.InvalidElementId,
+                    // GAP-019: Apply config overrides for STATUS/REV defaults
+                    DefaultStatus = !string.IsNullOrEmpty(TagConfig.StatusDefault) ? TagConfig.StatusDefault : "NEW",
+                    DefaultRev = !string.IsNullOrEmpty(TagConfig.RevDefault) ? TagConfig.RevDefault : "P01",
                 };
             }
         }
@@ -1007,6 +1016,11 @@ namespace StingTools.Core
             PopulationContext ctx, bool overwrite = false)
         {
             var result = new PopulationResult();
+
+            // GAP-026: Skip ElementType instances — only populate element instances
+            if (el is ElementType)
+                return result;
+
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
                 return result;
@@ -1038,6 +1052,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(existingLoc) || overwrite)
             {
                 string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
+                bool locFromSpatial = !string.IsNullOrEmpty(loc) && loc != "BLD1";
                 if (string.IsNullOrEmpty(loc)) loc = "BLD1";
                 if (overwrite)
                 {
@@ -1047,7 +1062,7 @@ namespace StingTools.Core
                 {
                     if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) result.TokensSet++;
                 }
-                result.LocDetected = true;
+                result.LocDetected = locFromSpatial;
             }
 
             // ZONE — from room data (department → name → workset)
@@ -1056,6 +1071,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(existingZone) || overwrite)
             {
                 string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
+                bool zoneFromSpatial = !string.IsNullOrEmpty(zone) && zone != "Z01";
                 if (string.IsNullOrEmpty(zone)) zone = "Z01";
                 if (overwrite)
                 {
@@ -1065,7 +1081,7 @@ namespace StingTools.Core
                 {
                     if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) result.TokensSet++;
                 }
-                result.ZoneDetected = true;
+                result.ZoneDetected = zoneFromSpatial;
             }
 
             // LVL — deterministic from element level
@@ -1126,7 +1142,7 @@ namespace StingTools.Core
                 string status = (ctx.CachedPhases != null)
                     ? PhaseAutoDetect.DetectStatusCached(doc, el, ctx.CachedPhases, ctx.LastPhaseId)
                     : PhaseAutoDetect.DetectStatus(doc, el);
-                if (string.IsNullOrEmpty(status)) status = "NEW";
+                if (string.IsNullOrEmpty(status)) status = ctx.DefaultStatus;
                 if (overwrite)
                 {
                     if (ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true))
@@ -1148,7 +1164,7 @@ namespace StingTools.Core
             // REV — from project revision sequence
             // Guaranteed default: "P01" when no project revisions exist
             {
-                string rev = !string.IsNullOrEmpty(ctx.ProjectRev) ? ctx.ProjectRev : "P01";
+                string rev = !string.IsNullOrEmpty(ctx.ProjectRev) ? ctx.ProjectRev : ctx.DefaultRev;
                 if (overwrite)
                 {
                     if (ParameterHelpers.SetString(el, ParamRegistry.REV, rev, overwrite: true))

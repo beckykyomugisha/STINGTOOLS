@@ -432,9 +432,9 @@ namespace StingTools.Tags
             td.MainContent = report2.ToString();
             td.Show();
 
-            StingLog.Info($"PreTagAudit: taggable={totalTaggable}, willTag={willBeTagged}, " +
-                $"collisions={predictedCollisions}, isoViolations={isoViolations}, " +
-                $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
+            StingLog.Info($"PreTagAudit: {totalTaggable} elements, {predictedCollisions} predicted collisions, " +
+                $"{isoViolations} ISO violations, {willBeTagged} untagged" +
+                $" (elapsed={sw.Elapsed.TotalSeconds:F1}s)");
 
             return Result.Succeeded;
         }

@@ -151,10 +151,31 @@ namespace StingTools.BIMManager
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
             var elementsByLevelAndCat = new Dictionary<string, Dictionary<string, int>>();
 
+            // Build set of demolished/temporary phase IDs to exclude from scheduling
+            var demolishedPhaseIds = new HashSet<long>();
+            foreach (Phase ph in phases)
+            {
+                string phaseName = ph.Name?.ToUpperInvariant() ?? "";
+                if (phaseName.Contains("DEMOLISHED") || phaseName.Contains("TEMPORARY"))
+                    demolishedPhaseIds.Add(ph.Id.Value);
+            }
+
             foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!knownCats.Contains(cat) && !TradeSequence.ContainsKey(cat)) continue;
+
+                // GAP-012: Skip elements in demolished or temporary phases
+                var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                if (phaseParam != null && demolishedPhaseIds.Contains(phaseParam.AsElementId().Value))
+                    continue;
+                var phaseDemoParam = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
+                if (phaseDemoParam != null)
+                {
+                    var demoPhaseid = phaseDemoParam.AsElementId();
+                    if (demoPhaseid != null && demoPhaseid.Value > 0)
+                        continue; // Element is scheduled for demolition
+                }
 
                 string levelName = "Unassigned";
                 var levelParam = el.get_Parameter(BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM)
@@ -201,6 +222,7 @@ namespace StingTools.BIMManager
                 foreach (string cat in sortedCats)
                 {
                     int count = catCounts[cat];
+                    if (count == 0) continue; // GAP-012: Skip phantom tasks with no elements
                     (int order, string trade, int daysPerUnit) tradeInfo = TradeSequence.ContainsKey(cat)
                         ? TradeSequence[cat]
                         : (999, $"General — {cat}", 3);
@@ -515,12 +537,34 @@ namespace StingTools.BIMManager
             var lineItems = new JArray();
             double grandTotal = 0;
 
+            // GAP-024: Build set of demolished/temporary phase IDs to exclude from costing
+            var demolishedPhaseIds = new HashSet<long>();
+            foreach (Phase ph in doc.Phases.Cast<Phase>())
+            {
+                string phaseName = ph.Name?.ToUpperInvariant() ?? "";
+                if (phaseName.Contains("DEMOLISHED") || phaseName.Contains("TEMPORARY"))
+                    demolishedPhaseIds.Add(ph.Id.Value);
+            }
+
             // Group elements by category
             var byCategory = new Dictionary<string, List<Element>>();
             foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!knownCats.Contains(cat) && !DefaultCostRates.ContainsKey(cat)) continue;
+
+                // GAP-024: Skip elements in demolished or temporary phases
+                var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                if (phaseParam != null && demolishedPhaseIds.Contains(phaseParam.AsElementId().Value))
+                    continue;
+                var phaseDemoParam = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
+                if (phaseDemoParam != null)
+                {
+                    var demoPhaseid = phaseDemoParam.AsElementId();
+                    if (demoPhaseid != null && demoPhaseid.Value > 0)
+                        continue; // Element is scheduled for demolition
+                }
+
                 if (!byCategory.ContainsKey(cat)) byCategory[cat] = new List<Element>();
                 byCategory[cat].Add(el);
             }

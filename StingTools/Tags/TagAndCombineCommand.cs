@@ -164,17 +164,21 @@ namespace StingTools.Tags
                         if (popResult.RevSet) revSet++;
 
                         // Step 6: Tag if not already complete (with collision detection)
-                        if (TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                            existingTags: tagIndex, stats: stats))
-                            tagged++;
+                        bool tagWritten = TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                            existingTags: tagIndex, stats: stats);
+                        if (tagWritten) tagged++;
 
-                        // Step 7: Combine into ALL containers via ParamRegistry (single source of truth)
-                        string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                        combined += ParamRegistry.WriteContainers(el, tokenVals, catName,
-                            overwrite: true, skipParam: ParamRegistry.TAG7);
+                        // Step 7: Combine into ALL containers — only if TAG1 exists
+                        string tag1Check = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                        if (!string.IsNullOrEmpty(tag1Check))
+                        {
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                            combined += ParamRegistry.WriteContainers(el, tokenVals, catName,
+                                overwrite: true, skipParam: ParamRegistry.TAG7);
 
-                        // Step 7b: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                        combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            // Step 7b: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                            combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -193,6 +197,7 @@ namespace StingTools.Tags
                 tx.Commit();
             }
             sw.Stop();
+            ComplianceScan.InvalidateCache();
 
             var report = new StringBuilder();
             report.AppendLine("Tag & Combine All Complete");
@@ -223,10 +228,19 @@ namespace StingTools.Tags
             td.MainContent = report.ToString();
             td.Show();
 
+            // GAP-017: Post-batch compliance summary for workflow chain visibility
+            var postScan = ComplianceScan.Scan(doc);
+            if (postScan != null)
+            {
+                report.AppendLine();
+                report.AppendLine($"Compliance: {postScan.StatusBarText}");
+            }
+
             StingLog.Info($"TagAndCombine: scope={scopeLabel}, processed={totalProcessed}, " +
                 $"populated={populated}, tagged={tagged}, combined={combined}, " +
                 $"locDetect={locDetected}, zoneDetect={zoneDetected}, " +
                 $"statusDetect={statusDetected}, revSet={revSet}, " +
+                $"compliance={postScan?.StatusBarText ?? "N/A"}, " +
                 $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;

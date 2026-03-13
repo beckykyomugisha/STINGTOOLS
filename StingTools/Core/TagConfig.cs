@@ -505,6 +505,12 @@ namespace StingTools.Core
 
         public static string ConfigSource { get; private set; }
 
+        /// <summary>GAP-019: Default STATUS value from project_config.json (null = use "NEW").</summary>
+        public static string StatusDefault { get; internal set; }
+
+        /// <summary>GAP-019: Default REV value from project_config.json (null = use "P01").</summary>
+        public static string RevDefault { get; internal set; }
+
         /// <summary>Reverse lookup: category name → SYS code. Built lazily from SysMap.</summary>
         private static Dictionary<string, List<string>> _reverseSysMap;
 
@@ -603,6 +609,16 @@ namespace StingTools.Core
                     }
                 }
 
+                // GAP-019: Load STATUS/REV defaults from config (optional)
+                StatusDefault = null;
+                RevDefault = null;
+                if (data.TryGetValue("STATUS_DEFAULT", out object statusObj) && statusObj is string statusStr
+                    && !string.IsNullOrWhiteSpace(statusStr))
+                    StatusDefault = statusStr;
+                if (data.TryGetValue("REV_DEFAULT", out object revObj) && revObj is string revStr
+                    && !string.IsNullOrWhiteSpace(revStr))
+                    RevDefault = revStr;
+
                 ConfigSource = "project_config.json";
 
                 // GAP-009: Restore persisted active preset
@@ -630,6 +646,8 @@ namespace StingTools.Core
             ZoneCodes = DefaultZoneCodes();
             _reverseSysMap = null; // Invalidate cache
             ParamRegistry.ClearTagFormatOverrides();
+            StatusDefault = null;
+            RevDefault = null;
             ConfigSource = "built-in defaults";
         }
 
@@ -930,7 +948,10 @@ namespace StingTools.Core
             }
 
             // Fall back to category-based PROD code
-            return ProdMap.TryGetValue(categoryName, out string prod) ? prod : "GEN";
+            string fallbackProd = ProdMap.TryGetValue(categoryName, out string prod) ? prod : "GEN";
+            if (!string.IsNullOrEmpty(familyName))
+                StingLog.Info($"PROD fallback: '{familyName}' (cat={categoryName}) → using category default '{fallbackProd}'");
+            return fallbackProd;
         }
 
         /// <summary>
@@ -1099,6 +1120,16 @@ namespace StingTools.Core
                 if (zone == "Z01" && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
                     stats.RecordWarning($"Element {el.Id}: ZONE defaulted to Z01");
             }
+
+            // GAP-025: Validate-before-write — guarantee all 7 tokens are non-empty
+            // before building the tag string. Applies hardcoded defaults as a safety net.
+            if (string.IsNullOrEmpty(disc)) disc = "A";
+            if (string.IsNullOrEmpty(loc))  loc  = "BLD1";
+            if (string.IsNullOrEmpty(zone)) zone = "Z01";
+            if (string.IsNullOrEmpty(lvl))  lvl  = "XX";
+            if (string.IsNullOrEmpty(sys))  sys  = "GEN";
+            if (string.IsNullOrEmpty(func)) func = "GEN";
+            if (string.IsNullOrEmpty(prod)) prod = "GEN";
 
             string seqKey = $"{disc}_{sys}_{lvl}";
             if (!sequenceCounters.ContainsKey(seqKey))

@@ -135,6 +135,39 @@ namespace StingTools.Tags
                         if (popResult.StatusDetected) statusFixed++;
                         if (popResult.RevSet) revFixed++;
 
+                        // Step 1b: Validate and fix ISO code violations
+                        string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                        string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                        string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                        string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+
+                        // Cross-validate DISC/SYS — fix SYS if invalid for discipline
+                        if (!string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(sys))
+                        {
+                            string sysErr = ISO19650Validator.ValidateToken(ParamRegistry.SYS, sys);
+                            if (sysErr != null)
+                            {
+                                string expectedSys = TagConfig.GetSysCode(catName);
+                                if (!string.IsNullOrEmpty(expectedSys))
+                                    ParameterHelpers.SetString(el, ParamRegistry.SYS, expectedSys, overwrite: true);
+                            }
+                        }
+                        // Fix FUNC if invalid
+                        if (ISO19650Validator.ValidateToken(ParamRegistry.FUNC, func) != null)
+                        {
+                            string fixedFunc = TagConfig.GetFuncCode(
+                                ParameterHelpers.GetString(el, ParamRegistry.SYS));
+                            if (!string.IsNullOrEmpty(fixedFunc))
+                                ParameterHelpers.SetString(el, ParamRegistry.FUNC, fixedFunc, overwrite: true);
+                        }
+                        // Fix PROD if invalid
+                        if (ISO19650Validator.ValidateToken(ParamRegistry.PROD, prod) != null)
+                        {
+                            string fixedProd = TagConfig.GetFamilyAwareProdCode(el, catName);
+                            if (!string.IsNullOrEmpty(fixedProd))
+                                ParameterHelpers.SetString(el, ParamRegistry.PROD, fixedProd, overwrite: true);
+                        }
+
                         // Step 2: Rebuild tag from scratch with fresh SEQ (overwrite mode)
                         TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
                             skipComplete: false,
@@ -154,8 +187,14 @@ namespace StingTools.Tags
                             StingLog.Warn($"ResolveAllIssues TAG7 for {el.Id}: {tag7Ex.Message}");
                         }
 
-                        // Step 4: Verify containers are written (BuildAndWriteTag now does this unconditionally)
-                        containersWritten++;
+                        // Step 4: Write ALL containers (universal + discipline-specific)
+                        string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                        if (!string.IsNullOrEmpty(tag1))
+                        {
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                            containersWritten += ParamRegistry.WriteContainers(el, tokenVals, catName,
+                                overwrite: true, skipParam: ParamRegistry.TAG7);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -173,6 +212,7 @@ namespace StingTools.Tags
             }
 
             sw.Stop();
+            ComplianceScan.InvalidateCache();
             duplicatesResolved = stats.TotalCollisions;
 
             // Phase 4: Post-fix verification scan (fresh collector to capture any elements
