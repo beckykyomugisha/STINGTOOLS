@@ -1923,36 +1923,89 @@ namespace StingTools.Core
         {
             return new Dictionary<string, string>
             {
-                // MEP
+                // MEP — Mechanical
                 { "Air Terminals", "M" }, { "Duct Accessories", "M" },
                 { "Duct Fittings", "M" }, { "Ducts", "M" },
+                { "Duct Insulation", "M" }, { "Duct Lining", "M" },
                 { "Flex Ducts", "M" }, { "Mechanical Equipment", "M" },
+                { "Mechanical Control Devices", "M" }, { "Mechanical Equipment Sets", "M" },
                 { "Pipes", "M" }, { "Pipe Fittings", "M" },
-                { "Pipe Accessories", "M" }, { "Flex Pipes", "M" },
-                { "Plumbing Fixtures", "P" }, { "Sprinklers", "FP" },
+                { "Pipe Accessories", "M" }, { "Pipe Insulation", "M" },
+                { "Flex Pipes", "M" },
+                // MEP — Plumbing
+                { "Plumbing Fixtures", "P" }, { "Plumbing Equipment", "P" },
+                // MEP — Fire Protection
+                { "Sprinklers", "FP" }, { "Fire Alarm Devices", "FP" },
+                { "Fire Protection", "FP" },
+                // MEP — Electrical
                 { "Electrical Equipment", "E" }, { "Electrical Fixtures", "E" },
+                { "Electrical Connectors", "E" },
                 { "Lighting Fixtures", "E" }, { "Lighting Devices", "E" },
                 { "Conduits", "E" }, { "Conduit Fittings", "E" },
                 { "Cable Trays", "E" }, { "Cable Tray Fittings", "E" },
-                { "Fire Alarm Devices", "FP" }, { "Communication Devices", "LV" },
+                // MEP — Low Voltage / ICT
+                { "Communication Devices", "LV" },
                 { "Data Devices", "LV" }, { "Nurse Call Devices", "LV" },
                 { "Security Devices", "LV" }, { "Telephone Devices", "LV" },
-                // Architecture
+                { "Audio Visual Devices", "LV" },
+                // MEP — Fabrication
+                { "MEP Fabrication Containment", "E" },
+                { "MEP Fabrication Ductwork", "M" },
+                { "MEP Fabrication Ductwork Stiffeners", "M" },
+                { "MEP Fabrication Hangers", "M" },
+                { "MEP Fabrication Pipework", "M" },
+                { "MEP Ancillary", "M" },
+                // MEP — Analytical
+                { "Analytical Duct Segments", "M" }, { "Analytical Pipe Segments", "M" },
+                // Architecture — Enclosure
                 { "Doors", "A" }, { "Windows", "A" },
                 { "Walls", "A" }, { "Floors", "A" },
                 { "Ceilings", "A" }, { "Roofs", "A" },
+                { "Curtain Panels", "A" }, { "Curtain Wall Mullions", "A" },
+                { "Curtain Systems", "A" },
+                { "Wall Sweeps", "A" }, { "Slab Edges", "A" },
+                { "Roof Soffits", "A" }, { "Fascia", "A" }, { "Gutter", "A" },
+                // Architecture — Interior
                 { "Rooms", "A" }, { "Furniture", "A" },
                 { "Furniture Systems", "A" }, { "Casework", "A" },
-                { "Railings", "A" }, { "Stairs", "A" }, { "Ramps", "A" },
+                { "Food Service Equipment", "A" }, { "Signage", "A" },
+                // Architecture — Circulation
+                { "Railings", "A" }, { "Handrails", "A" }, { "Top Rails", "A" },
+                { "Stairs", "A" }, { "Stair Runs", "A" },
+                { "Stair Landings", "A" }, { "Stair Supports", "A" },
+                { "Ramps", "A" }, { "Vertical Circulation", "A" },
+                // Architecture — Site/Misc
+                { "Parking", "A" }, { "Site", "A" }, { "Entourage", "A" },
+                { "Planting", "A" }, { "Hardscape", "A" }, { "Roads", "A" },
+                { "Pads", "A" }, { "Toposolid", "A" }, { "Toposolid Links", "A" },
+                { "Temporary Structures", "A" }, { "Wash", "A" },
+                { "Areas", "A" }, { "Spaces", "A" },
+                { "Property Lines", "A" }, { "Property Line Segments", "A" },
                 // Structure
                 { "Structural Columns", "S" }, { "Structural Framing", "S" },
                 { "Structural Foundations", "S" }, { "Columns", "S" },
-                // Curtain wall elements
-                { "Curtain Panels", "A" }, { "Curtain Wall Mullions", "A" },
-                { "Curtain Systems", "A" },
+                { "Structural Stiffeners", "S" }, { "Structural Trusses", "S" },
+                { "Structural Connections", "S" }, { "Structural Beam Systems", "S" },
+                { "Structural Rebar", "S" }, { "Structural Rebar Couplers", "S" },
+                { "Structural Area Reinforcement", "S" },
+                { "Structural Path Reinforcement", "S" },
+                { "Structural Fabric Reinforcement", "S" },
+                // Structure — Analytical
+                { "Analytical Members", "S" }, { "Analytical Nodes", "S" },
+                { "Analytical Links", "S" }, { "Analytical Openings", "S" },
+                { "Analytical Panels", "S" },
+                // Loads
+                { "Area Based Loads", "S" }, { "Area Loads", "S" },
+                { "Line Loads", "S" }, { "Point Loads", "S" },
+                { "Internal Area Loads", "S" }, { "Internal Line Loads", "S" },
+                { "Internal Point Loads", "S" },
                 // Generic
                 { "Generic Models", "G" }, { "Specialty Equipment", "G" },
-                { "Medical Equipment", "G" },
+                { "Medical Equipment", "G" }, { "Mass", "G" },
+                { "Parts", "G" }, { "Assemblies", "G" },
+                { "Detail Items", "G" }, { "Model Groups", "G" },
+                { "Materials", "G" }, { "Profiles", "G" },
+                { "RVT Links", "G" }, { "Zones", "G" },
             };
         }
 
@@ -1960,29 +2013,29 @@ namespace StingTools.Core
         {
             return new Dictionary<string, List<string>>
             {
-                { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Flex Ducts", "Mechanical Equipment", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Duct Insulation", "Duct Lining", "Flex Ducts", "Mechanical Equipment", "Mechanical Control Devices", "Mechanical Equipment Sets", "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Ductwork", "MEP Fabrication Ductwork Stiffeners", "MEP Fabrication Hangers", "MEP Ancillary", "Analytical Duct Segments" } },
                 // Pipes default to DCW (cold water bias); runtime MEP detection overrides.
                 // All pipe categories appear in every applicable system entry so
                 // GetAllSysCodes() returns the full list for validation (BUG-001 fix).
-                { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" } },
-                { "DHW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
-                { "HWS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
-                { "SAN", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" } },
-                { "RWD", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
-                { "GAS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
-                { "FP", new List<string> { "Sprinklers", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
-                { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings" } },
-                { "FLS", new List<string> { "Fire Alarm Devices" } },
-                { "COM", new List<string> { "Communication Devices", "Telephone Devices" } },
+                { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "Plumbing Fixtures", "Plumbing Equipment", "MEP Fabrication Pipework", "Analytical Pipe Segments" } },
+                { "DHW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
+                { "HWS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
+                { "SAN", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "Plumbing Fixtures", "Plumbing Equipment" } },
+                { "RWD", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
+                { "GAS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
+                { "FP", new List<string> { "Sprinklers", "Fire Protection", "Fire Alarm Devices", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Electrical Connectors", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings", "MEP Fabrication Containment" } },
+                { "FLS", new List<string> { "Fire Alarm Devices", "Fire Protection" } },
+                { "COM", new List<string> { "Communication Devices", "Telephone Devices", "Audio Visual Devices" } },
                 { "ICT", new List<string> { "Data Devices" } },
                 { "NCL", new List<string> { "Nurse Call Devices" } },
                 { "SEC", new List<string> { "Security Devices" } },
                 // Architecture
-                { "ARC", new List<string> { "Doors", "Windows", "Walls", "Floors", "Ceilings", "Roofs", "Rooms", "Furniture", "Furniture Systems", "Casework", "Railings", "Stairs", "Ramps", "Curtain Panels", "Curtain Wall Mullions", "Curtain Systems" } },
+                { "ARC", new List<string> { "Doors", "Windows", "Walls", "Floors", "Ceilings", "Roofs", "Rooms", "Furniture", "Furniture Systems", "Casework", "Railings", "Handrails", "Top Rails", "Stairs", "Stair Runs", "Stair Landings", "Stair Supports", "Ramps", "Vertical Circulation", "Curtain Panels", "Curtain Wall Mullions", "Curtain Systems", "Wall Sweeps", "Slab Edges", "Roof Soffits", "Fascia", "Gutter", "Food Service Equipment", "Signage", "Parking", "Site", "Entourage", "Planting", "Hardscape", "Roads", "Pads", "Toposolid", "Temporary Structures", "Areas", "Spaces" } },
                 // Structure
-                { "STR", new List<string> { "Structural Columns", "Structural Framing", "Structural Foundations", "Columns" } },
+                { "STR", new List<string> { "Structural Columns", "Structural Framing", "Structural Foundations", "Columns", "Structural Stiffeners", "Structural Trusses", "Structural Connections", "Structural Beam Systems", "Structural Rebar", "Structural Rebar Couplers", "Structural Area Reinforcement", "Structural Path Reinforcement", "Structural Fabric Reinforcement", "Analytical Members", "Analytical Nodes", "Analytical Links", "Analytical Openings", "Analytical Panels" } },
                 // Generic
-                { "GEN", new List<string> { "Generic Models", "Specialty Equipment", "Medical Equipment" } },
+                { "GEN", new List<string> { "Generic Models", "Specialty Equipment", "Medical Equipment", "Mass", "Parts", "Assemblies", "Detail Items", "Model Groups", "Materials", "Profiles", "RVT Links", "Zones" } },
             };
         }
 
@@ -1990,31 +2043,89 @@ namespace StingTools.Core
         {
             return new Dictionary<string, string>
             {
+                // MEP — Mechanical
                 { "Air Terminals", "GRL" }, { "Duct Accessories", "DAC" },
                 { "Duct Fittings", "DFT" }, { "Ducts", "DU" },
+                { "Duct Insulation", "DIN" }, { "Duct Lining", "DLN" },
                 { "Flex Ducts", "FDU" }, { "Mechanical Equipment", "AHU" },
+                { "Mechanical Control Devices", "MCD" }, { "Mechanical Equipment Sets", "MES" },
                 { "Pipes", "PP" }, { "Pipe Fittings", "PFT" },
-                { "Pipe Accessories", "PAC" }, { "Flex Pipes", "FPP" },
-                { "Plumbing Fixtures", "FIX" }, { "Sprinklers", "SPR" },
+                { "Pipe Accessories", "PAC" }, { "Pipe Insulation", "PIN" },
+                { "Flex Pipes", "FPP" },
+                // MEP — Plumbing
+                { "Plumbing Fixtures", "FIX" }, { "Plumbing Equipment", "PEQ" },
+                // MEP — Fire Protection
+                { "Sprinklers", "SPR" }, { "Fire Alarm Devices", "FAD" },
+                { "Fire Protection", "FPR" },
+                // MEP — Electrical
                 { "Electrical Equipment", "DB" }, { "Electrical Fixtures", "SKT" },
+                { "Electrical Connectors", "ECN" },
                 { "Lighting Fixtures", "LUM" }, { "Lighting Devices", "LDV" },
                 { "Conduits", "CDT" }, { "Conduit Fittings", "CFT" },
                 { "Cable Trays", "CBLT" }, { "Cable Tray Fittings", "CTF" },
-                { "Fire Alarm Devices", "FAD" }, { "Communication Devices", "COM" },
+                // MEP — Low Voltage / ICT
+                { "Communication Devices", "COM" },
                 { "Data Devices", "DAT" }, { "Nurse Call Devices", "NCL" },
                 { "Security Devices", "SEC" }, { "Telephone Devices", "TEL" },
+                { "Audio Visual Devices", "AVD" },
+                // MEP — Fabrication
+                { "MEP Fabrication Containment", "FCN" },
+                { "MEP Fabrication Ductwork", "FDW" },
+                { "MEP Fabrication Ductwork Stiffeners", "FDS" },
+                { "MEP Fabrication Hangers", "FHG" },
+                { "MEP Fabrication Pipework", "FPW" },
+                { "MEP Ancillary", "ANC" },
+                // MEP — Analytical
+                { "Analytical Duct Segments", "ADS" }, { "Analytical Pipe Segments", "APS" },
+                // Architecture — Enclosure
                 { "Doors", "DR" }, { "Windows", "WIN" },
                 { "Walls", "WL" }, { "Floors", "FL" },
                 { "Ceilings", "CLG" }, { "Roofs", "RF" },
-                { "Rooms", "RM" }, { "Furniture", "FUR" },
-                { "Furniture Systems", "FUS" }, { "Casework", "CWK" },
-                { "Railings", "RLG" }, { "Stairs", "STR" }, { "Ramps", "RMP" },
-                { "Structural Columns", "COL" }, { "Structural Framing", "BM" },
-                { "Structural Foundations", "FDN" }, { "Columns", "COL" },
                 { "Curtain Panels", "CPN" }, { "Curtain Wall Mullions", "MUL" },
                 { "Curtain Systems", "CWS" },
+                { "Wall Sweeps", "WSP" }, { "Slab Edges", "SLE" },
+                { "Roof Soffits", "RSF" }, { "Fascia", "FAS" }, { "Gutter", "GTR" },
+                // Architecture — Interior
+                { "Rooms", "RM" }, { "Furniture", "FUR" },
+                { "Furniture Systems", "FUS" }, { "Casework", "CWK" },
+                { "Food Service Equipment", "FSE" }, { "Signage", "SGN" },
+                // Architecture — Circulation
+                { "Railings", "RLG" }, { "Handrails", "HRL" }, { "Top Rails", "TRL" },
+                { "Stairs", "STR" }, { "Stair Runs", "SRN" },
+                { "Stair Landings", "SLN" }, { "Stair Supports", "SSP" },
+                { "Ramps", "RMP" }, { "Vertical Circulation", "VCR" },
+                // Architecture — Site/Misc
+                { "Parking", "PKG" }, { "Site", "STE" }, { "Entourage", "ENT" },
+                { "Planting", "PLT" }, { "Hardscape", "HSC" }, { "Roads", "RD" },
+                { "Pads", "PAD" }, { "Toposolid", "TPO" }, { "Toposolid Links", "TPL" },
+                { "Temporary Structures", "TMP" }, { "Wash", "WSH" },
+                { "Areas", "ARA" }, { "Spaces", "SPC" },
+                { "Property Lines", "PRL" }, { "Property Line Segments", "PLS" },
+                // Structure
+                { "Structural Columns", "COL" }, { "Structural Framing", "BM" },
+                { "Structural Foundations", "FDN" }, { "Columns", "COL" },
+                { "Structural Stiffeners", "STF" }, { "Structural Trusses", "TRS" },
+                { "Structural Connections", "SCN" }, { "Structural Beam Systems", "SBS" },
+                { "Structural Rebar", "RBR" }, { "Structural Rebar Couplers", "RBC" },
+                { "Structural Area Reinforcement", "SAR" },
+                { "Structural Path Reinforcement", "SPR" },
+                { "Structural Fabric Reinforcement", "SFR" },
+                // Structure — Analytical
+                { "Analytical Members", "AMB" }, { "Analytical Nodes", "AND" },
+                { "Analytical Links", "ALK" }, { "Analytical Openings", "AOP" },
+                { "Analytical Panels", "APN" },
+                // Loads
+                { "Area Based Loads", "ABL" }, { "Area Loads", "ARL" },
+                { "Line Loads", "LNL" }, { "Point Loads", "PTL" },
+                { "Internal Area Loads", "IAL" }, { "Internal Line Loads", "ILL" },
+                { "Internal Point Loads", "IPL" },
+                // Generic
                 { "Generic Models", "GEN" }, { "Specialty Equipment", "SPE" },
-                { "Medical Equipment", "MED" },
+                { "Medical Equipment", "MED" }, { "Mass", "MAS" },
+                { "Parts", "PRT" }, { "Assemblies", "ASM" },
+                { "Detail Items", "DTL" }, { "Model Groups", "GRP" },
+                { "Materials", "MAT" }, { "Profiles", "PRF" },
+                { "RVT Links", "LNK" }, { "Zones", "ZNE" },
             };
         }
 

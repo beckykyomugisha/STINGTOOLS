@@ -12,7 +12,7 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Creates and loads STING tag families (.rfa) for all 50 taggable categories.
+    /// Creates and loads STING tag families (.rfa) for all 124 taggable categories.
     /// Each tag family is created from the appropriate Revit .rft annotation template
     /// and configured with STING shared parameters (ASS_TAG_1_TXT, etc.).
     ///
@@ -40,26 +40,33 @@ namespace StingTools.Tags
         public static readonly Dictionary<BuiltInCategory, string> CategoryTemplateMap =
             new Dictionary<BuiltInCategory, string>
         {
-            // MEP — Mechanical / HVAC
+            // ── MEP — Mechanical / HVAC ────────────────────────────────────
             { BuiltInCategory.OST_MechanicalEquipment, "Mechanical Equipment Tag.rft" },
+            { BuiltInCategory.OST_MechanicalEquipmentSet, "Mechanical Equipment Tag.rft" },
+            { BuiltInCategory.OST_MechanicalControlDevices, "Mechanical Equipment Tag.rft" },
             { BuiltInCategory.OST_DuctCurves, "Duct Tag.rft" },
             { BuiltInCategory.OST_DuctFitting, "Duct Fitting Tag.rft" },
             { BuiltInCategory.OST_DuctAccessory, "Duct Accessory Tag.rft" },
             { BuiltInCategory.OST_DuctTerminal, "Air Terminal Tag.rft" },
+            { BuiltInCategory.OST_DuctInsulations, "Duct Tag.rft" },
+            { BuiltInCategory.OST_DuctLinings, "Duct Tag.rft" },
             { BuiltInCategory.OST_FlexDuctCurves, "Flex Duct Tag.rft" },
 
-            // MEP — Plumbing / Piping
+            // ── MEP — Plumbing / Piping ────────────────────────────────────
             { BuiltInCategory.OST_PipeCurves, "Pipe Tag.rft" },
             { BuiltInCategory.OST_PipeFitting, "Pipe Fitting Tag.rft" },
             { BuiltInCategory.OST_PipeAccessory, "Pipe Accessory Tag.rft" },
+            { BuiltInCategory.OST_PipeInsulations, "Pipe Tag.rft" },
             { BuiltInCategory.OST_FlexPipeCurves, "Flex Pipe Tag.rft" },
+            { BuiltInCategory.OST_PlumbingEquipment, "Plumbing Fixture Tag.rft" },
             { BuiltInCategory.OST_PlumbingFixtures, "Plumbing Fixture Tag.rft" },
 
-            // MEP — Fire Protection
+            // ── MEP — Fire Protection ──────────────────────────────────────
             { BuiltInCategory.OST_Sprinklers, "Sprinkler Tag.rft" },
             { BuiltInCategory.OST_FireAlarmDevices, "Fire Alarm Device Tag.rft" },
+            { BuiltInCategory.OST_FireProtection, "Generic Tag.rft" },
 
-            // MEP — Electrical
+            // ── MEP — Electrical ───────────────────────────────────────────
             { BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft" },
             { BuiltInCategory.OST_ElectricalFixtures, "Electrical Fixture Tag.rft" },
             { BuiltInCategory.OST_LightingFixtures, "Lighting Fixture Tag.rft" },
@@ -68,15 +75,26 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_ConduitFitting, "Conduit Fitting Tag.rft" },
             { BuiltInCategory.OST_CableTray, "Cable Tray Tag.rft" },
             { BuiltInCategory.OST_CableTrayFitting, "Cable Tray Fitting Tag.rft" },
+            { BuiltInCategory.OST_ElectricalCircuit, "Electrical Equipment Tag.rft" },
 
-            // MEP — Low Voltage / Communications
+            // ── MEP — Low Voltage / Communications ─────────────────────────
             { BuiltInCategory.OST_CommunicationDevices, "Communication Device Tag.rft" },
             { BuiltInCategory.OST_DataDevices, "Data Device Tag.rft" },
             { BuiltInCategory.OST_NurseCallDevices, "Nurse Call Device Tag.rft" },
             { BuiltInCategory.OST_SecurityDevices, "Security Device Tag.rft" },
             { BuiltInCategory.OST_TelephoneDevices, "Telephone Device Tag.rft" },
+            { BuiltInCategory.OST_AudioVisualDevices, "Communication Device Tag.rft" },
 
-            // Architecture
+            // ── MEP — MEP Fabrication ──────────────────────────────────────
+            { BuiltInCategory.OST_FabricationContainment, "Cable Tray Tag.rft" },
+            { BuiltInCategory.OST_FabricationDuctwork, "Duct Tag.rft" },
+            { BuiltInCategory.OST_FabricationDuctworkStiffeners, "Duct Tag.rft" },
+            { BuiltInCategory.OST_FabricationHangers, "Generic Tag.rft" },
+            { BuiltInCategory.OST_FabricationPipework, "Pipe Tag.rft" },
+            { BuiltInCategory.OST_MEPSpaces, "Room Tag.rft" },
+            { BuiltInCategory.OST_HVAC_Zones, "Room Tag.rft" },
+
+            // ── Architecture — Enclosure ───────────────────────────────────
             { BuiltInCategory.OST_Doors, "Door Tag.rft" },
             { BuiltInCategory.OST_Windows, "Window Tag.rft" },
             { BuiltInCategory.OST_Walls, "Wall Tag.rft" },
@@ -84,24 +102,86 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_Ceilings, "Ceiling Tag.rft" },
             { BuiltInCategory.OST_Roofs, "Roof Tag.rft" },
             { BuiltInCategory.OST_Rooms, "Room Tag.rft" },
+            { BuiltInCategory.OST_Areas, "Area Tag.rft" },
+            { BuiltInCategory.OST_CurtainWallPanels, "Curtain Panel Tag.rft" },
+            { BuiltInCategory.OST_CurtainWallMullions, "Curtain Wall Mullion Tag.rft" },
+            { BuiltInCategory.OST_Cornices, "Wall Tag.rft" },
+            { BuiltInCategory.OST_EdgeSlab, "Floor Tag.rft" },
+            { BuiltInCategory.OST_RoofSoffit, "Roof Tag.rft" },
+            { BuiltInCategory.OST_Fascia, "Roof Tag.rft" },
+            { BuiltInCategory.OST_Gutter, "Roof Tag.rft" },
+            { BuiltInCategory.OST_Mass, "Generic Tag.rft" },
+
+            // ── Architecture — Interior / Furnishings ──────────────────────
             { BuiltInCategory.OST_Furniture, "Furniture Tag.rft" },
             { BuiltInCategory.OST_FurnitureSystems, "Furniture System Tag.rft" },
             { BuiltInCategory.OST_Casework, "Casework Tag.rft" },
+            { BuiltInCategory.OST_FoodServiceEquipment, "Generic Tag.rft" },
+            { BuiltInCategory.OST_MedicalEquipment, "Generic Tag.rft" },
+            { BuiltInCategory.OST_Signage, "Generic Tag.rft" },
+            { BuiltInCategory.OST_Entourage, "Generic Tag.rft" },
 
-            // Architecture — Circulation
+            // ── Architecture — Circulation ─────────────────────────────────
             { BuiltInCategory.OST_Stairs, "Stair Tag.rft" },
+            { BuiltInCategory.OST_StairsRuns, "Stair Tag.rft" },
+            { BuiltInCategory.OST_StairsLandings, "Stair Tag.rft" },
+            { BuiltInCategory.OST_StairsSupports, "Stair Tag.rft" },
             { BuiltInCategory.OST_Ramps, "Ramp Tag.rft" },
+            { BuiltInCategory.OST_Railings, "Generic Tag.rft" },
+            { BuiltInCategory.OST_RailingTopRail, "Generic Tag.rft" },
+            { BuiltInCategory.OST_RailingHandRail, "Generic Tag.rft" },
+            { BuiltInCategory.OST_VerticalCirculation, "Generic Tag.rft" },
 
-            // Structure
+            // ── Structure ──────────────────────────────────────────────────
             { BuiltInCategory.OST_StructuralColumns, "Structural Column Tag.rft" },
             { BuiltInCategory.OST_StructuralFraming, "Structural Framing Tag.rft" },
             { BuiltInCategory.OST_StructuralFoundation, "Structural Foundation Tag.rft" },
+            { BuiltInCategory.OST_Columns, "Column Tag.rft" },
+            { BuiltInCategory.OST_StructuralTruss, "Structural Framing Tag.rft" },
+            { BuiltInCategory.OST_StructuralStiffener, "Structural Framing Tag.rft" },
+            { BuiltInCategory.OST_StructConnections, "Generic Tag.rft" },
+            { BuiltInCategory.OST_StructuralFramingSystem, "Structural Framing Tag.rft" },
+            { BuiltInCategory.OST_Rebar, "Structural Framing Tag.rft" },
+            { BuiltInCategory.OST_Coupler, "Generic Tag.rft" },
+            { BuiltInCategory.OST_FabricReinforcement, "Generic Tag.rft" },
+            { BuiltInCategory.OST_AreaRein, "Generic Tag.rft" },
+            { BuiltInCategory.OST_PathRein, "Generic Tag.rft" },
 
-            // Generic / Specialty / Site
+            // ── Generic / Specialty / Site ──────────────────────────────────
             { BuiltInCategory.OST_GenericModel, "Generic Model Tag.rft" },
             { BuiltInCategory.OST_SpecialityEquipment, "Specialty Equipment Tag.rft" },
             { BuiltInCategory.OST_Parking, "Parking Tag.rft" },
             { BuiltInCategory.OST_Site, "Site Tag.rft" },
+            { BuiltInCategory.OST_Planting, "Generic Tag.rft" },
+            { BuiltInCategory.OST_Hardscape, "Generic Tag.rft" },
+            { BuiltInCategory.OST_Roads, "Generic Tag.rft" },
+            { BuiltInCategory.OST_BuildingPad, "Generic Tag.rft" },
+            { BuiltInCategory.OST_Toposolid, "Generic Tag.rft" },
+            { BuiltInCategory.OST_Parts, "Generic Tag.rft" },
+            { BuiltInCategory.OST_Assemblies, "Generic Tag.rft" },
+            { BuiltInCategory.OST_DetailComponents, "Generic Tag.rft" },
+            { BuiltInCategory.OST_ProfileFamilies, "Generic Tag.rft" },
+            { BuiltInCategory.OST_Materials, "Material Tag.rft" },
+
+            // ── Loads ──────────────────────────────────────────────────────
+            { BuiltInCategory.OST_PointLoads, "Generic Tag.rft" },
+            { BuiltInCategory.OST_LineLoads, "Generic Tag.rft" },
+            { BuiltInCategory.OST_AreaLoads, "Generic Tag.rft" },
+            { BuiltInCategory.OST_InternalPointLoads, "Generic Tag.rft" },
+            { BuiltInCategory.OST_InternalLineLoads, "Generic Tag.rft" },
+            { BuiltInCategory.OST_InternalAreaLoads, "Generic Tag.rft" },
+
+            // ── Analytical ─────────────────────────────────────────────────
+            { BuiltInCategory.OST_AnalyticalMember, "Generic Tag.rft" },
+            { BuiltInCategory.OST_AnalyticalNodes, "Generic Tag.rft" },
+            { BuiltInCategory.OST_AnalyticalPanel, "Generic Tag.rft" },
+            { BuiltInCategory.OST_AnalyticalOpening, "Generic Tag.rft" },
+            { BuiltInCategory.OST_RigidLinksAnalytical, "Generic Tag.rft" },
+
+            // ── Miscellaneous ──────────────────────────────────────────────
+            { BuiltInCategory.OST_IOSModelGroups, "Generic Tag.rft" },
+            { BuiltInCategory.OST_RvtLinks, "Generic Tag.rft" },
+            { BuiltInCategory.OST_SiteProperty, "Generic Tag.rft" },
         };
 
         /// <summary>
@@ -111,19 +191,30 @@ namespace StingTools.Tags
         public static readonly Dictionary<BuiltInCategory, string> CategoryDisplayName =
             new Dictionary<BuiltInCategory, string>
         {
+            // MEP — Mechanical / HVAC
             { BuiltInCategory.OST_MechanicalEquipment, "Mechanical Equipment" },
+            { BuiltInCategory.OST_MechanicalEquipmentSet, "Mechanical Equipment Sets" },
+            { BuiltInCategory.OST_MechanicalControlDevices, "Mechanical Control Devices" },
             { BuiltInCategory.OST_DuctCurves, "Ducts" },
             { BuiltInCategory.OST_DuctFitting, "Duct Fittings" },
             { BuiltInCategory.OST_DuctAccessory, "Duct Accessories" },
             { BuiltInCategory.OST_DuctTerminal, "Air Terminals" },
+            { BuiltInCategory.OST_DuctInsulations, "Duct Insulation" },
+            { BuiltInCategory.OST_DuctLinings, "Duct Lining" },
             { BuiltInCategory.OST_FlexDuctCurves, "Flex Ducts" },
+            // MEP — Plumbing / Piping
             { BuiltInCategory.OST_PipeCurves, "Pipes" },
             { BuiltInCategory.OST_PipeFitting, "Pipe Fittings" },
             { BuiltInCategory.OST_PipeAccessory, "Pipe Accessories" },
+            { BuiltInCategory.OST_PipeInsulations, "Pipe Insulation" },
             { BuiltInCategory.OST_FlexPipeCurves, "Flex Pipes" },
+            { BuiltInCategory.OST_PlumbingEquipment, "Plumbing Equipment" },
             { BuiltInCategory.OST_PlumbingFixtures, "Plumbing Fixtures" },
+            // MEP — Fire Protection
             { BuiltInCategory.OST_Sprinklers, "Sprinklers" },
             { BuiltInCategory.OST_FireAlarmDevices, "Fire Alarm Devices" },
+            { BuiltInCategory.OST_FireProtection, "Fire Protection" },
+            // MEP — Electrical
             { BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment" },
             { BuiltInCategory.OST_ElectricalFixtures, "Electrical Fixtures" },
             { BuiltInCategory.OST_LightingFixtures, "Lighting Fixtures" },
@@ -132,11 +223,23 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_ConduitFitting, "Conduit Fittings" },
             { BuiltInCategory.OST_CableTray, "Cable Trays" },
             { BuiltInCategory.OST_CableTrayFitting, "Cable Tray Fittings" },
+            { BuiltInCategory.OST_ElectricalCircuit, "Electrical Connectors" },
+            // MEP — Low Voltage / Communications
             { BuiltInCategory.OST_CommunicationDevices, "Communication Devices" },
             { BuiltInCategory.OST_DataDevices, "Data Devices" },
             { BuiltInCategory.OST_NurseCallDevices, "Nurse Call Devices" },
             { BuiltInCategory.OST_SecurityDevices, "Security Devices" },
             { BuiltInCategory.OST_TelephoneDevices, "Telephone Devices" },
+            { BuiltInCategory.OST_AudioVisualDevices, "Audio Visual Devices" },
+            // MEP — MEP Fabrication
+            { BuiltInCategory.OST_FabricationContainment, "MEP Fabrication Containment" },
+            { BuiltInCategory.OST_FabricationDuctwork, "MEP Fabrication Ductwork" },
+            { BuiltInCategory.OST_FabricationDuctworkStiffeners, "MEP Fabrication Ductwork Stiffeners" },
+            { BuiltInCategory.OST_FabricationHangers, "MEP Fabrication Hangers" },
+            { BuiltInCategory.OST_FabricationPipework, "MEP Fabrication Pipework" },
+            { BuiltInCategory.OST_MEPSpaces, "Spaces" },
+            { BuiltInCategory.OST_HVAC_Zones, "Zones" },
+            // Architecture — Enclosure
             { BuiltInCategory.OST_Doors, "Doors" },
             { BuiltInCategory.OST_Windows, "Windows" },
             { BuiltInCategory.OST_Walls, "Walls" },
@@ -144,18 +247,79 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_Ceilings, "Ceilings" },
             { BuiltInCategory.OST_Roofs, "Roofs" },
             { BuiltInCategory.OST_Rooms, "Rooms" },
+            { BuiltInCategory.OST_Areas, "Areas" },
+            { BuiltInCategory.OST_CurtainWallPanels, "Curtain Panels" },
+            { BuiltInCategory.OST_CurtainWallMullions, "Curtain Wall Mullions" },
+            { BuiltInCategory.OST_Cornices, "Wall Sweeps" },
+            { BuiltInCategory.OST_EdgeSlab, "Slab Edges" },
+            { BuiltInCategory.OST_RoofSoffit, "Roof Soffits" },
+            { BuiltInCategory.OST_Fascia, "Fascia" },
+            { BuiltInCategory.OST_Gutter, "Gutter" },
+            { BuiltInCategory.OST_Mass, "Mass" },
+            // Architecture — Interior / Furnishings
             { BuiltInCategory.OST_Furniture, "Furniture" },
             { BuiltInCategory.OST_FurnitureSystems, "Furniture Systems" },
             { BuiltInCategory.OST_Casework, "Casework" },
+            { BuiltInCategory.OST_FoodServiceEquipment, "Food Service Equipment" },
+            { BuiltInCategory.OST_MedicalEquipment, "Medical Equipment" },
+            { BuiltInCategory.OST_Signage, "Signage" },
+            { BuiltInCategory.OST_Entourage, "Entourage" },
+            // Architecture — Circulation
             { BuiltInCategory.OST_Stairs, "Stairs" },
+            { BuiltInCategory.OST_StairsRuns, "Stair Runs" },
+            { BuiltInCategory.OST_StairsLandings, "Stair Landings" },
+            { BuiltInCategory.OST_StairsSupports, "Stair Supports" },
             { BuiltInCategory.OST_Ramps, "Ramps" },
+            { BuiltInCategory.OST_Railings, "Railings" },
+            { BuiltInCategory.OST_RailingTopRail, "Top Rails" },
+            { BuiltInCategory.OST_RailingHandRail, "Handrails" },
+            { BuiltInCategory.OST_VerticalCirculation, "Vertical Circulation" },
+            // Structure
             { BuiltInCategory.OST_StructuralColumns, "Structural Columns" },
             { BuiltInCategory.OST_StructuralFraming, "Structural Framing" },
             { BuiltInCategory.OST_StructuralFoundation, "Structural Foundations" },
+            { BuiltInCategory.OST_Columns, "Columns" },
+            { BuiltInCategory.OST_StructuralTruss, "Structural Trusses" },
+            { BuiltInCategory.OST_StructuralStiffener, "Structural Stiffeners" },
+            { BuiltInCategory.OST_StructConnections, "Structural Connections" },
+            { BuiltInCategory.OST_StructuralFramingSystem, "Structural Beam Systems" },
+            { BuiltInCategory.OST_Rebar, "Structural Rebar" },
+            { BuiltInCategory.OST_Coupler, "Structural Rebar Couplers" },
+            { BuiltInCategory.OST_FabricReinforcement, "Structural Fabric Reinforcement" },
+            { BuiltInCategory.OST_AreaRein, "Structural Area Reinforcement" },
+            { BuiltInCategory.OST_PathRein, "Structural Path Reinforcement" },
+            // Generic / Specialty / Site
             { BuiltInCategory.OST_GenericModel, "Generic Models" },
             { BuiltInCategory.OST_SpecialityEquipment, "Specialty Equipment" },
             { BuiltInCategory.OST_Parking, "Parking" },
             { BuiltInCategory.OST_Site, "Site" },
+            { BuiltInCategory.OST_Planting, "Planting" },
+            { BuiltInCategory.OST_Hardscape, "Hardscape" },
+            { BuiltInCategory.OST_Roads, "Roads" },
+            { BuiltInCategory.OST_BuildingPad, "Pads" },
+            { BuiltInCategory.OST_Toposolid, "Toposolid" },
+            { BuiltInCategory.OST_Parts, "Parts" },
+            { BuiltInCategory.OST_Assemblies, "Assemblies" },
+            { BuiltInCategory.OST_DetailComponents, "Detail Items" },
+            { BuiltInCategory.OST_ProfileFamilies, "Profiles" },
+            { BuiltInCategory.OST_Materials, "Materials" },
+            // Loads
+            { BuiltInCategory.OST_PointLoads, "Point Loads" },
+            { BuiltInCategory.OST_LineLoads, "Line Loads" },
+            { BuiltInCategory.OST_AreaLoads, "Area Loads" },
+            { BuiltInCategory.OST_InternalPointLoads, "Internal Point Loads" },
+            { BuiltInCategory.OST_InternalLineLoads, "Internal Line Loads" },
+            { BuiltInCategory.OST_InternalAreaLoads, "Internal Area Loads" },
+            // Analytical
+            { BuiltInCategory.OST_AnalyticalMember, "Analytical Members" },
+            { BuiltInCategory.OST_AnalyticalNodes, "Analytical Nodes" },
+            { BuiltInCategory.OST_AnalyticalPanel, "Analytical Panels" },
+            { BuiltInCategory.OST_AnalyticalOpening, "Analytical Openings" },
+            { BuiltInCategory.OST_RigidLinksAnalytical, "Analytical Links" },
+            // Miscellaneous
+            { BuiltInCategory.OST_IOSModelGroups, "Model Groups" },
+            { BuiltInCategory.OST_RvtLinks, "RVT Links" },
+            { BuiltInCategory.OST_SiteProperty, "Property Lines" },
         };
 
         /// <summary>
