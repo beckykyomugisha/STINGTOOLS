@@ -3083,7 +3083,8 @@ namespace StingTools.Core
                 markedSections.Add(spatialMarked.ToString());
             }
 
-            // ── Section D: Lifecycle Status, Revision, and Origin ─────────────
+            // ── Section D: Lifecycle Status, Revision, Origin, Workset, Phase,
+            //    Design Option, Maintenance, Commissioning ─────────────────────
             string status  = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
             string rev     = ParameterHelpers.GetString(el, ParamRegistry.REV);
             string origin  = ParameterHelpers.GetString(el, ParamRegistry.ORIGIN);
@@ -3091,6 +3092,15 @@ namespace StingTools.Core
             string volume  = ParameterHelpers.GetString(el, ParamRegistry.VOLUME);
             string mntType = ParameterHelpers.GetString(el, ParamRegistry.MNT_TYPE);
             string detailNum = ParameterHelpers.GetString(el, ParamRegistry.DETAIL_NUM);
+            // New exploited parameters — workset, phase, design option, maintenance, commissioning
+            string workset       = ParameterHelpers.GetString(el, "ASS_WORKSET_TXT");
+            string phaseCreated  = ParameterHelpers.GetString(el, "ASS_PHASE_CREATED_TXT");
+            string designOption  = ParameterHelpers.GetString(el, "ASS_DESIGN_OPTION_TXT");
+            string mntFreq       = ParameterHelpers.GetString(el, "MNT_FREQUENCY_TXT");
+            string mntWarranty   = ParameterHelpers.GetString(el, "MNT_WARRANTY_EXPIRY_TXT");
+            string comStatus     = ParameterHelpers.GetString(el, "COM_COMMISSIONING_STATUS_TXT");
+            string expectedLife  = ParameterHelpers.GetString(el, "PER_EXPECTED_LIFE_YEARS");
+            string accessReqs    = ParameterHelpers.GetString(el, "MNT_ACCESS_REQUIREMENTS_TXT");
 
             var lifecyclePlain = new System.Text.StringBuilder();
             var lifecycleMarked = new System.Text.StringBuilder();
@@ -3124,11 +3134,68 @@ namespace StingTools.Core
                 lifecyclePlain.Append($" (volume {volume})");
                 lifecycleMarked.Append($" (\u00ABL\u00BBvolume\u00AB/L\u00BB \u00ABV\u00BB{volume}\u00AB/V\u00BB)");
             }
+            // Workset and phase — unexploited data not in schedules
+            if (!string.IsNullOrEmpty(workset))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(". "); lifecycleMarked.Append(". "); }
+                lifecyclePlain.Append($"Managed under the {workset} workset");
+                lifecycleMarked.Append($"Managed under the \u00ABV\u00BB{workset}\u00AB/V\u00BB \u00ABL\u00BBworkset\u00AB/L\u00BB");
+            }
+            if (!string.IsNullOrEmpty(phaseCreated))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(", created during the "); lifecycleMarked.Append(", created during the "); }
+                lifecyclePlain.Append($"{phaseCreated} phase");
+                lifecycleMarked.Append($"\u00ABV\u00BB{phaseCreated}\u00AB/V\u00BB \u00ABL\u00BBphase\u00AB/L\u00BB");
+            }
+            if (!string.IsNullOrEmpty(designOption))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(", part of design option "); lifecycleMarked.Append(", part of \u00ABL\u00BBdesign option\u00AB/L\u00BB "); }
+                lifecyclePlain.Append(designOption);
+                lifecycleMarked.Append($"\u00ABV\u00BB{designOption}\u00AB/V\u00BB");
+            }
+            // Maintenance and FM
             if (!string.IsNullOrEmpty(mntType))
             {
                 if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(". "); lifecycleMarked.Append(". "); }
                 lifecyclePlain.Append($"Requires {mntType.ToLower()} maintenance");
                 lifecycleMarked.Append($"Requires \u00ABV\u00BB{mntType.ToLower()}\u00AB/V\u00BB \u00ABL\u00BBmaintenance\u00AB/L\u00BB");
+            }
+            if (!string.IsNullOrEmpty(mntFreq))
+            {
+                if (!string.IsNullOrEmpty(mntType))
+                {
+                    lifecyclePlain.Append($" on a {mntFreq.ToLower()} basis");
+                    lifecycleMarked.Append($" on a \u00ABV\u00BB{mntFreq.ToLower()}\u00AB/V\u00BB basis");
+                }
+                else if (lifecyclePlain.Length > 0)
+                {
+                    lifecyclePlain.Append($". Maintenance frequency: {mntFreq.ToLower()}");
+                    lifecycleMarked.Append($". \u00ABL\u00BBMaintenance frequency:\u00AB/L\u00BB \u00ABV\u00BB{mntFreq.ToLower()}\u00AB/V\u00BB");
+                }
+            }
+            if (!string.IsNullOrEmpty(expectedLife))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(", with an expected service life of "); lifecycleMarked.Append(", with an expected \u00ABL\u00BBservice life\u00AB/L\u00BB of "); }
+                lifecyclePlain.Append($"{expectedLife} years");
+                lifecycleMarked.Append($"\u00ABV\u00BB{expectedLife}\u00AB/V\u00BB years");
+            }
+            if (!string.IsNullOrEmpty(mntWarranty))
+            {
+                lifecyclePlain.Append($" (warranty expires {mntWarranty})");
+                lifecycleMarked.Append($" (\u00ABL\u00BBwarranty expires\u00AB/L\u00BB \u00ABV\u00BB{mntWarranty}\u00AB/V\u00BB)");
+            }
+            if (!string.IsNullOrEmpty(accessReqs))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(". "); lifecycleMarked.Append(". "); }
+                lifecyclePlain.Append($"Maintenance access requires {accessReqs.ToLower()}");
+                lifecycleMarked.Append($"\u00ABL\u00BBMaintenance access requires\u00AB/L\u00BB \u00ABV\u00BB{accessReqs.ToLower()}\u00AB/V\u00BB");
+            }
+            // Commissioning status
+            if (!string.IsNullOrEmpty(comStatus))
+            {
+                if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(". "); lifecycleMarked.Append(". "); }
+                lifecyclePlain.Append($"Commissioning status: {comStatus.ToLower()}");
+                lifecycleMarked.Append($"\u00ABL\u00BBCommissioning status:\u00AB/L\u00BB \u00ABV\u00BB{comStatus.ToLower()}\u00AB/V\u00BB");
             }
             if (!string.IsNullOrEmpty(detailNum))
             {
