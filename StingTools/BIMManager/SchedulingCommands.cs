@@ -207,7 +207,7 @@ namespace StingTools.BIMManager
 
                     // Duration scales with element count
                     int baseDays = trade.daysPerUnit;
-                    int duration = Math.Max(1, Math.Min(baseDays * (1 + count / 50), 30));
+                    int duration = Math.Max(1, Math.Min((int)(baseDays * (1.0 + count / 50.0)), 30));
 
                     DateTime taskStart = currentDate;
                     DateTime taskEnd = taskStart.AddDays(duration);
@@ -401,7 +401,7 @@ namespace StingTools.BIMManager
                         return Math.Max(1, days);
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"ParseDuration failed for '{isoDuration}': {ex.Message}"); }
             return 1;
         }
 
@@ -598,18 +598,21 @@ namespace StingTools.BIMManager
             if (projEnd == DateTime.MinValue) projEnd = projStart.AddMonths(12);
 
             double grandTotal = (double)(costEstimate["grand_total"] ?? 0);
+            if (grandTotal <= 0) grandTotal = 0;
             int totalMonths = Math.Max(1, (int)Math.Ceiling((projEnd - projStart).TotalDays / 30.0));
 
             // Generate monthly cash flow (S-curve distribution)
             var monthly = new JArray();
             double cumulative = 0;
+            double prevSCurve = 0;
             for (int m = 0; m < totalMonths; m++)
             {
-                // S-curve formula: sigmoid distribution
+                // S-curve formula: sigmoid distribution (differential between consecutive points)
                 double t = (double)(m + 1) / totalMonths;
                 double sCurve = 1.0 / (1.0 + Math.Exp(-10 * (t - 0.5)));
-                double monthlySpend = grandTotal * (sCurve - cumulative / grandTotal);
+                double monthlySpend = grandTotal > 0 ? grandTotal * (sCurve - prevSCurve) : 0;
                 if (monthlySpend < 0) monthlySpend = 0;
+                prevSCurve = sCurve;
                 cumulative += monthlySpend;
 
                 DateTime monthStart = projStart.AddMonths(m);
@@ -619,7 +622,7 @@ namespace StingTools.BIMManager
                     ["month_name"] = monthStart.ToString("MMM yyyy"),
                     ["planned_spend"] = Math.Round(monthlySpend, 2),
                     ["cumulative"] = Math.Round(cumulative, 2),
-                    ["percent_complete"] = Math.Round(cumulative / grandTotal * 100, 1)
+                    ["percent_complete"] = grandTotal > 0 ? Math.Round(cumulative / grandTotal * 100, 1) : 0
                 });
             }
 
@@ -1282,6 +1285,14 @@ namespace StingTools.BIMManager
 
             var schedule = BIMManagerEngine.LoadJsonFile(schedulePath);
             var estimate = BIMManagerEngine.LoadJsonFile(estimatePath);
+
+            if (schedule == null || estimate == null || estimate["grand_total"] == null)
+            {
+                TaskDialog.Show("STING 4D/5D BIM",
+                    "Schedule or cost estimate data is corrupt or incomplete.\n" +
+                    "Re-generate using 'Auto Schedule' and 'Auto Cost' commands.");
+                return Result.Failed;
+            }
 
             var cashFlow = Scheduling4DEngine.GenerateCashFlow(schedule, estimate);
 
