@@ -1,4 +1,4 @@
-# v3.0 | 20260310 | BIM Template mr_parameters — 1189 params (v5.0 tag family lib)
+# v4.0 | 20260313 | BIM Template mr_parameters — 1276 params (v4.0 tag family lib)
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
 Generic Models,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,ASS_MNG,Type,Ass Cat Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_QUANTITY_NR,3c189e63-383c-5011-b7d9-873faed4e6c6,NUMBER,ASS_MNG,Type,Ass Cst Quantity Nr [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -1179,3 +1179,90 @@ Generic Models,STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT,70f0f990-cab2-55d2-9956-800
 Generic Models,STR_TAG_7_PARA_STR_REBAR_TXT,dc1b44a7-9073-50ea-b01d-2a664db4b7f3,TEXT,BLE_STRUCTURE,Type,Str Rebar paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,STR_TAG_7_PARA_STR_STIFFENERS_TXT,35d4baf6-5faa-521e-b9bf-54b7a84e6b81,TEXT,BLE_STRUCTURE,Type,Str Stiffeners paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,STR_TAG_7_PARA_STR_TRUSSES_TXT,b31d7a3d-2bbc-5bc5-8f98-d7bc8e250634,TEXT,BLE_STRUCTURE,Type,Str Trusses paragraph [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,WARN_ASS_ROOM_AREA_MIN,2e3596c7-f913-5c86-9c2b-547f6375ca3c,TEXT,RGL_WARN,Type,Room minimum area compliance [HIGH: 7.0 m²],False,,,REGULATORY,0,1
+Generic Models,WARN_ASS_ROOM_DAYLIGHT,89b8f809-1126-5ba8-a22a-ca44d1316f1c,TEXT,RGL_WARN,Type,Room daylight factor minimum [MEDIUM: 2.0 %],False,,,REGULATORY,0,1
+Generic Models,WARN_ASS_ROOM_HEIGHT_MM,b7574fcd-2cea-53d2-a67b-773c466bc816,TEXT,RGL_WARN,Type,Room clear height minimum [HIGH: 2700 mm],False,,,REGULATORY,0,1
+Generic Models,WARN_ASS_ROOM_VENTILATION,f5bdc967-c608-5439-b8d8-5e92a3b3ff35,TEXT,RGL_WARN,Type,Room ventilation rate minimum [HIGH: 10 L/s/person],False,,,REGULATORY,0,1
+Generic Models,WARN_BLE_CASEWORK_DEPTH_MM,6c7fc810-3f24-59f5-bcd6-cba11efe3960,TEXT,BLE_WARN,Type,Casework depth maximum for accessibility [LOW: 600 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_CEIL_HEIGHT_MM,3579c94c-3018-551d-8642-7cc5e2146cd8,TEXT,BLE_WARN,Type,Ceiling height minimum [HIGH: 2400 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_COLUMN_SLENDERNESS,970fee14-18e7-53e8-afbb-ad3086a1098c,TEXT,BLE_WARN,Type,Column slenderness ratio limit [CRITICAL: 30 ratio],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_CORRIDOR_WIDTH_MM,34472e94-99f6-5ac7-8b26-f07b83856734,TEXT,BLE_WARN,Type,Accessible clear width minimum [CRITICAL: 900 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_CW_PANEL_SHGC,92e62358-31f5-5986-a1c1-b455a63f1188,TEXT,BLE_WARN,Type,Solar heat gain coefficient limit [HIGH: 0.40 SHGC],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_CW_PANEL_U_VALUE,cc3fc151-264e-5c9e-88fe-add4e5c4e52f,TEXT,BLE_WARN,Type,U-value thermal transmittance check [HIGH: 0.30 W/m²K],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_DOOR_ACOUSTIC,6779ce97-f00a-5e27-beb3-416149963133,TEXT,BLE_WARN,Type,Duct-borne sound level limit [MEDIUM: 35 dB],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_DOOR_HEIGHT_MM,e1688d75-d2a2-5dd9-8b5d-ba2b39fffc22,TEXT,BLE_WARN,Type,Door height accessibility minimum [HIGH: 2100 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_ENTOURAGE_SCALE,e13ab35b-9083-5043-a91c-30ca68cf9b1d,TEXT,BLE_WARN,Type,Entourage/planting scale factor check [LOW: 1.0 scale],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_FLR_LD_CAP_KPA,874a426b-6642-532a-962c-e7811a742f22,TEXT,BLE_WARN,Type,Floor imposed load capacity minimum [CRITICAL: 2.5 kPa],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_FURNITURE_CLEARANCE_MM,65694543-bfa9-59a2-9a4d-06d02782faf7,TEXT,BLE_WARN,Type,Furniture clearance zone minimum [MEDIUM: 900 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_GENERIC_CLEARANCE_MM,86bf8827-16fd-5b39-9e84-568e9dc6d785,TEXT,BLE_WARN,Type,Generic model clearance zone minimum [LOW: 600 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_PARKING_WIDTH_MM,8c996e2d-9e67-54ee-8687-72714959da09,TEXT,BLE_WARN,Type,Parking bay width minimum [MEDIUM: 2400 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_RAIL_HEIGHT_MM,81727117-53b3-572c-87b1-7ac8ec3539f8,TEXT,BLE_WARN,Type,Railing height minimum [CRITICAL: 1100 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_RAIL_LOAD_KN_M,4b728d20-aa8e-5aa5-99d5-2d4d69e543d4,TEXT,BLE_WARN,Type,Railing horizontal load resistance minimum [CRITICAL: 0.74 kN/m],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_ROOF_SLOPE,7b3d86e8-5d07-5a25-90ab-f6b51c8320bf,TEXT,BLE_WARN,Type,Roof slope minimum for drainage [HIGH: 1.5 %],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_SIGNAGE_HEIGHT_MM,71cdc193-64c3-5123-afca-3831c25f1d6d,TEXT,BLE_WARN,Type,Signage mounting height check [LOW: 2100 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_STAIR_GOING,86cffe33-c5e4-57fd-bfc2-0f8055f22916,TEXT,BLE_WARN,Type,Stair individual going minimum [CRITICAL: 220 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_STAIR_HEADROOM_MM,15ec8a2a-6294-55a7-b003-305dcbf4a413,TEXT,BLE_WARN,Type,Compliance check: ble stair headroom mm [MEDIUM],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_STAIR_RISE,d6f921a6-54f8-54b7-b9a3-d772f5199cce,TEXT,BLE_WARN,Type,Stair individual rise limit [CRITICAL: 220 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_STAIR_WIDTH_MM,524e3a98-3ce2-5aaa-b502-00e51646c377,TEXT,BLE_WARN,Type,Stair clear width minimum [CRITICAL: 1000 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_STRUCT_FDN_BEARING,fe72eb85-9bc1-5993-bd38-263abb74c98e,TEXT,BLE_WARN,Type,Foundation/soil bearing capacity minimum [CRITICAL: 100 kPa],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_STRUCT_LD_CAP,34f3d5b3-2a8c-5f64-a425-aef4d0a86223,TEXT,BLE_WARN,Type,Structural load capacity check [CRITICAL: 5.0 kN/m],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_VERT_CIRC_LOAD,18e66013-b783-5748-9389-06897dd57a86,TEXT,BLE_WARN,Type,Vertical circulation structural load check [HIGH: 5.0 kN/m²],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_WALL_HEIGHT_RATIO,ece0daa8-2eae-5f4b-a6eb-16bdc4ffacf5,TEXT,BLE_WARN,Type,Height compliance check [MEDIUM: 2100 mm],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_WINDOW_SHGC,a184bff2-fff4-5008-aa58-b9146b96f954,TEXT,BLE_WARN,Type,Solar heat gain coefficient limit [HIGH: 0.40 SHGC],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_BLE_WINDOW_U_VALUE,43c8ea79-cafd-5da0-9e6f-e228b85efb39,TEXT,BLE_WARN,Type,U-value thermal transmittance check [HIGH: 0.30 W/m²K],False,,,BLE_BUILDING,0,1
+Generic Models,WARN_COM_DEVICE_COVERAGE,01af0738-fea0-57a9-99c2-ead1f1d7250b,TEXT,GEN_WARN,Type,Communication device coverage radius [MEDIUM: 15.0 m],False,,,COMMS,0,1
+Generic Models,WARN_DOOR_FRR,3f3271db-1530-5954-8af9-7bc62cfa26d7,TEXT,GEN_WARN,Type,Fire resistance rating minimum compliance [CRITICAL: 60 min],False,,,MULTI,0,1
+Generic Models,WARN_ELC_CDT_FILL_RATIO,a5133790-d58e-58f8-9119-fab0c5f6e545,TEXT,ELC_WARN,Type,Conduit/tray fill ratio maximum [HIGH: 40 %],False,,,ELECTRICAL,0,1
+Generic Models,WARN_ELC_CONNECTOR_RATING,9a2a5c45-d006-5148-b8b4-dc1e363e32ae,TEXT,ELC_WARN,Type,Electrical connector rating check [HIGH: 16 A],False,,,ELECTRICAL,0,1
+Generic Models,WARN_ELC_CTR_FILL_RATIO,b4c75aec-ff22-5489-9fb3-15536c1311d0,TEXT,ELC_WARN,Type,Conduit/tray fill ratio maximum [HIGH: 40 %],False,,,ELECTRICAL,0,1
+Generic Models,WARN_ELC_EARTHING_TYPE,f92ba3ee-3bfc-56d4-bf10-9d0208eb092a,TEXT,ELC_WARN,Type,Earthing system type compliance [CRITICAL: TN-S type],False,,,ELECTRICAL,0,1
+Generic Models,WARN_ELC_FIXTURE_MOUNTING_HEIGHT,d65b67a7-a0d4-590e-9ccd-19b77fd7fc07,TEXT,ELC_WARN,Type,Fixture mounting height standard [MEDIUM: 1200 mm],False,,,ELECTRICAL,0,1
+Generic Models,WARN_ELC_IP_RATING,2cf638a7-c884-57de-97a3-81b7c117cf1e,TEXT,ELC_WARN,Type,Ingress protection rating minimum [HIGH: IP44 IP rating],False,,,ELECTRICAL,0,1
+Generic Models,WARN_ELC_PNL_SHORT_CIRCUIT,fec31a6f-f79e-5631-99b2-753abe18b18c,TEXT,ELC_WARN,Type,Panel short circuit rating check [CRITICAL: 25 kA],False,,,ELECTRICAL,0,1
+Generic Models,WARN_ELC_PNL_SPARE_WAYS,813ba18b-4be2-534e-a61e-064685b5898d,TEXT,ELC_WARN,Type,Panel spare ways minimum [MEDIUM: 20 %],False,,,ELECTRICAL,0,1
+Generic Models,WARN_FAB_HANGER_LOAD_KN,1cbbcc15-4a47-5ee4-a416-40a089c0e0e7,TEXT,GEN_WARN,Type,Fabrication hanger load capacity [HIGH: 5.0 kN],False,,,FABRICATION,0,1
+Generic Models,WARN_FLS_COMPARTMENT_AREA,ab8b8275-0830-5709-889f-4e69639f4f98,TEXT,FLS_WARN,Type,Compliance check: fls compartment area [MEDIUM],False,,,FIRE_SAFETY,0,1
+Generic Models,WARN_FLS_PROT_COVERAGE,573be7bf-3821-5434-b6f6-783e1c83ef87,TEXT,FLS_WARN,Type,Fire safety device coverage limit [CRITICAL: 12.0 m²],False,,,FIRE_SAFETY,0,1
+Generic Models,WARN_FLS_SFTY_SPACING,46722657-37a8-52da-baf6-8b44b059db33,TEXT,FLS_WARN,Type,Safety device spacing maximum [CRITICAL: 12.0 m],False,,,FIRE_SAFETY,0,1
+Generic Models,WARN_FLS_SMOKE_DETECTOR_SPACING,1104d8eb-176a-56ee-808f-e5cd2327048c,TEXT,FLS_WARN,Type,Smoke detector spacing maximum [CRITICAL: 9.0 m],False,,,FIRE_SAFETY,0,1
+Generic Models,WARN_FLS_TRAVEL_DIST_M,3e9c7807-7123-5494-b982-4ac5a7da6319,TEXT,FLS_WARN,Type,Compliance check: fls travel dist m [MEDIUM],False,,,FIRE_SAFETY,0,1
+Generic Models,WARN_HVC_DUCT_LEAKAGE_CLASS,6489ca55-dde9-54a5-a2cc-288f2355dd87,TEXT,HVC_WARN,Type,Duct air leakage class limit [HIGH: C class],False,,,MECHANICAL,0,1
+Generic Models,WARN_HVC_VEL_MPS_DUCTS,903173e5-bf1c-566e-9f49-b5c10ef82d3a,TEXT,HVC_WARN,Type,Duct velocity limit [HIGH: 6.0 m/s],False,,,MECHANICAL,0,1
+Generic Models,WARN_INS_THICKNESS_MM,b94c88a5-4849-5233-9f2c-11ef6bac8693,TEXT,GEN_WARN,Type,Insulation thickness minimum [HIGH: 25 mm],False,,,MULTI,0,1
+Generic Models,WARN_LTG_ILLUMINANCE,98b5f268-7df3-5220-a68b-6214a4b3cb70,TEXT,ELC_WARN,Type,Illuminance level minimum [MEDIUM: 300 lux],False,,,ELECTRICAL,0,1
+Generic Models,WARN_MEP_DUCT_ACC_PRESSURE_DROP,4f1ea2f3-7938-530f-88a8-ff4d895d6e76,TEXT,HVC_WARN,Type,Duct accessory pressure drop limit [MEDIUM: 50 Pa],False,,,MECHANICAL,0,1
+Generic Models,WARN_MEP_DUCT_FITTING_LOSS,6ed0e338-c6c1-5b31-99c6-ec160f0a1daf,TEXT,HVC_WARN,Type,Duct fitting pressure loss limit [MEDIUM: 25 Pa],False,,,MECHANICAL,0,1
+Generic Models,WARN_MEP_SPC_LIGHTING,4b0595c4-908f-58fc-821c-b1cacc438418,TEXT,HVC_WARN,Type,Space lighting power density limit [MEDIUM: 10 W/m²],False,,,MECHANICAL,0,1
+Generic Models,WARN_MNT_ACCESS_CLEARANCE,7fb3ce92-5ea1-5a10-af64-d455f1748552,TEXT,GEN_WARN,Type,Maintenance access clearance minimum [MEDIUM: 600 mm],False,,,MAINTENANCE,0,1
+Generic Models,WARN_MNT_SERVICE_SPACE,8eabedd6-c6ac-588b-92f4-0d0fe38944e2,TEXT,GEN_WARN,Type,Compliance check: mnt service space [MEDIUM],False,,,MAINTENANCE,0,1
+Generic Models,WARN_PER_ACOUSTIC_FLOOR_IIC,e149e890-95aa-5033-aa02-ee96ca4c1258,TEXT,PER_WARN,Type,Floor Impact Insulation Class minimum rating [MEDIUM: 50 IIC],False,,,PERFORMANCE,0,1
+Generic Models,WARN_PER_ACOUSTIC_WALL_STC,a8db0130-7030-5dd7-86de-b02cbc687415,TEXT,PER_WARN,Type,Wall Sound Transmission Class minimum rating [MEDIUM: 50 STC],False,,,PERFORMANCE,0,1
+Generic Models,WARN_PER_RECYCLABILITY_LOW,44d0ccf5-42f7-5811-93a5-2d97fc77a93a,TEXT,PER_WARN,Type,Material recyclability percentage minimum [LOW: 30 %],False,,,PERFORMANCE,0,1
+Generic Models,WARN_PER_VOC_EMISSIONS,698beeb9-f4f0-5c0c-a998-dbe92cb657b0,TEXT,PER_WARN,Type,VOC emissions limit for indoor air quality [HIGH: 250 µg/m³],False,,,PERFORMANCE,0,1
+Generic Models,WARN_PLM_EQP_PRESSURE_KPA,abb8899f-6c0c-5110-a40e-116c71342c35,TEXT,PLM_WARN,Type,Equipment pressure rating check [HIGH: 600 kPa],False,,,PLUMBING,0,1
+Generic Models,WARN_PLM_FIXTURE_ACCESS,5185c7a4-41de-51a6-8687-f9034dd632eb,TEXT,PLM_WARN,Type,Plumbing fixture access clearance [MEDIUM: 450 mm],False,,,PLUMBING,0,1
+Generic Models,WARN_PLM_FIXTURE_FLOW,66a41eb8-8391-50ed-9e64-ec0cb0abd836,TEXT,PLM_WARN,Type,Flow rate design limit [HIGH: 0.15 L/s],False,,,PLUMBING,0,1
+Generic Models,WARN_PLM_PIPE_ACC_RATING,b7fa9c36-1af4-54f0-9970-a541c4283c1a,TEXT,PLM_WARN,Type,Pipe accessory pressure rating [HIGH: 1000 kPa],False,,,PLUMBING,0,1
+Generic Models,WARN_PLM_PIPE_FITTING_LOSS,3abdd09c-d71c-5e50-975a-683492e183f0,TEXT,PLM_WARN,Type,Pipe fitting pressure loss limit [MEDIUM: 15 kPa],False,,,PLUMBING,0,1
+Generic Models,WARN_PLM_PIPE_GRADIENT,d7f4aaec-aa1b-54ba-9d4d-842c916a6670,TEXT,PLM_WARN,Type,Pipe gradient minimum [HIGH: 1.0 %],False,,,PLUMBING,0,1
+Generic Models,WARN_PLM_TRAP_SEAL_MM,1374cb08-8488-5fb8-a0e4-da34d28efa70,TEXT,PLM_WARN,Type,Plumbing trap seal depth minimum [HIGH: 50 mm],False,,,PLUMBING,0,1
+Generic Models,WARN_PLM_VEL_MPS_PIPES,b86f9d8f-7969-5027-8e8b-52ed5ca156b4,TEXT,PLM_WARN,Type,Pipe velocity limit [HIGH: 2.5 m/s],False,,,PLUMBING,0,1
+Generic Models,WARN_PLM_VENT_PIPE,eba460ff-4a13-5010-ba51-d6c0b1ac9079,TEXT,PLM_WARN,Type,Vent pipe provision check [HIGH: 1 boolean],False,,,PLUMBING,0,1
+Generic Models,WARN_RGL_ACCESSIBLE_WC,259a2e84-0ea7-578c-aedf-c80013f18db4,TEXT,RGL_WARN,Type,Accessible WC provision compliance [CRITICAL: 1 per floor],False,,,REGULATORY,0,1
+Generic Models,WARN_RGL_LIFT_CAR_SIZE,b17d5a74-b35b-5f15-85e4-4c48b6aaf970,TEXT,RGL_WARN,Type,Lift car minimum size for wheelchair access [CRITICAL: 1100x1400 mm],False,,,REGULATORY,0,1
+Generic Models,WARN_ROAD_GRADIENT_PCT,fe4b1c60-d789-5150-b895-fbdc35569bc2,TEXT,GEN_WARN,Type,Road gradient limit [MEDIUM: 8.0 %],False,,,MULTI,0,1
+Generic Models,WARN_SITE_BEARING_CAP_KPA,f4370d77-e46a-578b-b270-0e51898c108d,TEXT,GEN_WARN,Type,Foundation/soil bearing capacity minimum [CRITICAL: 100 kPa],False,,,MULTI,0,1
+Generic Models,WARN_STR_BEAM_DEFLECTION,3d190dbd-288f-5628-8e05-14ffb2526af6,TEXT,STR_WARN,Type,Beam deflection limit (L/250) [CRITICAL: 250 L/value],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_BEAM_SPAN_DEPTH,70458182-401e-5a9f-a33c-b6f59d9d3a8d,TEXT,STR_WARN,Type,Beam span-to-depth ratio limit [HIGH: 20 ratio],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_BLT_PROOF_LOAD_KN,908c0243-359c-523b-8da6-7bdf1c962f32,TEXT,STR_WARN,Type,Bolt proof load capacity minimum [CRITICAL: 100 kN],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_COL_ECCENTRICITY,8f574100-2ee3-5289-bdb7-09d7813a715a,TEXT,STR_WARN,Type,Column eccentricity limit [HIGH: 15 mm],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_CONN_CAPACITY_KN,97cd746f-9ec6-5e88-8175-d2d205369582,TEXT,STR_WARN,Type,Connection capacity minimum [CRITICAL: 200 kN],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_FABRIC_SPEC,b9abb38c-073f-5bef-89ce-b820c5ee50e2,TEXT,STR_WARN,Type,Fabric reinforcement specification check [MEDIUM: A142 spec],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_FDN_DEPTH_MM,7f4c5c1d-d1d5-5670-b839-2b972e3f07da,TEXT,STR_WARN,Type,Foundation depth minimum [CRITICAL: 900 mm],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_RBR_COVER_MM,ea66d7f6-c4c3-5c3f-8ab3-1c14bd45b289,TEXT,STR_WARN,Type,Rebar concrete cover minimum [CRITICAL: 25 mm],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_RBR_LAP_LENGTH_MM,c037ab95-0597-5f39-a17c-e503796ec503,TEXT,STR_WARN,Type,Rebar lap length minimum [HIGH: 500 mm],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_REBAR_MIN_DIA,e5916ade-77de-5b85-ad9a-2649c98240bc,TEXT,STR_WARN,Type,Minimum rebar diameter [MEDIUM: 10 mm],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_STIFFENER_WELD,1149f279-699c-59a4-80e1-2323f4215278,TEXT,STR_WARN,Type,Stiffener weld specification check [HIGH: 6 mm],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_TRUSS_SPAN,f81ac5b3-62fc-5104-b9b8-2863203a6941,TEXT,STR_WARN,Type,Truss span limit [HIGH: 30 m],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_WLD_STRENGTH_MPA,ad5b3ff0-5ad9-5b58-a40a-bef5eb9cef36,TEXT,STR_WARN,Type,Weld strength minimum [CRITICAL: 250 MPa],False,,,STRUCTURAL,0,1
+Generic Models,WARN_STR_WLD_THROAT_MM,3346cfd2-c1b6-5b8d-81fe-594737dd5ca5,TEXT,STR_WARN,Type,Weld throat thickness minimum [HIGH: 6 mm],False,,,STRUCTURAL,0,1

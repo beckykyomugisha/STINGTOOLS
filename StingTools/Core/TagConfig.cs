@@ -621,6 +621,9 @@ namespace StingTools.Core
 
                 ConfigSource = "project_config.json";
 
+                // Load category warnings and paragraph containers from LABEL_DEFINITIONS
+                LoadCategoryWarningsFromLabels();
+
                 // GAP-009: Restore persisted active preset
                 if (data.TryGetValue("ACTIVE_PRESET", out object presetObj) && presetObj is string presetStr)
                 {
@@ -649,6 +652,71 @@ namespace StingTools.Core
             StatusDefault = null;
             RevDefault = null;
             ConfigSource = "built-in defaults";
+            // Load category warnings and paragraph containers from LABEL_DEFINITIONS
+            LoadCategoryWarningsFromLabels();
+        }
+
+        /// <summary>
+        /// Load category-level warning assignments and paragraph container mappings
+        /// from LABEL_DEFINITIONS.json. Populates ParamRegistry lookup tables used
+        /// by EvaluateElementWarnings() and WriteTag7All() paragraph container writes.
+        /// </summary>
+        private static void LoadCategoryWarningsFromLabels()
+        {
+            try
+            {
+                string path = StingToolsApp.FindDataFile("LABEL_DEFINITIONS.json");
+                if (path == null || !System.IO.File.Exists(path)) return;
+
+                string json = System.IO.File.ReadAllText(path);
+                var root = Newtonsoft.Json.Linq.JObject.Parse(json);
+                var catLabels = root["category_labels"] as Newtonsoft.Json.Linq.JObject;
+                if (catLabels == null) return;
+
+                int warnCount = 0, paraCount = 0;
+                foreach (var kvp in catLabels)
+                {
+                    string catName = kvp.Key;
+                    var catDef = kvp.Value as Newtonsoft.Json.Linq.JObject;
+                    if (catDef == null) continue;
+
+                    // Warnings — supports both string arrays and rich objects with "param" field
+                    var warnArr = catDef["warnings"] as Newtonsoft.Json.Linq.JArray;
+                    if (warnArr != null && warnArr.Count > 0)
+                    {
+                        var warnNames = new List<string>();
+                        foreach (var w in warnArr)
+                        {
+                            if (w.Type == Newtonsoft.Json.Linq.JTokenType.String)
+                                warnNames.Add(w.ToString());
+                            else if (w.Type == Newtonsoft.Json.Linq.JTokenType.Object)
+                            {
+                                string paramName = w["param"]?.ToString();
+                                if (!string.IsNullOrEmpty(paramName))
+                                    warnNames.Add(paramName);
+                            }
+                        }
+                        if (warnNames.Count > 0)
+                        {
+                            ParamRegistry.RegisterCategoryWarnings(catName, warnNames);
+                            warnCount += warnNames.Count;
+                        }
+                    }
+
+                    // Paragraph containers
+                    string paraContainer = catDef["paragraph_container"]?.ToString();
+                    if (!string.IsNullOrEmpty(paraContainer))
+                    {
+                        ParamRegistry.RegisterParagraphContainer(catName, paraContainer);
+                        paraCount++;
+                    }
+                }
+                StingLog.Info($"TagConfig: loaded {warnCount} warning refs across categories, {paraCount} paragraph containers from LABEL_DEFINITIONS.json");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TagConfig.LoadCategoryWarningsFromLabels: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -3227,6 +3295,114 @@ namespace StingTools.Core
                 techPlain.Append(dimData);
                 techMarked.Append(BuildMarkedDimSection(el, categoryName));
             }
+            // Append room finishes if this is a room or spatial element
+            if (categoryName == "Rooms" || categoryName == "Spaces")
+            {
+                string finFlr = ParameterHelpers.GetString(el, ParamRegistry.ROOM_FINISH_FLR);
+                string finWall = ParameterHelpers.GetString(el, ParamRegistry.ROOM_FINISH_WALL);
+                string finClg = ParameterHelpers.GetString(el, ParamRegistry.ROOM_FINISH_CLG);
+                string finBase = ParameterHelpers.GetString(el, ParamRegistry.ROOM_FINISH_BASE);
+                if (!string.IsNullOrEmpty(finFlr) || !string.IsNullOrEmpty(finWall) || !string.IsNullOrEmpty(finClg))
+                {
+                    if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
+                    techPlain.Append("Room finishes include");
+                    techMarked.Append("\u00ABL\u00BBRoom finishes include\u00AB/L\u00BB");
+                    if (!string.IsNullOrEmpty(finFlr))
+                    {
+                        techPlain.Append($" floor: {finFlr}");
+                        techMarked.Append($" \u00ABL\u00BBfloor:\u00AB/L\u00BB \u00ABV\u00BB{finFlr}\u00AB/V\u00BB");
+                    }
+                    if (!string.IsNullOrEmpty(finWall))
+                    {
+                        techPlain.Append($", walls: {finWall}");
+                        techMarked.Append($", \u00ABL\u00BBwalls:\u00AB/L\u00BB \u00ABV\u00BB{finWall}\u00AB/V\u00BB");
+                    }
+                    if (!string.IsNullOrEmpty(finClg))
+                    {
+                        techPlain.Append($", ceiling: {finClg}");
+                        techMarked.Append($", \u00ABL\u00BBceiling:\u00AB/L\u00BB \u00ABV\u00BB{finClg}\u00AB/V\u00BB");
+                    }
+                    if (!string.IsNullOrEmpty(finBase))
+                    {
+                        techPlain.Append($", base: {finBase}");
+                        techMarked.Append($", \u00ABL\u00BBbase:\u00AB/L\u00BB \u00ABV\u00BB{finBase}\u00AB/V\u00BB");
+                    }
+                }
+            }
+            // Append door function and head height
+            if (categoryName == "Doors")
+            {
+                string doorFunc = ParameterHelpers.GetString(el, ParamRegistry.DOOR_FUNC);
+                string doorHead = ParameterHelpers.GetString(el, ParamRegistry.DOOR_HEAD_HT);
+                if (!string.IsNullOrEmpty(doorFunc))
+                {
+                    if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
+                    techPlain.Append($"Functioning as a {doorFunc.ToLower()} door");
+                    techMarked.Append($"\u00ABC\u00BBFunctioning as a\u00AB/C\u00BB \u00ABV\u00BB{doorFunc.ToLower()}\u00AB/V\u00BB \u00ABL\u00BBdoor\u00AB/L\u00BB");
+                }
+                if (!string.IsNullOrEmpty(doorHead))
+                {
+                    if (techPlain.Length > 0) { techPlain.Append($" with head height at {doorHead} mm"); techMarked.Append($" with \u00ABL\u00BBhead height\u00AB/L\u00BB at \u00ABV\u00BB{doorHead} mm\u00AB/V\u00BB"); }
+                }
+            }
+            // Append window head height
+            if (categoryName == "Windows")
+            {
+                string winHead = ParameterHelpers.GetString(el, ParamRegistry.WINDOW_HEAD_HT);
+                if (!string.IsNullOrEmpty(winHead))
+                {
+                    if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
+                    techPlain.Append($"Window head height at {winHead} mm");
+                    techMarked.Append($"\u00ABL\u00BBWindow head height\u00AB/L\u00BB at \u00ABV\u00BB{winHead} mm\u00AB/V\u00BB");
+                }
+            }
+            // Append fire rating for any element that has it
+            {
+                string fr = ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING);
+                if (!string.IsNullOrEmpty(fr) && categoryName != "Rooms" && categoryName != "Spaces")
+                {
+                    if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
+                    techPlain.Append($"Fire resistance rated at {fr} minutes");
+                    techMarked.Append($"\u00ABL\u00BBFire resistance rated at\u00AB/L\u00BB \u00ABV\u00BB{fr} minutes\u00AB/V\u00BB");
+                }
+            }
+            // Append sustainability data if available
+            {
+                string carbonFp = ParameterHelpers.GetString(el, "PER_SUST_CARBON_FOOTPRINT_KG");
+                string recyclability = ParameterHelpers.GetString(el, "PER_RECYCLABILITY_PCT");
+                if (!string.IsNullOrEmpty(carbonFp))
+                {
+                    if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
+                    techPlain.Append($"Embodied carbon: {carbonFp} kgCO₂e");
+                    techMarked.Append($"\u00ABL\u00BBEmbodied carbon:\u00AB/L\u00BB \u00ABV\u00BB{carbonFp} kgCO₂e\u00AB/V\u00BB");
+                }
+                if (!string.IsNullOrEmpty(recyclability))
+                {
+                    if (techPlain.Length > 0) { techPlain.Append($", {recyclability}% recyclable"); techMarked.Append($", \u00ABV\u00BB{recyclability}%\u00AB/V\u00BB \u00ABL\u00BBrecyclable\u00AB/L\u00BB"); }
+                }
+            }
+            // Append acoustic data
+            {
+                string stc = ParameterHelpers.GetString(el, "PER_ACOUSTIC_WALL_STC");
+                string iic = ParameterHelpers.GetString(el, "PER_ACOUSTIC_FLOOR_IIC");
+                if (!string.IsNullOrEmpty(stc))
+                {
+                    if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
+                    techPlain.Append($"Acoustic rating STC {stc}");
+                    techMarked.Append($"\u00ABL\u00BBAcoustic rating STC\u00AB/L\u00BB \u00ABV\u00BB{stc}\u00AB/V\u00BB");
+                }
+                if (!string.IsNullOrEmpty(iic))
+                {
+                    if (!string.IsNullOrEmpty(stc)) { techPlain.Append($", IIC {iic}"); techMarked.Append($", \u00ABL\u00BBIIC\u00AB/L\u00BB \u00ABV\u00BB{iic}\u00AB/V\u00BB"); }
+                    else
+                    {
+                        if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
+                        techPlain.Append($"Acoustic rating IIC {iic}");
+                        techMarked.Append($"\u00ABL\u00BBAcoustic rating IIC\u00AB/L\u00BB \u00ABV\u00BB{iic}\u00AB/V\u00BB");
+                    }
+                }
+            }
+
             if (techPlain.Length > 0)
             {
                 result.SectionE = techPlain.ToString();
@@ -3280,6 +3456,15 @@ namespace StingTools.Core
                 else { classPlain.Append("Estimated unit cost of "); classMarked.Append("Estimated \u00ABL\u00BBunit cost\u00AB/L\u00BB of "); }
                 classPlain.Append(cost);
                 classMarked.Append($"\u00ABV\u00BB{cost}\u00AB/V\u00BB");
+            }
+            // Type comments — unexploited rich text from Revit type properties
+            string typeComments = ParameterHelpers.GetString(el, ParamRegistry.TYPE_COMMENTS);
+            if (!string.IsNullOrEmpty(typeComments))
+            {
+                if (classPlain.Length > 0) { classPlain.Append(". Type notes: "); classMarked.Append(". \u00ABL\u00BBType notes:\u00AB/L\u00BB "); }
+                else { classPlain.Append("Type notes: "); classMarked.Append("\u00ABL\u00BBType notes:\u00AB/L\u00BB "); }
+                classPlain.Append(typeComments);
+                classMarked.Append($"\u00ABV\u00BB{typeComments}\u00AB/V\u00BB");
             }
 
             // ISO reference always added with connecting language
@@ -3400,7 +3585,7 @@ namespace StingTools.Core
 
         /// <summary>
         /// Write TAG7 + all sub-section parameters (TAG7A-TAG7F) for an element.
-        /// Writes the marked-up narrative to TAG7, and plain sections to TAG7A-TAG7F.
+        /// Also writes warning text, and populates the category-specific paragraph container.
         /// Returns number of parameters written.
         /// </summary>
         public static int WriteTag7All(Document doc, Element el, string categoryName, string[] tokenValues, bool overwrite = true)
@@ -3408,7 +3593,7 @@ namespace StingTools.Core
             var tag7 = BuildTag7Sections(doc, el, categoryName, tokenValues);
             int written = 0;
 
-            // TAG7 gets the marked-up narrative (with «H»/«L»/«V» tokens)
+            // TAG7 gets the marked-up narrative (with «H»/«L»/«V»/«C» tokens)
             if (!string.IsNullOrEmpty(tag7.MarkedUpNarrative))
             {
                 if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, tag7.MarkedUpNarrative, overwrite))
@@ -3427,7 +3612,258 @@ namespace StingTools.Core
                 }
             }
 
+            // ── Warning evaluation (v5.5) ─────────────────────────────────
+            // Check if warnings are enabled and evaluate applicable thresholds
+            string warningText = EvaluateElementWarnings(doc, el, categoryName);
+            if (!string.IsNullOrEmpty(warningText))
+            {
+                // Append warnings to TAG7 if warning visibility is enabled
+                string existingTag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
+                if (!string.IsNullOrEmpty(existingTag7) && !existingTag7.Contains("[!"))
+                {
+                    string withWarnings = existingTag7 + " | " + warningText;
+                    if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, withWarnings, true))
+                        written++;
+                }
+            }
+
+            // ── Paragraph container write (v5.5) ─────────────────────────
+            // Write the full plain narrative to the category-specific paragraph parameter
+            string paraContainer = ParamRegistry.GetParagraphContainer(categoryName);
+            if (!string.IsNullOrEmpty(paraContainer) && !string.IsNullOrEmpty(tag7.PlainNarrative))
+            {
+                string paraText = tag7.PlainNarrative;
+                // If warnings exist and are visible, append them to the paragraph
+                if (!string.IsNullOrEmpty(warningText))
+                    paraText += " | WARNINGS: " + warningText;
+                if (ParameterHelpers.SetString(el, paraContainer, paraText, overwrite))
+                    written++;
+            }
+
             return written;
+        }
+
+        /// <summary>
+        /// Evaluate all applicable warning thresholds for an element.
+        /// Returns a concatenated warning string, or null if no warnings triggered.
+        /// Respects TAG_WARN_VISIBLE_BOOL and TAG_WARN_SEVERITY_FILTER_TXT.
+        /// </summary>
+        public static string EvaluateElementWarnings(Document doc, Element el, string categoryName)
+        {
+            // Check if warnings are enabled on this element
+            string warnVisible = ParameterHelpers.GetString(el, ParamRegistry.WARN_VISIBLE);
+            if (warnVisible == "No" || warnVisible == "0" || warnVisible == "FALSE" || warnVisible == "false")
+                return null;
+
+            // Get severity filter
+            string severityFilter = ParameterHelpers.GetString(el, ParamRegistry.WARN_SEVERITY_FILTER);
+            if (string.IsNullOrEmpty(severityFilter)) severityFilter = "ALL";
+
+            // Get applicable warnings for this category
+            var warningParamNames = ParamRegistry.GetCategoryWarnings(categoryName);
+            if (warningParamNames == null || warningParamNames.Count == 0)
+                return null;
+
+            var warnings = new List<string>();
+            foreach (string warnParam in warningParamNames)
+            {
+                if (!ParamRegistry.WarningThresholds.TryGetValue(warnParam, out var def))
+                    continue;
+
+                // Apply severity filter
+                if (severityFilter != "ALL")
+                {
+                    int filterLevel = SeverityLevel(severityFilter);
+                    int defLevel = SeverityLevel(def.Severity);
+                    if (defLevel < filterLevel) continue; // Skip lower-severity warnings
+                }
+
+                // Try to get the element's current value for comparison
+                // Map the warning param to its corresponding data parameter
+                string dataValue = GetWarningDataValue(el, warnParam, categoryName);
+                if (string.IsNullOrEmpty(dataValue)) continue;
+
+                string warning = ParamRegistry.EvaluateWarning(def, dataValue);
+                if (!string.IsNullOrEmpty(warning))
+                    warnings.Add(warning);
+            }
+
+            return warnings.Count > 0 ? string.Join(" ", warnings) : null;
+        }
+
+        /// <summary>Get severity level as numeric (for filtering). Higher = more severe.</summary>
+        private static int SeverityLevel(string severity)
+        {
+            switch (severity?.ToUpperInvariant())
+            {
+                case "CRITICAL": return 4;
+                case "HIGH": return 3;
+                case "MEDIUM": return 2;
+                case "LOW": return 1;
+                default: return 0;
+            }
+        }
+
+        /// <summary>
+        /// Map a warning parameter name to the actual data value on the element.
+        /// Warning param names encode the type of check; this method finds the
+        /// corresponding measured/actual value to compare against the threshold.
+        /// </summary>
+        private static string GetWarningDataValue(Element el, string warnParam, string categoryName)
+        {
+            // Map warning params to their corresponding data sources
+            // Pattern: WARN_{prefix}_{metric} maps to the element's actual parameter
+            string wp = warnParam.ToUpperInvariant();
+
+            // U-value checks
+            if (wp.Contains("U_VALUE"))
+                return ParameterHelpers.GetString(el, "PER_THERM_U_VALUE_W_M2K_NR");
+            // Voltage drop
+            if (wp.Contains("VLT_DROP"))
+                return ParameterHelpers.GetString(el, ParamRegistry.ELC_VOLTAGE);
+            // Velocity
+            if (wp.Contains("VEL_MPS") && wp.Contains("HVC"))
+                return ParameterHelpers.GetString(el, ParamRegistry.HVC_VELOCITY);
+            if (wp.Contains("VEL_MPS") && wp.Contains("PLM"))
+                return ParameterHelpers.GetString(el, ParamRegistry.PLM_VELOCITY);
+            // Sound
+            if (wp.Contains("SOUNDLVL"))
+                return ParameterHelpers.GetString(el, "HVC_DCT_SOUNDLVL_DB");
+            // Fire rating
+            if (wp.Contains("FRR") || (wp.Contains("FIRE") && wp.Contains("RESISTANCE")))
+                return ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING);
+            // Floor load
+            if (wp.Contains("FLR_LD_CAP"))
+                return ParameterHelpers.GetString(el, "BLE_FLR_LD_CAP_KPA");
+            // Wall height ratio
+            if (wp.Contains("WALL_HEIGHT_RATIO"))
+            {
+                string h = ParameterHelpers.GetString(el, ParamRegistry.WALL_HEIGHT);
+                string t = ParameterHelpers.GetString(el, ParamRegistry.WALL_THICKNESS);
+                if (double.TryParse(h, out double hv) && double.TryParse(t, out double tv) && tv > 0)
+                    return (hv / tv).ToString("F1");
+                return null;
+            }
+            // Ramp slope
+            if (wp.Contains("RAMP_SLOPE"))
+                return ParameterHelpers.GetString(el, ParamRegistry.RAMP_SLOPE);
+            // Stair dimensions
+            if (wp.Contains("STAIR_RISE"))
+                return ParameterHelpers.GetString(el, ParamRegistry.STAIR_RISE);
+            if (wp.Contains("STAIR_GOING") || wp.Contains("STAIR_TREAD"))
+                return ParameterHelpers.GetString(el, ParamRegistry.STAIR_TREAD);
+            if (wp.Contains("STAIR_WIDTH"))
+                return ParameterHelpers.GetString(el, ParamRegistry.STAIR_WIDTH);
+            if (wp.Contains("STAIR_HEADROOM"))
+                return ParameterHelpers.GetString(el, "BLE_STAIR_HEADROOM_MM");
+            // Door height
+            if (wp.Contains("DOOR_HEIGHT"))
+                return ParameterHelpers.GetString(el, ParamRegistry.DOOR_HEIGHT);
+            // Ceiling height
+            if (wp.Contains("CEIL_HEIGHT"))
+                return ParameterHelpers.GetString(el, ParamRegistry.CEILING_HEIGHT);
+            // Room area
+            if (wp.Contains("ROOM_AREA"))
+                return ParameterHelpers.GetString(el, ParamRegistry.ROOM_AREA);
+            // Room height
+            if (wp.Contains("ROOM_HEIGHT"))
+                return ParameterHelpers.GetString(el, "ASS_ROOM_HEIGHT_MM");
+            // Roof slope
+            if (wp.Contains("ROOF_SLOPE"))
+                return ParameterHelpers.GetString(el, ParamRegistry.ROOF_SLOPE);
+            // SHGC / window performance
+            if (wp.Contains("SHGC"))
+                return ParameterHelpers.GetString(el, "BLE_CW_PANEL_SHGC");
+            // Window U-value
+            if (wp.Contains("WINDOW_U_VALUE"))
+                return ParameterHelpers.GetString(el, "BLE_WINDOW_U_VALUE");
+            // Rail height
+            if (wp.Contains("RAIL_HEIGHT"))
+                return ParameterHelpers.GetString(el, "BLE_RAIL_HEIGHT_MM");
+            // Pipe flow
+            if (wp.Contains("FLW_LPS") || wp.Contains("FIXTURE_FLOW"))
+                return ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_FLOW);
+            // Fill ratio
+            if (wp.Contains("FILL_RATIO"))
+                return ParameterHelpers.GetString(el, "ELC_CDT_FILL_RATIO");
+            // Access width
+            if (wp.Contains("ACCESS_CLEAR_WIDTH") || wp.Contains("CORRIDOR_WIDTH"))
+                return ParameterHelpers.GetString(el, ParamRegistry.DOOR_WIDTH);
+            // Column slenderness
+            if (wp.Contains("SLENDERNESS"))
+                return ParameterHelpers.GetString(el, "BLE_COLUMN_SLENDERNESS");
+            // Beam span/depth
+            if (wp.Contains("SPAN_DEPTH"))
+                return ParameterHelpers.GetString(el, "STR_BEAM_SPAN_DEPTH");
+            // Beam deflection
+            if (wp.Contains("DEFLECTION"))
+                return ParameterHelpers.GetString(el, "STR_BEAM_DEFLECTION");
+            // Rebar cover
+            if (wp.Contains("RBR_COVER"))
+                return ParameterHelpers.GetString(el, "STR_RBR_COVER_MM");
+            // Insulation thickness
+            if (wp.Contains("INS_THICKNESS"))
+                return ParameterHelpers.GetString(el, ParamRegistry.HVC_INSULATION);
+            // Illuminance
+            if (wp.Contains("ILLUMINANCE"))
+                return ParameterHelpers.GetString(el, "LTG_ILLUMINANCE_LUX");
+            // Carbon footprint
+            if (wp.Contains("CARBON"))
+                return ParameterHelpers.GetString(el, "PER_SUST_CARBON_FOOTPRINT_KG");
+            // Acoustic ratings
+            if (wp.Contains("ACOUSTIC") && wp.Contains("STC"))
+                return ParameterHelpers.GetString(el, "PER_ACOUSTIC_WALL_STC");
+            if (wp.Contains("ACOUSTIC") && wp.Contains("IIC"))
+                return ParameterHelpers.GetString(el, "PER_ACOUSTIC_FLOOR_IIC");
+            // ELC efficiency
+            if (wp.Contains("EFF_RATIO"))
+                return ParameterHelpers.GetString(el, "HVC_EFF_RATIO_NR");
+            // Short circuit
+            if (wp.Contains("SHORT_CIRCUIT"))
+                return ParameterHelpers.GetString(el, "ELC_PNL_SHORT_CIRCUIT_KA");
+            // Spare ways
+            if (wp.Contains("SPARE_WAYS"))
+                return ParameterHelpers.GetString(el, "ELC_PNL_SPARE_WAYS_PCT");
+            // Pipe gradient
+            if (wp.Contains("PIPE_GRADIENT"))
+                return ParameterHelpers.GetString(el, "PLM_PIPE_GRADIENT_PCT");
+            // Trap seal
+            if (wp.Contains("TRAP_SEAL"))
+                return ParameterHelpers.GetString(el, "PLM_TRAP_SEAL_MM");
+            // Foundation bearing/depth
+            if (wp.Contains("FDN_BEARING") || wp.Contains("BEARING_CAP"))
+                return ParameterHelpers.GetString(el, "BLE_STRUCT_FDN_BEARING_KPA");
+            if (wp.Contains("FDN_DEPTH"))
+                return ParameterHelpers.GetString(el, "STR_FDN_DEPTH_MM");
+            // Weld
+            if (wp.Contains("WLD_STRENGTH"))
+                return ParameterHelpers.GetString(el, "STR_WLD_STRENGTH_MPA");
+            if (wp.Contains("WLD_THROAT"))
+                return ParameterHelpers.GetString(el, "STR_WLD_THROAT_MM");
+            // Connection capacity
+            if (wp.Contains("CONN_CAPACITY"))
+                return ParameterHelpers.GetString(el, "STR_CONN_CAPACITY_KN");
+            // Sprinkler coverage
+            if (wp.Contains("SPR_COVER") || wp.Contains("COVERAGE_AREA"))
+                return ParameterHelpers.GetString(el, "FLS_SFTY_COVERAGE_AREA_SQ_M");
+            // IP rating
+            if (wp.Contains("IP_RATING"))
+                return ParameterHelpers.GetString(el, ParamRegistry.ELC_IP_RATING);
+            // VOC
+            if (wp.Contains("VOC"))
+                return ParameterHelpers.GetString(el, "PER_VOC_EMISSIONS_UG_M3");
+            // Hanger load
+            if (wp.Contains("HANGER_LOAD"))
+                return ParameterHelpers.GetString(el, "FAB_HANGER_LOAD_KN");
+            // Duct pressure drop
+            if (wp.Contains("PRESSURE_DROP"))
+                return ParameterHelpers.GetString(el, ParamRegistry.HVC_PRESSURE);
+            // Parking width
+            if (wp.Contains("PARKING_WIDTH"))
+                return ParameterHelpers.GetString(el, "BLE_PARKING_WIDTH_MM");
+
+            // Generic fallback: no mapping found
+            return null;
         }
 
         /// <summary>Append a label:value pair to both plain and marked StringBuilders.</summary>

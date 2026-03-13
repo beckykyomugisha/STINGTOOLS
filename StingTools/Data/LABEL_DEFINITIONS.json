@@ -1,6 +1,6 @@
 {
-  "version": "5.5",
-  "description": "STING Seed Tag v5.5 — master label specification (merged v5.0 local + v5.4 transfer)",
+  "version": "5.6",
+  "description": "STING Seed Tag v5.6 — master label specification with enriched warnings (99 thresholds, all columns populated)",
   "presentation_modes": {
     "Compact": {
       "state_1": true,
@@ -1467,8 +1467,24 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_CASEWORK_DEPTH_MM",
-        "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C"
+        {
+          "param": "WARN_BLE_CASEWORK_DEPTH_MM",
+          "severity": "LOW",
+          "threshold": "600",
+          "unit": "mm",
+          "description": "Casework depth maximum for accessibility",
+          "standard": "BS 8300:2018 / BS EN 16121",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CASEWORK_DEPTH_MM, \"\")"
+        },
+        {
+          "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Accessible clear width minimum",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+        }
       ],
       "paragraph_template": "This {type} casework unit is {width} mm wide by {depth} mm deep by {height} mm high, constructed from {material}. Countertop: {countertop}. Hardware: {hardware}. Accessible: {accessible} (clearance: {clearance} mm). Located in {room} on level {level} in the {zone} zone, serving the {department} department. Manufacturer: {manufacturer}, Model: {model}. Expected life: {life} years. Assembly code: {assembly_code}. Compliant with {standard}."
     },
@@ -1949,10 +1965,42 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_CEIL_HEIGHT_MM",
-        "WARN_DOOR_FRR",
-        "WARN_PER_RECYCLABILITY_LOW",
-        "WARN_PER_VOC_EMISSIONS"
+        {
+          "param": "WARN_BLE_CEIL_HEIGHT_MM",
+          "severity": "HIGH",
+          "threshold": "2400",
+          "unit": "mm",
+          "description": "Ceiling height minimum",
+          "standard": "Building Regs Part B / ADB Table A1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CEIL_HEIGHT_MM, \"\")"
+        },
+        {
+          "param": "WARN_DOOR_FRR",
+          "severity": "CRITICAL",
+          "threshold": "60",
+          "unit": "min",
+          "description": "Fire resistance rating minimum compliance",
+          "standard": "Building Regs Part B / BS 476",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, \"\")"
+        },
+        {
+          "param": "WARN_PER_RECYCLABILITY_LOW",
+          "severity": "LOW",
+          "threshold": "30",
+          "unit": "%",
+          "description": "Material recyclability percentage minimum",
+          "standard": "BREEAM Mat 01 / LEED MR Credit",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, \"\")"
+        },
+        {
+          "param": "WARN_PER_VOC_EMISSIONS",
+          "severity": "HIGH",
+          "threshold": "250",
+          "unit": "µg/m³",
+          "description": "VOC emissions limit for indoor air quality",
+          "standard": "WELL Building Standard / EN 16516",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, \"\")"
+        }
       ]
     },
     "Doors": {
@@ -2463,10 +2511,42 @@
         }
       ],
       "warnings": [
-        "WARN_DOOR_FRR",
-        "WARN_BLE_DOOR_ACOUSTIC",
-        "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
-        "WARN_BLE_DOOR_HEIGHT_MM"
+        {
+          "param": "WARN_DOOR_FRR",
+          "severity": "CRITICAL",
+          "threshold": "60",
+          "unit": "min",
+          "description": "Fire resistance rating minimum compliance",
+          "standard": "Building Regs Part B / BS 476",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, \"\")"
+        },
+        {
+          "param": "WARN_BLE_DOOR_ACOUSTIC",
+          "severity": "MEDIUM",
+          "threshold": "35",
+          "unit": "dB",
+          "description": "Duct-borne sound level limit",
+          "standard": "Building Regs Part M / BS 8300",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_DOOR_ACOUSTIC, \"\")"
+        },
+        {
+          "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Accessible clear width minimum",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+        },
+        {
+          "param": "WARN_BLE_DOOR_HEIGHT_MM",
+          "severity": "HIGH",
+          "threshold": "2100",
+          "unit": "mm",
+          "description": "Door height accessibility minimum",
+          "standard": "Building Regs Part M / BS 8300",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_DOOR_HEIGHT_MM, \"\")"
+        }
       ]
     },
     "Floors": {
@@ -2971,13 +3051,69 @@
         }
       ],
       "warnings": [
-        "WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS",
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
-        "WARN_BLE_FLR_LD_CAP_KPA",
-        "WARN_PER_ACOUSTIC_FLOOR_IIC",
-        "WARN_FLS_COMPARTMENT_AREA",
-        "WARN_PER_RECYCLABILITY_LOW",
-        "WARN_PER_VOC_EMISSIONS"
+        {
+          "param": "WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS",
+          "severity": "HIGH",
+          "threshold": "0.30",
+          "unit": "W/m²K",
+          "description": "Floor U-value thermal transmittance limit",
+          "standard": "Building Regs Part L / Uganda ES / ASHRAE 90.1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS, \"\")"
+        },
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        },
+        {
+          "param": "WARN_BLE_FLR_LD_CAP_KPA",
+          "severity": "CRITICAL",
+          "threshold": "2.5",
+          "unit": "kPa",
+          "description": "Floor imposed load capacity minimum",
+          "standard": "BS EN 1991-1-1 / Eurocode 1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLR_LD_CAP_KPA, \"\")"
+        },
+        {
+          "param": "WARN_PER_ACOUSTIC_FLOOR_IIC",
+          "severity": "MEDIUM",
+          "threshold": "50",
+          "unit": "IIC",
+          "description": "Floor Impact Insulation Class minimum rating",
+          "standard": "Building Regs Part E / BS 8233:2014",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_ACOUSTIC_FLOOR_IIC, \"\")"
+        },
+        {
+          "param": "WARN_FLS_COMPARTMENT_AREA",
+          "severity": "MEDIUM",
+          "threshold": "project-specific",
+          "unit": "",
+          "description": "Compliance check: fls compartment area",
+          "standard": "Building Regs Part B / ADB Table A1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_COMPARTMENT_AREA, \"\")"
+        },
+        {
+          "param": "WARN_PER_RECYCLABILITY_LOW",
+          "severity": "LOW",
+          "threshold": "30",
+          "unit": "%",
+          "description": "Material recyclability percentage minimum",
+          "standard": "BREEAM Mat 01 / LEED MR Credit",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, \"\")"
+        },
+        {
+          "param": "WARN_PER_VOC_EMISSIONS",
+          "severity": "HIGH",
+          "threshold": "250",
+          "unit": "µg/m³",
+          "description": "VOC emissions limit for indoor air quality",
+          "standard": "WELL Building Standard / EN 16516",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, \"\")"
+        }
       ]
     },
     "Furniture": {
@@ -3412,9 +3548,33 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_FURNITURE_CLEARANCE_MM",
-        "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
-        "WARN_PER_VOC_EMISSIONS"
+        {
+          "param": "WARN_BLE_FURNITURE_CLEARANCE_MM",
+          "severity": "MEDIUM",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Furniture clearance zone minimum",
+          "standard": "BS 8300:2018 / HSE workplace regs",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FURNITURE_CLEARANCE_MM, \"\")"
+        },
+        {
+          "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Accessible clear width minimum",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+        },
+        {
+          "param": "WARN_PER_VOC_EMISSIONS",
+          "severity": "HIGH",
+          "threshold": "250",
+          "unit": "µg/m³",
+          "description": "VOC emissions limit for indoor air quality",
+          "standard": "WELL Building Standard / EN 16516",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, \"\")"
+        }
       ],
       "paragraph_template": "This {type} furniture piece is {width} mm wide by {depth} mm deep by {height} mm high, manufactured by {manufacturer} (Model: {model}). Material: {material}. Finish: {finish}. Weight: {weight} kg. Accessible clearance: {clearance} mm. Located in {room} on level {level} in the {zone} zone, serving the {department} department. Expected life: {life} years. VOC emissions: {voc}. Keynote: {keynote}. Assembly code: {assembly_code}. Compliant with {standard}."
     },
@@ -3850,8 +4010,24 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_FURNITURE_CLEARANCE_MM",
-        "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C"
+        {
+          "param": "WARN_BLE_FURNITURE_CLEARANCE_MM",
+          "severity": "MEDIUM",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Furniture clearance zone minimum",
+          "standard": "BS 8300:2018 / HSE workplace regs",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FURNITURE_CLEARANCE_MM, \"\")"
+        },
+        {
+          "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Accessible clear width minimum",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+        }
       ]
     },
     "Parking": {
@@ -4278,8 +4454,24 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_PARKING_WIDTH_MM",
-        "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C"
+        {
+          "param": "WARN_BLE_PARKING_WIDTH_MM",
+          "severity": "MEDIUM",
+          "threshold": "2400",
+          "unit": "mm",
+          "description": "Parking bay width minimum",
+          "standard": "BS 8300:2018 / Local Planning",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_PARKING_WIDTH_MM, \"\")"
+        },
+        {
+          "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Accessible clear width minimum",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+        }
       ]
     },
     "Ramps": {
@@ -4731,8 +4923,24 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_RAMP_SLOPE_PCT_RAMPS",
-        "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C"
+        {
+          "param": "WARN_BLE_RAMP_SLOPE_PCT_RAMPS",
+          "severity": "CRITICAL",
+          "threshold": "8.33",
+          "unit": "%",
+          "description": "Ramp gradient accessibility limit (1:12 max)",
+          "standard": "BS 8300:2018 §7.2 / ADA §405.2",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAMP_SLOPE_PCT_RAMPS, \"\")"
+        },
+        {
+          "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Accessible clear width minimum",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+        }
       ]
     },
     "Roofs": {
@@ -5244,10 +5452,42 @@
         }
       ],
       "warnings": [
-        "WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS",
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
-        "WARN_BLE_ROOF_SLOPE",
-        "WARN_PER_RECYCLABILITY_LOW"
+        {
+          "param": "WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS",
+          "severity": "HIGH",
+          "threshold": "0.30",
+          "unit": "W/m²K",
+          "description": "Roof U-value thermal transmittance limit",
+          "standard": "Building Regs Part L / Uganda ES / ASHRAE 90.1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS, \"\")"
+        },
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        },
+        {
+          "param": "WARN_BLE_ROOF_SLOPE",
+          "severity": "HIGH",
+          "threshold": "1.5",
+          "unit": "%",
+          "description": "Roof slope minimum for drainage",
+          "standard": "Building Regs Part L / BS 6229",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOF_SLOPE, \"\")"
+        },
+        {
+          "param": "WARN_PER_RECYCLABILITY_LOW",
+          "severity": "LOW",
+          "threshold": "30",
+          "unit": "%",
+          "description": "Material recyclability percentage minimum",
+          "standard": "BREEAM Mat 01 / LEED MR Credit",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, \"\")"
+        }
       ]
     },
     "Rooms": {
@@ -5704,13 +5944,69 @@
         }
       ],
       "warnings": [
-        "WARN_ASS_ROOM_AREA_MIN",
-        "WARN_ASS_ROOM_VENTILATION",
-        "WARN_ASS_ROOM_HEIGHT_MM",
-        "WARN_ASS_ROOM_DAYLIGHT",
-        "WARN_BLE_CORRIDOR_WIDTH_MM",
-        "WARN_FLS_TRAVEL_DIST_M",
-        "WARN_RGL_ACCESSIBLE_WC"
+        {
+          "param": "WARN_ASS_ROOM_AREA_MIN",
+          "severity": "HIGH",
+          "threshold": "7.0",
+          "unit": "m²",
+          "description": "Room minimum area compliance",
+          "standard": "Building Regs / Space Standards",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_AREA_MIN, \"\")"
+        },
+        {
+          "param": "WARN_ASS_ROOM_VENTILATION",
+          "severity": "HIGH",
+          "threshold": "10",
+          "unit": "L/s/person",
+          "description": "Room ventilation rate minimum",
+          "standard": "Building Regs / Space Standards",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_VENTILATION, \"\")"
+        },
+        {
+          "param": "WARN_ASS_ROOM_HEIGHT_MM",
+          "severity": "HIGH",
+          "threshold": "2700",
+          "unit": "mm",
+          "description": "Room clear height minimum",
+          "standard": "Building Regs / Space Standards",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_HEIGHT_MM, \"\")"
+        },
+        {
+          "param": "WARN_ASS_ROOM_DAYLIGHT",
+          "severity": "MEDIUM",
+          "threshold": "2.0",
+          "unit": "%",
+          "description": "Room daylight factor minimum",
+          "standard": "Building Regs / Space Standards",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_DAYLIGHT, \"\")"
+        },
+        {
+          "param": "WARN_BLE_CORRIDOR_WIDTH_MM",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Accessible clear width minimum",
+          "standard": "Building Regs Part M / BS 8300",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CORRIDOR_WIDTH_MM, \"\")"
+        },
+        {
+          "param": "WARN_FLS_TRAVEL_DIST_M",
+          "severity": "MEDIUM",
+          "threshold": "project-specific",
+          "unit": "",
+          "description": "Compliance check: fls travel dist m",
+          "standard": "Building Regs Part B / BS 9999 Table 3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_TRAVEL_DIST_M, \"\")"
+        },
+        {
+          "param": "WARN_RGL_ACCESSIBLE_WC",
+          "severity": "CRITICAL",
+          "threshold": "1",
+          "unit": "per floor",
+          "description": "Accessible WC provision compliance",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESSIBLE_WC, \"\")"
+        }
       ],
       "paragraph_template": "This is {room_name} (Room {room_number}) with a floor area of {area} m² and volume of {volume} m³, located on level {level} in the {zone} zone within the {department} department. The room has a ceiling height of {height} mm with {finishes} finishes. Design lighting level: {lux} lux. Ventilation rate: {ventilation} L/s per person. Acoustic requirement: {noise} dB background noise maximum. Fire escape travel distance: {travel} m. Occupancy load: {occupancy} persons. Grid reference: {grid}. Phase: {phase}. Workset: {workset}. Compliant with {standard}."
     },
@@ -6146,7 +6442,15 @@
         }
       ],
       "warnings": [
-        "WARN_SITE_BEARING_CAP_KPA"
+        {
+          "param": "WARN_SITE_BEARING_CAP_KPA",
+          "severity": "CRITICAL",
+          "threshold": "100",
+          "unit": "kPa",
+          "description": "Foundation/soil bearing capacity minimum",
+          "standard": "BS EN 1997-1 / Eurocode 7",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
+        }
       ]
     },
     "Stairs": {
@@ -6614,12 +6918,60 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STAIR_RISE",
-        "WARN_BLE_STAIR_GOING",
-        "WARN_DOOR_FRR",
-        "WARN_BLE_STAIR_HEADROOM_MM",
-        "WARN_BLE_STAIR_WIDTH_MM",
-        "WARN_FLS_TRAVEL_DIST_M"
+        {
+          "param": "WARN_BLE_STAIR_RISE",
+          "severity": "CRITICAL",
+          "threshold": "220",
+          "unit": "mm",
+          "description": "Stair individual rise limit",
+          "standard": "Building Regs Part K / BS 5395-1:2010",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISE, \"\")"
+        },
+        {
+          "param": "WARN_BLE_STAIR_GOING",
+          "severity": "CRITICAL",
+          "threshold": "220",
+          "unit": "mm",
+          "description": "Stair individual going minimum",
+          "standard": "Building Regs Part K / BS 5395-1:2010",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_GOING, \"\")"
+        },
+        {
+          "param": "WARN_DOOR_FRR",
+          "severity": "CRITICAL",
+          "threshold": "60",
+          "unit": "min",
+          "description": "Fire resistance rating minimum compliance",
+          "standard": "Building Regs Part B / BS 476",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, \"\")"
+        },
+        {
+          "param": "WARN_BLE_STAIR_HEADROOM_MM",
+          "severity": "MEDIUM",
+          "threshold": "project-specific",
+          "unit": "",
+          "description": "Compliance check: ble stair headroom mm",
+          "standard": "Building Regs Part K / BS 5395-1:2010",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_HEADROOM_MM, \"\")"
+        },
+        {
+          "param": "WARN_BLE_STAIR_WIDTH_MM",
+          "severity": "CRITICAL",
+          "threshold": "1000",
+          "unit": "mm",
+          "description": "Stair clear width minimum",
+          "standard": "Building Regs Part K / BS 5395-1:2010",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_WIDTH_MM, \"\")"
+        },
+        {
+          "param": "WARN_FLS_TRAVEL_DIST_M",
+          "severity": "MEDIUM",
+          "threshold": "project-specific",
+          "unit": "",
+          "description": "Compliance check: fls travel dist m",
+          "standard": "Building Regs Part B / BS 9999 Table 3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_TRAVEL_DIST_M, \"\")"
+        }
       ]
     },
     "Walls": {
@@ -7194,14 +7546,78 @@
         }
       ],
       "warnings": [
-        "WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS",
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
-        "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
-        "WARN_BLE_WALL_HEIGHT_RATIO",
-        "WARN_PER_ACOUSTIC_WALL_STC",
-        "WARN_FLS_COMPARTMENT_AREA",
-        "WARN_PER_RECYCLABILITY_LOW",
-        "WARN_PER_VOC_EMISSIONS"
+        {
+          "param": "WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS",
+          "severity": "HIGH",
+          "threshold": "0.30",
+          "unit": "W/m²K",
+          "description": "Wall U-value thermal transmittance limit",
+          "standard": "Building Regs Part L / Uganda ES / ASHRAE 90.1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS, \"\")"
+        },
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        },
+        {
+          "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Accessible clear width minimum",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+        },
+        {
+          "param": "WARN_BLE_WALL_HEIGHT_RATIO",
+          "severity": "MEDIUM",
+          "threshold": "2100",
+          "unit": "mm",
+          "description": "Height compliance check",
+          "standard": "BS EN 1996-1-1 / Eurocode 6",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WALL_HEIGHT_RATIO, \"\")"
+        },
+        {
+          "param": "WARN_PER_ACOUSTIC_WALL_STC",
+          "severity": "MEDIUM",
+          "threshold": "50",
+          "unit": "STC",
+          "description": "Wall Sound Transmission Class minimum rating",
+          "standard": "Building Regs Part E / BS 8233:2014",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_ACOUSTIC_WALL_STC, \"\")"
+        },
+        {
+          "param": "WARN_FLS_COMPARTMENT_AREA",
+          "severity": "MEDIUM",
+          "threshold": "project-specific",
+          "unit": "",
+          "description": "Compliance check: fls compartment area",
+          "standard": "Building Regs Part B / ADB Table A1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_COMPARTMENT_AREA, \"\")"
+        },
+        {
+          "param": "WARN_PER_RECYCLABILITY_LOW",
+          "severity": "LOW",
+          "threshold": "30",
+          "unit": "%",
+          "description": "Material recyclability percentage minimum",
+          "standard": "BREEAM Mat 01 / LEED MR Credit",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, \"\")"
+        },
+        {
+          "param": "WARN_PER_VOC_EMISSIONS",
+          "severity": "HIGH",
+          "threshold": "250",
+          "unit": "µg/m³",
+          "description": "VOC emissions limit for indoor air quality",
+          "standard": "WELL Building Standard / EN 16516",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, \"\")"
+        }
       ]
     },
     "Windows": {
@@ -7693,8 +8109,24 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_WINDOW_U_VALUE",
-        "WARN_BLE_WINDOW_SHGC"
+        {
+          "param": "WARN_BLE_WINDOW_U_VALUE",
+          "severity": "HIGH",
+          "threshold": "0.30",
+          "unit": "W/m²K",
+          "description": "U-value thermal transmittance check",
+          "standard": "Building Regs Part L / ASHRAE 90.1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WINDOW_U_VALUE, \"\")"
+        },
+        {
+          "param": "WARN_BLE_WINDOW_SHGC",
+          "severity": "HIGH",
+          "threshold": "0.40",
+          "unit": "SHGC",
+          "description": "Solar heat gain coefficient limit",
+          "standard": "Building Regs Part L / ASHRAE 90.1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WINDOW_SHGC, \"\")"
+        }
       ]
     },
     "Structural Rebar": {
@@ -8127,9 +8559,33 @@
         }
       ],
       "warnings": [
-        "WARN_STR_RBR_COVER_MM",
-        "WARN_STR_RBR_LAP_LENGTH_MM",
-        "WARN_STR_REBAR_MIN_DIA"
+        {
+          "param": "WARN_STR_RBR_COVER_MM",
+          "severity": "CRITICAL",
+          "threshold": "25",
+          "unit": "mm",
+          "description": "Rebar concrete cover minimum",
+          "standard": "BS EN 1992-1-1 §4.4 / Eurocode 2",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, \"\")"
+        },
+        {
+          "param": "WARN_STR_RBR_LAP_LENGTH_MM",
+          "severity": "HIGH",
+          "threshold": "500",
+          "unit": "mm",
+          "description": "Rebar lap length minimum",
+          "standard": "BS EN 1992-1-1 §4.4 / Eurocode 2",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_LAP_LENGTH_MM, \"\")"
+        },
+        {
+          "param": "WARN_STR_REBAR_MIN_DIA",
+          "severity": "MEDIUM",
+          "threshold": "10",
+          "unit": "mm",
+          "description": "Minimum rebar diameter",
+          "standard": "BS EN 1992-1-1 / Eurocode 2",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_MIN_DIA, \"\")"
+        }
       ]
     },
     "Railings": {
@@ -8562,8 +9018,24 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_RAIL_HEIGHT_MM",
-        "WARN_BLE_RAIL_LOAD_KN_M"
+        {
+          "param": "WARN_BLE_RAIL_HEIGHT_MM",
+          "severity": "CRITICAL",
+          "threshold": "1100",
+          "unit": "mm",
+          "description": "Railing height minimum",
+          "standard": "Building Regs Part K / BS 6180:2011",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, \"\")"
+        },
+        {
+          "param": "WARN_BLE_RAIL_LOAD_KN_M",
+          "severity": "CRITICAL",
+          "threshold": "0.74",
+          "unit": "kN/m",
+          "description": "Railing horizontal load resistance minimum",
+          "standard": "Building Regs Part K / BS 6180:2011",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_LOAD_KN_M, \"\")"
+        }
       ]
     },
     "Areas": {
@@ -8982,7 +9454,15 @@
         }
       ],
       "warnings": [
-        "WARN_ASS_ROOM_AREA_MIN"
+        {
+          "param": "WARN_ASS_ROOM_AREA_MIN",
+          "severity": "HIGH",
+          "threshold": "7.0",
+          "unit": "m²",
+          "description": "Room minimum area compliance",
+          "standard": "Building Regs / Space Standards",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_AREA_MIN, \"\")"
+        }
       ]
     },
     "Spaces": {
@@ -9408,7 +9888,15 @@
         }
       ],
       "warnings": [
-        "WARN_MEP_SPC_LIGHTING"
+        {
+          "param": "WARN_MEP_SPC_LIGHTING",
+          "severity": "MEDIUM",
+          "threshold": "10",
+          "unit": "W/m²",
+          "description": "Space lighting power density limit",
+          "standard": "CIBSE SLL LG7 / BS EN 15193",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MEP_SPC_LIGHTING, \"\")"
+        }
       ]
     },
     "Curtain Panels": {
@@ -9841,8 +10329,24 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_CW_PANEL_U_VALUE",
-        "WARN_BLE_CW_PANEL_SHGC"
+        {
+          "param": "WARN_BLE_CW_PANEL_U_VALUE",
+          "severity": "HIGH",
+          "threshold": "0.30",
+          "unit": "W/m²K",
+          "description": "U-value thermal transmittance check",
+          "standard": "Building Regs Part L / CWCT TN 42",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CW_PANEL_U_VALUE, \"\")"
+        },
+        {
+          "param": "WARN_BLE_CW_PANEL_SHGC",
+          "severity": "HIGH",
+          "threshold": "0.40",
+          "unit": "SHGC",
+          "description": "Solar heat gain coefficient limit",
+          "standard": "Building Regs Part L / CWCT TN 42",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CW_PANEL_SHGC, \"\")"
+        }
       ]
     },
     "Curtain Wall Mullions": {
@@ -10261,7 +10765,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Columns": {
@@ -10687,7 +11199,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_COLUMN_SLENDERNESS"
+        {
+          "param": "WARN_BLE_COLUMN_SLENDERNESS",
+          "severity": "CRITICAL",
+          "threshold": "30",
+          "unit": "ratio",
+          "description": "Column slenderness ratio limit",
+          "standard": "BS EN 1992-1-1 §5.8 / Eurocode 2",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_COLUMN_SLENDERNESS, \"\")"
+        }
       ]
     },
     "Assemblies": {
@@ -11106,7 +11626,15 @@
         }
       ],
       "warnings": [
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__"
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        }
       ]
     },
     "Detail Items": {
@@ -11525,7 +12053,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_GENERIC_CLEARANCE_MM"
+        {
+          "param": "WARN_BLE_GENERIC_CLEARANCE_MM",
+          "severity": "LOW",
+          "threshold": "600",
+          "unit": "mm",
+          "description": "Generic model clearance zone minimum",
+          "standard": "Project-specific requirement",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
+        }
       ]
     },
     "Entourage": {
@@ -11944,7 +12480,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_ENTOURAGE_SCALE"
+        {
+          "param": "WARN_BLE_ENTOURAGE_SCALE",
+          "severity": "LOW",
+          "threshold": "1.0",
+          "unit": "scale",
+          "description": "Entourage/planting scale factor check",
+          "standard": "Project landscape specification",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ENTOURAGE_SCALE, \"\")"
+        }
       ]
     },
     "Food Service Equipment": {
@@ -12363,8 +12907,24 @@
         }
       ],
       "warnings": [
-        "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
-        "WARN_PLM_FIXTURE_ACCESS"
+        {
+          "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Accessible clear width minimum",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+        },
+        {
+          "param": "WARN_PLM_FIXTURE_ACCESS",
+          "severity": "MEDIUM",
+          "threshold": "450",
+          "unit": "mm",
+          "description": "Plumbing fixture access clearance",
+          "standard": "Building Regs Part G / BS 6465",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_FIXTURE_ACCESS, \"\")"
+        }
       ]
     },
     "Hardscape": {
@@ -12790,7 +13350,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_FLR_LD_CAP_KPA"
+        {
+          "param": "WARN_BLE_FLR_LD_CAP_KPA",
+          "severity": "CRITICAL",
+          "threshold": "2.5",
+          "unit": "kPa",
+          "description": "Floor imposed load capacity minimum",
+          "standard": "BS EN 1991-1-1 / Eurocode 1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLR_LD_CAP_KPA, \"\")"
+        }
       ]
     },
     "Mass": {
@@ -13209,7 +13777,15 @@
         }
       ],
       "warnings": [
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__"
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        }
       ]
     },
     "Model Groups": {
@@ -13628,7 +14204,15 @@
         }
       ],
       "warnings": [
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__"
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        }
       ]
     },
     "Pads": {
@@ -14054,7 +14638,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_FDN_BEARING"
+        {
+          "param": "WARN_BLE_STRUCT_FDN_BEARING",
+          "severity": "CRITICAL",
+          "threshold": "100",
+          "unit": "kPa",
+          "description": "Foundation/soil bearing capacity minimum",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_FDN_BEARING, \"\")"
+        }
       ]
     },
     "Parts": {
@@ -14473,7 +15065,15 @@
         }
       ],
       "warnings": [
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__"
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        }
       ]
     },
     "Planting": {
@@ -14892,7 +15492,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_GENERIC_CLEARANCE_MM"
+        {
+          "param": "WARN_BLE_GENERIC_CLEARANCE_MM",
+          "severity": "LOW",
+          "threshold": "600",
+          "unit": "mm",
+          "description": "Generic model clearance zone minimum",
+          "standard": "Project-specific requirement",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
+        }
       ]
     },
     "Profiles": {
@@ -15311,7 +15919,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_GENERIC_CLEARANCE_MM"
+        {
+          "param": "WARN_BLE_GENERIC_CLEARANCE_MM",
+          "severity": "LOW",
+          "threshold": "600",
+          "unit": "mm",
+          "description": "Generic model clearance zone minimum",
+          "standard": "Project-specific requirement",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
+        }
       ]
     },
     "Property Lines": {
@@ -15730,7 +16346,15 @@
         }
       ],
       "warnings": [
-        "WARN_SITE_BEARING_CAP_KPA"
+        {
+          "param": "WARN_SITE_BEARING_CAP_KPA",
+          "severity": "CRITICAL",
+          "threshold": "100",
+          "unit": "kPa",
+          "description": "Foundation/soil bearing capacity minimum",
+          "standard": "BS EN 1997-1 / Eurocode 7",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
+        }
       ]
     },
     "Roads": {
@@ -16156,7 +16780,15 @@
         }
       ],
       "warnings": [
-        "WARN_ROAD_GRADIENT_PCT"
+        {
+          "param": "WARN_ROAD_GRADIENT_PCT",
+          "severity": "MEDIUM",
+          "threshold": "8.0",
+          "unit": "%",
+          "description": "Road gradient limit",
+          "standard": "Highways England DMRB / Local Authority",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ROAD_GRADIENT_PCT, \"\")"
+        }
       ]
     },
     "Signage": {
@@ -16575,8 +17207,24 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_SIGNAGE_HEIGHT_MM",
-        "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C"
+        {
+          "param": "WARN_BLE_SIGNAGE_HEIGHT_MM",
+          "severity": "LOW",
+          "threshold": "2100",
+          "unit": "mm",
+          "description": "Signage mounting height check",
+          "standard": "BS 8300:2018 / BS 5499",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_SIGNAGE_HEIGHT_MM, \"\")"
+        },
+        {
+          "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Accessible clear width minimum",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+        }
       ]
     },
     "Toposolid": {
@@ -17002,7 +17650,15 @@
         }
       ],
       "warnings": [
-        "WARN_SITE_BEARING_CAP_KPA"
+        {
+          "param": "WARN_SITE_BEARING_CAP_KPA",
+          "severity": "CRITICAL",
+          "threshold": "100",
+          "unit": "kPa",
+          "description": "Foundation/soil bearing capacity minimum",
+          "standard": "BS EN 1997-1 / Eurocode 7",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
+        }
       ]
     },
     "Vertical Circulation": {
@@ -17428,8 +18084,24 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_VERT_CIRC_LOAD",
-        "WARN_RGL_LIFT_CAR_SIZE"
+        {
+          "param": "WARN_BLE_VERT_CIRC_LOAD",
+          "severity": "HIGH",
+          "threshold": "5.0",
+          "unit": "kN/m²",
+          "description": "Vertical circulation structural load check",
+          "standard": "Building Regs Part K / BS EN 81-20",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_VERT_CIRC_LOAD, \"\")"
+        },
+        {
+          "param": "WARN_RGL_LIFT_CAR_SIZE",
+          "severity": "CRITICAL",
+          "threshold": "1100x1400",
+          "unit": "mm",
+          "description": "Lift car minimum size for wheelchair access",
+          "standard": "Project-specific / ISO 19650",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_LIFT_CAR_SIZE, \"\")"
+        }
       ]
     },
     "Zones": {
@@ -17848,7 +18520,15 @@
         }
       ],
       "warnings": [
-        "WARN_ASS_ROOM_VENTILATION"
+        {
+          "param": "WARN_ASS_ROOM_VENTILATION",
+          "severity": "HIGH",
+          "threshold": "10",
+          "unit": "L/s/person",
+          "description": "Room ventilation rate minimum",
+          "standard": "Building Regs / Space Standards",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_VENTILATION, \"\")"
+        }
       ]
     },
     "RVT Links": {
@@ -18267,7 +18947,15 @@
         }
       ],
       "warnings": [
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__"
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        }
       ]
     },
     "Fascia": {
@@ -18686,7 +19374,15 @@
         }
       ],
       "warnings": [
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__"
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        }
       ]
     },
     "Gutter": {
@@ -19105,7 +19801,15 @@
         }
       ],
       "warnings": [
-        "WARN_PLM_PIPE_GRADIENT"
+        {
+          "param": "WARN_PLM_PIPE_GRADIENT",
+          "severity": "HIGH",
+          "threshold": "1.0",
+          "unit": "%",
+          "description": "Pipe gradient minimum",
+          "standard": "BS EN 12056-2 / Building Regs Part H",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_GRADIENT, \"\")"
+        }
       ]
     },
     "Handrails": {
@@ -19538,8 +20242,24 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_RAIL_HEIGHT_MM",
-        "WARN_BLE_RAIL_LOAD_KN_M"
+        {
+          "param": "WARN_BLE_RAIL_HEIGHT_MM",
+          "severity": "CRITICAL",
+          "threshold": "1100",
+          "unit": "mm",
+          "description": "Railing height minimum",
+          "standard": "Building Regs Part K / BS 6180:2011",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, \"\")"
+        },
+        {
+          "param": "WARN_BLE_RAIL_LOAD_KN_M",
+          "severity": "CRITICAL",
+          "threshold": "0.74",
+          "unit": "kN/m",
+          "description": "Railing horizontal load resistance minimum",
+          "standard": "Building Regs Part K / BS 6180:2011",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_LOAD_KN_M, \"\")"
+        }
       ]
     },
     "Roof Soffits": {
@@ -19958,8 +20678,24 @@
         }
       ],
       "warnings": [
-        "WARN_DOOR_FRR",
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__"
+        {
+          "param": "WARN_DOOR_FRR",
+          "severity": "CRITICAL",
+          "threshold": "60",
+          "unit": "min",
+          "description": "Fire resistance rating minimum compliance",
+          "standard": "Building Regs Part B / BS 476",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, \"\")"
+        },
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        }
       ]
     },
     "Slab Edges": {
@@ -20378,7 +21114,15 @@
         }
       ],
       "warnings": [
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__"
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        }
       ]
     },
     "Stair Landings": {
@@ -20797,7 +21541,15 @@
         }
       ],
       "warnings": [
-        "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C"
+        {
+          "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Accessible clear width minimum",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+        }
       ]
     },
     "Stair Runs": {
@@ -21230,10 +21982,42 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STAIR_RISE",
-        "WARN_BLE_STAIR_GOING",
-        "WARN_BLE_STAIR_HEADROOM_MM",
-        "WARN_BLE_STAIR_WIDTH_MM"
+        {
+          "param": "WARN_BLE_STAIR_RISE",
+          "severity": "CRITICAL",
+          "threshold": "220",
+          "unit": "mm",
+          "description": "Stair individual rise limit",
+          "standard": "Building Regs Part K / BS 5395-1:2010",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISE, \"\")"
+        },
+        {
+          "param": "WARN_BLE_STAIR_GOING",
+          "severity": "CRITICAL",
+          "threshold": "220",
+          "unit": "mm",
+          "description": "Stair individual going minimum",
+          "standard": "Building Regs Part K / BS 5395-1:2010",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_GOING, \"\")"
+        },
+        {
+          "param": "WARN_BLE_STAIR_HEADROOM_MM",
+          "severity": "MEDIUM",
+          "threshold": "project-specific",
+          "unit": "",
+          "description": "Compliance check: ble stair headroom mm",
+          "standard": "Building Regs Part K / BS 5395-1:2010",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_HEADROOM_MM, \"\")"
+        },
+        {
+          "param": "WARN_BLE_STAIR_WIDTH_MM",
+          "severity": "CRITICAL",
+          "threshold": "1000",
+          "unit": "mm",
+          "description": "Stair clear width minimum",
+          "standard": "Building Regs Part K / BS 5395-1:2010",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_WIDTH_MM, \"\")"
+        }
       ]
     },
     "Stair Supports": {
@@ -21659,7 +22443,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Top Rails": {
@@ -22092,8 +22884,24 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_RAIL_HEIGHT_MM",
-        "WARN_BLE_RAIL_LOAD_KN_M"
+        {
+          "param": "WARN_BLE_RAIL_HEIGHT_MM",
+          "severity": "CRITICAL",
+          "threshold": "1100",
+          "unit": "mm",
+          "description": "Railing height minimum",
+          "standard": "Building Regs Part K / BS 6180:2011",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, \"\")"
+        },
+        {
+          "param": "WARN_BLE_RAIL_LOAD_KN_M",
+          "severity": "CRITICAL",
+          "threshold": "0.74",
+          "unit": "kN/m",
+          "description": "Railing horizontal load resistance minimum",
+          "standard": "Building Regs Part K / BS 6180:2011",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_LOAD_KN_M, \"\")"
+        }
       ]
     },
     "Wall Sweeps": {
@@ -22512,7 +23320,15 @@
         }
       ],
       "warnings": [
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__"
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        }
       ]
     },
     "Structural Columns": {
@@ -22984,9 +23800,33 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP",
-        "WARN_BLE_COLUMN_SLENDERNESS",
-        "WARN_STR_COL_ECCENTRICITY"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        },
+        {
+          "param": "WARN_BLE_COLUMN_SLENDERNESS",
+          "severity": "CRITICAL",
+          "threshold": "30",
+          "unit": "ratio",
+          "description": "Column slenderness ratio limit",
+          "standard": "BS EN 1992-1-1 §5.8 / Eurocode 2",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_COLUMN_SLENDERNESS, \"\")"
+        },
+        {
+          "param": "WARN_STR_COL_ECCENTRICITY",
+          "severity": "HIGH",
+          "threshold": "15",
+          "unit": "mm",
+          "description": "Column eccentricity limit",
+          "standard": "BS EN 1992-1-1 §5.8 / Eurocode 2",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_COL_ECCENTRICITY, \"\")"
+        }
       ]
     },
     "Structural Foundations": {
@@ -23459,8 +24299,24 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_FDN_BEARING",
-        "WARN_STR_FDN_DEPTH_MM"
+        {
+          "param": "WARN_BLE_STRUCT_FDN_BEARING",
+          "severity": "CRITICAL",
+          "threshold": "100",
+          "unit": "kPa",
+          "description": "Foundation/soil bearing capacity minimum",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_FDN_BEARING, \"\")"
+        },
+        {
+          "param": "WARN_STR_FDN_DEPTH_MM",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Foundation depth minimum",
+          "standard": "BS EN 1997-1 / Eurocode 7",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_DEPTH_MM, \"\")"
+        }
       ]
     },
     "Structural Framing": {
@@ -23933,9 +24789,33 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP",
-        "WARN_STR_BEAM_DEFLECTION",
-        "WARN_STR_BEAM_SPAN_DEPTH"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        },
+        {
+          "param": "WARN_STR_BEAM_DEFLECTION",
+          "severity": "CRITICAL",
+          "threshold": "250",
+          "unit": "L/value",
+          "description": "Beam deflection limit (L/250)",
+          "standard": "BS EN 1993-1-1 / Eurocode 3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_DEFLECTION, \"\")"
+        },
+        {
+          "param": "WARN_STR_BEAM_SPAN_DEPTH",
+          "severity": "HIGH",
+          "threshold": "20",
+          "unit": "ratio",
+          "description": "Beam span-to-depth ratio limit",
+          "standard": "BS EN 1993-1-1 / Eurocode 3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_SPAN_DEPTH, \"\")"
+        }
       ]
     },
     "Structural Fabric Reinforcement": {
@@ -24361,7 +25241,15 @@
         }
       ],
       "warnings": [
-        "WARN_STR_FABRIC_SPEC"
+        {
+          "param": "WARN_STR_FABRIC_SPEC",
+          "severity": "MEDIUM",
+          "threshold": "A142",
+          "unit": "spec",
+          "description": "Fabric reinforcement specification check",
+          "standard": "BS 4449:2005 / BS EN 10080",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FABRIC_SPEC, \"\")"
+        }
       ]
     },
     "Analytical Links": {
@@ -24780,7 +25668,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Analytical Members": {
@@ -25199,7 +26095,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Analytical Nodes": {
@@ -25618,7 +26522,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Analytical Openings": {
@@ -26037,7 +26949,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Analytical Panels": {
@@ -26456,7 +27376,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Area Loads": {
@@ -26875,7 +27803,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Line Loads": {
@@ -27294,7 +28230,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Point Loads": {
@@ -27713,7 +28657,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Internal Area Loads": {
@@ -28132,7 +29084,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Internal Line Loads": {
@@ -28551,7 +29511,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Internal Point Loads": {
@@ -28970,7 +29938,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Bolt": {
@@ -29345,7 +30321,15 @@
         }
       ],
       "warnings": [
-        "WARN_STR_BLT_PROOF_LOAD_KN"
+        {
+          "param": "WARN_STR_BLT_PROOF_LOAD_KN",
+          "severity": "CRITICAL",
+          "threshold": "100",
+          "unit": "kN",
+          "description": "Bolt proof load capacity minimum",
+          "standard": "BS EN 14399 / Eurocode 3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BLT_PROOF_LOAD_KN, \"\")"
+        }
       ]
     },
     "Weld": {
@@ -29727,8 +30711,24 @@
         }
       ],
       "warnings": [
-        "WARN_STR_WLD_THROAT_MM",
-        "WARN_STR_WLD_STRENGTH_MPA"
+        {
+          "param": "WARN_STR_WLD_THROAT_MM",
+          "severity": "HIGH",
+          "threshold": "6",
+          "unit": "mm",
+          "description": "Weld throat thickness minimum",
+          "standard": "BS EN 1993-1-8 §4.5 / AWS D1.1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WLD_THROAT_MM, \"\")"
+        },
+        {
+          "param": "WARN_STR_WLD_STRENGTH_MPA",
+          "severity": "CRITICAL",
+          "threshold": "250",
+          "unit": "MPa",
+          "description": "Weld strength minimum",
+          "standard": "BS EN 1993-1-8 §4.5 / AWS D1.1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WLD_STRENGTH_MPA, \"\")"
+        }
       ]
     },
     "Wire": {
@@ -30103,7 +31103,15 @@
         }
       ],
       "warnings": [
-        "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI"
+        {
+          "param": "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI",
+          "severity": "CRITICAL",
+          "threshold": "3.0",
+          "unit": "%",
+          "description": "Voltage drop percentage limit",
+          "standard": "IEE Wiring Regs BS 7671 / NEC",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+        }
       ]
     },
     "Structural Area Reinforcement": {
@@ -30529,7 +31537,15 @@
         }
       ],
       "warnings": [
-        "WARN_STR_RBR_COVER_MM"
+        {
+          "param": "WARN_STR_RBR_COVER_MM",
+          "severity": "CRITICAL",
+          "threshold": "25",
+          "unit": "mm",
+          "description": "Rebar concrete cover minimum",
+          "standard": "BS EN 1992-1-1 §4.4 / Eurocode 2",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, \"\")"
+        }
       ]
     },
     "Structural Path Reinforcement": {
@@ -30955,7 +31971,15 @@
         }
       ],
       "warnings": [
-        "WARN_STR_RBR_COVER_MM"
+        {
+          "param": "WARN_STR_RBR_COVER_MM",
+          "severity": "CRITICAL",
+          "threshold": "25",
+          "unit": "mm",
+          "description": "Rebar concrete cover minimum",
+          "standard": "BS EN 1992-1-1 §4.4 / Eurocode 2",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, \"\")"
+        }
       ]
     },
     "Structural Rebar Couplers": {
@@ -31381,7 +32405,15 @@
         }
       ],
       "warnings": [
-        "WARN_STR_BLT_PROOF_LOAD_KN"
+        {
+          "param": "WARN_STR_BLT_PROOF_LOAD_KN",
+          "severity": "CRITICAL",
+          "threshold": "100",
+          "unit": "kN",
+          "description": "Bolt proof load capacity minimum",
+          "standard": "BS EN 14399 / Eurocode 3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BLT_PROOF_LOAD_KN, \"\")"
+        }
       ]
     },
     "Structural Beam Systems": {
@@ -31800,7 +32832,15 @@
         }
       ],
       "warnings": [
-        "WARN_STR_BEAM_DEFLECTION"
+        {
+          "param": "WARN_STR_BEAM_DEFLECTION",
+          "severity": "CRITICAL",
+          "threshold": "250",
+          "unit": "L/value",
+          "description": "Beam deflection limit (L/250)",
+          "standard": "BS EN 1993-1-1 / Eurocode 3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_DEFLECTION, \"\")"
+        }
       ]
     },
     "Structural Connections": {
@@ -32226,7 +33266,15 @@
         }
       ],
       "warnings": [
-        "WARN_STR_CONN_CAPACITY_KN"
+        {
+          "param": "WARN_STR_CONN_CAPACITY_KN",
+          "severity": "CRITICAL",
+          "threshold": "200",
+          "unit": "kN",
+          "description": "Connection capacity minimum",
+          "standard": "BS EN 1993-1-8 / Eurocode 3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_CONN_CAPACITY_KN, \"\")"
+        }
       ]
     },
     "Structural Stiffeners": {
@@ -32645,7 +33693,15 @@
         }
       ],
       "warnings": [
-        "WARN_STR_STIFFENER_WELD"
+        {
+          "param": "WARN_STR_STIFFENER_WELD",
+          "severity": "HIGH",
+          "threshold": "6",
+          "unit": "mm",
+          "description": "Stiffener weld specification check",
+          "standard": "BS EN 1993-1-5 / Eurocode 3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_STIFFENER_WELD, \"\")"
+        }
       ]
     },
     "Structural Trusses": {
@@ -33071,7 +34127,15 @@
         }
       ],
       "warnings": [
-        "WARN_STR_TRUSS_SPAN"
+        {
+          "param": "WARN_STR_TRUSS_SPAN",
+          "severity": "HIGH",
+          "threshold": "30",
+          "unit": "m",
+          "description": "Truss span limit",
+          "standard": "BS EN 1993-1-1 / Eurocode 3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_TRUSS_SPAN, \"\")"
+        }
       ]
     },
     "Air Terminals": {
@@ -33532,7 +34596,15 @@
         }
       ],
       "warnings": [
-        "WARN_HVC_DCT_SOUNDLVL_DB"
+        {
+          "param": "WARN_HVC_DCT_SOUNDLVL_DB",
+          "severity": "MEDIUM",
+          "threshold": "35",
+          "unit": "dB",
+          "description": "Duct-borne sound level limit",
+          "standard": "CIBSE Guide B5 / BS 8233:2014",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DCT_SOUNDLVL_DB, \"\")"
+        }
       ]
     },
     "Duct Accessories": {
@@ -33968,7 +35040,15 @@
         }
       ],
       "warnings": [
-        "WARN_MEP_DUCT_ACC_PRESSURE_DROP"
+        {
+          "param": "WARN_MEP_DUCT_ACC_PRESSURE_DROP",
+          "severity": "MEDIUM",
+          "threshold": "50",
+          "unit": "Pa",
+          "description": "Duct accessory pressure drop limit",
+          "standard": "DW/144 / BSRIA BG 30",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MEP_DUCT_ACC_PRESSURE_DROP, \"\")"
+        }
       ],
       "has_tie_point": true
     },
@@ -34398,7 +35478,15 @@
         }
       ],
       "warnings": [
-        "WARN_MEP_DUCT_FITTING_LOSS"
+        {
+          "param": "WARN_MEP_DUCT_FITTING_LOSS",
+          "severity": "MEDIUM",
+          "threshold": "25",
+          "unit": "Pa",
+          "description": "Duct fitting pressure loss limit",
+          "standard": "DW/144 / BSRIA BG 30",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MEP_DUCT_FITTING_LOSS, \"\")"
+        }
       ],
       "has_tie_point": true
     },
@@ -34888,8 +35976,24 @@
         }
       ],
       "warnings": [
-        "WARN_HVC_VEL_MPS_DUCTS",
-        "WARN_HVC_DUCT_LEAKAGE_CLASS"
+        {
+          "param": "WARN_HVC_VEL_MPS_DUCTS",
+          "severity": "HIGH",
+          "threshold": "6.0",
+          "unit": "m/s",
+          "description": "Duct velocity limit",
+          "standard": "CIBSE Guide B2 / ASHRAE Handbook",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_DUCTS, \"\")"
+        },
+        {
+          "param": "WARN_HVC_DUCT_LEAKAGE_CLASS",
+          "severity": "HIGH",
+          "threshold": "C",
+          "unit": "class",
+          "description": "Duct air leakage class limit",
+          "standard": "BSRIA / DW/144 HVAC Ductwork",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DUCT_LEAKAGE_CLASS, \"\")"
+        }
       ],
       "has_tie_point": true
     },
@@ -35327,8 +36431,24 @@
         }
       ],
       "warnings": [
-        "WARN_HVC_VEL_MPS_FLEX_DUCTS",
-        "WARN_HVC_DUCT_LEAKAGE_CLASS"
+        {
+          "param": "WARN_HVC_VEL_MPS_FLEX_DUCTS",
+          "severity": "HIGH",
+          "threshold": "3.5",
+          "unit": "m/s",
+          "description": "Flex duct velocity limit",
+          "standard": "CIBSE Guide B2 / ASHRAE Handbook",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_FLEX_DUCTS, \"\")"
+        },
+        {
+          "param": "WARN_HVC_DUCT_LEAKAGE_CLASS",
+          "severity": "HIGH",
+          "threshold": "C",
+          "unit": "class",
+          "description": "Duct air leakage class limit",
+          "standard": "BSRIA / DW/144 HVAC Ductwork",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DUCT_LEAKAGE_CLASS, \"\")"
+        }
       ],
       "has_tie_point": true
     },
@@ -35826,9 +36946,33 @@
         }
       ],
       "warnings": [
-        "WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI",
-        "WARN_MNT_ACCESS_CLEARANCE",
-        "WARN_MNT_SERVICE_SPACE"
+        {
+          "param": "WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI",
+          "severity": "HIGH",
+          "threshold": "3.0",
+          "unit": "COP",
+          "description": "HVAC efficiency ratio (COP/EER) minimum",
+          "standard": "ASHRAE 90.1 / CIBSE Guide B1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, \"\")"
+        },
+        {
+          "param": "WARN_MNT_ACCESS_CLEARANCE",
+          "severity": "MEDIUM",
+          "threshold": "600",
+          "unit": "mm",
+          "description": "Maintenance access clearance minimum",
+          "standard": "CIBSE Guide M / BS 8210:2012",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, \"\")"
+        },
+        {
+          "param": "WARN_MNT_SERVICE_SPACE",
+          "severity": "MEDIUM",
+          "threshold": "project-specific",
+          "unit": "",
+          "description": "Compliance check: mnt service space",
+          "standard": "CIBSE Guide M / BS 8210:2012",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_SERVICE_SPACE, \"\")"
+        }
       ]
     },
     "Flex Pipes": {
@@ -36266,7 +37410,15 @@
         }
       ],
       "warnings": [
-        "WARN_PLM_VEL_MPS_PIPES"
+        {
+          "param": "WARN_PLM_VEL_MPS_PIPES",
+          "severity": "HIGH",
+          "threshold": "2.5",
+          "unit": "m/s",
+          "description": "Pipe velocity limit",
+          "standard": "CIBSE Guide G / BS EN 806-3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_PIPES, \"\")"
+        }
       ],
       "has_tie_point": true
     },
@@ -36702,7 +37854,15 @@
         }
       ],
       "warnings": [
-        "WARN_PLM_PIPE_ACC_RATING"
+        {
+          "param": "WARN_PLM_PIPE_ACC_RATING",
+          "severity": "HIGH",
+          "threshold": "1000",
+          "unit": "kPa",
+          "description": "Pipe accessory pressure rating",
+          "standard": "BS EN 1717 / WRAS approved",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_ACC_RATING, \"\")"
+        }
       ],
       "has_tie_point": true
     },
@@ -37131,7 +38291,15 @@
         }
       ],
       "warnings": [
-        "WARN_PLM_PIPE_FITTING_LOSS"
+        {
+          "param": "WARN_PLM_PIPE_FITTING_LOSS",
+          "severity": "MEDIUM",
+          "threshold": "15",
+          "unit": "kPa",
+          "description": "Pipe fitting pressure loss limit",
+          "standard": "CIBSE Guide G / BS EN 806",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_FITTING_LOSS, \"\")"
+        }
       ],
       "has_tie_point": true
     },
@@ -37636,10 +38804,42 @@
         }
       ],
       "warnings": [
-        "WARN_PLM_VEL_MPS_PIPES",
-        "WARN_PLM_PIPE_GRADIENT",
-        "WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE",
-        "WARN_PLM_VENT_PIPE"
+        {
+          "param": "WARN_PLM_VEL_MPS_PIPES",
+          "severity": "HIGH",
+          "threshold": "2.5",
+          "unit": "m/s",
+          "description": "Pipe velocity limit",
+          "standard": "CIBSE Guide G / BS EN 806-3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_PIPES, \"\")"
+        },
+        {
+          "param": "WARN_PLM_PIPE_GRADIENT",
+          "severity": "HIGH",
+          "threshold": "1.0",
+          "unit": "%",
+          "description": "Pipe gradient minimum",
+          "standard": "BS EN 12056-2 / Building Regs Part H",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_GRADIENT, \"\")"
+        },
+        {
+          "param": "WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE",
+          "severity": "HIGH",
+          "threshold": "0.15",
+          "unit": "L/s",
+          "description": "Flow rate design limit",
+          "standard": "CIBSE Guide G / BS EN 806",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE, \"\")"
+        },
+        {
+          "param": "WARN_PLM_VENT_PIPE",
+          "severity": "HIGH",
+          "threshold": "1",
+          "unit": "boolean",
+          "description": "Vent pipe provision check",
+          "standard": "Building Regs Part H / BS EN 12056-2",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VENT_PIPE, \"\")"
+        }
       ],
       "has_tie_point": true
     },
@@ -38097,10 +39297,42 @@
         }
       ],
       "warnings": [
-        "WARN_PLM_FIXTURE_FLOW",
-        "WARN_PLM_FIXTURE_ACCESS",
-        "WARN_PLM_TRAP_SEAL_MM",
-        "WARN_RGL_ACCESSIBLE_WC"
+        {
+          "param": "WARN_PLM_FIXTURE_FLOW",
+          "severity": "HIGH",
+          "threshold": "0.15",
+          "unit": "L/s",
+          "description": "Flow rate design limit",
+          "standard": "Building Regs Part G / BS 6465",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_FIXTURE_FLOW, \"\")"
+        },
+        {
+          "param": "WARN_PLM_FIXTURE_ACCESS",
+          "severity": "MEDIUM",
+          "threshold": "450",
+          "unit": "mm",
+          "description": "Plumbing fixture access clearance",
+          "standard": "Building Regs Part G / BS 6465",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_FIXTURE_ACCESS, \"\")"
+        },
+        {
+          "param": "WARN_PLM_TRAP_SEAL_MM",
+          "severity": "HIGH",
+          "threshold": "50",
+          "unit": "mm",
+          "description": "Plumbing trap seal depth minimum",
+          "standard": "BS EN 274 / Building Regs Part H",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_TRAP_SEAL_MM, \"\")"
+        },
+        {
+          "param": "WARN_RGL_ACCESSIBLE_WC",
+          "severity": "CRITICAL",
+          "threshold": "1",
+          "unit": "per floor",
+          "description": "Accessible WC provision compliance",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESSIBLE_WC, \"\")"
+        }
       ]
     },
     "Fire Alarm Devices": {
@@ -38550,8 +39782,24 @@
         }
       ],
       "warnings": [
-        "WARN_FLS_PROT_COVERAGE",
-        "WARN_FLS_SMOKE_DETECTOR_SPACING"
+        {
+          "param": "WARN_FLS_PROT_COVERAGE",
+          "severity": "CRITICAL",
+          "threshold": "12.0",
+          "unit": "m²",
+          "description": "Fire safety device coverage limit",
+          "standard": "Building Regs Part B / BS 9999",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_PROT_COVERAGE, \"\")"
+        },
+        {
+          "param": "WARN_FLS_SMOKE_DETECTOR_SPACING",
+          "severity": "CRITICAL",
+          "threshold": "9.0",
+          "unit": "m",
+          "description": "Smoke detector spacing maximum",
+          "standard": "BS 5839-1:2017 / BS EN 54",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SMOKE_DETECTOR_SPACING, \"\")"
+        }
       ]
     },
     "Sprinklers": {
@@ -39009,8 +40257,24 @@
         }
       ],
       "warnings": [
-        "WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR",
-        "WARN_FLS_SFTY_SPACING"
+        {
+          "param": "WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR",
+          "severity": "CRITICAL",
+          "threshold": "12.0",
+          "unit": "m²",
+          "description": "Sprinkler coverage area limit",
+          "standard": "BS 9251:2021 / BS EN 12845",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR, \"\")"
+        },
+        {
+          "param": "WARN_FLS_SFTY_SPACING",
+          "severity": "CRITICAL",
+          "threshold": "12.0",
+          "unit": "m",
+          "description": "Safety device spacing maximum",
+          "standard": "BS 9251:2021 / BS EN 12845",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_SPACING, \"\")"
+        }
       ]
     },
     "Cable Tray Fittings": {
@@ -39432,7 +40696,15 @@
         }
       ],
       "warnings": [
-        "WARN_ELC_CTR_FILL_RATIO"
+        {
+          "param": "WARN_ELC_CTR_FILL_RATIO",
+          "severity": "HIGH",
+          "threshold": "40",
+          "unit": "%",
+          "description": "Conduit/tray fill ratio maximum",
+          "standard": "BS 7671 §522 / BS EN 61386",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_FILL_RATIO, \"\")"
+        }
       ],
       "has_tie_point": true
     },
@@ -39877,7 +41149,15 @@
         }
       ],
       "warnings": [
-        "WARN_ELC_CTR_FILL_RATIO"
+        {
+          "param": "WARN_ELC_CTR_FILL_RATIO",
+          "severity": "HIGH",
+          "threshold": "40",
+          "unit": "%",
+          "description": "Conduit/tray fill ratio maximum",
+          "standard": "BS 7671 §522 / BS EN 61386",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_FILL_RATIO, \"\")"
+        }
       ],
       "has_tie_point": true
     },
@@ -40299,7 +41579,15 @@
         }
       ],
       "warnings": [
-        "WARN_ELC_CDT_FILL_RATIO"
+        {
+          "param": "WARN_ELC_CDT_FILL_RATIO",
+          "severity": "HIGH",
+          "threshold": "40",
+          "unit": "%",
+          "description": "Conduit/tray fill ratio maximum",
+          "standard": "BS 7671 §522 / BS EN 61386",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CDT_FILL_RATIO, \"\")"
+        }
       ],
       "has_tie_point": true
     },
@@ -40771,7 +42059,15 @@
         }
       ],
       "warnings": [
-        "WARN_ELC_CDT_FILL_RATIO"
+        {
+          "param": "WARN_ELC_CDT_FILL_RATIO",
+          "severity": "HIGH",
+          "threshold": "40",
+          "unit": "%",
+          "description": "Conduit/tray fill ratio maximum",
+          "standard": "BS 7671 §522 / BS EN 61386",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CDT_FILL_RATIO, \"\")"
+        }
       ],
       "has_tie_point": true
     },
@@ -41320,12 +42616,60 @@
         }
       ],
       "warnings": [
-        "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI",
-        "WARN_ELC_PNL_SPARE_WAYS",
-        "WARN_ELC_PNL_SHORT_CIRCUIT",
-        "WARN_ELC_EARTHING_TYPE",
-        "WARN_ELC_IP_RATING",
-        "WARN_MNT_ACCESS_CLEARANCE"
+        {
+          "param": "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI",
+          "severity": "CRITICAL",
+          "threshold": "3.0",
+          "unit": "%",
+          "description": "Voltage drop percentage limit",
+          "standard": "IEE Wiring Regs BS 7671 / NEC",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+        },
+        {
+          "param": "WARN_ELC_PNL_SPARE_WAYS",
+          "severity": "MEDIUM",
+          "threshold": "20",
+          "unit": "%",
+          "description": "Panel spare ways minimum",
+          "standard": "BS 7671 / BS EN 61439",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SPARE_WAYS, \"\")"
+        },
+        {
+          "param": "WARN_ELC_PNL_SHORT_CIRCUIT",
+          "severity": "CRITICAL",
+          "threshold": "25",
+          "unit": "kA",
+          "description": "Panel short circuit rating check",
+          "standard": "BS 7671 / BS EN 61439",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SHORT_CIRCUIT, \"\")"
+        },
+        {
+          "param": "WARN_ELC_EARTHING_TYPE",
+          "severity": "CRITICAL",
+          "threshold": "TN-S",
+          "unit": "type",
+          "description": "Earthing system type compliance",
+          "standard": "BS 7671 §411 / IEC 60364",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_EARTHING_TYPE, \"\")"
+        },
+        {
+          "param": "WARN_ELC_IP_RATING",
+          "severity": "HIGH",
+          "threshold": "IP44",
+          "unit": "IP rating",
+          "description": "Ingress protection rating minimum",
+          "standard": "BS EN 60529 / IEC 60529",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_IP_RATING, \"\")"
+        },
+        {
+          "param": "WARN_MNT_ACCESS_CLEARANCE",
+          "severity": "MEDIUM",
+          "threshold": "600",
+          "unit": "mm",
+          "description": "Maintenance access clearance minimum",
+          "standard": "CIBSE Guide M / BS 8210:2012",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, \"\")"
+        }
       ]
     },
     "Electrical Fixtures": {
@@ -41790,9 +43134,33 @@
         }
       ],
       "warnings": [
-        "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI",
-        "WARN_ELC_FIXTURE_MOUNTING_HEIGHT",
-        "WARN_ELC_IP_RATING"
+        {
+          "param": "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI",
+          "severity": "CRITICAL",
+          "threshold": "3.0",
+          "unit": "%",
+          "description": "Voltage drop percentage limit",
+          "standard": "IEE Wiring Regs BS 7671 / NEC",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+        },
+        {
+          "param": "WARN_ELC_FIXTURE_MOUNTING_HEIGHT",
+          "severity": "MEDIUM",
+          "threshold": "1200",
+          "unit": "mm",
+          "description": "Fixture mounting height standard",
+          "standard": "BS 7671 §559 / Building Regs Part M",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_FIXTURE_MOUNTING_HEIGHT, \"\")"
+        },
+        {
+          "param": "WARN_ELC_IP_RATING",
+          "severity": "HIGH",
+          "threshold": "IP44",
+          "unit": "IP rating",
+          "description": "Ingress protection rating minimum",
+          "standard": "BS EN 60529 / IEC 60529",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_IP_RATING, \"\")"
+        }
       ]
     },
     "Lighting Devices": {
@@ -42250,7 +43618,15 @@
         }
       ],
       "warnings": [
-        "WARN_LTG_ILLUMINANCE"
+        {
+          "param": "WARN_LTG_ILLUMINANCE",
+          "severity": "MEDIUM",
+          "threshold": "300",
+          "unit": "lux",
+          "description": "Illuminance level minimum",
+          "standard": "CIBSE SLL LG7 / BS EN 12464-1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_ILLUMINANCE, \"\")"
+        }
       ]
     },
     "Lighting Fixtures": {
@@ -42764,8 +44140,24 @@
         }
       ],
       "warnings": [
-        "WARN_LTG_ILLUMINANCE",
-        "WARN_ELC_IP_RATING"
+        {
+          "param": "WARN_LTG_ILLUMINANCE",
+          "severity": "MEDIUM",
+          "threshold": "300",
+          "unit": "lux",
+          "description": "Illuminance level minimum",
+          "standard": "CIBSE SLL LG7 / BS EN 12464-1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_ILLUMINANCE, \"\")"
+        },
+        {
+          "param": "WARN_ELC_IP_RATING",
+          "severity": "HIGH",
+          "threshold": "IP44",
+          "unit": "IP rating",
+          "description": "Ingress protection rating minimum",
+          "standard": "BS EN 60529 / IEC 60529",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_IP_RATING, \"\")"
+        }
       ]
     },
     "Communication Devices": {
@@ -43208,7 +44600,15 @@
         }
       ],
       "warnings": [
-        "WARN_COM_DEVICE_COVERAGE"
+        {
+          "param": "WARN_COM_DEVICE_COVERAGE",
+          "severity": "MEDIUM",
+          "threshold": "15.0",
+          "unit": "m",
+          "description": "Communication device coverage radius",
+          "standard": "BS EN 50600 / ISO/IEC 11801",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, \"\")"
+        }
       ]
     },
     "Data Devices": {
@@ -43644,7 +45044,15 @@
         }
       ],
       "warnings": [
-        "WARN_COM_DEVICE_COVERAGE"
+        {
+          "param": "WARN_COM_DEVICE_COVERAGE",
+          "severity": "MEDIUM",
+          "threshold": "15.0",
+          "unit": "m",
+          "description": "Communication device coverage radius",
+          "standard": "BS EN 50600 / ISO/IEC 11801",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, \"\")"
+        }
       ]
     },
     "Nurse Call Devices": {
@@ -44079,7 +45487,15 @@
         }
       ],
       "warnings": [
-        "WARN_COM_DEVICE_COVERAGE"
+        {
+          "param": "WARN_COM_DEVICE_COVERAGE",
+          "severity": "MEDIUM",
+          "threshold": "15.0",
+          "unit": "m",
+          "description": "Communication device coverage radius",
+          "standard": "BS EN 50600 / ISO/IEC 11801",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, \"\")"
+        }
       ]
     },
     "Security Devices": {
@@ -44521,7 +45937,15 @@
         }
       ],
       "warnings": [
-        "WARN_COM_DEVICE_COVERAGE"
+        {
+          "param": "WARN_COM_DEVICE_COVERAGE",
+          "severity": "MEDIUM",
+          "threshold": "15.0",
+          "unit": "m",
+          "description": "Communication device coverage radius",
+          "standard": "BS EN 50600 / ISO/IEC 11801",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, \"\")"
+        }
       ]
     },
     "Telephone Devices": {
@@ -44957,7 +46381,15 @@
         }
       ],
       "warnings": [
-        "WARN_COM_DEVICE_COVERAGE"
+        {
+          "param": "WARN_COM_DEVICE_COVERAGE",
+          "severity": "MEDIUM",
+          "threshold": "15.0",
+          "unit": "m",
+          "description": "Communication device coverage radius",
+          "standard": "BS EN 50600 / ISO/IEC 11801",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, \"\")"
+        }
       ]
     },
     "Generic Models": {
@@ -45409,7 +46841,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_GENERIC_CLEARANCE_MM"
+        {
+          "param": "WARN_BLE_GENERIC_CLEARANCE_MM",
+          "severity": "LOW",
+          "threshold": "600",
+          "unit": "mm",
+          "description": "Generic model clearance zone minimum",
+          "standard": "Project-specific requirement",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
+        }
       ]
     },
     "Specialty Equipment": {
@@ -45861,7 +47301,15 @@
         }
       ],
       "warnings": [
-        "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI"
+        {
+          "param": "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI",
+          "severity": "CRITICAL",
+          "threshold": "3.0",
+          "unit": "%",
+          "description": "Voltage drop percentage limit",
+          "standard": "IEE Wiring Regs BS 7671 / NEC",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+        }
       ]
     },
     "Duct Insulation": {
@@ -46287,7 +47735,15 @@
         }
       ],
       "warnings": [
-        "WARN_INS_THICKNESS_MM"
+        {
+          "param": "WARN_INS_THICKNESS_MM",
+          "severity": "HIGH",
+          "threshold": "25",
+          "unit": "mm",
+          "description": "Insulation thickness minimum",
+          "standard": "CIBSE Guide B2 / BS 5422:2009",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, \"\")"
+        }
       ]
     },
     "Duct Lining": {
@@ -46713,7 +48169,15 @@
         }
       ],
       "warnings": [
-        "WARN_INS_THICKNESS_MM"
+        {
+          "param": "WARN_INS_THICKNESS_MM",
+          "severity": "HIGH",
+          "threshold": "25",
+          "unit": "mm",
+          "description": "Insulation thickness minimum",
+          "standard": "CIBSE Guide B2 / BS 5422:2009",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, \"\")"
+        }
       ]
     },
     "Pipe Insulation": {
@@ -47139,7 +48603,15 @@
         }
       ],
       "warnings": [
-        "WARN_INS_THICKNESS_MM"
+        {
+          "param": "WARN_INS_THICKNESS_MM",
+          "severity": "HIGH",
+          "threshold": "25",
+          "unit": "mm",
+          "description": "Insulation thickness minimum",
+          "standard": "CIBSE Guide B2 / BS 5422:2009",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, \"\")"
+        }
       ]
     },
     "Plumbing Equipment": {
@@ -47565,10 +49037,42 @@
         }
       ],
       "warnings": [
-        "WARN_PLM_EQP_PRESSURE_KPA",
-        "WARN_PLM_VENT_PIPE",
-        "WARN_MNT_ACCESS_CLEARANCE",
-        "WARN_MNT_SERVICE_SPACE"
+        {
+          "param": "WARN_PLM_EQP_PRESSURE_KPA",
+          "severity": "HIGH",
+          "threshold": "600",
+          "unit": "kPa",
+          "description": "Equipment pressure rating check",
+          "standard": "CIBSE Guide G / BS EN 1717",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_EQP_PRESSURE_KPA, \"\")"
+        },
+        {
+          "param": "WARN_PLM_VENT_PIPE",
+          "severity": "HIGH",
+          "threshold": "1",
+          "unit": "boolean",
+          "description": "Vent pipe provision check",
+          "standard": "Building Regs Part H / BS EN 12056-2",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VENT_PIPE, \"\")"
+        },
+        {
+          "param": "WARN_MNT_ACCESS_CLEARANCE",
+          "severity": "MEDIUM",
+          "threshold": "600",
+          "unit": "mm",
+          "description": "Maintenance access clearance minimum",
+          "standard": "CIBSE Guide M / BS 8210:2012",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, \"\")"
+        },
+        {
+          "param": "WARN_MNT_SERVICE_SPACE",
+          "severity": "MEDIUM",
+          "threshold": "project-specific",
+          "unit": "",
+          "description": "Compliance check: mnt service space",
+          "standard": "CIBSE Guide M / BS 8210:2012",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_SERVICE_SPACE, \"\")"
+        }
       ]
     },
     "Mechanical Control Devices": {
@@ -47987,7 +49491,15 @@
         }
       ],
       "warnings": [
-        "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI"
+        {
+          "param": "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI",
+          "severity": "CRITICAL",
+          "threshold": "3.0",
+          "unit": "%",
+          "description": "Voltage drop percentage limit",
+          "standard": "IEE Wiring Regs BS 7671 / NEC",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+        }
       ]
     },
     "Mechanical Equipment Sets": {
@@ -48406,7 +49918,15 @@
         }
       ],
       "warnings": [
-        "WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI"
+        {
+          "param": "WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI",
+          "severity": "HIGH",
+          "threshold": "3.0",
+          "unit": "COP",
+          "description": "HVAC efficiency ratio (COP/EER) minimum",
+          "standard": "ASHRAE 90.1 / CIBSE Guide B1",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, \"\")"
+        }
       ]
     },
     "Electrical Connectors": {
@@ -48825,7 +50345,15 @@
         }
       ],
       "warnings": [
-        "WARN_ELC_CONNECTOR_RATING"
+        {
+          "param": "WARN_ELC_CONNECTOR_RATING",
+          "severity": "HIGH",
+          "threshold": "16",
+          "unit": "A",
+          "description": "Electrical connector rating check",
+          "standard": "BS EN 60309 / BS 7671",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CONNECTOR_RATING, \"\")"
+        }
       ]
     },
     "Fire Protection": {
@@ -49251,7 +50779,15 @@
         }
       ],
       "warnings": [
-        "WARN_FLS_PROT_COVERAGE"
+        {
+          "param": "WARN_FLS_PROT_COVERAGE",
+          "severity": "CRITICAL",
+          "threshold": "12.0",
+          "unit": "m²",
+          "description": "Fire safety device coverage limit",
+          "standard": "Building Regs Part B / BS 9999",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_PROT_COVERAGE, \"\")"
+        }
       ]
     },
     "MEP Fabrication Containment": {
@@ -49670,7 +51206,15 @@
         }
       ],
       "warnings": [
-        "WARN_ELC_CTR_FILL_RATIO"
+        {
+          "param": "WARN_ELC_CTR_FILL_RATIO",
+          "severity": "HIGH",
+          "threshold": "40",
+          "unit": "%",
+          "description": "Conduit/tray fill ratio maximum",
+          "standard": "BS 7671 §522 / BS EN 61386",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_FILL_RATIO, \"\")"
+        }
       ]
     },
     "MEP Fabrication Ductwork": {
@@ -50089,7 +51633,15 @@
         }
       ],
       "warnings": [
-        "WARN_HVC_VEL_MPS_DUCTS"
+        {
+          "param": "WARN_HVC_VEL_MPS_DUCTS",
+          "severity": "HIGH",
+          "threshold": "6.0",
+          "unit": "m/s",
+          "description": "Duct velocity limit",
+          "standard": "CIBSE Guide B2 / ASHRAE Handbook",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_DUCTS, \"\")"
+        }
       ]
     },
     "MEP Fabrication Ductwork Stiffeners": {
@@ -50508,7 +52060,15 @@
         }
       ],
       "warnings": [
-        "WARN_STR_STIFFENER_WELD"
+        {
+          "param": "WARN_STR_STIFFENER_WELD",
+          "severity": "HIGH",
+          "threshold": "6",
+          "unit": "mm",
+          "description": "Stiffener weld specification check",
+          "standard": "BS EN 1993-1-5 / Eurocode 3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_STR_STIFFENER_WELD, \"\")"
+        }
       ]
     },
     "MEP Fabrication Hangers": {
@@ -50934,7 +52494,15 @@
         }
       ],
       "warnings": [
-        "WARN_FAB_HANGER_LOAD_KN"
+        {
+          "param": "WARN_FAB_HANGER_LOAD_KN",
+          "severity": "HIGH",
+          "threshold": "5.0",
+          "unit": "kN",
+          "description": "Fabrication hanger load capacity",
+          "standard": "DW/144 / BSRIA BG 30",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, \"\")"
+        }
       ]
     },
     "MEP Fabrication Pipework": {
@@ -51353,7 +52921,15 @@
         }
       ],
       "warnings": [
-        "WARN_PLM_VEL_MPS_PIPES"
+        {
+          "param": "WARN_PLM_VEL_MPS_PIPES",
+          "severity": "HIGH",
+          "threshold": "2.5",
+          "unit": "m/s",
+          "description": "Pipe velocity limit",
+          "standard": "CIBSE Guide G / BS EN 806-3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_PIPES, \"\")"
+        }
       ]
     },
     "Materials": {
@@ -51772,7 +53348,15 @@
         }
       ],
       "warnings": [
-        "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__"
+        {
+          "param": "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__",
+          "severity": "MEDIUM",
+          "threshold": "500",
+          "unit": "kgCO₂e/m²",
+          "description": "Embodied carbon footprint limit per unit",
+          "standard": "RIBA 2030 Climate Challenge / EN 15978",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, \"\")"
+        }
       ]
     },
     "Analytical Duct Segments": {
@@ -52191,7 +53775,15 @@
         }
       ],
       "warnings": [
-        "WARN_HVC_VEL_MPS_DUCTS"
+        {
+          "param": "WARN_HVC_VEL_MPS_DUCTS",
+          "severity": "HIGH",
+          "threshold": "6.0",
+          "unit": "m/s",
+          "description": "Duct velocity limit",
+          "standard": "CIBSE Guide B2 / ASHRAE Handbook",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_DUCTS, \"\")"
+        }
       ]
     },
     "Analytical Pipe Segments": {
@@ -52610,7 +54202,15 @@
         }
       ],
       "warnings": [
-        "WARN_PLM_VEL_MPS_PIPES"
+        {
+          "param": "WARN_PLM_VEL_MPS_PIPES",
+          "severity": "HIGH",
+          "threshold": "2.5",
+          "unit": "m/s",
+          "description": "Pipe velocity limit",
+          "standard": "CIBSE Guide G / BS EN 806-3",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_PIPES, \"\")"
+        }
       ]
     },
     "Area Based Loads": {
@@ -53029,7 +54629,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Audio Visual Devices": {
@@ -53448,7 +55056,15 @@
         }
       ],
       "warnings": [
-        "WARN_COM_DEVICE_COVERAGE"
+        {
+          "param": "WARN_COM_DEVICE_COVERAGE",
+          "severity": "MEDIUM",
+          "threshold": "15.0",
+          "unit": "m",
+          "description": "Communication device coverage radius",
+          "standard": "BS EN 50600 / ISO/IEC 11801",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, \"\")"
+        }
       ]
     },
     "MEP Ancillary": {
@@ -53867,7 +55483,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_GENERIC_CLEARANCE_MM"
+        {
+          "param": "WARN_BLE_GENERIC_CLEARANCE_MM",
+          "severity": "LOW",
+          "threshold": "600",
+          "unit": "mm",
+          "description": "Generic model clearance zone minimum",
+          "standard": "Project-specific requirement",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_GENERIC_CLEARANCE_MM, \"\")"
+        }
       ]
     },
     "Medical Equipment": {
@@ -54286,8 +55910,24 @@
         }
       ],
       "warnings": [
-        "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI",
-        "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C"
+        {
+          "param": "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI",
+          "severity": "CRITICAL",
+          "threshold": "3.0",
+          "unit": "%",
+          "description": "Voltage drop percentage limit",
+          "standard": "IEE Wiring Regs BS 7671 / NEC",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, \"\")"
+        },
+        {
+          "param": "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C",
+          "severity": "CRITICAL",
+          "threshold": "900",
+          "unit": "mm",
+          "description": "Accessible clear width minimum",
+          "standard": "BS 8300:2018 / ADA / Uganda Building Code",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, \"\")"
+        }
       ]
     },
     "Property Line Segments": {
@@ -54706,7 +56346,15 @@
         }
       ],
       "warnings": [
-        "WARN_SITE_BEARING_CAP_KPA"
+        {
+          "param": "WARN_SITE_BEARING_CAP_KPA",
+          "severity": "CRITICAL",
+          "threshold": "100",
+          "unit": "kPa",
+          "description": "Foundation/soil bearing capacity minimum",
+          "standard": "BS EN 1997-1 / Eurocode 7",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
+        }
       ]
     },
     "Temporary Structures": {
@@ -55125,7 +56773,15 @@
         }
       ],
       "warnings": [
-        "WARN_BLE_STRUCT_LD_CAP"
+        {
+          "param": "WARN_BLE_STRUCT_LD_CAP",
+          "severity": "CRITICAL",
+          "threshold": "5.0",
+          "unit": "kN/m",
+          "description": "Structural load capacity check",
+          "standard": "BS EN 1992/1993/1994 / Eurocode 2-4",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, \"\")"
+        }
       ]
     },
     "Toposolid Links": {
@@ -55544,7 +57200,15 @@
         }
       ],
       "warnings": [
-        "WARN_SITE_BEARING_CAP_KPA"
+        {
+          "param": "WARN_SITE_BEARING_CAP_KPA",
+          "severity": "CRITICAL",
+          "threshold": "100",
+          "unit": "kPa",
+          "description": "Foundation/soil bearing capacity minimum",
+          "standard": "BS EN 1997-1 / Eurocode 7",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, \"\")"
+        }
       ]
     },
     "Wash": {
@@ -55963,7 +57627,15 @@
         }
       ],
       "warnings": [
-        "WARN_PLM_FIXTURE_FLOW"
+        {
+          "param": "WARN_PLM_FIXTURE_FLOW",
+          "severity": "HIGH",
+          "threshold": "0.15",
+          "unit": "L/s",
+          "description": "Flow rate design limit",
+          "standard": "Building Regs Part G / BS 6465",
+          "formula": "if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_FIXTURE_FLOW, \"\")"
+        }
       ]
     }
   },

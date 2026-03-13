@@ -184,15 +184,11 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_SiteProperty, "Generic Tag.rft" },
 
             // ── Additional (align with LABEL_DEFINITIONS v5.5) ───────────────
-            { BuiltInCategory.OST_AnalyticalDuctSegments, "Duct Tag.rft" },
-            { BuiltInCategory.OST_AnalyticalPipeSegments, "Pipe Tag.rft" },
-            { BuiltInCategory.OST_AreaBasedLoads, "Generic Tag.rft" },
+            // Note: OST_AnalyticalDuctSegments, OST_AnalyticalPipeSegments, OST_AreaBasedLoads,
+            // OST_MEPAncillaries, OST_TemporaryStructures, OST_Wash are Revit 2026+ only
             { BuiltInCategory.OST_StructConnectionBolts, "Generic Tag.rft" },
-            { BuiltInCategory.OST_MEPAncillaries, "Generic Tag.rft" },
             { BuiltInCategory.OST_SitePropertyLineSegment, "Generic Tag.rft" },
-            { BuiltInCategory.OST_TemporaryStructures, "Generic Tag.rft" },
             { BuiltInCategory.OST_ToposolidLink, "Generic Tag.rft" },
-            { BuiltInCategory.OST_Wash, "Generic Tag.rft" },
             { BuiltInCategory.OST_StructConnectionWelds, "Generic Tag.rft" },
             { BuiltInCategory.OST_Wire, "Electrical Equipment Tag.rft" },
         };
@@ -335,15 +331,11 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_SiteProperty, "Property Lines" },
 
             // Additional (align with LABEL_DEFINITIONS v5.5)
-            { BuiltInCategory.OST_AnalyticalDuctSegments, "Analytical Duct Segments" },
-            { BuiltInCategory.OST_AnalyticalPipeSegments, "Analytical Pipe Segments" },
-            { BuiltInCategory.OST_AreaBasedLoads, "Area Based Loads" },
+            // Note: OST_AnalyticalDuctSegments, OST_AnalyticalPipeSegments, OST_AreaBasedLoads,
+            // OST_MEPAncillaries, OST_TemporaryStructures, OST_Wash are Revit 2026+ only
             { BuiltInCategory.OST_StructConnectionBolts, "Bolt" },
-            { BuiltInCategory.OST_MEPAncillaries, "MEP Ancillary" },
             { BuiltInCategory.OST_SitePropertyLineSegment, "Property Line Segments" },
-            { BuiltInCategory.OST_TemporaryStructures, "Temporary Structures" },
             { BuiltInCategory.OST_ToposolidLink, "Toposolid Links" },
-            { BuiltInCategory.OST_Wash, "Wash" },
             { BuiltInCategory.OST_StructConnectionWelds, "Weld" },
             { BuiltInCategory.OST_Wire, "Wire" },
         };
