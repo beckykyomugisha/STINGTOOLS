@@ -423,6 +423,13 @@ namespace StingTools.Core
                 // Legends
                 case "AutoCreateLegends": return new Tags.AutoCreateLegendsCommand();
 
+                // BIM Manager
+                case "CreateBEP": return new BIMManager.CreateBEPCommand();
+                case "UpdateBEP": return new BIMManager.UpdateBEPCommand();
+                case "ExportBEP": return new BIMManager.ExportBEPCommand();
+                case "COBieExport": return new BIMManager.COBieExportCommand();
+                case "DocumentBriefcase": return new BIMManager.DocumentBriefcaseCommand();
+
                 default: return null;
             }
         }
@@ -436,6 +443,7 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("ProjectKickoff"));
             presets.Add(GetBuiltInPreset("DailyQA"));
             presets.Add(GetBuiltInPreset("DocumentPackage"));
+            presets.Add(GetBuiltInPreset("BEPPackage"));
 
             // User-defined JSON files
             string dataDir = StingToolsApp.DataPath;
@@ -538,6 +546,22 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Assign View Templates" },
                             new WorkflowStep { CommandTag = "DrawingRegister", Label = "Generate Drawing Register" },
                             new WorkflowStep { CommandTag = "BOQExport", Label = "Export Bill of Quantities" },
+                        }
+                    };
+
+                case "BEPPackage":
+                    return new WorkflowPreset
+                    {
+                        Name = "BEP Package",
+                        Description = "ISO 19650 BIM Execution Plan generation pipeline",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "CreateBEP", Label = "Create BEP from Wizard" },
+                            new WorkflowStep { CommandTag = "UpdateBEP", Label = "Enrich BEP with Model Data" },
+                            new WorkflowStep { CommandTag = "ExportBEP", Label = "Export BEP to XLSX" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "COBie V2.4 Export" },
+                            new WorkflowStep { CommandTag = "DocumentBriefcase", Label = "Document Briefcase" },
                         }
                     };
 

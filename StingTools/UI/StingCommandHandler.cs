@@ -465,6 +465,9 @@ namespace StingTools.UI
                     case "IFCExport": RunCommand<Temp.IFCExportCommand>(app); break;
                     case "ExcelImport": RunCommand<Temp.ExcelBOQImportCommand>(app); break;
                     case "KeynoteSync": RunCommand<Temp.KeynoteSyncCommand>(app); break;
+                    case "ExcelToDraftingView": RunCommand<Temp.ExcelToDraftingViewCommand>(app); break;
+                    case "ScheduleToExcel": RunCommand<Temp.ScheduleToExcelCommand>(app); break;
+                    case "BatchStickyImport": RunCommand<Temp.BatchStickyImportCommand>(app); break;
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
 
                     // ════════════════════════════════════════════════════════

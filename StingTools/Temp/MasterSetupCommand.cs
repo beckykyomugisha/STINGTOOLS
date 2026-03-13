@@ -71,7 +71,8 @@ namespace StingTools.Temp
                 " 14.  Apply filters + VG overrides (5-layer intelligence)\n" +
                 " 15.  Batch family parameters (4,686 from CSV)\n" +
                 " 16.  Auto-assign templates + auto-fix health\n" +
-                " 17.  Auto-create legends (discipline + system)\n\n" +
+                " 17.  Auto-create legends (discipline + system)\n" +
+                " 18.  Generate BEP + Export XLSX (ISO 19650)\n\n" +
                 "Each step runs independently.\n" +
                 "Use Ctrl+Z to undo individual steps if needed.\n\n" +
                 "This may take several minutes for a new project.";
@@ -231,6 +232,10 @@ namespace StingTools.Temp
             // Step 17: Auto-create legends (discipline, system, filter)
             passed += DoStep("Auto-Create Legends (discipline + system)",
                 () => RunCommand(new Tags.AutoCreateLegendsCommand(), commandData, elements));
+
+            // Step 18: Generate BEP (ISO 19650 BIM Execution Plan)
+            passed += DoStep("Generate BEP + Export XLSX",
+                () => RunCommand(new BIMManager.CreateBEPCommand(), commandData, elements));
 
             // Handle user cancellation
             if (userCancelled)

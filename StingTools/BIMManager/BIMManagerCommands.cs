@@ -8,9 +8,11 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
+using ClosedXML.Excel;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.BIMManager
 {
@@ -662,6 +664,341 @@ namespace StingTools.BIMManager
             };
 
             return bep;
+        }
+
+        /// <summary>
+        /// Create BEP from wizard data — richer overload that feeds wizard inputs into template.
+        /// </summary>
+        internal static JObject CreateBEPFromWizard(BEPWizardData wd)
+        {
+            string leadDesigner = wd.LeadDesignerDescription;
+            string leadCode = wd.LeadDesignerRole == "Multi" ? "A" : wd.LeadDesignerRole;
+            string[] disciplines = wd.DisciplineTeam.Keys.ToArray();
+
+            var bep = CreateBEPFromTemplate(
+                wd.PresetKey, wd.ProjectName, wd.ProjectNumber,
+                wd.ClientName, wd.ProjectAddress, wd.RIBAStage,
+                leadDesigner, leadCode, disciplines);
+
+            // Enrich with wizard-specific fields not in the basic template
+            var pi = bep["project_information"] as JObject;
+            if (pi != null)
+            {
+                pi["project_description"] = wd.ProjectDescription;
+                pi["site_reference"] = wd.SiteReference;
+                pi["project_type"] = wd.ProjectType;
+                pi["procurement_route"] = wd.ProcurementRoute;
+            }
+
+            // Enrich team with company/contact details
+            var team = bep["project_team"] as JArray;
+            if (team != null)
+            {
+                // Update lead party
+                foreach (var member in team)
+                {
+                    string code = member["originator_code"]?.ToString() ?? "";
+                    if (code == leadCode && member["role"]?.ToString()?.Contains("Lead") == true)
+                    {
+                        member["contact_name"] = wd.LeadContact;
+                        member["company"] = wd.LeadCompany;
+                    }
+                    if (wd.DisciplineTeam.TryGetValue(code, out string company) && !string.IsNullOrEmpty(company))
+                        member["company"] = company;
+                }
+                // Add BIM Manager if specified
+                if (!string.IsNullOrEmpty(wd.BIMManager))
+                {
+                    team.Add(CreateTeamMember("Information Manager", "Z", "BIM Management",
+                        wd.BIMManager, "", ""));
+                }
+                if (!string.IsNullOrEmpty(wd.BIMCoordinator))
+                {
+                    team.Add(CreateTeamMember("BIM Coordinator", "Z", "BIM Coordination",
+                        wd.BIMCoordinator, "", ""));
+                }
+            }
+
+            // Override BIM uses from wizard selections
+            if (wd.BIMUses.Count > 0)
+            {
+                var goals = bep["goals_and_uses"] as JObject ?? new JObject();
+                var bimUses = new JArray();
+                foreach (string use in wd.BIMUses)
+                    bimUses.Add(new JObject { ["use"] = use, ["stage"] = "All", ["responsible"] = "As per RACI" });
+                goals["bim_uses"] = bimUses;
+                if (!string.IsNullOrEmpty(wd.AdditionalGoals))
+                {
+                    var pg = goals["primary_goals"] as JArray ?? new JArray();
+                    pg.Add(wd.AdditionalGoals);
+                    goals["primary_goals"] = pg;
+                }
+                bep["goals_and_uses"] = goals;
+            }
+
+            // Override standards/CDE from wizard
+            var tidp = bep["information_standard"] as JObject ?? new JObject();
+            tidp["naming_convention"] = wd.NamingConvention;
+            tidp["classification_system"] = wd.ClassificationSystem;
+            tidp["units"] = new JObject { ["length"] = wd.UnitsLength, ["area"] = wd.UnitsArea };
+            tidp["file_formats"] = new JObject
+            {
+                ["native"] = wd.FormatNative,
+                ["exchange"] = wd.FormatExchange,
+                ["drawings"] = wd.FormatDrawing,
+                ["data"] = wd.FormatData
+            };
+            bep["information_standard"] = tidp;
+
+            var cde = bep["cde_workflow"] as JObject ?? new JObject();
+            cde["cde_platform"] = wd.CDEPlatform;
+            bep["cde_workflow"] = cde;
+
+            return bep;
+        }
+
+        /// <summary>
+        /// Export BEP to formatted XLSX workbook (ISO 19650 standard format).
+        /// </summary>
+        internal static string ExportBEPToXlsx(JObject bep, string outputDir, string projectNumber)
+        {
+            string fileName = $"BEP_{projectNumber}_{DateTime.Now:yyyyMMdd}.xlsx";
+            string xlsxPath = Path.Combine(outputDir, fileName);
+
+            using var wb = new XLWorkbook();
+
+            // ── Cover Page ──
+            var cover = wb.AddWorksheet("Cover Page");
+            cover.Column(1).Width = 5;
+            cover.Column(2).Width = 30;
+            cover.Column(3).Width = 40;
+            int r = 2;
+            cover.Cell(r, 2).Value = "BIM EXECUTION PLAN (BEP)";
+            cover.Cell(r, 2).Style.Font.Bold = true;
+            cover.Cell(r, 2).Style.Font.FontSize = 18;
+            cover.Range(r, 2, r, 3).Merge();
+            r++;
+            cover.Cell(r, 2).Value = "ISO 19650-2 Pre-Contract BEP";
+            cover.Cell(r, 2).Style.Font.FontSize = 12;
+            cover.Cell(r, 2).Style.Font.FontColor = XLColor.Gray;
+            r += 2;
+
+            var pi = bep["project_information"] as JObject;
+            if (pi != null)
+            {
+                foreach (var kv in pi)
+                {
+                    cover.Cell(r, 2).Value = FormatKey(kv.Key);
+                    cover.Cell(r, 2).Style.Font.Bold = true;
+                    cover.Cell(r, 3).Value = kv.Value?.ToString() ?? "";
+                    r++;
+                }
+            }
+            r += 2;
+            cover.Cell(r, 2).Value = $"Generated: {DateTime.Now:yyyy-MM-dd HH:mm}";
+            cover.Cell(r, 2).Style.Font.FontColor = XLColor.Gray;
+            cover.PageSetup.PaperSize = XLPaperSize.A4Paper;
+
+            // ── Section 2: Project Team ──
+            var teamWs = wb.AddWorksheet("Project Team");
+            SetStandardHeaders(teamWs, new[] { "Role", "Code", "Discipline", "Contact", "Company", "Email" });
+            int tr = 2;
+            var team = bep["project_team"] as JArray;
+            if (team != null)
+            {
+                foreach (var m in team)
+                {
+                    teamWs.Cell(tr, 1).Value = m["role"]?.ToString() ?? "";
+                    teamWs.Cell(tr, 2).Value = m["originator_code"]?.ToString() ?? "";
+                    teamWs.Cell(tr, 3).Value = m["discipline"]?.ToString() ?? "";
+                    teamWs.Cell(tr, 4).Value = m["contact_name"]?.ToString() ?? "";
+                    teamWs.Cell(tr, 5).Value = m["company"]?.ToString() ?? "";
+                    teamWs.Cell(tr, 6).Value = m["email"]?.ToString() ?? "";
+                    tr++;
+                }
+            }
+
+            // ── Section 3-5: Key Sections as formatted sheets ──
+            WriteSectionSheet(wb, "Goals & BIM Uses", bep["goals_and_uses"]);
+            WriteSectionSheet(wb, "Roles & Responsibilities", bep["roles_and_responsibilities"]);
+            WriteSectionSheet(wb, "Process Design", bep["process_design"]);
+
+            // ── MIDP ──
+            var midpWs = wb.AddWorksheet("MIDP");
+            SetStandardHeaders(midpWs, new[] { "Stage", "Stage Name", "Target Date", "Responsibility", "Suitability", "Deliverables" });
+            int mr = 2;
+            var midp = bep["midp"] as JArray;
+            if (midp != null)
+            {
+                foreach (var ms in midp)
+                {
+                    midpWs.Cell(mr, 1).Value = (int)(ms["stage"] ?? 0);
+                    midpWs.Cell(mr, 2).Value = ms["stage_name"]?.ToString() ?? "";
+                    midpWs.Cell(mr, 3).Value = ms["target_date"]?.ToString() ?? "";
+                    midpWs.Cell(mr, 4).Value = ms["responsibility"]?.ToString() ?? "";
+                    midpWs.Cell(mr, 5).Value = ms["suitability"]?.ToString() ?? "";
+                    var deliverables = ms["deliverables"] as JArray;
+                    midpWs.Cell(mr, 6).Value = deliverables != null
+                        ? string.Join("\n", deliverables.Select(d => d.ToString()))
+                        : "";
+                    midpWs.Cell(mr, 6).Style.Alignment.WrapText = true;
+                    mr++;
+                }
+            }
+
+            // ── Information Standard ──
+            WriteSectionSheet(wb, "Information Standard", bep["information_standard"]);
+
+            // ── Software Platforms ──
+            var swWs = wb.AddWorksheet("Software Platforms");
+            SetStandardHeaders(swWs, new[] { "Platform", "Purpose", "Version" });
+            int sr = 2;
+            var sw = bep["software_platforms"] as JArray;
+            if (sw != null)
+            {
+                foreach (var s in sw)
+                {
+                    swWs.Cell(sr, 1).Value = s["platform"]?.ToString() ?? "";
+                    swWs.Cell(sr, 2).Value = s["purpose"]?.ToString() ?? "";
+                    swWs.Cell(sr, 3).Value = s["version"]?.ToString() ?? "";
+                    sr++;
+                }
+            }
+
+            // ── Remaining key sections ──
+            WriteSectionSheet(wb, "Model Structure", bep["model_structure"]);
+            WriteSectionSheet(wb, "CDE Workflow", bep["cde_workflow"]);
+            WriteSectionSheet(wb, "Level of Info Need", bep["level_of_information_need"]);
+            WriteSectionSheet(wb, "Clash Detection", bep["clash_detection"]);
+            WriteSectionSheet(wb, "Quality Assurance", bep["quality_assurance"]);
+            WriteSectionSheet(wb, "Security", bep["security"]);
+            WriteSectionSheet(wb, "Handover Requirements", bep["handover_requirements"]);
+
+            // ── Risk Register ──
+            var riskWs = wb.AddWorksheet("Risk Register");
+            SetStandardHeaders(riskWs, new[] { "Risk", "Impact", "Mitigation" });
+            int rr = 2;
+            var risks = bep["risk_register"] as JArray;
+            if (risks != null)
+            {
+                foreach (var risk in risks)
+                {
+                    riskWs.Cell(rr, 1).Value = risk["risk"]?.ToString() ?? "";
+                    riskWs.Cell(rr, 2).Value = risk["impact"]?.ToString() ?? "";
+                    riskWs.Cell(rr, 3).Value = risk["mitigation"]?.ToString() ?? "";
+                    rr++;
+                }
+            }
+
+            // ── Allowed Codes ──
+            var codesWs = wb.AddWorksheet("Allowed Codes");
+            int cr = 1;
+            var codes = bep["allowed_codes"] as JObject;
+            if (codes != null)
+            {
+                foreach (var kv in codes)
+                {
+                    codesWs.Cell(cr, 1).Value = FormatKey(kv.Key);
+                    codesWs.Cell(cr, 1).Style.Font.Bold = true;
+                    cr++;
+                    if (kv.Value is JArray arr)
+                    {
+                        foreach (var item in arr)
+                        {
+                            codesWs.Cell(cr, 2).Value = item.ToString();
+                            cr++;
+                        }
+                    }
+                    cr++;
+                }
+            }
+
+            // Auto-fit all worksheets
+            foreach (var ws in wb.Worksheets)
+            {
+                ws.Columns().AdjustToContents(1, 80);
+                ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+            }
+
+            wb.SaveAs(xlsxPath);
+            return xlsxPath;
+        }
+
+        private static void SetStandardHeaders(IXLWorksheet ws, string[] headers)
+        {
+            for (int i = 0; i < headers.Length; i++)
+            {
+                ws.Cell(1, i + 1).Value = headers[i];
+                ws.Cell(1, i + 1).Style.Font.Bold = true;
+                ws.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#6A1B9A");
+                ws.Cell(1, i + 1).Style.Font.FontColor = XLColor.White;
+            }
+        }
+
+        private static void WriteSectionSheet(XLWorkbook wb, string sheetName, JToken section)
+        {
+            if (section == null) return;
+            // Sanitize sheet name (max 31 chars, no invalid chars)
+            string safeName = sheetName.Length > 31 ? sheetName.Substring(0, 31) : sheetName;
+            var ws = wb.AddWorksheet(safeName);
+            int row = 1;
+
+            if (section is JObject obj)
+            {
+                foreach (var kv in obj)
+                {
+                    ws.Cell(row, 1).Value = FormatKey(kv.Key);
+                    ws.Cell(row, 1).Style.Font.Bold = true;
+
+                    if (kv.Value is JArray arr)
+                    {
+                        foreach (var item in arr)
+                        {
+                            row++;
+                            if (item is JObject itemObj)
+                                ws.Cell(row, 2).Value = string.Join(" | ",
+                                    itemObj.Properties().Select(p => $"{p.Name}: {p.Value}"));
+                            else
+                                ws.Cell(row, 2).Value = item.ToString();
+                        }
+                    }
+                    else if (kv.Value is JObject nested)
+                    {
+                        foreach (var nkv in nested)
+                        {
+                            row++;
+                            ws.Cell(row, 2).Value = FormatKey(nkv.Key);
+                            ws.Cell(row, 3).Value = nkv.Value?.ToString() ?? "";
+                        }
+                    }
+                    else
+                    {
+                        ws.Cell(row, 2).Value = kv.Value?.ToString() ?? "";
+                    }
+                    row++;
+                }
+            }
+            else if (section is JArray arr)
+            {
+                foreach (var item in arr)
+                {
+                    if (item is JObject itemObj)
+                    {
+                        ws.Cell(row, 1).Value = string.Join(" | ",
+                            itemObj.Properties().Select(p => $"{p.Name}: {p.Value}"));
+                    }
+                    else
+                        ws.Cell(row, 1).Value = item.ToString();
+                    row++;
+                }
+            }
+        }
+
+        private static string FormatKey(string key)
+        {
+            // Convert snake_case to Title Case
+            return string.Join(" ", key.Split('_')
+                .Select(w => w.Length > 0 ? char.ToUpper(w[0]) + w.Substring(1) : ""));
         }
 
         /// <summary>
@@ -1459,95 +1796,40 @@ namespace StingTools.BIMManager
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
-            var pi = doc.ProjectInformation;
 
-            StingLog.Info("BIMManager: Creating BEP from template...");
+            StingLog.Info("BIMManager: Launching BEP Wizard...");
 
-            // Step 1: Pick BEP preset
-            var presetDlg = new TaskDialog("STING BEP — Select Template");
-            presetDlg.MainInstruction = "BEP is a pre-contract document.\nSelect a template to start from:";
-            presetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "UK Government — Full ISO 19650", "Public sector, Soft Landings, comprehensive BEP");
-            presetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "NBS Standard — Commercial/Mixed-Use", "Standard BEP with Uniclass 2015 classification");
-            presetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Residential — Simplified", "Reduced deliverables for housing projects");
-            presetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Minimal — Small Project", "Essential sections only, quick setup");
-            var presetResult = presetDlg.Show();
-            string presetKey = presetResult switch
-            {
-                TaskDialogResult.CommandLink1 => "UK_GOV",
-                TaskDialogResult.CommandLink2 => "NBS_STANDARD",
-                TaskDialogResult.CommandLink3 => "RESIDENTIAL",
-                TaskDialogResult.CommandLink4 => "MINIMAL",
-                _ => null
-            };
-            if (presetKey == null) return Result.Cancelled;
+            // Launch BEP Wizard WPF dialog
+            var wizard = new BEPWizard();
+            wizard.PrePopulate(doc);
 
-            // Step 2: Pick RIBA stage
-            var stageDlg = new TaskDialog("STING BEP — Project Stage");
-            stageDlg.MainInstruction = "Which RIBA stage is this BEP for?";
-            stageDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Stage 1 — Preparation and Briefing", "Pre-appointment BEP (ISO 19650-2 §5.3)");
-            stageDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Stage 2 — Concept Design", "Post-appointment BEP with design intent");
-            stageDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Stage 3 — Spatial Coordination", "Coordination-phase BEP update");
-            stageDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Stage 4 — Technical Design", "Technical design BEP with detailed LOD");
-            var stageResult = stageDlg.Show();
-            int ribaStage = stageResult switch
-            {
-                TaskDialogResult.CommandLink1 => 1,
-                TaskDialogResult.CommandLink2 => 2,
-                TaskDialogResult.CommandLink3 => 3,
-                TaskDialogResult.CommandLink4 => 4,
-                _ => 2
-            };
+            bool? result = wizard.ShowDialog();
+            if (result != true || !wizard.CreateRequested || wizard.WizardData == null)
+                return Result.Cancelled;
 
-            // Step 3: Pick disciplines
-            var discDlg = new TaskDialog("STING BEP — Disciplines");
-            discDlg.MainInstruction = "Select primary discipline lead:";
-            discDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Architecture Lead (A)", "Architect as lead designer with MEP/Structural");
-            discDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "MEP Lead (M/E/P)", "MEP engineer lead with Architecture/Structural");
-            discDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Multi-Discipline", "All disciplines: A, M, E, P, S, Q, C");
-            var discResult = discDlg.Show();
-            string leadDesigner; string leadCode; string[] disciplines;
-            switch (discResult)
-            {
-                case TaskDialogResult.CommandLink1:
-                    leadDesigner = "Architect"; leadCode = "A";
-                    disciplines = new[] { "M", "E", "P", "S" };
-                    break;
-                case TaskDialogResult.CommandLink2:
-                    leadDesigner = "MEP Engineer"; leadCode = "M";
-                    disciplines = new[] { "A", "E", "P", "S" };
-                    break;
-                default:
-                    leadDesigner = "Lead Designer"; leadCode = "A";
-                    disciplines = new[] { "A", "M", "E", "P", "S", "Q", "C" };
-                    break;
-            }
+            var wd = wizard.WizardData;
 
-            // Generate BEP from template + user input
-            string projectName = pi?.Name ?? "Untitled Project";
-            string projectNumber = pi?.Number ?? "";
-            string clientName = pi?.ClientName ?? "";
-            string projectAddress = pi?.Address ?? "";
+            // Generate BEP from wizard data
+            var bep = BIMManagerEngine.CreateBEPFromWizard(wd);
 
-            var bep = BIMManagerEngine.CreateBEPFromTemplate(
-                presetKey, projectName, projectNumber, clientName, projectAddress,
-                ribaStage, leadDesigner, leadCode, disciplines);
-
-            // Save
+            // Save JSON (internal use — validation, Update BEP enrichment)
             string bepPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "project_bep.json");
             BIMManagerEngine.SaveJsonFile(bepPath, bep);
 
-            // Also save allowed codes for BEP validation
+            // Export XLSX (standard format document)
+            string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+            string xlsxPath = "";
+            try
+            {
+                xlsxPath = BIMManagerEngine.ExportBEPToXlsx(bep, bimDir,
+                    wd.ProjectNumber.Length > 0 ? wd.ProjectNumber : "PRJ");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BEP XLSX export failed: {ex.Message}");
+            }
+
+            // Save allowed codes for BEP validation
             string dataPath = StingToolsApp.DataPath ?? "";
             if (!string.IsNullOrEmpty(dataPath))
             {
@@ -1555,7 +1837,7 @@ namespace StingTools.BIMManager
                 {
                     var validationBep = new JObject
                     {
-                        ["project_name"] = projectName,
+                        ["project_name"] = wd.ProjectName,
                         ["allowed_disc"] = bep["allowed_codes"]?["allowed_disc"],
                         ["allowed_loc"] = bep["allowed_codes"]?["allowed_loc"],
                         ["allowed_zone"] = bep["allowed_codes"]?["allowed_zone"],
@@ -1570,23 +1852,26 @@ namespace StingTools.BIMManager
             var report = new StringBuilder();
             report.AppendLine("BIM Execution Plan Created");
             report.AppendLine(new string('═', 50));
-            report.AppendLine($"  Template:   {presetKey} — {BIMManagerEngine.BEPPresets[presetKey]}");
-            report.AppendLine($"  Stage:      {ribaStage} — {BIMManagerEngine.RIBAStages[ribaStage]}");
-            report.AppendLine($"  Project:    {projectName}");
-            report.AppendLine($"  Number:     {projectNumber}");
-            report.AppendLine($"  Client:     {clientName}");
-            report.AppendLine($"  Lead:       {leadDesigner} [{leadCode}]");
-            report.AppendLine($"  Disciplines: {string.Join(", ", disciplines)}");
+            report.AppendLine($"  Template:   {wd.PresetKey} — {BIMManagerEngine.BEPPresets.GetValueOrDefault(wd.PresetKey, "")}");
+            report.AppendLine($"  Stage:      {wd.RIBAStage} — {BIMManagerEngine.RIBAStages.GetValueOrDefault(wd.RIBAStage, "")}");
+            report.AppendLine($"  Project:    {wd.ProjectName}");
+            report.AppendLine($"  Number:     {wd.ProjectNumber}");
+            report.AppendLine($"  Client:     {wd.ClientName}");
+            report.AppendLine($"  Lead:       {wd.LeadDesignerDescription}");
+            report.AppendLine($"  Disciplines: {string.Join(", ", wd.DisciplineTeam.Keys)}");
+            report.AppendLine($"  BIM Uses:   {wd.BIMUses.Count}");
             report.AppendLine($"  Sections:   {BIMManagerEngine.BEPSections.Length}");
-            report.AppendLine($"  MIDP Stages: {ribaStage}-7");
             report.AppendLine();
-            report.AppendLine("This BEP is template-driven (pre-contract).");
-            report.AppendLine("Use 'Update BEP' later to enrich with model data.");
+            report.AppendLine("Output files:");
+            report.AppendLine($"  JSON: {bepPath}");
+            if (!string.IsNullOrEmpty(xlsxPath))
+                report.AppendLine($"  XLSX: {xlsxPath}");
             report.AppendLine();
-            report.AppendLine($"Edit: {bepPath}");
+            report.AppendLine("Use 'Update BEP' to enrich with model data.");
+            report.AppendLine("Use 'Export BEP' to regenerate the XLSX.");
 
             TaskDialog.Show("STING BIM Manager — BEP", report.ToString());
-            StingLog.Info($"BEP created: {presetKey}, stage {ribaStage}");
+            StingLog.Info($"BEP created: {wd.PresetKey}, stage {wd.RIBAStage}, xlsx={!string.IsNullOrEmpty(xlsxPath)}");
             return Result.Succeeded;
         }
     }
@@ -1722,124 +2007,18 @@ namespace StingTools.BIMManager
             }
 
             var bep = BIMManagerEngine.LoadJsonFile(bepPath);
-            var text = new StringBuilder();
+            string projectNumber = bep["project_information"]?["project_number"]?.ToString() ?? doc.ProjectInformation?.Number ?? "PRJ";
 
-            text.AppendLine("╔══════════════════════════════════════════════════════════════╗");
-            text.AppendLine("║       BIM EXECUTION PLAN (BEP) — ISO 19650-2                ║");
-            text.AppendLine("╚══════════════════════════════════════════════════════════════╝");
-            text.AppendLine();
-
-            // Section 1: Project Info
-            var pi = bep["project_information"] as JObject;
-            if (pi != null)
-            {
-                text.AppendLine("1. PROJECT INFORMATION");
-                text.AppendLine(new string('─', 50));
-                foreach (var kv in pi)
-                    text.AppendLine($"  {kv.Key,-28} {kv.Value}");
-                text.AppendLine();
-            }
-
-            // Section 2: Team
-            var team = bep["project_team"] as JArray;
-            if (team != null)
-            {
-                text.AppendLine("2. PROJECT TEAM DIRECTORY");
-                text.AppendLine(new string('─', 50));
-                foreach (var member in team)
-                {
-                    text.AppendLine($"  {member["role"],-25} [{member["originator_code"]}] {member["discipline"]}");
-                    string contact = member["contact_name"]?.ToString() ?? "";
-                    if (!string.IsNullOrEmpty(contact))
-                        text.AppendLine($"    Contact: {contact} ({member["company"]})");
-                }
-                text.AppendLine();
-            }
-
-            // Remaining sections
-            string[] sectionKeys = { "goals_and_uses", "roles_and_responsibilities", "process_design",
-                "midp", "information_standard", "software_platforms", "model_structure",
-                "cde_workflow", "level_of_information_need", "clash_detection",
-                "quality_assurance", "security", "handover_requirements", "risk_register", "allowed_codes" };
-
-            int sectionNum = 3;
-            foreach (string key in sectionKeys)
-            {
-                var section = bep[key];
-                if (section == null) { sectionNum++; continue; }
-
-                string title = BIMManagerEngine.BEPSections.Length > sectionNum - 1 ?
-                    BIMManagerEngine.BEPSections[sectionNum - 1] : $"{sectionNum}. {key}";
-                text.AppendLine(title.ToUpper());
-                text.AppendLine(new string('─', 50));
-
-                if (section is JObject obj)
-                {
-                    foreach (var kv in obj)
-                    {
-                        if (kv.Value is JArray arr)
-                        {
-                            text.AppendLine($"  {kv.Key}:");
-                            foreach (var item in arr)
-                            {
-                                if (item is JObject itemObj)
-                                    text.AppendLine($"    • {string.Join(", ", itemObj.Properties().Take(4).Select(p => $"{p.Name}={p.Value}"))}");
-                                else
-                                    text.AppendLine($"    • {item}");
-                            }
-                        }
-                        else if (kv.Value is JObject nested)
-                        {
-                            text.AppendLine($"  {kv.Key}:");
-                            foreach (var nkv in nested)
-                                text.AppendLine($"    {nkv.Key,-24} {nkv.Value}");
-                        }
-                        else
-                            text.AppendLine($"  {kv.Key,-28} {kv.Value}");
-                    }
-                }
-                else if (section is JArray sArr)
-                {
-                    foreach (var item in sArr)
-                    {
-                        if (item is JObject itemObj)
-                        {
-                            var summary = string.Join(" | ", itemObj.Properties().Take(4).Select(p => $"{p.Name}: {p.Value}"));
-                            text.AppendLine($"  • {summary}");
-                        }
-                        else text.AppendLine($"  • {item}");
-                    }
-                }
-                text.AppendLine();
-                sectionNum++;
-            }
-
-            // Model data if enriched
-            var modelData = bep["model_data"] as JObject;
-            if (modelData != null)
-            {
-                text.AppendLine("MODEL DATA (from Revit)");
-                text.AppendLine(new string('─', 50));
-                foreach (var kv in modelData)
-                {
-                    if (kv.Value is JArray arr)
-                        text.AppendLine($"  {kv.Key}: {string.Join(", ", arr.Take(10))}");
-                    else
-                        text.AppendLine($"  {kv.Key,-28} {kv.Value}");
-                }
-                text.AppendLine();
-            }
-
-            text.AppendLine(new string('═', 60));
-            text.AppendLine($"Generated by STING BIM Manager — {DateTime.Now:yyyy-MM-dd HH:mm}");
-
-            string txtPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc),
-                $"BEP_{doc.ProjectInformation?.Number ?? "PRJ"}_{DateTime.Now:yyyyMMdd}.txt");
+            // Export XLSX (standard format)
+            string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
             try
             {
-                File.WriteAllText(txtPath, text.ToString());
-                TaskDialog.Show("STING BIM Manager", $"BEP exported:\n{txtPath}");
-                StingLog.Info($"BEP exported: {txtPath}");
+                string xlsxPath = BIMManagerEngine.ExportBEPToXlsx(bep, bimDir, projectNumber);
+                TaskDialog.Show("STING BIM Manager",
+                    $"BEP exported to standard XLSX format:\n\n{xlsxPath}\n\n" +
+                    $"Sections: {BIMManagerEngine.BEPSections.Length}\n" +
+                    $"Worksheets: Cover + Team + MIDP + Standards + Risk Register + more");
+                StingLog.Info($"BEP exported: {xlsxPath}");
             }
             catch (Exception ex)
             {

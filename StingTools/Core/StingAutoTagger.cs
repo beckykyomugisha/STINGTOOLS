@@ -212,6 +212,16 @@ namespace StingTools.Core
                         StingLog.Warn($"AutoTagger TAG7 for {id}: {tag7Ex.Message}");
                     }
 
+                    // Auto-combine: propagate tag to discipline-specific containers
+                    try
+                    {
+                        ParamRegistry.WriteContainers(doc, el);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"AutoTagger combine failed for {el.Id.Value}: {ex.Message}");
+                    }
+
                     lock (_processedLock)
                     {
                         _recentlyProcessed.Add(id.Value);

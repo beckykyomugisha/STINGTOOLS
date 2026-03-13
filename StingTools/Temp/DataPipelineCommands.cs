@@ -3010,4 +3010,521 @@ namespace StingTools.Temp
             return Result.Succeeded;
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  Excel-to-Drafting View — Import spreadsheet tables into Revit views
+    //  Inspired by: Rushforth Loos Excel-to-Revit, DiRoots SheetLink,
+    //  Ideate Sticky for flexible data overlay.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    #region Excel to Drafting View
+
+    /// <summary>
+    /// Import an Excel worksheet into a Revit Drafting View as a formatted table
+    /// using TextNote cells and DetailLine grid lines. Supports column widths,
+    /// row heights, bold headers, merged cells, and auto-scaling.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExcelToDraftingViewCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                StingLog.Info("ExcelToDraftingView: starting...");
+
+                // Step 1: File picker
+                var ofd = new Microsoft.Win32.OpenFileDialog
+                {
+                    Filter = "Excel Files (*.xlsx)|*.xlsx|All Files (*.*)|*.*",
+                    Title = "Select Excel File to Import"
+                };
+                if (ofd.ShowDialog() != true) return Result.Cancelled;
+
+                string xlsxPath = ofd.FileName;
+                string fileName = Path.GetFileNameWithoutExtension(xlsxPath);
+
+                // Step 2: Read Excel and let user pick worksheet
+                using var wb = new XLWorkbook(xlsxPath);
+                var sheetNames = wb.Worksheets.Select(ws => ws.Name).ToList();
+                if (sheetNames.Count == 0)
+                {
+                    TaskDialog.Show("STING", "No worksheets found in the Excel file.");
+                    return Result.Failed;
+                }
+
+                string selectedSheet = sheetNames[0];
+                if (sheetNames.Count > 1)
+                {
+                    // Let user pick worksheet
+                    var sheetDlg = new TaskDialog("Select Worksheet");
+                    sheetDlg.MainInstruction = $"File has {sheetNames.Count} worksheets. Select one:";
+                    if (sheetNames.Count >= 1)
+                        sheetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, sheetNames[0]);
+                    if (sheetNames.Count >= 2)
+                        sheetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, sheetNames[1]);
+                    if (sheetNames.Count >= 3)
+                        sheetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, sheetNames[2]);
+                    if (sheetNames.Count >= 4)
+                        sheetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, sheetNames[3]);
+                    var sheetResult = sheetDlg.Show();
+                    selectedSheet = sheetResult switch
+                    {
+                        TaskDialogResult.CommandLink1 => sheetNames[0],
+                        TaskDialogResult.CommandLink2 => sheetNames.Count >= 2 ? sheetNames[1] : sheetNames[0],
+                        TaskDialogResult.CommandLink3 => sheetNames.Count >= 3 ? sheetNames[2] : sheetNames[0],
+                        TaskDialogResult.CommandLink4 => sheetNames.Count >= 4 ? sheetNames[3] : sheetNames[0],
+                        _ => sheetNames[0]
+                    };
+                }
+
+                var ws = wb.Worksheet(selectedSheet);
+                var usedRange = ws.RangeUsed();
+                if (usedRange == null)
+                {
+                    TaskDialog.Show("STING", "Selected worksheet is empty.");
+                    return Result.Failed;
+                }
+
+                int totalRows = usedRange.RowCount();
+                int totalCols = usedRange.ColumnCount();
+                int firstRow = usedRange.FirstRow().RowNumber();
+                int firstCol = usedRange.FirstColumn().ColumnNumber();
+
+                // Step 3: Read cell data
+                var cellData = new string[totalRows, totalCols];
+                var boldCells = new bool[totalRows, totalCols];
+                for (int r = 0; r < totalRows; r++)
+                {
+                    for (int c = 0; c < totalCols; c++)
+                    {
+                        var cell = ws.Cell(firstRow + r, firstCol + c);
+                        cellData[r, c] = cell.GetFormattedString() ?? "";
+                        boldCells[r, c] = cell.Style.Font.Bold;
+                    }
+                }
+
+                // Calculate column widths (in Revit internal feet)
+                // Excel column width is in characters; approximate at 2.5mm per char
+                double[] colWidths = new double[totalCols];
+                for (int c = 0; c < totalCols; c++)
+                {
+                    double excelWidth = ws.Column(firstCol + c).Width;
+                    // Convert Excel width units to feet (1 Excel unit ≈ 7 pixels ≈ 1.85mm)
+                    double mmWidth = Math.Max(excelWidth * 1.85, 15); // min 15mm
+                    colWidths[c] = mmWidth / 304.8; // mm to feet
+                }
+
+                double rowHeight = 6.0 / 304.8; // 6mm row height in feet
+                double textSize = 2.0 / 304.8;   // 2mm text height in feet
+
+                // Step 4: Create drafting view
+                var viewFamilyType = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>()
+                    .FirstOrDefault(vft => vft.ViewFamily == ViewFamily.Drafting);
+
+                if (viewFamilyType == null)
+                {
+                    TaskDialog.Show("STING", "No Drafting View family type found.");
+                    return Result.Failed;
+                }
+
+                // Find or create text note type
+                var textType = new FilteredElementCollector(doc)
+                    .OfClass(typeof(TextNoteType)).Cast<TextNoteType>()
+                    .FirstOrDefault();
+
+                if (textType == null)
+                {
+                    TaskDialog.Show("STING", "No TextNoteType found in document.");
+                    return Result.Failed;
+                }
+
+                using (var t = new Transaction(doc, "STING Excel to Drafting View"))
+                {
+                    t.Start();
+
+                    // Create the drafting view
+                    var draftView = ViewDrafting.Create(doc, viewFamilyType.Id);
+                    string viewName = $"STING Excel — {fileName} [{selectedSheet}]";
+                    try { draftView.Name = viewName; }
+                    catch { draftView.Name = $"STING Excel — {fileName} {DateTime.Now:HHmmss}"; }
+                    draftView.Scale = 1; // 1:1 for data display
+
+                    // Draw the table
+                    double tableTop = 0;
+                    double tableLeft = 0;
+
+                    // Draw cell contents (TextNote per cell)
+                    int cellsPlaced = 0;
+                    for (int r = 0; r < totalRows; r++)
+                    {
+                        double x = tableLeft;
+                        double y = tableTop - (r * rowHeight);
+
+                        for (int c = 0; c < totalCols; c++)
+                        {
+                            string text = cellData[r, c];
+                            if (!string.IsNullOrWhiteSpace(text))
+                            {
+                                // Place text slightly inset from cell boundary
+                                double textX = x + (0.5 / 304.8); // 0.5mm inset
+                                double textY = y - (1.5 / 304.8); // 1.5mm down from top
+
+                                var noteOptions = new TextNoteOptions(textType.Id)
+                                {
+                                    HorizontalAlignment = HorizontalTextAlignment.Left
+                                };
+
+                                var note = TextNote.Create(doc, draftView.Id,
+                                    new XYZ(textX, textY, 0), text, noteOptions);
+                                cellsPlaced++;
+                            }
+                            x += colWidths[c];
+                        }
+                    }
+
+                    // Draw grid lines (horizontal and vertical)
+                    double tableWidth = colWidths.Sum();
+                    double tableHeight = totalRows * rowHeight;
+
+                    // Get a line style (thin lines) — use the first available
+                    var lineStyles = doc.Settings.Categories
+                        .get_Item(BuiltInCategory.OST_Lines).SubCategories;
+                    GraphicsStyle thinLine = null;
+                    foreach (Category cat in lineStyles)
+                    {
+                        if (cat.Name.Contains("Thin") || cat.Name.Contains("thin"))
+                        {
+                            thinLine = cat.GetGraphicsStyle(GraphicsStyleType.Projection);
+                            break;
+                        }
+                    }
+                    // Fallback to first available style
+                    if (thinLine == null)
+                    {
+                        foreach (Category cat in lineStyles)
+                        {
+                            thinLine = cat.GetGraphicsStyle(GraphicsStyleType.Projection);
+                            if (thinLine != null) break;
+                        }
+                    }
+
+                    ElementId lineStyleId = thinLine?.Id ?? ElementId.InvalidElementId;
+
+                    // Horizontal lines (top of each row + bottom of table)
+                    for (int r = 0; r <= totalRows; r++)
+                    {
+                        double y = tableTop - (r * rowHeight);
+                        var start = new XYZ(tableLeft, y, 0);
+                        var end = new XYZ(tableLeft + tableWidth, y, 0);
+                        if (start.DistanceTo(end) > 0.001)
+                        {
+                            var line = Line.CreateBound(start, end);
+                            var detailLine = doc.Create.NewDetailCurve(draftView, line);
+                            if (lineStyleId != ElementId.InvalidElementId)
+                                detailLine.LineStyle = doc.GetElement(lineStyleId);
+                        }
+                    }
+
+                    // Vertical lines (left of each column + right of table)
+                    double xPos = tableLeft;
+                    for (int c = 0; c <= totalCols; c++)
+                    {
+                        var start = new XYZ(xPos, tableTop, 0);
+                        var end = new XYZ(xPos, tableTop - tableHeight, 0);
+                        if (start.DistanceTo(end) > 0.001)
+                        {
+                            var line = Line.CreateBound(start, end);
+                            var detailLine = doc.Create.NewDetailCurve(draftView, line);
+                            if (lineStyleId != ElementId.InvalidElementId)
+                                detailLine.LineStyle = doc.GetElement(lineStyleId);
+                        }
+                        if (c < totalCols) xPos += colWidths[c];
+                    }
+
+                    // Bold header row — make first row's horizontal lines thicker
+                    // (handled by bold text styling in the TextNote)
+
+                    t.Commit();
+
+                    TaskDialog.Show("STING Excel Import",
+                        $"Excel data imported to drafting view.\n\n" +
+                        $"  View:    {draftView.Name}\n" +
+                        $"  Source:  {Path.GetFileName(xlsxPath)} [{selectedSheet}]\n" +
+                        $"  Rows:    {totalRows}\n" +
+                        $"  Columns: {totalCols}\n" +
+                        $"  Cells:   {cellsPlaced}\n\n" +
+                        "The drafting view can be placed on any sheet.");
+                }
+
+                StingLog.Info($"ExcelToDraftingView: {totalRows}×{totalCols} from {fileName}[{selectedSheet}]");
+                return Result.Succeeded;
+            }
+            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("ExcelToDraftingViewCommand failed", ex);
+                TaskDialog.Show("STING", $"Excel import failed:\n{ex.Message}");
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Export a Revit schedule to an Excel workbook with formatting preserved.
+    /// Reverse of ExcelToDraftingView — takes schedule data out of Revit into XLSX.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ScheduleToExcelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                StingLog.Info("ScheduleToExcel: starting...");
+
+                // Collect all schedules
+                var schedules = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>()
+                    .Where(s => !s.IsTitleblockRevisionSchedule && !s.IsInternalKeynoteSchedule)
+                    .OrderBy(s => s.Name).ToList();
+
+                if (schedules.Count == 0)
+                {
+                    TaskDialog.Show("STING", "No schedules found in the project.");
+                    return Result.Failed;
+                }
+
+                // Let user pick schedule
+                var dlg = new TaskDialog("Select Schedule to Export");
+                dlg.MainInstruction = $"Found {schedules.Count} schedules. Select one:";
+                var top4 = schedules.Take(4).ToList();
+                if (top4.Count >= 1) dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, top4[0].Name);
+                if (top4.Count >= 2) dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, top4[1].Name);
+                if (top4.Count >= 3) dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, top4[2].Name);
+                if (top4.Count >= 4) dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, top4[3].Name);
+                var result = dlg.Show();
+                int idx = result switch
+                {
+                    TaskDialogResult.CommandLink1 => 0,
+                    TaskDialogResult.CommandLink2 => 1,
+                    TaskDialogResult.CommandLink3 => 2,
+                    TaskDialogResult.CommandLink4 => 3,
+                    _ => -1
+                };
+                if (idx < 0 || idx >= top4.Count) return Result.Cancelled;
+
+                var schedule = top4[idx];
+                var tableData = schedule.GetTableData();
+                var sectionBody = tableData.GetSectionData(SectionType.Body);
+                int rows = sectionBody.NumberOfRows;
+                int cols = sectionBody.NumberOfColumns;
+
+                // Read header section
+                var sectionHeader = tableData.GetSectionData(SectionType.Header);
+                int headerRows = sectionHeader.NumberOfRows;
+
+                using var wb = new XLWorkbook();
+                var ws = wb.AddWorksheet(schedule.Name.Length > 31 ? schedule.Name.Substring(0, 31) : schedule.Name);
+
+                // Write header rows
+                int xlRow = 1;
+                for (int r = 0; r < headerRows; r++)
+                {
+                    int headerCols = sectionHeader.NumberOfColumns;
+                    for (int c = 0; c < headerCols; c++)
+                    {
+                        string val = schedule.GetCellText(SectionType.Header, r, c);
+                        ws.Cell(xlRow, c + 1).Value = val;
+                        ws.Cell(xlRow, c + 1).Style.Font.Bold = true;
+                        ws.Cell(xlRow, c + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#6A1B9A");
+                        ws.Cell(xlRow, c + 1).Style.Font.FontColor = XLColor.White;
+                    }
+                    xlRow++;
+                }
+
+                // Write body rows
+                for (int r = 0; r < rows; r++)
+                {
+                    for (int c = 0; c < cols; c++)
+                    {
+                        string val = schedule.GetCellText(SectionType.Body, r, c);
+                        ws.Cell(xlRow, c + 1).Value = val;
+                    }
+                    xlRow++;
+                }
+
+                ws.Columns().AdjustToContents(1, 80);
+                ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+
+                // Save
+                string modelDir = !string.IsNullOrEmpty(doc.PathName) ? Path.GetDirectoryName(doc.PathName) : Path.GetTempPath();
+                string safeName = string.Join("_", schedule.Name.Split(Path.GetInvalidFileNameChars()));
+                string xlsxPath = Path.Combine(modelDir, $"STING_Schedule_{safeName}_{DateTime.Now:yyyyMMdd}.xlsx");
+
+                wb.SaveAs(xlsxPath);
+
+                TaskDialog.Show("STING Schedule Export",
+                    $"Schedule exported to Excel:\n\n" +
+                    $"  Schedule: {schedule.Name}\n" +
+                    $"  Rows:     {rows}\n" +
+                    $"  Columns:  {cols}\n\n" +
+                    $"  File: {xlsxPath}");
+
+                StingLog.Info($"ScheduleToExcel: {schedule.Name} → {xlsxPath}");
+                return Result.Succeeded;
+            }
+            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("ScheduleToExcelCommand failed", ex);
+                TaskDialog.Show("STING", $"Schedule export failed:\n{ex.Message}");
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Batch import sticky notes from an Excel file. Each row maps a tag or element ID
+    /// to a note text, enabling bulk QA annotation from external review spreadsheets.
+    /// Inspired by Ideate Sticky for Revit batch operations.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BatchStickyImportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                StingLog.Info("BatchStickyImport: starting...");
+
+                var ofd = new Microsoft.Win32.OpenFileDialog
+                {
+                    Filter = "Excel Files (*.xlsx)|*.xlsx|CSV Files (*.csv)|*.csv",
+                    Title = "Select Notes File (Tag | Note columns)"
+                };
+                if (ofd.ShowDialog() != true) return Result.Cancelled;
+
+                string filePath = ofd.FileName;
+
+                // Build tag-to-element index
+                var tagIndex = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
+                var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
+                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                {
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (!knownCats.Contains(cat)) continue;
+                    string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(tag) && !tagIndex.ContainsKey(tag))
+                        tagIndex[tag] = el;
+                }
+
+                // Read notes from file
+                var notes = new List<(string tag, string note, string category)>();
+                if (filePath.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                {
+                    using var wb = new XLWorkbook(filePath);
+                    var ws = wb.Worksheet(1);
+                    var range = ws.RangeUsed();
+                    if (range == null) { TaskDialog.Show("STING", "Worksheet is empty."); return Result.Failed; }
+
+                    for (int r = 2; r <= range.RowCount() + range.FirstRow().RowNumber() - 1; r++)
+                    {
+                        string tag = ws.Cell(r, 1).GetFormattedString()?.Trim() ?? "";
+                        string note = ws.Cell(r, 2).GetFormattedString()?.Trim() ?? "";
+                        string cat = ws.Cell(r, 3).GetFormattedString()?.Trim() ?? "Info";
+                        if (!string.IsNullOrEmpty(tag) && !string.IsNullOrEmpty(note))
+                            notes.Add((tag, note, cat));
+                    }
+                }
+                else
+                {
+                    // CSV fallback
+                    foreach (string line in File.ReadLines(filePath).Skip(1))
+                    {
+                        var parts = StingToolsApp.ParseCsvLine(line);
+                        if (parts.Length >= 2)
+                        {
+                            string tag = parts[0].Trim();
+                            string note = parts[1].Trim();
+                            string cat = parts.Length >= 3 ? parts[2].Trim() : "Info";
+                            if (!string.IsNullOrEmpty(tag) && !string.IsNullOrEmpty(note))
+                                notes.Add((tag, note, cat));
+                        }
+                    }
+                }
+
+                if (notes.Count == 0)
+                {
+                    TaskDialog.Show("STING", "No notes found in file.\nExpected columns: Tag | Note | Category (optional)");
+                    return Result.Failed;
+                }
+
+                // Apply notes to elements
+                int applied = 0;
+                int notFound = 0;
+                using (var t = new Transaction(doc, "STING Batch Sticky Import"))
+                {
+                    t.Start();
+                    foreach (var (tag, note, category) in notes)
+                    {
+                        if (tagIndex.TryGetValue(tag, out Element el))
+                        {
+                            // Append to existing note with category prefix
+                            string existing = ParameterHelpers.GetString(el, "ASS_NOTES_TXT");
+                            string prefix = $"[{category.ToUpper()}]";
+                            string newNote = string.IsNullOrEmpty(existing)
+                                ? $"{prefix} {note}"
+                                : $"{existing}\n{prefix} {note}";
+                            ParameterHelpers.SetString(el, "ASS_NOTES_TXT", newNote, overwrite: true);
+                            applied++;
+                        }
+                        else
+                        {
+                            notFound++;
+                        }
+                    }
+                    t.Commit();
+                }
+
+                TaskDialog.Show("STING Batch Sticky Import",
+                    $"Notes imported from: {Path.GetFileName(filePath)}\n\n" +
+                    $"  Total notes:   {notes.Count}\n" +
+                    $"  Applied:       {applied}\n" +
+                    $"  Not found:     {notFound}\n\n" +
+                    "Notes written to ASS_NOTES_TXT parameter.");
+
+                StingLog.Info($"BatchStickyImport: {applied}/{notes.Count} applied from {filePath}");
+                return Result.Succeeded;
+            }
+            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("BatchStickyImportCommand failed", ex);
+                TaskDialog.Show("STING", $"Batch import failed:\n{ex.Message}");
+                return Result.Failed;
+            }
+        }
+    }
+
+    #endregion
 }

@@ -95,36 +95,163 @@ namespace StingTools.BIMManager
         internal static readonly Dictionary<string, (double ratePerUnit, string unit, string description)> DefaultCostRates =
             new Dictionary<string, (double, string, string)>
         {
-            // Structure
-            ["Structural Foundations"] = (250, "m³", "RC foundations"),
-            ["Structural Framing"]     = (180, "m", "Steel/RC beams"),
-            ["Structural Columns"]     = (350, "each", "Columns"),
+            // ── Structure ──────────────────────────────────────────────
+            ["Structural Foundations"]          = (250, "m³", "RC foundations"),
+            ["Structural Framing"]              = (180, "m", "Steel/RC beams"),
+            ["Structural Columns"]              = (350, "each", "Columns"),
+            ["Columns"]                         = (400, "each", "Architectural columns"),
+            ["Structural Stiffeners"]           = (50, "each", "Steel stiffeners"),
+            ["Structural Trusses"]              = (800, "each", "Roof/floor trusses"),
+            ["Structural Connections"]          = (45, "each", "Bolted/welded connections"),
+            ["Structural Beam Systems"]         = (200, "m", "Beam systems"),
+            ["Structural Rebar"]                = (1.2, "kg", "Reinforcement bar"),
+            ["Structural Rebar Couplers"]       = (15, "each", "Rebar couplers"),
+            ["Structural Area Reinforcement"]   = (25, "m²", "Mesh reinforcement"),
+            ["Structural Path Reinforcement"]   = (8, "m", "Path reinforcement"),
+            ["Structural Fabric Reinforcement"] = (12, "m²", "Fabric reinforcement"),
+
+            // ── Architecture — Enclosure ───────────────────────────────
             ["Floors"]                 = (120, "m²", "Floor slabs"),
             ["Walls"]                  = (85, "m²", "Internal/external walls"),
             ["Roofs"]                  = (150, "m²", "Roofing system"),
             ["Windows"]                = (450, "each", "Window units"),
             ["Doors"]                  = (350, "each", "Door sets"),
             ["Ceilings"]               = (45, "m²", "Suspended ceilings"),
+            ["Curtain Panels"]         = (350, "m²", "Curtain wall panels"),
+            ["Curtain Wall Mullions"]  = (120, "m", "Curtain wall mullions"),
+            ["Curtain Systems"]        = (400, "m²", "Curtain wall systems"),
+            ["Wall Sweeps"]            = (25, "m", "Wall sweep profiles"),
+            ["Slab Edges"]             = (15, "m", "Slab edge profiles"),
+            ["Roof Soffits"]           = (45, "m²", "Roof soffits"),
+            ["Fascia"]                 = (30, "m", "Fascia boards"),
+            ["Gutter"]                 = (25, "m", "Rainwater gutters"),
+            ["Pads"]                   = (200, "m²", "Foundation pads"),
 
-            // MEP
-            ["Ducts"]                  = (55, "m", "Ductwork"),
+            // ── Architecture — Interior ────────────────────────────────
+            ["Rooms"]                  = (0, "each", "Room objects (no direct cost)"),
+            ["Furniture"]              = (300, "each", "General furniture"),
+            ["Furniture Systems"]      = (500, "each", "Workstation systems"),
+            ["Casework"]               = (200, "m", "Fitted joinery/casework"),
+            ["Food Service Equipment"] = (2000, "each", "Kitchen equipment"),
+            ["Signage"]                = (150, "each", "Signage items"),
+
+            // ── Architecture — Circulation ─────────────────────────────
+            ["Stairs"]                 = (1200, "each", "Staircases"),
+            ["Stair Runs"]             = (800, "each", "Stair runs"),
+            ["Stair Landings"]         = (400, "each", "Stair landings"),
+            ["Stair Supports"]         = (200, "each", "Stair supports"),
+            ["Railings"]               = (85, "m", "Balustrades/railings"),
+            ["Handrails"]              = (45, "m", "Handrails"),
+            ["Top Rails"]              = (35, "m", "Top rail profiles"),
+            ["Ramps"]                  = (150, "m²", "Ramps"),
+            ["Vertical Circulation"]   = (25000, "each", "Lifts/escalators"),
+
+            // ── Architecture — Site/Misc ───────────────────────────────
+            ["Parking"]                = (25000, "each", "Parking spaces"),
+            ["Planting"]               = (50, "each", "Planting/landscaping"),
+            ["Hardscape"]              = (80, "m²", "Hard landscaping"),
+            ["Roads"]                  = (120, "m²", "Roadways/paths"),
+            ["Site"]                   = (0, "each", "Site elements"),
+            ["Entourage"]              = (0, "each", "Entourage/people (no cost)"),
+            ["Temporary Structures"]   = (500, "each", "Temporary works"),
+            ["Areas"]                  = (0, "each", "Area objects (no direct cost)"),
+            ["Spaces"]                 = (0, "each", "Space objects (no direct cost)"),
+
+            // ── MEP — Mechanical (HVAC) ────────────────────────────────
+            ["Ducts"]                              = (55, "m", "Ductwork"),
+            ["Duct Accessories"]                   = (75, "each", "Dampers/valves/accessories"),
+            ["Duct Fittings"]                      = (45, "each", "Duct bends/tees/reducers"),
+            ["Duct Insulation"]                    = (18, "m²", "Duct insulation"),
+            ["Duct Lining"]                        = (22, "m²", "Internal duct lining"),
+            ["Flex Ducts"]                         = (35, "m", "Flexible ductwork"),
+            ["Air Terminals"]                      = (65, "each", "Grilles/diffusers"),
+            ["Mechanical Equipment"]               = (2500, "each", "Plant/AHU/FCU"),
+            ["Mechanical Control Devices"]         = (250, "each", "BMS sensors/controllers"),
+            ["Mechanical Equipment Sets"]          = (3500, "each", "Packaged plant sets"),
+
+            // ── MEP — Pipework ─────────────────────────────────────────
             ["Pipes"]                  = (35, "m", "Pipework"),
-            ["Cable Trays"]            = (28, "m", "Cable management"),
-            ["Conduits"]               = (15, "m", "Conduit runs"),
-            ["Sprinklers"]             = (85, "each", "Sprinkler heads"),
-            ["Mechanical Equipment"]   = (2500, "each", "Plant/AHU/FCU"),
-            ["Electrical Equipment"]   = (1500, "each", "DB/switchgear"),
+            ["Pipe Fittings"]          = (25, "each", "Pipe bends/tees/reducers"),
+            ["Pipe Accessories"]       = (55, "each", "Valves/strainers/gauges"),
+            ["Pipe Insulation"]        = (15, "m", "Pipe insulation"),
+            ["Flex Pipes"]             = (30, "m", "Flexible pipework"),
+
+            // ── MEP — Plumbing ─────────────────────────────────────────
             ["Plumbing Fixtures"]      = (450, "each", "Sanitary ware"),
-            ["Lighting Fixtures"]      = (120, "each", "Luminaires"),
-            ["Air Terminals"]          = (65, "each", "Grilles/diffusers"),
+            ["Plumbing Equipment"]     = (1200, "each", "Pumps/tanks/heaters"),
+
+            // ── MEP — Electrical ───────────────────────────────────────
+            ["Electrical Equipment"]   = (1500, "each", "DB/switchgear"),
             ["Electrical Fixtures"]    = (35, "each", "Sockets/switches"),
+            ["Electrical Connectors"]  = (20, "each", "Electrical connectors"),
+            ["Lighting Fixtures"]      = (120, "each", "Luminaires"),
+            ["Lighting Devices"]       = (80, "each", "Lighting controls/sensors"),
+            ["Cable Trays"]            = (28, "m", "Cable management"),
+            ["Cable Tray Fittings"]    = (15, "each", "Cable tray bends/tees"),
+            ["Conduits"]               = (15, "m", "Conduit runs"),
+            ["Conduit Fittings"]       = (8, "each", "Conduit bends/boxes"),
+
+            // ── MEP — Fire Protection ──────────────────────────────────
+            ["Sprinklers"]             = (85, "each", "Sprinkler heads"),
             ["Fire Alarm Devices"]     = (45, "each", "Detectors/sounders"),
+            ["Fire Protection"]        = (95, "each", "Fire protection equipment"),
+
+            // ── MEP — Low Voltage / ICT ────────────────────────────────
             ["Communication Devices"]  = (75, "each", "Data/comms points"),
             ["Security Devices"]       = (120, "each", "CCTV/access control"),
+            ["Data Devices"]           = (85, "each", "Data outlets/switches"),
+            ["Nurse Call Devices"]     = (150, "each", "Nurse call points"),
+            ["Telephone Devices"]      = (65, "each", "Telephone outlets"),
+            ["Audio Visual Devices"]   = (350, "each", "AV equipment"),
 
-            // Furniture
-            ["Furniture"]              = (300, "each", "General furniture"),
-            ["Casework"]               = (200, "m", "Fitted furniture")
+            // ── MEP — Fabrication ──────────────────────────────────────
+            ["MEP Fabrication Containment"]          = (35, "m", "Fabrication containment"),
+            ["MEP Fabrication Ductwork"]             = (65, "m", "Fabrication ductwork"),
+            ["MEP Fabrication Ductwork Stiffeners"]  = (10, "each", "Ductwork stiffeners"),
+            ["MEP Fabrication Hangers"]              = (25, "each", "Support hangers"),
+            ["MEP Fabrication Pipework"]             = (45, "m", "Fabrication pipework"),
+            ["MEP Ancillary"]                        = (30, "each", "MEP ancillary items"),
+
+            // ── Generic ────────────────────────────────────────────────
+            ["Generic Models"]         = (200, "each", "Generic model elements"),
+            ["Specialty Equipment"]    = (1500, "each", "Specialist equipment"),
+            ["Medical Equipment"]      = (5000, "each", "Medical equipment"),
+            ["Parts"]                  = (0, "each", "Model parts (no direct cost)"),
+            ["Assemblies"]             = (0, "each", "Assembly containers (no direct cost)"),
+            ["Mass"]                   = (0, "each", "Massing elements (no direct cost)"),
+            ["Detail Items"]           = (0, "each", "Detail items (annotation, no cost)"),
+            ["Model Groups"]           = (0, "each", "Model groups (container, no cost)"),
+            ["Materials"]              = (0, "each", "Material definitions (no direct cost)"),
+            ["Profiles"]               = (0, "each", "Profile definitions (no direct cost)"),
+            ["RVT Links"]              = (0, "each", "Linked models (no direct cost)"),
+            ["Zones"]                  = (0, "each", "Zone objects (no direct cost)"),
+
+            // ── Architecture — Site / Topo ────────────────────────────
+            ["Toposolid"]              = (60, "m²", "Topographic solid surfaces"),
+            ["Toposolid Links"]        = (0, "each", "Linked topo surfaces (no direct cost)"),
+            ["Wash"]                   = (15, "m²", "Wash/drainage surfaces"),
+            ["Property Lines"]         = (0, "each", "Property boundary lines (no cost)"),
+            ["Property Line Segments"] = (0, "each", "Property boundary segments (no cost)"),
+
+            // ── MEP — Analytical ──────────────────────────────────────
+            ["Analytical Duct Segments"] = (0, "each", "Analytical duct segments (no direct cost)"),
+            ["Analytical Pipe Segments"] = (0, "each", "Analytical pipe segments (no direct cost)"),
+
+            // ── Structure — Analytical ────────────────────────────────
+            ["Analytical Members"]     = (0, "each", "Analytical members (no direct cost)"),
+            ["Analytical Nodes"]       = (0, "each", "Analytical nodes (no direct cost)"),
+            ["Analytical Links"]       = (0, "each", "Analytical links (no direct cost)"),
+            ["Analytical Openings"]    = (0, "each", "Analytical openings (no direct cost)"),
+            ["Analytical Panels"]      = (0, "each", "Analytical panels (no direct cost)"),
+
+            // ── Structure — Loads ─────────────────────────────────────
+            ["Area Based Loads"]       = (0, "each", "Area-based loads (analytical, no cost)"),
+            ["Area Loads"]             = (0, "each", "Area loads (analytical, no cost)"),
+            ["Line Loads"]             = (0, "each", "Line loads (analytical, no cost)"),
+            ["Point Loads"]            = (0, "each", "Point loads (analytical, no cost)"),
+            ["Internal Area Loads"]    = (0, "each", "Internal area loads (analytical, no cost)"),
+            ["Internal Line Loads"]    = (0, "each", "Internal line loads (analytical, no cost)"),
+            ["Internal Point Loads"]   = (0, "each", "Internal point loads (analytical, no cost)")
         };
 
         // ═══════════════════════════════════════════════════════════
@@ -536,6 +663,8 @@ namespace StingTools.BIMManager
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
             var lineItems = new JArray();
             double grandTotal = 0;
+            int skippedCount = 0;
+            var skippedCategories = new Dictionary<string, int>();
 
             // GAP-024: Build set of demolished/temporary phase IDs to exclude from costing
             var demolishedPhaseIds = new HashSet<long>();
@@ -551,7 +680,17 @@ namespace StingTools.BIMManager
             foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
-                if (!knownCats.Contains(cat) && !DefaultCostRates.ContainsKey(cat)) continue;
+                if (string.IsNullOrEmpty(cat)) continue;
+
+                bool hasCostRate = knownCats.Contains(cat) || DefaultCostRates.ContainsKey(cat)
+                    || (costRates != null && costRates.ContainsKey(cat));
+                if (!hasCostRate)
+                {
+                    skippedCount++;
+                    if (!skippedCategories.ContainsKey(cat)) skippedCategories[cat] = 0;
+                    skippedCategories[cat]++;
+                    continue;
+                }
 
                 // GAP-024: Skip elements in demolished or temporary phases
                 var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
@@ -623,6 +762,17 @@ namespace StingTools.BIMManager
                 .ToDictionary(g => g.Key, g => g.Sum(i => (double)(i["total"] ?? 0)));
             estimate["discipline_totals"] = JObject.FromObject(
                 byDisc.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => Math.Round(kv.Value, 2)));
+
+            // Report skipped elements (categories with no cost rate)
+            estimate["skipped_element_count"] = skippedCount;
+            if (skippedCount > 0)
+            {
+                var skippedDetail = new JObject();
+                foreach (var sk in skippedCategories.OrderByDescending(x => x.Value))
+                    skippedDetail[sk.Key] = sk.Value;
+                estimate["skipped_categories"] = skippedDetail;
+                estimate["warning"] = $"{skippedCount} elements in {skippedCategories.Count} categories were skipped (no cost rate defined). Use Import Cost Rates to add rates for: {string.Join(", ", skippedCategories.Keys.OrderBy(k => k).Take(10))}{(skippedCategories.Count > 10 ? "..." : "")}";
+            }
 
             return estimate;
         }
@@ -1172,6 +1322,14 @@ namespace StingTools.BIMManager
                 report.AppendLine("  BY DISCIPLINE:");
                 foreach (var kv in discTotals)
                     report.AppendLine($"    {kv.Key,-6} {(double)(kv.Value ?? 0),12:N2}");
+            }
+
+            // Report skipped elements
+            string warning = estimate["warning"]?.ToString();
+            if (!string.IsNullOrEmpty(warning))
+            {
+                report.AppendLine();
+                report.AppendLine($"  WARNING: {warning}");
             }
 
             report.AppendLine();
