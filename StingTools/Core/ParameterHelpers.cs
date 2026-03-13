@@ -717,6 +717,59 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Cached overload of DetectStatus that uses pre-built phase list from PopulationContext.
+        /// Eliminates per-element FilteredElementCollector calls for phases — O(1) instead of O(n).
+        /// Use this in batch operations where PopulationContext.CachedPhases is available.
+        /// </summary>
+        public static string DetectStatusCached(Document doc, Element el,
+            List<Phase> cachedPhases, ElementId lastPhaseId)
+        {
+            try
+            {
+                // Layer 1: Demolished phase — definitive
+                Parameter demolParam = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
+                if (demolParam != null && demolParam.HasValue)
+                {
+                    ElementId demolPhaseId = demolParam.AsElementId();
+                    if (demolPhaseId != null && demolPhaseId != ElementId.InvalidElementId)
+                        return "DEMOLISHED";
+                }
+
+                // Layer 2: Created phase name pattern matching
+                Parameter createdParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                if (createdParam != null && createdParam.HasValue)
+                {
+                    ElementId createdPhaseId = createdParam.AsElementId();
+                    if (createdPhaseId != null && createdPhaseId != ElementId.InvalidElementId)
+                    {
+                        Phase phase = doc.GetElement(createdPhaseId) as Phase;
+                        if (phase != null)
+                        {
+                            string phaseName = (phase.Name ?? "").ToUpperInvariant();
+                            string status = ParseStatusFromPhaseName(phaseName);
+                            if (!string.IsNullOrEmpty(status)) return status;
+
+                            // Layer 4: Compare created phase against last phase (using cached data)
+                            if (cachedPhases != null && cachedPhases.Count > 1
+                                && lastPhaseId != ElementId.InvalidElementId
+                                && createdPhaseId != lastPhaseId)
+                                return "EXISTING";
+                        }
+                    }
+                }
+
+                // Layer 3: Workset name patterns
+                string fromWorkset = DetectStatusFromWorkset(el);
+                if (!string.IsNullOrEmpty(fromWorkset)) return fromWorkset;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PhaseAutoDetect.DetectStatusCached: {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Detect STATUS from workset naming conventions.
         /// Common patterns: "EXISTING_Walls", "DEMO_Mechanical", "NEW_Electrical",
         /// "TEMP_Hoarding", "01-Existing Structure", "02-New Build".
@@ -904,18 +957,29 @@ namespace StingTools.Core
             public string ProjectLoc { get; set; }
             public string ProjectRev { get; set; }
             public HashSet<string> KnownCategories { get; set; }
+            /// <summary>Cached phase list for DetectStatus — avoids per-element FilteredElementCollector.</summary>
+            public List<Phase> CachedPhases { get; set; }
+            /// <summary>Last phase ID in the project sequence — used for EXISTING inference.</summary>
+            public ElementId LastPhaseId { get; set; }
 
             /// <summary>
             /// Build a PopulationContext once for a batch operation.
+            /// Caches all project-level lookups: room index, LOC, REV, phases.
             /// </summary>
             public static PopulationContext Build(Document doc)
             {
+                var phases = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Phase))
+                    .Cast<Phase>()
+                    .ToList();
                 return new PopulationContext
                 {
                     RoomIndex = SpatialAutoDetect.BuildRoomIndex(doc),
                     ProjectLoc = SpatialAutoDetect.DetectProjectLoc(doc),
                     ProjectRev = PhaseAutoDetect.DetectProjectRevision(doc),
                     KnownCategories = new HashSet<string>(TagConfig.DiscMap.Keys),
+                    CachedPhases = phases,
+                    LastPhaseId = phases.Count > 0 ? phases.Last().Id : ElementId.InvalidElementId,
                 };
             }
         }
@@ -1054,11 +1118,14 @@ namespace StingTools.Core
                 if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) result.TokensSet++;
             }
 
-            // STATUS — phase-aware (4-layer detection from Revit phases/worksets)
+            // STATUS — phase-aware (4-layer detection using cached phases for batch perf)
             string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
             if (string.IsNullOrEmpty(existingStatus) || overwrite)
             {
-                string status = PhaseAutoDetect.DetectStatus(doc, el);
+                // Use cached phase data when available (batch), fall back to uncached (single element)
+                string status = (ctx.CachedPhases != null)
+                    ? PhaseAutoDetect.DetectStatusCached(doc, el, ctx.CachedPhases, ctx.LastPhaseId)
+                    : PhaseAutoDetect.DetectStatus(doc, el);
                 if (string.IsNullOrEmpty(status)) status = "NEW";
                 if (overwrite)
                 {

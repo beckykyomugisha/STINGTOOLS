@@ -67,11 +67,14 @@ namespace StingTools.Temp
             int totalEvaluated = 0;
             int totalWritten = 0;
             int totalErrors = 0;
+            int totalSkipped = 0;
             int elementsProcessed = 0;
 
-            // BUG-006: Per-formula error tracking
+            // Per-formula error tracking
             var formulaErrorCounts = new Dictionary<string, int>(StringComparer.Ordinal);
             var formulaSampleFailures = new Dictionary<string, List<ElementId>>(StringComparer.Ordinal);
+            // Per-formula skip tracking — missing input parameters
+            var formulaSkipCounts = new Dictionary<string, int>(StringComparer.Ordinal);
 
             using (Transaction tx = new Transaction(doc, "STING Evaluate Formulas"))
             {
@@ -94,7 +97,16 @@ namespace StingTools.Temp
 
                             // Collect input values
                             var context = FormulaEngine.BuildContext(el, formula);
-                            if (context == null) continue;
+                            if (context == null)
+                            {
+                                // Track formulas skipped due to missing inputs for audit
+                                totalSkipped++;
+                                string sKey = formula.ParameterName;
+                                if (!formulaSkipCounts.ContainsKey(sKey))
+                                    formulaSkipCounts[sKey] = 0;
+                                formulaSkipCounts[sKey]++;
+                                continue;
+                            }
 
                             totalEvaluated++;
 
@@ -166,6 +178,22 @@ namespace StingTools.Temp
             report.AppendLine($"Elements updated: {elementsProcessed}");
             report.AppendLine($"Values written: {totalWritten}");
             report.AppendLine($"Evaluations attempted: {totalEvaluated}");
+            if (totalSkipped > 0)
+            {
+                report.AppendLine($"Skipped: {totalSkipped} (missing input parameters)");
+                // Report top-5 skipped formulas
+                var topSkipped = formulaSkipCounts
+                    .OrderByDescending(kvp => kvp.Value)
+                    .Take(5);
+                report.AppendLine();
+                report.AppendLine("Top skipped formulas (missing inputs):");
+                foreach (var kvp in topSkipped)
+                {
+                    report.AppendLine($"  {kvp.Key}: {kvp.Value} elements lacked inputs");
+                    StingLog.Info($"Formula skip: '{kvp.Key}' skipped {kvp.Value} elements — missing input parameters");
+                }
+            }
+
             if (totalErrors > 0)
             {
                 report.AppendLine($"Errors: {totalErrors} (see log for details)");
@@ -359,15 +387,15 @@ namespace StingTools.Temp
                         break;
                     case StorageType.String:
                         string sVal = param.AsString() ?? "";
-                        if (!string.IsNullOrEmpty(sVal))
-                        {
-                            context[inputName] = sVal;
-                            hasAnyInput = true;
-                            // Also try parsing as number for dual-type params
-                            if (double.TryParse(sVal, NumberStyles.Any,
+                        // Always add string params to context (even empty strings)
+                        // so conditional formulas like if(PARAM<>"", ...) evaluate correctly
+                        context[inputName] = sVal;
+                        hasAnyInput = true;
+                        // Also try parsing as number for dual-type params
+                        if (!string.IsNullOrEmpty(sVal)
+                            && double.TryParse(sVal, NumberStyles.Any,
                                 CultureInfo.InvariantCulture, out double parsed))
-                                context[inputName + "_NUM"] = parsed;
-                        }
+                            context[inputName + "_NUM"] = parsed;
                         break;
                 }
             }

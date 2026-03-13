@@ -109,16 +109,11 @@ namespace StingTools.Tags
                     return Result.Cancelled;
             }
 
-            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var sw = Stopwatch.StartNew();
 
-            // Pre-build room spatial index for LOC/ZONE auto-detection
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
-
-            // Pre-detect project-level values once
-            string projectRev = PhaseAutoDetect.DetectProjectRevision(doc);
+            // Build PopulationContext ONCE — caches room index, LOC, REV, phases
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
 
             int populated = 0;
             int tagged = 0;
@@ -130,9 +125,6 @@ namespace StingTools.Tags
             int revSet = 0;
             int errors = 0;
             var stats = new TaggingStats();
-
-            // Container definitions now loaded from PARAMETER_REGISTRY.json via ParamRegistry
-            // This eliminates DRY violations — all container definitions in a single source of truth.
 
             bool cancelled = false;
 
@@ -155,85 +147,21 @@ namespace StingTools.Tags
                     if (el == null) continue;
 
                     string catName = ParameterHelpers.GetCategoryName(el);
-                    if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
+                    if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
                         continue;
 
                     try
                     {
                         totalProcessed++;
 
-                        // Step 1: Auto-detect LOC from spatial data
-                        string existingLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-                        if (string.IsNullOrEmpty(existingLoc))
-                        {
-                            string detectedLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                            if (!string.IsNullOrEmpty(detectedLoc))
-                            {
-                                ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, detectedLoc);
-                                locDetected++;
-                                populated++;
-                            }
-                        }
-
-                        // Step 2: Auto-detect ZONE from room data
-                        string existingZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                        if (string.IsNullOrEmpty(existingZone))
-                        {
-                            string detectedZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                            if (!string.IsNullOrEmpty(detectedZone))
-                            {
-                                ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, detectedZone);
-                                zoneDetected++;
-                                populated++;
-                            }
-                        }
-
-                        // Step 3: Auto-populate tokens from category + family lookup
-                        // (guaranteed defaults: DISC→"A", SYS→discipline, FUNC→FuncMap, LVL→"L00")
-                        string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) populated++;
-
-                        // Family-aware PROD code: check family name before falling back to category
-                        string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) populated++;
-
-                        // MEP system-aware SYS derivation (guaranteed default from discipline)
-                        string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) populated++;
-                        // System-aware DISC correction for pipes
-                        disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
-                        ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);
-
-                        string func = TagConfig.GetSmartFuncCode(el, sys);
-                        if (string.IsNullOrEmpty(func))
-                            func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) populated++;
-
-                        string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                        if (lvl == "XX") lvl = "L00";
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) populated++;
-
-                        // Step 4: Auto-detect STATUS from Revit phases/worksets (guaranteed: "NEW")
-                        string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
-                        if (string.IsNullOrEmpty(existingStatus))
-                        {
-                            string status = PhaseAutoDetect.DetectStatus(doc, el);
-                            if (string.IsNullOrEmpty(status)) status = "NEW";
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, status))
-                            {
-                                statusDetected++;
-                                populated++;
-                            }
-                        }
-
-                        // Step 5: Auto-detect REV from project revision (guaranteed: "P01")
-                        string rev = !string.IsNullOrEmpty(projectRev) ? projectRev : "P01";
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, rev))
-                        {
-                            revSet++;
-                            populated++;
-                        }
+                        // Steps 1-5: Auto-populate all 9 tokens via shared TokenAutoPopulator
+                        // Uses cached phases/rooms/project data — no per-element collectors
+                        var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx);
+                        populated += popResult.TokensSet;
+                        if (popResult.LocDetected) locDetected++;
+                        if (popResult.ZoneDetected) zoneDetected++;
+                        if (popResult.StatusDetected) statusDetected++;
+                        if (popResult.RevSet) revSet++;
 
                         // Step 6: Tag if not already complete (with collision detection)
                         if (TagConfig.BuildAndWriteTag(doc, el, seqCounters,
@@ -281,7 +209,7 @@ namespace StingTools.Tags
             if (statusDetected > 0)
                 report.AppendLine($"  STATUS detect:    {statusDetected} (from Revit phases/worksets)");
             if (revSet > 0)
-                report.AppendLine($"  REV auto-set:     {revSet} (revision '{projectRev}')");
+                report.AppendLine($"  REV auto-set:     {revSet} (revision '{popCtx.ProjectRev}')");
             if (errors > 0)
                 report.AppendLine($"  Errors:           {errors} (see log for details)");
             report.AppendLine($"  Duration:         {sw.Elapsed.TotalSeconds:F1}s");

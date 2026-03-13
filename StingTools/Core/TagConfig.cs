@@ -832,12 +832,14 @@ namespace StingTools.Core
         {
             string familyName = ParameterHelpers.GetFamilyName(el);
             string symbolName = ParameterHelpers.GetFamilySymbolName(el);
+            // Combined name checks both family AND type name for broader pattern matching
             string combinedName = $"{familyName} {symbolName}".ToUpperInvariant();
 
             // Only apply family-level overrides for categories with diverse equipment
             if (!string.IsNullOrEmpty(familyName))
             {
-                string upper = familyName.ToUpperInvariant();
+                // Search both family name and combined (family + type) name for patterns
+                string upper = combinedName;
 
                 // Mechanical Equipment — distinguish AHU, FCU, VAV, CHR, BLR, PMP, FAN, etc.
                 if (categoryName == "Mechanical Equipment")
