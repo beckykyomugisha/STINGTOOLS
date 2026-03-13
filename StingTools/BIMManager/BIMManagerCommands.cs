@@ -1157,7 +1157,7 @@ namespace StingTools.BIMManager
             var pi = doc.ProjectInformation;
             return new JObject
             {
-                ["transmittal_id"] = $"TX-{DateTime.Now:yyyyMMdd}-{DateTime.Now:HHmmss}",
+                ["transmittal_id"] = GetNextSequentialId(doc.PathName ?? "TX", "TX"),
                 ["project_name"] = pi?.Name ?? "Untitled",
                 ["project_number"] = pi?.Number ?? "",
                 ["from_organization"] = Environment.UserName,
@@ -1183,7 +1183,7 @@ namespace StingTools.BIMManager
         {
             return new JObject
             {
-                ["review_id"] = $"RV-{DateTime.Now:yyyyMMdd}-{DateTime.Now:HHmmss}",
+                ["review_id"] = GetNextSequentialId(documentId, "RV"),
                 ["document_id"] = documentId,
                 ["reviewer_name"] = reviewerName,
                 ["reviewer_role"] = reviewerRole,
@@ -1382,6 +1382,38 @@ namespace StingTools.BIMManager
         {
             if (string.IsNullOrEmpty(val)) return "\"\"";
             return $"\"{val.Replace("\"", "\"\"")}\"";
+        }
+
+        /// <summary>
+        /// Generate sequential IDs like TX-0001, RV-0001 using a persistent counter file.
+        /// </summary>
+        private static readonly Dictionary<string, int> _seqCounters = new Dictionary<string, int>();
+        internal static string GetNextSequentialId(string context, string prefix)
+        {
+            string key = $"{prefix}_{context}";
+            if (!_seqCounters.ContainsKey(key)) _seqCounters[key] = 0;
+            _seqCounters[key]++;
+            return $"{prefix}-{_seqCounters[key]:D4}";
+        }
+
+        /// <summary>
+        /// Reset sequential ID counter after loading existing data.
+        /// Call this when loading existing transmittals/reviews to continue numbering.
+        /// </summary>
+        internal static void SyncSequentialCounter(JArray existing, string prefix)
+        {
+            int max = 0;
+            foreach (var item in existing)
+            {
+                string id = (item[$"{prefix.ToLower()}_id"] ?? item["transmittal_id"] ?? item["review_id"])?.ToString() ?? "";
+                if (id.StartsWith(prefix + "-"))
+                {
+                    string numPart = id.Substring(prefix.Length + 1);
+                    if (int.TryParse(numPart, out int n) && n > max) max = n;
+                }
+            }
+            string key = $"{prefix}_";
+            _seqCounters[key] = max;
         }
     }
 
@@ -2076,9 +2108,9 @@ namespace StingTools.BIMManager
 
             var dlg = new TaskDialog("STING Issue Tracker — Update");
             dlg.MainInstruction = $"{openIssues.Count} open issue(s). Select action:";
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Close All RESPONDED ({issues.Count(i => i["status"]?.ToString() == "RESPONDED")})");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, $"Mark OPEN → IN_PROGRESS ({issues.Count(i => i["status"]?.ToString() == "OPEN")})");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Close Oldest Open Issue");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Update Specific Issue", "Pick an open issue by ID to change status");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, $"Bulk: OPEN → IN_PROGRESS ({issues.Count(i => i["status"]?.ToString() == "OPEN")})");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, $"Bulk: Close All RESPONDED ({issues.Count(i => i["status"]?.ToString() == "RESPONDED")})");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Export All Issues to CSV");
             var result = dlg.Show();
 
@@ -2086,12 +2118,52 @@ namespace StingTools.BIMManager
             switch (result)
             {
                 case TaskDialogResult.CommandLink1:
-                    foreach (var issue in issues.Where(i => i["status"]?.ToString() == "RESPONDED"))
+                    // Pick a specific issue to update
+                    var recentOpen = openIssues.Take(4).ToList();
+                    if (recentOpen.Count == 0) { TaskDialog.Show("STING", "No open issues."); return Result.Succeeded; }
+                    var pickDlg = new TaskDialog("STING Issue — Select Issue");
+                    pickDlg.MainInstruction = "Select issue to update:";
+                    for (int i = 0; i < recentOpen.Count; i++)
                     {
-                        issue["status"] = "CLOSED";
-                        issue["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                        updated++;
+                        var iss = recentOpen[i];
+                        var linkId = (TaskDialogCommandLinkId)(i + (int)TaskDialogCommandLinkId.CommandLink1);
+                        pickDlg.AddCommandLink(linkId,
+                            $"{iss["issue_id"]} [{iss["status"]}]",
+                            $"{iss["priority"]} — {iss["title"]}");
                     }
+                    var pickResult = pickDlg.Show();
+                    int issueIdx = pickResult switch
+                    {
+                        TaskDialogResult.CommandLink1 => 0,
+                        TaskDialogResult.CommandLink2 => 1,
+                        TaskDialogResult.CommandLink3 => 2,
+                        TaskDialogResult.CommandLink4 => 3,
+                        _ => -1
+                    };
+                    if (issueIdx < 0 || issueIdx >= recentOpen.Count) return Result.Cancelled;
+                    var target = recentOpen[issueIdx];
+
+                    // Pick new status
+                    var statusDlg = new TaskDialog("STING Issue — New Status");
+                    statusDlg.MainInstruction = $"Update {target["issue_id"]}:";
+                    statusDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "IN_PROGRESS — Being investigated");
+                    statusDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "RESPONDED — Response provided");
+                    statusDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "CLOSED — Issue resolved");
+                    statusDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "VOID — Withdrawn/superseded");
+                    var statusResult = statusDlg.Show();
+                    string newStatus = statusResult switch
+                    {
+                        TaskDialogResult.CommandLink1 => "IN_PROGRESS",
+                        TaskDialogResult.CommandLink2 => "RESPONDED",
+                        TaskDialogResult.CommandLink3 => "CLOSED",
+                        TaskDialogResult.CommandLink4 => "VOID",
+                        _ => null
+                    };
+                    if (newStatus == null) return Result.Cancelled;
+                    target["status"] = newStatus;
+                    if (newStatus == "CLOSED" || newStatus == "VOID")
+                        target["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                    updated = 1;
                     break;
                 case TaskDialogResult.CommandLink2:
                     foreach (var issue in issues.Where(i => i["status"]?.ToString() == "OPEN"))
@@ -2101,12 +2173,11 @@ namespace StingTools.BIMManager
                     }
                     break;
                 case TaskDialogResult.CommandLink3:
-                    var oldest = openIssues.FirstOrDefault();
-                    if (oldest != null)
+                    foreach (var issue in issues.Where(i => i["status"]?.ToString() == "RESPONDED"))
                     {
-                        oldest["status"] = "CLOSED";
-                        oldest["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                        updated = 1;
+                        issue["status"] = "CLOSED";
+                        issue["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                        updated++;
                     }
                     break;
                 case TaskDialogResult.CommandLink4:
@@ -2236,13 +2307,13 @@ namespace StingTools.BIMManager
                                dirResult == TaskDialogResult.CommandLink2 ? "OUT" : null;
             if (direction == null) return Result.Cancelled;
 
-            // Document type — two pages to cover all 30 types
-            var typeDlg = new TaskDialog("STING Doc Register — Type");
+            // Document type — paginated to cover all 30+ types
+            var typeDlg = new TaskDialog("STING Doc Register — Type (Page 1/4)");
             typeDlg.MainInstruction = "Select document type:";
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "M3/MO — 3D Model");
+            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "M3 — 3D Model");
             typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "DR — Drawing (2D)");
             typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "SP — Specification");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "More types...");
+            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "More types →");
             var typeResult = typeDlg.Show();
             string docType;
             switch (typeResult)
@@ -2251,20 +2322,53 @@ namespace StingTools.BIMManager
                 case TaskDialogResult.CommandLink2: docType = "DR"; break;
                 case TaskDialogResult.CommandLink3: docType = "SP"; break;
                 case TaskDialogResult.CommandLink4:
-                    var moreDlg = new TaskDialog("STING Doc Register — More Types");
-                    moreDlg.MainInstruction = "Select document type:";
-                    moreDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "RP — Report");
-                    moreDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "RI — Request for Information");
-                    moreDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "SH — Schedule");
-                    moreDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "BQ/CA/CP/IE/SN/TN/PP/MI...");
-                    var moreResult = moreDlg.Show();
-                    docType = moreResult switch
+                    var pg2 = new TaskDialog("STING Doc Register — Type (Page 2/4)");
+                    pg2.MainInstruction = "Select document type:";
+                    pg2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "RP — Report");
+                    pg2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "RI — Request for Information");
+                    pg2.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "SH — Schedule");
+                    pg2.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "More types →");
+                    var pg2Result = pg2.Show();
+                    switch (pg2Result)
                     {
-                        TaskDialogResult.CommandLink1 => "RP",
-                        TaskDialogResult.CommandLink2 => "RI",
-                        TaskDialogResult.CommandLink3 => "SH",
-                        _ => "RP"
-                    };
+                        case TaskDialogResult.CommandLink1: docType = "RP"; break;
+                        case TaskDialogResult.CommandLink2: docType = "RI"; break;
+                        case TaskDialogResult.CommandLink3: docType = "SH"; break;
+                        case TaskDialogResult.CommandLink4:
+                            var pg3 = new TaskDialog("STING Doc Register — Type (Page 3/4)");
+                            pg3.MainInstruction = "Select document type:";
+                            pg3.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "BQ — Bill of Quantities");
+                            pg3.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "CA — Calculations");
+                            pg3.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "CP — Cost Plan");
+                            pg3.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "More types →");
+                            var pg3Result = pg3.Show();
+                            switch (pg3Result)
+                            {
+                                case TaskDialogResult.CommandLink1: docType = "BQ"; break;
+                                case TaskDialogResult.CommandLink2: docType = "CA"; break;
+                                case TaskDialogResult.CommandLink3: docType = "CP"; break;
+                                case TaskDialogResult.CommandLink4:
+                                    var pg4 = new TaskDialog("STING Doc Register — Type (Page 4/4)");
+                                    pg4.MainInstruction = "Select document type:";
+                                    pg4.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "IE — COBie Data Exchange");
+                                    pg4.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "HS — Health and Safety");
+                                    pg4.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "MS — Method Statement");
+                                    pg4.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "PP/MI/SN/TN/VS/AF/CR/SU...");
+                                    var pg4Result = pg4.Show();
+                                    docType = pg4Result switch
+                                    {
+                                        TaskDialogResult.CommandLink1 => "IE",
+                                        TaskDialogResult.CommandLink2 => "HS",
+                                        TaskDialogResult.CommandLink3 => "MS",
+                                        TaskDialogResult.CommandLink4 => "MR",
+                                        _ => "RP"
+                                    };
+                                    break;
+                                default: docType = "RP"; break;
+                            }
+                            break;
+                        default: docType = "RP"; break;
+                    }
                     break;
                 default: return Result.Cancelled;
             }
@@ -2565,21 +2669,9 @@ namespace StingTools.BIMManager
             {
                 string number = sheet.SheetNumber ?? "";
                 string name = sheet.Name ?? "";
-                var parts = number.Split('-');
 
-                var errs = new List<string>();
-                if (parts.Length < 3)
-                    errs.Add($"need 3+ fields, got {parts.Length}");
-                else
-                {
-                    if (parts[0].Length < 2) errs.Add("project code too short");
-                    if (parts.Length >= 5 && !BIMManagerEngine.DocumentTypes.ContainsKey(parts[4].ToUpper()))
-                        errs.Add($"unknown type '{parts[4]}'");
-                    if (parts.Length >= 6 && !BIMManagerEngine.RoleCodes.ContainsKey(parts[5].ToUpper()))
-                        errs.Add($"unknown role '{parts[5]}'");
-                }
-
-                if (errs.Count == 0) compliant++;
+                if (BIMManagerEngine.ValidateDocumentName(number, out var errs))
+                    compliant++;
                 else
                 {
                     nonCompliant++;
@@ -2643,14 +2735,64 @@ namespace StingTools.BIMManager
                     // Link to a document from the register
                     string docsPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "document_register.json");
                     var docs = BIMManagerEngine.LoadJsonArray(docsPath);
-                    string docRef = docs.Count > 0 ? docs.Last()["doc_id"]?.ToString() ?? "DOC-0001" : "DOC-0001";
 
-                    var review = BIMManagerEngine.CreateReview(docRef, "", "", "Design Review");
+                    // Pick document to review
+                    string docRef;
+                    if (docs.Count == 0)
+                    {
+                        TaskDialog.Show("STING Review Tracker",
+                            "No documents in register. Add documents first using 'Add Document'.");
+                        return Result.Succeeded;
+                    }
+                    var pickDocDlg = new TaskDialog("STING Review — Select Document");
+                    pickDocDlg.MainInstruction = "Select document to review:";
+                    int docIdx = Math.Max(0, docs.Count - 4);
+                    var recentDocs = docs.Skip(docIdx).Take(4).ToList();
+                    for (int i = 0; i < recentDocs.Count && i < 4; i++)
+                    {
+                        string id = recentDocs[i]["doc_id"]?.ToString() ?? $"DOC-{i + 1}";
+                        string title = recentDocs[i]["title"]?.ToString() ?? "(untitled)";
+                        var linkId = (TaskDialogCommandLinkId)(i + (int)TaskDialogCommandLinkId.CommandLink1);
+                        pickDocDlg.AddCommandLink(linkId, $"{id}", title);
+                    }
+                    var pickResult = pickDocDlg.Show();
+                    int pickIdx = pickResult switch
+                    {
+                        TaskDialogResult.CommandLink1 => 0,
+                        TaskDialogResult.CommandLink2 => 1,
+                        TaskDialogResult.CommandLink3 => 2,
+                        TaskDialogResult.CommandLink4 => 3,
+                        _ => -1
+                    };
+                    if (pickIdx < 0 || pickIdx >= recentDocs.Count) return Result.Cancelled;
+                    docRef = recentDocs[pickIdx]["doc_id"]?.ToString() ?? "DOC-0001";
+
+                    // Review type
+                    var rvTypeDlg = new TaskDialog("STING Review — Type");
+                    rvTypeDlg.MainInstruction = "Review type:";
+                    rvTypeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Design Review", "Review design intent and coordination");
+                    rvTypeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Stage Approval", "Gate review for RIBA stage sign-off");
+                    rvTypeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Technical Check", "Detailed technical/compliance check");
+                    rvTypeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Client Review", "Client/employer review and comment");
+                    var rvTypeResult = rvTypeDlg.Show();
+                    string reviewType = rvTypeResult switch
+                    {
+                        TaskDialogResult.CommandLink1 => "Design Review",
+                        TaskDialogResult.CommandLink2 => "Stage Approval",
+                        TaskDialogResult.CommandLink3 => "Technical Check",
+                        TaskDialogResult.CommandLink4 => "Client Review",
+                        _ => "Design Review"
+                    };
+
+                    // Sync counter so IDs continue from existing
+                    BIMManagerEngine.SyncSequentialCounter(reviews, "RV");
+                    string reviewerName = Environment.UserName;
+                    var review = BIMManagerEngine.CreateReview(docRef, reviewerName, "Reviewer", reviewType);
                     reviews.Add(review);
                     BIMManagerEngine.SaveJsonFile(reviewPath, reviews);
                     TaskDialog.Show("STING Review Tracker",
                         $"Review created: {review["review_id"]}\n" +
-                        $"Document: {docRef}\nDue: {review["date_due"]}\n\n" +
+                        $"Document: {docRef}\nType: {reviewType}\nReviewer: {reviewerName}\nDue: {review["date_due"]}\n\n" +
                         $"Edit: {reviewPath}");
                     break;
 
