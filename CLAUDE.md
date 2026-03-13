@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **67 source files** (64 C# + 2 XAML + 1 AssemblyInfo, ~70,404 lines of code) across 9 directories
-- **279 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
+- **69 source files** (66 C# + 2 XAML + 1 AssemblyInfo, ~75,267 lines of code) across 10 directories
+- **294 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
 - **20 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel + 1 WPF project setup wizard
 
@@ -58,9 +58,9 @@ STINGTOOLS/
     │   └── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │
     ├── UI/                             # WPF dockable panel UI + project wizard (5 C# files + 2 XAML, ~8,565 lines)
-    │   ├── StingDockPanel.xaml         # WPF markup for 6-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW)
+    │   ├── StingDockPanel.xaml         # WPF markup for 7-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL)
     │   ├── StingDockPanel.xaml.cs      # Code-behind: button dispatch, colour swatches, status bar
-    │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 400+ button tags to 279 command classes + inline helpers
+    │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 500+ button tags to 279 command classes + inline helpers
     │   ├── StingDockPanelProvider.cs   # IDockablePaneProvider — registers panel with Revit
     │   ├── StingProgressDialog.cs      # Reusable modeless WPF progress window for batch operations (cancel, ETA, progress bar)
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
@@ -104,6 +104,10 @@ STINGTOOLS/
     ├── Organise/                       # Tag management commands (1 file, 40 commands)
     │   └── TagOperationCommands.cs     # Tag Ops (7), Leaders (14), Analysis (7), Annotation Color (5), Tag Appearance (5), Tag Type (1), AnomalyAutoFix (1) + LeaderHelper + AnnotationColorHelper
     │
+    ├── BIMManager/                     # ISO 19650 BIM management + 4D/5D scheduling (2 files, 29 commands)
+    │   ├── BIMManagerCommands.cs       # 21 commands: BEP (Create/Update/Export/Generate), Issues (Raise/Dashboard/Update/SelectElements), Documents (Register/Add/ValidateNaming), COBie export, Transmittals, CDE status, Reviews, ISO reference, BulkExport, Briefcase (View/Read/AddFile) + BIMManagerEngine
+    │   └── SchedulingCommands.cs       # 8 commands: AutoSchedule4D, ImportMSProject, ViewTimeline4D, ExportSchedule4D, AutoCost5D, ImportCostRates, CostReport5D, CashFlow5D + Scheduling4DEngine
+    │
     ├── Model/                          # Auto-modeling engine (3 files, 16 commands)
     │   ├── ModelCommands.cs            # 16 model commands: Wall, Room, Floor, Ceiling, Roof, Door, Window, Column, ColumnGrid, Beam, Duct, Pipe, Fixture, BuildingShell, DWGToModel, DWGPreview
     │   ├── ModelEngine.cs              # Model creation engine: walls, floors, roofs, columns, beams, MEP, rooms, building shell + FamilyResolver
@@ -139,7 +143,7 @@ STINGTOOLS/
         ├── FAMILY_PARAMETER_BINDINGS.csv   # 4,686 family bindings
         ├── PARAMETER__CATEGORIES.csv   # Parameter-category cross-reference
         ├── PARAMETER_REGISTRY.json     # Master parameter registry (v4.3) — single source of truth for ParamRegistry.cs
-        ├── LABEL_DEFINITIONS.json      # 3,623-line label/legend definition specs for all tag containers and display styles
+        ├── LABEL_DEFINITIONS.json      # 10,775-line label/legend definition specs (v5.5, 126 categories, warnings aligned to TAG7)
         ├── PYREVIT_SCRIPT_MANIFEST.csv # Legacy pyRevit script manifest
         ├── TAG_GUIDE.xlsx              # Tag reference guide (original)
         ├── TAG GUIDE V2.xlsx           # Tag reference guide (comprehensive update)
@@ -390,6 +394,8 @@ STINGTOOLS/
 | `Model/ModelCommands.cs` | 16 (Wall, Room, Floor, Ceiling, Roof, Door, Window, Column, ColumnGrid, Beam, Duct, Pipe, Fixture, BuildingShell, DWGToModel, DWGPreview) | 1,101 |
 | `Model/ModelEngine.cs` | 0 (model creation engine + FamilyResolver + WorksetAssigner + FailureHandler) | 1,336 |
 | `Model/CADToModelEngine.cs` | 0 (DWG-to-BIM conversion engine + LayerMapper) | 823 |
+| `BIMManager/BIMManagerCommands.cs` | 21 (CreateBEP, UpdateBEP, ExportBEP, GenerateBEP, ProjectDashboard, RaiseIssue, IssueDashboard, UpdateIssue, DocumentRegister, AddDocument, COBieExport, CreateTransmittal, CDEStatus, ValidateDocNaming, ReviewTracker, SelectIssueElements, ISO19650Reference, BulkBIMExport, BriefcaseView, BriefcaseRead, BriefcaseAddFile) + BIMManagerEngine | 3,285 |
+| `BIMManager/SchedulingCommands.cs` | 8 (AutoSchedule4D, ImportMSProject, ViewTimeline4D, ExportSchedule4D, AutoCost5D, ImportCostRates, CostReport5D, CashFlow5D) + Scheduling4DEngine | 1,338 |
 | `Temp/CreateParametersCommand.cs` | 1 | 27 |
 | `Temp/CheckDataCommand.cs` | 1 | 297 |
 | `Temp/MasterSetupCommand.cs` | 1 | 306 |
@@ -403,14 +409,14 @@ STINGTOOLS/
 | `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 316 |
 | `Temp/TemplateManagerCommands.cs` | 18 (AutoAssign, Audit, Diff, Compliance, AutoFix, SyncOverrides, FillPatterns, LineStyles, ObjectStyles, TextStyles, DimStyles, VGOverrides, BatchFamilyParams, TemplateSchedules, SetupWizard, CloneTemplate, BatchVGReset, FamilyParameterProcessor) + TemplateManager engine | 3,892 |
 | `Temp/DataPipelineCommands.cs` | 11 (ValidateTemplate, DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit, ExportIfcPropertyMap, ValidateBepCompliance, ClashDetection, IFCExport, ExcelBOQImport, KeynoteSync) | 3,013 |
-| `UI/StingCommandHandler.cs` | 1 (IExternalEventHandler — dispatches 400+ button tags to 279 commands + ~96 inline helpers) | 4,685 |
+| `UI/StingCommandHandler.cs` | 1 (IExternalEventHandler — dispatches 500+ button tags to 308 commands + ~96 inline helpers) | 4,736 |
 | `UI/StingDockPanel.xaml.cs` | 0 (WPF code-behind) | 377 |
 | `UI/StingDockPanelProvider.cs` | 0 (IDockablePaneProvider) | 37 |
 | `UI/StingProgressDialog.cs` | 0 (reusable modeless WPF progress window) | 239 |
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
-| `UI/StingDockPanel.xaml` | — (WPF markup, 6-tab panel with ~413 buttons) | 1,653 |
+| `UI/StingDockPanel.xaml` | — (WPF markup, 7-tab panel with ~521 buttons) | 1,761 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
-| **Total** | **279 commands** | **~70,404** |
+| **Total** | **308 commands** | **~75,267** |
 
 ## Core Classes
 
@@ -595,8 +601,10 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `TagStyleEngine` | `Tags/TagStyleEngine.cs` | Tag style control engine: `StylePreset` (size/style/color → BOOL param), `ColorScheme` (8 built-in schemes), paragraph depth tiers (1-10), 128 style combinations |
 | `ModelEngine` | `Model/ModelEngine.cs` | Auto-modeling engine: walls, floors, roofs, columns, beams, MEP, rooms, building shell + `FamilyResolver`, `WorksetAssigner`, `FailureHandler` |
 | `CADToModelEngine` | `Model/CADToModelEngine.cs` | DWG-to-BIM conversion: `LayerMapper` (18 category patterns), geometry extraction (parallel lines → walls, closed loops → floors, blocks → doors/windows) |
-| `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 400+ dockable panel button tags to 279 command classes + ~96 inline helpers on the Revit API thread |
-| `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 6-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW) with colour swatches and status bar |
+| `BIMManagerEngine` | `BIMManager/BIMManagerCommands.cs` | ISO 19650 BIM management engine: BEP generation (template-driven), issue tracker (BCF-compatible), document register, COBie V2.4 export, transmittals, CDE status codes, briefcase viewer + sequential ID generation |
+| `Scheduling4DEngine` | `BIMManager/SchedulingCommands.cs` | 4D/5D scheduling engine: 32-trade construction sequences, cost rates, MS Project import/export, cash flow forecasting, Gantt timeline generation |
+| `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 500+ dockable panel button tags to 308 command classes + ~96 inline helpers on the Revit API thread |
+| `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM) with colour swatches and status bar |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers dockable panel with Revit; PaneGuid for panel identification |
 | `ColorHelper` | `Select/ColorCommands.cs` | 10 built-in colour palettes, `OverrideGraphicSettings` builder, solid fill pattern finder, preset save/load |
 | `TagPlacementEngine` | `Tags/SmartTagPlacementCommand.cs` | 8-position candidate offset generation, scale-aware placement, 2D AABB collision detection, leader auto-generation |
@@ -672,7 +680,7 @@ The plugin's primary user interface is a **WPF dockable panel** that consolidate
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| `StingDockPanel.xaml` | `UI/StingDockPanel.xaml` (1,634 lines) | WPF markup: 6-tab layout (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW), ~413 buttons, colour swatches, bulk parameter controls |
+| `StingDockPanel.xaml` | `UI/StingDockPanel.xaml` (1,761 lines) | WPF markup: 7-tab layout (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL), ~521 buttons, colour swatches, bulk parameter controls |
 | `StingDockPanel.xaml.cs` | `UI/StingDockPanel.xaml.cs` (188 lines) | Code-behind: button dispatch via `IExternalEventHandler`, colour swatch builder, status bar |
 | `StingCommandHandler` | `UI/StingCommandHandler.cs` (4,685 lines) | `IExternalEventHandler` — maps 400+ button Tag strings to 279 command classes + ~96 inline helpers, ensures Revit API calls run on the main thread |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` (37 lines) | `IDockablePaneProvider` — registers panel with Revit, sets initial dock position (Right, 320×400 min) |
@@ -688,6 +696,8 @@ The plugin's primary user interface is a **WPF dockable panel** that consolidate
 | TEMP | Materials, families, schedules, template setup, data pipeline | Temp |
 | CREATE | Tagging commands, token writers, combine, setup, legends | Tags |
 | VIEW | View templates, template manager, styles, presentation modes | Temp Templates |
+| MODEL | Auto-modeling (walls, floors, roofs, columns, beams, MEP), DWG-to-BIM conversion | Model |
+| BIM | ISO 19650 BIM management: BEP, issues, documents, COBie, transmittals, CDE, reviews, briefcase, 4D/5D scheduling | BIMManager |
 
 ### Thread Safety Pattern
 All button clicks dispatch through `IExternalEventHandler` to ensure Revit API calls execute on the correct thread:
@@ -940,7 +950,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 | ~~No incremental tagging~~ | **DONE** — `TagNewOnlyCommand` pre-filters to untagged elements. Much faster for adding new elements. | Done |
 | ~~CompoundTypeCreator material properties~~ | **DONE** — Applies color, transparency, smoothness, shininess from CSV. | Done |
 | ~~**No template automation**~~ | **DONE** — `TemplateManagerCommands.cs` with 17 commands and `TemplateManager` intelligence engine: 5-layer auto-assignment, compliance scoring, VG diff, style definitions. `ViewTemplatesCommand` expanded to 23 template definitions with VG configuration. | Done |
-| ~~**No dockable panel UI**~~ | **DONE** — WPF dockable panel (`UI/` directory, 6 files) with 6-tab interface (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW), `IExternalEventHandler` dispatch for thread safety, ~413 buttons, colour swatches, bulk parameter controls. | Done |
+| ~~**No dockable panel UI**~~ | **DONE** — WPF dockable panel (`UI/` directory, 6 files) with 7-tab interface (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL), `IExternalEventHandler` dispatch for thread safety, ~521 buttons, colour swatches, bulk parameter controls. | Done |
 | ~~Cross-parameter validation~~ | **DONE** — `ISO19650Validator` validates all tokens, cross-validates DISC/SYS against category, validates tag format. `FixDuplicateTagsCommand` auto-resolves duplicates. | Done |
 | ~~Formula evaluation engine~~ | **DONE** — `FormulaEvaluatorCommand` + `FormulaEngine` reads 199 formulas from CSV, evaluates in dependency order (levels 0-6), supports arithmetic, conditionals, string concat, and Revit geometry inputs. | Done |
 | ~~Family-stage pre-population~~ | **DONE** — `FamilyStagePopulateCommand` pre-populates all 7 tokens before tagging (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD). | Done |
@@ -1168,7 +1178,7 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 13. **Native parameter mapping** — 30+ Revit built-in to STING parameter mappings
 14. **Family-stage pre-population** — All 7 tokens from category/spatial/family data
 15. **Schedule field remapping** — Auto-remap deprecated field names from CSV
-16. **WPF dockable panel** — 6-tab panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW) replicating pyRevit interface with IExternalEventHandler dispatch
+16. **WPF dockable panel** — 7-tab panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL) replicating pyRevit interface with IExternalEventHandler dispatch
 17. **Template Manager intelligence engine** — 5-layer auto-assignment, compliance scoring, VG diff, 17 template automation commands
 18. **View templates expanded** — 23 template definitions with full VG configuration (discipline plans, coordination, RCP, presentation, sections, 3D, elevations)
 19. **Style definition commands** — Fill patterns, line styles, text styles, dimension styles, object styles created programmatically
