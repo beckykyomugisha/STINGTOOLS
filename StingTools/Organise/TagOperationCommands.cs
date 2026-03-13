@@ -166,27 +166,9 @@ namespace StingTools.Organise
             XYZ center = LeaderHelper.GetElementCenter(elem);
             if (center == null) return;
 
-            // Find a matching tag type for this element's category
+            // Verify element has a category
             Category cat = elem.Category;
             if (cat == null) return;
-            BuiltInCategory bic = (BuiltInCategory)cat.Id.Value;
-
-            // Look for any loaded tag family that targets this category
-            var tagTypes = new FilteredElementCollector(doc)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .Where(fs =>
-                {
-                    try
-                    {
-                        Family fam = fs.Family;
-                        if (fam == null) return false;
-                        // Tag families have a specific category assignment
-                        return fam.FamilyPlacementType == FamilyPlacementType.ViewBased;
-                    }
-                    catch { return false; }
-                })
-                .ToList();
 
             // Offset tag head slightly above-right of element center for visibility
             double offset = view.Scale * 0.005; // Scale-aware offset

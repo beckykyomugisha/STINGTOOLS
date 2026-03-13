@@ -2108,7 +2108,7 @@ namespace StingTools.Core
                 { "Structural Connections", "SCN" }, { "Structural Beam Systems", "SBS" },
                 { "Structural Rebar", "RBR" }, { "Structural Rebar Couplers", "RBC" },
                 { "Structural Area Reinforcement", "SAR" },
-                { "Structural Path Reinforcement", "SPR" },
+                { "Structural Path Reinforcement", "SPT" },
                 { "Structural Fabric Reinforcement", "SFR" },
                 // Structure — Analytical
                 { "Analytical Members", "AMB" }, { "Analytical Nodes", "AND" },
@@ -2171,6 +2171,7 @@ namespace StingTools.Core
         //   «L»text«/L»  — Label text (Italic in TextNote, muted color in WPF)
         //   «V»text«/V»  — Value text (Normal weight, accent color in WPF/HTML)
         //   «S»text«/S»  — Section separator (pipe "|" with spacing)
+        //   «C»text«/C»  — Connector phrase (prose joining words between sections)
         //
         // Sub-section parameters (TAG7A-TAG7F) hold PLAIN text versions for
         // tag family labels. TAG7 holds the MARKED-UP full narrative.
@@ -2742,7 +2743,8 @@ namespace StingTools.Core
                 .Replace("«H»", "").Replace("«/H»", "")
                 .Replace("«L»", "").Replace("«/L»", "")
                 .Replace("«V»", "").Replace("«/V»", "")
-                .Replace("«S»", "").Replace("«/S»", "");
+                .Replace("«S»", "").Replace("«/S»", "")
+                .Replace("«C»", "").Replace("«/C»", "");
         }
 
         /// <summary>
@@ -3121,7 +3123,7 @@ namespace StingTools.Core
             }
             if (!string.IsNullOrEmpty(dimData))
             {
-                if (techPlain.Length > 0) { techPlain.Append(". In terms of its dimensions, it is "); techMarked.Append(". \u00ABS\u00BBIn terms of its dimensions, it is\u00AB/S\u00BB "); }
+                if (techPlain.Length > 0) { techPlain.Append(". In terms of its dimensions, it is "); techMarked.Append(". \u00ABC\u00BBIn terms of its dimensions, it is\u00AB/C\u00BB "); }
                 techPlain.Append(dimData);
                 techMarked.Append(BuildMarkedDimSection(el, categoryName));
             }
@@ -3201,16 +3203,19 @@ namespace StingTools.Core
                 plainParts.Append(result.SectionA);
                 markedParts.Append(markedSections.Count > 0 ? markedSections[0] : result.SectionA);
             }
-            // B: System context — connects with "which is part of" or ". This asset operates within"
+            // Use a running index to track position in markedSections (only non-empty sections are added)
+            int mIdx = 1; // 0 = Section A (already consumed above)
+            // B: System context — connects with ". This asset operates within"
             if (!string.IsNullOrEmpty(result.SectionB))
             {
                 if (plainParts.Length > 0)
                 {
                     plainParts.Append(". This asset operates within the ");
-                    markedParts.Append(". \u00ABS\u00BBThis asset operates within the\u00AB/S\u00BB ");
+                    markedParts.Append(". \u00ABC\u00BBThis asset operates within the\u00AB/C\u00BB ");
                 }
-                plainParts.Append(markedSections.Count > 1 ? result.SectionB : result.SectionB);
-                markedParts.Append(markedSections.Count > 1 ? markedSections[1] : result.SectionB);
+                plainParts.Append(result.SectionB);
+                markedParts.Append(markedSections.Count > mIdx ? markedSections[mIdx] : result.SectionB);
+                mIdx++;
             }
             // C: Spatial — connects with ". It is" (SectionC already starts with "Located in")
             if (!string.IsNullOrEmpty(result.SectionC))
@@ -3218,22 +3223,20 @@ namespace StingTools.Core
                 if (plainParts.Length > 0)
                 {
                     plainParts.Append(". It is ");
-                    markedParts.Append(". \u00ABS\u00BBIt is\u00AB/S\u00BB ");
+                    markedParts.Append(". \u00ABC\u00BBIt is\u00AB/C\u00BB ");
                     // SectionC starts with "Located in" — lowercase it after "It is"
                     result.SectionC = char.ToLower(result.SectionC[0]) + result.SectionC.Substring(1);
-                    // Also lowercase the marked section (starts with «L»Located in«/L»)
-                    int cIdxFix = 2;
-                    if (markedSections.Count > cIdxFix)
+                    // Also lowercase the marked section
+                    if (markedSections.Count > mIdx)
                     {
-                        string mc = markedSections[cIdxFix];
-                        // Replace «L»Located in«/L» with «L»located in«/L»
+                        string mc = markedSections[mIdx];
                         mc = mc.Replace("\u00ABL\u00BBLocated in\u00AB/L\u00BB", "\u00ABL\u00BBlocated in\u00AB/L\u00BB");
-                        markedSections[cIdxFix] = mc;
+                        markedSections[mIdx] = mc;
                     }
                 }
-                int cIdx = 2;
                 plainParts.Append(result.SectionC);
-                markedParts.Append(markedSections.Count > cIdx ? markedSections[cIdx] : result.SectionC);
+                markedParts.Append(markedSections.Count > mIdx ? markedSections[mIdx] : result.SectionC);
+                mIdx++;
             }
             // D: Lifecycle — connects with ". Regarding its lifecycle,"
             if (!string.IsNullOrEmpty(result.SectionD))
@@ -3241,22 +3244,20 @@ namespace StingTools.Core
                 if (plainParts.Length > 0)
                 {
                     plainParts.Append(". Regarding its lifecycle, ");
-                    markedParts.Append(". \u00ABS\u00BBRegarding its lifecycle,\u00AB/S\u00BB ");
+                    markedParts.Append(". \u00ABC\u00BBRegarding its lifecycle,\u00AB/C\u00BB ");
                     // SectionD starts with "This element is" — lowercase it after connector
                     if (result.SectionD.StartsWith("This element is"))
                         result.SectionD = "this element is" + result.SectionD.Substring("This element is".Length);
-                    // Also fix in marked sections
-                    int dIdxFix = string.IsNullOrEmpty(result.SectionC) ? 2 : 3;
-                    if (markedSections.Count > dIdxFix)
+                    if (markedSections.Count > mIdx)
                     {
-                        string md = markedSections[dIdxFix];
+                        string md = markedSections[mIdx];
                         md = md.Replace("This element is", "this element is");
-                        markedSections[dIdxFix] = md;
+                        markedSections[mIdx] = md;
                     }
                 }
-                int dIdx = string.IsNullOrEmpty(result.SectionC) ? 2 : 3;
                 plainParts.Append(result.SectionD);
-                markedParts.Append(markedSections.Count > dIdx ? markedSections[dIdx] : result.SectionD);
+                markedParts.Append(markedSections.Count > mIdx ? markedSections[mIdx] : result.SectionD);
+                mIdx++;
             }
             // E: Technical — connects with ". Technical specifications include"
             if (!string.IsNullOrEmpty(result.SectionE))
@@ -3264,15 +3265,11 @@ namespace StingTools.Core
                 if (plainParts.Length > 0)
                 {
                     plainParts.Append(". Technical specifications include ");
-                    markedParts.Append(". \u00ABS\u00BBTechnical specifications include\u00AB/S\u00BB ");
+                    markedParts.Append(". \u00ABC\u00BBTechnical specifications include\u00AB/C\u00BB ");
                 }
-                // Determine correct index for marked sections
-                int eIdx = 2;
-                if (!string.IsNullOrEmpty(result.SectionB)) eIdx++;
-                if (!string.IsNullOrEmpty(result.SectionC)) eIdx++;
-                if (!string.IsNullOrEmpty(result.SectionD)) eIdx++;
                 plainParts.Append(result.SectionE);
-                markedParts.Append(markedSections.Count > eIdx ? markedSections[eIdx] : result.SectionE);
+                markedParts.Append(markedSections.Count > mIdx ? markedSections[mIdx] : result.SectionE);
+                mIdx++;
             }
             // F: Classification — connects with ". Classified under"
             if (!string.IsNullOrEmpty(result.SectionF))
@@ -3280,11 +3277,10 @@ namespace StingTools.Core
                 if (plainParts.Length > 0)
                 {
                     plainParts.Append(". Classified under ");
-                    markedParts.Append(". \u00ABS\u00BBClassified under\u00AB/S\u00BB ");
+                    markedParts.Append(". \u00ABC\u00BBClassified under\u00AB/C\u00BB ");
                 }
-                int fIdx = markedSections.Count - 1; // F is always last
                 plainParts.Append(result.SectionF);
-                markedParts.Append(markedSections.Count > fIdx && fIdx >= 0 ? markedSections[fIdx] : result.SectionF);
+                markedParts.Append(markedSections.Count > mIdx ? markedSections[mIdx] : result.SectionF);
             }
 
             result.PlainNarrative = plainParts.ToString();
@@ -3583,20 +3579,9 @@ namespace StingTools.Core
             return dim.Length > 0 ? dim.ToString() : "";
         }
 
-        /// <summary>Append a formatted value to a StringBuilder if the value is not empty (legacy comma separator).</summary>
-        private static void AppendIfNotEmpty(System.Text.StringBuilder sb, string value, string format)
-        {
-            if (!string.IsNullOrEmpty(value))
-            {
-                if (sb.Length > 0) sb.Append(", ");
-                sb.Append(string.Format(format, value));
-            }
-        }
-
         /// <summary>
-        /// Append a natural-language phrase to a StringBuilder using contextual conjunctions.
-        /// Uses "and" before the last item when building up a list, otherwise uses commas
-        /// to create prose-like flow: "rated at 22 kW, operating at 480 V and connected to circuit 3".
+        /// Append a natural-language phrase to a StringBuilder if the value is not empty.
+        /// Uses comma separators between items for prose-like flow.
         /// </summary>
         private static void AppendNatural(System.Text.StringBuilder sb, string value, string format)
         {
