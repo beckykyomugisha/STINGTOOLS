@@ -1727,6 +1727,140 @@
                 </ScrollViewer>
             </TabItem>
 
+            <!-- =============== BIM MANAGER TAB =============== -->
+            <TabItem Header="BIM">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+
+                        <!-- HEADER -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
+                            <StackPanel>
+                                <TextBlock Text="BIM MANAGER — ISO 19650" FontWeight="Bold" FontSize="11" Foreground="#1565C0"/>
+                                <TextBlock Text="Project management, BEP, document control, issue tracking, COBie" FontSize="9" Foreground="#888"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PROJECT OVERVIEW -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="PROJECT OVERVIEW"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Dashboard" Tag="BIMDashboard" Click="Cmd_Click"
+                                            ToolTip="Project dashboard: element stats, tag completeness, issues, RAG status" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ISO 19650 Ref" Tag="ISO19650Reference" Click="Cmd_Click"
+                                            ToolTip="Quick reference: suitability codes, CDE containers, document types, role codes, RIBA stages"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- BEP (BIM EXECUTION PLAN) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="BEP — BIM EXECUTION PLAN"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#2E7D32">
+                            <StackPanel>
+                                <TextBlock Text="ISO 19650-2 §5.3 — auto-generated from Revit model data" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Generate BEP" Tag="GenerateBEP" Click="Cmd_Click"
+                                            ToolTip="Auto-generate 17-section BEP from project data (levels, rooms, worksets, links)" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export BEP" Tag="ExportBEP" Click="Cmd_Click"
+                                            ToolTip="Export BEP as formatted text document"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Validate BEP" Tag="ValidateBepCompliance" Click="Cmd_Click"
+                                            ToolTip="Validate model against BEP allowed codes (DISC/LOC/ZONE)"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- CDE & DOCUMENT CONTROL -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="CDE — DOCUMENT CONTROL"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="ISO 19650 Common Data Environment workflow" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="CDE STATUS"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Set CDE Status" Tag="CDEStatus" Click="Cmd_Click"
+                                            ToolTip="Set model CDE container: WIP / Shared / Published / Archive"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Validate Naming" Tag="ValidateDocNaming" Click="Cmd_Click"
+                                            ToolTip="Check sheet names against ISO 19650 naming convention"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="DOCUMENT REGISTER"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Doc Register" Tag="DocumentRegister" Click="Cmd_Click"
+                                            ToolTip="View document register: incoming/outgoing docs, suitability, CDE status"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Add Document" Tag="AddDocument" Click="Cmd_Click"
+                                            ToolTip="Register incoming or outgoing document with ISO 19650 naming"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="TRANSMITTALS"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Create Transmittal" Tag="CreateTransmittal" Click="Cmd_Click"
+                                            ToolTip="Create ISO 19650 transmittal with suitability code"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Review Tracker" Tag="ReviewTracker" Click="Cmd_Click"
+                                            ToolTip="Track document reviews: create, status, complete"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ISSUE / RFI TRACKER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="ISSUE / RFI TRACKER"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#E65100">
+                            <StackPanel>
+                                <TextBlock Text="BCF-compatible issue management with element linking" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Raise Issue" Tag="RaiseIssue" Click="Cmd_Click"
+                                            ToolTip="Raise RFI / Clash / Design Issue / NCR — links to selected elements" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Issue Dashboard" Tag="IssueDashboard" Click="Cmd_Click"
+                                            ToolTip="View all issues: by status, type, priority"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Update Issues" Tag="UpdateIssue" Click="Cmd_Click"
+                                            ToolTip="Close responded issues, mark open as in-progress, export CSV"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Select Elements" Tag="SelectIssueElements" Click="Cmd_Click"
+                                            ToolTip="Select all elements linked to open issues"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- COBie & HANDOVER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="COBie V2.4 — FM HANDOVER"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <StackPanel>
+                                <TextBlock Text="BS 1192-4:2014 — Construction Operations Building Information Exchange" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="COBie Export" Tag="COBieExport" Click="Cmd_Click"
+                                            ToolTip="Export full COBie V2.4 dataset: 17 worksheets as CSV + XLSX" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="FM Handover" Tag="HandoverManual" Click="Cmd_Click"
+                                            ToolTip="FM O/M Handover Manual + COBie V2.4 — asset register, maintenance, spatial, 9 COBie worksheets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Bulk Export" Tag="BulkBIMExport" Click="Cmd_Click"
+                                            ToolTip="Export all BIM data: BEP + Dashboard + COBie in one click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- EXISTING DATA PIPELINE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DATA PIPELINE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="IFC Export" Tag="IFCExport" Click="Cmd_Click"
+                                            ToolTip="Automated IFC 2x3/4 export with STING property sets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="IFC Map" Tag="ExportIfcPropertyMap" Click="Cmd_Click"
+                                            ToolTip="Generate IFC property set mapping table"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BOQ Export" Tag="BOQExport" Click="Cmd_Click"
+                                            ToolTip="Professional Bill of Quantities export (XLSX)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Excel Import" Tag="ExcelBOQImport" Click="Cmd_Click"
+                                            ToolTip="Import BOQ data from Excel back into Revit"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clash Detect" Tag="ClashDetect" Click="Cmd_Click"
+                                            ToolTip="Rule-based MEP/Structure clash detection"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Keynote Sync" Tag="KeynoteSync" Click="Cmd_Click"
+                                            ToolTip="Generate keynote table from STING tag codes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="ValidateTemplate" Click="Cmd_Click"
+                                            ToolTip="45-check BIM template validation"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
         </TabControl>
 
         <!-- Bottom bar -->
