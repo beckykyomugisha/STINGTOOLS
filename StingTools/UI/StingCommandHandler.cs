@@ -787,8 +787,10 @@ namespace StingTools.UI
                     case "BIMDashboard": RunCommand<BIMManager.ProjectDashboardCommand>(app); break;
                     case "ISO19650Reference": RunCommand<BIMManager.ISO19650ReferenceCommand>(app); break;
 
-                    // BEP
+                    // BEP (template-driven pre-contract + model enrichment)
+                    case "CreateBEP": RunCommand<BIMManager.CreateBEPCommand>(app); break;
                     case "GenerateBEP": RunCommand<BIMManager.GenerateBEPCommand>(app); break;
+                    case "UpdateBEP": RunCommand<BIMManager.UpdateBEPCommand>(app); break;
                     case "ExportBEP": RunCommand<BIMManager.ExportBEPCommand>(app); break;
                     // ValidateBepCompliance already wired above
 
@@ -810,6 +812,22 @@ namespace StingTools.UI
                     case "COBieExport": RunCommand<BIMManager.COBieExportCommand>(app); break;
                     case "BulkBIMExport": RunCommand<BIMManager.BulkBIMExportCommand>(app); break;
                     // HandoverManual already wired above
+
+                    // Briefcase — Reference Document Viewer
+                    case "BriefcaseView": RunCommand<BIMManager.BriefcaseViewCommand>(app); break;
+                    case "BriefcaseRead": RunCommand<BIMManager.BriefcaseReadCommand>(app); break;
+                    case "BriefcaseAddFile": RunCommand<BIMManager.BriefcaseAddFileCommand>(app); break;
+
+                    // 4D/5D BIM — Scheduling & Cost (placeholder until SchedulingCommands.cs)
+                    case "AutoSchedule4D": RunCommand<BIMManager.AutoSchedule4DCommand>(app); break;
+                    case "ImportMSProject": RunCommand<BIMManager.ImportMSProjectCommand>(app); break;
+                    case "ViewTimeline4D": RunCommand<BIMManager.ViewTimeline4DCommand>(app); break;
+                    case "ExportSchedule4D": RunCommand<BIMManager.ExportSchedule4DCommand>(app); break;
+                    case "AutoCost5D": RunCommand<BIMManager.AutoCost5DCommand>(app); break;
+                    case "ImportCostRates": RunCommand<BIMManager.ImportCostRatesCommand>(app); break;
+                    case "CostReport5D": RunCommand<BIMManager.CostReport5DCommand>(app); break;
+                    case "CashFlow5D": RunCommand<BIMManager.CashFlow5DCommand>(app); break;
+
                     // IFCExport, BOQExport, ClashDetect, KeynoteSync, ValidateTemplate already wired above
 
                     // ── Unmapped / placeholder ──

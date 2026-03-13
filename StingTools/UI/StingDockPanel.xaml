@@ -1736,7 +1736,7 @@
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
                             <StackPanel>
                                 <TextBlock Text="BIM MANAGER — ISO 19650" FontWeight="Bold" FontSize="11" Foreground="#1565C0"/>
-                                <TextBlock Text="Project management, BEP, document control, issue tracking, COBie" FontSize="9" Foreground="#888"/>
+                                <TextBlock Text="BEP, 4D/5D, document control, issues, COBie, briefcase" FontSize="9" Foreground="#888"/>
                             </StackPanel>
                         </Border>
 
@@ -1757,14 +1757,46 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="BEP — BIM EXECUTION PLAN"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#2E7D32">
                             <StackPanel>
-                                <TextBlock Text="ISO 19650-2 §5.3 — auto-generated from Revit model data" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Text="ISO 19650-2 §5.3 — template-driven pre-contract document" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="Generate BEP" Tag="GenerateBEP" Click="Cmd_Click"
-                                            ToolTip="Auto-generate 17-section BEP from project data (levels, rooms, worksets, links)" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Create BEP" Tag="CreateBEP" Click="Cmd_Click"
+                                            ToolTip="Create BEP from template (pre-contract): select preset, stage, disciplines" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Update BEP" Tag="UpdateBEP" Click="Cmd_Click"
+                                            ToolTip="Enrich existing BEP with live model data (levels, rooms, worksets)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export BEP" Tag="ExportBEP" Click="Cmd_Click"
                                             ToolTip="Export BEP as formatted text document"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Validate BEP" Tag="ValidateBepCompliance" Click="Cmd_Click"
                                             ToolTip="Validate model against BEP allowed codes (DISC/LOC/ZONE)"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 4D/5D BIM — SCHEDULING & COST -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="4D/5D BIM — SCHEDULING &amp; COST"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00695C">
+                            <StackPanel>
+                                <TextBlock Text="Time (4D) and cost (5D) linked to model elements" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="4D — CONSTRUCTION SCHEDULING"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Auto Schedule" Tag="AutoSchedule4D" Click="Cmd_Click"
+                                            ToolTip="Auto-generate construction sequence from phases, levels, and categories" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Import MS Project" Tag="ImportMSProject" Click="Cmd_Click"
+                                            ToolTip="Import Microsoft Project XML schedule and link tasks to elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="View Timeline" Tag="ViewTimeline4D" Click="Cmd_Click"
+                                            ToolTip="View construction timeline with element counts per task"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Schedule" Tag="ExportSchedule4D" Click="Cmd_Click"
+                                            ToolTip="Export 4D schedule as CSV/XML for MS Project or Synchro"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="5D — COST ESTIMATION"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Auto Cost" Tag="AutoCost5D" Click="Cmd_Click"
+                                            ToolTip="Auto-generate cost estimate from element quantities and unit rates"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Import Rates" Tag="ImportCostRates" Click="Cmd_Click"
+                                            ToolTip="Import unit cost rates from CSV/XLSX"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cost Report" Tag="CostReport5D" Click="Cmd_Click"
+                                            ToolTip="Generate cost report by discipline, level, system"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cash Flow" Tag="CashFlow5D" Click="Cmd_Click"
+                                            ToolTip="Generate S-curve cash flow from 4D schedule + 5D cost"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -1791,7 +1823,7 @@
                                 <TextBlock Style="{StaticResource SubLabel}" Text="TRANSMITTALS"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource PurpleBtn}" Content="Create Transmittal" Tag="CreateTransmittal" Click="Cmd_Click"
-                                            ToolTip="Create ISO 19650 transmittal with suitability code"/>
+                                            ToolTip="Create ISO 19650 transmittal with suitability code and auto-attach documents"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Review Tracker" Tag="ReviewTracker" Click="Cmd_Click"
                                             ToolTip="Track document reviews: create, status, complete"/>
                                 </WrapPanel>
@@ -1805,11 +1837,11 @@
                                 <TextBlock Text="BCF-compatible issue management with element linking" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Raise Issue" Tag="RaiseIssue" Click="Cmd_Click"
-                                            ToolTip="Raise RFI / Clash / Design Issue / NCR — links to selected elements" FontWeight="Bold"/>
+                                            ToolTip="Raise RFI/Clash/Design/NCR/Snagging/Change — auto-titles, due dates, element links" FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Issue Dashboard" Tag="IssueDashboard" Click="Cmd_Click"
-                                            ToolTip="View all issues: by status, type, priority"/>
+                                            ToolTip="View issues by status, type, priority + overdue tracking"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Update Issues" Tag="UpdateIssue" Click="Cmd_Click"
-                                            ToolTip="Close responded issues, mark open as in-progress, export CSV"/>
+                                            ToolTip="Close responded, mark in-progress, export CSV"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Select Elements" Tag="SelectIssueElements" Click="Cmd_Click"
                                             ToolTip="Select all elements linked to open issues"/>
                                 </WrapPanel>
@@ -1820,19 +1852,34 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="COBie V2.4 — FM HANDOVER"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
                             <StackPanel>
-                                <TextBlock Text="BS 1192-4:2014 — Construction Operations Building Information Exchange" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource PurpleBtn}" Content="COBie Export" Tag="COBieExport" Click="Cmd_Click"
-                                            ToolTip="Export full COBie V2.4 dataset: 17 worksheets as CSV + XLSX" FontWeight="Bold"/>
+                                            ToolTip="Export full COBie V2.4: 17 worksheets as CSV + XLSX" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="FM Handover" Tag="HandoverManual" Click="Cmd_Click"
-                                            ToolTip="FM O/M Handover Manual + COBie V2.4 — asset register, maintenance, spatial, 9 COBie worksheets"/>
+                                            ToolTip="FM Handover Manual + COBie V2.4"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Bulk Export" Tag="BulkBIMExport" Click="Cmd_Click"
-                                            ToolTip="Export all BIM data: BEP + Dashboard + COBie in one click"/>
+                                            ToolTip="Export all: BEP + Dashboard + COBie + 4D/5D"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
 
-                        <!-- EXISTING DATA PIPELINE -->
+                        <!-- BRIEFCASE — Reference Document Viewer -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="BRIEFCASE — REFERENCE DOCS"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#37474F">
+                            <StackPanel>
+                                <TextBlock Text="Access and read reference documents without leaving Revit" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="View Briefcase" Tag="BriefcaseView" Click="Cmd_Click"
+                                            ToolTip="Browse all project documents: BEP, issues, COBie, specs, standards" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Read Document" Tag="BriefcaseRead" Click="Cmd_Click"
+                                            ToolTip="Read a specific document by category and name"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Add File" Tag="BriefcaseAddFile" Click="Cmd_Click"
+                                            ToolTip="Add reference files (PDF, specs, standards) to project briefcase"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- DATA PIPELINE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="DATA PIPELINE"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
