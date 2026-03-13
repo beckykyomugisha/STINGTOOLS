@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using WpfColor = System.Windows.Media.Color;
 
 namespace StingTools.UI
 {
@@ -84,7 +85,7 @@ namespace StingTools.UI
                 var border = new Border
                 {
                     Width = 28, Height = 28, CornerRadius = new CornerRadius(14),
-                    Margin = new Thickness(2), Background = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0))
+                    Margin = new Thickness(2), Background = new SolidColorBrush(WpfColor.FromRgb(0xE0, 0xE0, 0xE0))
                 };
                 var num = new TextBlock
                 {
@@ -102,7 +103,7 @@ namespace StingTools.UI
                 {
                     Text = _pageNames[i], FontSize = 9,
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99))
+                    Foreground = new SolidColorBrush(WpfColor.FromRgb(0x99, 0x99, 0x99))
                 };
                 sp.Children.Add(lbl);
                 _stepLabels[i] = lbl;
@@ -116,19 +117,19 @@ namespace StingTools.UI
             {
                 if (i < _currentPage)
                 {
-                    _stepBorders[i].Background = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
-                    _stepLabels[i].Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
+                    _stepBorders[i].Background = new SolidColorBrush(WpfColor.FromRgb(0x4C, 0xAF, 0x50));
+                    _stepLabels[i].Foreground = new SolidColorBrush(WpfColor.FromRgb(0x4C, 0xAF, 0x50));
                 }
                 else if (i == _currentPage)
                 {
-                    _stepBorders[i].Background = new SolidColorBrush(Color.FromRgb(0x6A, 0x1B, 0x9A));
-                    _stepLabels[i].Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x1B, 0x9A));
+                    _stepBorders[i].Background = new SolidColorBrush(WpfColor.FromRgb(0x6A, 0x1B, 0x9A));
+                    _stepLabels[i].Foreground = new SolidColorBrush(WpfColor.FromRgb(0x6A, 0x1B, 0x9A));
                     _stepLabels[i].FontWeight = FontWeights.Bold;
                 }
                 else
                 {
-                    _stepBorders[i].Background = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0));
-                    _stepLabels[i].Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
+                    _stepBorders[i].Background = new SolidColorBrush(WpfColor.FromRgb(0xE0, 0xE0, 0xE0));
+                    _stepLabels[i].Foreground = new SolidColorBrush(WpfColor.FromRgb(0x99, 0x99, 0x99));
                     _stepLabels[i].FontWeight = FontWeights.Normal;
                 }
             }
@@ -142,9 +143,9 @@ namespace StingTools.UI
             wizardTabs.SelectedIndex = _currentPage;
             UpdateStepIndicators();
 
-            btnBack.Visibility = _currentPage > 0 ? Visibility.Visible : Visibility.Hidden;
-            btnNext.Visibility = _currentPage < TotalPages - 1 ? Visibility.Visible : Visibility.Collapsed;
-            btnCreate.Visibility = _currentPage == TotalPages - 1 ? Visibility.Visible : Visibility.Collapsed;
+            btnBack.Visibility = _currentPage > 0 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Hidden;
+            btnNext.Visibility = _currentPage < TotalPages - 1 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            btnCreate.Visibility = _currentPage == TotalPages - 1 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 
             if (_currentPage == TotalPages - 1)
                 BuildReviewSummary();

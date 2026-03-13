@@ -171,26 +171,30 @@ namespace StingTools.BIMManager
             ["INFO"]     = "For information only — no action required"
         };
 
-        // ── BEP Section Definitions (ISO 19650-2 §5.3) ──
+        // ── BEP Section Definitions (ISO 19650-2 §5.3 / UK BIM Framework / PAS 1192-2) ──
         internal static readonly string[] BEPSections = new[]
         {
-            "1. Project Information",
-            "2. Project Team Directory",
-            "3. Project Goals and Uses",
-            "4. Organizational Roles and Responsibilities",
-            "5. BIM Process Design",
-            "6. Information Delivery Milestones (MIDP)",
-            "7. Information Standard and Methods (TIDP)",
-            "8. IT Solutions / Software Platforms",
-            "9. Model Structure and Federation Strategy",
-            "10. CDE Workflow and Naming Conventions",
-            "11. Level of Information Need (LOD/LOI)",
-            "12. Clash Detection and Coordination",
-            "13. Quality Assurance and Compliance",
-            "14. Security and Access Protocols",
-            "15. Handover and O&M Requirements",
-            "16. Risk Register",
-            "17. Appendices (Standards, Templates, Reference)"
+            "1. Introduction and Document Control",
+            "2. Project Information",
+            "3. BIM Goals and Uses",
+            "4. Information Requirements (OIR/PIR/AIR/EIR Response)",
+            "5. Roles, Responsibilities and Authorities (RACI)",
+            "6. Project Implementation Plan (PIP)",
+            "7. Information Delivery Strategy (Federation/Volumes)",
+            "8. TIDP and MIDP (Delivery Plans and Schedule)",
+            "9. Standards, Methods and Procedures (SMP)",
+            "10. Level of Information Need (LOD/LOI/LOA)",
+            "11. Common Data Environment (CDE) Configuration",
+            "12. Collaboration Procedures (Clash/RFI/Change)",
+            "13. Quality Assurance and Quality Control",
+            "14. Technology and Software Schedule",
+            "15. Health and Safety / CDM 2015 Compliance",
+            "16. Security (ISO 19650-5)",
+            "17. Deliverables Matrix (by Stage)",
+            "18. Asset Management and COBie Data Drops",
+            "19. Training and Competency Plan",
+            "20. Risk Register (BIM-Specific Risks)",
+            "21. Appendices (EIR Matrix, Model Element Table, Templates)"
         };
 
         // ── BEP Template Presets ──
@@ -265,7 +269,9 @@ namespace StingTools.BIMManager
                 "YawRotation" },
             ["Issue"] = new[] { "Name", "CreatedBy", "CreatedOn", "Type", "Risk",
                 "Chance", "Impact", "SheetName1", "RowName1", "SheetName2", "RowName2",
-                "Description", "Owner", "Mitigation" }
+                "Description", "Owner", "Mitigation" },
+            ["PickLists"] = new[] { "Name", "CreatedBy", "CreatedOn", "Category",
+                "Value", "SheetName", "Description" }
         };
 
         // ═══════════════════════════════════════════════════════════
@@ -1181,15 +1187,40 @@ namespace StingTools.BIMManager
             string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
             var pi = doc.ProjectInformation;
 
-            // ── Contact ──
+            // ── Contact (from project_bep.json team data + fallback) ──
             var contacts = new List<Dictionary<string, string>>();
-            contacts.Add(new Dictionary<string, string>
+            string bepPath = GetBIMManagerFilePath(doc, "project_bep.json");
+            var bep = LoadJsonFile(bepPath);
+            var teamMembers = bep["team_members"] as JArray ?? bep["project_team"] as JArray;
+            if (teamMembers != null && teamMembers.Count > 0)
             {
-                ["Email"] = "", ["Company"] = pi?.ClientName ?? "", ["Phone"] = "",
-                ["Department"] = "", ["OrganizationCode"] = "",
-                ["GivenName"] = createdBy, ["FamilyName"] = "",
-                ["Category"] = "Facility Manager", ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn
-            });
+                foreach (var member in teamMembers)
+                {
+                    contacts.Add(new Dictionary<string, string>
+                    {
+                        ["Email"] = member["email"]?.ToString() ?? "",
+                        ["Company"] = member["organization"]?.ToString() ?? member["company"]?.ToString() ?? "",
+                        ["Phone"] = member["phone"]?.ToString() ?? "",
+                        ["Department"] = member["department"]?.ToString() ?? "",
+                        ["OrganizationCode"] = member["org_code"]?.ToString() ?? member["originator"]?.ToString() ?? "",
+                        ["GivenName"] = member["given_name"]?.ToString() ?? member["name"]?.ToString() ?? "",
+                        ["FamilyName"] = member["family_name"]?.ToString() ?? "",
+                        ["Category"] = member["role"]?.ToString() ?? member["category"]?.ToString() ?? "Team Member",
+                        ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn
+                    });
+                }
+            }
+            // Always ensure at least the current user is present
+            if (contacts.Count == 0)
+            {
+                contacts.Add(new Dictionary<string, string>
+                {
+                    ["Email"] = "", ["Company"] = pi?.ClientName ?? "", ["Phone"] = "",
+                    ["Department"] = "", ["OrganizationCode"] = "",
+                    ["GivenName"] = createdBy, ["FamilyName"] = "",
+                    ["Category"] = "Facility Manager", ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn
+                });
+            }
             data["Contact"] = contacts;
 
             // ── Facility ──
@@ -1263,7 +1294,7 @@ namespace StingTools.BIMManager
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
             foreach (var fs in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
                 .Where(fs => fs.Category != null && knownCats.Contains(fs.Category.Name))
-                .GroupBy(fs => fs.FamilyName + ": " + fs.Name).Select(g => g.First()).Take(500))
+                .GroupBy(fs => fs.FamilyName + ": " + fs.Name).Select(g => g.First()))
             {
                 types.Add(new Dictionary<string, string>
                 {
@@ -1306,17 +1337,22 @@ namespace StingTools.BIMManager
                 string stingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 string assetId = !string.IsNullOrEmpty(stingTag) ? stingTag : tag;
 
+                // Build friendly name: prefer description or family:type, fall back to tag
+                string desc = ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT");
+                string friendlyName = !string.IsNullOrEmpty(desc) ? desc
+                    : !string.IsNullOrEmpty(typeName) ? typeName
+                    : tag;
+
                 components.Add(new Dictionary<string, string>
                 {
-                    ["Name"] = tag, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["Name"] = friendlyName, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["TypeName"] = typeName, ["Space"] = roomName,
-                    ["Description"] = ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT"),
+                    ["Description"] = desc,
                     ["ExternalSystem"] = "Revit", ["ExternalObject"] = cat,
                     ["ExternalIdentifier"] = el.UniqueId,
                     ["TagNumber"] = assetId, ["AssetIdentifier"] = assetId,
                     ["Category"] = cat
                 });
-                if (components.Count >= 5000) break;
             }
             data["Component"] = components;
 
@@ -1364,17 +1400,319 @@ namespace StingTools.BIMManager
             }
             data["Job"] = jobs;
 
-            // ── Document ──
-            data["Document"] = new List<Dictionary<string, string>>
+            // ── Document (from document_register.json + BEP fallback) ──
+            var documents = new List<Dictionary<string, string>>();
+            string docRegPath = GetBIMManagerFilePath(doc, "document_register.json");
+            var docRegArray = LoadJsonArray(docRegPath);
+            if (docRegArray.Count > 0)
             {
-                new Dictionary<string, string>
+                foreach (var d in docRegArray)
                 {
-                    ["Name"] = "BEP", ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
-                    ["Category"] = "BIM Execution Plan", ["ApprovalBy"] = "",
-                    ["Stage"] = "Design", ["Description"] = "BIM Execution Plan (ISO 19650)",
-                    ["Reference"] = "project_bep.json"
+                    documents.Add(new Dictionary<string, string>
+                    {
+                        ["Name"] = d["name"]?.ToString() ?? d["document_name"]?.ToString() ?? "",
+                        ["CreatedBy"] = d["created_by"]?.ToString() ?? createdBy,
+                        ["CreatedOn"] = d["date"]?.ToString() ?? d["created_on"]?.ToString() ?? createdOn,
+                        ["Category"] = d["type"]?.ToString() ?? d["category"]?.ToString() ?? "",
+                        ["ApprovalBy"] = d["approved_by"]?.ToString() ?? "",
+                        ["Stage"] = d["stage"]?.ToString() ?? "",
+                        ["SheetName"] = "Document",
+                        ["RowName"] = d["document_id"]?.ToString() ?? "",
+                        ["Directory"] = d["directory"]?.ToString() ?? "",
+                        ["File"] = d["file_name"]?.ToString() ?? d["file"]?.ToString() ?? "",
+                        ["ExternalSystem"] = "STING",
+                        ["ExternalObject"] = "DocumentRegister",
+                        ["ExternalIdentifier"] = d["document_id"]?.ToString() ?? "",
+                        ["Description"] = d["description"]?.ToString() ?? d["name"]?.ToString() ?? "",
+                        ["Reference"] = d["reference"]?.ToString() ?? d["suitability"]?.ToString() ?? ""
+                    });
                 }
+            }
+            // Always include BEP reference
+            documents.Add(new Dictionary<string, string>
+            {
+                ["Name"] = "BEP", ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                ["Category"] = "BIM Execution Plan", ["ApprovalBy"] = "",
+                ["Stage"] = "Design", ["Description"] = "BIM Execution Plan (ISO 19650)",
+                ["Reference"] = "project_bep.json"
+            });
+            data["Document"] = documents;
+
+            // ── Assembly (compound wall/floor compositions) ──
+            var assemblies = new List<Dictionary<string, string>>();
+            foreach (var wallType in new FilteredElementCollector(doc).OfClass(typeof(WallType)).Cast<WallType>())
+            {
+                CompoundStructure cs = wallType.GetCompoundStructure();
+                if (cs == null || cs.LayerCount < 2) continue;
+                var childNames = new List<string>();
+                foreach (var layer in cs.GetLayers())
+                {
+                    var mat = doc.GetElement(layer.MaterialId);
+                    string layerName = mat != null ? mat.Name : $"Layer ({layer.Width * 304.8:F0}mm)";
+                    childNames.Add(layerName);
+                }
+                assemblies.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = $"Assembly-Wall-{wallType.Name}",
+                    ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["SheetName"] = "Type", ["ParentName"] = $"Walls: {wallType.Name}",
+                    ["ChildNames"] = string.Join(",", childNames),
+                    ["AssemblyType"] = "Fixed", ["Description"] = $"Wall composition: {wallType.Name}"
+                });
+            }
+            foreach (var floorType in new FilteredElementCollector(doc).OfClass(typeof(FloorType)).Cast<FloorType>())
+            {
+                CompoundStructure cs = floorType.GetCompoundStructure();
+                if (cs == null || cs.LayerCount < 2) continue;
+                var childNames = new List<string>();
+                foreach (var layer in cs.GetLayers())
+                {
+                    var mat = doc.GetElement(layer.MaterialId);
+                    string layerName = mat != null ? mat.Name : $"Layer ({layer.Width * 304.8:F0}mm)";
+                    childNames.Add(layerName);
+                }
+                assemblies.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = $"Assembly-Floor-{floorType.Name}",
+                    ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["SheetName"] = "Type", ["ParentName"] = $"Floors: {floorType.Name}",
+                    ["ChildNames"] = string.Join(",", childNames),
+                    ["AssemblyType"] = "Fixed", ["Description"] = $"Floor composition: {floorType.Name}"
+                });
+            }
+            data["Assembly"] = assemblies;
+
+            // ── Connection (MEP system connections via Connector API) ──
+            var connections = new List<Dictionary<string, string>>();
+            int connIdx = 0;
+            foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                ConnectorSet connectorSet = null;
+                if (el is FamilyInstance fi && fi.MEPModel?.ConnectorManager != null)
+                    connectorSet = fi.MEPModel.ConnectorManager.Connectors;
+                else if (el is MEPCurve mepCurve && mepCurve.ConnectorManager != null)
+                    connectorSet = mepCurve.ConnectorManager.Connectors;
+
+                if (connectorSet == null) continue;
+
+                foreach (Connector conn in connectorSet)
+                {
+                    if (!conn.IsConnected) continue;
+                    foreach (Connector other in conn.AllRefs)
+                    {
+                        if (other.Owner.Id.Value <= el.Id.Value) continue; // avoid duplicates
+                        string elTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                        string otherTag = ParameterHelpers.GetString(other.Owner, ParamRegistry.TAG1);
+                        string name1 = !string.IsNullOrEmpty(elTag) ? elTag : el.Name;
+                        string name2 = !string.IsNullOrEmpty(otherTag) ? otherTag : other.Owner.Name;
+
+                        connections.Add(new Dictionary<string, string>
+                        {
+                            ["Name"] = $"Connection-{++connIdx}",
+                            ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                            ["ConnectionType"] = conn.Domain.ToString(),
+                            ["SheetName"] = "Component", ["RowName1"] = name1, ["RowName2"] = name2,
+                            ["RealizingElement"] = "",
+                            ["PortName1"] = $"{conn.Origin.X * 304.8:F0},{conn.Origin.Y * 304.8:F0},{conn.Origin.Z * 304.8:F0}",
+                            ["PortName2"] = $"{other.Origin.X * 304.8:F0},{other.Origin.Y * 304.8:F0},{other.Origin.Z * 304.8:F0}",
+                            ["ExternalSystem"] = "Revit", ["ExternalObject"] = "Connector",
+                            ["ExternalIdentifier"] = $"{el.UniqueId}-{other.Owner.UniqueId}",
+                            ["Description"] = $"{ParameterHelpers.GetCategoryName(el)} to {ParameterHelpers.GetCategoryName(other.Owner)}"
+                        });
+                    }
+                }
+            }
+            data["Connection"] = connections;
+
+            // ── Spare (basic spare parts from type data) ──
+            var spares = new List<Dictionary<string, string>>();
+            foreach (var fs in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
+                .Where(fs => fs.Category != null && knownCats.Contains(fs.Category.Name))
+                .GroupBy(fs => fs.FamilyName).Select(g => g.First()))
+            {
+                string manufacturer = ParameterHelpers.GetString(fs, "ASS_MANUFACTURER_TXT");
+                string model = ParameterHelpers.GetString(fs, "ASS_MODEL_TXT");
+                if (string.IsNullOrEmpty(manufacturer) && string.IsNullOrEmpty(model)) continue;
+                spares.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = $"Spare-{fs.FamilyName}",
+                    ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["Category"] = fs.Category?.Name ?? "",
+                    ["TypeName"] = $"{fs.FamilyName}: {fs.Name}",
+                    ["Suppliers"] = manufacturer,
+                    ["ExternalSystem"] = "Revit", ["ExternalObject"] = "FamilySymbol",
+                    ["ExternalIdentifier"] = fs.UniqueId,
+                    ["Description"] = $"Spare parts for {fs.FamilyName}",
+                    ["SetNumber"] = "", ["PartNumber"] = model
+                });
+            }
+            data["Spare"] = spares;
+
+            // ── Resource (labour/tool resources from job definitions) ──
+            var resources = new List<Dictionary<string, string>>();
+            var resourceNames = new HashSet<string> { "FM Technician", "Electrical Engineer", "Mechanical Engineer", "Plumber", "Fire Safety Officer", "HVAC Specialist" };
+            foreach (string rn in resourceNames)
+            {
+                resources.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = rn, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["Category"] = "Labour",
+                    ["ExternalSystem"] = "STING", ["ExternalObject"] = "Resource",
+                    ["ExternalIdentifier"] = rn.Replace(" ", "_"),
+                    ["Description"] = $"{rn} resource for planned maintenance"
+                });
+            }
+            data["Resource"] = resources;
+
+            // ── Impact (environmental data from materials) ──
+            var impacts = new List<Dictionary<string, string>>();
+            foreach (var matEl in new FilteredElementCollector(doc).OfClass(typeof(Material)).Cast<Material>().Take(200))
+            {
+                string thermalStr = "";
+                try
+                {
+                    var thermalId = matEl.ThermalAssetId;
+                    if (thermalId != ElementId.InvalidElementId)
+                    {
+                        var thermalAsset = doc.GetElement(thermalId) as PropertySetElement;
+                        if (thermalAsset != null)
+                            thermalStr = "Thermal asset present";
+                    }
+                }
+                catch { /* thermal asset not available */ }
+
+                impacts.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = $"Impact-{matEl.Name}",
+                    ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["ImpactType"] = "Environment",
+                    ["ImpactStage"] = "Operation",
+                    ["SheetName"] = "Type", ["RowName"] = matEl.Name,
+                    ["Value"] = thermalStr,
+                    ["Unit"] = "",
+                    ["LeadInTime"] = "", ["Duration"] = "", ["LeadOutTime"] = "",
+                    ["ImpactUnit"] = "",
+                    ["Description"] = $"Environmental impact data for material: {matEl.Name}"
+                });
+            }
+            data["Impact"] = impacts;
+
+            // ── Attribute (shared parameter export for tagged elements) ──
+            var attributes = new List<Dictionary<string, string>>();
+            var attrParamNames = new[] { ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD, ParamRegistry.SEQ,
+                "ASS_MANUFACTURER_TXT", "ASS_MODEL_TXT", "ASS_DESCRIPTION_TXT",
+                "ASS_EXPECTED_LIFE_YEARS_YRS", "ASS_CST_UNIT_PRICE_UGX_NR" };
+            foreach (var el in components.Take(500))
+            {
+                string compName = el["Name"];
+                string extId = el["ExternalIdentifier"];
+                var revitEl = doc.GetElement(extId);
+                if (revitEl == null) continue;
+                foreach (string pName in attrParamNames)
+                {
+                    string val = ParameterHelpers.GetString(revitEl, pName);
+                    if (string.IsNullOrEmpty(val)) continue;
+                    attributes.Add(new Dictionary<string, string>
+                    {
+                        ["Name"] = pName, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                        ["Category"] = "STING Parameter",
+                        ["SheetName"] = "Component", ["RowName"] = compName,
+                        ["Value"] = val, ["Unit"] = "",
+                        ["ExternalSystem"] = "STING", ["ExternalObject"] = "SharedParameter",
+                        ["ExternalIdentifier"] = pName,
+                        ["Description"] = pName, ["AllowedValues"] = ""
+                    });
+                }
+            }
+            data["Attribute"] = attributes;
+
+            // ── Coordinate (element XYZ from BoundingBox) ──
+            var coordinates = new List<Dictionary<string, string>>();
+            foreach (var comp in components)
+            {
+                string extId = comp["ExternalIdentifier"];
+                var revitEl = doc.GetElement(extId);
+                if (revitEl == null) continue;
+                var bb = revitEl.get_BoundingBox(null);
+                if (bb == null) continue;
+                var center = (bb.Min + bb.Max) / 2.0;
+                coordinates.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = $"Coord-{comp["Name"]}",
+                    ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["Category"] = "Point",
+                    ["SheetName"] = "Component", ["RowName"] = comp["Name"],
+                    ["CoordinateXAxis"] = (center.X * 304.8).ToString("F1"),
+                    ["CoordinateYAxis"] = (center.Y * 304.8).ToString("F1"),
+                    ["CoordinateZAxis"] = (center.Z * 304.8).ToString("F1"),
+                    ["ClockwiseRotation"] = "0", ["ElevationalRotation"] = "0", ["YawRotation"] = "0"
+                });
+            }
+            data["Coordinate"] = coordinates;
+
+            // ── Issue (from existing issues.json) ──
+            var issuesList = new List<Dictionary<string, string>>();
+            string issuesFilePath = GetBIMManagerFilePath(doc, "issues.json");
+            var issuesArray = LoadJsonArray(issuesFilePath);
+            foreach (var issue in issuesArray)
+            {
+                issuesList.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = issue["title"]?.ToString() ?? issue["issue_id"]?.ToString() ?? "",
+                    ["CreatedBy"] = issue["raised_by"]?.ToString() ?? createdBy,
+                    ["CreatedOn"] = issue["date_raised"]?.ToString() ?? createdOn,
+                    ["Type"] = issue["type"]?.ToString() ?? issue["category"]?.ToString() ?? "Design",
+                    ["Risk"] = issue["priority"]?.ToString() ?? "Medium",
+                    ["Chance"] = "", ["Impact"] = issue["priority"]?.ToString() ?? "",
+                    ["SheetName1"] = "Component", ["RowName1"] = issue["element_id"]?.ToString() ?? "",
+                    ["SheetName2"] = "", ["RowName2"] = "",
+                    ["Description"] = issue["description"]?.ToString() ?? "",
+                    ["Owner"] = issue["assigned_to"]?.ToString() ?? "",
+                    ["Mitigation"] = issue["resolution"]?.ToString() ?? ""
+                });
+            }
+            data["Issue"] = issuesList;
+
+            // ── PickLists (valid COBie pick list values) ──
+            var pickLists = new List<Dictionary<string, string>>();
+            var pickListValues = new Dictionary<string, string[]>
+            {
+                ["AssetType"] = new[] { "Fixed", "Moveable" },
+                ["CategoryFacility"] = new[] { "Facility" },
+                ["CategoryFloor"] = new[] { "Floor", "Site", "Basement" },
+                ["CategorySpace"] = new[] { "Office", "Corridor", "Plant Room", "WC", "Kitchen", "Store", "Circulation", "Room" },
+                ["CategoryZone"] = new[] { "Occupancy Zone", "Fire Zone", "Lighting Zone", "HVAC Zone", "Security Zone" },
+                ["DurationUnit"] = new[] { "years", "months", "weeks", "days", "hours" },
+                ["FloorType"] = new[] { "Basement", "Ground", "Upper", "Roof" },
+                ["ImpactType"] = new[] { "Environment", "Health", "Safety", "Cost" },
+                ["ImpactStage"] = new[] { "Construction", "Operation", "Demolition" },
+                ["JobStatus"] = new[] { "Not Started", "In Progress", "Complete" },
+                ["JobType"] = new[] { "Preventive", "Corrective", "Condition-Based", "Emergency" },
+                ["ObjType"] = new[] { "Fixed", "Moveable", "Component" },
+                ["LinearUnits"] = new[] { "millimeters", "meters", "feet", "inches" },
+                ["AreaUnits"] = new[] { "square meters", "square feet" },
+                ["VolumeUnits"] = new[] { "cubic meters", "cubic feet" },
+                ["CurrencyUnit"] = new[] { "GBP", "USD", "EUR" },
+                ["AreaMeasurement"] = new[] { "NRM", "RICS", "IPMS" },
+                ["ConnectionType"] = new[] { "Logical", "Physical", "Control" },
+                ["IssueRisk"] = new[] { "High", "Medium", "Low" },
+                ["CoordinateType"] = new[] { "Point", "Box" }
             };
+            foreach (var kvp in pickListValues)
+            {
+                foreach (string val in kvp.Value)
+                {
+                    pickLists.Add(new Dictionary<string, string>
+                    {
+                        ["Name"] = kvp.Key, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                        ["Category"] = "PickList",
+                        ["Value"] = val, ["SheetName"] = "",
+                        ["Description"] = $"Valid value for {kvp.Key}"
+                    });
+                }
+            }
+            data["PickLists"] = pickLists;
 
             return data;
         }

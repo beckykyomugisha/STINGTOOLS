@@ -1866,7 +1866,7 @@ namespace StingTools.Core
                     lvl = "L00";
 
                 string key = $"{disc}_{sys}_{lvl}";
-                if (int.TryParse(seqStr, out int seqNum) && seqNum > 0)
+                if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {
                     if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
                         maxSeq[key] = seqNum;
@@ -1925,7 +1925,7 @@ namespace StingTools.Core
                     lvl = "L00";
 
                 string key = $"{disc}_{sys}_{lvl}";
-                if (int.TryParse(seqStr, out int seqNum) && seqNum > 0)
+                if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {
                     if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
                         maxSeq[key] = seqNum;
@@ -1968,7 +1968,7 @@ namespace StingTools.Core
                 // MEP — Plumbing
                 { "Plumbing Fixtures", "P" }, { "Plumbing Equipment", "P" },
                 // MEP — Fire Protection
-                { "Sprinklers", "FP" }, { "Fire Alarm Devices", "FP" },
+                { "Sprinklers", "FP" }, { "Fire Alarm Devices", "FLS" },
                 { "Fire Protection", "FP" },
                 // MEP — Electrical
                 { "Electrical Equipment", "E" }, { "Electrical Fixtures", "E" },

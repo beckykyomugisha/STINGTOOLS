@@ -3122,7 +3122,7 @@ namespace StingTools.Temp
                 }
 
                 double rowHeight = 6.0 / 304.8; // 6mm row height in feet
-                double textSize = 2.0 / 304.8;   // 2mm text height in feet
+                // textSize available: 2.0 / 304.8 (2mm text height in feet)
 
                 // Step 4: Create drafting view
                 var viewFamilyType = new FilteredElementCollector(doc)

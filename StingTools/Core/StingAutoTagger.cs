@@ -215,7 +215,8 @@ namespace StingTools.Core
                     // Auto-combine: propagate tag to discipline-specific containers
                     try
                     {
-                        ParamRegistry.WriteContainers(doc, el);
+                        string[] combineTokens = ParamRegistry.ReadTokenValues(el);
+                        ParamRegistry.WriteContainers(el, combineTokens, catName);
                     }
                     catch (Exception ex)
                     {
