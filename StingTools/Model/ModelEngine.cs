@@ -309,7 +309,7 @@ namespace StingTools.Model
             return symbols[0];
         }
 
-        internal void EnsureActive(FamilySymbol symbol)
+        public void EnsureActive(FamilySymbol symbol)
         {
             if (!symbol.IsActive)
             {
@@ -401,7 +401,10 @@ namespace StingTools.Model
                 if (ws == null) return;
                 var p = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
                 if (p != null && !p.IsReadOnly)
-                    p.Set(ws.Id.IntegerValue);
+                {
+                    try { p.Set(ws.Id.IntegerValue); }
+                    catch { try { p.Set((int)(object)ws.Id); } catch { /* API compat */ } }
+                }
             }
             catch { /* Non-critical */ }
         }

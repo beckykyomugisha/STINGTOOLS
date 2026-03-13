@@ -1388,14 +1388,14 @@ namespace StingTools.BIMManager
             foreach (var sys in systems)
             {
                 string code = sys["Name"];
-                (string f, string u) mf = maintFreq.ContainsKey(code) ? maintFreq[code] : ("12", "months");
+                var mf = maintFreq.ContainsKey(code) ? maintFreq[code] : ("12", "months");
                 jobs.Add(new Dictionary<string, string>
                 {
                     ["Name"] = $"PPM-{code}", ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["Category"] = "Preventive", ["Status"] = "Not Started", ["TypeName"] = code,
                     ["Description"] = $"Planned Preventive Maintenance for {code} systems",
                     ["Duration"] = "4", ["DurationUnit"] = "hours",
-                    ["Frequency"] = mf.f, ["FrequencyUnit"] = mf.u, ["ResourceNames"] = "FM Technician"
+                    ["Frequency"] = mf.Item1, ["FrequencyUnit"] = mf.Item2, ["ResourceNames"] = "FM Technician"
                 });
             }
             data["Job"] = jobs;

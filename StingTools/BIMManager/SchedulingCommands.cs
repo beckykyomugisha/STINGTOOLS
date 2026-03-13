@@ -338,7 +338,7 @@ namespace StingTools.BIMManager
 
                 // Sort categories by trade sequence order
                 var sortedCats = catCounts.Keys
-                    .OrderBy(c => TradeSequence.ContainsKey(c) ? TradeSequence[c].order : 999)
+                    .OrderBy(c => TradeSequence.ContainsKey(c) ? TradeSequence[c].Item1 : 999)
                     .ToList();
 
                 int levelTaskId = taskId;
@@ -350,12 +350,15 @@ namespace StingTools.BIMManager
                 {
                     int count = catCounts[cat];
                     if (count == 0) continue; // GAP-012: Skip phantom tasks with no elements
-                    (int order, string trade, int daysPerUnit) tradeInfo = TradeSequence.ContainsKey(cat)
+                    var tradeInfo = TradeSequence.ContainsKey(cat)
                         ? TradeSequence[cat]
                         : (999, $"General — {cat}", 3);
+                    int tradeOrder = tradeInfo.Item1;
+                    string tradeName = tradeInfo.Item2;
+                    int daysPerUnit = tradeInfo.Item3;
 
                     // Duration scales with element count
-                    int baseDays = tradeInfo.daysPerUnit;
+                    int baseDays = daysPerUnit;
                     int duration = Math.Max(1, Math.Min((int)(baseDays * (1.0 + count / 50.0)), 30));
 
                     DateTime taskStart = currentDate;
@@ -371,14 +374,14 @@ namespace StingTools.BIMManager
                         ["level"] = level.Name
                     };
 
-                    tasks.Add(CreateTask(taskId++, $"{tradeInfo.trade} — {level.Name}",
+                    tasks.Add(CreateTask(taskId++, $"{tradeName} — {level.Name}",
                         cat, taskStart, taskEnd, count,
                         new JArray(elementFilter), levelTaskId));
 
                     // Overlap: structure tasks are sequential, MEP can overlap
-                    if (tradeInfo.order < 400) // Structure/envelope — sequential
+                    if (tradeOrder < 400) // Structure/envelope — sequential
                         currentDate = taskEnd;
-                    else if (tradeInfo.order < 600) // Internal — 50% overlap
+                    else if (tradeOrder < 600) // Internal — 50% overlap
                         currentDate = taskStart.AddDays(duration / 2);
                     // MEP and finishes can run in parallel, so currentDate stays
                 }
@@ -593,7 +596,7 @@ namespace StingTools.BIMManager
                 {
                     foreach (var ts in TradeSequence)
                     {
-                        if (name.Contains(ts.Value.trade.ToUpper().Split('—')[0].Trim()) ||
+                        if (name.Contains(ts.Value.Item2.ToUpper().Split('—')[0].Trim()) ||
                             name.Contains(ts.Key.ToUpper()))
                         {
                             matchedCat = ts.Key;
