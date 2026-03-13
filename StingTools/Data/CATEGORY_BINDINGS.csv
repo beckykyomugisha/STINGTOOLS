@@ -1,4 +1,4 @@
-# v2.3 | 20260227 | BIM Template category_bindings
+# v3.0 | 20260313 | BIM Template category_bindings
 Parameter_Name,Revit_Category,Binding_Type,Is_Shared
 ASS_CAT_TXT,Air Terminals,Type,True
 ASS_CAT_TXT,Cable Trays,Type,True
@@ -12774,3 +12774,3122 @@ PH_END_DATE_TXT,Railings,Type,True
 PH_STATUS_TXT,Railings,Type,True
 PH_START_DATE_TXT,Railings,Type,True
 PH_NAME_TXT,Railings,Type,True
+WARN_ASS_ROOM_AREA_MIN,Air Terminals,Type,True
+WARN_ASS_ROOM_AREA_MIN,Cable Tray Fittings,Type,True
+WARN_ASS_ROOM_AREA_MIN,Cable Trays,Type,True
+WARN_ASS_ROOM_AREA_MIN,Casework,Type,True
+WARN_ASS_ROOM_AREA_MIN,Ceilings,Type,True
+WARN_ASS_ROOM_AREA_MIN,Columns,Type,True
+WARN_ASS_ROOM_AREA_MIN,Communication Devices,Type,True
+WARN_ASS_ROOM_AREA_MIN,Conduit Fittings,Type,True
+WARN_ASS_ROOM_AREA_MIN,Conduits,Type,True
+WARN_ASS_ROOM_AREA_MIN,Curtain Panels,Type,True
+WARN_ASS_ROOM_AREA_MIN,Curtain Systems,Type,True
+WARN_ASS_ROOM_AREA_MIN,Curtain Wall Mullions,Type,True
+WARN_ASS_ROOM_AREA_MIN,Data Devices,Type,True
+WARN_ASS_ROOM_AREA_MIN,Doors,Type,True
+WARN_ASS_ROOM_AREA_MIN,Duct Accessories,Type,True
+WARN_ASS_ROOM_AREA_MIN,Duct Fittings,Type,True
+WARN_ASS_ROOM_AREA_MIN,Ducts,Type,True
+WARN_ASS_ROOM_AREA_MIN,Electrical Circuits,Type,True
+WARN_ASS_ROOM_AREA_MIN,Electrical Equipment,Type,True
+WARN_ASS_ROOM_AREA_MIN,Electrical Fixtures,Type,True
+WARN_ASS_ROOM_AREA_MIN,Fire Alarm Devices,Type,True
+WARN_ASS_ROOM_AREA_MIN,Flex Ducts,Type,True
+WARN_ASS_ROOM_AREA_MIN,Flex Pipes,Type,True
+WARN_ASS_ROOM_AREA_MIN,Floors,Type,True
+WARN_ASS_ROOM_AREA_MIN,Furniture,Type,True
+WARN_ASS_ROOM_AREA_MIN,Furniture Systems,Type,True
+WARN_ASS_ROOM_AREA_MIN,Generic Models,Type,True
+WARN_ASS_ROOM_AREA_MIN,Lighting Devices,Type,True
+WARN_ASS_ROOM_AREA_MIN,Lighting Fixtures,Type,True
+WARN_ASS_ROOM_AREA_MIN,Materials,Type,True
+WARN_ASS_ROOM_AREA_MIN,Mechanical Equipment,Type,True
+WARN_ASS_ROOM_AREA_MIN,Medical Equipment,Type,True
+WARN_ASS_ROOM_AREA_MIN,Nurse Call Devices,Type,True
+WARN_ASS_ROOM_AREA_MIN,Pipe Accessories,Type,True
+WARN_ASS_ROOM_AREA_MIN,Pipe Fittings,Type,True
+WARN_ASS_ROOM_AREA_MIN,Pipes,Type,True
+WARN_ASS_ROOM_AREA_MIN,Plumbing Equipment,Type,True
+WARN_ASS_ROOM_AREA_MIN,Plumbing Fixtures,Type,True
+WARN_ASS_ROOM_AREA_MIN,Project Information,Type,True
+WARN_ASS_ROOM_AREA_MIN,Railings,Type,True
+WARN_ASS_ROOM_AREA_MIN,Ramps,Type,True
+WARN_ASS_ROOM_AREA_MIN,Roofs,Type,True
+WARN_ASS_ROOM_AREA_MIN,Rooms,Type,True
+WARN_ASS_ROOM_AREA_MIN,Security Devices,Type,True
+WARN_ASS_ROOM_AREA_MIN,Specialty Equipment,Type,True
+WARN_ASS_ROOM_AREA_MIN,Sprinklers,Type,True
+WARN_ASS_ROOM_AREA_MIN,Stairs,Type,True
+WARN_ASS_ROOM_AREA_MIN,Structural Columns,Type,True
+WARN_ASS_ROOM_AREA_MIN,Structural Foundations,Type,True
+WARN_ASS_ROOM_AREA_MIN,Structural Framing,Type,True
+WARN_ASS_ROOM_AREA_MIN,Telephone Devices,Type,True
+WARN_ASS_ROOM_AREA_MIN,Walls,Type,True
+WARN_ASS_ROOM_AREA_MIN,Windows,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Air Terminals,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Cable Tray Fittings,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Cable Trays,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Casework,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Ceilings,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Columns,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Communication Devices,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Conduit Fittings,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Conduits,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Curtain Panels,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Curtain Systems,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Curtain Wall Mullions,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Data Devices,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Doors,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Duct Accessories,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Duct Fittings,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Ducts,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Electrical Circuits,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Electrical Equipment,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Electrical Fixtures,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Fire Alarm Devices,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Flex Ducts,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Flex Pipes,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Floors,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Furniture,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Furniture Systems,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Generic Models,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Lighting Devices,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Lighting Fixtures,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Materials,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Mechanical Equipment,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Medical Equipment,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Nurse Call Devices,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Pipe Accessories,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Pipe Fittings,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Pipes,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Plumbing Equipment,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Plumbing Fixtures,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Project Information,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Railings,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Ramps,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Roofs,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Rooms,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Security Devices,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Specialty Equipment,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Sprinklers,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Stairs,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Structural Columns,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Structural Foundations,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Structural Framing,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Telephone Devices,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Walls,Type,True
+WARN_ASS_ROOM_DAYLIGHT,Windows,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Air Terminals,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Cable Tray Fittings,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Cable Trays,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Casework,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Ceilings,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Columns,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Communication Devices,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Conduit Fittings,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Conduits,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Curtain Panels,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Curtain Systems,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Curtain Wall Mullions,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Data Devices,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Doors,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Duct Accessories,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Duct Fittings,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Ducts,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Electrical Circuits,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Electrical Equipment,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Electrical Fixtures,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Fire Alarm Devices,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Flex Ducts,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Flex Pipes,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Floors,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Furniture,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Furniture Systems,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Generic Models,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Lighting Devices,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Lighting Fixtures,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Materials,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Mechanical Equipment,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Medical Equipment,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Nurse Call Devices,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Pipe Accessories,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Pipe Fittings,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Pipes,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Plumbing Equipment,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Plumbing Fixtures,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Project Information,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Railings,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Ramps,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Roofs,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Rooms,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Security Devices,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Specialty Equipment,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Sprinklers,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Stairs,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Structural Columns,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Structural Foundations,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Structural Framing,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Telephone Devices,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Walls,Type,True
+WARN_ASS_ROOM_HEIGHT_MM,Windows,Type,True
+WARN_ASS_ROOM_VENTILATION,Air Terminals,Type,True
+WARN_ASS_ROOM_VENTILATION,Cable Tray Fittings,Type,True
+WARN_ASS_ROOM_VENTILATION,Cable Trays,Type,True
+WARN_ASS_ROOM_VENTILATION,Casework,Type,True
+WARN_ASS_ROOM_VENTILATION,Ceilings,Type,True
+WARN_ASS_ROOM_VENTILATION,Columns,Type,True
+WARN_ASS_ROOM_VENTILATION,Communication Devices,Type,True
+WARN_ASS_ROOM_VENTILATION,Conduit Fittings,Type,True
+WARN_ASS_ROOM_VENTILATION,Conduits,Type,True
+WARN_ASS_ROOM_VENTILATION,Curtain Panels,Type,True
+WARN_ASS_ROOM_VENTILATION,Curtain Systems,Type,True
+WARN_ASS_ROOM_VENTILATION,Curtain Wall Mullions,Type,True
+WARN_ASS_ROOM_VENTILATION,Data Devices,Type,True
+WARN_ASS_ROOM_VENTILATION,Doors,Type,True
+WARN_ASS_ROOM_VENTILATION,Duct Accessories,Type,True
+WARN_ASS_ROOM_VENTILATION,Duct Fittings,Type,True
+WARN_ASS_ROOM_VENTILATION,Ducts,Type,True
+WARN_ASS_ROOM_VENTILATION,Electrical Circuits,Type,True
+WARN_ASS_ROOM_VENTILATION,Electrical Equipment,Type,True
+WARN_ASS_ROOM_VENTILATION,Electrical Fixtures,Type,True
+WARN_ASS_ROOM_VENTILATION,Fire Alarm Devices,Type,True
+WARN_ASS_ROOM_VENTILATION,Flex Ducts,Type,True
+WARN_ASS_ROOM_VENTILATION,Flex Pipes,Type,True
+WARN_ASS_ROOM_VENTILATION,Floors,Type,True
+WARN_ASS_ROOM_VENTILATION,Furniture,Type,True
+WARN_ASS_ROOM_VENTILATION,Furniture Systems,Type,True
+WARN_ASS_ROOM_VENTILATION,Generic Models,Type,True
+WARN_ASS_ROOM_VENTILATION,Lighting Devices,Type,True
+WARN_ASS_ROOM_VENTILATION,Lighting Fixtures,Type,True
+WARN_ASS_ROOM_VENTILATION,Materials,Type,True
+WARN_ASS_ROOM_VENTILATION,Mechanical Equipment,Type,True
+WARN_ASS_ROOM_VENTILATION,Medical Equipment,Type,True
+WARN_ASS_ROOM_VENTILATION,Nurse Call Devices,Type,True
+WARN_ASS_ROOM_VENTILATION,Pipe Accessories,Type,True
+WARN_ASS_ROOM_VENTILATION,Pipe Fittings,Type,True
+WARN_ASS_ROOM_VENTILATION,Pipes,Type,True
+WARN_ASS_ROOM_VENTILATION,Plumbing Equipment,Type,True
+WARN_ASS_ROOM_VENTILATION,Plumbing Fixtures,Type,True
+WARN_ASS_ROOM_VENTILATION,Project Information,Type,True
+WARN_ASS_ROOM_VENTILATION,Railings,Type,True
+WARN_ASS_ROOM_VENTILATION,Ramps,Type,True
+WARN_ASS_ROOM_VENTILATION,Roofs,Type,True
+WARN_ASS_ROOM_VENTILATION,Rooms,Type,True
+WARN_ASS_ROOM_VENTILATION,Security Devices,Type,True
+WARN_ASS_ROOM_VENTILATION,Specialty Equipment,Type,True
+WARN_ASS_ROOM_VENTILATION,Sprinklers,Type,True
+WARN_ASS_ROOM_VENTILATION,Stairs,Type,True
+WARN_ASS_ROOM_VENTILATION,Structural Columns,Type,True
+WARN_ASS_ROOM_VENTILATION,Structural Foundations,Type,True
+WARN_ASS_ROOM_VENTILATION,Structural Framing,Type,True
+WARN_ASS_ROOM_VENTILATION,Telephone Devices,Type,True
+WARN_ASS_ROOM_VENTILATION,Walls,Type,True
+WARN_ASS_ROOM_VENTILATION,Windows,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Air Terminals,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Cable Tray Fittings,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Cable Trays,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Casework,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Ceilings,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Columns,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Communication Devices,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Conduit Fittings,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Conduits,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Curtain Panels,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Curtain Systems,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Curtain Wall Mullions,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Data Devices,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Doors,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Duct Accessories,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Duct Fittings,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Ducts,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Electrical Circuits,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Electrical Equipment,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Electrical Fixtures,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Fire Alarm Devices,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Flex Ducts,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Flex Pipes,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Floors,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Furniture,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Furniture Systems,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Generic Models,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Lighting Devices,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Lighting Fixtures,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Materials,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Mechanical Equipment,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Medical Equipment,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Nurse Call Devices,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Pipe Accessories,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Pipe Fittings,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Pipes,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Plumbing Equipment,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Plumbing Fixtures,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Project Information,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Railings,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Ramps,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Roofs,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Rooms,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Security Devices,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Specialty Equipment,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Sprinklers,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Stairs,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Structural Columns,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Structural Foundations,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Structural Framing,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Telephone Devices,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Walls,Type,True
+WARN_BLE_CASEWORK_DEPTH_MM,Windows,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Air Terminals,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Cable Tray Fittings,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Cable Trays,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Casework,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Ceilings,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Columns,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Communication Devices,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Conduit Fittings,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Conduits,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Curtain Panels,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Curtain Systems,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Curtain Wall Mullions,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Data Devices,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Doors,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Duct Accessories,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Duct Fittings,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Ducts,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Electrical Circuits,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Electrical Equipment,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Electrical Fixtures,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Fire Alarm Devices,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Flex Ducts,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Flex Pipes,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Floors,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Furniture,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Furniture Systems,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Generic Models,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Lighting Devices,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Lighting Fixtures,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Materials,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Mechanical Equipment,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Medical Equipment,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Nurse Call Devices,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Pipe Accessories,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Pipe Fittings,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Pipes,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Plumbing Equipment,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Plumbing Fixtures,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Project Information,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Railings,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Ramps,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Roofs,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Rooms,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Security Devices,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Specialty Equipment,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Sprinklers,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Stairs,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Structural Columns,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Structural Foundations,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Structural Framing,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Telephone Devices,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Walls,Type,True
+WARN_BLE_CEIL_HEIGHT_MM,Windows,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Air Terminals,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Cable Tray Fittings,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Cable Trays,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Casework,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Ceilings,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Columns,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Communication Devices,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Conduit Fittings,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Conduits,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Curtain Panels,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Curtain Systems,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Curtain Wall Mullions,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Data Devices,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Doors,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Duct Accessories,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Duct Fittings,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Ducts,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Electrical Circuits,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Electrical Equipment,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Electrical Fixtures,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Fire Alarm Devices,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Flex Ducts,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Flex Pipes,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Floors,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Furniture,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Furniture Systems,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Generic Models,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Lighting Devices,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Lighting Fixtures,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Materials,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Mechanical Equipment,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Medical Equipment,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Nurse Call Devices,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Pipe Accessories,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Pipe Fittings,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Pipes,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Plumbing Equipment,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Plumbing Fixtures,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Project Information,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Railings,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Ramps,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Roofs,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Rooms,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Security Devices,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Specialty Equipment,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Sprinklers,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Stairs,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Structural Columns,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Structural Foundations,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Structural Framing,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Telephone Devices,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Walls,Type,True
+WARN_BLE_COLUMN_SLENDERNESS,Windows,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Air Terminals,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Cable Tray Fittings,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Cable Trays,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Casework,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Ceilings,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Columns,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Communication Devices,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Conduit Fittings,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Conduits,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Curtain Panels,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Curtain Systems,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Curtain Wall Mullions,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Data Devices,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Doors,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Duct Accessories,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Duct Fittings,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Ducts,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Electrical Circuits,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Electrical Equipment,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Electrical Fixtures,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Fire Alarm Devices,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Flex Ducts,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Flex Pipes,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Floors,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Furniture,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Furniture Systems,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Generic Models,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Lighting Devices,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Lighting Fixtures,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Materials,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Mechanical Equipment,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Medical Equipment,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Nurse Call Devices,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Pipe Accessories,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Pipe Fittings,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Pipes,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Plumbing Equipment,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Plumbing Fixtures,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Project Information,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Railings,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Ramps,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Roofs,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Rooms,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Security Devices,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Specialty Equipment,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Sprinklers,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Stairs,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Structural Columns,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Structural Foundations,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Structural Framing,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Telephone Devices,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Walls,Type,True
+WARN_BLE_CORRIDOR_WIDTH_MM,Windows,Type,True
+WARN_BLE_CW_PANEL_SHGC,Air Terminals,Type,True
+WARN_BLE_CW_PANEL_SHGC,Cable Tray Fittings,Type,True
+WARN_BLE_CW_PANEL_SHGC,Cable Trays,Type,True
+WARN_BLE_CW_PANEL_SHGC,Casework,Type,True
+WARN_BLE_CW_PANEL_SHGC,Ceilings,Type,True
+WARN_BLE_CW_PANEL_SHGC,Columns,Type,True
+WARN_BLE_CW_PANEL_SHGC,Communication Devices,Type,True
+WARN_BLE_CW_PANEL_SHGC,Conduit Fittings,Type,True
+WARN_BLE_CW_PANEL_SHGC,Conduits,Type,True
+WARN_BLE_CW_PANEL_SHGC,Curtain Panels,Type,True
+WARN_BLE_CW_PANEL_SHGC,Curtain Systems,Type,True
+WARN_BLE_CW_PANEL_SHGC,Curtain Wall Mullions,Type,True
+WARN_BLE_CW_PANEL_SHGC,Data Devices,Type,True
+WARN_BLE_CW_PANEL_SHGC,Doors,Type,True
+WARN_BLE_CW_PANEL_SHGC,Duct Accessories,Type,True
+WARN_BLE_CW_PANEL_SHGC,Duct Fittings,Type,True
+WARN_BLE_CW_PANEL_SHGC,Ducts,Type,True
+WARN_BLE_CW_PANEL_SHGC,Electrical Circuits,Type,True
+WARN_BLE_CW_PANEL_SHGC,Electrical Equipment,Type,True
+WARN_BLE_CW_PANEL_SHGC,Electrical Fixtures,Type,True
+WARN_BLE_CW_PANEL_SHGC,Fire Alarm Devices,Type,True
+WARN_BLE_CW_PANEL_SHGC,Flex Ducts,Type,True
+WARN_BLE_CW_PANEL_SHGC,Flex Pipes,Type,True
+WARN_BLE_CW_PANEL_SHGC,Floors,Type,True
+WARN_BLE_CW_PANEL_SHGC,Furniture,Type,True
+WARN_BLE_CW_PANEL_SHGC,Furniture Systems,Type,True
+WARN_BLE_CW_PANEL_SHGC,Generic Models,Type,True
+WARN_BLE_CW_PANEL_SHGC,Lighting Devices,Type,True
+WARN_BLE_CW_PANEL_SHGC,Lighting Fixtures,Type,True
+WARN_BLE_CW_PANEL_SHGC,Materials,Type,True
+WARN_BLE_CW_PANEL_SHGC,Mechanical Equipment,Type,True
+WARN_BLE_CW_PANEL_SHGC,Medical Equipment,Type,True
+WARN_BLE_CW_PANEL_SHGC,Nurse Call Devices,Type,True
+WARN_BLE_CW_PANEL_SHGC,Pipe Accessories,Type,True
+WARN_BLE_CW_PANEL_SHGC,Pipe Fittings,Type,True
+WARN_BLE_CW_PANEL_SHGC,Pipes,Type,True
+WARN_BLE_CW_PANEL_SHGC,Plumbing Equipment,Type,True
+WARN_BLE_CW_PANEL_SHGC,Plumbing Fixtures,Type,True
+WARN_BLE_CW_PANEL_SHGC,Project Information,Type,True
+WARN_BLE_CW_PANEL_SHGC,Railings,Type,True
+WARN_BLE_CW_PANEL_SHGC,Ramps,Type,True
+WARN_BLE_CW_PANEL_SHGC,Roofs,Type,True
+WARN_BLE_CW_PANEL_SHGC,Rooms,Type,True
+WARN_BLE_CW_PANEL_SHGC,Security Devices,Type,True
+WARN_BLE_CW_PANEL_SHGC,Specialty Equipment,Type,True
+WARN_BLE_CW_PANEL_SHGC,Sprinklers,Type,True
+WARN_BLE_CW_PANEL_SHGC,Stairs,Type,True
+WARN_BLE_CW_PANEL_SHGC,Structural Columns,Type,True
+WARN_BLE_CW_PANEL_SHGC,Structural Foundations,Type,True
+WARN_BLE_CW_PANEL_SHGC,Structural Framing,Type,True
+WARN_BLE_CW_PANEL_SHGC,Telephone Devices,Type,True
+WARN_BLE_CW_PANEL_SHGC,Walls,Type,True
+WARN_BLE_CW_PANEL_SHGC,Windows,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Air Terminals,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Cable Tray Fittings,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Cable Trays,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Casework,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Ceilings,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Columns,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Communication Devices,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Conduit Fittings,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Conduits,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Curtain Panels,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Curtain Systems,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Curtain Wall Mullions,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Data Devices,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Doors,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Duct Accessories,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Duct Fittings,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Ducts,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Electrical Circuits,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Electrical Equipment,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Electrical Fixtures,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Fire Alarm Devices,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Flex Ducts,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Flex Pipes,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Floors,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Furniture,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Furniture Systems,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Generic Models,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Lighting Devices,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Lighting Fixtures,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Materials,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Mechanical Equipment,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Medical Equipment,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Nurse Call Devices,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Pipe Accessories,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Pipe Fittings,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Pipes,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Plumbing Equipment,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Plumbing Fixtures,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Project Information,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Railings,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Ramps,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Roofs,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Rooms,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Security Devices,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Specialty Equipment,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Sprinklers,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Stairs,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Structural Columns,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Structural Foundations,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Structural Framing,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Telephone Devices,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Walls,Type,True
+WARN_BLE_CW_PANEL_U_VALUE,Windows,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Air Terminals,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Cable Tray Fittings,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Cable Trays,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Casework,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Ceilings,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Columns,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Communication Devices,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Conduit Fittings,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Conduits,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Curtain Panels,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Curtain Systems,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Curtain Wall Mullions,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Data Devices,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Doors,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Duct Accessories,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Duct Fittings,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Ducts,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Electrical Circuits,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Electrical Equipment,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Electrical Fixtures,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Fire Alarm Devices,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Flex Ducts,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Flex Pipes,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Floors,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Furniture,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Furniture Systems,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Generic Models,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Lighting Devices,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Lighting Fixtures,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Materials,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Mechanical Equipment,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Medical Equipment,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Nurse Call Devices,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Pipe Accessories,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Pipe Fittings,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Pipes,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Plumbing Equipment,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Plumbing Fixtures,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Project Information,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Railings,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Ramps,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Roofs,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Rooms,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Security Devices,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Specialty Equipment,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Sprinklers,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Stairs,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Structural Columns,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Structural Foundations,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Structural Framing,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Telephone Devices,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Walls,Type,True
+WARN_BLE_DOOR_ACOUSTIC,Windows,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Air Terminals,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Cable Tray Fittings,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Cable Trays,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Casework,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Ceilings,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Columns,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Communication Devices,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Conduit Fittings,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Conduits,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Curtain Panels,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Curtain Systems,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Curtain Wall Mullions,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Data Devices,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Doors,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Duct Accessories,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Duct Fittings,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Ducts,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Electrical Circuits,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Electrical Equipment,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Electrical Fixtures,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Fire Alarm Devices,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Flex Ducts,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Flex Pipes,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Floors,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Furniture,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Furniture Systems,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Generic Models,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Lighting Devices,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Lighting Fixtures,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Materials,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Mechanical Equipment,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Medical Equipment,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Nurse Call Devices,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Pipe Accessories,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Pipe Fittings,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Pipes,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Plumbing Equipment,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Plumbing Fixtures,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Project Information,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Railings,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Ramps,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Roofs,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Rooms,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Security Devices,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Specialty Equipment,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Sprinklers,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Stairs,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Structural Columns,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Structural Foundations,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Structural Framing,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Telephone Devices,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Walls,Type,True
+WARN_BLE_DOOR_HEIGHT_MM,Windows,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Air Terminals,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Cable Tray Fittings,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Cable Trays,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Casework,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Ceilings,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Columns,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Communication Devices,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Conduit Fittings,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Conduits,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Curtain Panels,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Curtain Systems,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Curtain Wall Mullions,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Data Devices,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Doors,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Duct Accessories,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Duct Fittings,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Ducts,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Electrical Circuits,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Electrical Equipment,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Electrical Fixtures,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Fire Alarm Devices,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Flex Ducts,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Flex Pipes,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Floors,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Furniture,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Furniture Systems,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Generic Models,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Lighting Devices,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Lighting Fixtures,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Materials,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Mechanical Equipment,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Medical Equipment,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Nurse Call Devices,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Pipe Accessories,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Pipe Fittings,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Pipes,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Plumbing Equipment,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Plumbing Fixtures,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Project Information,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Railings,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Ramps,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Roofs,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Rooms,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Security Devices,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Specialty Equipment,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Sprinklers,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Stairs,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Structural Columns,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Structural Foundations,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Structural Framing,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Telephone Devices,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Walls,Type,True
+WARN_BLE_ENTOURAGE_SCALE,Windows,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Air Terminals,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Cable Tray Fittings,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Cable Trays,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Casework,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Ceilings,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Columns,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Communication Devices,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Conduit Fittings,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Conduits,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Curtain Panels,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Curtain Systems,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Curtain Wall Mullions,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Data Devices,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Doors,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Duct Accessories,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Duct Fittings,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Ducts,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Electrical Circuits,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Electrical Equipment,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Electrical Fixtures,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Fire Alarm Devices,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Flex Ducts,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Flex Pipes,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Floors,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Furniture,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Furniture Systems,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Generic Models,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Lighting Devices,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Lighting Fixtures,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Materials,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Mechanical Equipment,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Medical Equipment,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Nurse Call Devices,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Pipe Accessories,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Pipe Fittings,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Pipes,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Plumbing Equipment,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Plumbing Fixtures,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Project Information,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Railings,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Ramps,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Roofs,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Rooms,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Security Devices,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Specialty Equipment,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Sprinklers,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Stairs,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Structural Columns,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Structural Foundations,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Structural Framing,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Telephone Devices,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Walls,Type,True
+WARN_BLE_FLR_LD_CAP_KPA,Windows,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Air Terminals,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Cable Tray Fittings,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Cable Trays,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Casework,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Ceilings,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Columns,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Communication Devices,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Conduit Fittings,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Conduits,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Curtain Panels,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Curtain Systems,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Curtain Wall Mullions,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Data Devices,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Doors,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Duct Accessories,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Duct Fittings,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Ducts,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Electrical Circuits,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Electrical Equipment,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Electrical Fixtures,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Fire Alarm Devices,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Flex Ducts,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Flex Pipes,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Floors,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Furniture,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Furniture Systems,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Generic Models,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Lighting Devices,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Lighting Fixtures,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Materials,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Mechanical Equipment,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Medical Equipment,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Nurse Call Devices,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Pipe Accessories,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Pipe Fittings,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Pipes,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Plumbing Equipment,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Plumbing Fixtures,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Project Information,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Railings,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Ramps,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Roofs,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Rooms,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Security Devices,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Specialty Equipment,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Sprinklers,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Stairs,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Structural Columns,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Structural Foundations,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Structural Framing,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Telephone Devices,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Walls,Type,True
+WARN_BLE_FURNITURE_CLEARANCE_MM,Windows,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Air Terminals,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Cable Tray Fittings,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Cable Trays,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Casework,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Ceilings,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Columns,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Communication Devices,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Conduit Fittings,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Conduits,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Curtain Panels,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Curtain Systems,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Curtain Wall Mullions,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Data Devices,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Doors,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Duct Accessories,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Duct Fittings,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Ducts,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Electrical Circuits,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Electrical Equipment,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Electrical Fixtures,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Fire Alarm Devices,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Flex Ducts,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Flex Pipes,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Floors,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Furniture,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Furniture Systems,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Generic Models,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Lighting Devices,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Lighting Fixtures,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Materials,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Mechanical Equipment,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Medical Equipment,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Nurse Call Devices,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Pipe Accessories,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Pipe Fittings,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Pipes,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Plumbing Equipment,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Plumbing Fixtures,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Project Information,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Railings,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Ramps,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Roofs,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Rooms,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Security Devices,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Specialty Equipment,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Sprinklers,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Stairs,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Structural Columns,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Structural Foundations,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Structural Framing,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Telephone Devices,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Walls,Type,True
+WARN_BLE_GENERIC_CLEARANCE_MM,Windows,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Air Terminals,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Cable Tray Fittings,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Cable Trays,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Casework,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Ceilings,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Columns,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Communication Devices,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Conduit Fittings,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Conduits,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Curtain Panels,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Curtain Systems,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Curtain Wall Mullions,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Data Devices,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Doors,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Duct Accessories,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Duct Fittings,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Ducts,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Electrical Circuits,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Electrical Equipment,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Electrical Fixtures,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Fire Alarm Devices,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Flex Ducts,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Flex Pipes,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Floors,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Furniture,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Furniture Systems,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Generic Models,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Lighting Devices,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Lighting Fixtures,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Materials,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Mechanical Equipment,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Medical Equipment,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Nurse Call Devices,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Pipe Accessories,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Pipe Fittings,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Pipes,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Plumbing Equipment,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Plumbing Fixtures,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Project Information,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Railings,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Ramps,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Roofs,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Rooms,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Security Devices,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Specialty Equipment,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Sprinklers,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Stairs,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Structural Columns,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Structural Foundations,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Structural Framing,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Telephone Devices,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Walls,Type,True
+WARN_BLE_PARKING_WIDTH_MM,Windows,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Air Terminals,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Cable Tray Fittings,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Cable Trays,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Casework,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Ceilings,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Columns,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Communication Devices,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Conduit Fittings,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Conduits,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Curtain Panels,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Curtain Systems,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Curtain Wall Mullions,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Data Devices,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Doors,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Duct Accessories,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Duct Fittings,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Ducts,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Electrical Circuits,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Electrical Equipment,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Electrical Fixtures,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Fire Alarm Devices,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Flex Ducts,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Flex Pipes,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Floors,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Furniture,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Furniture Systems,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Generic Models,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Lighting Devices,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Lighting Fixtures,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Materials,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Mechanical Equipment,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Medical Equipment,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Nurse Call Devices,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Pipe Accessories,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Pipe Fittings,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Pipes,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Plumbing Equipment,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Plumbing Fixtures,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Project Information,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Railings,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Ramps,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Roofs,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Rooms,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Security Devices,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Specialty Equipment,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Sprinklers,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Stairs,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Structural Columns,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Structural Foundations,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Structural Framing,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Telephone Devices,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Walls,Type,True
+WARN_BLE_RAIL_HEIGHT_MM,Windows,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Air Terminals,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Cable Tray Fittings,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Cable Trays,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Casework,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Ceilings,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Columns,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Communication Devices,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Conduit Fittings,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Conduits,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Curtain Panels,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Curtain Systems,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Curtain Wall Mullions,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Data Devices,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Doors,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Duct Accessories,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Duct Fittings,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Ducts,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Electrical Circuits,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Electrical Equipment,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Electrical Fixtures,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Fire Alarm Devices,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Flex Ducts,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Flex Pipes,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Floors,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Furniture,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Furniture Systems,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Generic Models,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Lighting Devices,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Lighting Fixtures,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Materials,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Mechanical Equipment,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Medical Equipment,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Nurse Call Devices,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Pipe Accessories,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Pipe Fittings,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Pipes,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Plumbing Equipment,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Plumbing Fixtures,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Project Information,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Railings,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Ramps,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Roofs,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Rooms,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Security Devices,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Specialty Equipment,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Sprinklers,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Stairs,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Structural Columns,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Structural Foundations,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Structural Framing,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Telephone Devices,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Walls,Type,True
+WARN_BLE_RAIL_LOAD_KN_M,Windows,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Air Terminals,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Cable Tray Fittings,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Cable Trays,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Casework,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Ceilings,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Columns,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Communication Devices,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Conduit Fittings,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Conduits,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Curtain Panels,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Curtain Systems,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Curtain Wall Mullions,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Data Devices,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Doors,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Duct Accessories,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Duct Fittings,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Ducts,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Electrical Circuits,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Electrical Equipment,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Electrical Fixtures,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Fire Alarm Devices,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Flex Ducts,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Flex Pipes,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Floors,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Furniture,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Furniture Systems,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Generic Models,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Lighting Devices,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Lighting Fixtures,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Materials,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Mechanical Equipment,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Medical Equipment,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Nurse Call Devices,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Pipe Accessories,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Pipe Fittings,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Pipes,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Plumbing Equipment,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Plumbing Fixtures,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Project Information,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Railings,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Ramps,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Roofs,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Rooms,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Security Devices,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Specialty Equipment,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Sprinklers,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Stairs,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Structural Columns,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Structural Foundations,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Structural Framing,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Telephone Devices,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Walls,Type,True
+WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Windows,Type,True
+WARN_BLE_ROOF_SLOPE,Air Terminals,Type,True
+WARN_BLE_ROOF_SLOPE,Cable Tray Fittings,Type,True
+WARN_BLE_ROOF_SLOPE,Cable Trays,Type,True
+WARN_BLE_ROOF_SLOPE,Casework,Type,True
+WARN_BLE_ROOF_SLOPE,Ceilings,Type,True
+WARN_BLE_ROOF_SLOPE,Columns,Type,True
+WARN_BLE_ROOF_SLOPE,Communication Devices,Type,True
+WARN_BLE_ROOF_SLOPE,Conduit Fittings,Type,True
+WARN_BLE_ROOF_SLOPE,Conduits,Type,True
+WARN_BLE_ROOF_SLOPE,Curtain Panels,Type,True
+WARN_BLE_ROOF_SLOPE,Curtain Systems,Type,True
+WARN_BLE_ROOF_SLOPE,Curtain Wall Mullions,Type,True
+WARN_BLE_ROOF_SLOPE,Data Devices,Type,True
+WARN_BLE_ROOF_SLOPE,Doors,Type,True
+WARN_BLE_ROOF_SLOPE,Duct Accessories,Type,True
+WARN_BLE_ROOF_SLOPE,Duct Fittings,Type,True
+WARN_BLE_ROOF_SLOPE,Ducts,Type,True
+WARN_BLE_ROOF_SLOPE,Electrical Circuits,Type,True
+WARN_BLE_ROOF_SLOPE,Electrical Equipment,Type,True
+WARN_BLE_ROOF_SLOPE,Electrical Fixtures,Type,True
+WARN_BLE_ROOF_SLOPE,Fire Alarm Devices,Type,True
+WARN_BLE_ROOF_SLOPE,Flex Ducts,Type,True
+WARN_BLE_ROOF_SLOPE,Flex Pipes,Type,True
+WARN_BLE_ROOF_SLOPE,Floors,Type,True
+WARN_BLE_ROOF_SLOPE,Furniture,Type,True
+WARN_BLE_ROOF_SLOPE,Furniture Systems,Type,True
+WARN_BLE_ROOF_SLOPE,Generic Models,Type,True
+WARN_BLE_ROOF_SLOPE,Lighting Devices,Type,True
+WARN_BLE_ROOF_SLOPE,Lighting Fixtures,Type,True
+WARN_BLE_ROOF_SLOPE,Materials,Type,True
+WARN_BLE_ROOF_SLOPE,Mechanical Equipment,Type,True
+WARN_BLE_ROOF_SLOPE,Medical Equipment,Type,True
+WARN_BLE_ROOF_SLOPE,Nurse Call Devices,Type,True
+WARN_BLE_ROOF_SLOPE,Pipe Accessories,Type,True
+WARN_BLE_ROOF_SLOPE,Pipe Fittings,Type,True
+WARN_BLE_ROOF_SLOPE,Pipes,Type,True
+WARN_BLE_ROOF_SLOPE,Plumbing Equipment,Type,True
+WARN_BLE_ROOF_SLOPE,Plumbing Fixtures,Type,True
+WARN_BLE_ROOF_SLOPE,Project Information,Type,True
+WARN_BLE_ROOF_SLOPE,Railings,Type,True
+WARN_BLE_ROOF_SLOPE,Ramps,Type,True
+WARN_BLE_ROOF_SLOPE,Roofs,Type,True
+WARN_BLE_ROOF_SLOPE,Rooms,Type,True
+WARN_BLE_ROOF_SLOPE,Security Devices,Type,True
+WARN_BLE_ROOF_SLOPE,Specialty Equipment,Type,True
+WARN_BLE_ROOF_SLOPE,Sprinklers,Type,True
+WARN_BLE_ROOF_SLOPE,Stairs,Type,True
+WARN_BLE_ROOF_SLOPE,Structural Columns,Type,True
+WARN_BLE_ROOF_SLOPE,Structural Foundations,Type,True
+WARN_BLE_ROOF_SLOPE,Structural Framing,Type,True
+WARN_BLE_ROOF_SLOPE,Telephone Devices,Type,True
+WARN_BLE_ROOF_SLOPE,Walls,Type,True
+WARN_BLE_ROOF_SLOPE,Windows,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Air Terminals,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Cable Tray Fittings,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Cable Trays,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Casework,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Ceilings,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Columns,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Communication Devices,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Conduit Fittings,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Conduits,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Curtain Panels,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Curtain Systems,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Curtain Wall Mullions,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Data Devices,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Doors,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Duct Accessories,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Duct Fittings,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Ducts,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Electrical Circuits,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Electrical Equipment,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Electrical Fixtures,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Fire Alarm Devices,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Flex Ducts,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Flex Pipes,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Floors,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Furniture,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Furniture Systems,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Generic Models,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Lighting Devices,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Lighting Fixtures,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Materials,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Mechanical Equipment,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Medical Equipment,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Nurse Call Devices,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Pipe Accessories,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Pipe Fittings,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Pipes,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Plumbing Equipment,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Plumbing Fixtures,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Project Information,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Railings,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Ramps,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Roofs,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Rooms,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Security Devices,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Specialty Equipment,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Sprinklers,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Stairs,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Structural Columns,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Structural Foundations,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Structural Framing,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Telephone Devices,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Walls,Type,True
+WARN_BLE_SIGNAGE_HEIGHT_MM,Windows,Type,True
+WARN_BLE_STAIR_GOING,Air Terminals,Type,True
+WARN_BLE_STAIR_GOING,Cable Tray Fittings,Type,True
+WARN_BLE_STAIR_GOING,Cable Trays,Type,True
+WARN_BLE_STAIR_GOING,Casework,Type,True
+WARN_BLE_STAIR_GOING,Ceilings,Type,True
+WARN_BLE_STAIR_GOING,Columns,Type,True
+WARN_BLE_STAIR_GOING,Communication Devices,Type,True
+WARN_BLE_STAIR_GOING,Conduit Fittings,Type,True
+WARN_BLE_STAIR_GOING,Conduits,Type,True
+WARN_BLE_STAIR_GOING,Curtain Panels,Type,True
+WARN_BLE_STAIR_GOING,Curtain Systems,Type,True
+WARN_BLE_STAIR_GOING,Curtain Wall Mullions,Type,True
+WARN_BLE_STAIR_GOING,Data Devices,Type,True
+WARN_BLE_STAIR_GOING,Doors,Type,True
+WARN_BLE_STAIR_GOING,Duct Accessories,Type,True
+WARN_BLE_STAIR_GOING,Duct Fittings,Type,True
+WARN_BLE_STAIR_GOING,Ducts,Type,True
+WARN_BLE_STAIR_GOING,Electrical Circuits,Type,True
+WARN_BLE_STAIR_GOING,Electrical Equipment,Type,True
+WARN_BLE_STAIR_GOING,Electrical Fixtures,Type,True
+WARN_BLE_STAIR_GOING,Fire Alarm Devices,Type,True
+WARN_BLE_STAIR_GOING,Flex Ducts,Type,True
+WARN_BLE_STAIR_GOING,Flex Pipes,Type,True
+WARN_BLE_STAIR_GOING,Floors,Type,True
+WARN_BLE_STAIR_GOING,Furniture,Type,True
+WARN_BLE_STAIR_GOING,Furniture Systems,Type,True
+WARN_BLE_STAIR_GOING,Generic Models,Type,True
+WARN_BLE_STAIR_GOING,Lighting Devices,Type,True
+WARN_BLE_STAIR_GOING,Lighting Fixtures,Type,True
+WARN_BLE_STAIR_GOING,Materials,Type,True
+WARN_BLE_STAIR_GOING,Mechanical Equipment,Type,True
+WARN_BLE_STAIR_GOING,Medical Equipment,Type,True
+WARN_BLE_STAIR_GOING,Nurse Call Devices,Type,True
+WARN_BLE_STAIR_GOING,Pipe Accessories,Type,True
+WARN_BLE_STAIR_GOING,Pipe Fittings,Type,True
+WARN_BLE_STAIR_GOING,Pipes,Type,True
+WARN_BLE_STAIR_GOING,Plumbing Equipment,Type,True
+WARN_BLE_STAIR_GOING,Plumbing Fixtures,Type,True
+WARN_BLE_STAIR_GOING,Project Information,Type,True
+WARN_BLE_STAIR_GOING,Railings,Type,True
+WARN_BLE_STAIR_GOING,Ramps,Type,True
+WARN_BLE_STAIR_GOING,Roofs,Type,True
+WARN_BLE_STAIR_GOING,Rooms,Type,True
+WARN_BLE_STAIR_GOING,Security Devices,Type,True
+WARN_BLE_STAIR_GOING,Specialty Equipment,Type,True
+WARN_BLE_STAIR_GOING,Sprinklers,Type,True
+WARN_BLE_STAIR_GOING,Stairs,Type,True
+WARN_BLE_STAIR_GOING,Structural Columns,Type,True
+WARN_BLE_STAIR_GOING,Structural Foundations,Type,True
+WARN_BLE_STAIR_GOING,Structural Framing,Type,True
+WARN_BLE_STAIR_GOING,Telephone Devices,Type,True
+WARN_BLE_STAIR_GOING,Walls,Type,True
+WARN_BLE_STAIR_GOING,Windows,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Air Terminals,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Cable Tray Fittings,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Cable Trays,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Casework,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Ceilings,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Columns,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Communication Devices,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Conduit Fittings,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Conduits,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Curtain Panels,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Curtain Systems,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Curtain Wall Mullions,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Data Devices,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Doors,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Duct Accessories,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Duct Fittings,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Ducts,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Electrical Circuits,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Electrical Equipment,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Electrical Fixtures,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Fire Alarm Devices,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Flex Ducts,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Flex Pipes,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Floors,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Furniture,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Furniture Systems,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Generic Models,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Lighting Devices,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Lighting Fixtures,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Materials,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Mechanical Equipment,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Medical Equipment,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Nurse Call Devices,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Pipe Accessories,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Pipe Fittings,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Pipes,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Plumbing Equipment,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Plumbing Fixtures,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Project Information,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Railings,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Ramps,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Roofs,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Rooms,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Security Devices,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Specialty Equipment,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Sprinklers,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Stairs,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Structural Columns,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Structural Foundations,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Structural Framing,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Telephone Devices,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Walls,Type,True
+WARN_BLE_STAIR_HEADROOM_MM,Windows,Type,True
+WARN_BLE_STAIR_RISE,Air Terminals,Type,True
+WARN_BLE_STAIR_RISE,Cable Tray Fittings,Type,True
+WARN_BLE_STAIR_RISE,Cable Trays,Type,True
+WARN_BLE_STAIR_RISE,Casework,Type,True
+WARN_BLE_STAIR_RISE,Ceilings,Type,True
+WARN_BLE_STAIR_RISE,Columns,Type,True
+WARN_BLE_STAIR_RISE,Communication Devices,Type,True
+WARN_BLE_STAIR_RISE,Conduit Fittings,Type,True
+WARN_BLE_STAIR_RISE,Conduits,Type,True
+WARN_BLE_STAIR_RISE,Curtain Panels,Type,True
+WARN_BLE_STAIR_RISE,Curtain Systems,Type,True
+WARN_BLE_STAIR_RISE,Curtain Wall Mullions,Type,True
+WARN_BLE_STAIR_RISE,Data Devices,Type,True
+WARN_BLE_STAIR_RISE,Doors,Type,True
+WARN_BLE_STAIR_RISE,Duct Accessories,Type,True
+WARN_BLE_STAIR_RISE,Duct Fittings,Type,True
+WARN_BLE_STAIR_RISE,Ducts,Type,True
+WARN_BLE_STAIR_RISE,Electrical Circuits,Type,True
+WARN_BLE_STAIR_RISE,Electrical Equipment,Type,True
+WARN_BLE_STAIR_RISE,Electrical Fixtures,Type,True
+WARN_BLE_STAIR_RISE,Fire Alarm Devices,Type,True
+WARN_BLE_STAIR_RISE,Flex Ducts,Type,True
+WARN_BLE_STAIR_RISE,Flex Pipes,Type,True
+WARN_BLE_STAIR_RISE,Floors,Type,True
+WARN_BLE_STAIR_RISE,Furniture,Type,True
+WARN_BLE_STAIR_RISE,Furniture Systems,Type,True
+WARN_BLE_STAIR_RISE,Generic Models,Type,True
+WARN_BLE_STAIR_RISE,Lighting Devices,Type,True
+WARN_BLE_STAIR_RISE,Lighting Fixtures,Type,True
+WARN_BLE_STAIR_RISE,Materials,Type,True
+WARN_BLE_STAIR_RISE,Mechanical Equipment,Type,True
+WARN_BLE_STAIR_RISE,Medical Equipment,Type,True
+WARN_BLE_STAIR_RISE,Nurse Call Devices,Type,True
+WARN_BLE_STAIR_RISE,Pipe Accessories,Type,True
+WARN_BLE_STAIR_RISE,Pipe Fittings,Type,True
+WARN_BLE_STAIR_RISE,Pipes,Type,True
+WARN_BLE_STAIR_RISE,Plumbing Equipment,Type,True
+WARN_BLE_STAIR_RISE,Plumbing Fixtures,Type,True
+WARN_BLE_STAIR_RISE,Project Information,Type,True
+WARN_BLE_STAIR_RISE,Railings,Type,True
+WARN_BLE_STAIR_RISE,Ramps,Type,True
+WARN_BLE_STAIR_RISE,Roofs,Type,True
+WARN_BLE_STAIR_RISE,Rooms,Type,True
+WARN_BLE_STAIR_RISE,Security Devices,Type,True
+WARN_BLE_STAIR_RISE,Specialty Equipment,Type,True
+WARN_BLE_STAIR_RISE,Sprinklers,Type,True
+WARN_BLE_STAIR_RISE,Stairs,Type,True
+WARN_BLE_STAIR_RISE,Structural Columns,Type,True
+WARN_BLE_STAIR_RISE,Structural Foundations,Type,True
+WARN_BLE_STAIR_RISE,Structural Framing,Type,True
+WARN_BLE_STAIR_RISE,Telephone Devices,Type,True
+WARN_BLE_STAIR_RISE,Walls,Type,True
+WARN_BLE_STAIR_RISE,Windows,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Air Terminals,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Cable Tray Fittings,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Cable Trays,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Casework,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Ceilings,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Columns,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Communication Devices,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Conduit Fittings,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Conduits,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Curtain Panels,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Curtain Systems,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Curtain Wall Mullions,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Data Devices,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Doors,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Duct Accessories,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Duct Fittings,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Ducts,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Electrical Circuits,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Electrical Equipment,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Electrical Fixtures,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Fire Alarm Devices,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Flex Ducts,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Flex Pipes,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Floors,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Furniture,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Furniture Systems,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Generic Models,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Lighting Devices,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Lighting Fixtures,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Materials,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Mechanical Equipment,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Medical Equipment,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Nurse Call Devices,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Pipe Accessories,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Pipe Fittings,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Pipes,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Plumbing Equipment,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Plumbing Fixtures,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Project Information,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Railings,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Ramps,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Roofs,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Rooms,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Security Devices,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Specialty Equipment,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Sprinklers,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Stairs,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Structural Columns,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Structural Foundations,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Structural Framing,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Telephone Devices,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Walls,Type,True
+WARN_BLE_STAIR_WIDTH_MM,Windows,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Air Terminals,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Cable Tray Fittings,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Cable Trays,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Casework,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Ceilings,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Columns,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Communication Devices,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Conduit Fittings,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Conduits,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Curtain Panels,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Curtain Systems,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Curtain Wall Mullions,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Data Devices,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Doors,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Duct Accessories,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Duct Fittings,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Ducts,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Electrical Circuits,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Electrical Equipment,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Electrical Fixtures,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Fire Alarm Devices,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Flex Ducts,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Flex Pipes,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Floors,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Furniture,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Furniture Systems,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Generic Models,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Lighting Devices,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Lighting Fixtures,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Materials,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Mechanical Equipment,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Medical Equipment,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Nurse Call Devices,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Pipe Accessories,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Pipe Fittings,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Pipes,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Plumbing Equipment,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Plumbing Fixtures,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Project Information,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Railings,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Ramps,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Roofs,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Rooms,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Security Devices,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Specialty Equipment,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Sprinklers,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Stairs,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Structural Columns,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Structural Foundations,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Structural Framing,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Telephone Devices,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Walls,Type,True
+WARN_BLE_STRUCT_FDN_BEARING,Windows,Type,True
+WARN_BLE_STRUCT_LD_CAP,Air Terminals,Type,True
+WARN_BLE_STRUCT_LD_CAP,Cable Tray Fittings,Type,True
+WARN_BLE_STRUCT_LD_CAP,Cable Trays,Type,True
+WARN_BLE_STRUCT_LD_CAP,Casework,Type,True
+WARN_BLE_STRUCT_LD_CAP,Ceilings,Type,True
+WARN_BLE_STRUCT_LD_CAP,Columns,Type,True
+WARN_BLE_STRUCT_LD_CAP,Communication Devices,Type,True
+WARN_BLE_STRUCT_LD_CAP,Conduit Fittings,Type,True
+WARN_BLE_STRUCT_LD_CAP,Conduits,Type,True
+WARN_BLE_STRUCT_LD_CAP,Curtain Panels,Type,True
+WARN_BLE_STRUCT_LD_CAP,Curtain Systems,Type,True
+WARN_BLE_STRUCT_LD_CAP,Curtain Wall Mullions,Type,True
+WARN_BLE_STRUCT_LD_CAP,Data Devices,Type,True
+WARN_BLE_STRUCT_LD_CAP,Doors,Type,True
+WARN_BLE_STRUCT_LD_CAP,Duct Accessories,Type,True
+WARN_BLE_STRUCT_LD_CAP,Duct Fittings,Type,True
+WARN_BLE_STRUCT_LD_CAP,Ducts,Type,True
+WARN_BLE_STRUCT_LD_CAP,Electrical Circuits,Type,True
+WARN_BLE_STRUCT_LD_CAP,Electrical Equipment,Type,True
+WARN_BLE_STRUCT_LD_CAP,Electrical Fixtures,Type,True
+WARN_BLE_STRUCT_LD_CAP,Fire Alarm Devices,Type,True
+WARN_BLE_STRUCT_LD_CAP,Flex Ducts,Type,True
+WARN_BLE_STRUCT_LD_CAP,Flex Pipes,Type,True
+WARN_BLE_STRUCT_LD_CAP,Floors,Type,True
+WARN_BLE_STRUCT_LD_CAP,Furniture,Type,True
+WARN_BLE_STRUCT_LD_CAP,Furniture Systems,Type,True
+WARN_BLE_STRUCT_LD_CAP,Generic Models,Type,True
+WARN_BLE_STRUCT_LD_CAP,Lighting Devices,Type,True
+WARN_BLE_STRUCT_LD_CAP,Lighting Fixtures,Type,True
+WARN_BLE_STRUCT_LD_CAP,Materials,Type,True
+WARN_BLE_STRUCT_LD_CAP,Mechanical Equipment,Type,True
+WARN_BLE_STRUCT_LD_CAP,Medical Equipment,Type,True
+WARN_BLE_STRUCT_LD_CAP,Nurse Call Devices,Type,True
+WARN_BLE_STRUCT_LD_CAP,Pipe Accessories,Type,True
+WARN_BLE_STRUCT_LD_CAP,Pipe Fittings,Type,True
+WARN_BLE_STRUCT_LD_CAP,Pipes,Type,True
+WARN_BLE_STRUCT_LD_CAP,Plumbing Equipment,Type,True
+WARN_BLE_STRUCT_LD_CAP,Plumbing Fixtures,Type,True
+WARN_BLE_STRUCT_LD_CAP,Project Information,Type,True
+WARN_BLE_STRUCT_LD_CAP,Railings,Type,True
+WARN_BLE_STRUCT_LD_CAP,Ramps,Type,True
+WARN_BLE_STRUCT_LD_CAP,Roofs,Type,True
+WARN_BLE_STRUCT_LD_CAP,Rooms,Type,True
+WARN_BLE_STRUCT_LD_CAP,Security Devices,Type,True
+WARN_BLE_STRUCT_LD_CAP,Specialty Equipment,Type,True
+WARN_BLE_STRUCT_LD_CAP,Sprinklers,Type,True
+WARN_BLE_STRUCT_LD_CAP,Stairs,Type,True
+WARN_BLE_STRUCT_LD_CAP,Structural Columns,Type,True
+WARN_BLE_STRUCT_LD_CAP,Structural Foundations,Type,True
+WARN_BLE_STRUCT_LD_CAP,Structural Framing,Type,True
+WARN_BLE_STRUCT_LD_CAP,Telephone Devices,Type,True
+WARN_BLE_STRUCT_LD_CAP,Walls,Type,True
+WARN_BLE_STRUCT_LD_CAP,Windows,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Air Terminals,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Cable Tray Fittings,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Cable Trays,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Casework,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Ceilings,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Columns,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Communication Devices,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Conduit Fittings,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Conduits,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Curtain Panels,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Curtain Systems,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Curtain Wall Mullions,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Data Devices,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Doors,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Duct Accessories,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Duct Fittings,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Ducts,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Electrical Circuits,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Electrical Equipment,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Electrical Fixtures,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Fire Alarm Devices,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Flex Ducts,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Flex Pipes,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Floors,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Furniture,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Furniture Systems,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Generic Models,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Lighting Devices,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Lighting Fixtures,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Materials,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Mechanical Equipment,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Medical Equipment,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Nurse Call Devices,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Pipe Accessories,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Pipe Fittings,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Pipes,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Plumbing Equipment,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Plumbing Fixtures,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Project Information,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Railings,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Ramps,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Roofs,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Rooms,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Security Devices,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Specialty Equipment,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Sprinklers,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Stairs,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Structural Columns,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Structural Foundations,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Structural Framing,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Telephone Devices,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Walls,Type,True
+WARN_BLE_VERT_CIRC_LOAD,Windows,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Air Terminals,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Cable Tray Fittings,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Cable Trays,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Casework,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Ceilings,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Columns,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Communication Devices,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Conduit Fittings,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Conduits,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Curtain Panels,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Curtain Systems,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Curtain Wall Mullions,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Data Devices,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Doors,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Duct Accessories,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Duct Fittings,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Ducts,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Electrical Circuits,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Electrical Equipment,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Electrical Fixtures,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Fire Alarm Devices,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Flex Ducts,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Flex Pipes,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Floors,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Furniture,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Furniture Systems,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Generic Models,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Lighting Devices,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Lighting Fixtures,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Materials,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Mechanical Equipment,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Medical Equipment,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Nurse Call Devices,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Pipe Accessories,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Pipe Fittings,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Pipes,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Plumbing Equipment,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Plumbing Fixtures,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Project Information,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Railings,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Ramps,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Roofs,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Rooms,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Security Devices,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Specialty Equipment,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Sprinklers,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Stairs,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Structural Columns,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Structural Foundations,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Structural Framing,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Telephone Devices,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Walls,Type,True
+WARN_BLE_WALL_HEIGHT_RATIO,Windows,Type,True
+WARN_BLE_WINDOW_SHGC,Air Terminals,Type,True
+WARN_BLE_WINDOW_SHGC,Cable Tray Fittings,Type,True
+WARN_BLE_WINDOW_SHGC,Cable Trays,Type,True
+WARN_BLE_WINDOW_SHGC,Casework,Type,True
+WARN_BLE_WINDOW_SHGC,Ceilings,Type,True
+WARN_BLE_WINDOW_SHGC,Columns,Type,True
+WARN_BLE_WINDOW_SHGC,Communication Devices,Type,True
+WARN_BLE_WINDOW_SHGC,Conduit Fittings,Type,True
+WARN_BLE_WINDOW_SHGC,Conduits,Type,True
+WARN_BLE_WINDOW_SHGC,Curtain Panels,Type,True
+WARN_BLE_WINDOW_SHGC,Curtain Systems,Type,True
+WARN_BLE_WINDOW_SHGC,Curtain Wall Mullions,Type,True
+WARN_BLE_WINDOW_SHGC,Data Devices,Type,True
+WARN_BLE_WINDOW_SHGC,Doors,Type,True
+WARN_BLE_WINDOW_SHGC,Duct Accessories,Type,True
+WARN_BLE_WINDOW_SHGC,Duct Fittings,Type,True
+WARN_BLE_WINDOW_SHGC,Ducts,Type,True
+WARN_BLE_WINDOW_SHGC,Electrical Circuits,Type,True
+WARN_BLE_WINDOW_SHGC,Electrical Equipment,Type,True
+WARN_BLE_WINDOW_SHGC,Electrical Fixtures,Type,True
+WARN_BLE_WINDOW_SHGC,Fire Alarm Devices,Type,True
+WARN_BLE_WINDOW_SHGC,Flex Ducts,Type,True
+WARN_BLE_WINDOW_SHGC,Flex Pipes,Type,True
+WARN_BLE_WINDOW_SHGC,Floors,Type,True
+WARN_BLE_WINDOW_SHGC,Furniture,Type,True
+WARN_BLE_WINDOW_SHGC,Furniture Systems,Type,True
+WARN_BLE_WINDOW_SHGC,Generic Models,Type,True
+WARN_BLE_WINDOW_SHGC,Lighting Devices,Type,True
+WARN_BLE_WINDOW_SHGC,Lighting Fixtures,Type,True
+WARN_BLE_WINDOW_SHGC,Materials,Type,True
+WARN_BLE_WINDOW_SHGC,Mechanical Equipment,Type,True
+WARN_BLE_WINDOW_SHGC,Medical Equipment,Type,True
+WARN_BLE_WINDOW_SHGC,Nurse Call Devices,Type,True
+WARN_BLE_WINDOW_SHGC,Pipe Accessories,Type,True
+WARN_BLE_WINDOW_SHGC,Pipe Fittings,Type,True
+WARN_BLE_WINDOW_SHGC,Pipes,Type,True
+WARN_BLE_WINDOW_SHGC,Plumbing Equipment,Type,True
+WARN_BLE_WINDOW_SHGC,Plumbing Fixtures,Type,True
+WARN_BLE_WINDOW_SHGC,Project Information,Type,True
+WARN_BLE_WINDOW_SHGC,Railings,Type,True
+WARN_BLE_WINDOW_SHGC,Ramps,Type,True
+WARN_BLE_WINDOW_SHGC,Roofs,Type,True
+WARN_BLE_WINDOW_SHGC,Rooms,Type,True
+WARN_BLE_WINDOW_SHGC,Security Devices,Type,True
+WARN_BLE_WINDOW_SHGC,Specialty Equipment,Type,True
+WARN_BLE_WINDOW_SHGC,Sprinklers,Type,True
+WARN_BLE_WINDOW_SHGC,Stairs,Type,True
+WARN_BLE_WINDOW_SHGC,Structural Columns,Type,True
+WARN_BLE_WINDOW_SHGC,Structural Foundations,Type,True
+WARN_BLE_WINDOW_SHGC,Structural Framing,Type,True
+WARN_BLE_WINDOW_SHGC,Telephone Devices,Type,True
+WARN_BLE_WINDOW_SHGC,Walls,Type,True
+WARN_BLE_WINDOW_SHGC,Windows,Type,True
+WARN_BLE_WINDOW_U_VALUE,Air Terminals,Type,True
+WARN_BLE_WINDOW_U_VALUE,Cable Tray Fittings,Type,True
+WARN_BLE_WINDOW_U_VALUE,Cable Trays,Type,True
+WARN_BLE_WINDOW_U_VALUE,Casework,Type,True
+WARN_BLE_WINDOW_U_VALUE,Ceilings,Type,True
+WARN_BLE_WINDOW_U_VALUE,Columns,Type,True
+WARN_BLE_WINDOW_U_VALUE,Communication Devices,Type,True
+WARN_BLE_WINDOW_U_VALUE,Conduit Fittings,Type,True
+WARN_BLE_WINDOW_U_VALUE,Conduits,Type,True
+WARN_BLE_WINDOW_U_VALUE,Curtain Panels,Type,True
+WARN_BLE_WINDOW_U_VALUE,Curtain Systems,Type,True
+WARN_BLE_WINDOW_U_VALUE,Curtain Wall Mullions,Type,True
+WARN_BLE_WINDOW_U_VALUE,Data Devices,Type,True
+WARN_BLE_WINDOW_U_VALUE,Doors,Type,True
+WARN_BLE_WINDOW_U_VALUE,Duct Accessories,Type,True
+WARN_BLE_WINDOW_U_VALUE,Duct Fittings,Type,True
+WARN_BLE_WINDOW_U_VALUE,Ducts,Type,True
+WARN_BLE_WINDOW_U_VALUE,Electrical Circuits,Type,True
+WARN_BLE_WINDOW_U_VALUE,Electrical Equipment,Type,True
+WARN_BLE_WINDOW_U_VALUE,Electrical Fixtures,Type,True
+WARN_BLE_WINDOW_U_VALUE,Fire Alarm Devices,Type,True
+WARN_BLE_WINDOW_U_VALUE,Flex Ducts,Type,True
+WARN_BLE_WINDOW_U_VALUE,Flex Pipes,Type,True
+WARN_BLE_WINDOW_U_VALUE,Floors,Type,True
+WARN_BLE_WINDOW_U_VALUE,Furniture,Type,True
+WARN_BLE_WINDOW_U_VALUE,Furniture Systems,Type,True
+WARN_BLE_WINDOW_U_VALUE,Generic Models,Type,True
+WARN_BLE_WINDOW_U_VALUE,Lighting Devices,Type,True
+WARN_BLE_WINDOW_U_VALUE,Lighting Fixtures,Type,True
+WARN_BLE_WINDOW_U_VALUE,Materials,Type,True
+WARN_BLE_WINDOW_U_VALUE,Mechanical Equipment,Type,True
+WARN_BLE_WINDOW_U_VALUE,Medical Equipment,Type,True
+WARN_BLE_WINDOW_U_VALUE,Nurse Call Devices,Type,True
+WARN_BLE_WINDOW_U_VALUE,Pipe Accessories,Type,True
+WARN_BLE_WINDOW_U_VALUE,Pipe Fittings,Type,True
+WARN_BLE_WINDOW_U_VALUE,Pipes,Type,True
+WARN_BLE_WINDOW_U_VALUE,Plumbing Equipment,Type,True
+WARN_BLE_WINDOW_U_VALUE,Plumbing Fixtures,Type,True
+WARN_BLE_WINDOW_U_VALUE,Project Information,Type,True
+WARN_BLE_WINDOW_U_VALUE,Railings,Type,True
+WARN_BLE_WINDOW_U_VALUE,Ramps,Type,True
+WARN_BLE_WINDOW_U_VALUE,Roofs,Type,True
+WARN_BLE_WINDOW_U_VALUE,Rooms,Type,True
+WARN_BLE_WINDOW_U_VALUE,Security Devices,Type,True
+WARN_BLE_WINDOW_U_VALUE,Specialty Equipment,Type,True
+WARN_BLE_WINDOW_U_VALUE,Sprinklers,Type,True
+WARN_BLE_WINDOW_U_VALUE,Stairs,Type,True
+WARN_BLE_WINDOW_U_VALUE,Structural Columns,Type,True
+WARN_BLE_WINDOW_U_VALUE,Structural Foundations,Type,True
+WARN_BLE_WINDOW_U_VALUE,Structural Framing,Type,True
+WARN_BLE_WINDOW_U_VALUE,Telephone Devices,Type,True
+WARN_BLE_WINDOW_U_VALUE,Walls,Type,True
+WARN_BLE_WINDOW_U_VALUE,Windows,Type,True
+WARN_COM_DEVICE_COVERAGE,Communication Devices,Type,True
+WARN_COM_DEVICE_COVERAGE,Data Devices,Type,True
+WARN_COM_DEVICE_COVERAGE,Generic Models,Type,True
+WARN_COM_DEVICE_COVERAGE,Security Devices,Type,True
+WARN_COM_DEVICE_COVERAGE,Telephone Devices,Type,True
+WARN_DOOR_FRR,Air Terminals,Type,True
+WARN_DOOR_FRR,Cable Tray Fittings,Type,True
+WARN_DOOR_FRR,Cable Trays,Type,True
+WARN_DOOR_FRR,Casework,Type,True
+WARN_DOOR_FRR,Ceilings,Type,True
+WARN_DOOR_FRR,Columns,Type,True
+WARN_DOOR_FRR,Communication Devices,Type,True
+WARN_DOOR_FRR,Conduit Fittings,Type,True
+WARN_DOOR_FRR,Conduits,Type,True
+WARN_DOOR_FRR,Curtain Panels,Type,True
+WARN_DOOR_FRR,Curtain Systems,Type,True
+WARN_DOOR_FRR,Curtain Wall Mullions,Type,True
+WARN_DOOR_FRR,Data Devices,Type,True
+WARN_DOOR_FRR,Doors,Type,True
+WARN_DOOR_FRR,Duct Accessories,Type,True
+WARN_DOOR_FRR,Duct Fittings,Type,True
+WARN_DOOR_FRR,Ducts,Type,True
+WARN_DOOR_FRR,Electrical Circuits,Type,True
+WARN_DOOR_FRR,Electrical Equipment,Type,True
+WARN_DOOR_FRR,Electrical Fixtures,Type,True
+WARN_DOOR_FRR,Fire Alarm Devices,Type,True
+WARN_DOOR_FRR,Flex Ducts,Type,True
+WARN_DOOR_FRR,Flex Pipes,Type,True
+WARN_DOOR_FRR,Floors,Type,True
+WARN_DOOR_FRR,Furniture,Type,True
+WARN_DOOR_FRR,Furniture Systems,Type,True
+WARN_DOOR_FRR,Generic Models,Type,True
+WARN_DOOR_FRR,Lighting Devices,Type,True
+WARN_DOOR_FRR,Lighting Fixtures,Type,True
+WARN_DOOR_FRR,Materials,Type,True
+WARN_DOOR_FRR,Mechanical Equipment,Type,True
+WARN_DOOR_FRR,Medical Equipment,Type,True
+WARN_DOOR_FRR,Nurse Call Devices,Type,True
+WARN_DOOR_FRR,Pipe Accessories,Type,True
+WARN_DOOR_FRR,Pipe Fittings,Type,True
+WARN_DOOR_FRR,Pipes,Type,True
+WARN_DOOR_FRR,Plumbing Equipment,Type,True
+WARN_DOOR_FRR,Plumbing Fixtures,Type,True
+WARN_DOOR_FRR,Project Information,Type,True
+WARN_DOOR_FRR,Railings,Type,True
+WARN_DOOR_FRR,Ramps,Type,True
+WARN_DOOR_FRR,Roofs,Type,True
+WARN_DOOR_FRR,Rooms,Type,True
+WARN_DOOR_FRR,Security Devices,Type,True
+WARN_DOOR_FRR,Specialty Equipment,Type,True
+WARN_DOOR_FRR,Sprinklers,Type,True
+WARN_DOOR_FRR,Stairs,Type,True
+WARN_DOOR_FRR,Structural Columns,Type,True
+WARN_DOOR_FRR,Structural Foundations,Type,True
+WARN_DOOR_FRR,Structural Framing,Type,True
+WARN_DOOR_FRR,Telephone Devices,Type,True
+WARN_DOOR_FRR,Walls,Type,True
+WARN_DOOR_FRR,Windows,Type,True
+WARN_ELC_CDT_FILL_RATIO,Cable Tray Fittings,Type,True
+WARN_ELC_CDT_FILL_RATIO,Cable Trays,Type,True
+WARN_ELC_CDT_FILL_RATIO,Conduit Fittings,Type,True
+WARN_ELC_CDT_FILL_RATIO,Conduits,Type,True
+WARN_ELC_CDT_FILL_RATIO,Electrical Equipment,Type,True
+WARN_ELC_CDT_FILL_RATIO,Electrical Fixtures,Type,True
+WARN_ELC_CDT_FILL_RATIO,Generic Models,Type,True
+WARN_ELC_CDT_FILL_RATIO,Lighting Devices,Type,True
+WARN_ELC_CDT_FILL_RATIO,Lighting Fixtures,Type,True
+WARN_ELC_CONNECTOR_RATING,Cable Tray Fittings,Type,True
+WARN_ELC_CONNECTOR_RATING,Cable Trays,Type,True
+WARN_ELC_CONNECTOR_RATING,Conduit Fittings,Type,True
+WARN_ELC_CONNECTOR_RATING,Conduits,Type,True
+WARN_ELC_CONNECTOR_RATING,Electrical Equipment,Type,True
+WARN_ELC_CONNECTOR_RATING,Electrical Fixtures,Type,True
+WARN_ELC_CONNECTOR_RATING,Generic Models,Type,True
+WARN_ELC_CONNECTOR_RATING,Lighting Devices,Type,True
+WARN_ELC_CONNECTOR_RATING,Lighting Fixtures,Type,True
+WARN_ELC_CTR_FILL_RATIO,Cable Tray Fittings,Type,True
+WARN_ELC_CTR_FILL_RATIO,Cable Trays,Type,True
+WARN_ELC_CTR_FILL_RATIO,Conduit Fittings,Type,True
+WARN_ELC_CTR_FILL_RATIO,Conduits,Type,True
+WARN_ELC_CTR_FILL_RATIO,Electrical Equipment,Type,True
+WARN_ELC_CTR_FILL_RATIO,Electrical Fixtures,Type,True
+WARN_ELC_CTR_FILL_RATIO,Generic Models,Type,True
+WARN_ELC_CTR_FILL_RATIO,Lighting Devices,Type,True
+WARN_ELC_CTR_FILL_RATIO,Lighting Fixtures,Type,True
+WARN_ELC_EARTHING_TYPE,Cable Tray Fittings,Type,True
+WARN_ELC_EARTHING_TYPE,Cable Trays,Type,True
+WARN_ELC_EARTHING_TYPE,Conduit Fittings,Type,True
+WARN_ELC_EARTHING_TYPE,Conduits,Type,True
+WARN_ELC_EARTHING_TYPE,Electrical Equipment,Type,True
+WARN_ELC_EARTHING_TYPE,Electrical Fixtures,Type,True
+WARN_ELC_EARTHING_TYPE,Generic Models,Type,True
+WARN_ELC_EARTHING_TYPE,Lighting Devices,Type,True
+WARN_ELC_EARTHING_TYPE,Lighting Fixtures,Type,True
+WARN_ELC_FIXTURE_MOUNTING_HEIGHT,Cable Tray Fittings,Type,True
+WARN_ELC_FIXTURE_MOUNTING_HEIGHT,Cable Trays,Type,True
+WARN_ELC_FIXTURE_MOUNTING_HEIGHT,Conduit Fittings,Type,True
+WARN_ELC_FIXTURE_MOUNTING_HEIGHT,Conduits,Type,True
+WARN_ELC_FIXTURE_MOUNTING_HEIGHT,Electrical Equipment,Type,True
+WARN_ELC_FIXTURE_MOUNTING_HEIGHT,Electrical Fixtures,Type,True
+WARN_ELC_FIXTURE_MOUNTING_HEIGHT,Generic Models,Type,True
+WARN_ELC_FIXTURE_MOUNTING_HEIGHT,Lighting Devices,Type,True
+WARN_ELC_FIXTURE_MOUNTING_HEIGHT,Lighting Fixtures,Type,True
+WARN_ELC_IP_RATING,Cable Tray Fittings,Type,True
+WARN_ELC_IP_RATING,Cable Trays,Type,True
+WARN_ELC_IP_RATING,Conduit Fittings,Type,True
+WARN_ELC_IP_RATING,Conduits,Type,True
+WARN_ELC_IP_RATING,Electrical Equipment,Type,True
+WARN_ELC_IP_RATING,Electrical Fixtures,Type,True
+WARN_ELC_IP_RATING,Generic Models,Type,True
+WARN_ELC_IP_RATING,Lighting Devices,Type,True
+WARN_ELC_IP_RATING,Lighting Fixtures,Type,True
+WARN_ELC_PNL_SHORT_CIRCUIT,Cable Tray Fittings,Type,True
+WARN_ELC_PNL_SHORT_CIRCUIT,Cable Trays,Type,True
+WARN_ELC_PNL_SHORT_CIRCUIT,Conduit Fittings,Type,True
+WARN_ELC_PNL_SHORT_CIRCUIT,Conduits,Type,True
+WARN_ELC_PNL_SHORT_CIRCUIT,Electrical Equipment,Type,True
+WARN_ELC_PNL_SHORT_CIRCUIT,Electrical Fixtures,Type,True
+WARN_ELC_PNL_SHORT_CIRCUIT,Generic Models,Type,True
+WARN_ELC_PNL_SHORT_CIRCUIT,Lighting Devices,Type,True
+WARN_ELC_PNL_SHORT_CIRCUIT,Lighting Fixtures,Type,True
+WARN_ELC_PNL_SPARE_WAYS,Cable Tray Fittings,Type,True
+WARN_ELC_PNL_SPARE_WAYS,Cable Trays,Type,True
+WARN_ELC_PNL_SPARE_WAYS,Conduit Fittings,Type,True
+WARN_ELC_PNL_SPARE_WAYS,Conduits,Type,True
+WARN_ELC_PNL_SPARE_WAYS,Electrical Equipment,Type,True
+WARN_ELC_PNL_SPARE_WAYS,Electrical Fixtures,Type,True
+WARN_ELC_PNL_SPARE_WAYS,Generic Models,Type,True
+WARN_ELC_PNL_SPARE_WAYS,Lighting Devices,Type,True
+WARN_ELC_PNL_SPARE_WAYS,Lighting Fixtures,Type,True
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Cable Tray Fittings,Type,True
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Cable Trays,Type,True
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Conduit Fittings,Type,True
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Conduits,Type,True
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Electrical Equipment,Type,True
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Electrical Fixtures,Type,True
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Generic Models,Type,True
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Lighting Devices,Type,True
+WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Lighting Fixtures,Type,True
+WARN_FAB_HANGER_LOAD_KN,Air Terminals,Type,True
+WARN_FAB_HANGER_LOAD_KN,Cable Tray Fittings,Type,True
+WARN_FAB_HANGER_LOAD_KN,Cable Trays,Type,True
+WARN_FAB_HANGER_LOAD_KN,Casework,Type,True
+WARN_FAB_HANGER_LOAD_KN,Ceilings,Type,True
+WARN_FAB_HANGER_LOAD_KN,Columns,Type,True
+WARN_FAB_HANGER_LOAD_KN,Communication Devices,Type,True
+WARN_FAB_HANGER_LOAD_KN,Conduit Fittings,Type,True
+WARN_FAB_HANGER_LOAD_KN,Conduits,Type,True
+WARN_FAB_HANGER_LOAD_KN,Curtain Panels,Type,True
+WARN_FAB_HANGER_LOAD_KN,Curtain Systems,Type,True
+WARN_FAB_HANGER_LOAD_KN,Curtain Wall Mullions,Type,True
+WARN_FAB_HANGER_LOAD_KN,Data Devices,Type,True
+WARN_FAB_HANGER_LOAD_KN,Doors,Type,True
+WARN_FAB_HANGER_LOAD_KN,Duct Accessories,Type,True
+WARN_FAB_HANGER_LOAD_KN,Duct Fittings,Type,True
+WARN_FAB_HANGER_LOAD_KN,Ducts,Type,True
+WARN_FAB_HANGER_LOAD_KN,Electrical Circuits,Type,True
+WARN_FAB_HANGER_LOAD_KN,Electrical Equipment,Type,True
+WARN_FAB_HANGER_LOAD_KN,Electrical Fixtures,Type,True
+WARN_FAB_HANGER_LOAD_KN,Fire Alarm Devices,Type,True
+WARN_FAB_HANGER_LOAD_KN,Flex Ducts,Type,True
+WARN_FAB_HANGER_LOAD_KN,Flex Pipes,Type,True
+WARN_FAB_HANGER_LOAD_KN,Floors,Type,True
+WARN_FAB_HANGER_LOAD_KN,Furniture,Type,True
+WARN_FAB_HANGER_LOAD_KN,Furniture Systems,Type,True
+WARN_FAB_HANGER_LOAD_KN,Generic Models,Type,True
+WARN_FAB_HANGER_LOAD_KN,Lighting Devices,Type,True
+WARN_FAB_HANGER_LOAD_KN,Lighting Fixtures,Type,True
+WARN_FAB_HANGER_LOAD_KN,Materials,Type,True
+WARN_FAB_HANGER_LOAD_KN,Mechanical Equipment,Type,True
+WARN_FAB_HANGER_LOAD_KN,Medical Equipment,Type,True
+WARN_FAB_HANGER_LOAD_KN,Nurse Call Devices,Type,True
+WARN_FAB_HANGER_LOAD_KN,Pipe Accessories,Type,True
+WARN_FAB_HANGER_LOAD_KN,Pipe Fittings,Type,True
+WARN_FAB_HANGER_LOAD_KN,Pipes,Type,True
+WARN_FAB_HANGER_LOAD_KN,Plumbing Equipment,Type,True
+WARN_FAB_HANGER_LOAD_KN,Plumbing Fixtures,Type,True
+WARN_FAB_HANGER_LOAD_KN,Project Information,Type,True
+WARN_FAB_HANGER_LOAD_KN,Railings,Type,True
+WARN_FAB_HANGER_LOAD_KN,Ramps,Type,True
+WARN_FAB_HANGER_LOAD_KN,Roofs,Type,True
+WARN_FAB_HANGER_LOAD_KN,Rooms,Type,True
+WARN_FAB_HANGER_LOAD_KN,Security Devices,Type,True
+WARN_FAB_HANGER_LOAD_KN,Specialty Equipment,Type,True
+WARN_FAB_HANGER_LOAD_KN,Sprinklers,Type,True
+WARN_FAB_HANGER_LOAD_KN,Stairs,Type,True
+WARN_FAB_HANGER_LOAD_KN,Structural Columns,Type,True
+WARN_FAB_HANGER_LOAD_KN,Structural Foundations,Type,True
+WARN_FAB_HANGER_LOAD_KN,Structural Framing,Type,True
+WARN_FAB_HANGER_LOAD_KN,Telephone Devices,Type,True
+WARN_FAB_HANGER_LOAD_KN,Walls,Type,True
+WARN_FAB_HANGER_LOAD_KN,Windows,Type,True
+WARN_FLS_COMPARTMENT_AREA,Fire Alarm Devices,Type,True
+WARN_FLS_COMPARTMENT_AREA,Generic Models,Type,True
+WARN_FLS_COMPARTMENT_AREA,Sprinklers,Type,True
+WARN_FLS_PROT_COVERAGE,Fire Alarm Devices,Type,True
+WARN_FLS_PROT_COVERAGE,Generic Models,Type,True
+WARN_FLS_PROT_COVERAGE,Sprinklers,Type,True
+WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR,Fire Alarm Devices,Type,True
+WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR,Generic Models,Type,True
+WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR,Sprinklers,Type,True
+WARN_FLS_SFTY_SPACING,Fire Alarm Devices,Type,True
+WARN_FLS_SFTY_SPACING,Generic Models,Type,True
+WARN_FLS_SFTY_SPACING,Sprinklers,Type,True
+WARN_FLS_SMOKE_DETECTOR_SPACING,Fire Alarm Devices,Type,True
+WARN_FLS_SMOKE_DETECTOR_SPACING,Generic Models,Type,True
+WARN_FLS_SMOKE_DETECTOR_SPACING,Sprinklers,Type,True
+WARN_FLS_TRAVEL_DIST_M,Fire Alarm Devices,Type,True
+WARN_FLS_TRAVEL_DIST_M,Generic Models,Type,True
+WARN_FLS_TRAVEL_DIST_M,Sprinklers,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Air Terminals,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Cable Tray Fittings,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Cable Trays,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Communication Devices,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Conduit Fittings,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Conduits,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Data Devices,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Duct Accessories,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Duct Fittings,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Ducts,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Electrical Equipment,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Electrical Fixtures,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Fire Alarm Devices,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Flex Ducts,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Flex Pipes,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Generic Models,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Lighting Devices,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Lighting Fixtures,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Mechanical Equipment,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Nurse Call Devices,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Pipe Accessories,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Pipe Fittings,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Pipes,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Plumbing Fixtures,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Security Devices,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Sprinklers,Type,True
+WARN_HVC_DCT_SOUNDLVL_DB,Telephone Devices,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Air Terminals,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Cable Tray Fittings,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Cable Trays,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Communication Devices,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Conduit Fittings,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Conduits,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Data Devices,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Duct Accessories,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Duct Fittings,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Ducts,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Electrical Equipment,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Electrical Fixtures,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Fire Alarm Devices,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Flex Ducts,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Flex Pipes,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Generic Models,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Lighting Devices,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Lighting Fixtures,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Mechanical Equipment,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Nurse Call Devices,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Pipe Accessories,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Pipe Fittings,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Pipes,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Plumbing Fixtures,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Security Devices,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Sprinklers,Type,True
+WARN_HVC_DUCT_LEAKAGE_CLASS,Telephone Devices,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Air Terminals,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Cable Tray Fittings,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Cable Trays,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Communication Devices,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Conduit Fittings,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Conduits,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Data Devices,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Duct Accessories,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Duct Fittings,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Ducts,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Electrical Equipment,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Electrical Fixtures,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Fire Alarm Devices,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Flex Ducts,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Flex Pipes,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Generic Models,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Lighting Devices,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Lighting Fixtures,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Mechanical Equipment,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Nurse Call Devices,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Pipe Accessories,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Pipe Fittings,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Pipes,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Plumbing Fixtures,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Security Devices,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Sprinklers,Type,True
+WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Telephone Devices,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Air Terminals,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Cable Tray Fittings,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Cable Trays,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Communication Devices,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Conduit Fittings,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Conduits,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Data Devices,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Duct Accessories,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Duct Fittings,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Ducts,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Electrical Equipment,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Electrical Fixtures,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Fire Alarm Devices,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Flex Ducts,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Flex Pipes,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Generic Models,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Lighting Devices,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Lighting Fixtures,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Mechanical Equipment,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Nurse Call Devices,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Pipe Accessories,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Pipe Fittings,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Pipes,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Plumbing Fixtures,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Security Devices,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Sprinklers,Type,True
+WARN_HVC_VEL_MPS_DUCTS,Telephone Devices,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Air Terminals,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Cable Tray Fittings,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Cable Trays,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Communication Devices,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Conduit Fittings,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Conduits,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Data Devices,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Duct Accessories,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Duct Fittings,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Ducts,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Electrical Equipment,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Electrical Fixtures,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Fire Alarm Devices,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Flex Ducts,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Flex Pipes,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Generic Models,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Lighting Devices,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Lighting Fixtures,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Mechanical Equipment,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Nurse Call Devices,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Pipe Accessories,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Pipe Fittings,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Pipes,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Plumbing Fixtures,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Security Devices,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Sprinklers,Type,True
+WARN_HVC_VEL_MPS_FLEX_DUCTS,Telephone Devices,Type,True
+WARN_INS_THICKNESS_MM,Air Terminals,Type,True
+WARN_INS_THICKNESS_MM,Cable Tray Fittings,Type,True
+WARN_INS_THICKNESS_MM,Cable Trays,Type,True
+WARN_INS_THICKNESS_MM,Casework,Type,True
+WARN_INS_THICKNESS_MM,Ceilings,Type,True
+WARN_INS_THICKNESS_MM,Columns,Type,True
+WARN_INS_THICKNESS_MM,Communication Devices,Type,True
+WARN_INS_THICKNESS_MM,Conduit Fittings,Type,True
+WARN_INS_THICKNESS_MM,Conduits,Type,True
+WARN_INS_THICKNESS_MM,Curtain Panels,Type,True
+WARN_INS_THICKNESS_MM,Curtain Systems,Type,True
+WARN_INS_THICKNESS_MM,Curtain Wall Mullions,Type,True
+WARN_INS_THICKNESS_MM,Data Devices,Type,True
+WARN_INS_THICKNESS_MM,Doors,Type,True
+WARN_INS_THICKNESS_MM,Duct Accessories,Type,True
+WARN_INS_THICKNESS_MM,Duct Fittings,Type,True
+WARN_INS_THICKNESS_MM,Ducts,Type,True
+WARN_INS_THICKNESS_MM,Electrical Circuits,Type,True
+WARN_INS_THICKNESS_MM,Electrical Equipment,Type,True
+WARN_INS_THICKNESS_MM,Electrical Fixtures,Type,True
+WARN_INS_THICKNESS_MM,Fire Alarm Devices,Type,True
+WARN_INS_THICKNESS_MM,Flex Ducts,Type,True
+WARN_INS_THICKNESS_MM,Flex Pipes,Type,True
+WARN_INS_THICKNESS_MM,Floors,Type,True
+WARN_INS_THICKNESS_MM,Furniture,Type,True
+WARN_INS_THICKNESS_MM,Furniture Systems,Type,True
+WARN_INS_THICKNESS_MM,Generic Models,Type,True
+WARN_INS_THICKNESS_MM,Lighting Devices,Type,True
+WARN_INS_THICKNESS_MM,Lighting Fixtures,Type,True
+WARN_INS_THICKNESS_MM,Materials,Type,True
+WARN_INS_THICKNESS_MM,Mechanical Equipment,Type,True
+WARN_INS_THICKNESS_MM,Medical Equipment,Type,True
+WARN_INS_THICKNESS_MM,Nurse Call Devices,Type,True
+WARN_INS_THICKNESS_MM,Pipe Accessories,Type,True
+WARN_INS_THICKNESS_MM,Pipe Fittings,Type,True
+WARN_INS_THICKNESS_MM,Pipes,Type,True
+WARN_INS_THICKNESS_MM,Plumbing Equipment,Type,True
+WARN_INS_THICKNESS_MM,Plumbing Fixtures,Type,True
+WARN_INS_THICKNESS_MM,Project Information,Type,True
+WARN_INS_THICKNESS_MM,Railings,Type,True
+WARN_INS_THICKNESS_MM,Ramps,Type,True
+WARN_INS_THICKNESS_MM,Roofs,Type,True
+WARN_INS_THICKNESS_MM,Rooms,Type,True
+WARN_INS_THICKNESS_MM,Security Devices,Type,True
+WARN_INS_THICKNESS_MM,Specialty Equipment,Type,True
+WARN_INS_THICKNESS_MM,Sprinklers,Type,True
+WARN_INS_THICKNESS_MM,Stairs,Type,True
+WARN_INS_THICKNESS_MM,Structural Columns,Type,True
+WARN_INS_THICKNESS_MM,Structural Foundations,Type,True
+WARN_INS_THICKNESS_MM,Structural Framing,Type,True
+WARN_INS_THICKNESS_MM,Telephone Devices,Type,True
+WARN_INS_THICKNESS_MM,Walls,Type,True
+WARN_INS_THICKNESS_MM,Windows,Type,True
+WARN_LTG_ILLUMINANCE,Cable Tray Fittings,Type,True
+WARN_LTG_ILLUMINANCE,Cable Trays,Type,True
+WARN_LTG_ILLUMINANCE,Conduit Fittings,Type,True
+WARN_LTG_ILLUMINANCE,Conduits,Type,True
+WARN_LTG_ILLUMINANCE,Electrical Equipment,Type,True
+WARN_LTG_ILLUMINANCE,Electrical Fixtures,Type,True
+WARN_LTG_ILLUMINANCE,Generic Models,Type,True
+WARN_LTG_ILLUMINANCE,Lighting Devices,Type,True
+WARN_LTG_ILLUMINANCE,Lighting Fixtures,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Air Terminals,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Cable Tray Fittings,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Cable Trays,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Communication Devices,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Conduit Fittings,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Conduits,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Data Devices,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Duct Accessories,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Duct Fittings,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Ducts,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Electrical Equipment,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Electrical Fixtures,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Fire Alarm Devices,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Flex Ducts,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Flex Pipes,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Generic Models,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Lighting Devices,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Lighting Fixtures,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Mechanical Equipment,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Nurse Call Devices,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Pipe Accessories,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Pipe Fittings,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Pipes,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Plumbing Fixtures,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Security Devices,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Sprinklers,Type,True
+WARN_MEP_DUCT_ACC_PRESSURE_DROP,Telephone Devices,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Air Terminals,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Cable Tray Fittings,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Cable Trays,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Communication Devices,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Conduit Fittings,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Conduits,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Data Devices,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Duct Accessories,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Duct Fittings,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Ducts,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Electrical Equipment,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Electrical Fixtures,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Fire Alarm Devices,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Flex Ducts,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Flex Pipes,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Generic Models,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Lighting Devices,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Lighting Fixtures,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Mechanical Equipment,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Nurse Call Devices,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Pipe Accessories,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Pipe Fittings,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Pipes,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Plumbing Fixtures,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Security Devices,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Sprinklers,Type,True
+WARN_MEP_DUCT_FITTING_LOSS,Telephone Devices,Type,True
+WARN_MEP_SPC_LIGHTING,Air Terminals,Type,True
+WARN_MEP_SPC_LIGHTING,Cable Tray Fittings,Type,True
+WARN_MEP_SPC_LIGHTING,Cable Trays,Type,True
+WARN_MEP_SPC_LIGHTING,Communication Devices,Type,True
+WARN_MEP_SPC_LIGHTING,Conduit Fittings,Type,True
+WARN_MEP_SPC_LIGHTING,Conduits,Type,True
+WARN_MEP_SPC_LIGHTING,Data Devices,Type,True
+WARN_MEP_SPC_LIGHTING,Duct Accessories,Type,True
+WARN_MEP_SPC_LIGHTING,Duct Fittings,Type,True
+WARN_MEP_SPC_LIGHTING,Ducts,Type,True
+WARN_MEP_SPC_LIGHTING,Electrical Equipment,Type,True
+WARN_MEP_SPC_LIGHTING,Electrical Fixtures,Type,True
+WARN_MEP_SPC_LIGHTING,Fire Alarm Devices,Type,True
+WARN_MEP_SPC_LIGHTING,Flex Ducts,Type,True
+WARN_MEP_SPC_LIGHTING,Flex Pipes,Type,True
+WARN_MEP_SPC_LIGHTING,Generic Models,Type,True
+WARN_MEP_SPC_LIGHTING,Lighting Devices,Type,True
+WARN_MEP_SPC_LIGHTING,Lighting Fixtures,Type,True
+WARN_MEP_SPC_LIGHTING,Mechanical Equipment,Type,True
+WARN_MEP_SPC_LIGHTING,Nurse Call Devices,Type,True
+WARN_MEP_SPC_LIGHTING,Pipe Accessories,Type,True
+WARN_MEP_SPC_LIGHTING,Pipe Fittings,Type,True
+WARN_MEP_SPC_LIGHTING,Pipes,Type,True
+WARN_MEP_SPC_LIGHTING,Plumbing Fixtures,Type,True
+WARN_MEP_SPC_LIGHTING,Security Devices,Type,True
+WARN_MEP_SPC_LIGHTING,Sprinklers,Type,True
+WARN_MEP_SPC_LIGHTING,Telephone Devices,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Air Terminals,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Cable Tray Fittings,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Cable Trays,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Casework,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Ceilings,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Columns,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Communication Devices,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Conduit Fittings,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Conduits,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Curtain Panels,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Curtain Systems,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Curtain Wall Mullions,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Data Devices,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Doors,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Duct Accessories,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Duct Fittings,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Ducts,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Electrical Circuits,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Electrical Equipment,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Electrical Fixtures,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Fire Alarm Devices,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Flex Ducts,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Flex Pipes,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Floors,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Furniture,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Furniture Systems,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Generic Models,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Lighting Devices,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Lighting Fixtures,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Materials,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Mechanical Equipment,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Medical Equipment,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Nurse Call Devices,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Pipe Accessories,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Pipe Fittings,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Pipes,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Plumbing Equipment,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Plumbing Fixtures,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Project Information,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Railings,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Ramps,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Roofs,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Rooms,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Security Devices,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Specialty Equipment,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Sprinklers,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Stairs,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Structural Columns,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Structural Foundations,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Structural Framing,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Telephone Devices,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Walls,Type,True
+WARN_MNT_ACCESS_CLEARANCE,Windows,Type,True
+WARN_MNT_SERVICE_SPACE,Air Terminals,Type,True
+WARN_MNT_SERVICE_SPACE,Cable Tray Fittings,Type,True
+WARN_MNT_SERVICE_SPACE,Cable Trays,Type,True
+WARN_MNT_SERVICE_SPACE,Casework,Type,True
+WARN_MNT_SERVICE_SPACE,Ceilings,Type,True
+WARN_MNT_SERVICE_SPACE,Columns,Type,True
+WARN_MNT_SERVICE_SPACE,Communication Devices,Type,True
+WARN_MNT_SERVICE_SPACE,Conduit Fittings,Type,True
+WARN_MNT_SERVICE_SPACE,Conduits,Type,True
+WARN_MNT_SERVICE_SPACE,Curtain Panels,Type,True
+WARN_MNT_SERVICE_SPACE,Curtain Systems,Type,True
+WARN_MNT_SERVICE_SPACE,Curtain Wall Mullions,Type,True
+WARN_MNT_SERVICE_SPACE,Data Devices,Type,True
+WARN_MNT_SERVICE_SPACE,Doors,Type,True
+WARN_MNT_SERVICE_SPACE,Duct Accessories,Type,True
+WARN_MNT_SERVICE_SPACE,Duct Fittings,Type,True
+WARN_MNT_SERVICE_SPACE,Ducts,Type,True
+WARN_MNT_SERVICE_SPACE,Electrical Circuits,Type,True
+WARN_MNT_SERVICE_SPACE,Electrical Equipment,Type,True
+WARN_MNT_SERVICE_SPACE,Electrical Fixtures,Type,True
+WARN_MNT_SERVICE_SPACE,Fire Alarm Devices,Type,True
+WARN_MNT_SERVICE_SPACE,Flex Ducts,Type,True
+WARN_MNT_SERVICE_SPACE,Flex Pipes,Type,True
+WARN_MNT_SERVICE_SPACE,Floors,Type,True
+WARN_MNT_SERVICE_SPACE,Furniture,Type,True
+WARN_MNT_SERVICE_SPACE,Furniture Systems,Type,True
+WARN_MNT_SERVICE_SPACE,Generic Models,Type,True
+WARN_MNT_SERVICE_SPACE,Lighting Devices,Type,True
+WARN_MNT_SERVICE_SPACE,Lighting Fixtures,Type,True
+WARN_MNT_SERVICE_SPACE,Materials,Type,True
+WARN_MNT_SERVICE_SPACE,Mechanical Equipment,Type,True
+WARN_MNT_SERVICE_SPACE,Medical Equipment,Type,True
+WARN_MNT_SERVICE_SPACE,Nurse Call Devices,Type,True
+WARN_MNT_SERVICE_SPACE,Pipe Accessories,Type,True
+WARN_MNT_SERVICE_SPACE,Pipe Fittings,Type,True
+WARN_MNT_SERVICE_SPACE,Pipes,Type,True
+WARN_MNT_SERVICE_SPACE,Plumbing Equipment,Type,True
+WARN_MNT_SERVICE_SPACE,Plumbing Fixtures,Type,True
+WARN_MNT_SERVICE_SPACE,Project Information,Type,True
+WARN_MNT_SERVICE_SPACE,Railings,Type,True
+WARN_MNT_SERVICE_SPACE,Ramps,Type,True
+WARN_MNT_SERVICE_SPACE,Roofs,Type,True
+WARN_MNT_SERVICE_SPACE,Rooms,Type,True
+WARN_MNT_SERVICE_SPACE,Security Devices,Type,True
+WARN_MNT_SERVICE_SPACE,Specialty Equipment,Type,True
+WARN_MNT_SERVICE_SPACE,Sprinklers,Type,True
+WARN_MNT_SERVICE_SPACE,Stairs,Type,True
+WARN_MNT_SERVICE_SPACE,Structural Columns,Type,True
+WARN_MNT_SERVICE_SPACE,Structural Foundations,Type,True
+WARN_MNT_SERVICE_SPACE,Structural Framing,Type,True
+WARN_MNT_SERVICE_SPACE,Telephone Devices,Type,True
+WARN_MNT_SERVICE_SPACE,Walls,Type,True
+WARN_MNT_SERVICE_SPACE,Windows,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Air Terminals,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Cable Tray Fittings,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Cable Trays,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Casework,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Ceilings,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Columns,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Communication Devices,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Conduit Fittings,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Conduits,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Curtain Panels,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Curtain Systems,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Curtain Wall Mullions,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Data Devices,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Doors,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Duct Accessories,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Duct Fittings,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Ducts,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Electrical Circuits,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Electrical Equipment,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Electrical Fixtures,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Fire Alarm Devices,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Flex Ducts,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Flex Pipes,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Floors,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Furniture,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Furniture Systems,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Generic Models,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Lighting Devices,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Lighting Fixtures,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Materials,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Mechanical Equipment,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Medical Equipment,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Nurse Call Devices,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Pipe Accessories,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Pipe Fittings,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Pipes,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Plumbing Equipment,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Plumbing Fixtures,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Project Information,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Railings,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Ramps,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Roofs,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Rooms,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Security Devices,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Specialty Equipment,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Sprinklers,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Stairs,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Structural Columns,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Structural Foundations,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Structural Framing,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Telephone Devices,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Walls,Type,True
+WARN_PER_ACOUSTIC_FLOOR_IIC,Windows,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Air Terminals,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Cable Tray Fittings,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Cable Trays,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Casework,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Ceilings,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Columns,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Communication Devices,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Conduit Fittings,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Conduits,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Curtain Panels,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Curtain Systems,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Curtain Wall Mullions,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Data Devices,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Doors,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Duct Accessories,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Duct Fittings,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Ducts,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Electrical Circuits,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Electrical Equipment,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Electrical Fixtures,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Fire Alarm Devices,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Flex Ducts,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Flex Pipes,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Floors,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Furniture,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Furniture Systems,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Generic Models,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Lighting Devices,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Lighting Fixtures,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Materials,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Mechanical Equipment,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Medical Equipment,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Nurse Call Devices,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Pipe Accessories,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Pipe Fittings,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Pipes,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Plumbing Equipment,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Plumbing Fixtures,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Project Information,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Railings,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Ramps,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Roofs,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Rooms,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Security Devices,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Specialty Equipment,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Sprinklers,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Stairs,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Structural Columns,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Structural Foundations,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Structural Framing,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Telephone Devices,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Walls,Type,True
+WARN_PER_ACOUSTIC_WALL_STC,Windows,Type,True
+WARN_PER_RECYCLABILITY_LOW,Air Terminals,Type,True
+WARN_PER_RECYCLABILITY_LOW,Cable Tray Fittings,Type,True
+WARN_PER_RECYCLABILITY_LOW,Cable Trays,Type,True
+WARN_PER_RECYCLABILITY_LOW,Casework,Type,True
+WARN_PER_RECYCLABILITY_LOW,Ceilings,Type,True
+WARN_PER_RECYCLABILITY_LOW,Columns,Type,True
+WARN_PER_RECYCLABILITY_LOW,Communication Devices,Type,True
+WARN_PER_RECYCLABILITY_LOW,Conduit Fittings,Type,True
+WARN_PER_RECYCLABILITY_LOW,Conduits,Type,True
+WARN_PER_RECYCLABILITY_LOW,Curtain Panels,Type,True
+WARN_PER_RECYCLABILITY_LOW,Curtain Systems,Type,True
+WARN_PER_RECYCLABILITY_LOW,Curtain Wall Mullions,Type,True
+WARN_PER_RECYCLABILITY_LOW,Data Devices,Type,True
+WARN_PER_RECYCLABILITY_LOW,Doors,Type,True
+WARN_PER_RECYCLABILITY_LOW,Duct Accessories,Type,True
+WARN_PER_RECYCLABILITY_LOW,Duct Fittings,Type,True
+WARN_PER_RECYCLABILITY_LOW,Ducts,Type,True
+WARN_PER_RECYCLABILITY_LOW,Electrical Circuits,Type,True
+WARN_PER_RECYCLABILITY_LOW,Electrical Equipment,Type,True
+WARN_PER_RECYCLABILITY_LOW,Electrical Fixtures,Type,True
+WARN_PER_RECYCLABILITY_LOW,Fire Alarm Devices,Type,True
+WARN_PER_RECYCLABILITY_LOW,Flex Ducts,Type,True
+WARN_PER_RECYCLABILITY_LOW,Flex Pipes,Type,True
+WARN_PER_RECYCLABILITY_LOW,Floors,Type,True
+WARN_PER_RECYCLABILITY_LOW,Furniture,Type,True
+WARN_PER_RECYCLABILITY_LOW,Furniture Systems,Type,True
+WARN_PER_RECYCLABILITY_LOW,Generic Models,Type,True
+WARN_PER_RECYCLABILITY_LOW,Lighting Devices,Type,True
+WARN_PER_RECYCLABILITY_LOW,Lighting Fixtures,Type,True
+WARN_PER_RECYCLABILITY_LOW,Materials,Type,True
+WARN_PER_RECYCLABILITY_LOW,Mechanical Equipment,Type,True
+WARN_PER_RECYCLABILITY_LOW,Medical Equipment,Type,True
+WARN_PER_RECYCLABILITY_LOW,Nurse Call Devices,Type,True
+WARN_PER_RECYCLABILITY_LOW,Pipe Accessories,Type,True
+WARN_PER_RECYCLABILITY_LOW,Pipe Fittings,Type,True
+WARN_PER_RECYCLABILITY_LOW,Pipes,Type,True
+WARN_PER_RECYCLABILITY_LOW,Plumbing Equipment,Type,True
+WARN_PER_RECYCLABILITY_LOW,Plumbing Fixtures,Type,True
+WARN_PER_RECYCLABILITY_LOW,Project Information,Type,True
+WARN_PER_RECYCLABILITY_LOW,Railings,Type,True
+WARN_PER_RECYCLABILITY_LOW,Ramps,Type,True
+WARN_PER_RECYCLABILITY_LOW,Roofs,Type,True
+WARN_PER_RECYCLABILITY_LOW,Rooms,Type,True
+WARN_PER_RECYCLABILITY_LOW,Security Devices,Type,True
+WARN_PER_RECYCLABILITY_LOW,Specialty Equipment,Type,True
+WARN_PER_RECYCLABILITY_LOW,Sprinklers,Type,True
+WARN_PER_RECYCLABILITY_LOW,Stairs,Type,True
+WARN_PER_RECYCLABILITY_LOW,Structural Columns,Type,True
+WARN_PER_RECYCLABILITY_LOW,Structural Foundations,Type,True
+WARN_PER_RECYCLABILITY_LOW,Structural Framing,Type,True
+WARN_PER_RECYCLABILITY_LOW,Telephone Devices,Type,True
+WARN_PER_RECYCLABILITY_LOW,Walls,Type,True
+WARN_PER_RECYCLABILITY_LOW,Windows,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Air Terminals,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Cable Tray Fittings,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Cable Trays,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Casework,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Ceilings,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Columns,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Communication Devices,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Conduit Fittings,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Conduits,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Curtain Panels,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Curtain Systems,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Curtain Wall Mullions,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Data Devices,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Doors,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Duct Accessories,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Duct Fittings,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Ducts,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Electrical Circuits,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Electrical Equipment,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Electrical Fixtures,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Fire Alarm Devices,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Flex Ducts,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Flex Pipes,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Floors,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Furniture,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Furniture Systems,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Generic Models,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Lighting Devices,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Lighting Fixtures,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Materials,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Mechanical Equipment,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Medical Equipment,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Nurse Call Devices,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Pipe Accessories,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Pipe Fittings,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Pipes,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Plumbing Equipment,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Plumbing Fixtures,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Project Information,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Railings,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Ramps,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Roofs,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Rooms,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Security Devices,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Specialty Equipment,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Sprinklers,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Stairs,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Structural Columns,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Structural Foundations,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Structural Framing,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Telephone Devices,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Walls,Type,True
+WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Windows,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Air Terminals,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Cable Tray Fittings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Cable Trays,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Casework,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Ceilings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Columns,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Communication Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Conduit Fittings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Conduits,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Curtain Panels,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Curtain Systems,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Curtain Wall Mullions,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Data Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Doors,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Duct Accessories,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Duct Fittings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Ducts,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Electrical Circuits,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Electrical Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Electrical Fixtures,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Fire Alarm Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Flex Ducts,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Flex Pipes,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Floors,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Furniture,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Furniture Systems,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Generic Models,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Lighting Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Lighting Fixtures,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Materials,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Mechanical Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Medical Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Nurse Call Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Pipe Accessories,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Pipe Fittings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Pipes,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Plumbing Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Plumbing Fixtures,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Project Information,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Railings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Ramps,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Roofs,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Rooms,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Security Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Specialty Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Sprinklers,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Stairs,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Structural Columns,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Structural Foundations,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Structural Framing,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Telephone Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Walls,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Windows,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Air Terminals,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Cable Tray Fittings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Cable Trays,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Casework,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Ceilings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Columns,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Communication Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Conduit Fittings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Conduits,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Curtain Panels,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Curtain Systems,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Curtain Wall Mullions,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Data Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Doors,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Duct Accessories,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Duct Fittings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Ducts,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Electrical Circuits,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Electrical Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Electrical Fixtures,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Fire Alarm Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Flex Ducts,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Flex Pipes,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Floors,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Furniture,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Furniture Systems,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Generic Models,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Lighting Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Lighting Fixtures,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Materials,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Mechanical Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Medical Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Nurse Call Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Pipe Accessories,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Pipe Fittings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Pipes,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Plumbing Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Plumbing Fixtures,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Project Information,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Railings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Ramps,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Roofs,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Rooms,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Security Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Specialty Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Sprinklers,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Stairs,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Structural Columns,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Structural Foundations,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Structural Framing,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Telephone Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Walls,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Windows,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Air Terminals,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Cable Tray Fittings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Cable Trays,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Casework,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Ceilings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Columns,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Communication Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Conduit Fittings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Conduits,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Curtain Panels,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Curtain Systems,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Curtain Wall Mullions,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Data Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Doors,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Duct Accessories,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Duct Fittings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Ducts,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Electrical Circuits,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Electrical Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Electrical Fixtures,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Fire Alarm Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Flex Ducts,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Flex Pipes,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Floors,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Furniture,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Furniture Systems,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Generic Models,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Lighting Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Lighting Fixtures,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Materials,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Mechanical Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Medical Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Nurse Call Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Pipe Accessories,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Pipe Fittings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Pipes,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Plumbing Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Plumbing Fixtures,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Project Information,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Railings,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Ramps,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Roofs,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Rooms,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Security Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Specialty Equipment,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Sprinklers,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Stairs,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Structural Columns,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Structural Foundations,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Structural Framing,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Telephone Devices,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Walls,Type,True
+WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Windows,Type,True
+WARN_PER_VOC_EMISSIONS,Air Terminals,Type,True
+WARN_PER_VOC_EMISSIONS,Cable Tray Fittings,Type,True
+WARN_PER_VOC_EMISSIONS,Cable Trays,Type,True
+WARN_PER_VOC_EMISSIONS,Casework,Type,True
+WARN_PER_VOC_EMISSIONS,Ceilings,Type,True
+WARN_PER_VOC_EMISSIONS,Columns,Type,True
+WARN_PER_VOC_EMISSIONS,Communication Devices,Type,True
+WARN_PER_VOC_EMISSIONS,Conduit Fittings,Type,True
+WARN_PER_VOC_EMISSIONS,Conduits,Type,True
+WARN_PER_VOC_EMISSIONS,Curtain Panels,Type,True
+WARN_PER_VOC_EMISSIONS,Curtain Systems,Type,True
+WARN_PER_VOC_EMISSIONS,Curtain Wall Mullions,Type,True
+WARN_PER_VOC_EMISSIONS,Data Devices,Type,True
+WARN_PER_VOC_EMISSIONS,Doors,Type,True
+WARN_PER_VOC_EMISSIONS,Duct Accessories,Type,True
+WARN_PER_VOC_EMISSIONS,Duct Fittings,Type,True
+WARN_PER_VOC_EMISSIONS,Ducts,Type,True
+WARN_PER_VOC_EMISSIONS,Electrical Circuits,Type,True
+WARN_PER_VOC_EMISSIONS,Electrical Equipment,Type,True
+WARN_PER_VOC_EMISSIONS,Electrical Fixtures,Type,True
+WARN_PER_VOC_EMISSIONS,Fire Alarm Devices,Type,True
+WARN_PER_VOC_EMISSIONS,Flex Ducts,Type,True
+WARN_PER_VOC_EMISSIONS,Flex Pipes,Type,True
+WARN_PER_VOC_EMISSIONS,Floors,Type,True
+WARN_PER_VOC_EMISSIONS,Furniture,Type,True
+WARN_PER_VOC_EMISSIONS,Furniture Systems,Type,True
+WARN_PER_VOC_EMISSIONS,Generic Models,Type,True
+WARN_PER_VOC_EMISSIONS,Lighting Devices,Type,True
+WARN_PER_VOC_EMISSIONS,Lighting Fixtures,Type,True
+WARN_PER_VOC_EMISSIONS,Materials,Type,True
+WARN_PER_VOC_EMISSIONS,Mechanical Equipment,Type,True
+WARN_PER_VOC_EMISSIONS,Medical Equipment,Type,True
+WARN_PER_VOC_EMISSIONS,Nurse Call Devices,Type,True
+WARN_PER_VOC_EMISSIONS,Pipe Accessories,Type,True
+WARN_PER_VOC_EMISSIONS,Pipe Fittings,Type,True
+WARN_PER_VOC_EMISSIONS,Pipes,Type,True
+WARN_PER_VOC_EMISSIONS,Plumbing Equipment,Type,True
+WARN_PER_VOC_EMISSIONS,Plumbing Fixtures,Type,True
+WARN_PER_VOC_EMISSIONS,Project Information,Type,True
+WARN_PER_VOC_EMISSIONS,Railings,Type,True
+WARN_PER_VOC_EMISSIONS,Ramps,Type,True
+WARN_PER_VOC_EMISSIONS,Roofs,Type,True
+WARN_PER_VOC_EMISSIONS,Rooms,Type,True
+WARN_PER_VOC_EMISSIONS,Security Devices,Type,True
+WARN_PER_VOC_EMISSIONS,Specialty Equipment,Type,True
+WARN_PER_VOC_EMISSIONS,Sprinklers,Type,True
+WARN_PER_VOC_EMISSIONS,Stairs,Type,True
+WARN_PER_VOC_EMISSIONS,Structural Columns,Type,True
+WARN_PER_VOC_EMISSIONS,Structural Foundations,Type,True
+WARN_PER_VOC_EMISSIONS,Structural Framing,Type,True
+WARN_PER_VOC_EMISSIONS,Telephone Devices,Type,True
+WARN_PER_VOC_EMISSIONS,Walls,Type,True
+WARN_PER_VOC_EMISSIONS,Windows,Type,True
+WARN_PLM_EQP_PRESSURE_KPA,Flex Pipes,Type,True
+WARN_PLM_EQP_PRESSURE_KPA,Generic Models,Type,True
+WARN_PLM_EQP_PRESSURE_KPA,Mechanical Equipment,Type,True
+WARN_PLM_EQP_PRESSURE_KPA,Pipe Accessories,Type,True
+WARN_PLM_EQP_PRESSURE_KPA,Pipe Fittings,Type,True
+WARN_PLM_EQP_PRESSURE_KPA,Pipes,Type,True
+WARN_PLM_EQP_PRESSURE_KPA,Plumbing Fixtures,Type,True
+WARN_PLM_FIXTURE_ACCESS,Flex Pipes,Type,True
+WARN_PLM_FIXTURE_ACCESS,Generic Models,Type,True
+WARN_PLM_FIXTURE_ACCESS,Mechanical Equipment,Type,True
+WARN_PLM_FIXTURE_ACCESS,Pipe Accessories,Type,True
+WARN_PLM_FIXTURE_ACCESS,Pipe Fittings,Type,True
+WARN_PLM_FIXTURE_ACCESS,Pipes,Type,True
+WARN_PLM_FIXTURE_ACCESS,Plumbing Fixtures,Type,True
+WARN_PLM_FIXTURE_FLOW,Flex Pipes,Type,True
+WARN_PLM_FIXTURE_FLOW,Generic Models,Type,True
+WARN_PLM_FIXTURE_FLOW,Mechanical Equipment,Type,True
+WARN_PLM_FIXTURE_FLOW,Pipe Accessories,Type,True
+WARN_PLM_FIXTURE_FLOW,Pipe Fittings,Type,True
+WARN_PLM_FIXTURE_FLOW,Pipes,Type,True
+WARN_PLM_FIXTURE_FLOW,Plumbing Fixtures,Type,True
+WARN_PLM_PIPE_ACC_RATING,Flex Pipes,Type,True
+WARN_PLM_PIPE_ACC_RATING,Generic Models,Type,True
+WARN_PLM_PIPE_ACC_RATING,Mechanical Equipment,Type,True
+WARN_PLM_PIPE_ACC_RATING,Pipe Accessories,Type,True
+WARN_PLM_PIPE_ACC_RATING,Pipe Fittings,Type,True
+WARN_PLM_PIPE_ACC_RATING,Pipes,Type,True
+WARN_PLM_PIPE_ACC_RATING,Plumbing Fixtures,Type,True
+WARN_PLM_PIPE_FITTING_LOSS,Flex Pipes,Type,True
+WARN_PLM_PIPE_FITTING_LOSS,Generic Models,Type,True
+WARN_PLM_PIPE_FITTING_LOSS,Mechanical Equipment,Type,True
+WARN_PLM_PIPE_FITTING_LOSS,Pipe Accessories,Type,True
+WARN_PLM_PIPE_FITTING_LOSS,Pipe Fittings,Type,True
+WARN_PLM_PIPE_FITTING_LOSS,Pipes,Type,True
+WARN_PLM_PIPE_FITTING_LOSS,Plumbing Fixtures,Type,True
+WARN_PLM_PIPE_GRADIENT,Flex Pipes,Type,True
+WARN_PLM_PIPE_GRADIENT,Generic Models,Type,True
+WARN_PLM_PIPE_GRADIENT,Mechanical Equipment,Type,True
+WARN_PLM_PIPE_GRADIENT,Pipe Accessories,Type,True
+WARN_PLM_PIPE_GRADIENT,Pipe Fittings,Type,True
+WARN_PLM_PIPE_GRADIENT,Pipes,Type,True
+WARN_PLM_PIPE_GRADIENT,Plumbing Fixtures,Type,True
+WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE,Flex Pipes,Type,True
+WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE,Generic Models,Type,True
+WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE,Mechanical Equipment,Type,True
+WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE,Pipe Accessories,Type,True
+WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE,Pipe Fittings,Type,True
+WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE,Pipes,Type,True
+WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE,Plumbing Fixtures,Type,True
+WARN_PLM_TRAP_SEAL_MM,Flex Pipes,Type,True
+WARN_PLM_TRAP_SEAL_MM,Generic Models,Type,True
+WARN_PLM_TRAP_SEAL_MM,Mechanical Equipment,Type,True
+WARN_PLM_TRAP_SEAL_MM,Pipe Accessories,Type,True
+WARN_PLM_TRAP_SEAL_MM,Pipe Fittings,Type,True
+WARN_PLM_TRAP_SEAL_MM,Pipes,Type,True
+WARN_PLM_TRAP_SEAL_MM,Plumbing Fixtures,Type,True
+WARN_PLM_VEL_MPS_PIPES,Flex Pipes,Type,True
+WARN_PLM_VEL_MPS_PIPES,Generic Models,Type,True
+WARN_PLM_VEL_MPS_PIPES,Mechanical Equipment,Type,True
+WARN_PLM_VEL_MPS_PIPES,Pipe Accessories,Type,True
+WARN_PLM_VEL_MPS_PIPES,Pipe Fittings,Type,True
+WARN_PLM_VEL_MPS_PIPES,Pipes,Type,True
+WARN_PLM_VEL_MPS_PIPES,Plumbing Fixtures,Type,True
+WARN_PLM_VENT_PIPE,Flex Pipes,Type,True
+WARN_PLM_VENT_PIPE,Generic Models,Type,True
+WARN_PLM_VENT_PIPE,Mechanical Equipment,Type,True
+WARN_PLM_VENT_PIPE,Pipe Accessories,Type,True
+WARN_PLM_VENT_PIPE,Pipe Fittings,Type,True
+WARN_PLM_VENT_PIPE,Pipes,Type,True
+WARN_PLM_VENT_PIPE,Plumbing Fixtures,Type,True
+WARN_RGL_ACCESSIBLE_WC,Air Terminals,Type,True
+WARN_RGL_ACCESSIBLE_WC,Cable Tray Fittings,Type,True
+WARN_RGL_ACCESSIBLE_WC,Cable Trays,Type,True
+WARN_RGL_ACCESSIBLE_WC,Casework,Type,True
+WARN_RGL_ACCESSIBLE_WC,Ceilings,Type,True
+WARN_RGL_ACCESSIBLE_WC,Columns,Type,True
+WARN_RGL_ACCESSIBLE_WC,Communication Devices,Type,True
+WARN_RGL_ACCESSIBLE_WC,Conduit Fittings,Type,True
+WARN_RGL_ACCESSIBLE_WC,Conduits,Type,True
+WARN_RGL_ACCESSIBLE_WC,Curtain Panels,Type,True
+WARN_RGL_ACCESSIBLE_WC,Curtain Systems,Type,True
+WARN_RGL_ACCESSIBLE_WC,Curtain Wall Mullions,Type,True
+WARN_RGL_ACCESSIBLE_WC,Data Devices,Type,True
+WARN_RGL_ACCESSIBLE_WC,Doors,Type,True
+WARN_RGL_ACCESSIBLE_WC,Duct Accessories,Type,True
+WARN_RGL_ACCESSIBLE_WC,Duct Fittings,Type,True
+WARN_RGL_ACCESSIBLE_WC,Ducts,Type,True
+WARN_RGL_ACCESSIBLE_WC,Electrical Circuits,Type,True
+WARN_RGL_ACCESSIBLE_WC,Electrical Equipment,Type,True
+WARN_RGL_ACCESSIBLE_WC,Electrical Fixtures,Type,True
+WARN_RGL_ACCESSIBLE_WC,Fire Alarm Devices,Type,True
+WARN_RGL_ACCESSIBLE_WC,Flex Ducts,Type,True
+WARN_RGL_ACCESSIBLE_WC,Flex Pipes,Type,True
+WARN_RGL_ACCESSIBLE_WC,Floors,Type,True
+WARN_RGL_ACCESSIBLE_WC,Furniture,Type,True
+WARN_RGL_ACCESSIBLE_WC,Furniture Systems,Type,True
+WARN_RGL_ACCESSIBLE_WC,Generic Models,Type,True
+WARN_RGL_ACCESSIBLE_WC,Lighting Devices,Type,True
+WARN_RGL_ACCESSIBLE_WC,Lighting Fixtures,Type,True
+WARN_RGL_ACCESSIBLE_WC,Materials,Type,True
+WARN_RGL_ACCESSIBLE_WC,Mechanical Equipment,Type,True
+WARN_RGL_ACCESSIBLE_WC,Medical Equipment,Type,True
+WARN_RGL_ACCESSIBLE_WC,Nurse Call Devices,Type,True
+WARN_RGL_ACCESSIBLE_WC,Pipe Accessories,Type,True
+WARN_RGL_ACCESSIBLE_WC,Pipe Fittings,Type,True
+WARN_RGL_ACCESSIBLE_WC,Pipes,Type,True
+WARN_RGL_ACCESSIBLE_WC,Plumbing Equipment,Type,True
+WARN_RGL_ACCESSIBLE_WC,Plumbing Fixtures,Type,True
+WARN_RGL_ACCESSIBLE_WC,Project Information,Type,True
+WARN_RGL_ACCESSIBLE_WC,Railings,Type,True
+WARN_RGL_ACCESSIBLE_WC,Ramps,Type,True
+WARN_RGL_ACCESSIBLE_WC,Roofs,Type,True
+WARN_RGL_ACCESSIBLE_WC,Rooms,Type,True
+WARN_RGL_ACCESSIBLE_WC,Security Devices,Type,True
+WARN_RGL_ACCESSIBLE_WC,Specialty Equipment,Type,True
+WARN_RGL_ACCESSIBLE_WC,Sprinklers,Type,True
+WARN_RGL_ACCESSIBLE_WC,Stairs,Type,True
+WARN_RGL_ACCESSIBLE_WC,Structural Columns,Type,True
+WARN_RGL_ACCESSIBLE_WC,Structural Foundations,Type,True
+WARN_RGL_ACCESSIBLE_WC,Structural Framing,Type,True
+WARN_RGL_ACCESSIBLE_WC,Telephone Devices,Type,True
+WARN_RGL_ACCESSIBLE_WC,Walls,Type,True
+WARN_RGL_ACCESSIBLE_WC,Windows,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Air Terminals,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Cable Tray Fittings,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Cable Trays,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Casework,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Ceilings,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Columns,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Communication Devices,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Conduit Fittings,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Conduits,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Curtain Panels,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Curtain Systems,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Curtain Wall Mullions,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Data Devices,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Doors,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Duct Accessories,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Duct Fittings,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Ducts,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Electrical Circuits,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Electrical Equipment,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Electrical Fixtures,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Fire Alarm Devices,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Flex Ducts,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Flex Pipes,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Floors,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Furniture,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Furniture Systems,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Generic Models,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Lighting Devices,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Lighting Fixtures,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Materials,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Mechanical Equipment,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Medical Equipment,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Nurse Call Devices,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Pipe Accessories,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Pipe Fittings,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Pipes,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Plumbing Equipment,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Plumbing Fixtures,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Project Information,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Railings,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Ramps,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Roofs,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Rooms,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Security Devices,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Specialty Equipment,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Sprinklers,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Stairs,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Structural Columns,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Structural Foundations,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Structural Framing,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Telephone Devices,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Walls,Type,True
+WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Windows,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Air Terminals,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Cable Tray Fittings,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Cable Trays,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Casework,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Ceilings,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Columns,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Communication Devices,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Conduit Fittings,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Conduits,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Curtain Panels,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Curtain Systems,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Curtain Wall Mullions,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Data Devices,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Doors,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Duct Accessories,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Duct Fittings,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Ducts,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Electrical Circuits,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Electrical Equipment,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Electrical Fixtures,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Fire Alarm Devices,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Flex Ducts,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Flex Pipes,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Floors,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Furniture,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Furniture Systems,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Generic Models,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Lighting Devices,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Lighting Fixtures,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Materials,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Mechanical Equipment,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Medical Equipment,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Nurse Call Devices,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Pipe Accessories,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Pipe Fittings,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Pipes,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Plumbing Equipment,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Plumbing Fixtures,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Project Information,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Railings,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Ramps,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Roofs,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Rooms,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Security Devices,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Specialty Equipment,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Sprinklers,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Stairs,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Structural Columns,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Structural Foundations,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Structural Framing,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Telephone Devices,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Walls,Type,True
+WARN_RGL_LIFT_CAR_SIZE,Windows,Type,True
+WARN_ROAD_GRADIENT_PCT,Air Terminals,Type,True
+WARN_ROAD_GRADIENT_PCT,Cable Tray Fittings,Type,True
+WARN_ROAD_GRADIENT_PCT,Cable Trays,Type,True
+WARN_ROAD_GRADIENT_PCT,Casework,Type,True
+WARN_ROAD_GRADIENT_PCT,Ceilings,Type,True
+WARN_ROAD_GRADIENT_PCT,Columns,Type,True
+WARN_ROAD_GRADIENT_PCT,Communication Devices,Type,True
+WARN_ROAD_GRADIENT_PCT,Conduit Fittings,Type,True
+WARN_ROAD_GRADIENT_PCT,Conduits,Type,True
+WARN_ROAD_GRADIENT_PCT,Curtain Panels,Type,True
+WARN_ROAD_GRADIENT_PCT,Curtain Systems,Type,True
+WARN_ROAD_GRADIENT_PCT,Curtain Wall Mullions,Type,True
+WARN_ROAD_GRADIENT_PCT,Data Devices,Type,True
+WARN_ROAD_GRADIENT_PCT,Doors,Type,True
+WARN_ROAD_GRADIENT_PCT,Duct Accessories,Type,True
+WARN_ROAD_GRADIENT_PCT,Duct Fittings,Type,True
+WARN_ROAD_GRADIENT_PCT,Ducts,Type,True
+WARN_ROAD_GRADIENT_PCT,Electrical Circuits,Type,True
+WARN_ROAD_GRADIENT_PCT,Electrical Equipment,Type,True
+WARN_ROAD_GRADIENT_PCT,Electrical Fixtures,Type,True
+WARN_ROAD_GRADIENT_PCT,Fire Alarm Devices,Type,True
+WARN_ROAD_GRADIENT_PCT,Flex Ducts,Type,True
+WARN_ROAD_GRADIENT_PCT,Flex Pipes,Type,True
+WARN_ROAD_GRADIENT_PCT,Floors,Type,True
+WARN_ROAD_GRADIENT_PCT,Furniture,Type,True
+WARN_ROAD_GRADIENT_PCT,Furniture Systems,Type,True
+WARN_ROAD_GRADIENT_PCT,Generic Models,Type,True
+WARN_ROAD_GRADIENT_PCT,Lighting Devices,Type,True
+WARN_ROAD_GRADIENT_PCT,Lighting Fixtures,Type,True
+WARN_ROAD_GRADIENT_PCT,Materials,Type,True
+WARN_ROAD_GRADIENT_PCT,Mechanical Equipment,Type,True
+WARN_ROAD_GRADIENT_PCT,Medical Equipment,Type,True
+WARN_ROAD_GRADIENT_PCT,Nurse Call Devices,Type,True
+WARN_ROAD_GRADIENT_PCT,Pipe Accessories,Type,True
+WARN_ROAD_GRADIENT_PCT,Pipe Fittings,Type,True
+WARN_ROAD_GRADIENT_PCT,Pipes,Type,True
+WARN_ROAD_GRADIENT_PCT,Plumbing Equipment,Type,True
+WARN_ROAD_GRADIENT_PCT,Plumbing Fixtures,Type,True
+WARN_ROAD_GRADIENT_PCT,Project Information,Type,True
+WARN_ROAD_GRADIENT_PCT,Railings,Type,True
+WARN_ROAD_GRADIENT_PCT,Ramps,Type,True
+WARN_ROAD_GRADIENT_PCT,Roofs,Type,True
+WARN_ROAD_GRADIENT_PCT,Rooms,Type,True
+WARN_ROAD_GRADIENT_PCT,Security Devices,Type,True
+WARN_ROAD_GRADIENT_PCT,Specialty Equipment,Type,True
+WARN_ROAD_GRADIENT_PCT,Sprinklers,Type,True
+WARN_ROAD_GRADIENT_PCT,Stairs,Type,True
+WARN_ROAD_GRADIENT_PCT,Structural Columns,Type,True
+WARN_ROAD_GRADIENT_PCT,Structural Foundations,Type,True
+WARN_ROAD_GRADIENT_PCT,Structural Framing,Type,True
+WARN_ROAD_GRADIENT_PCT,Telephone Devices,Type,True
+WARN_ROAD_GRADIENT_PCT,Walls,Type,True
+WARN_ROAD_GRADIENT_PCT,Windows,Type,True
+WARN_SITE_BEARING_CAP_KPA,Air Terminals,Type,True
+WARN_SITE_BEARING_CAP_KPA,Cable Tray Fittings,Type,True
+WARN_SITE_BEARING_CAP_KPA,Cable Trays,Type,True
+WARN_SITE_BEARING_CAP_KPA,Casework,Type,True
+WARN_SITE_BEARING_CAP_KPA,Ceilings,Type,True
+WARN_SITE_BEARING_CAP_KPA,Columns,Type,True
+WARN_SITE_BEARING_CAP_KPA,Communication Devices,Type,True
+WARN_SITE_BEARING_CAP_KPA,Conduit Fittings,Type,True
+WARN_SITE_BEARING_CAP_KPA,Conduits,Type,True
+WARN_SITE_BEARING_CAP_KPA,Curtain Panels,Type,True
+WARN_SITE_BEARING_CAP_KPA,Curtain Systems,Type,True
+WARN_SITE_BEARING_CAP_KPA,Curtain Wall Mullions,Type,True
+WARN_SITE_BEARING_CAP_KPA,Data Devices,Type,True
+WARN_SITE_BEARING_CAP_KPA,Doors,Type,True
+WARN_SITE_BEARING_CAP_KPA,Duct Accessories,Type,True
+WARN_SITE_BEARING_CAP_KPA,Duct Fittings,Type,True
+WARN_SITE_BEARING_CAP_KPA,Ducts,Type,True
+WARN_SITE_BEARING_CAP_KPA,Electrical Circuits,Type,True
+WARN_SITE_BEARING_CAP_KPA,Electrical Equipment,Type,True
+WARN_SITE_BEARING_CAP_KPA,Electrical Fixtures,Type,True
+WARN_SITE_BEARING_CAP_KPA,Fire Alarm Devices,Type,True
+WARN_SITE_BEARING_CAP_KPA,Flex Ducts,Type,True
+WARN_SITE_BEARING_CAP_KPA,Flex Pipes,Type,True
+WARN_SITE_BEARING_CAP_KPA,Floors,Type,True
+WARN_SITE_BEARING_CAP_KPA,Furniture,Type,True
+WARN_SITE_BEARING_CAP_KPA,Furniture Systems,Type,True
+WARN_SITE_BEARING_CAP_KPA,Generic Models,Type,True
+WARN_SITE_BEARING_CAP_KPA,Lighting Devices,Type,True
+WARN_SITE_BEARING_CAP_KPA,Lighting Fixtures,Type,True
+WARN_SITE_BEARING_CAP_KPA,Materials,Type,True
+WARN_SITE_BEARING_CAP_KPA,Mechanical Equipment,Type,True
+WARN_SITE_BEARING_CAP_KPA,Medical Equipment,Type,True
+WARN_SITE_BEARING_CAP_KPA,Nurse Call Devices,Type,True
+WARN_SITE_BEARING_CAP_KPA,Pipe Accessories,Type,True
+WARN_SITE_BEARING_CAP_KPA,Pipe Fittings,Type,True
+WARN_SITE_BEARING_CAP_KPA,Pipes,Type,True
+WARN_SITE_BEARING_CAP_KPA,Plumbing Equipment,Type,True
+WARN_SITE_BEARING_CAP_KPA,Plumbing Fixtures,Type,True
+WARN_SITE_BEARING_CAP_KPA,Project Information,Type,True
+WARN_SITE_BEARING_CAP_KPA,Railings,Type,True
+WARN_SITE_BEARING_CAP_KPA,Ramps,Type,True
+WARN_SITE_BEARING_CAP_KPA,Roofs,Type,True
+WARN_SITE_BEARING_CAP_KPA,Rooms,Type,True
+WARN_SITE_BEARING_CAP_KPA,Security Devices,Type,True
+WARN_SITE_BEARING_CAP_KPA,Specialty Equipment,Type,True
+WARN_SITE_BEARING_CAP_KPA,Sprinklers,Type,True
+WARN_SITE_BEARING_CAP_KPA,Stairs,Type,True
+WARN_SITE_BEARING_CAP_KPA,Structural Columns,Type,True
+WARN_SITE_BEARING_CAP_KPA,Structural Foundations,Type,True
+WARN_SITE_BEARING_CAP_KPA,Structural Framing,Type,True
+WARN_SITE_BEARING_CAP_KPA,Telephone Devices,Type,True
+WARN_SITE_BEARING_CAP_KPA,Walls,Type,True
+WARN_SITE_BEARING_CAP_KPA,Windows,Type,True
+WARN_STR_BEAM_DEFLECTION,Columns,Type,True
+WARN_STR_BEAM_DEFLECTION,Generic Models,Type,True
+WARN_STR_BEAM_DEFLECTION,Structural Columns,Type,True
+WARN_STR_BEAM_DEFLECTION,Structural Foundations,Type,True
+WARN_STR_BEAM_DEFLECTION,Structural Framing,Type,True
+WARN_STR_BEAM_SPAN_DEPTH,Columns,Type,True
+WARN_STR_BEAM_SPAN_DEPTH,Generic Models,Type,True
+WARN_STR_BEAM_SPAN_DEPTH,Structural Columns,Type,True
+WARN_STR_BEAM_SPAN_DEPTH,Structural Foundations,Type,True
+WARN_STR_BEAM_SPAN_DEPTH,Structural Framing,Type,True
+WARN_STR_BLT_PROOF_LOAD_KN,Columns,Type,True
+WARN_STR_BLT_PROOF_LOAD_KN,Generic Models,Type,True
+WARN_STR_BLT_PROOF_LOAD_KN,Structural Columns,Type,True
+WARN_STR_BLT_PROOF_LOAD_KN,Structural Foundations,Type,True
+WARN_STR_BLT_PROOF_LOAD_KN,Structural Framing,Type,True
+WARN_STR_COL_ECCENTRICITY,Columns,Type,True
+WARN_STR_COL_ECCENTRICITY,Generic Models,Type,True
+WARN_STR_COL_ECCENTRICITY,Structural Columns,Type,True
+WARN_STR_COL_ECCENTRICITY,Structural Foundations,Type,True
+WARN_STR_COL_ECCENTRICITY,Structural Framing,Type,True
+WARN_STR_CONN_CAPACITY_KN,Columns,Type,True
+WARN_STR_CONN_CAPACITY_KN,Generic Models,Type,True
+WARN_STR_CONN_CAPACITY_KN,Structural Columns,Type,True
+WARN_STR_CONN_CAPACITY_KN,Structural Foundations,Type,True
+WARN_STR_CONN_CAPACITY_KN,Structural Framing,Type,True
+WARN_STR_FABRIC_SPEC,Columns,Type,True
+WARN_STR_FABRIC_SPEC,Generic Models,Type,True
+WARN_STR_FABRIC_SPEC,Structural Columns,Type,True
+WARN_STR_FABRIC_SPEC,Structural Foundations,Type,True
+WARN_STR_FABRIC_SPEC,Structural Framing,Type,True
+WARN_STR_FDN_DEPTH_MM,Columns,Type,True
+WARN_STR_FDN_DEPTH_MM,Generic Models,Type,True
+WARN_STR_FDN_DEPTH_MM,Structural Columns,Type,True
+WARN_STR_FDN_DEPTH_MM,Structural Foundations,Type,True
+WARN_STR_FDN_DEPTH_MM,Structural Framing,Type,True
+WARN_STR_RBR_COVER_MM,Columns,Type,True
+WARN_STR_RBR_COVER_MM,Generic Models,Type,True
+WARN_STR_RBR_COVER_MM,Structural Columns,Type,True
+WARN_STR_RBR_COVER_MM,Structural Foundations,Type,True
+WARN_STR_RBR_COVER_MM,Structural Framing,Type,True
+WARN_STR_RBR_LAP_LENGTH_MM,Columns,Type,True
+WARN_STR_RBR_LAP_LENGTH_MM,Generic Models,Type,True
+WARN_STR_RBR_LAP_LENGTH_MM,Structural Columns,Type,True
+WARN_STR_RBR_LAP_LENGTH_MM,Structural Foundations,Type,True
+WARN_STR_RBR_LAP_LENGTH_MM,Structural Framing,Type,True
+WARN_STR_REBAR_MIN_DIA,Columns,Type,True
+WARN_STR_REBAR_MIN_DIA,Generic Models,Type,True
+WARN_STR_REBAR_MIN_DIA,Structural Columns,Type,True
+WARN_STR_REBAR_MIN_DIA,Structural Foundations,Type,True
+WARN_STR_REBAR_MIN_DIA,Structural Framing,Type,True
+WARN_STR_STIFFENER_WELD,Columns,Type,True
+WARN_STR_STIFFENER_WELD,Generic Models,Type,True
+WARN_STR_STIFFENER_WELD,Structural Columns,Type,True
+WARN_STR_STIFFENER_WELD,Structural Foundations,Type,True
+WARN_STR_STIFFENER_WELD,Structural Framing,Type,True
+WARN_STR_TRUSS_SPAN,Columns,Type,True
+WARN_STR_TRUSS_SPAN,Generic Models,Type,True
+WARN_STR_TRUSS_SPAN,Structural Columns,Type,True
+WARN_STR_TRUSS_SPAN,Structural Foundations,Type,True
+WARN_STR_TRUSS_SPAN,Structural Framing,Type,True
+WARN_STR_WLD_STRENGTH_MPA,Columns,Type,True
+WARN_STR_WLD_STRENGTH_MPA,Generic Models,Type,True
+WARN_STR_WLD_STRENGTH_MPA,Structural Columns,Type,True
+WARN_STR_WLD_STRENGTH_MPA,Structural Foundations,Type,True
+WARN_STR_WLD_STRENGTH_MPA,Structural Framing,Type,True
+WARN_STR_WLD_THROAT_MM,Columns,Type,True
+WARN_STR_WLD_THROAT_MM,Generic Models,Type,True
+WARN_STR_WLD_THROAT_MM,Structural Columns,Type,True
+WARN_STR_WLD_THROAT_MM,Structural Foundations,Type,True
+WARN_STR_WLD_THROAT_MM,Structural Framing,Type,True
