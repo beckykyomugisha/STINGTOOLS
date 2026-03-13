@@ -1966,13 +1966,46 @@ namespace StingTools.BIMManager
             }
             if (string.IsNullOrEmpty(discipline)) discipline = "Z";
 
-            // Create issue with auto-generated title and due date
+            // Step 3: Assignee
+            var assignDlg = new TaskDialog("STING Issue — Assign To");
+            assignDlg.MainInstruction = "Assign issue to:";
+            assignDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, Environment.UserName, "Assign to yourself");
+            assignDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "BIM Coordinator", "Assign to BIM Coordinator");
+            assignDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Design Lead", "Assign to discipline design lead");
+            assignDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Unassigned", "Leave unassigned for now");
+            var assignResult = assignDlg.Show();
+            string assignee = assignResult switch
+            {
+                TaskDialogResult.CommandLink1 => Environment.UserName,
+                TaskDialogResult.CommandLink2 => "BIM Coordinator",
+                TaskDialogResult.CommandLink3 => "Design Lead",
+                TaskDialogResult.CommandLink4 => "",
+                _ => ""
+            };
+
+            // Auto-generate description from context
+            string description = $"{issueType} raised against ";
+            if (selectedIds.Count > 0)
+            {
+                var firstEl = doc.GetElement(selectedIds.First());
+                string cat = ParameterHelpers.GetCategoryName(firstEl);
+                string lvl = ParameterHelpers.GetString(firstEl, ParamRegistry.LVL);
+                description += $"{cat} on {(string.IsNullOrEmpty(lvl) ? "unknown level" : lvl)}";
+                if (selectedIds.Count > 1) description += $" and {selectedIds.Count - 1} other element(s)";
+            }
+            else
+            {
+                description += $"view '{uidoc.ActiveView?.Name ?? "unknown"}'";
+            }
+            description += $". Priority: {priority}.";
+
+            // Create issue with auto-generated title, description, and assignee
             string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
             var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
             string nextId = BIMManagerEngine.GetNextIssueId(issues, issueType);
 
             var issue = BIMManagerEngine.CreateIssue(nextId, issueType, priority,
-                autoTitle, "", "", discipline, selectedIds, uidoc.ActiveView?.Name);
+                autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name);
 
             issues.Add(issue);
             BIMManagerEngine.SaveJsonFile(issuesPath, issues);
@@ -1983,14 +2016,12 @@ namespace StingTools.BIMManager
             report.AppendLine($"  Type:       {issueType} ({BIMManagerEngine.IssueTypes[issueType]})");
             report.AppendLine($"  Priority:   {priority}");
             report.AppendLine($"  Title:      {autoTitle}");
+            report.AppendLine($"  Assigned:   {(string.IsNullOrEmpty(assignee) ? "Unassigned" : assignee)}");
             report.AppendLine($"  Discipline: {discipline}");
             report.AppendLine($"  Due:        {issue["date_due"]}");
             report.AppendLine($"  View:       {issue["view_name"]}");
             report.AppendLine($"  Elements:   {selectedIds.Count} linked");
             report.AppendLine($"  Raised by:  {Environment.UserName}");
-            report.AppendLine();
-            report.AppendLine("Edit description and assignee in:");
-            report.AppendLine($"  {issuesPath}");
 
             TaskDialog.Show("STING Issue Tracker", report.ToString());
             StingLog.Info($"Issue raised: {nextId} ({issueType}, {priority})");
