@@ -842,18 +842,41 @@ namespace StingTools.UI
                     case "SetOutputDirectory": RunCommand<BIMManager.SetOutputDirectoryCommand>(app); break;
                     case "StageComplianceGate": RunCommand<BIMManager.StageComplianceGateCommand>(app); break;
 
-                    // Excel Link — Bidirectional
+                    // Excel Link — Bidirectional (6 commands)
                     case "ExportToExcel": RunCommand<BIMManager.ExportToExcelCommand>(app); break;
                     case "ImportFromExcel": RunCommand<BIMManager.ImportFromExcelCommand>(app); break;
                     case "ExcelRoundTrip": RunCommand<BIMManager.ExcelRoundTripCommand>(app); break;
+                    case "ExportSchedulesToExcel": RunCommand<BIMManager.ExportSchedulesToExcelCommand>(app); break;
+                    case "ImportSchedulesFromExcel": RunCommand<BIMManager.ImportSchedulesFromExcelCommand>(app); break;
+                    case "ExportExcelTemplate": RunCommand<BIMManager.ExportTemplateCommand>(app); break;
 
-                    // Platform Integration
+                    // Platform Integration (12 commands)
                     case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
                     case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
                     case "SharePointExport": RunCommand<BIMManager.SharePointExportCommand>(app); break;
+                    case "ProcorePackage": RunCommand<BIMManager.ProcorePackageCommand>(app); break;
+                    case "TrimbleExport": RunCommand<BIMManager.TrimbleConnectExportCommand>(app); break;
+                    case "AconexPackage": RunCommand<BIMManager.AconexPackageCommand>(app); break;
+                    case "ProjectWiseExport": RunCommand<BIMManager.ProjectWiseExportCommand>(app); break;
+                    case "PlatformDashboard": RunCommand<BIMManager.PlatformDashboardCommand>(app); break;
+                    case "WebhookPayload": RunCommand<BIMManager.WebhookPayloadCommand>(app); break;
+
+                    // Revision Management (12 commands)
+                    case "CreateRevision": RunCommand<BIMManager.CreateRevisionCommand>(app); break;
+                    case "RevisionDashboard": RunCommand<BIMManager.RevisionDashboardCommand>(app); break;
+                    case "AutoRevisionCloud": RunCommand<BIMManager.AutoRevisionCloudCommand>(app); break;
+                    case "RevisionSchedule": RunCommand<BIMManager.RevisionScheduleCommand>(app); break;
+                    case "TrackElementRevisions": RunCommand<BIMManager.TrackElementRevisionsCommand>(app); break;
+                    case "RevisionCompare": RunCommand<BIMManager.RevisionCompareCommand>(app); break;
+                    case "IssueSheetsForRevision": RunCommand<BIMManager.IssueSheetsForRevisionCommand>(app); break;
+                    case "RevisionNamingEnforce": RunCommand<BIMManager.RevisionNamingEnforceCommand>(app); break;
+                    case "RevisionTagIntegration": RunCommand<BIMManager.RevisionTagIntegrationCommand>(app); break;
+                    case "RevisionExport": RunCommand<BIMManager.RevisionExportCommand>(app); break;
+                    case "BulkRevisionStamp": RunCommand<BIMManager.BulkRevisionStampCommand>(app); break;
+                    case "AutoRevisionOnTagChange": RunCommand<BIMManager.AutoRevisionOnTagChangeCommand>(app); break;
 
                     // ── Unmapped / placeholder ──
                     default:
