@@ -3813,7 +3813,7 @@ namespace StingTools.Temp
 
                 var stingTemplates = TemplateManager.GetStingTemplates(doc);
 
-                bool phase1Cancelled = false;
+                bool phaseCancelled = false;
                 int p1Idx = 0;
 
                 using (Transaction tx = new Transaction(doc, "STING Standardise Template VG"))
@@ -3823,7 +3823,7 @@ namespace StingTools.Temp
                     {
                         if (++p1Idx % 10 == 0 && EscapeChecker.IsEscapePressed())
                         {
-                            phase1Cancelled = true;
+                            phaseCancelled = true;
                             report.AppendLine($"  CANCELLED at template {p1Idx}/{stingTemplates.Count}");
                             break;
                         }
@@ -3880,7 +3880,6 @@ namespace StingTools.Temp
                 if (skippedOnSheets > 0)
                     report.AppendLine($"  Skipping {skippedOnSheets} views on sheets");
 
-                bool phase2Cancelled = false;
                 int p2Idx = 0;
 
                 using (Transaction tx = new Transaction(doc, "STING Clear Element Overrides"))
@@ -3891,7 +3890,7 @@ namespace StingTools.Temp
                     {
                         if (++p2Idx % 10 == 0 && EscapeChecker.IsEscapePressed())
                         {
-                            phase2Cancelled = true;
+                            phaseCancelled = true;
                             report.AppendLine($"  CANCELLED at view {p2Idx}/{resetTargets.Count}");
                             break;
                         }
@@ -3942,6 +3941,8 @@ namespace StingTools.Temp
             }
 
             report.AppendLine($"\n{new string('─', 55)}");
+            if (phaseCancelled)
+                report.AppendLine("  (Operation was cancelled by user)");
             if (doTemplates)
                 report.AppendLine($"  Templates standardised: {templatesSynced}");
             if (doElements)

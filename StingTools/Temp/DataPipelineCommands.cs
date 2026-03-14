@@ -2656,10 +2656,11 @@ namespace StingTools.Temp
                 ifcOptions.AddOption("ExportUserDefinedPsets", "true");
                 ifcOptions.AddOption("ExportUserDefinedPsetsFileName", mappingPath);
 
-                doc.Export(projectDir, ifcFileName, ifcOptions);
+                string exportDir = Path.GetDirectoryName(doc.PathName);
+                doc.Export(exportDir, ifcFileName, ifcOptions);
 
                 string version = useIfc4 ? "IFC 4" : "IFC 2x3";
-                string outputPath = Path.Combine(projectDir, ifcFileName + ".ifc");
+                string outputPath = Path.Combine(exportDir, ifcFileName + ".ifc");
                 TaskDialog.Show("IFC Export",
                     $"Export complete ({version}).\n\n" +
                     $"File: {outputPath}\n" +

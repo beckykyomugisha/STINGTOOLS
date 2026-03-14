@@ -649,7 +649,7 @@ namespace StingTools.BIMManager
             var software = new JArray
             {
                 new JObject { ["platform"] = "Autodesk Revit 2025+", ["purpose"] = "BIM Authoring", ["version"] = "" },
-                new JObject { ["platform"] = "STING Tools", ["purpose"] = "ISO 19650 Asset Tagging & BIM Management", ["version"] = "v9.6" },
+                new JObject { ["platform"] = "StingTools", ["purpose"] = "ISO 19650 Asset Tagging & BIM Management", ["version"] = "V2.1" },
                 new JObject { ["platform"] = "Navisworks Manage", ["purpose"] = "Federated model review & clash detection", ["version"] = "" },
                 new JObject { ["platform"] = "IFC 4 / IFC 2x3", ["purpose"] = "Open BIM data exchange", ["version"] = "" }
             };
@@ -790,7 +790,7 @@ namespace StingTools.BIMManager
                 ["generated_by"] = "STING BIM Manager v2.0",
                 ["generated_date"] = now.ToString("yyyy-MM-dd HH:mm:ss"),
                 ["iso_standard"] = "BS EN ISO 19650-1:2018 / BS EN ISO 19650-2:2018",
-                ["sting_version"] = "v9.6",
+                ["sting_version"] = "V2.1",
                 ["bep_type"] = "pre_contract"
             };
 
@@ -6153,7 +6153,7 @@ namespace StingTools.BIMManager
             // Try to read from BEP file
             try
             {
-                string bimDir = BIMManagerEngine.GetBimManagerDir(doc);
+                string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
                 string bepPath = Path.Combine(bimDir, "BEP.json");
                 if (File.Exists(bepPath))
                 {

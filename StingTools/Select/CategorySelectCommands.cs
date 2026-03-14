@@ -11,8 +11,8 @@ namespace StingTools.Select
 {
     /// <summary>
     /// Category-based selection commands. Each selects all instances of a specific
-    /// BuiltInCategory in the active view, matching the STINGTags v9.6 SELECT tab
-    /// category buttons (Lgt, Elc, Mch, Plb, Air, Fur, Dr, Win, Rm, Spr, Pipe, Duct, Cnd, Cbl).
+    /// BuiltInCategory in the active view or whole project (via SelectionScopeHelper).
+    /// Covers Lgt, Elc, Mch, Plb, Air, Fur, Dr, Win, Rm, Spr, Pipe, Duct, Cnd, Cbl.
     /// </summary>
     internal static class CategorySelector
     {
@@ -31,15 +31,17 @@ namespace StingTools.Select
                 return Result.Failed;
             }
 
-            ICollection<ElementId> ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
+            var collector = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView);
+            ICollection<ElementId> ids = collector
                 .OfCategory(bic)
                 .WhereElementIsNotElementType()
                 .ToElementIds();
 
             if (ids.Count == 0)
             {
+                string scope = SelectionScopeHelper.IsProjectScope ? "project" : "active view";
                 TaskDialog.Show($"Select {label}",
-                    $"No {label} found in the active view.");
+                    $"No {label} found in the {scope}.");
                 return Result.Succeeded;
             }
 
@@ -183,8 +185,7 @@ namespace StingTools.Select
 
     /// <summary>
     /// Select elements by choosing from ALL categories present in the active view.
-    /// Shows a multi-page category picker listing every category that has instances,
-    /// not just the ~14 hardcoded category buttons. Up to 4 categories per page.
+    /// Shows a scrollable WPF list dialog with search filtering — no pagination needed.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class SelectCustomCategoryCommand : IExternalCommand
@@ -225,85 +226,41 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            // Sort by count descending so most populated categories appear first
             var sorted = catCounts.OrderByDescending(kv => kv.Value.count).ToList();
 
-            // Show pages of 4 categories each using TaskDialog CommandLinks
-            int pageSize = 4;
-            int page = 0;
-            int totalPages = (sorted.Count + pageSize - 1) / pageSize;
-
-            while (true)
-            {
-                int start = page * pageSize;
-                int end = Math.Min(start + pageSize, sorted.Count);
-                var pageItems = sorted.Skip(start).Take(pageSize).ToList();
-
-                TaskDialog dlg = new TaskDialog("Select Category");
-                dlg.MainInstruction = $"Choose a category to select (page {page + 1}/{totalPages})";
-                dlg.MainContent = $"{sorted.Count} categories with elements in this view.";
-
-                // Add up to 4 command links for this page
-                var linkIds = new[] {
-                    TaskDialogCommandLinkId.CommandLink1,
-                    TaskDialogCommandLinkId.CommandLink2,
-                    TaskDialogCommandLinkId.CommandLink3,
-                    TaskDialogCommandLinkId.CommandLink4
-                };
-
-                for (int i = 0; i < pageItems.Count; i++)
+            // Show WPF list picker dialog
+            var picked = StingListPicker.Show(
+                "Select Category",
+                $"{sorted.Count} categories with elements in view",
+                sorted.Select(kv => new StingListPicker.ListItem
                 {
-                    var item = pageItems[i];
-                    dlg.AddCommandLink(linkIds[i],
-                        $"Select {item.Key} ({item.Value.count})",
-                        $"{item.Value.count} elements in active view");
-                }
+                    Label = kv.Key,
+                    Detail = $"{kv.Value.count} elements",
+                    Tag = kv.Key
+                }).ToList(),
+                allowMultiSelect: true);
 
-                // Navigation buttons
-                if (totalPages > 1)
-                {
-                    dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-                    dlg.FooterText = page < totalPages - 1
-                        ? "Click Cancel then re-run to see other pages, or use Next/Previous below."
-                        : "All categories shown.";
-
-                    // Use VerificationText for "Next Page" toggle
-                    if (totalPages > 1)
-                        dlg.VerificationText = page < totalPages - 1 ? "Show next page" : "Show first page";
-                }
-                else
-                {
-                    dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-                }
-
-                TaskDialogResult result = dlg.Show();
-
-                // Handle page navigation via verification checkbox
-                if (dlg.WasVerificationChecked())
-                {
-                    page = (page + 1) % totalPages;
-                    continue;
-                }
-
-                // Handle category selection
-                int selectedIndex = -1;
-                switch (result)
-                {
-                    case TaskDialogResult.CommandLink1: selectedIndex = 0; break;
-                    case TaskDialogResult.CommandLink2: selectedIndex = 1; break;
-                    case TaskDialogResult.CommandLink3: selectedIndex = 2; break;
-                    case TaskDialogResult.CommandLink4: selectedIndex = 3; break;
-                    default: return Result.Cancelled;
-                }
-
-                if (selectedIndex >= 0 && selectedIndex < pageItems.Count)
-                {
-                    var chosen = pageItems[selectedIndex];
-                    return CategorySelector.SelectByCategory(cmd, chosen.Value.bic, chosen.Key);
-                }
-
+            if (picked == null || picked.Count == 0)
                 return Result.Cancelled;
+
+            // Select elements from all chosen categories
+            var selectedNames = new HashSet<string>(picked.Select(p => (string)p.Tag));
+            var ids = new List<ElementId>();
+            foreach (var kv in sorted)
+            {
+                if (!selectedNames.Contains(kv.Key)) continue;
+                var catIds = new FilteredElementCollector(doc, activeView.Id)
+                    .OfCategory(kv.Value.bic)
+                    .WhereElementIsNotElementType()
+                    .ToElementIds();
+                ids.AddRange(catIds);
             }
+
+            ctx.UIDoc.Selection.SetElementIds(ids);
+            string catNames = string.Join(", ", picked.Select(p => p.Label));
+            TaskDialog.Show("Select Category",
+                $"Selected {ids.Count} elements from: {catNames}");
+            return Result.Succeeded;
         }
     }
 }

@@ -104,7 +104,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="STING TAGS v9.6" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                    <TextBlock Text="STINGTOOLS V2.1" FontWeight="Bold" FontSize="13" Foreground="White"/>
                     <TextBlock x:Name="txtStatus" Text="Always on top: ON" FontSize="9" Foreground="#CE93D8"/>
                 </StackPanel>
                 <TextBlock Grid.Column="1" x:Name="txtSelCount" Text="sel 0" FontSize="9" Foreground="#CE93D8" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -181,6 +181,15 @@
                                 <Button Style="{StaticResource CatBtn}" Content="Edge" Tag="SelectEdge" Click="Cmd_Click" ToolTip="Select edge elements"/>
                                 <Button Style="{StaticResource CatBtn}" Content="Grid" Tag="SelectGrid" Click="Cmd_Click" ToolTip="Select by grid"/>
                                 <Button Style="{StaticResource CatBtn}" Content="BBox" Tag="SelectBBox" Click="Cmd_Click" ToolTip="Select by bounding box"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- SELECTION SCOPE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SELECTION SCOPE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource CatBtn}" Content="View" Tag="SetScopeView" Click="Cmd_Click" Background="#2196F3" Foreground="White" FontWeight="Bold" ToolTip="Select from active view only (default)"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Project" Tag="SetScopeProject" Click="Cmd_Click" Background="#FF5722" Foreground="White" FontWeight="Bold" ToolTip="Select from entire project"/>
                             </WrapPanel>
                         </Border>
 
@@ -1881,6 +1890,46 @@
                                             ToolTip="Read a specific document by category and name"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Add File" Tag="BriefcaseAddFile" Click="Cmd_Click"
                                             ToolTip="Add reference files (PDF, specs, standards) to project briefcase"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- EXCEL LINK — BIDIRECTIONAL -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="EXCEL LINK — BIDIRECTIONAL"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#2E7D32">
+                            <StackPanel>
+                                <TextBlock Text="Export model data to Excel, edit, import back to update" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Export to Excel" Tag="ExportToExcel" Click="Cmd_Click"
+                                            ToolTip="Export element tags/params to editable Excel spreadsheet" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Import from Excel" Tag="ImportFromExcel" Click="Cmd_Click"
+                                            ToolTip="Import edited Excel back to update model parameters" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Round Trip" Tag="ExcelRoundTrip" Click="Cmd_Click"
+                                            ToolTip="One-click: export → edit in Excel → import on return" FontWeight="Bold"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PLATFORM INTEGRATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="PLATFORM INTEGRATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#0277BD">
+                            <StackPanel>
+                                <TextBlock Text="ACC, BCF, CDE packages, SharePoint export" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="ACC Publish" Tag="ACCPublish" Click="Cmd_Click"
+                                            ToolTip="Publish BIM deliverables to Autodesk Construction Cloud" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="CDE Package" Tag="CDEPackage" Click="Cmd_Click"
+                                            ToolTip="Create ISO 19650 CDE-ready deliverable package"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BCF Export" Tag="BCFExport" Click="Cmd_Click"
+                                            ToolTip="Export issues as BCF 2.1 for Navisworks/Solibri/BIMcollab"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BCF Import" Tag="BCFImport" Click="Cmd_Click"
+                                            ToolTip="Import BCF issues from external tools"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Platform Sync" Tag="PlatformSync" Click="Cmd_Click"
+                                            ToolTip="Sync status with external platforms (webhooks, delta export)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="SharePoint" Tag="SharePointExport" Click="Cmd_Click"
+                                            ToolTip="Export to SharePoint/Teams folder structure"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

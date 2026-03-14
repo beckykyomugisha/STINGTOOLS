@@ -11,7 +11,7 @@ namespace StingTools.Tags
 {
     /// <summary>
     /// Manual token writer commands — the 13 individual ISO 19650 token setters
-    /// from the STINGTags v9.6 CREATE tab. Each sets a single token on all
+    /// from the StingTools V2.1 CREATE tab. Each sets a single token on all
     /// selected elements (or all taggable elements if nothing is selected).
     /// Includes PROJ, ORIG, VOL, LVL, DISC, LOC, ZONE, SYS, FUNC, PROD, SEQ, STATUS, REV.
     /// </summary>

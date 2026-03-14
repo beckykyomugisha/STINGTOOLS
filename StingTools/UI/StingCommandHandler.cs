@@ -89,6 +89,11 @@ namespace StingTools.UI
                     case "SelectAllTaggable": RunCommand<Select.SelectAllTaggableCommand>(app); break;
                     case "SelectCustomCategory": RunCommand<Select.SelectCustomCategoryCommand>(app); break;
 
+                    // ── Selection scope ──
+                    case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
+                    case "SetScopeProject": Select.SelectionScopeHelper.SetScope(true); TaskDialog.Show("Scope", "Selection scope: WHOLE PROJECT"); break;
+                    case "SetSelectionScope": RunCommand<Select.SetSelectionScopeCommand>(app); break;
+
                     // ── State selectors ──
                     case "SelectUntagged": RunCommand<Select.SelectUntaggedCommand>(app); break;
                     case "SelectTagged": RunCommand<Select.SelectTaggedCommand>(app); break;
@@ -542,7 +547,7 @@ namespace StingTools.UI
                     case "CondClear": ConditionClear(app); break;
                     case "CondPreview": ConditionPreview(app); break;
                     case "CondApply": ConditionApply(app); break;
-                    case "ShowHelp": TaskDialog.Show("STING Tools", "STING Tags v9.6\nISO 19650 BIM Asset Tagging\nhttps://stingbim.com"); break;
+                    case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://stingbim.com"); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)
@@ -837,10 +842,23 @@ namespace StingTools.UI
                     case "SetOutputDirectory": RunCommand<BIMManager.SetOutputDirectoryCommand>(app); break;
                     case "StageComplianceGate": RunCommand<BIMManager.StageComplianceGateCommand>(app); break;
 
+                    // Excel Link — Bidirectional
+                    case "ExportToExcel": RunCommand<BIMManager.ExportToExcelCommand>(app); break;
+                    case "ImportFromExcel": RunCommand<BIMManager.ImportFromExcelCommand>(app); break;
+                    case "ExcelRoundTrip": RunCommand<BIMManager.ExcelRoundTripCommand>(app); break;
+
+                    // Platform Integration
+                    case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
+                    case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
+                    case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
+                    case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
+                    case "SharePointExport": RunCommand<BIMManager.SharePointExportCommand>(app); break;
+
                     // ── Unmapped / placeholder ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
-                        TaskDialog.Show("STING Tools",
+                        TaskDialog.Show("StingTools",
                             $"Command '{tag}' is not yet available.\nCheck for plugin updates.");
                         break;
                 }
@@ -852,7 +870,7 @@ namespace StingTools.UI
             catch (Exception ex)
             {
                 StingLog.Error($"DockPanel command '{tag}' failed", ex);
-                TaskDialog.Show("STING Tools", $"Command failed: {ex.Message}");
+                TaskDialog.Show("StingTools", $"Command failed: {ex.Message}");
             }
             finally
             {

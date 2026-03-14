@@ -9,7 +9,7 @@ using StingTools.Core;
 
 namespace StingTools.Organise
 {
-    /// <summary>Tag selected elements only (Tag Sel from STINGTags ORGANISE tab).
+    /// <summary>Tag selected elements only (Tag Sel from StingTools ORGANISE tab).
     /// Writes ISO 19650 tag data to parameters AND places visual IndependentTag
     /// annotations in the active view so tags are immediately visible.
     /// Includes collision mode selection for handling already-tagged elements.</summary>
