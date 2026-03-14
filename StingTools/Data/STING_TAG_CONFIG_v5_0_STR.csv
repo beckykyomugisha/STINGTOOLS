@@ -20,12 +20,13 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Structural Columns
 15,T3,STR_FIRE_PROTECTION_TYPE_TXT,FP:,,,,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, STR_FIRE_PROTECTION_TYPE_TXT, """")"
 16,T3,STR_COL_BASE_PLATE_TXT,| BP:,,,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, STR_COL_BASE_PLATE_TXT, """")"
 17,T3,STR_WEIGHT_KG,,kg,,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, STR_WEIGHT_KG, """")"
-18,T3,PER_EMBODIED_CARBON_KG_CO2_M2,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, PER_EMBODIED_CARBON_KG_CO2_M2, """")"
-19,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
-20,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
-21,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,,,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
-22,T3,CST_LOCAL_MAT_BOOL,| Local:,,,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
-23,T3,RGL_QA_COMMISSIONING_REQ_TXT,Comm:,,,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
+18,T3,STR_COL_MOMENT_CAPACITY_KNM,Mom:,kNm,,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, STR_COL_MOMENT_CAPACITY_KNM, """")"
+19,T3,PER_EMBODIED_CARBON_KG_CO2_M2,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, PER_EMBODIED_CARBON_KG_CO2_M2, """")"
+20,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+21,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
+22,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,,,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
+23,T3,CST_LOCAL_MAT_BOOL,| Local:,,,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
+24,T3,RGL_QA_COMMISSIONING_REQ_TXT,Comm:,,,✓,Common,Text,Show Tier 3 - 24,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_COLUMNS,Fire rating < 1.0 hr,Building Regs Part B / BS 9999 Table 10,Common,Text,⚠ Warning: Column Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_COLUMNS, """")"
@@ -52,12 +53,13 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
 15,T3,STR_BEAM_DEFLECTION_LIM_TXT,Defl:,,,,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, STR_BEAM_DEFLECTION_LIM_TXT, """")"
 16,T3,STR_FIRE_PROTECTION_TYPE_TXT,| FP:,,,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, STR_FIRE_PROTECTION_TYPE_TXT, """")"
 17,T3,STR_WEIGHT_KG,,kg,,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, STR_WEIGHT_KG, """")"
-18,T3,STR_BEAM_WEB_OPENING_TXT,Web:,,,,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, STR_BEAM_WEB_OPENING_TXT, """")"
-19,T3,PER_EMBODIED_CARBON_KG_CO2_M2,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, PER_EMBODIED_CARBON_KG_CO2_M2, """")"
-20,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
-21,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
-22,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,,,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
-23,T3,RGL_QA_COMMISSIONING_REQ_TXT,| Comm:,,,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
+18,T3,STR_BEAM_MOMENT_CAPACITY_KNM,Mom:,kNm,,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, STR_BEAM_MOMENT_CAPACITY_KNM, """")"
+19,T3,STR_BEAM_WEB_OPENING_TXT,Web:,,,,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, STR_BEAM_WEB_OPENING_TXT, """")"
+20,T3,PER_EMBODIED_CARBON_KG_CO2_M2,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, PER_EMBODIED_CARBON_KG_CO2_M2, """")"
+21,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+22,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
+23,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,,,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
+24,T3,RGL_QA_COMMISSIONING_REQ_TXT,| Comm:,,,✓,Common,Text,Show Tier 3 - 24,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_BEAMS,Fire rating < 1.0 hr,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Beam Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_BEAMS, """")"
@@ -83,16 +85,19 @@ TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
 14,T3,STR_FDN_WATERPROOF_TXT,WP:,,,,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, STR_FDN_WATERPROOF_TXT, """")"
 15,T3,STR_FDN_EXPOSURE_CLASS_TXT,| Exp:,,,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, STR_FDN_EXPOSURE_CLASS_TXT, """")"
 16,T3,STR_WEIGHT_KG,,kg,,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, STR_WEIGHT_KG, """")"
-17,T3,PER_EMBODIED_CARBON_KG_CO2_M2,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, PER_EMBODIED_CARBON_KG_CO2_M2, """")"
-18,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
-19,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
-20,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,,,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
-21,T3,RGL_QA_COMMISSIONING_REQ_TXT,| Comm:,,,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
+17,T3,STR_FDN_SETTLEMENT_MM,Settl:,mm,,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, STR_FDN_SETTLEMENT_MM, """")"
+18,T3,STR_FDN_PILE_TYPE_TXT,Pile:,,,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, STR_FDN_PILE_TYPE_TXT, """")"
+19,T3,PER_EMBODIED_CARBON_KG_CO2_M2,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, PER_EMBODIED_CARBON_KG_CO2_M2, """")"
+20,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+21,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
+22,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,,,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
+23,T3,RGL_QA_COMMISSIONING_REQ_TXT,| Comm:,,,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_FDN_BEARING_KN_M2,Bearing pressure exceeds soil capacity,BS EN 1997-1 / EC7,Common,Text,⚠ Warning: Foundation Bearing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_BEARING_KN_M2, """")"
 2,HIGH,WARN_STR_FDN_COVER_MM,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N / EC2,Common,Text,⚠ Warning: Concrete Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_COVER_MM, """")"
 3,HIGH,WARN_STR_FDN_DEPTH_MM_FROST,Depth < 450mm (frost susceptible),BS EN 1997-1 / NHBC Standards Ch4.2,Common,Text,⚠ Warning: Foundation Depth,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_DEPTH_MM_FROST, """")"
+4,HIGH,WARN_STR_FDN_SETTLEMENT_MM,Settlement > 25mm,BS EN 1997-1 / EC7,Common,Text,⚠ Warning: Foundation Settlement,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_SETTLEMENT_MM, """")"
 
 Tag Family #4: STING - Structural Slab Tag
 TAG7: STR_TAG_7_PARA_SLAB_TXT  •  Category: Floors (Structural)
@@ -109,15 +114,17 @@ TAG7: STR_TAG_7_PARA_SLAB_TXT  •  Category: Floors (Structural)
 10,T3,STR_TAG_7_PARA_SLAB_TXT,,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_SLAB_TXT, """")"
 11,T3,STR_SLAB_REBAR_TXT,Rebar:,,,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, STR_SLAB_REBAR_TXT, """")"
 12,T3,STR_SLAB_MESH_TXT,| Mesh:,,,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_SLAB_MESH_TXT, """")"
-13,T3,STR_FDN_COVER_MM,Cover:,mm,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, STR_FDN_COVER_MM, """")"
-14,T3,PER_ACOUSTIC_STC_RATING,STC:,,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PER_ACOUSTIC_STC_RATING, """")"
-15,T3,PER_EMBODIED_CARBON_KG_CO2_M2,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, PER_EMBODIED_CARBON_KG_CO2_M2, """")"
-16,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
-17,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
+13,T3,STR_SLAB_COVER_MM,Cover:,mm,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, STR_SLAB_COVER_MM, """")"
+14,T3,STR_SLAB_DEFLECTION_LIMIT_TXT,Defl:,,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, STR_SLAB_DEFLECTION_LIMIT_TXT, """")"
+15,T3,PER_ACOUSTIC_STC_RATING,STC:,,,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, PER_ACOUSTIC_STC_RATING, """")"
+16,T3,PER_EMBODIED_CARBON_KG_CO2_M2,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PER_EMBODIED_CARBON_KG_CO2_M2, """")"
+17,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+18,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_SLABS,Fire rating < 1.0 hr,Building Regs Part B / BS EN 1992-1-2,Common,Text,⚠ Warning: Slab Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_SLABS, """")"
 2,HIGH,WARN_STR_SLAB_DEFLECTION,Deflection exceeds L/250 (total),BS EN 1992-1-1 / EC2 7.4.1,Common,Text,⚠ Warning: Slab Deflection,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_SLAB_DEFLECTION, """")"
+3,HIGH,WARN_STR_SLAB_COVER_MM,Cover < minimum for exposure class,BS EN 1992-1-1,Common,Text,⚠ Warning: Slab Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_SLAB_COVER_MM, """")"
 
 Tag Family #5: STING - Structural Wall Tag
 TAG7: STR_TAG_7_PARA_WALL_TXT  •  Category: Walls (Structural/Load-bearing)
@@ -133,7 +140,7 @@ TAG7: STR_TAG_7_PARA_WALL_TXT  •  Category: Walls (Structural/Load-bearing)
 9,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 10,T3,STR_TAG_7_PARA_WALL_TXT,,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_WALL_TXT, """")"
 11,T3,STR_WALL_REBAR_TXT,Rebar:,,,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, STR_WALL_REBAR_TXT, """")"
-12,T3,STR_FDN_COVER_MM,| Cover:,mm,,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_FDN_COVER_MM, """")"
+12,T3,STR_WALL_COVER_MM,| Cover:,mm,,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_WALL_COVER_MM, """")"
 13,T3,PER_EMBODIED_CARBON_KG_CO2_M2,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PER_EMBODIED_CARBON_KG_CO2_M2, """")"
 14,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 15,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
@@ -161,3 +168,50 @@ TAG7: STR_TAG_7_PARA_BRACE_TXT  •  Category: Structural Framing (Bracing)
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_STR_BRACE_SLENDERNESS,Slenderness ratio exceeds 200,BS EN 1993-1-1 / EC3 6.3.1.2,Common,Text,⚠ Warning: Brace Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BRACE_SLENDERNESS, """")"
+2,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_BRACES,Fire rating < 1.0 hr,Building Regs Part B,Common,Text,⚠ Warning: Brace Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_BRACES, """")"
+
+Tag Family #7: STING - Structural Rebar Tag
+TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,STR_REBAR_SIZE_MM,Size:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")"
+5,T2,STR_REBAR_GRADE_TXT,Gr:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_GRADE_TXT, """")"
+6,T2,STR_REBAR_SPACING_MM,Spc:,mm,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SPACING_MM, """")"
+7,T2,STR_REBAR_COVER_MM,Cover:,mm,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_COVER_MM, """")"
+8,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+9,T3,STR_TAG_7_PARA_REBAR_TXT,,,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")"
+10,T3,STR_REBAR_SHAPE_TXT,Shape:,,,,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, STR_REBAR_SHAPE_TXT, """")"
+11,T3,STR_REBAR_LAP_LENGTH_MM,| Lap:,mm,,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, STR_REBAR_LAP_LENGTH_MM, """")"
+12,T3,STR_REBAR_HOOK_TYPE_TXT,Hook:,,,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_REBAR_HOOK_TYPE_TXT, """")"
+13,T3,STR_WEIGHT_KG,,kg,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, STR_WEIGHT_KG, """")"
+14,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+15,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_STR_REBAR_COVER_MM,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM, """")"
+2,HIGH,WARN_STR_REBAR_LAP_LENGTH_MM,Lap length < required,BS EN 1992-1-1 / EC2 8.7,Common,Text,⚠ Warning: Rebar Lap Length,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_LAP_LENGTH_MM, """")"
+
+Tag Family #8: STING - Structural Connection Tag
+TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Structural Connections
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,STR_CONN_TYPE_TXT,Type:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_CONN_TYPE_TXT, """")"
+5,T2,STR_CONN_CAPACITY_KN,Cap:,kN,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_CONN_CAPACITY_KN, """")"
+6,T2,STR_CONN_BOLT_SIZE_TXT,Bolt:,,,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, STR_CONN_BOLT_SIZE_TXT, """")"
+7,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,STR_TAG_7_PARA_CONN_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_CONN_TXT, """")"
+9,T3,STR_CONN_WELD_TYPE_TXT,Weld:,,,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, STR_CONN_WELD_TYPE_TXT, """")"
+10,T3,STR_CONN_PLATE_THICKNESS_MM,| Plt:,mm,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, STR_CONN_PLATE_THICKNESS_MM, """")"
+11,T3,STR_CONN_ROTATION_CAPACITY_TXT,Rot:,,,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, STR_CONN_ROTATION_CAPACITY_TXT, """")"
+12,T3,STR_FIRE_PROTECTION_TYPE_TXT,FP:,,,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_FIRE_PROTECTION_TYPE_TXT, """")"
+13,T3,STR_WEIGHT_KG,,kg,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, STR_WEIGHT_KG, """")"
+14,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+15,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_STR_CONN_CAPACITY_KN,Capacity < applied load,BS EN 1993-1-8 / EC3,Common,Text,⚠ Warning: Connection Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_CONN_CAPACITY_KN, """")"
+2,HIGH,WARN_STR_CONN_WELD_SIZE,Weld size < minimum,BS EN 1993-1-8 / EC3 4.5,Common,Text,⚠ Warning: Weld Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_CONN_WELD_SIZE, """")"
