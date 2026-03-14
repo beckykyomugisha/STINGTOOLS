@@ -196,12 +196,21 @@ namespace StingTools.Temp
             int matCreated = 0;
             var errors = new List<string>();
 
+            bool cancelled = false;
             using (Transaction tx = new Transaction(doc, $"Create {label} Types"))
             {
                 tx.Start();
+                int processed = 0;
 
                 foreach (string[] cols in rows)
                 {
+                    // Cancellation check every 50 types
+                    if (++processed % 50 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        cancelled = true;
+                        StingLog.Info($"Create {label}: cancelled by user at {processed}/{rows.Count}");
+                        break;
+                    }
                     string matName = cols[ColName].Trim();
                     string category = cols.Length > ColCategory
                         ? cols[ColCategory].Trim() : "";
@@ -297,6 +306,7 @@ namespace StingTools.Temp
             string report = $"Created {created} {label.ToLower()} types.\n" +
                 $"Skipped {skipped} (exist or failed).\n" +
                 $"Materials created: {matCreated}\n" +
+                (cancelled ? "CANCELLED by user (Escape key). Types created so far are kept.\n" : "") +
                 $"Source: {Path.GetFileName(csvPath)} " +
                 $"({rows.Count} matching rows)";
             if (errors.Count > 0)

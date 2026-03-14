@@ -1127,12 +1127,22 @@ namespace StingTools.Temp
             var assignments = new List<string>();
             var perTemplate = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
+            bool cancelled = false;
+            int viewIndex = 0;
+
             using (Transaction tx = new Transaction(doc, "STING Auto-Assign Templates"))
             {
                 tx.Start();
 
                 foreach (View view in views)
                 {
+                    if (++viewIndex % 50 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        cancelled = true;
+                        StingLog.Info($"Auto-assign templates: cancelled at {viewIndex}/{views.Count}");
+                        break;
+                    }
+
                     if (view.ViewTemplateId != ElementId.InvalidElementId)
                     { alreadyAssigned++; continue; }
 
@@ -1162,6 +1172,8 @@ namespace StingTools.Temp
             }
 
             var report = new StringBuilder();
+            if (cancelled)
+                report.AppendLine($"CANCELLED by user at view {viewIndex}/{views.Count}");
             report.AppendLine($"Assigned: {assigned}");
             report.AppendLine($"Already had template: {alreadyAssigned}");
             report.AppendLine($"No match: {noMatch}");
@@ -1580,12 +1592,22 @@ namespace StingTools.Temp
             report.AppendLine("STING Auto-Fix Template Report");
             report.AppendLine(new string('═', 55));
 
+            bool cancelled = false;
+            int tmplIndex = 0;
+
             using (Transaction tx = new Transaction(doc, "STING Auto-Fix Templates"))
             {
                 tx.Start();
 
                 foreach (var kvp in stingTemplates)
                 {
+                    if (++tmplIndex % 10 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        cancelled = true;
+                        StingLog.Info($"Auto-fix templates: cancelled at {tmplIndex}/{stingTemplates.Count}");
+                        break;
+                    }
+
                     var issues = TemplateManager.DiagnoseTemplate(doc, kvp.Value);
                     if (issues.Count == 0) continue;
 
@@ -1637,12 +1659,14 @@ namespace StingTools.Temp
             }
 
             report.AppendLine($"\n{new string('─', 55)}");
+            if (cancelled)
+                report.AppendLine("CANCELLED by user — partial results shown");
             report.AppendLine($"Total issues found: {totalIssues}");
             report.AppendLine($"Auto-fixed: {totalFixed}");
             report.AppendLine($"Remaining: {totalIssues - totalFixed}");
 
             TaskDialog.Show("Auto-Fix Templates", report.ToString());
-            StingLog.Info($"Auto-Fix: {totalIssues} issues, {totalFixed} fixed");
+            StingLog.Info($"Auto-Fix: {totalIssues} issues, {totalFixed} fixed{(cancelled ? " (cancelled)" : "")}");
 
             return Result.Succeeded;
         }
@@ -1690,6 +1714,8 @@ namespace StingTools.Temp
             catch { }
 
             int synced = 0, failed = 0;
+            bool cancelled = false;
+            int tmplIdx = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Sync Template Overrides"))
             {
@@ -1697,6 +1723,13 @@ namespace StingTools.Temp
 
                 foreach (var kvp in stingTemplates)
                 {
+                    if (++tmplIdx % 10 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        cancelled = true;
+                        StingLog.Info($"Sync template overrides: cancelled at {tmplIdx}/{stingTemplates.Count}");
+                        break;
+                    }
+
                     string disc = TemplateManager.GetDisciplineFromTemplateName(kvp.Key);
                     if (disc == null) { failed++; continue; }
 
@@ -1720,9 +1753,10 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
-            TaskDialog.Show("Sync Template Overrides",
-                $"Synced VG on {synced} STING templates.\nFailed: {failed}");
-            StingLog.Info($"Sync VG: {synced} synced, {failed} failed");
+            string syncMsg = cancelled ? $"CANCELLED — synced {synced} of {stingTemplates.Count}" :
+                $"Synced VG on {synced} STING templates.";
+            TaskDialog.Show("Sync Template Overrides", $"{syncMsg}\nFailed: {failed}");
+            StingLog.Info($"Sync VG: {synced} synced, {failed} failed{(cancelled ? " (cancelled)" : "")}");
 
             return Result.Succeeded;
         }
@@ -2523,12 +2557,22 @@ namespace StingTools.Temp
             int guidResolved = 0;
             var perCategory = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
+            bool cancelled = false;
+            int groupIndex = 0;
+
             using (Transaction tx = new Transaction(doc, "STING Batch Add Family Parameters"))
             {
                 tx.Start();
 
                 foreach (var paramGroup in paramGroups)
                 {
+                    if (++groupIndex % 50 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        cancelled = true;
+                        StingLog.Info($"Batch add family params: cancelled at {groupIndex}/{paramGroups.Count}");
+                        break;
+                    }
+
                     string paramName = paramGroup.Key;
 
                     // Find the external definition — try name first, then GUID fallback (GAP-004)
@@ -2642,7 +2686,10 @@ namespace StingTools.Temp
 
             // Build coverage report
             var report = new StringBuilder();
-            report.AppendLine($"Batch Add Family Parameters");
+            if (cancelled)
+                report.AppendLine($"Batch Add Family Parameters — CANCELLED at group {groupIndex}/{paramGroups.Count}");
+            else
+                report.AppendLine($"Batch Add Family Parameters");
             report.AppendLine(new string('═', 50));
             report.AppendLine($"\nCSV entries: {bindings.Count}");
             report.AppendLine($"Unique parameters: {paramGroups.Count}");
@@ -3766,11 +3813,21 @@ namespace StingTools.Temp
 
                 var stingTemplates = TemplateManager.GetStingTemplates(doc);
 
+                bool phase1Cancelled = false;
+                int p1Idx = 0;
+
                 using (Transaction tx = new Transaction(doc, "STING Standardise Template VG"))
                 {
                     tx.Start();
                     foreach (var kvp in stingTemplates)
                     {
+                        if (++p1Idx % 10 == 0 && EscapeChecker.IsEscapePressed())
+                        {
+                            phase1Cancelled = true;
+                            report.AppendLine($"  CANCELLED at template {p1Idx}/{stingTemplates.Count}");
+                            break;
+                        }
+
                         string disc = TemplateManager.GetDisciplineFromTemplateName(kvp.Key);
                         if (disc == null) continue;
 
@@ -3823,12 +3880,22 @@ namespace StingTools.Temp
                 if (skippedOnSheets > 0)
                     report.AppendLine($"  Skipping {skippedOnSheets} views on sheets");
 
+                bool phase2Cancelled = false;
+                int p2Idx = 0;
+
                 using (Transaction tx = new Transaction(doc, "STING Clear Element Overrides"))
                 {
                     tx.Start();
 
                     foreach (View view in resetTargets)
                     {
+                        if (++p2Idx % 10 == 0 && EscapeChecker.IsEscapePressed())
+                        {
+                            phase2Cancelled = true;
+                            report.AppendLine($"  CANCELLED at view {p2Idx}/{resetTargets.Count}");
+                            break;
+                        }
+
                         try
                         {
                             // Collect all elements in view that have overrides

@@ -203,6 +203,10 @@ namespace StingTools.Tags
             progress.Close();
             ComplianceScan.InvalidateCache();
 
+            // BIM integration: auto-raise compliance issues after batch tagging
+            try { StingTools.BIMManager.BIMManagerEngine.AutoRaiseComplianceIssues(doc); }
+            catch (Exception ex) { StingLog.Warn($"BatchTag BIM integration: {ex.Message}"); }
+
             if (cancelled)
             {
                 TaskDialog.Show("Batch Tag", $"Cancelled by user.\nPartially completed batches were committed.");

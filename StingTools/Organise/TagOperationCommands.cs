@@ -152,6 +152,7 @@ namespace StingTools.Organise
                 }
                 tx.Commit();
             }
+            ComplianceScan.InvalidateCache();
 
             string report = $"Tagged {stats.TotalTagged} of {selected.Count} selected elements.\n" +
                 $"Visual annotations placed: {visualTagsPlaced}";
@@ -276,6 +277,7 @@ namespace StingTools.Organise
                 }
                 tx.Commit();
             }
+            ComplianceScan.InvalidateCache();
 
             TaskDialog.Show("Re-Tag", $"Re-tagged {retagged} of {selected.Count} elements.");
             return Result.Succeeded;
@@ -450,6 +452,7 @@ namespace StingTools.Organise
             if (remainingDupes > 0)
                 StingLog.Warn($"FixDuplicates: post-fix scan found {remainingDupes} remaining duplicate tag values");
 
+            ComplianceScan.InvalidateCache();
             TaskDialog.Show("Fix Duplicates",
                 $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.{dupeNote}");
             return Result.Succeeded;
@@ -524,6 +527,7 @@ namespace StingTools.Organise
                 }
                 tx.Commit();
             }
+            ComplianceScan.InvalidateCache();
 
             TaskDialog.Show("Delete Tags", $"Cleared tags and containers from {cleared} elements.");
             return Result.Succeeded;
@@ -722,14 +726,13 @@ namespace StingTools.Organise
                 sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{rev},{valid},{resolved}");
             }
 
-            // Write to file
-            string dir = System.IO.Path.GetDirectoryName(doc.PathName);
-            if (string.IsNullOrEmpty(dir)) dir = System.IO.Path.GetTempPath();
-            string path = System.IO.Path.Combine(dir, "STING_Tag_Audit.csv");
+            // Write to file — uses user-preferred output location
+            string path = OutputLocationHelper.GetOutputPath(doc, "STING_Tag_Audit.csv");
 
             try
             {
                 System.IO.File.WriteAllText(path, sb.ToString());
+                StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, path, "SH", "Tag audit export (all element tags)");
                 TaskDialog.Show("Audit CSV",
                     $"Exported {total} elements to:\n{path}");
             }
@@ -1105,6 +1108,7 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
+            ComplianceScan.InvalidateCache();
             TaskDialog.Show("Copy Tags", $"Copied tag values to {copied} elements.");
             return Result.Succeeded;
         }
@@ -1203,6 +1207,7 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
+            ComplianceScan.InvalidateCache();
             TaskDialog.Show("Swap Tags", "Tags swapped successfully.");
             return Result.Succeeded;
         }
@@ -2962,16 +2967,13 @@ namespace StingTools.Organise
                 sb.AppendLine(Esc(omniclass));
             }
 
-            // Write to file
-            string dir = System.IO.Path.GetDirectoryName(doc.PathName);
-            if (string.IsNullOrEmpty(dir)) dir = System.IO.Path.GetTempPath();
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            string path = System.IO.Path.Combine(dir,
-                $"STING_Tag_Register_{timestamp}.csv");
+            // Write to file — uses user-preferred output location
+            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_Tag_Register", ".csv");
 
             try
             {
                 System.IO.File.WriteAllText(path, sb.ToString(), System.Text.Encoding.UTF8);
+                StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, path, "SH", "Comprehensive asset tag register (40+ columns)");
 
                 double pct = total > 0 ? (valid * 100.0 / total) : 0;
                 var report = new StringBuilder();

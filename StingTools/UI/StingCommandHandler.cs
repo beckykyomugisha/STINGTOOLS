@@ -833,6 +833,10 @@ namespace StingTools.UI
 
                     // IFCExport, BOQExport, ClashDetect, KeynoteSync, ValidateTemplate already wired above
 
+                    // Output & Compliance
+                    case "SetOutputDirectory": RunCommand<BIMManager.SetOutputDirectoryCommand>(app); break;
+                    case "StageComplianceGate": RunCommand<BIMManager.StageComplianceGateCommand>(app); break;
+
                     // ── Unmapped / placeholder ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");

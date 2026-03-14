@@ -1861,6 +1861,10 @@
                                             ToolTip="FM Handover Manual + COBie V2.4"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Bulk Export" Tag="BulkBIMExport" Click="Cmd_Click"
                                             ToolTip="Export all: BEP + Dashboard + COBie + 4D/5D"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stage Gate" Tag="StageComplianceGate" Click="Cmd_Click"
+                                            ToolTip="RIBA stage-gated compliance check — verifies tag completeness meets stage requirements"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Set Output Dir" Tag="SetOutputDirectory" Click="Cmd_Click"
+                                            ToolTip="Set preferred output directory for all STING exports (CSV, XLSX, HTML, JSON)"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

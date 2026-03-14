@@ -1745,10 +1745,7 @@ namespace StingTools.BIMManager
                 var phases = new FilteredElementCollector(doc)
                     .OfClass(typeof(Phase)).Cast<Phase>().ToList();
 
-                string dir = !string.IsNullOrEmpty(doc.PathName)
-                    ? Path.GetDirectoryName(doc.PathName)
-                    : Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                string path = Path.Combine(dir, $"STING_Milestones_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_Milestones", ".csv");
 
                 var sb = new StringBuilder();
                 sb.AppendLine("Phase,PhaseOrdinal,ElementCount,Categories,PrimaryDiscipline,MilestoneStatus");
@@ -1821,10 +1818,7 @@ namespace StingTools.BIMManager
                 if (ctx == null) return Result.Failed;
                 Document doc = ctx.Doc;
 
-                string dir = !string.IsNullOrEmpty(doc.PathName)
-                    ? Path.GetDirectoryName(doc.PathName)
-                    : Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                string path = Path.Combine(dir, $"STING_WorkingCalendar_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_WorkingCalendar", ".csv");
 
                 var sb = new StringBuilder();
                 sb.AppendLine("Date,DayOfWeek,IsWorkingDay,WorkingHours,Notes");
