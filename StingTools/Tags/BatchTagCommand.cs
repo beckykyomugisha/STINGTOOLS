@@ -113,7 +113,7 @@ namespace StingTools.Tags
             // This ensures contiguous SEQ numbers per group (all HVAC on L01 together)
             var sorted = SmartSortElements(doc, taggableElements);
 
-            int statusDetected = 0, revSet = 0;
+            int statusDetected = 0, revSet = 0, warningsPopulated = 0;
             var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             var stats = new TaggingStats();
@@ -162,6 +162,7 @@ namespace StingTools.Tags
                             populated += popResult.TokensSet;
                             if (popResult.StatusDetected) statusDetected++;
                             if (popResult.RevSet) revSet++;
+                            warningsPopulated += popResult.WarningsPopulated;
 
                             bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
                             TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
@@ -220,6 +221,8 @@ namespace StingTools.Tags
                 report.AppendLine($"  STATUS:       {statusDetected} (from Revit phases/worksets)");
             if (revSet > 0)
                 report.AppendLine($"  REV:          {revSet} (revision '{popCtx.ProjectRev}')");
+            if (warningsPopulated > 0)
+                report.AppendLine($"  Warnings:     {warningsPopulated} WARN_ parameters populated");
             report.AppendLine($"  Duration:     {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
             report.Append(stats.BuildReport());
@@ -227,7 +230,7 @@ namespace StingTools.Tags
             StingLog.Info($"Batch Tag: tagged={stats.TotalTagged}, skipped={stats.TotalSkipped}, " +
                 $"collisions={stats.TotalCollisions}, populated={populated}, " +
                 $"statusDetect={statusDetected}, revSet={revSet}, " +
-                $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
+                $"warnings={warningsPopulated}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             // GAP-017: Post-batch compliance summary for workflow chain visibility
             var postScan = ComplianceScan.Scan(doc);

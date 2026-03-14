@@ -131,7 +131,7 @@ namespace StingTools.Tags
             var sorted = BatchTagCommand.SmartSortElements(doc, taggableElements);
 
             int populated = 0;
-            int statusDetected = 0, revSet = 0;
+            int statusDetected = 0, revSet = 0, warningsPopulated = 0;
             var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             var stats = new TaggingStats();
@@ -161,6 +161,7 @@ namespace StingTools.Tags
                         populated += popResult.TokensSet;
                         if (popResult.StatusDetected) statusDetected++;
                         if (popResult.RevSet) revSet++;
+                        warningsPopulated += popResult.WarningsPopulated;
 
                         bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
                         TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
@@ -204,6 +205,8 @@ namespace StingTools.Tags
                 report.AppendLine($"  STATUS:     {statusDetected} (from Revit phases/worksets)");
             if (revSet > 0)
                 report.AppendLine($"  REV:        {revSet} (revision '{popCtx.ProjectRev}')");
+            if (warningsPopulated > 0)
+                report.AppendLine($"  Warnings:   {warningsPopulated} WARN_ parameters populated");
             report.AppendLine();
             report.Append(stats.BuildReport());
 
@@ -215,7 +218,7 @@ namespace StingTools.Tags
             StingLog.Info($"AutoTag: view='{activeView.Name}', tagged={stats.TotalTagged}, " +
                 $"skipped={stats.TotalSkipped}, collisions={stats.TotalCollisions}, " +
                 $"populated={populated}, statusDetect={statusDetected}, revSet={revSet}, " +
-                $"mode={collisionMode}");
+                $"warnings={warningsPopulated}, mode={collisionMode}");
 
             return Result.Succeeded;
         }
@@ -278,7 +281,7 @@ namespace StingTools.Tags
             var stats = new TaggingStats();
             var sw = Stopwatch.StartNew();
             int populated = 0;
-            int statusDetected = 0, revSet = 0;
+            int statusDetected = 0, revSet = 0, warningsPopulated = 0;
 
             bool cancelled = false;
 
@@ -304,6 +307,7 @@ namespace StingTools.Tags
                         populated += popResult.TokensSet;
                         if (popResult.StatusDetected) statusDetected++;
                         if (popResult.RevSet) revSet++;
+                        warningsPopulated += popResult.WarningsPopulated;
 
                         // Tag with collision detection and stats tracking
                         TagConfig.BuildAndWriteTag(doc, el, seqCounters,
@@ -341,6 +345,8 @@ namespace StingTools.Tags
                 report.AppendLine($"  STATUS:    {statusDetected} (from Revit phases/worksets)");
             if (revSet > 0)
                 report.AppendLine($"  REV:       {revSet} (revision '{popCtx.ProjectRev}')");
+            if (warningsPopulated > 0)
+                report.AppendLine($"  Warnings:  {warningsPopulated} WARN_ parameters populated");
             report.AppendLine($"  Duration:  {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
             report.Append(stats.BuildReport());
@@ -352,6 +358,7 @@ namespace StingTools.Tags
 
             StingLog.Info($"TagNewOnly: tagged={stats.TotalTagged}, populated={populated}, " +
                 $"statusDetect={statusDetected}, revSet={revSet}, " +
+                $"warnings={warningsPopulated}, " +
                 $"collisions={stats.TotalCollisions}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;

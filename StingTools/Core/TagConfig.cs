@@ -717,6 +717,96 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"TagConfig.LoadCategoryWarningsFromLabels: {ex.Message}");
             }
+
+            // Supplement with warnings from tag config CSVs (ARCH/MEP/STR)
+            LoadCategoryWarningsFromTagConfigCsvs();
+        }
+
+        /// <summary>
+        /// Load category-level warning assignments from STING_TAG_CONFIG_v5_0_*.csv files.
+        /// Supplements LABEL_DEFINITIONS.json warnings with any additional WARN_ params
+        /// defined in the tag family warning sections.
+        /// </summary>
+        private static void LoadCategoryWarningsFromTagConfigCsvs()
+        {
+            string[] csvFiles = new[]
+            {
+                "STING_TAG_CONFIG_v5_0_ARCH.csv",
+                "STING_TAG_CONFIG_v5_0_MEP.csv",
+                "STING_TAG_CONFIG_v5_0_STR.csv"
+            };
+
+            int added = 0;
+            foreach (string fileName in csvFiles)
+            {
+                try
+                {
+                    string path = StingToolsApp.FindDataFile(fileName);
+                    if (path == null || !System.IO.File.Exists(path)) continue;
+
+                    string[] lines = System.IO.File.ReadAllLines(path);
+                    string currentCategory = null;
+                    bool inWarningSection = false;
+
+                    foreach (string rawLine in lines)
+                    {
+                        string line = rawLine.Trim();
+
+                        // Parse category from "Category: Xxx" after tag family header
+                        if (line.Contains("Category:"))
+                        {
+                            int idx = line.IndexOf("Category:");
+                            currentCategory = line.Substring(idx + 9).Trim();
+                            inWarningSection = false;
+                            continue;
+                        }
+
+                        if (line.Contains("WARNING PARAMETERS"))
+                        {
+                            inWarningSection = true;
+                            continue;
+                        }
+
+                        // End of warning section
+                        if (inWarningSection && (line.StartsWith("Tag Family") || string.IsNullOrEmpty(line)))
+                        {
+                            inWarningSection = false;
+                            continue;
+                        }
+
+                        // Skip header row
+                        if (inWarningSection && line.StartsWith("#,"))
+                            continue;
+
+                        if (inWarningSection && currentCategory != null)
+                        {
+                            var fields = StingToolsApp.ParseCsvLine(line);
+                            if (fields != null && fields.Length >= 3)
+                            {
+                                string warnParam = fields[2].Trim();
+                                if (warnParam.StartsWith("WARN_"))
+                                {
+                                    // Merge with existing category warnings
+                                    var existing = ParamRegistry.GetCategoryWarnings(currentCategory);
+                                    if (!existing.Contains(warnParam))
+                                    {
+                                        existing.Add(warnParam);
+                                        ParamRegistry.RegisterCategoryWarnings(currentCategory, existing);
+                                        added++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TagConfig.LoadCategoryWarningsFromTagConfigCsvs({fileName}): {ex.Message}");
+                }
+            }
+
+            if (added > 0)
+                StingLog.Info($"TagConfig: supplemented {added} additional warning refs from tag config CSVs");
         }
 
         /// <summary>
@@ -3612,8 +3702,13 @@ namespace StingTools.Core
                 }
             }
 
-            // ── Warning evaluation (v5.5) ─────────────────────────────────
-            // Check if warnings are enabled and evaluate applicable thresholds
+            // ── Warning parameter population (v5.6) ────────────────────────
+            // Populate each individual WARN_ parameter with its evaluated text
+            // so tag family labels (gated by TAG_WARN_VISIBLE_BOOL) can display them.
+            int warnWritten = PopulateWarningParameters(doc, el, categoryName);
+            written += warnWritten;
+
+            // Also build concatenated warning text for TAG7 narrative append
             string warningText = EvaluateElementWarnings(doc, el, categoryName);
             if (!string.IsNullOrEmpty(warningText))
             {
@@ -3689,6 +3784,60 @@ namespace StingTools.Core
             }
 
             return warnings.Count > 0 ? string.Join(" ", warnings) : null;
+        }
+
+        /// <summary>
+        /// Populate individual WARN_ parameters on an element with their evaluated warning text.
+        /// Each WARN_ parameter gets its own text so tag family labels can display them via
+        /// calculated value formulas: if(TAG_WARN_VISIBLE_BOOL, WARN_xxx, "").
+        /// Returns the number of WARN_ parameters written.
+        /// </summary>
+        public static int PopulateWarningParameters(Document doc, Element el, string categoryName)
+        {
+            if (el == null || string.IsNullOrEmpty(categoryName))
+                return 0;
+
+            var warningParamNames = ParamRegistry.GetCategoryWarnings(categoryName);
+            if (warningParamNames == null || warningParamNames.Count == 0)
+                return 0;
+
+            int written = 0;
+            foreach (string warnParam in warningParamNames)
+            {
+                if (!ParamRegistry.WarningThresholds.TryGetValue(warnParam, out var def))
+                    continue;
+
+                // Get the element's current measured value for this warning check
+                string dataValue = GetWarningDataValue(el, warnParam, categoryName);
+
+                string warningText;
+                if (string.IsNullOrEmpty(dataValue))
+                {
+                    // No data available — write empty (tag label shows nothing)
+                    warningText = "";
+                }
+                else
+                {
+                    string evalResult = ParamRegistry.EvaluateWarning(def, dataValue);
+                    if (!string.IsNullOrEmpty(evalResult))
+                    {
+                        // Threshold violated — write the warning text
+                        warningText = evalResult;
+                    }
+                    else
+                    {
+                        // Compliant — clear any previous warning
+                        warningText = "";
+                    }
+                }
+
+                // Write to the individual WARN_ parameter on the element
+                // Always overwrite so warnings stay current with element data
+                if (ParameterHelpers.SetString(el, warnParam, warningText, overwrite: true))
+                    written++;
+            }
+
+            return written;
         }
 
         /// <summary>Get severity level as numeric (for filtering). Higher = more severe.</summary>

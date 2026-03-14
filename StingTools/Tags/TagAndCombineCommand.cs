@@ -123,6 +123,7 @@ namespace StingTools.Tags
             int zoneDetected = 0;
             int statusDetected = 0;
             int revSet = 0;
+            int warningsPopulated = 0;
             int errors = 0;
             var stats = new TaggingStats();
 
@@ -162,6 +163,7 @@ namespace StingTools.Tags
                         if (popResult.ZoneDetected) zoneDetected++;
                         if (popResult.StatusDetected) statusDetected++;
                         if (popResult.RevSet) revSet++;
+                        warningsPopulated += popResult.WarningsPopulated;
 
                         // Step 6: Tag if not already complete (with collision detection)
                         bool tagWritten = TagConfig.BuildAndWriteTag(doc, el, seqCounters,
@@ -215,6 +217,8 @@ namespace StingTools.Tags
                 report.AppendLine($"  STATUS detect:    {statusDetected} (from Revit phases/worksets)");
             if (revSet > 0)
                 report.AppendLine($"  REV auto-set:     {revSet} (revision '{popCtx.ProjectRev}')");
+            if (warningsPopulated > 0)
+                report.AppendLine($"  Warnings:         {warningsPopulated} WARN_ parameters populated");
             if (errors > 0)
                 report.AppendLine($"  Errors:           {errors} (see log for details)");
             report.AppendLine($"  Duration:         {sw.Elapsed.TotalSeconds:F1}s");

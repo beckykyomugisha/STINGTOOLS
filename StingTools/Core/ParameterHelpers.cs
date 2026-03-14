@@ -1005,6 +1005,8 @@ namespace StingTools.Core
             public bool StatusDetected { get; set; }
             public bool RevSet { get; set; }
             public bool FamilyProdUsed { get; set; }
+            /// <summary>Number of WARN_ parameters written on this element.</summary>
+            public int WarningsPopulated { get; set; }
         }
 
         /// <summary>
@@ -1182,6 +1184,11 @@ namespace StingTools.Core
                     }
                 }
             }
+
+            // ── Warning parameter population (v5.6) ────────────────────────
+            // Auto-populate individual WARN_ parameters with evaluated warning text
+            // so tag family labels can display them via calculated value formulas.
+            result.WarningsPopulated = TagConfig.PopulateWarningParameters(doc, el, catName);
 
             return result;
         }
