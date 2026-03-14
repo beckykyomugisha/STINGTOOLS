@@ -160,15 +160,12 @@ namespace StingTools.Select
                 return Result.Failed;
             }
 
-            var knownCatIds = new HashSet<ElementId>();
-            foreach (string catName in TagConfig.DiscMap.Keys)
-            {
-                Category cat = ctx.Doc.Settings.Categories.get_Item(catName);
-                if (cat != null) knownCatIds.Add(cat.Id);
-            }
+            // Use category NAME matching (not Settings.Categories.get_Item which requires
+            // exact case and locale-sensitive names that may not match DiscMap keys)
+            var knownCatNames = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
             List<ElementId> ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && knownCatIds.Contains(e.Category.Id))
+                .Where(e => e.Category != null && knownCatNames.Contains(e.Category.Name))
                 .Select(e => e.Id)
                 .ToList();
 

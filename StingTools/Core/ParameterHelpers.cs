@@ -47,7 +47,7 @@ namespace StingTools.Core
             var doc = uidoc.Document;
             if (doc == null) return null;
             View activeView = null;
-            try { activeView = doc.ActiveView; } catch { /* family editor / no view */ }
+            try { activeView = doc.ActiveView; } catch (Exception ex) { StingLog.Warn($"GetContext: no active view: {ex.Message}"); }
             return new CommandContext { App = app, UIDoc = uidoc, Doc = doc, ActiveView = activeView };
         }
 

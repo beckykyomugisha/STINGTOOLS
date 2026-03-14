@@ -125,9 +125,16 @@ namespace StingTools.Organise
                         stats: stats);
 
                     // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    string catTag7 = ParameterHelpers.GetCategoryName(elem);
-                    string[] tVals = ParamRegistry.ReadTokenValues(elem);
-                    TagConfig.WriteTag7All(doc, elem, catTag7, tVals, overwrite: true);
+                    try
+                    {
+                        string catTag7 = ParameterHelpers.GetCategoryName(elem);
+                        string[] tVals = ParamRegistry.ReadTokenValues(elem);
+                        TagConfig.WriteTag7All(doc, elem, catTag7, tVals, overwrite: true);
+                    }
+                    catch (Exception exTag7)
+                    {
+                        StingLog.Warn($"TAG7 write failed for {id}: {exTag7.Message}");
+                    }
 
                     // Place visual IndependentTag annotation if not already present
                     if (activeView != null && !existingVisualTags.Contains(id))
@@ -256,9 +263,16 @@ namespace StingTools.Organise
                         retagged++;
 
                     // Rebuild TAG7 + sub-sections with updated tokens
-                    string catRT = ParameterHelpers.GetCategoryName(elem);
-                    string[] tvRT = ParamRegistry.ReadTokenValues(elem);
-                    TagConfig.WriteTag7All(doc, elem, catRT, tvRT, overwrite: true);
+                    try
+                    {
+                        string catRT = ParameterHelpers.GetCategoryName(elem);
+                        string[] tvRT = ParamRegistry.ReadTokenValues(elem);
+                        TagConfig.WriteTag7All(doc, elem, catRT, tvRT, overwrite: true);
+                    }
+                    catch (Exception exTag7)
+                    {
+                        StingLog.Warn($"ReTag TAG7 write failed for {id}: {exTag7.Message}");
+                    }
                 }
                 tx.Commit();
             }
@@ -1065,17 +1079,25 @@ namespace StingTools.Organise
                         ParameterHelpers.SetString(target, kvp.Key, kvp.Value, overwrite: true);
                     }
 
-                    // Update containers with copied values
+                    // Rebuild TAG1 from copied tokens and update all containers
                     try
                     {
                         string catName = ParameterHelpers.GetCategoryName(target);
                         string[] tokenVals = ParamRegistry.ReadTokenValues(target);
                         if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                        {
+                            // Rebuild TAG1 from the copied token values
+                            string rebuiltTag = string.Join(ParamRegistry.Separator, tokenVals);
+                            ParameterHelpers.SetString(target, ParamRegistry.TAG1, rebuiltTag, overwrite: true);
                             ParamRegistry.WriteContainers(target, tokenVals, catName, overwrite: true);
+                        }
+                        // Rebuild TAG7 narrative
+                        string[] tvCopy = ParamRegistry.ReadTokenValues(target);
+                        TagConfig.WriteTag7All(doc, target, catName, tvCopy, overwrite: true);
                     }
                     catch (Exception ex)
                     {
-                        StingLog.Warn($"CopyTags: container write failed for {target.Id}: {ex.Message}");
+                        StingLog.Warn($"CopyTags: TAG1/container write failed for {target.Id}: {ex.Message}");
                     }
 
                     copied++;
@@ -1150,22 +1172,32 @@ namespace StingTools.Organise
                     ParameterHelpers.SetString(b, param, valA, overwrite: true);
                 }
 
-                // Update containers for both elements
+                // Rebuild TAG1 and update containers for both elements
                 try
                 {
                     string catA = ParameterHelpers.GetCategoryName(a);
                     string[] tokensA = ParamRegistry.ReadTokenValues(a);
                     if (tokensA.Any(v => !string.IsNullOrEmpty(v)))
+                    {
+                        string rebuiltTagA = string.Join(ParamRegistry.Separator, tokensA);
+                        ParameterHelpers.SetString(a, ParamRegistry.TAG1, rebuiltTagA, overwrite: true);
                         ParamRegistry.WriteContainers(a, tokensA, catA, overwrite: true);
+                    }
+                    TagConfig.WriteTag7All(doc, a, catA, tokensA, overwrite: true);
 
                     string catB = ParameterHelpers.GetCategoryName(b);
                     string[] tokensB = ParamRegistry.ReadTokenValues(b);
                     if (tokensB.Any(v => !string.IsNullOrEmpty(v)))
+                    {
+                        string rebuiltTagB = string.Join(ParamRegistry.Separator, tokensB);
+                        ParameterHelpers.SetString(b, ParamRegistry.TAG1, rebuiltTagB, overwrite: true);
                         ParamRegistry.WriteContainers(b, tokensB, catB, overwrite: true);
+                    }
+                    TagConfig.WriteTag7All(doc, b, catB, tokensB, overwrite: true);
                 }
                 catch (Exception ex)
                 {
-                    StingLog.Warn($"SwapTags: container write failed: {ex.Message}");
+                    StingLog.Warn($"SwapTags: TAG1/container write failed: {ex.Message}");
                 }
 
                 tx.Commit();

@@ -344,7 +344,7 @@ namespace StingTools.Select
                             ids.Add(e.Id);
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"SelectByRoom element {e.Id}: {ex.Message}"); }
             }
 
             uidoc.Selection.SetElementIds(ids);
