@@ -546,6 +546,40 @@ namespace StingTools.Tags
             if (emptyRev > 0)
                 report.AppendLine($"Empty REV: {emptyRev} elements (run Tag & Combine to auto-set)");
 
+            // GAP-005 fix: Show revision distribution and stale revision detection
+            var revDistribution = new Dictionary<string, int>();
+            string currentProjectRev = "";
+            try { currentProjectRev = BIMManager.RevisionEngine.GetCurrentProjectRevision(doc); } catch { }
+            int staleRevCount = 0;
+            foreach (Element elem2 in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string cat2 = ParameterHelpers.GetCategoryName(elem2);
+                if (!known.Contains(cat2)) continue;
+                string revVal = ParameterHelpers.GetString(elem2, ParamRegistry.REV);
+                if (string.IsNullOrEmpty(revVal)) continue;
+                if (!revDistribution.ContainsKey(revVal)) revDistribution[revVal] = 0;
+                revDistribution[revVal]++;
+                if (!string.IsNullOrEmpty(currentProjectRev) &&
+                    !string.Equals(revVal, currentProjectRev, StringComparison.OrdinalIgnoreCase))
+                    staleRevCount++;
+            }
+            if (revDistribution.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("── Revision Distribution ──");
+                if (!string.IsNullOrEmpty(currentProjectRev))
+                    report.AppendLine($"Current project revision: {currentProjectRev}");
+                foreach (var rv in revDistribution.OrderByDescending(x => x.Value))
+                {
+                    string marker = (!string.IsNullOrEmpty(currentProjectRev) &&
+                        string.Equals(rv.Key, currentProjectRev, StringComparison.OrdinalIgnoreCase))
+                        ? " ← CURRENT" : "";
+                    report.AppendLine($"  {rv.Key}: {rv.Value} elements{marker}");
+                }
+                if (staleRevCount > 0)
+                    report.AppendLine($"  Stale revisions: {staleRevCount} elements not at latest revision");
+            }
+
             TaskDialog td = new TaskDialog("ISO Completeness Dashboard");
             td.MainInstruction = $"Compliance: {grandPct:F1}% | Strict: {grandStrictPct:F1}% ({grandResolved}/{grandTotal})";
             td.MainContent = report.ToString();

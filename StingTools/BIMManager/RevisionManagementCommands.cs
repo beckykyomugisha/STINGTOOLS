@@ -60,15 +60,44 @@ namespace StingTools.BIMManager
         /// Take a snapshot of all tag values for tracked elements.
         /// Returns a dictionary of ElementId → tag token dictionary.
         /// </summary>
+        /// <summary>
+        /// Full set of parameters tracked in snapshots — 8 source tokens + TAG1-TAG6 +
+        /// TAG7 + TAG7A-TAG7F + STATUS + REV + REV_COD. Uses ParamRegistry constants
+        /// throughout (GAP-001/012 fix).
+        /// </summary>
+        private static string[] GetSnapshotParams()
+        {
+            var parms = new List<string>
+            {
+                // 8 source tokens
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.SEQ,
+                // Universal tag containers
+                ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+                ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
+                // TAG7 narrative + sub-sections
+                ParamRegistry.TAG7, ParamRegistry.TAG7A, ParamRegistry.TAG7B,
+                ParamRegistry.TAG7C, ParamRegistry.TAG7D, ParamRegistry.TAG7E,
+                ParamRegistry.TAG7F,
+                // Status and revision
+                ParamRegistry.STATUS, ParamRegistry.REV,
+            };
+            // Add discipline-specific containers if available
+            try
+            {
+                foreach (var ct in ParamRegistry.GetContainerTuples())
+                    if (!parms.Contains(ct.param))
+                        parms.Add(ct.param);
+            }
+            catch { /* GetContainerTuples may not be available */ }
+            return parms.ToArray();
+        }
+
         internal static Dictionary<long, Dictionary<string, string>> TakeTagSnapshot(Document doc)
         {
             var snapshot = new Dictionary<long, Dictionary<string, string>>();
-            string[] tokenParams = {
-                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
-                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
-                ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.TAG1,
-                "ASS_STATUS_TXT", "ASS_REV_COD_TXT"
-            };
+            string[] tokenParams = GetSnapshotParams();
 
             var categories = SharedParamGuids.AllCategoryEnums;
             foreach (BuiltInCategory bic in categories)
@@ -89,6 +118,31 @@ namespace StingTools.BIMManager
                 catch { /* Category may not exist */ }
             }
             return snapshot;
+        }
+
+        /// <summary>
+        /// Get the current project revision code from the latest Revit Revision object.
+        /// Falls back to PhaseAutoDetect.DetectProjectRevision().
+        /// </summary>
+        internal static string GetCurrentProjectRevision(Document doc)
+        {
+            try
+            {
+                var latest = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Revision))
+                    .Cast<Revision>()
+                    .OrderByDescending(r => r.SequenceNumber)
+                    .FirstOrDefault();
+                if (latest != null)
+                {
+                    string num = "";
+                    try { num = latest.RevisionNumber; } catch { }
+                    if (!string.IsNullOrEmpty(num)) return num;
+                }
+            }
+            catch { }
+            // Fallback to PhaseAutoDetect
+            return PhaseAutoDetect.DetectProjectRevision(doc);
         }
 
         /// <summary>

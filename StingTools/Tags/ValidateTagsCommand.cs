@@ -137,10 +137,19 @@ namespace StingTools.Tags
                     }
                 }
 
-                // Check REV token
+                // Check REV token — GAP-008 fix: validate format via RevisionEngine
                 string revVal = ParameterHelpers.GetString(el, ParamRegistry.REV);
                 if (string.IsNullOrEmpty(revVal))
                     revEmpty++;
+                else
+                {
+                    string revError = BIMManager.RevisionEngine.ValidateRevisionNumber(revVal);
+                    if (revError != null)
+                    {
+                        isoViolations++;
+                        IncrementDict(isoIssueTypes, $"Invalid REV format: {revVal}");
+                    }
+                }
 
                 // Track tag uniqueness
                 if (!string.IsNullOrEmpty(tag1))

@@ -3239,6 +3239,10 @@ namespace StingTools.Core
                 if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(", currently at "); lifecycleMarked.Append(", currently at "); }
                 lifecyclePlain.Append($"revision {rev}");
                 lifecycleMarked.Append($"\u00ABL\u00BBrevision\u00AB/L\u00BB \u00ABV\u00BB{rev}\u00AB/V\u00BB");
+                // GAP-010: Add tag timestamp for audit trail
+                string tagDate = DateTime.Now.ToString("yyyy-MM-dd");
+                lifecyclePlain.Append($" (tagged {tagDate})");
+                lifecycleMarked.Append($" (\u00ABL\u00BBtagged\u00AB/L\u00BB \u00ABV\u00BB{tagDate}\u00AB/V\u00BB)");
             }
             if (!string.IsNullOrEmpty(origin))
             {

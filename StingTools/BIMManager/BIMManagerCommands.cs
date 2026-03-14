@@ -1296,7 +1296,8 @@ namespace StingTools.BIMManager
                 ["response"] = "",
                 ["element_ids"] = new JArray(elementIds?.Select(id => id.Value.ToString()) ?? Enumerable.Empty<string>()),
                 ["view_name"] = viewName ?? "",
-                ["revision"] = "P01",
+                ["revision"] = "",  // GAP-007: populated by caller with actual current revision
+                ["resolved_in_revision"] = "",  // GAP-013: tracks which revision resolved this issue
                 ["comments"] = new JArray()
             };
         }
@@ -2873,6 +2874,9 @@ namespace StingTools.BIMManager
 
             var issue = BIMManagerEngine.CreateIssue(nextId, issueType, priority,
                 autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name);
+
+            // GAP-007 fix: Link issue to current project revision
+            try { issue["revision"] = RevisionEngine.GetCurrentProjectRevision(doc); } catch { }
 
             issues.Add(issue);
             BIMManagerEngine.SaveJsonFile(issuesPath, issues);

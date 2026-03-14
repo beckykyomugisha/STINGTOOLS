@@ -430,6 +430,14 @@ namespace StingTools.Core
                 case "COBieExport": return new BIMManager.COBieExportCommand();
                 case "DocumentBriefcase": return new BIMManager.DocumentBriefcaseCommand();
 
+                // Revision Management (GAP-009)
+                case "CreateRevision": return new BIMManager.CreateRevisionCommand();
+                case "RevisionDashboard": return new BIMManager.RevisionDashboardCommand();
+                case "AutoRevisionCloud": return new BIMManager.AutoRevisionCloudCommand();
+                case "AutoRevisionOnTagChange": return new BIMManager.AutoRevisionOnTagChangeCommand();
+                case "RevisionTagIntegration": return new BIMManager.RevisionTagIntegrationCommand();
+                case "RevisionExport": return new BIMManager.RevisionExportCommand();
+
                 default: return null;
             }
         }
@@ -512,6 +520,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "AutoFixTemplate", Label = "Auto-Fix Template Health" },
                             new WorkflowStep { CommandTag = "TagAndCombine", Label = "Tag & Combine (full pipeline)" },
                             new WorkflowStep { CommandTag = "AutoCreateLegends", Label = "Auto-Create Legends" },
+                            new WorkflowStep { CommandTag = "CreateRevision", Label = "Create Baseline Revision (P01)" },
                         }
                     };
 
@@ -529,6 +538,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "ValidateTemplate", Label = "Validate Data Integrity (45 checks)" },
                             new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Re-Assign Templates (new views)" },
                             new WorkflowStep { CommandTag = "AutoFixTemplate", Label = "Auto-Fix Template Issues" },
+                            new WorkflowStep { CommandTag = "AutoRevisionOnTagChange", Label = "Auto-Revision Check (score-based)" },
                         }
                     };
 

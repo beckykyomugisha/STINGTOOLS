@@ -388,6 +388,9 @@ namespace StingTools.BIMManager
                     return _validLoc.Contains(value) ? null : $"Invalid LOC code '{value}'";
                 case "ZONE":
                     return _validZone.Contains(value) ? null : $"Invalid ZONE code '{value}'";
+                case "REV":
+                    // GAP-014: Validate REV format via RevisionEngine
+                    return RevisionEngine.ValidateRevisionNumber(value);
                 default:
                     return null;
             }
