@@ -8,9 +8,9 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **69 source files** (67 C# + 2 XAML, ~77,349 lines of code) across 10 directories
-- **325 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
-- **23 runtime data files** (CSV, JSON, TXT, XLSX, PY)
+- **71 source files** (69 C# + 2 XAML, ~81,427 lines of code) across 10 directories
+- **329 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
+- **26 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (8 tabs) + 1 WPF project setup wizard
 
 ## Technology Stack
@@ -113,7 +113,7 @@ STINGTOOLS/
     │   ├── ModelEngine.cs              # Model creation engine: walls, floors, roofs, columns, beams, MEP, rooms, building shell + FamilyResolver
     │   └── CADToModelEngine.cs         # DWG-to-BIM conversion engine: layer mapping, geometry extraction, element auto-detection
     │
-    ├── Temp/                           # Template commands (13 files, 66 commands)
+    ├── Temp/                           # Template commands (13 files, 70 commands)
     │   ├── CreateParametersCommand.cs  # Delegates to LoadSharedParams
     │   ├── CheckDataCommand.cs         # Data file inventory with SHA-256
     │   ├── MasterSetupCommand.cs       # One-click full project setup (15 steps)
@@ -126,9 +126,9 @@ STINGTOOLS/
     │   ├── TemplateCommands.cs         # Filters, worksets, view templates (23 template defs + VG configuration)
     │   ├── TemplateExtCommands.cs      # Line patterns, phases, apply filters, cable trays, conduits, material schedules
     │   ├── TemplateManagerCommands.cs  # 18 template intelligence commands + TemplateManager engine (~3,892 lines)
-    │   └── DataPipelineCommands.cs     # ValidateTemplate (45 checks), DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit
+    │   └── DataPipelineCommands.cs     # 15 commands: ValidateTemplate, DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit, IFC, BEP, Clash, ExcelBOQImport, KeynoteSync, ExcelToDraftingView, ScheduleToExcel, BatchStickyImport, ExcelLinkExport + BOQDescriptionEngine
     │
-    └── Data/                           # Runtime data files (23 files)
+    └── Data/                           # Runtime data files (26 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
         ├── MR_PARAMETERS.txt           # Shared parameter file (200+ params)
@@ -138,7 +138,7 @@ STINGTOOLS/
         ├── FORMULAS_WITH_DEPENDENCIES.csv  # 199 parameter formulas
         ├── SCHEDULE_FIELD_REMAP.csv    # 50 field deprecation remaps
         ├── BINDING_COVERAGE_MATRIX.csv # Parameter-category coverage
-        ├── BOQ_TEMPLATE.csv            # Bill of Quantities template structure
+        ├── BOQ_TEMPLATE.csv            # Bill of Quantities template (10 sections: bills, columns, units, costs, summary, grouping, fields, rates, NRM2 descriptions, TAG7 config)
         ├── CATEGORY_BINDINGS.csv       # 10,661 category bindings
         ├── FAMILY_PARAMETER_BINDINGS.csv   # 4,686 family bindings
         ├── PARAMETER__CATEGORIES.csv   # Parameter-category cross-reference
@@ -147,6 +147,9 @@ STINGTOOLS/
         ├── TAG_CONFIG_v5_0_CONTAINERS.csv    # 122 tag container definitions (v5.0)
         ├── TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv # 179 discipline/system/function code mappings (v5.0)
         ├── TAG_CONFIG_v5_0_VALIDATION.csv    # 180 validation rules for tag tokens (v5.0)
+        ├── STING_TAG_CONFIG_v5_0_ARCH.csv    # 16 architectural tag family definitions with warnings (v5.0)
+        ├── STING_TAG_CONFIG_v5_0_MEP.csv     # 42 MEP tag family definitions with warnings (v5.0)
+        ├── STING_TAG_CONFIG_v5_0_STR.csv     # 8 structural tag family definitions with warnings (v5.0)
         ├── PYREVIT_SCRIPT_MANIFEST.csv # Legacy pyRevit script manifest
         ├── TAG_GUIDE.xlsx              # Tag reference guide (original)
         ├── TAG GUIDE V2.xlsx           # Tag reference guide (comprehensive update)
@@ -329,7 +332,7 @@ STINGTOOLS/
 |---------|-------|-------------|-------------|
 | Swap Tag Type | `Organise.SwapTagTypeCommand` | Manual | Swap tag family type on selected annotation tags |
 
-### Temp Panel (9 pulldown groups, 73 commands)
+### Temp Panel (9 pulldown groups, 77 commands)
 | Group | Commands | Description |
 |-------|----------|-------------|
 | Setup | Create Parameters, Check Data Files, **Master Setup**, **★ Project Setup Wizard** | Project setup + one-click automation (15-step workflow) + 7-page WPF wizard (4 commands) |
@@ -340,7 +343,7 @@ STINGTOOLS/
 | Templates | Create Filters, Apply Filters to Views, Create Worksets, View Templates, Line Patterns, Phases, Material Schedules | Template pipeline + 28 filters, 35 worksets, 23 templates, 10 line patterns, 6 phases (7 commands) |
 | **Template Mgr** | Auto-Assign Templates, Template Audit, Template Diff, Compliance Scores, Auto-Fix Templates, Sync VG Overrides, Clone Template, Batch VG Reset, Batch Family Params, Template Schedules, Template Setup Wizard, Family Parameter Processor | 5-layer intelligence template management (12 commands) |
 | **Styles** | Fill Patterns, Line Styles, Object Styles, Text Styles, Dimension Styles, VG Overrides | ISO-standard style creation (6 commands) |
-| **Data Pipeline** | Validate Template, Dynamic Bindings, Schema Validate, BOQ Export, Template VG Audit, IFC Export, IFC Property Map, BEP Compliance, Clash Detection, Excel BOQ Import, Keynote Sync | Data integrity + IFC + BEP + clash detection + Excel import (11 commands) |
+| **Data Pipeline** | Validate Template, Dynamic Bindings, Schema Validate, BOQ Export, Template VG Audit, IFC Export, IFC Property Map, BEP Compliance, Clash Detection, Excel BOQ Import, Keynote Sync, Excel → View, Schedule → Excel, Batch Sticky Import, **Excel Link** | Data integrity + IFC + BEP + clash detection + Excel import/export + BIMLink-style export (15 commands) |
 
 ### Panel Panel (1 button)
 | Button | Command Class | Transaction | Description |
@@ -411,7 +414,7 @@ STINGTOOLS/
 | `Temp/TemplateCommands.cs` | 3 (Filters, Worksets, ViewTemplates) | 1,304 |
 | `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 316 |
 | `Temp/TemplateManagerCommands.cs` | 18 (AutoAssign, Audit, Diff, Compliance, AutoFix, SyncOverrides, FillPatterns, LineStyles, ObjectStyles, TextStyles, DimStyles, VGOverrides, BatchFamilyParams, TemplateSchedules, SetupWizard, CloneTemplate, BatchVGReset, FamilyParameterProcessor) + TemplateManager engine | 3,893 |
-| `Temp/DataPipelineCommands.cs` | 11 (ValidateTemplate, DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit, ExportIfcPropertyMap, ValidateBepCompliance, ClashDetection, IFCExport, ExcelBOQImport, KeynoteSync) | 3,013 |
+| `Temp/DataPipelineCommands.cs` | 15 (ValidateTemplate, DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit, ExportIfcPropertyMap, ValidateBepCompliance, ClashDetection, IFCExport, ExcelBOQImport, KeynoteSync, ExcelToDraftingView, ScheduleToExcel, BatchStickyImport, ExcelLinkExport) + BOQDescriptionEngine | 4,383 |
 | `UI/StingCommandHandler.cs` | 1 (IExternalEventHandler — dispatches 543+ button tags to 325 commands + ~96 inline helpers) | 4,736 |
 | `UI/StingDockPanel.xaml.cs` | 0 (WPF code-behind) | 377 |
 | `UI/StingDockPanelProvider.cs` | 0 (IDockablePaneProvider) | 37 |
@@ -419,7 +422,7 @@ STINGTOOLS/
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
 | `UI/StingDockPanel.xaml` | — (WPF markup, 8-tab panel with ~560 buttons) | 1,942 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
-| **Total** | **325 commands** | **~77,349** |
+| **Total** | **329 commands** | **~81,427** |
 
 ## Core Classes
 
@@ -606,7 +609,8 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `CADToModelEngine` | `Model/CADToModelEngine.cs` | DWG-to-BIM conversion: `LayerMapper` (18 category patterns), geometry extraction (parallel lines → walls, closed loops → floors, blocks → doors/windows) |
 | `BIMManagerEngine` | `BIMManager/BIMManagerCommands.cs` | ISO 19650 BIM management engine: BEP generation (template-driven), issue tracker (BCF-compatible), document register, COBie V2.4 export, transmittals, CDE status codes, briefcase viewer + sequential ID generation |
 | `Scheduling4DEngine` | `BIMManager/SchedulingCommands.cs` | 4D/5D scheduling engine: 32-trade construction sequences, cost rates, MS Project import/export, cash flow forecasting, Gantt timeline generation |
-| `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 543+ dockable panel button tags to 325 command classes + ~96 inline helpers on the Revit API thread |
+| `BOQDescriptionEngine` | `Temp/DataPipelineCommands.cs` | TAG7+NRM2 BOQ description intelligence: 40 NRM2 templates, token replacement, material resolution, dimension gathering, workmanship standards, dual mode (NRM2/NARRATIVE) |
+| `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 547+ dockable panel button tags to 329 command classes + ~96 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM) with colour swatches and status bar |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers dockable panel with Revit; PaneGuid for panel identification |
 | `ColorHelper` | `Select/ColorCommands.cs` | 10 built-in colour palettes, `OverrideGraphicSettings` builder, solid fill pattern finder, preset save/load |
@@ -1243,6 +1247,13 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 57. **TAG7 natural language** — Enhanced TAG7 narrative with natural language connecting words throughout all sections.
 58. **Family parameter processor** — `FamilyParameterProcessorCommand` for batch .rfa file parameter processing.
 59. **Material data fixes** — Fixed density, thermal, patterns, textures for 997 material rows across BLE/MEP CSV files.
+
+#### Completed (Phase 10 — Excel Link, TAG7+BOQ Integration, Tag Config Reviews)
+
+60. **BIMLink-style Excel Link export** — `ExcelLinkExportCommand` with paginated category picker (toggle selection with ✓ marks), 4 property presets (STING Tags, Identity+Spatial+Cost, All Parameters, Custom), paginated custom property selector, formatted XLSX output with auto-filter, frozen headers, and auto-fit columns.
+61. **TAG7+NRM2 BOQ description intelligence** — `BOQDescriptionEngine` generates QS-grade natural language BOQ descriptions by combining TAG7 Section A (Identity) + Section E (Technical) with 40 NRM2 description templates. Token replacement for `{FAMILY}`, `{TYPE}`, `{MFR}`, `{MODEL}`, `{MATERIAL}`, `{TAG7_IDENTITY}`, `{TAG7_TECH}`, `{SYS_DESC}`, dimensions. Two modes: NRM2 (template-based with workmanship standards) and NARRATIVE (TAG7 natural language). Integrated into `BOQExportCommand`.
+62. **NRM2 description templates** — 40 category-specific description templates in `BOQ_TEMPLATE.csv` Section 9 with NRM2 references, dimension tokens, and workmanship standards (BS 7671, DW/144, BS EN 806, BS 8000, etc.). Section 10 adds TAG7 integration configuration.
+63. **Tag config CSV reviews** — Updated `STING_TAG_CONFIG_v5_0_ARCH.csv` (16 families with warnings), `STING_TAG_CONFIG_v5_0_MEP.csv` (42 families, 15+ wrong °C suffixes fixed, 30+ warning sections added), `STING_TAG_CONFIG_v5_0_STR.csv` (8 families with warnings).
 
 ### External Tool References
 
