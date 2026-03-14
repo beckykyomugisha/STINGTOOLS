@@ -327,6 +327,78 @@ namespace StingTools.BIMManager
             return "Minor";
         }
 
+        /// <summary>
+        /// Stamp affected elements with revision code and update their STATUS.
+        /// Called after creating a revision to propagate REV into tag data.
+        /// </summary>
+        internal static int StampAffectedElements(Document doc, List<RevisionChange> changes, string revCode)
+        {
+            int stamped = 0;
+            foreach (var change in changes)
+            {
+                var el = doc.GetElement(new ElementId(change.ElementId));
+                if (el == null) continue;
+                string current = ParameterHelpers.GetString(el, ParamRegistry.REV);
+                if (current != revCode)
+                {
+                    ParameterHelpers.SetString(el, ParamRegistry.REV, revCode, true);
+                    stamped++;
+                }
+                // Also update STATUS based on change type
+                if (change.ChangeType == "Added")
+                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, "NEW");
+                else if (change.ChangeType == "Modified")
+                {
+                    // Only update STATUS if it's not already set to a phase-derived value
+                    string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                    if (string.IsNullOrEmpty(status))
+                        ParameterHelpers.SetString(el, ParamRegistry.STATUS, "NEW", false);
+                }
+            }
+            return stamped;
+        }
+
+        /// <summary>
+        /// Prune old snapshots keeping only the most recent N files.
+        /// Prevents disk bloat from frequent auto-revision runs.
+        /// </summary>
+        internal static int PruneSnapshots(Document doc, int keepCount = 20)
+        {
+            string dir = GetRevisionDir(doc);
+            var files = Directory.GetFiles(dir, "snapshot_*.json")
+                .OrderByDescending(f => File.GetLastWriteTime(f))
+                .ToList();
+            int deleted = 0;
+            for (int i = keepCount; i < files.Count; i++)
+            {
+                try { File.Delete(files[i]); deleted++; }
+                catch (Exception ex) { StingLog.Warn($"RevisionEngine: Failed to prune snapshot: {ex.Message}"); }
+            }
+            if (deleted > 0)
+                StingLog.Info($"RevisionEngine: Pruned {deleted} old snapshot(s), kept {keepCount}");
+            return deleted;
+        }
+
+        /// <summary>
+        /// Build a per-discipline change summary from a list of changes.
+        /// Groups changes by discipline code for targeted revision reporting.
+        /// </summary>
+        internal static Dictionary<string, int> GetChangeSummaryByDiscipline(Document doc, List<RevisionChange> changes)
+        {
+            var result = new Dictionary<string, int>();
+            foreach (var change in changes)
+            {
+                var el = doc.GetElement(new ElementId(change.ElementId));
+                if (el == null) continue;
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                if (string.IsNullOrEmpty(disc))
+                    disc = TagConfig.DiscMap.TryGetValue(ParameterHelpers.GetCategoryName(el), out string d) ? d : "XX";
+                if (!result.ContainsKey(disc)) result[disc] = 0;
+                result[disc]++;
+            }
+            return result;
+        }
+
         internal class RevisionChange
         {
             public long ElementId { get; set; }
@@ -412,6 +484,9 @@ namespace StingTools.BIMManager
                         $"Tag snapshot saved ({snapshot.Count} elements tracked).\n" +
                         "Use 'Revision Compare' after changes to see what was modified.");
                 }
+                // Invalidate compliance cache so dashboard reflects new revision
+                ComplianceScan.InvalidateCache();
+
                 StingLog.Info($"Revision created: {prefix} — {description}");
                 return Result.Succeeded;
             }
@@ -1110,6 +1185,7 @@ namespace StingTools.BIMManager
                 }
 
                 int updated = 0;
+                int tagsRebuilt = 0;
                 using (var tx = new Transaction(doc, "STING Revision Tag Integration"))
                 {
                     tx.Start();
@@ -1118,18 +1194,28 @@ namespace StingTools.BIMManager
                         var el = doc.GetElement(id);
                         if (el == null) continue;
 
-                        // Update REV parameter
-                        string currentRev = ParameterHelpers.GetString(el, "ASS_REV_COD_TXT");
+                        // Update REV parameter using ParamRegistry constant
+                        string currentRev = ParameterHelpers.GetString(el, ParamRegistry.REV);
                         if (currentRev != revCode)
                         {
-                            ParameterHelpers.SetString(el, "ASS_REV_COD_TXT", revCode, true);
+                            ParameterHelpers.SetString(el, ParamRegistry.REV, revCode, true);
                             updated++;
                         }
 
-                        // Update STATUS if element is modified
-                        string currentStatus = ParameterHelpers.GetString(el, "ASS_STATUS_TXT");
+                        // Update STATUS if element doesn't have one
+                        string currentStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
                         if (string.IsNullOrEmpty(currentStatus))
-                            ParameterHelpers.SetIfEmpty(el, "ASS_STATUS_TXT", "NEW");
+                            ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, "NEW");
+
+                        // Rebuild TAG7D (lifecycle section) to include new revision info
+                        string tag7d = ParameterHelpers.GetString(el, ParamRegistry.TAG7D);
+                        if (!string.IsNullOrEmpty(tag7d) && !tag7d.Contains(revCode))
+                        {
+                            // Append revision reference to lifecycle narrative
+                            string updated7d = tag7d.TrimEnd() + $" | Rev {revCode}";
+                            ParameterHelpers.SetString(el, ParamRegistry.TAG7D, updated7d, true);
+                            tagsRebuilt++;
+                        }
                     }
                     tx.Commit();
                 }
@@ -1139,8 +1225,10 @@ namespace StingTools.BIMManager
                     $"Revision: {revCode} ({latestRev.Description ?? ""})\n" +
                     $"Elements in revision clouds: {clouds.Count} clouds scanned\n" +
                     $"Affected elements: {affectedElements.Count}\n" +
-                    $"REV parameter updated: {updated}\n\n" +
-                    "Elements affected by this revision now carry the revision code in their tag data.");
+                    $"REV parameter updated: {updated}\n" +
+                    $"TAG7D lifecycle updated: {tagsRebuilt}\n\n" +
+                    "Elements affected by this revision now carry the revision code in their tag data.\n" +
+                    "TAG7 Section D (Lifecycle) updated with revision reference.");
 
                 StingLog.Info($"Revision tag integration: {updated} elements updated with {revCode}");
                 return Result.Succeeded;
@@ -1205,7 +1293,7 @@ namespace StingTools.BIMManager
                     {
                         var el = doc.GetElement(id);
                         if (el == null) continue;
-                        ParameterHelpers.SetString(el, "ASS_REV_COD_TXT", revCode, true);
+                        ParameterHelpers.SetString(el, ParamRegistry.REV, revCode, true);
                         stamped++;
                     }
                     tx.Commit();
@@ -1431,32 +1519,62 @@ namespace StingTools.BIMManager
                     return Result.Succeeded;
                 }
 
-                // Auto-create revision
+                // Auto-create revision and stamp affected elements
                 int nextSeq = RevisionEngine.GetNextRevisionSeq(doc);
                 string description = RevisionEngine.BuildRevisionName(doc, nextSeq,
                     $"Auto_{significance}_{changes.Count}chg");
 
+                string revCode = $"P{nextSeq:D2}";
+                int stamped = 0;
                 using (var tx = new Transaction(doc, "STING Auto Revision on Tag Change"))
                 {
                     tx.Start();
                     var rev = Revision.Create(doc);
                     rev.Description = description;
                     rev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
-
                     rev.Visibility = RevisionVisibility.CloudAndTagVisible;
+
+                    // Get the actual revision number assigned by Revit
+                    try
+                    {
+                        string assignedNum = rev.RevisionNumber;
+                        if (!string.IsNullOrEmpty(assignedNum)) revCode = assignedNum;
+                    }
+                    catch { }
+
+                    // Stamp affected elements with revision code + update STATUS
+                    stamped = RevisionEngine.StampAffectedElements(doc, changes, revCode);
+
                     tx.Commit();
                 }
 
                 RevisionEngine.SaveSnapshot(doc, currentSnapshot, $"post_auto_rev_{nextSeq}");
 
+                // Prune old snapshots to prevent disk bloat
+                RevisionEngine.PruneSnapshots(doc);
+
+                // Discipline breakdown for reporting
+                var discBreakdown = RevisionEngine.GetChangeSummaryByDiscipline(doc, changes);
+                var discSb = new System.Text.StringBuilder();
+                if (discBreakdown.Count > 0)
+                {
+                    discSb.AppendLine("\nChanges by Discipline:");
+                    foreach (var kvp in discBreakdown.OrderByDescending(k => k.Value))
+                        discSb.AppendLine($"  {kvp.Key}: {kvp.Value} elements");
+                }
+
+                // Invalidate compliance cache so dashboard shows fresh data
+                ComplianceScan.InvalidateCache();
+
                 TaskDialog.Show("StingTools Auto Revision",
                     $"Auto-Revision Created!\n\n" +
                     $"Significance Score: {score:F0}\n" +
                     $"Classification: {significance}\n" +
-                    $"Revision: {description}\n\n" +
+                    $"Revision: {description}\n" +
+                    $"REV code stamped on {stamped} affected elements\n\n" +
                     $"Formula: (Added×3) + (Deleted×5) + (Modified×1) + (Identity×10) + (System×5)\n" +
                     $"         ({added}×3) + ({deleted}×5) + ({modified}×1) + ({identityChanges}×10) + ({systemChanges}×5) = {score:F0}\n\n" +
-                    narrative);
+                    narrative + discSb.ToString());
 
                 StingLog.Info($"Auto-revision created: score={score:F0}, significance={significance}");
                 return Result.Succeeded;

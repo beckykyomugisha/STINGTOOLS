@@ -469,6 +469,7 @@ namespace StingTools.UI
                     case "ClashDetect": RunCommand<Temp.ClashDetectionCommand>(app); break;
                     case "IFCExport": RunCommand<Temp.IFCExportCommand>(app); break;
                     case "ExcelImport": RunCommand<Temp.ExcelBOQImportCommand>(app); break;
+                    case "ExcelBOQImport": RunCommand<Temp.ExcelBOQImportCommand>(app); break;
                     case "KeynoteSync": RunCommand<Temp.KeynoteSyncCommand>(app); break;
                     case "ExcelToDraftingView": RunCommand<Temp.ExcelToDraftingViewCommand>(app); break;
                     case "ScheduleToExcel": RunCommand<Temp.ScheduleToExcelCommand>(app); break;

@@ -5540,6 +5540,36 @@ namespace StingTools.BIMManager
             int tagScore = (int)(compScan.CompliancePercent / 10.0);
             checks.Add(("Tag Completeness", tagScore, 10, $"{compScan.CompliancePercent:F0}% complete"));
 
+            // 8b. Revision health — are REV parameters populated and valid?
+            int revScore = 0;
+            string revDetail = "No REV data";
+            try
+            {
+                if (compScan.RevisionPercent > 0)
+                {
+                    revScore = (int)(compScan.RevisionPercent / 10.0);
+                    revDetail = $"{compScan.RevisionPercent:F0}% elements have valid REV";
+                }
+                else
+                {
+                    // Check if revisions exist in the model at all
+                    int revCount = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Revision)).GetElementCount();
+                    if (revCount > 0)
+                    {
+                        revScore = 5;
+                        revDetail = $"{revCount} revisions defined, REV params not yet populated";
+                    }
+                    else
+                    {
+                        revScore = 0;
+                        revDetail = "No revisions defined — run 'Create Revision' from BIM tab";
+                    }
+                }
+            }
+            catch { revDetail = "Could not check REV status"; }
+            checks.Add(("Revision Status", revScore, 10, revDetail));
+
             // 9. Room coverage (ratio-based: expect at least 3 rooms per level for a meaningful model)
             int rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
@@ -5624,6 +5654,7 @@ namespace StingTools.BIMManager
             if (rooms == 0) details.AppendLine("  • Add rooms for spatial context and tag LOC/ZONE detection");
             if (paramScore < 10) details.AppendLine("  • Run 'Load Params' to bind STING shared parameters");
             if (tagScore < 5) details.AppendLine("  • Run 'Batch Tag' or 'Tag & Combine' to improve tag coverage");
+            if (revScore < 5) details.AppendLine("  • Create revisions and run 'Auto Revision on Tag Change' for revision tracking");
             if (totalElements > 200000) details.AppendLine("  • Consider model splitting to reduce element count");
             if (doc.IsWorkshared && worksetScore < 7) details.AppendLine("  • Organize worksets (aim for 3-30 user worksets)");
 

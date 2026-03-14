@@ -577,10 +577,10 @@ namespace StingTools.BIMManager
                     MainContent = $"Exported {elems.Count} elements ({scope}) with {ExcelLinkEngine.ColumnHeaders.Length} columns.\n\n" +
                         $"File: {outputPath}\n\nGrey columns are read-only. Edit white columns and use Import.",
                 };
-                resultDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Open file location");
+                resultDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Open file");
                 if (resultDlg.Show() == TaskDialogResult.CommandLink1)
                 {
-                    try { Process.Start(new ProcessStartInfo { FileName = Path.GetDirectoryName(outputPath), UseShellExecute = true }); }
+                    try { Process.Start(new ProcessStartInfo { FileName = outputPath, UseShellExecute = true }); }
                     catch { }
                 }
                 return Result.Succeeded;
