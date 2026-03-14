@@ -31,14 +31,10 @@ namespace StingTools.Select
                 return Result.Failed;
             }
 
-            ICollection<ElementId> ids;
-            using (var collector = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id))
-            {
-                ids = collector
-                    .OfCategory(bic)
-                    .WhereElementIsNotElementType()
-                    .ToElementIds();
-            }
+            ICollection<ElementId> ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
+                .OfCategory(bic)
+                .WhereElementIsNotElementType()
+                .ToElementIds();
 
             if (ids.Count == 0)
             {
@@ -170,15 +166,11 @@ namespace StingTools.Select
                 Category cat = ctx.Doc.Settings.Categories.get_Item(catName);
                 if (cat != null) knownCatIds.Add(cat.Id);
             }
-            List<ElementId> ids;
-            using (var collector = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id))
-            {
-                ids = collector
-                    .WhereElementIsNotElementType()
-                    .Where(e => e.Category != null && knownCatIds.Contains(e.Category.Id))
-                    .Select(e => e.Id)
-                    .ToList();
-            }
+            List<ElementId> ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null && knownCatIds.Contains(e.Category.Id))
+                .Select(e => e.Id)
+                .ToList();
 
             if (ids.Count == 0)
             {
@@ -213,23 +205,21 @@ namespace StingTools.Select
 
             // Scan all element categories present in the active view
             var catCounts = new Dictionary<string, (BuiltInCategory bic, int count)>();
-            using (var collector = new FilteredElementCollector(doc, activeView.Id))
+            foreach (Element e in new FilteredElementCollector(doc, activeView.Id)
+                .WhereElementIsNotElementType())
             {
-                foreach (Element e in collector.WhereElementIsNotElementType())
-                {
-                    Category cat = e.Category;
-                    if (cat == null) continue;
-                    string name = cat.Name;
-                    if (string.IsNullOrEmpty(name)) continue;
-                    BuiltInCategory bic;
-                    try { bic = (BuiltInCategory)cat.Id.Value; }
-                    catch { continue; }
+                Category cat = e.Category;
+                if (cat == null) continue;
+                string name = cat.Name;
+                if (string.IsNullOrEmpty(name)) continue;
+                BuiltInCategory bic;
+                try { bic = (BuiltInCategory)cat.Id.Value; }
+                catch { continue; }
 
-                    if (catCounts.TryGetValue(name, out var existing))
-                        catCounts[name] = (existing.bic, existing.count + 1);
-                    else
-                        catCounts[name] = (bic, 1);
-                }
+                if (catCounts.TryGetValue(name, out var existing))
+                    catCounts[name] = (existing.bic, existing.count + 1);
+                else
+                    catCounts[name] = (bic, 1);
             }
 
             if (catCounts.Count == 0)

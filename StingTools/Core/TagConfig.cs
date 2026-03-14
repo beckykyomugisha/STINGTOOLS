@@ -1204,13 +1204,14 @@ namespace StingTools.Core
                 sequenceCounters[seqKey] = 0;
             sequenceCounters[seqKey]++;
 
-            // SEQ overflow detection: warn when sequence exceeds format capacity
+            // SEQ overflow detection: cap at format capacity to prevent invalid tag widths
             int maxSeq = (int)Math.Pow(10, NumPad) - 1; // 9999 for NumPad=4
             if (sequenceCounters[seqKey] > maxSeq)
             {
-                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq})";
+                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — capping at {maxSeq}";
                 StingLog.Warn(overflowMsg);
                 stats?.RecordWarning(overflowMsg);
+                sequenceCounters[seqKey] = maxSeq; // Cap to prevent invalid digit-width tags
             }
 
             string seq = sequenceCounters[seqKey].ToString().PadLeft(NumPad, '0');
@@ -1271,7 +1272,24 @@ namespace StingTools.Core
                 // Re-read actual token values (some may have been preserved by SetIfEmpty)
                 // to ensure TAG1 reflects what's actually on the element
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
+                // Validate token array: replace any null/empty segments with defaults
+                // to prevent malformed tags like "M--Z01-L02-..."
+                string[] defaults = { disc, loc, zone, lvl, sys, func, prod, seq };
+                for (int i = 0; i < actualTokens.Length && i < defaults.Length; i++)
+                {
+                    if (string.IsNullOrEmpty(actualTokens[i]))
+                        actualTokens[i] = defaults[i];
+                }
                 tag = string.Join(Separator, actualTokens);
+            }
+
+            // Final validation: ensure tag has correct segment count before writing
+            string[] tagParts = tag.Split(new[] { Separator }, StringSplitOptions.None);
+            if (tagParts.Length < 8)
+            {
+                StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {tagParts.Length} segments (expected 8)");
+                stats?.RecordWarning($"Element {el.Id}: malformed tag with {tagParts.Length} segments — skipped");
+                return false;
             }
             ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
 
@@ -1312,11 +1330,17 @@ namespace StingTools.Core
             try
             {
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                // Validate token array before container write
+                for (int i = 0; i < tokenVals.Length; i++)
+                {
+                    if (tokenVals[i] == null) tokenVals[i] = "";
+                }
                 ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"Container write failed for {el.Id}: {ex.Message}");
+                stats?.RecordWarning($"Element {el.Id}: container write failed — {ex.Message}");
             }
 
             stats?.RecordTagged(catName, disc, sys, lvl);

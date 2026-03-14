@@ -1488,6 +1488,13 @@ namespace StingTools.Organise
                 if (tags.Count > 0) return (tags, true);
             }
 
+            // Guard against null view (schedule view, family editor, no view open)
+            if (view == null)
+            {
+                StingLog.Warn("GetTargetTags: No active graphical view — returning empty list.");
+                return (new List<IndependentTag>(), false);
+            }
+
             var allTags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
                 .Cast<IndependentTag>()
@@ -1495,7 +1502,8 @@ namespace StingTools.Organise
             return (allTags, false);
         }
 
-        /// <summary>Get the discipline code from the element that a tag hosts.</summary>
+        /// <summary>Get the discipline code from the element that a tag hosts.
+        /// Falls back to category-based discipline lookup if parameter is empty.</summary>
         public static string GetTagDiscipline(IndependentTag tag, Document doc)
         {
             try
@@ -1504,9 +1512,23 @@ namespace StingTools.Organise
                 if (hostIds.Count == 0) return null;
                 Element host = doc.GetElement(hostIds.First());
                 if (host == null) return null;
-                return ParameterHelpers.GetString(host, ParamRegistry.DISC);
+
+                // Primary: read DISC parameter directly
+                string disc = ParameterHelpers.GetString(host, ParamRegistry.DISC);
+                if (!string.IsNullOrEmpty(disc)) return disc;
+
+                // Fallback: derive DISC from element category using TagConfig lookup
+                string catName = ParameterHelpers.GetCategoryName(host);
+                if (!string.IsNullOrEmpty(catName) && TagConfig.DiscMap.TryGetValue(catName, out string catDisc))
+                    return catDisc;
+
+                return null;
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetTagDiscipline failed for tag {tag.Id}: {ex.Message}");
+                return null;
+            }
         }
     }
 

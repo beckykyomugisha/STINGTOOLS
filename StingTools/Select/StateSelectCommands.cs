@@ -123,7 +123,7 @@ namespace StingTools.Select
 
             var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
                 .WhereElementIsNotElementType()
-                .Where(e => !e.Pinned && known.Contains(ParameterHelpers.GetCategoryName(e)))
+                .Where(e => !e.Pinned && e.Category != null && known.Contains(ParameterHelpers.GetCategoryName(e)))
                 .Select(e => e.Id).ToList();
 
             ctx.UIDoc.Selection.SetElementIds(ids);
@@ -500,35 +500,43 @@ namespace StingTools.Select
             }
 
             int written = 0;
+            int skipped = 0;
             using (Transaction tx = new Transaction(doc, "STING Bulk Set Token"))
             {
                 tx.Start();
                 foreach (ElementId id in selected)
                 {
                     Element elem = doc.GetElement(id);
-                    if (elem == null) continue;
+                    if (elem == null) { skipped++; continue; }
 
                     if (autoDetectStatus)
                     {
-                        // Per-element phase-aware STATUS detection
                         string status = PhaseAutoDetect.DetectStatus(doc, elem);
                         if (string.IsNullOrEmpty(status)) status = "NEW";
                         if (ParameterHelpers.SetString(elem, ParamRegistry.STATUS, status, overwrite: true))
                             written++;
+                        else
+                            skipped++;
                     }
                     else
                     {
                         if (ParameterHelpers.SetString(elem, paramName, paramValue, overwrite: true))
                             written++;
+                        else
+                            skipped++;
                     }
                 }
                 tx.Commit();
             }
 
-            string msg = autoDetectStatus
-                ? $"Auto-detected STATUS from Revit phases on {written} elements."
-                : $"Set '{paramName}' = '{paramValue}' on {written} elements.";
-            TaskDialog.Show("Bulk Set Token", msg);
+            var sb = new StringBuilder();
+            if (autoDetectStatus)
+                sb.AppendLine($"Auto-detected STATUS from Revit phases on {written} of {selected.Count} elements.");
+            else
+                sb.AppendLine($"Set '{paramName}' = '{paramValue}' on {written} of {selected.Count} elements.");
+            if (skipped > 0)
+                sb.AppendLine($"Skipped {skipped} elements (parameter not bound or read-only).");
+            TaskDialog.Show("Bulk Set Token", sb.ToString());
             return Result.Succeeded;
         }
 
@@ -603,7 +611,10 @@ namespace StingTools.Select
         private static Result BulkRetag(Document doc, ICollection<ElementId> selected)
         {
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            if (tagIndex == null) tagIndex = new HashSet<string>();
+            if (seqCounters == null) seqCounters = new Dictionary<string, int>();
             int retagged = 0;
+            int failed = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Bulk Re-Tag"))
             {
@@ -612,15 +623,28 @@ namespace StingTools.Select
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
-                    if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
-                        skipComplete: false,
-                        existingTags: tagIndex,
-                        collisionMode: TagCollisionMode.Overwrite))
-                        retagged++;
+                    try
+                    {
+                        if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                            skipComplete: false,
+                            existingTags: tagIndex,
+                            collisionMode: TagCollisionMode.Overwrite))
+                            retagged++;
+                        else
+                            failed++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        StingLog.Warn($"BulkRetag failed for element {id}: {ex.Message}");
+                    }
                 }
                 tx.Commit();
             }
-            TaskDialog.Show("Bulk Re-Tag", $"Re-tagged {retagged} of {selected.Count} elements.");
+
+            string report = $"Re-tagged {retagged} of {selected.Count} elements.";
+            if (failed > 0) report += $"\nFailed: {failed} elements (check log for details).";
+            TaskDialog.Show("Bulk Re-Tag", report);
             return Result.Succeeded;
         }
     }

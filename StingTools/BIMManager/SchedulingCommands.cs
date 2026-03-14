@@ -292,7 +292,7 @@ namespace StingTools.BIMManager
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!knownCats.Contains(cat) && !TradeSequence.ContainsKey(cat)) continue;
 
-                // GAP-012: Skip elements in demolished or temporary phases
+                // Skip elements in demolished/temporary phases or with DEMOLISHED/TEMPORARY status
                 var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
                 if (phaseParam != null && demolishedPhaseIds.Contains(phaseParam.AsElementId().Value))
                     continue;
@@ -303,6 +303,10 @@ namespace StingTools.BIMManager
                     if (demoPhaseid != null && demoPhaseid.Value > 0)
                         continue; // Element is scheduled for demolition
                 }
+                // Also check STING STATUS parameter for DEMOLISHED/TEMPORARY
+                string stingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                if (stingStatus == "DEMOLISHED" || stingStatus == "TEMPORARY")
+                    continue;
 
                 string levelName = "Unassigned";
                 var levelParam = el.get_Parameter(BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM)

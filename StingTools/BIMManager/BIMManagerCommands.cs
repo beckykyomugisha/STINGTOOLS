@@ -1333,9 +1333,20 @@ namespace StingTools.BIMManager
                     else if (t != null) typeName = t.Name;
                 }
 
-                // GAP-011: Map STING tag data to COBie Component fields
+                // Map STING tag data to COBie Component fields with full tag decomposition
                 string stingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 string assetId = !string.IsNullOrEmpty(stingTag) ? stingTag : tag;
+
+                // Decompose 8-segment tag into individual COBie-compatible fields
+                string tagDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                string tagLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                string tagZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                string tagLvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                string tagSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string tagFunc = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                string tagProd = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                string tagSeq = ParameterHelpers.GetString(el, ParamRegistry.SEQ);
+                string tagStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
 
                 // Build friendly name: prefer description or family:type, fall back to tag
                 string desc = ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT");
@@ -1343,15 +1354,58 @@ namespace StingTools.BIMManager
                     : !string.IsNullOrEmpty(typeName) ? typeName
                     : tag;
 
+                // Map DISC to COBie-compatible AssetType category
+                string assetType = tagDisc switch
+                {
+                    "M" => "Mechanical",
+                    "E" => "Electrical",
+                    "P" => "Plumbing",
+                    "A" => "Architectural",
+                    "S" => "Structural",
+                    "FP" => "Fire Protection",
+                    "LV" => "Low Voltage",
+                    "G" => "General",
+                    _ => "Fixed"
+                };
+
+                // Derive installation date from phase
+                string installDate = "";
+                try
+                {
+                    var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                    if (phaseParam != null)
+                    {
+                        var phase = doc.GetElement(phaseParam.AsElementId());
+                        if (phase != null) installDate = phase.Name;
+                    }
+                }
+                catch { }
+
+                // Read TAG7 narrative for rich description
+                string tag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
+
                 components.Add(new Dictionary<string, string>
                 {
                     ["Name"] = friendlyName, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["TypeName"] = typeName, ["Space"] = roomName,
-                    ["Description"] = desc,
+                    ["Description"] = !string.IsNullOrEmpty(tag7) ? tag7 : desc,
                     ["ExternalSystem"] = "Revit", ["ExternalObject"] = cat,
                     ["ExternalIdentifier"] = el.UniqueId,
                     ["TagNumber"] = assetId, ["AssetIdentifier"] = assetId,
-                    ["Category"] = cat
+                    ["Category"] = cat,
+                    ["AssetType"] = assetType,
+                    ["BarCode"] = assetId,
+                    ["InstallationDate"] = installDate,
+                    ["SerialNumber"] = ParameterHelpers.GetString(el, "ASS_SERIAL_NUM_TXT"),
+                    ["Discipline"] = tagDisc,
+                    ["Location"] = tagLoc,
+                    ["Zone"] = tagZone,
+                    ["Level"] = tagLvl,
+                    ["System"] = tagSys,
+                    ["Function"] = tagFunc,
+                    ["ProductCode"] = tagProd,
+                    ["SequenceNumber"] = tagSeq,
+                    ["Status"] = tagStatus
                 });
             }
             data["Component"] = components;
@@ -1603,7 +1657,7 @@ namespace StingTools.BIMManager
                 ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD, ParamRegistry.SEQ,
                 "ASS_MANUFACTURER_TXT", "ASS_MODEL_TXT", "ASS_DESCRIPTION_TXT",
                 "ASS_EXPECTED_LIFE_YEARS_YRS", "ASS_CST_UNIT_PRICE_UGX_NR" };
-            foreach (var el in components.Take(500))
+            foreach (var el in components)
             {
                 string compName = el["Name"];
                 string extId = el["ExternalIdentifier"];
@@ -2833,9 +2887,10 @@ namespace StingTools.BIMManager
             {
                 BIMManagerEngine.SaveJsonFile(issuesPath, issues);
 
-                // GAP-016: When issues are closed/accepted, check if linked elements are tagged
+                // Validate closed/accepted issues: check linked elements are tagged and compliant
                 var closeReport = new StringBuilder();
                 closeReport.AppendLine($"{updated} issue(s) updated.");
+                int issuesWithWarnings = 0;
                 foreach (var issue in issues.Where(i =>
                 {
                     string s = i["status"]?.ToString() ?? "";
@@ -2846,18 +2901,58 @@ namespace StingTools.BIMManager
                     if (ids != null && ids.Count > 0)
                     {
                         int untagged = 0;
+                        int incomplete = 0;
+                        int missingElements = 0;
                         foreach (var id in ids)
                         {
                             if (long.TryParse(id.ToString(), out long idVal))
                             {
                                 Element el = doc.GetElement(new ElementId(idVal));
-                                if (el != null && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.TAG1)))
+                                if (el == null || !el.IsValidObject)
+                                {
+                                    missingElements++;
+                                    continue;
+                                }
+                                string elTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                if (string.IsNullOrEmpty(elTag))
                                     untagged++;
+                                else if (!TagConfig.TagIsComplete(elTag))
+                                    incomplete++;
                             }
                         }
+                        bool hasWarning = false;
                         if (untagged > 0)
-                            closeReport.AppendLine($"  \u26a0 {issue["issue_id"]}: {untagged} linked element(s) still untagged");
+                        {
+                            closeReport.AppendLine($"  WARNING {issue["issue_id"]}: {untagged} linked element(s) still untagged");
+                            hasWarning = true;
+                        }
+                        if (incomplete > 0)
+                        {
+                            closeReport.AppendLine($"  WARNING {issue["issue_id"]}: {incomplete} linked element(s) have incomplete tags");
+                            hasWarning = true;
+                        }
+                        if (missingElements > 0)
+                        {
+                            closeReport.AppendLine($"  INFO {issue["issue_id"]}: {missingElements} linked element(s) no longer exist in model");
+                            hasWarning = true;
+                        }
+                        if (hasWarning) issuesWithWarnings++;
                     }
+                }
+
+                if (issuesWithWarnings > 0)
+                {
+                    closeReport.AppendLine();
+                    closeReport.AppendLine($"{issuesWithWarnings} closed issue(s) have compliance warnings.");
+                    closeReport.AppendLine("Consider re-opening or running 'Batch Tag' to resolve.");
+                }
+
+                // Add overall compliance context
+                var compResult = ComplianceScan.Scan(doc);
+                if (compResult != null)
+                {
+                    closeReport.AppendLine();
+                    closeReport.AppendLine($"Model compliance: {compResult.StatusBarText}");
                 }
 
                 TaskDialog.Show("STING Issue Tracker", closeReport.ToString());
@@ -5227,20 +5322,71 @@ namespace StingTools.BIMManager
             int tagScore = (int)(compScan.CompliancePercent / 10.0);
             checks.Add(("Tag Completeness", tagScore, 10, $"{compScan.CompliancePercent:F0}% complete"));
 
-            // 9. Room coverage
+            // 9. Room coverage (ratio-based: expect at least 3 rooms per level for a meaningful model)
             int rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
                 .WhereElementIsNotElementType().GetElementCount();
             int levels = new FilteredElementCollector(doc)
                 .OfClass(typeof(Level)).GetElementCount();
-            int roomScore = rooms > 0 && levels > 0 ? Math.Min(10, rooms / levels) : 0;
-            checks.Add(("Room Coverage", roomScore, 10, $"{rooms} rooms across {levels} levels"));
+            int roomScore;
+            if (rooms == 0 || levels == 0)
+                roomScore = 0;
+            else
+            {
+                double ratio = (double)rooms / levels;
+                roomScore = ratio >= 5 ? 10 : ratio >= 3 ? 8 : ratio >= 1 ? 5 : 2;
+            }
+            checks.Add(("Room Coverage", roomScore, 10, $"{rooms} rooms across {levels} levels ({(levels > 0 ? ((double)rooms / levels).ToString("F1") : "0")} avg/level)"));
 
             // 10. Sheet coverage
             int sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet)).GetElementCount();
-            int sheetScore = sheets > 0 ? 10 : 0;
+            int sheetScore = sheets >= 10 ? 10 : sheets > 0 ? 7 : 0;
             checks.Add(("Sheet Setup", sheetScore, 10, $"{sheets} sheets"));
+
+            // 11. Workset health (workshared models only)
+            int worksetScore = 10;
+            string worksetDetail = "Not workshared";
+            if (doc.IsWorkshared)
+            {
+                var worksets = new FilteredWorksetCollector(doc)
+                    .OfKind(WorksetKind.UserWorkset).ToWorksets();
+                int wsCount = worksets.Count;
+                int openWs = worksets.Count(w => w.IsOpen);
+                worksetScore = wsCount >= 3 && wsCount <= 30 ? 10 : wsCount > 30 ? 5 : wsCount > 0 ? 7 : 3;
+                worksetDetail = $"{wsCount} worksets ({openWs} open)";
+            }
+            checks.Add(("Workset Health", worksetScore, 10, worksetDetail));
+
+            // 12. Parameter completeness (are STING shared params bound?)
+            int paramScore = 0;
+            int boundParams = 0;
+            try
+            {
+                var testCats = new[] { BuiltInCategory.OST_MechanicalEquipment, BuiltInCategory.OST_ElectricalEquipment,
+                    BuiltInCategory.OST_LightingFixtures, BuiltInCategory.OST_PlumbingFixtures };
+                foreach (var testCat in testCats)
+                {
+                    var testEl = new FilteredElementCollector(doc)
+                        .OfCategory(testCat).WhereElementIsNotElementType().FirstElement();
+                    if (testEl != null)
+                    {
+                        if (testEl.LookupParameter(ParamRegistry.DISC) != null) boundParams++;
+                        if (testEl.LookupParameter(ParamRegistry.TAG1) != null) boundParams++;
+                        if (testEl.LookupParameter(ParamRegistry.SYS) != null) boundParams++;
+                        break;
+                    }
+                }
+                paramScore = boundParams >= 3 ? 10 : boundParams >= 1 ? 5 : 0;
+            }
+            catch { paramScore = 0; }
+            checks.Add(("Parameter Binding", paramScore, 10, $"{boundParams}/3 key STING parameters bound"));
+
+            // 13. File size estimation via element count (proxy for model bloat)
+            int totalElements = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType().GetElementCount();
+            int elemScore = totalElements < 50000 ? 10 : totalElements < 200000 ? 7 : totalElements < 500000 ? 4 : 1;
+            checks.Add(("Model Size", elemScore, 10, $"{totalElements:N0} total element instances"));
 
             int totalScore = checks.Sum(c => c.score);
             int maxTotal = checks.Sum(c => c.maxScore);
@@ -5249,7 +5395,7 @@ namespace StingTools.BIMManager
 
             var summary = new StringBuilder();
             foreach (var c in checks)
-                summary.AppendLine($"  [{c.score}/{c.maxScore}] {c.name}: {c.detail}");
+                summary.AppendLine($"  [{c.score,2}/{c.maxScore}] {c.name}: {c.detail}");
 
             var details = new StringBuilder();
             details.AppendLine("Recommendations:");
@@ -5257,6 +5403,11 @@ namespace StingTools.BIMManager
             if (inPlace > 5) details.AppendLine("  • Convert in-place families to loadable families");
             if (imports > 0) details.AppendLine("  • Remove or link CAD imports instead of importing");
             if (unplacedViews > 50) details.AppendLine("  • Delete unplaced views to reduce model size");
+            if (rooms == 0) details.AppendLine("  • Add rooms for spatial context and tag LOC/ZONE detection");
+            if (paramScore < 10) details.AppendLine("  • Run 'Load Params' to bind STING shared parameters");
+            if (tagScore < 5) details.AppendLine("  • Run 'Batch Tag' or 'Tag & Combine' to improve tag coverage");
+            if (totalElements > 200000) details.AppendLine("  • Consider model splitting to reduce element count");
+            if (doc.IsWorkshared && worksetScore < 7) details.AppendLine("  • Organize worksets (aim for 3-30 user worksets)");
 
             return new HealthReport
             {
@@ -5275,11 +5426,42 @@ namespace StingTools.BIMManager
             string path = Path.Combine(dir, $"STING_ModelHealth_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
 
             var sb = new StringBuilder();
-            sb.AppendLine("Metric,Value");
-            sb.AppendLine($"\"Overall Score\",\"{report.OverallScore}\"");
-            sb.AppendLine($"\"Rating\",\"{report.Rating}\"");
-            sb.AppendLine($"\"Date\",\"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\"");
-            sb.AppendLine($"\"Summary\",\"{report.Summary.Replace("\"", "\"\"")}\"");
+            sb.AppendLine("Metric,Score,MaxScore,Details");
+            sb.AppendLine($"\"Overall Score\",\"{report.OverallScore}\",\"100\",\"{report.Rating}\"");
+            sb.AppendLine($"\"Date\",\"\",\"\",\"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\"");
+            sb.AppendLine($"\"Project\",\"\",\"\",\"{doc.ProjectInformation?.Name ?? doc.Title}\"");
+            sb.AppendLine();
+
+            // Parse summary lines into structured CSV rows
+            foreach (string line in report.Summary.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed)) continue;
+                // Format: [score/max] Name: detail
+                int bracketEnd = trimmed.IndexOf(']');
+                if (bracketEnd > 0 && bracketEnd + 2 < trimmed.Length)
+                {
+                    string scoreStr = trimmed.Substring(1, bracketEnd - 1); // "score/max"
+                    string rest = trimmed.Substring(bracketEnd + 2);
+                    int colonIdx = rest.IndexOf(':');
+                    if (colonIdx > 0)
+                    {
+                        string metricName = rest.Substring(0, colonIdx).Trim();
+                        string detail = rest.Substring(colonIdx + 1).Trim();
+                        string[] scoreParts = scoreStr.Split('/');
+                        sb.AppendLine($"\"{metricName}\",\"{scoreParts[0].Trim()}\",\"{(scoreParts.Length > 1 ? scoreParts[1].Trim() : "10")}\",\"{detail.Replace("\"", "\"\"")}\"");
+                    }
+                }
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"\"Recommendations\",\"\",\"\",\"\"");
+            foreach (string line in report.Details.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed) || trimmed == "Recommendations:") continue;
+                sb.AppendLine($"\"\",\"\",\"\",\"{trimmed.TrimStart('•', ' ').Replace("\"", "\"\"")}\"");
+            }
 
             File.WriteAllText(path, sb.ToString());
             return path;

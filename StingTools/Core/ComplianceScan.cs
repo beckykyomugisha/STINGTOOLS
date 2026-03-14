@@ -111,12 +111,16 @@ namespace StingTools.Core
                     else if (TagConfig.TagIsComplete(tag))
                     {
                         result.TaggedComplete++;
-                        // Has placeholders — check which tokens
-                        string[] parts = tag.Split(ParamRegistry.Separator[0]);
+                        // Has placeholders — check which tokens are default/placeholder
+                        string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
                         if (parts.Length >= 8)
                         {
                             if (parts[1] == "XX") AddIssue(result, "Missing LOC");
                             if (parts[2] == "XX" || parts[2] == "ZZ") AddIssue(result, "Missing ZONE");
+                            if (parts[3] == "XX") AddIssue(result, "Missing LVL");
+                            if (parts[4] == "GEN") AddIssue(result, "Generic SYS");
+                            if (parts[5] == "GEN") AddIssue(result, "Generic FUNC");
+                            if (parts[6] == "GEN") AddIssue(result, "Generic PROD");
                             if (parts[7] == "0000") AddIssue(result, "SEQ=0000");
                         }
                     }
