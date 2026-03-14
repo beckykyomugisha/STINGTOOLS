@@ -177,7 +177,14 @@ namespace StingTools.Tags
                                 overwrite: true, skipParam: ParamRegistry.TAG7);
 
                             // Step 7b: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                            combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            try
+                            {
+                                combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            }
+                            catch (Exception tag7Ex)
+                            {
+                                StingLog.Error($"TagAndCombine TAG7 write failed on element {id}: {tag7Ex.Message}", tag7Ex);
+                            }
                         }
                     }
                     catch (Exception ex)

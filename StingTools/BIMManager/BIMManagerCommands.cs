@@ -2506,6 +2506,41 @@ namespace StingTools.BIMManager
                 }
                 enrichment["stage_compliance"] = stageCompliance;
 
+                // GAP-008 FIX: Cross-validate actual tags against BEP allowed codes
+                var allowedCodes = updated["allowed_codes"] as JObject;
+                if (allowedCodes != null)
+                {
+                    var violations = new JArray();
+                    var allowedDisc = new HashSet<string>();
+                    var allowedSys = new HashSet<string>();
+                    if (allowedCodes["allowed_disc"] is JArray ad)
+                        foreach (var d in ad) allowedDisc.Add(d.ToString());
+                    if (allowedCodes["allowed_sys"] is JArray asys)
+                        foreach (var s in asys) allowedSys.Add(s.ToString());
+
+                    if (allowedDisc.Count > 0 || allowedSys.Count > 0)
+                    {
+                        int discViolations = 0, sysViolations = 0;
+                        foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                        {
+                            string cat = ParameterHelpers.GetCategoryName(el);
+                            if (!knownCats.Contains(cat)) continue;
+                            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                            if (allowedDisc.Count > 0 && !string.IsNullOrEmpty(disc) && !allowedDisc.Contains(disc))
+                                discViolations++;
+                            if (allowedSys.Count > 0 && !string.IsNullOrEmpty(sys) && !allowedSys.Contains(sys))
+                                sysViolations++;
+                        }
+                        if (discViolations > 0)
+                            violations.Add($"{discViolations} elements use DISC codes not in BEP allowed list");
+                        if (sysViolations > 0)
+                            violations.Add($"{sysViolations} elements use SYS codes not in BEP allowed list");
+                    }
+                    enrichment["bep_code_violations"] = violations;
+                    enrichment["bep_codes_compliant"] = violations.Count == 0;
+                }
+
                 updated["auto_enrichment"] = enrichment;
                 if (updated["model_data"] is JObject md)
                     md["enriched_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");

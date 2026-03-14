@@ -67,7 +67,7 @@ namespace StingTools.Tags
             foreach (Element e in viewElements)
             {
                 string cat = ParameterHelpers.GetCategoryName(e);
-                if (!known.Contains(cat)) continue;
+                if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
 
                 // Discipline-aware filtering: skip categories not relevant to this view
                 if (relevantDiscs != null)
@@ -170,10 +170,17 @@ namespace StingTools.Tags
                             stats: stats);
 
                         // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                        string catNameTag7 = ParameterHelpers.GetCategoryName(el);
-                        string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
-                        TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7,
-                            overwrite: collisionMode == TagCollisionMode.Overwrite);
+                        try
+                        {
+                            string catNameTag7 = ParameterHelpers.GetCategoryName(el);
+                            string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
+                            TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7,
+                                overwrite: collisionMode == TagCollisionMode.Overwrite);
+                        }
+                        catch (Exception tag7Ex)
+                        {
+                            StingLog.Error($"AutoTag TAG7 write failed on element {el?.Id}: {tag7Ex.Message}", tag7Ex);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -246,6 +253,11 @@ namespace StingTools.Tags
             foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
+                if (string.IsNullOrEmpty(cat))
+                {
+                    StingLog.Warn($"TagNewOnly: skipping element {el?.Id} — null/empty category");
+                    continue;
+                }
                 if (!known.Contains(cat)) continue;
 
                 string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -310,9 +322,16 @@ namespace StingTools.Tags
                             existingTags: tagIndex, stats: stats);
 
                         // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                        string catNameTag7 = ParameterHelpers.GetCategoryName(el);
-                        string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
-                        TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7, overwrite: false);
+                        try
+                        {
+                            string catNameTag7 = ParameterHelpers.GetCategoryName(el);
+                            string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
+                            TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7, overwrite: false);
+                        }
+                        catch (Exception tag7Ex)
+                        {
+                            StingLog.Error($"TagNewOnly TAG7 write failed on element {el?.Id}: {tag7Ex.Message}", tag7Ex);
+                        }
                     }
                     catch (Exception ex)
                     {

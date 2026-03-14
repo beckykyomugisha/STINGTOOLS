@@ -1040,7 +1040,32 @@ namespace StingTools.Core
                 if (string.IsNullOrWhiteSpace(parts[i]))
                     return false;
             }
+            // Reject tags containing placeholder tokens
+            if (TagHasPlaceholders(tagValue))
+                return false;
+
             return true;
+        }
+
+        /// <summary>
+        /// Checks whether a tag string contains placeholder tokens ("-XX-", "-ZZ-", "-0000")
+        /// that indicate incomplete or unresolved segments.
+        /// </summary>
+        public static bool TagHasPlaceholders(string tag)
+        {
+            if (string.IsNullOrEmpty(tag))
+                return false;
+            string sep = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+            foreach (string ph in _placeholders)
+            {
+                // Check for placeholder as a delimited segment (not substring of a real token)
+                if (tag.StartsWith(ph + sep, StringComparison.Ordinal) ||
+                    tag.EndsWith(sep + ph, StringComparison.Ordinal) ||
+                    tag.Contains(sep + ph + sep, StringComparison.Ordinal) ||
+                    tag == ph)
+                    return true;
+            }
+            return false;
         }
 
         private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "0000" };
@@ -1240,6 +1265,13 @@ namespace StingTools.Core
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
+                // Safety limit exhausted: tag collision could not be resolved
+                if (collisionCount >= MaxCollisionDepth)
+                {
+                    string safetyMsg = $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — tag '{tag}' may still be a duplicate";
+                    StingLog.Warn(safetyMsg);
+                    stats?.RecordWarning(safetyMsg);
+                }
                 // Remove the element's old tag from index (it's being replaced)
                 // so stale entries don't cause false collisions for other elements
                 if (!string.IsNullOrEmpty(existingTag) && existingTag != tag)
