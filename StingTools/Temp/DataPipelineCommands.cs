@@ -1062,6 +1062,10 @@ namespace StingTools.Temp
             var rateDefaults = LoadRateDefaults();
             int rateDefaultsApplied = 0;
 
+            // ── Load NRM2 description templates + TAG7 integration settings ──
+            BOQDescriptionEngine.LoadTemplates();
+            int tag7DescCount = 0;
+
             // ── Build BOQ items ──
             var boqItems = new List<BOQItem>();
             int warnings = 0;
@@ -1305,9 +1309,28 @@ namespace StingTools.Temp
                             if (lineTotal == 0 && avgRate > 0)
                                 lineTotal = avgRate * qty;
 
-                            string desc = !string.IsNullOrEmpty(sample.Description)
-                                ? sample.Description
-                                : $"{sample.FamilyName} - {sample.TypeName}";
+                            // ── TAG7 + NRM2 intelligent description ──
+                            // Try to get rich description from first element in group
+                            string desc = "";
+                            try
+                            {
+                                Element sampleEl = doc.GetElement(new ElementId(sample.ElementId));
+                                if (sampleEl != null)
+                                {
+                                    desc = BOQDescriptionEngine.BuildDescription(
+                                        doc, sampleEl, sample.Category,
+                                        sample.FamilyName, sample.TypeName, sample.Description);
+                                    if (!string.IsNullOrEmpty(desc) && desc != $"{sample.FamilyName} - {sample.TypeName}")
+                                        tag7DescCount++;
+                                }
+                            }
+                            catch { }
+                            if (string.IsNullOrEmpty(desc))
+                            {
+                                desc = !string.IsNullOrEmpty(sample.Description)
+                                    ? sample.Description
+                                    : $"{sample.FamilyName} - {sample.TypeName}";
+                            }
 
                             // ITEM | DESCRIPTION | QTY | UNIT | RATE | AMOUNT
                             ws.Cell(row, 1).Value = itemLetter;
@@ -1632,6 +1655,8 @@ namespace StingTools.Temp
             }
             if (rateDefaultsApplied > 0)
                 summary.AppendLine($"\n  {rateDefaultsApplied} elements used rate defaults from BOQ_TEMPLATE.csv");
+            if (tag7DescCount > 0)
+                summary.AppendLine($"  {tag7DescCount} line items enriched with TAG7/NRM2 descriptions");
             summary.AppendLine();
             summary.AppendLine($"Exported to: {exportPath}");
 
@@ -3527,4 +3552,832 @@ namespace StingTools.Temp
     }
 
     #endregion
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  EXCEL LINK EXPORT — BIMLink-style Category + Property Selector (P10)
+    //  Lets users pick categories and properties, then exports to Excel.
+    //  Inspired by Ideate BIMLink: category multi-select → property columns → XLSX
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// BIMLink-style Excel export: user picks categories and properties via
+    /// cascading TaskDialogs, then exports selected data to a formatted XLSX file.
+    /// Supports bidirectional workflow (exported data can be re-imported via ExcelBOQImport).
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExcelLinkExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
+
+            StingLog.Info("ExcelLink Export starting — category/property picker...");
+
+            // ── Step 1: Discover categories present in the model ──
+            var catCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var catBics = new Dictionary<string, BuiltInCategory>();
+            foreach (Element el in new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null && !string.IsNullOrEmpty(e.Category.Name)))
+            {
+                string catName = el.Category.Name;
+                if (!catCounts.ContainsKey(catName))
+                {
+                    catCounts[catName] = 0;
+                    try
+                    {
+                        catBics[catName] = (BuiltInCategory)el.Category.Id.Value;
+                    }
+                    catch { }
+                }
+                catCounts[catName]++;
+            }
+
+            if (catCounts.Count == 0)
+            {
+                TaskDialog.Show("Excel Link", "No element categories found in the model.");
+                return Result.Succeeded;
+            }
+
+            // Sort by count descending for usability
+            var sortedCats = catCounts.OrderByDescending(kv => kv.Value).ToList();
+
+            // ── Step 2: Category picker — paginated TaskDialog (4 per page) ──
+            var selectedCats = new List<string>();
+            int page = 0;
+            int perPage = 4;
+            int totalPages = (sortedCats.Count + perPage - 1) / perPage;
+            bool pickingCategories = true;
+
+            while (pickingCategories)
+            {
+                var pageCats = sortedCats.Skip(page * perPage).Take(perPage).ToList();
+                var td = new TaskDialog("STING Excel Link — Select Categories");
+                td.MainInstruction = $"Select categories to export (Page {page + 1}/{totalPages})";
+                td.MainContent = selectedCats.Count > 0
+                    ? $"Selected so far: {string.Join(", ", selectedCats)}\n\nClick a category to add/remove it, or click 'Done' to proceed."
+                    : "Click categories to select them for export.";
+
+                td.CommonButtons = TaskDialogCommonButtons.Cancel;
+                td.DefaultButton = TaskDialogResult.Cancel;
+
+                for (int i = 0; i < pageCats.Count; i++)
+                {
+                    string cat = pageCats[i].Key;
+                    int count = pageCats[i].Value;
+                    string check = selectedCats.Contains(cat) ? " ✓" : "";
+                    td.AddCommandLink((TaskDialogCommandLinkId)(i + 1),
+                        $"{cat}{check} ({count:N0} elements)");
+                }
+
+                td.FooterText = selectedCats.Count > 0
+                    ? "Press 'Done Selecting' below to proceed to property selection."
+                    : "Select at least one category.";
+
+                // Navigation via VerificationText
+                string navLabel = "";
+                if (page < totalPages - 1 && selectedCats.Count > 0)
+                    navLabel = "Done selecting — proceed to properties";
+                else if (page < totalPages - 1)
+                    navLabel = "Next page →";
+                else if (selectedCats.Count > 0)
+                    navLabel = "Done selecting — proceed to properties";
+                if (!string.IsNullOrEmpty(navLabel))
+                    td.VerificationText = navLabel;
+
+                TaskDialogResult result = td.Show();
+
+                if (result == TaskDialogResult.Cancel)
+                    return Result.Cancelled;
+
+                // Check navigation checkbox
+                if (td.WasVerificationChecked())
+                {
+                    if (selectedCats.Count > 0)
+                    {
+                        pickingCategories = false; // proceed
+                    }
+                    else
+                    {
+                        page = Math.Min(page + 1, totalPages - 1);
+                    }
+                    continue;
+                }
+
+                // Toggle category selection
+                int linkIdx = result switch
+                {
+                    TaskDialogResult.CommandLink1 => 0,
+                    TaskDialogResult.CommandLink2 => 1,
+                    TaskDialogResult.CommandLink3 => 2,
+                    TaskDialogResult.CommandLink4 => 3,
+                    _ => -1
+                };
+
+                if (linkIdx >= 0 && linkIdx < pageCats.Count)
+                {
+                    string cat = pageCats[linkIdx].Key;
+                    if (selectedCats.Contains(cat))
+                        selectedCats.Remove(cat);
+                    else
+                        selectedCats.Add(cat);
+                }
+            }
+
+            if (selectedCats.Count == 0)
+            {
+                TaskDialog.Show("Excel Link", "No categories selected.");
+                return Result.Cancelled;
+            }
+
+            // ── Step 3: Collect elements from selected categories ──
+            var exportElements = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null && selectedCats.Contains(e.Category.Name))
+                .ToList();
+
+            if (exportElements.Count == 0)
+            {
+                TaskDialog.Show("Excel Link", "No elements found in selected categories.");
+                return Result.Cancelled;
+            }
+
+            // ── Step 4: Discover available parameters from selected elements ──
+            var paramNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Always include standard identity fields
+            var coreParams = new List<string> {
+                "Category", "Family", "Type", "ElementId",
+                ParamRegistry.TAG1, ParamRegistry.DISC, ParamRegistry.LOC,
+                ParamRegistry.ZONE, ParamRegistry.LVL, ParamRegistry.SYS,
+                ParamRegistry.FUNC, ParamRegistry.PROD, ParamRegistry.SEQ,
+                "ASS_DESCRIPTION_TXT", "ASS_MANUFACTURER_TXT", "ASS_MODEL_NR_TXT"
+            };
+
+            // Sample first 100 elements to discover parameters
+            int sampleCount = Math.Min(100, exportElements.Count);
+            for (int i = 0; i < sampleCount; i++)
+            {
+                Element el = exportElements[i];
+                foreach (Parameter p in el.Parameters)
+                {
+                    if (p.Definition != null && !string.IsNullOrEmpty(p.Definition.Name))
+                        paramNames.Add(p.Definition.Name);
+                }
+                // Also check type parameters
+                ElementType eType = doc.GetElement(el.GetTypeId()) as ElementType;
+                if (eType != null)
+                {
+                    foreach (Parameter p in eType.Parameters)
+                    {
+                        if (p.Definition != null && !string.IsNullOrEmpty(p.Definition.Name))
+                            paramNames.Add(p.Definition.Name);
+                    }
+                }
+            }
+
+            var allParams = paramNames.OrderBy(p => p).ToList();
+
+            // ── Step 5: Property selection — paginated TaskDialog ──
+            // Offer preset groups first, then custom selection
+            var selectedParams = new List<string>();
+
+            var presetTd = new TaskDialog("STING Excel Link — Property Selection");
+            presetTd.MainInstruction = $"Select properties to export ({exportElements.Count:N0} elements, {selectedCats.Count} categories)";
+            presetTd.MainContent = $"Categories: {string.Join(", ", selectedCats)}\n\n" +
+                "Choose a property preset or select individual properties.";
+
+            presetTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "All STING Tag Parameters",
+                "ISO 19650 tag tokens, assembled tags, description, manufacturer, model");
+            presetTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Identity + Spatial + Cost",
+                "Tags, location, level, zone, room, dimensions, unit price, quantity, total cost");
+            presetTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "All Available Parameters",
+                $"Export all {allParams.Count} discovered parameters (large file)");
+            presetTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Custom Selection...",
+                "Pick individual parameters from a list");
+            presetTd.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            TaskDialogResult presetResult = presetTd.Show();
+            if (presetResult == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            switch (presetResult)
+            {
+                case TaskDialogResult.CommandLink1: // STING Tags
+                    selectedParams.AddRange(coreParams);
+                    // Add TAG containers
+                    foreach (string tag in new[] { "ASS_TAG_2_TXT", "ASS_TAG_3_TXT", "ASS_TAG_4_TXT",
+                        "ASS_TAG_5_TXT", "ASS_TAG_6_TXT", "ASS_TAG_7_TXT",
+                        "ASS_TAG_7A_TXT", "ASS_TAG_7B_TXT", "ASS_TAG_7C_TXT",
+                        "ASS_TAG_7D_TXT", "ASS_TAG_7E_TXT", "ASS_TAG_7F_TXT" })
+                    {
+                        if (allParams.Contains(tag)) selectedParams.Add(tag);
+                    }
+                    break;
+
+                case TaskDialogResult.CommandLink2: // Identity + Spatial + Cost
+                    selectedParams.AddRange(coreParams);
+                    foreach (string p in new[] { "ASS_ROOM_NAME_TXT", "ASS_ROOM_NUM_TXT",
+                        "ASS_DEPT_TXT", "ASS_GRID_REF_TXT",
+                        "ASS_CST_UNIT_PRICE_UGX_NR", "ASS_CST_QUANTITY_NR", "ASS_CST_TOTAL_UGX_NR",
+                        "ASS_PMT_INV_UNIT_TXT", "ASS_SIZE_TXT",
+                        "BLE_WALL_HEIGHT_NR", "BLE_WALL_LENGTH_NR", "BLE_WALL_THICKNESS_NR",
+                        "BLE_DOOR_WIDTH_NR", "BLE_DOOR_HEIGHT_NR",
+                        "BLE_WINDOW_WIDTH_NR", "BLE_WINDOW_HEIGHT_NR",
+                        "BLE_ELEMENT_AREA_NR" })
+                    {
+                        if (allParams.Contains(p)) selectedParams.Add(p);
+                    }
+                    break;
+
+                case TaskDialogResult.CommandLink3: // All parameters
+                    selectedParams.AddRange(coreParams);
+                    selectedParams.AddRange(allParams.Where(p => !coreParams.Contains(p)));
+                    break;
+
+                case TaskDialogResult.CommandLink4: // Custom selection
+                    selectedParams.AddRange(coreParams); // always include core
+                    // Paginated parameter picker
+                    var remainingParams = allParams.Where(p => !coreParams.Contains(p)).ToList();
+                    int pPage = 0;
+                    int pPerPage = 4;
+                    int pTotalPages = (remainingParams.Count + pPerPage - 1) / pPerPage;
+                    bool pickingParams = true;
+                    var customParams = new HashSet<string>();
+
+                    while (pickingParams)
+                    {
+                        var pageParams = remainingParams.Skip(pPage * pPerPage).Take(pPerPage).ToList();
+                        var ptd = new TaskDialog("STING Excel Link — Custom Properties");
+                        ptd.MainInstruction = $"Select properties (Page {pPage + 1}/{pTotalPages})";
+                        ptd.MainContent = customParams.Count > 0
+                            ? $"Selected: {customParams.Count} custom + {coreParams.Count} core parameters"
+                            : $"Core parameters ({coreParams.Count}) always included. Select additional ones.";
+
+                        for (int i = 0; i < pageParams.Count; i++)
+                        {
+                            string pName = pageParams[i];
+                            string check = customParams.Contains(pName) ? " ✓" : "";
+                            ptd.AddCommandLink((TaskDialogCommandLinkId)(i + 1), $"{pName}{check}");
+                        }
+                        ptd.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                        string pNavLabel;
+                        if (pPage < pTotalPages - 1)
+                            pNavLabel = "Next page →";
+                        else
+                            pNavLabel = "Done selecting — export now";
+                        ptd.VerificationText = pNavLabel;
+
+                        TaskDialogResult pResult = ptd.Show();
+                        if (pResult == TaskDialogResult.Cancel)
+                        {
+                            pickingParams = false;
+                            break;
+                        }
+
+                        if (ptd.WasVerificationChecked())
+                        {
+                            if (pPage < pTotalPages - 1)
+                                pPage++;
+                            else
+                                pickingParams = false;
+                            continue;
+                        }
+
+                        int pLinkIdx = pResult switch
+                        {
+                            TaskDialogResult.CommandLink1 => 0,
+                            TaskDialogResult.CommandLink2 => 1,
+                            TaskDialogResult.CommandLink3 => 2,
+                            TaskDialogResult.CommandLink4 => 3,
+                            _ => -1
+                        };
+
+                        if (pLinkIdx >= 0 && pLinkIdx < pageParams.Count)
+                        {
+                            string pName = pageParams[pLinkIdx];
+                            if (customParams.Contains(pName))
+                                customParams.Remove(pName);
+                            else
+                                customParams.Add(pName);
+                        }
+                    }
+                    selectedParams.AddRange(customParams);
+                    break;
+            }
+
+            // Deduplicate
+            selectedParams = selectedParams.Distinct().ToList();
+
+            StingLog.Info($"ExcelLink: exporting {exportElements.Count} elements, {selectedParams.Count} properties");
+
+            // ── Step 6: Build Excel workbook ──
+            using var wb = new XLWorkbook();
+            var ws = wb.AddWorksheet("STING Export");
+
+            // Header row
+            for (int c = 0; c < selectedParams.Count; c++)
+            {
+                var cell = ws.Cell(1, c + 1);
+                cell.Value = selectedParams[c];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.BackgroundColor = XLColor.FromArgb(0, 112, 192);
+                cell.Style.Font.FontColor = XLColor.White;
+                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            }
+
+            // Data rows
+            int row = 2;
+            foreach (Element el in exportElements)
+            {
+                for (int c = 0; c < selectedParams.Count; c++)
+                {
+                    string paramName = selectedParams[c];
+                    string value = "";
+
+                    // Handle special computed fields
+                    switch (paramName)
+                    {
+                        case "Category":
+                            value = el.Category?.Name ?? "";
+                            break;
+                        case "Family":
+                            value = ParameterHelpers.GetFamilyName(el);
+                            break;
+                        case "Type":
+                            value = ParameterHelpers.GetFamilySymbolName(el);
+                            break;
+                        case "ElementId":
+                            value = el.Id.Value.ToString();
+                            break;
+                        default:
+                            // Try instance parameter first
+                            value = ParameterHelpers.GetString(el, paramName);
+                            // Fall back to type parameter
+                            if (string.IsNullOrEmpty(value))
+                            {
+                                ElementType eType = doc.GetElement(el.GetTypeId()) as ElementType;
+                                if (eType != null)
+                                    value = ParameterHelpers.GetString(eType, paramName);
+                            }
+                            break;
+                    }
+
+                    if (!string.IsNullOrEmpty(value))
+                    {
+                        // Try to write as number for numeric columns
+                        if (double.TryParse(value, out double numVal))
+                        {
+                            ws.Cell(row, c + 1).Value = numVal;
+                            ws.Cell(row, c + 1).Style.NumberFormat.Format = "#,##0.##";
+                        }
+                        else
+                        {
+                            ws.Cell(row, c + 1).Value = value;
+                        }
+                    }
+                }
+                row++;
+            }
+
+            // Auto-fit columns (cap at 40 chars wide)
+            for (int c = 1; c <= selectedParams.Count; c++)
+            {
+                ws.Column(c).AdjustToContents(1, Math.Min(row, 200));
+                if (ws.Column(c).Width > 40) ws.Column(c).Width = 40;
+            }
+
+            // Freeze header row
+            ws.SheetView.FreezeRows(1);
+
+            // Auto-filter
+            if (row > 2)
+                ws.Range(1, 1, row - 1, selectedParams.Count).SetAutoFilter();
+
+            // Print settings
+            ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+            ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+
+            // ── Save ──
+            string defaultDir = Path.GetDirectoryName(doc.PathName);
+            if (string.IsNullOrEmpty(defaultDir))
+                defaultDir = StingToolsApp.DataPath ?? Path.GetTempPath();
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string safeTitle = string.Join("_", doc.Title.Split(Path.GetInvalidFileNameChars()));
+            string fileName = $"STING_LINK_{safeTitle}_{timestamp}.xlsx";
+
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Save Excel Link Export",
+                Filter = "Excel Files (*.xlsx)|*.xlsx|All Files (*.*)|*.*",
+                FileName = fileName,
+                InitialDirectory = defaultDir
+            };
+            if (dlg.ShowDialog() != true)
+                return Result.Cancelled;
+
+            try
+            {
+                wb.SaveAs(dlg.FileName);
+                StingLog.Info($"ExcelLink exported to {dlg.FileName}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"ExcelLink export failed: {ex.Message}");
+                string fallback = Path.Combine(Path.GetTempPath(), fileName);
+                try { wb.SaveAs(fallback); }
+                catch (Exception ex2)
+                {
+                    TaskDialog.Show("Excel Link", $"Could not save:\n{ex.Message}\n{ex2.Message}");
+                    return Result.Failed;
+                }
+            }
+
+            TaskDialog.Show("STING Excel Link",
+                $"Export complete!\n\n" +
+                $"Categories: {string.Join(", ", selectedCats)}\n" +
+                $"Properties: {selectedParams.Count}\n" +
+                $"Elements:   {exportElements.Count:N0}\n" +
+                $"Rows:       {row - 2:N0}\n\n" +
+                $"Saved to: {dlg.FileName}");
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  BOQ DESCRIPTION INTELLIGENCE — TAG7 + NRM2 Integration Engine
+    //  Provides QS-grade natural language descriptions for BOQ line items
+    //  by combining TAG7 narrative sections with NRM2 description templates.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Shared engine for generating intelligent BOQ descriptions from TAG7 narratives
+    /// and NRM2 CSV templates. Used by BOQExportCommand for rich item descriptions.
+    /// </summary>
+    internal static class BOQDescriptionEngine
+    {
+        /// <summary>NRM2 description template loaded from BOQ_TEMPLATE.csv Section 9.</summary>
+        internal class DescriptionTemplate
+        {
+            public string Category;
+            public string NRM2Ref;
+            public string Pattern;
+            public string[] DimensionTokens;
+            public string WorkmanshipStd;
+        }
+
+        /// <summary>TAG7 integration settings loaded from BOQ_TEMPLATE.csv Section 10.</summary>
+        internal class Tag7Settings
+        {
+            public bool UseTag7Identity = true;
+            public bool UseTag7Tech = true;
+            public bool UseTag7Spatial = false;
+            public bool UseTag7Lifecycle = false;
+            public bool FallbackToFamilyType = true;
+            public bool IncludeMaterialName = true;
+            public bool IncludeDimensions = true;
+            public bool IncludeWorkmanshipStd = true;
+            public int DescriptionMaxLength = 250;
+            public string BOQMode = "NRM2"; // NRM2 or NARRATIVE
+        }
+
+        private static Dictionary<string, DescriptionTemplate> _templates;
+        private static Tag7Settings _settings;
+
+        /// <summary>
+        /// Load NRM2 description templates and TAG7 integration settings from BOQ_TEMPLATE.csv.
+        /// </summary>
+        internal static void LoadTemplates()
+        {
+            _templates = new Dictionary<string, DescriptionTemplate>(StringComparer.OrdinalIgnoreCase);
+            _settings = new Tag7Settings();
+
+            try
+            {
+                string csvPath = StingToolsApp.FindDataFile("BOQ_TEMPLATE.csv");
+                if (string.IsNullOrEmpty(csvPath) || !File.Exists(csvPath)) return;
+
+                string currentSection = "";
+                bool headerSkipped = false;
+
+                foreach (string line in File.ReadLines(csvPath))
+                {
+                    string trimmed = line.Trim();
+                    if (trimmed.StartsWith("##") || string.IsNullOrEmpty(trimmed)) continue;
+
+                    if (trimmed.StartsWith("SECTION,", StringComparison.OrdinalIgnoreCase))
+                    {
+                        currentSection = trimmed.Substring(8).Trim().ToUpperInvariant();
+                        headerSkipped = false;
+                        continue;
+                    }
+
+                    if (currentSection == "DESCRIPTION_TEMPLATES")
+                    {
+                        if (!headerSkipped) { headerSkipped = true; continue; }
+                        var cols = StingToolsApp.ParseCsvLine(trimmed);
+                        if (cols.Length >= 5)
+                        {
+                            _templates[cols[0].Trim()] = new DescriptionTemplate
+                            {
+                                Category = cols[0].Trim(),
+                                NRM2Ref = cols[1].Trim(),
+                                Pattern = cols[2].Trim(),
+                                DimensionTokens = cols[3].Trim().Split('|'),
+                                WorkmanshipStd = cols[4].Trim()
+                            };
+                        }
+                    }
+                    else if (currentSection == "TAG7_INTEGRATION")
+                    {
+                        if (!headerSkipped) { headerSkipped = true; continue; }
+                        var cols = StingToolsApp.ParseCsvLine(trimmed);
+                        if (cols.Length >= 2)
+                        {
+                            string key = cols[0].Trim().ToUpperInvariant();
+                            string val = cols[1].Trim();
+                            switch (key)
+                            {
+                                case "USE_TAG7_IDENTITY": _settings.UseTag7Identity = val.Equals("TRUE", StringComparison.OrdinalIgnoreCase); break;
+                                case "USE_TAG7_TECH": _settings.UseTag7Tech = val.Equals("TRUE", StringComparison.OrdinalIgnoreCase); break;
+                                case "USE_TAG7_SPATIAL": _settings.UseTag7Spatial = val.Equals("TRUE", StringComparison.OrdinalIgnoreCase); break;
+                                case "USE_TAG7_LIFECYCLE": _settings.UseTag7Lifecycle = val.Equals("TRUE", StringComparison.OrdinalIgnoreCase); break;
+                                case "FALLBACK_TO_FAMILY_TYPE": _settings.FallbackToFamilyType = val.Equals("TRUE", StringComparison.OrdinalIgnoreCase); break;
+                                case "INCLUDE_MATERIAL_NAME": _settings.IncludeMaterialName = val.Equals("TRUE", StringComparison.OrdinalIgnoreCase); break;
+                                case "INCLUDE_DIMENSIONS": _settings.IncludeDimensions = val.Equals("TRUE", StringComparison.OrdinalIgnoreCase); break;
+                                case "INCLUDE_WORKMANSHIP_STD": _settings.IncludeWorkmanshipStd = val.Equals("TRUE", StringComparison.OrdinalIgnoreCase); break;
+                                case "DESCRIPTION_MAX_LENGTH": int.TryParse(val, out int maxLen); if (maxLen > 0) _settings.DescriptionMaxLength = maxLen; break;
+                                case "BOQ_MODE": _settings.BOQMode = val; break;
+                            }
+                        }
+                    }
+                }
+
+                if (_templates.Count > 0)
+                    StingLog.Info($"BOQ description templates loaded: {_templates.Count} categories");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Failed to load BOQ description templates: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Build a QS-grade BOQ item description for an element by combining:
+        /// 1. TAG7 Section A (Identity) — asset name, manufacturer, model
+        /// 2. TAG7 Section E (Technical) — discipline-specific specs
+        /// 3. NRM2 template pattern — category-specific description template
+        /// 4. Measured dimensions — from Revit geometry
+        /// 5. Material name — from compound structure or type parameter
+        /// Falls back gracefully when data is missing.
+        /// </summary>
+        internal static string BuildDescription(Document doc, Element el, string categoryName,
+            string familyName, string typeName, string existingDesc)
+        {
+            if (_templates == null) LoadTemplates();
+
+            // ── Gather element data for token replacement ──
+            string mfr = ParameterHelpers.GetString(el, "ASS_MANUFACTURER_TXT");
+            string model = ParameterHelpers.GetString(el, "ASS_MODEL_NR_TXT");
+            string size = ParameterHelpers.GetString(el, "ASS_SIZE_TXT");
+            string desc = existingDesc ?? ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT");
+            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+            string fireRating = ParameterHelpers.GetString(el, "BLE_FIRE_RATING_TXT");
+            string material = GetMaterialName(doc, el);
+
+            // System/function descriptions
+            string sysDesc = "";
+            string funcDesc = "";
+            if (!string.IsNullOrEmpty(sys))
+                TagConfig.SystemDescriptions.TryGetValue(sys, out sysDesc);
+            if (!string.IsNullOrEmpty(func))
+                TagConfig.FunctionDescriptions.TryGetValue(func, out funcDesc);
+
+            // ── Read TAG7 sections if available ──
+            string tag7Identity = "";
+            string tag7Tech = "";
+            string tag7Spatial = "";
+
+            if (_settings.UseTag7Identity)
+                tag7Identity = ParameterHelpers.GetString(el, "ASS_TAG_7A_TXT");
+            if (_settings.UseTag7Tech)
+                tag7Tech = ParameterHelpers.GetString(el, "ASS_TAG_7E_TXT");
+            if (_settings.UseTag7Spatial)
+                tag7Spatial = ParameterHelpers.GetString(el, "ASS_TAG_7C_TXT");
+
+            // ── Read dimensions ──
+            var dims = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            ReadDimension(el, dims, "HEIGHT", "BLE_WALL_HEIGHT_NR", "BLE_DOOR_HEIGHT_NR", "BLE_WINDOW_HEIGHT_NR");
+            ReadDimension(el, dims, "WIDTH", "BLE_DOOR_WIDTH_NR", "BLE_WINDOW_WIDTH_NR", "BLE_CBL_TRAY_WIDTH_NR");
+            ReadDimension(el, dims, "THICKNESS", "BLE_WALL_THICKNESS_NR", "BLE_FLOOR_THICKNESS_NR");
+            ReadDimension(el, dims, "LENGTH", "BLE_WALL_LENGTH_NR");
+            ReadDimension(el, dims, "SILL_HEIGHT", "BLE_WINDOW_SILL_HEIGHT_NR");
+            ReadDimension(el, dims, "DIAMETER", "ASS_SIZE_TXT");
+            ReadDimension(el, dims, "TREAD", "BLE_STAIR_TREAD_DEPTH_NR");
+            ReadDimension(el, dims, "RISE", "BLE_STAIR_RISE_HEIGHT_NR");
+            ReadDimension(el, dims, "SLOPE", "BLE_ROOF_SLOPE_NR");
+            ReadDimension(el, dims, "AIRFLOW", "HVC_AIRFLOW_LS_NR");
+
+            // Measured geometry
+            try
+            {
+                if (el is Autodesk.Revit.DB.MEPCurve curve)
+                {
+                    Parameter lenP = curve.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
+                    if (lenP != null && !dims.ContainsKey("LENGTH"))
+                        dims["LENGTH"] = Math.Round(lenP.AsDouble() * 0.3048, 1).ToString();
+                }
+                Parameter areaP = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                if (areaP != null && areaP.AsDouble() > 0 && !dims.ContainsKey("AREA"))
+                    dims["AREA"] = Math.Round(areaP.AsDouble() * 0.092903, 1).ToString();
+                Parameter volP = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
+                if (volP != null && volP.AsDouble() > 0 && !dims.ContainsKey("VOLUME"))
+                    dims["VOLUME"] = Math.Round(volP.AsDouble() * 0.0283168, 2).ToString();
+            }
+            catch { }
+
+            // ── Mode selection: NRM2 template vs TAG7 narrative ──
+            string result;
+
+            if (_settings.BOQMode == "NARRATIVE" && !string.IsNullOrEmpty(tag7Identity))
+            {
+                // TAG7 natural language mode — use TAG7 sections directly
+                result = tag7Identity;
+                if (!string.IsNullOrEmpty(tag7Tech))
+                    result += "; " + tag7Tech;
+                if (!string.IsNullOrEmpty(tag7Spatial))
+                    result += "; " + tag7Spatial;
+            }
+            else if (_templates.TryGetValue(categoryName, out DescriptionTemplate template))
+            {
+                // NRM2 template mode — replace tokens in template pattern
+                result = template.Pattern;
+
+                // Replace tokens
+                result = ReplaceToken(result, "{FAMILY}", familyName);
+                result = ReplaceToken(result, "{TYPE}", typeName);
+                result = ReplaceToken(result, "{MFR}", mfr);
+                result = ReplaceToken(result, "{MODEL}", model);
+                result = ReplaceToken(result, "{SIZE}", size);
+                result = ReplaceToken(result, "{MATERIAL}", material);
+                result = ReplaceToken(result, "{FIRE_RATING}", fireRating);
+                result = ReplaceToken(result, "{DESC}", desc);
+                result = ReplaceToken(result, "{SYS_DESC}", sysDesc);
+                result = ReplaceToken(result, "{FUNC_DESC}", funcDesc);
+                result = ReplaceToken(result, "{PROD_DESC}", "");
+                result = ReplaceToken(result, "{TAG7_IDENTITY}", tag7Identity);
+                result = ReplaceToken(result, "{TAG7_TECH}", tag7Tech);
+                result = ReplaceToken(result, "{TAG7_SPATIAL}", tag7Spatial);
+
+                // Replace dimension tokens
+                foreach (var dim in dims)
+                    result = ReplaceToken(result, "{" + dim.Key + "}", dim.Value);
+
+                // Clean up unreplaced tokens and empty clauses
+                result = CleanDescription(result);
+
+                // Append workmanship standard if configured
+                if (_settings.IncludeWorkmanshipStd &&
+                    !string.IsNullOrEmpty(template.WorkmanshipStd) &&
+                    template.WorkmanshipStd != "N/A")
+                {
+                    result = result.TrimEnd(';', ' ');
+                    result += $"; to {template.WorkmanshipStd}";
+                }
+            }
+            else
+            {
+                // No template — build description from available data
+                var parts = new List<string>();
+
+                // Use TAG7 identity if available, otherwise build from components
+                if (!string.IsNullOrEmpty(tag7Identity))
+                {
+                    parts.Add(tag7Identity);
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(material)) parts.Add(material);
+                    if (!string.IsNullOrEmpty(familyName)) parts.Add(familyName);
+                    if (!string.IsNullOrEmpty(typeName) && typeName != familyName) parts.Add(typeName);
+                }
+
+                if (!string.IsNullOrEmpty(tag7Tech))
+                    parts.Add(tag7Tech);
+                else if (!string.IsNullOrEmpty(mfr) || !string.IsNullOrEmpty(model))
+                {
+                    string mfrModel = (mfr + " " + model).Trim();
+                    if (!string.IsNullOrEmpty(mfrModel)) parts.Add(mfrModel);
+                }
+
+                if (!string.IsNullOrEmpty(desc) && !parts.Any(p => p.Contains(desc)))
+                    parts.Add(desc);
+
+                result = string.Join("; ", parts.Where(p => !string.IsNullOrEmpty(p)));
+            }
+
+            // ── Truncate if needed ──
+            if (result.Length > _settings.DescriptionMaxLength)
+                result = result.Substring(0, _settings.DescriptionMaxLength - 3) + "...";
+
+            // ── Final fallback ──
+            if (string.IsNullOrEmpty(result) && _settings.FallbackToFamilyType)
+            {
+                result = !string.IsNullOrEmpty(desc) ? desc
+                    : $"{familyName} - {typeName}";
+            }
+
+            return result ?? "";
+        }
+
+        /// <summary>
+        /// Get material name from element's compound structure or type parameter.
+        /// </summary>
+        private static string GetMaterialName(Document doc, Element el)
+        {
+            try
+            {
+                // Try STING material parameter first
+                string mat = ParameterHelpers.GetString(el, "INS_MATERIAL_TXT");
+                if (!string.IsNullOrEmpty(mat)) return mat;
+
+                // Try structural material parameter
+                Parameter matParam = el.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
+                if (matParam != null && matParam.AsElementId() != ElementId.InvalidElementId)
+                {
+                    var material = doc.GetElement(matParam.AsElementId());
+                    if (material != null) return material.Name;
+                }
+
+                // Try type-level material
+                ElementType eType = doc.GetElement(el.GetTypeId()) as ElementType;
+                if (eType != null)
+                {
+                    mat = ParameterHelpers.GetString(eType, "INS_MATERIAL_TXT");
+                    if (!string.IsNullOrEmpty(mat)) return mat;
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        /// <summary>Read a dimension value from multiple possible parameter names.</summary>
+        private static void ReadDimension(Element el, Dictionary<string, string> dims,
+            string key, params string[] paramNames)
+        {
+            if (dims.ContainsKey(key)) return;
+            foreach (string pName in paramNames)
+            {
+                string val = ParameterHelpers.GetString(el, pName);
+                if (!string.IsNullOrEmpty(val) && val != "0")
+                {
+                    dims[key] = val;
+                    return;
+                }
+            }
+        }
+
+        /// <summary>Replace a token in the template, removing the clause if value is empty.</summary>
+        private static string ReplaceToken(string template, string token, string value)
+        {
+            if (!template.Contains(token)) return template;
+            if (!string.IsNullOrEmpty(value))
+                return template.Replace(token, value);
+            // Remove the token — leave placeholder for cleanup
+            return template.Replace(token, "");
+        }
+
+        /// <summary>Clean up empty clauses, double semicolons, trailing separators.</summary>
+        private static string CleanDescription(string desc)
+        {
+            // Remove empty clauses ("; ;", "; ;")
+            while (desc.Contains("; ;")) desc = desc.Replace("; ;", ";");
+            while (desc.Contains(";;")) desc = desc.Replace(";;", ";");
+            // Remove clauses that are just the separator after token removal
+            desc = System.Text.RegularExpressions.Regex.Replace(desc, @";\s*;", ";");
+            // Remove leading/trailing semicolons and whitespace
+            desc = desc.Trim(' ', ';', '\t');
+            // Collapse multiple spaces
+            while (desc.Contains("  ")) desc = desc.Replace("  ", " ");
+            // Clean "mm diameter" → remove if diameter was empty
+            desc = System.Text.RegularExpressions.Regex.Replace(desc, @"\s*mm\s+(diameter|thick|wide|high|long)\s*;?", "");
+            desc = System.Text.RegularExpressions.Regex.Replace(desc, @"\s*m²?\s+area\s*;?", "");
+            desc = System.Text.RegularExpressions.Regex.Replace(desc, @"\s*m³?\s+volume\s*;?", "");
+            desc = System.Text.RegularExpressions.Regex.Replace(desc, @"\s*m\s+long\s*;?", "");
+            // Clean remaining empty sections
+            desc = System.Text.RegularExpressions.Regex.Replace(desc, @";\s*$", "");
+            return desc.Trim();
+        }
+    }
 }

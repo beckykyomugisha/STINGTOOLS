@@ -1088,7 +1088,9 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Formulas" Tag="FormulaEvaluator" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportCSV" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="Export BOQ" Tag="BOQExport" Click="Cmd_Click"
-                                        ToolTip="Export grouped Bill of Quantities (NRM2 structure)"/>
+                                        ToolTip="Export grouped Bill of Quantities (NRM2 + TAG7 descriptions)"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Excel Link" Tag="ExcelLinkExport" Click="Cmd_Click"
+                                        ToolTip="BIMLink-style export: pick categories and properties, export to Excel" FontWeight="Bold"/>
                             </WrapPanel>
                         </Border>
 
@@ -1894,6 +1896,8 @@
                                             ToolTip="Professional Bill of Quantities export (XLSX)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Excel Import" Tag="ExcelBOQImport" Click="Cmd_Click"
                                             ToolTip="Import BOQ data from Excel back into Revit"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Excel Link" Tag="ExcelLinkExport" Click="Cmd_Click"
+                                            ToolTip="BIMLink-style category/property picker export to Excel"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource ActionBtn}" Content="Clash Detect" Tag="ClashDetect" Click="Cmd_Click"

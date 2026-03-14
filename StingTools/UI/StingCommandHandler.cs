@@ -468,6 +468,7 @@ namespace StingTools.UI
                     case "ExcelToDraftingView": RunCommand<Temp.ExcelToDraftingViewCommand>(app); break;
                     case "ScheduleToExcel": RunCommand<Temp.ScheduleToExcelCommand>(app); break;
                     case "BatchStickyImport": RunCommand<Temp.BatchStickyImportCommand>(app); break;
+                    case "ExcelLinkExport": RunCommand<Temp.ExcelLinkExportCommand>(app); break;
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
 
                     // ════════════════════════════════════════════════════════

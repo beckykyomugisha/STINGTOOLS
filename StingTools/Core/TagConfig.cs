@@ -2911,7 +2911,7 @@ namespace StingTools.Core
         }
 
         /// <summary>Full discipline name for human-readable narrative.</summary>
-        private static readonly Dictionary<string, string> DisciplineDescriptions = new Dictionary<string, string>
+        internal static readonly Dictionary<string, string> DisciplineDescriptions = new Dictionary<string, string>
         {
             { "M", "Mechanical" }, { "E", "Electrical" }, { "P", "Plumbing" },
             { "A", "Architectural" }, { "S", "Structural" }, { "FP", "Fire Protection" },
@@ -2919,7 +2919,7 @@ namespace StingTools.Core
         };
 
         /// <summary>Full system name for human-readable narrative.</summary>
-        private static readonly Dictionary<string, string> SystemDescriptions = new Dictionary<string, string>
+        internal static readonly Dictionary<string, string> SystemDescriptions = new Dictionary<string, string>
         {
             { "HVAC", "Heating Ventilation and Air Conditioning" },
             { "HWS", "Hot Water Supply" }, { "DHW", "Domestic Hot Water" },
@@ -2934,7 +2934,7 @@ namespace StingTools.Core
         };
 
         /// <summary>Full function description for human-readable narrative.</summary>
-        private static readonly Dictionary<string, string> FunctionDescriptions = new Dictionary<string, string>
+        internal static readonly Dictionary<string, string> FunctionDescriptions = new Dictionary<string, string>
         {
             { "SUP", "Supply" }, { "RTN", "Return" }, { "EXH", "Exhaust" },
             { "FRA", "Fresh Air Intake" }, { "HTG", "Heating" },
@@ -2952,7 +2952,7 @@ namespace StingTools.Core
         };
 
         /// <summary>Full product type description for human-readable narrative.</summary>
-        private static readonly Dictionary<string, string> ProductDescriptions = new Dictionary<string, string>
+        internal static readonly Dictionary<string, string> ProductDescriptions = new Dictionary<string, string>
         {
             // Mechanical
             { "AHU", "Air Handling Unit" }, { "FCU", "Fan Coil Unit" },
