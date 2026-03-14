@@ -17,6 +17,12 @@ TAG7: HVC_TAG_7_PARA_AT_TXT  •  Category: Air Terminals
 11,T3,HVC_TERMINAL_MAT_TXT,,m,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, HVC_TERMINAL_MAT_TXT, """")"
 12,T3,HVC_TERMINAL_FINISH_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, HVC_TERMINAL_FINISH_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_HVC_DCT_SOUNDLVL_DB,Sound level > 35 dB,ASHRAE Fundamentals / CIBSE Guide B,Common,Text,⚠ Warning: Sound Level,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DCT_SOUNDLVL_DB, """")",,
+2,HIGH,WARN_HVC_VEL_MPS_DUCTS,Velocity > 6 m/s,ASHRAE Fundamentals / DW/144,Common,Text,⚠ Warning: Air Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_DUCTS, """")",,
+3,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / FM Guide,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
+
 Tag Family #2: STING - Duct Accessory Tag
 TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Accessories
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -27,6 +33,12 @@ TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Accessories
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,HVC_TAG_7_PARA_DCTACC_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_DCTACC_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_MEP_DUCT_ACC_PRESSURE_DROP,Pressure drop > 50 Pa,ASHRAE Fundamentals / CIBSE Guide C,Common,Text,⚠ Warning: Pressure Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_MEP_DUCT_ACC_PRESSURE_DROP, """")",,
+2,MEDIUM,WARN_HVC_DUCT_LEAKAGE_CLASS,Leakage class > C,DW/144 / EN 12237,Common,Text,⚠ Warning: Duct Leakage,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DUCT_LEAKAGE_CLASS, """")",,
+3,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / FM Guide,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
+
 Tag Family #3: STING - Duct Fitting Tag
 TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Fittings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -36,6 +48,11 @@ TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Fittings
 4,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 5,T3,HVC_TAG_7_PARA_DCTACC_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_DCTACC_TXT, """")"
 6,T3,HVC_DUCT_CLASS_TXT,,°C,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_CLASS_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_MEP_DUCT_FITTING_LOSS,Pressure loss > 25 Pa,ASHRAE Fundamentals / CIBSE Guide C,Common,Text,⚠ Warning: Fitting Pressure Loss,"if(TAG_WARN_VISIBLE_BOOL, WARN_MEP_DUCT_FITTING_LOSS, """")",,
+2,MEDIUM,WARN_HVC_DUCT_LEAKAGE_CLASS,Leakage class > C,DW/144 / EN 12237,Common,Text,⚠ Warning: Duct Leakage,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DUCT_LEAKAGE_CLASS, """")",,
 
 Tag Family #4: STING - Duct Tag
 TAG7: HVC_TAG_7_PARA_DUCT_TXT  •  Category: Ducts
@@ -68,6 +85,13 @@ TAG7: HVC_TAG_7_PARA_DUCT_TXT  •  Category: Ducts
 26,T3,CST_CALC_AREA_M2,| Area:,m²,0,✓,Common,Text,Show Tier 3 - 26,"if(TAG_PARA_STATE_3_BOOL, CST_CALC_AREA_M2, """")"
 27,T3,CST_LOCAL_MAT_BOOL,Local:,,0,,Common,Text,Show Tier 3 - 27,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_HVC_VEL_MPS_DUCTS,Velocity > 6 m/s,ASHRAE Fundamentals / DW/144,Common,Text,⚠ Warning: Duct Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_DUCTS, """")",,
+2,MEDIUM,WARN_HVC_DCT_SOUNDLVL_DB,Sound level > 35 dB,ASHRAE Fundamentals / CIBSE Guide B,Common,Text,⚠ Warning: Sound Level,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DCT_SOUNDLVL_DB, """")",,
+3,MEDIUM,WARN_HVC_DUCT_LEAKAGE_CLASS,Leakage class > C,DW/144 / EN 12237,Common,Text,⚠ Warning: Duct Leakage,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DUCT_LEAKAGE_CLASS, """")",,
+4,MEDIUM,WARN_INS_THICKNESS_MM,Insulation < 25 mm,ASHRAE 90.1,Common,Text,⚠ Warning: Insulation Thickness,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, """")",,
+
 Tag Family #5: STING - Flex Duct Tag
 TAG7: HVC_TAG_7_PARA_FLEXDUCT_TXT  •  Category: Flex Ducts
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -80,7 +104,8 @@ TAG7: HVC_TAG_7_PARA_FLEXDUCT_TXT  •  Category: Flex Ducts
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,WARN_HVC_VEL_MPS_FLEX_DUCTS,Velocity > 5 m/s,ASHRAE Fundamentals,Common,Text,⚠ Warning: Flex Duct Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_FLEX_DUCTS, """")",,
+1,MEDIUM,WARN_HVC_VEL_MPS_FLEX_DUCTS,Velocity > 3.5 m/s,ASHRAE Fundamentals,Common,Text,⚠ Warning: Flex Duct Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_FLEX_DUCTS, """")",,
+2,MEDIUM,WARN_HVC_DCT_SOUNDLVL_DB,Sound level > 35 dB,ASHRAE Fundamentals / CIBSE Guide B,Common,Text,⚠ Warning: Sound Level,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DCT_SOUNDLVL_DB, """")",,
 
 Tag Family #6: STING - Mechanical Equipment Tag
 TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Mechanical Equipment
@@ -122,9 +147,11 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Mechanical Equipment
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Efficiency < design minimum,ASHRAE 90.1,Common,Text,⚠ Warning: Efficiency Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, """")",,
+1,MEDIUM,WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,COP/EER < 3.0,ASHRAE 90.1 / EDGE,Common,Text,⚠ Warning: Efficiency Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, """")",,
+2,MEDIUM,WARN_HVC_DCT_SOUNDLVL_DB,Sound level > 35 dB,ASHRAE Fundamentals / CIBSE Guide B,Common,Text,⚠ Warning: Sound Level,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DCT_SOUNDLVL_DB, """")",,
+3,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / FM Guide,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
+4,HIGH,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 3%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")",,
 
-6D — Plumbing
 Tag Family #7: STING - Flex Pipe Tag
 TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Flex Pipes
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -136,6 +163,11 @@ TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Flex Pipes
 6,T3,PLM_TAG_7_PARA_PIPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_PIPE_TXT, """")"
 7,T3,PLM_PPE_LENGTH_M,,m,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_LENGTH_M, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_PLM_VEL_MPS_PIPES,Velocity > 2.5 m/s,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Pipe Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_PIPES, """")",,
+2,MEDIUM,WARN_PLM_PIPE_GRADIENT,Gradient < minimum,BS EN 12056 / Uganda NBC,Common,Text,⚠ Warning: Pipe Gradient,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_GRADIENT, """")",,
+
 Tag Family #8: STING - Pipe Accessory Tag
 TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Accessories
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -145,6 +177,11 @@ TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Accessories
 4,T2,ASS_DESCRIPTION_TXT,|,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,PLM_TAG_7_PARA_PIPEACC_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_PIPEACC_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PLM_PIPE_ACC_RATING,Pressure > 1000 kPa,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Accessory Pressure Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_ACC_RATING, """")",,
+2,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / FM Guide,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
 
 Tag Family #9: STING - Pipe Fitting Tag
 TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Fittings
@@ -156,6 +193,10 @@ TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Fittings
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,PLM_TAG_7_PARA_PIPEACC_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_PIPEACC_TXT, """")"
 7,T3,PLM_PPE_PSR_RATING_BAR,,bar,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_PSR_RATING_BAR, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PLM_PIPE_FITTING_LOSS,Pressure loss > 15 Pa,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Fitting Pressure Loss,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_FITTING_LOSS, """")",,
 
 Tag Family #10: STING - Pipe Tag
 TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Pipes
@@ -189,7 +230,10 @@ TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Pipes
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE,Flow rate exceeded,BS EN 806,Common,Text,⚠ Warning: Pipe Flow Rate,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE, """")",,
+1,MEDIUM,WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE,Flow rate exceeded,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Pipe Flow Rate,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE, """")",,
+2,HIGH,WARN_PLM_VEL_MPS_PIPES,Velocity > 2.5 m/s,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Pipe Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_PIPES, """")",,
+3,MEDIUM,WARN_PLM_PIPE_GRADIENT,Gradient < minimum,BS EN 12056 / Uganda NBC,Common,Text,⚠ Warning: Pipe Gradient,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_GRADIENT, """")",,
+4,MEDIUM,WARN_INS_THICKNESS_MM,Insulation < 25 mm,ASHRAE 90.1,Common,Text,⚠ Warning: Insulation Thickness,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, """")",,
 
 Tag Family #11: STING - Plumbing Fixture Tag
 TAG7: PLM_TAG_7_PARA_FIXTURE_TXT  •  Category: Plumbing Fixtures
@@ -216,6 +260,14 @@ TAG7: PLM_TAG_7_PARA_FIXTURE_TXT  •  Category: Plumbing Fixtures
 20,T3,CST_DELIVERY_LEAD_TIME_DAYS,| Lead:,days,0,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
 
 6E — Fire Protection
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PLM_FIXTURE_FLOW,Flow rate > 0.15 L/s,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Fixture Flow Rate,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_FIXTURE_FLOW, """")",,
+2,MEDIUM,WARN_PLM_FIXTURE_ACCESS,Access clearance < 450 mm,Uganda Accessibility Act / BS 8300,Common,Text,⚠ Warning: Fixture Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_FIXTURE_ACCESS, """")",,
+3,HIGH,WARN_PLM_TRAP_SEAL_MM,Trap seal < 50 mm,BS EN 12056 / Uganda NBC,Common,Text,⚠ Warning: Trap Seal Depth,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_TRAP_SEAL_MM, """")",,
+4,CRITICAL,WARN_RGL_ACCESSIBLE_WC,Accessible WC not provided,Uganda Accessibility Act / BS 8300,Common,Text,⚠ Warning: Accessible WC,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESSIBLE_WC, """")",,
+
 Tag Family #12: STING - Fire Alarm Device Tag
 TAG7: FLS_TAG_7_PARA_FA_TXT  •  Category: Fire Alarm Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -239,7 +291,9 @@ TAG7: FLS_TAG_7_PARA_FA_TXT  •  Category: Fire Alarm Devices
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,CRITICAL,WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR,Coverage > 12 m² per head,BS EN 12845 / NFPA 13,Common,Text,⚠ Warning: Sprinkler Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR, """")",,
+1,CRITICAL,WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR,Coverage > 12 m² per device,BS EN 54 / NFPA 72,Common,Text,⚠ Warning: Device Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR, """")",,
+2,HIGH,WARN_FLS_SMOKE_DETECTOR_SPACING,Spacing > 9 m,BS 5839 / NFPA 72,Common,Text,⚠ Warning: Detector Spacing,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SMOKE_DETECTOR_SPACING, """")",,
+3,HIGH,WARN_FLS_SFTY_SPACING,Safety device spacing > 12 m,BS 5839 / Uganda NBC,Common,Text,⚠ Warning: Device Spacing,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_SPACING, """")",,
 
 Tag Family #13: STING - Sprinkler Tag
 TAG7: FLS_TAG_7_PARA_SPR_TXT  •  Category: Sprinklers
@@ -267,8 +321,8 @@ TAG7: FLS_TAG_7_PARA_SPR_TXT  •  Category: Sprinklers
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
 1,CRITICAL,WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR,Coverage > 12 m² per head,BS EN 12845 / NFPA 13,Common,Text,⚠ Warning: Sprinkler Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR, """")",,
+2,HIGH,WARN_FLS_SFTY_SPACING,Spacing > maximum,BS EN 12845 / NFPA 13,Common,Text,⚠ Warning: Sprinkler Spacing,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_SPACING, """")",,
 
-6F — Electrical
 Tag Family #14: STING - Cable Tray Fitting Tag
 TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Tray Fittings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -277,6 +331,10 @@ TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Tray Fittings
 3,T2,ELC_CTR_MAT_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_MAT_TXT, """")"
 4,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 5,T3,ELC_TAG_7_PARA_TRAY_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_TRAY_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_ELC_CTR_FILL_RATIO,Fill ratio > 40%,IEC 61537 / BS 7671,Common,Text,⚠ Warning: Tray Fill Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_FILL_RATIO, """")",,
 
 Tag Family #15: STING - Cable Tray Tag
 TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Trays
@@ -296,6 +354,11 @@ TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Trays
 13,T3,CST_CALC_LENGTH_M,Length:,m,0,,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_CALC_LENGTH_M, """")"
 14,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_ELC_CTR_FILL_RATIO,Fill ratio > 40%,IEC 61537 / BS 7671,Common,Text,⚠ Warning: Tray Fill Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_FILL_RATIO, """")",,
+2,MEDIUM,WARN_FAB_HANGER_LOAD_KN,Hanger load > 5 kN,BS 7671 / IEC 61537,Common,Text,⚠ Warning: Support Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, """")",,
+
 Tag Family #16: STING - Conduit Fitting Tag
 TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduit Fittings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -304,6 +367,10 @@ TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduit Fittings
 3,T2,ELC_CDT_SZ_MM,Conduit:,mm,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ELC_CDT_SZ_MM, """")"
 4,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 5,T3,ELC_TAG_7_PARA_CONDUIT_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_CONDUIT_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_ELC_CDT_FILL_RATIO,Fill ratio > 40%,BS 7671 / IEC 60364,Common,Text,⚠ Warning: Conduit Fill Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CDT_FILL_RATIO, """")",,
 
 Tag Family #17: STING - Conduit Tag
 TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduits
@@ -329,6 +396,10 @@ TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduits
 19,T3,ELC_CDT_SUPPORT_SPACING_MM,| Supt:,mm,0,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, ELC_CDT_SUPPORT_SPACING_MM, """")"
 20,T3,CST_CALC_LENGTH_M,Length:,m,0,,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, CST_CALC_LENGTH_M, """")"
 21,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_ELC_CDT_FILL_RATIO,Fill ratio > 40%,BS 7671 / IEC 60364,Common,Text,⚠ Warning: Conduit Fill Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CDT_FILL_RATIO, """")",,
 
 Tag Family #18: STING - Electrical Equipment Tag
 TAG7: ELC_TAG_7_PARA_PANEL_TXT  •  Category: Electrical Equipment
@@ -372,7 +443,11 @@ TAG7: ELC_TAG_7_PARA_PANEL_TXT  •  Category: Electrical Equipment
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 5%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")",,
+1,MEDIUM,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 3%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")",,
+2,HIGH,WARN_ELC_PNL_SHORT_CIRCUIT,Short circuit rating < 25 kA,IEC 60364 / BS 7671,Common,Text,⚠ Warning: Short Circuit Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SHORT_CIRCUIT, """")",,
+3,MEDIUM,WARN_ELC_PNL_SPARE_WAYS,Spare ways < 20%,BS 7671 / IEC 60364,Common,Text,⚠ Warning: Spare Ways,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SPARE_WAYS, """")",,
+4,HIGH,WARN_ELC_EARTHING_TYPE,Earthing type non-compliant,IEC 60364 / BS 7671,Common,Text,⚠ Warning: Earthing Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_EARTHING_TYPE, """")",,
+5,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / FM Guide,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
 
 Tag Family #19: STING - Electrical Fixture Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Electrical Fixtures
@@ -389,7 +464,9 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Electrical Fixtures
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 5%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")",,
+1,MEDIUM,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 3%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")",,
+2,MEDIUM,WARN_ELC_FIXTURE_MOUNTING_HEIGHT,Mounting height non-standard,BS 7671 / Uganda ES,Common,Text,⚠ Warning: Mounting Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_FIXTURE_MOUNTING_HEIGHT, """")",,
+3,HIGH,WARN_ELC_IP_RATING,IP rating < IP44,IEC 60529 / BS 7671,Common,Text,⚠ Warning: IP Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_IP_RATING, """")",,
 
 Tag Family #20: STING - Lighting Device Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Devices
@@ -402,6 +479,12 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Devices
 6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 7,T3,ELC_TAG_7_PARA_CIRCUIT_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_CIRCUIT_TXT, """")"
 8,T3,LTG_CTRL_TYPE_TXT,,°C,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, LTG_CTRL_TYPE_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_LTG_ILLUMINANCE,Illuminance < 300 lux,CIBSE Guide A / ASHRAE,Common,Text,⚠ Warning: Illuminance Level,"if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_ILLUMINANCE, """")",,
+2,MEDIUM,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 3%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")",,
+3,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / FM Guide,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
 
 Tag Family #21: STING - Lighting Fixture Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Fixtures
@@ -430,6 +513,13 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Fixtures
 22,T3,PER_SUST_ENERGY_RATING_TXT,,,0,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_ENERGY_RATING_TXT, """")"
 
 6G — LV / ICT
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_LTG_ILLUMINANCE,Illuminance < 300 lux,CIBSE Guide A / ASHRAE,Common,Text,⚠ Warning: Illuminance Level,"if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_ILLUMINANCE, """")",,
+2,MEDIUM,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 3%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")",,
+3,HIGH,WARN_ELC_IP_RATING,IP rating < IP44,IEC 60529 / BS 7671,Common,Text,⚠ Warning: IP Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_IP_RATING, """")",,
+
 Tag Family #22: STING - Communication Device Tag
 TAG7: COM_TAG_7_PARA_BMS_TXT  •  Category: Communication Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -448,6 +538,11 @@ TAG7: COM_TAG_7_PARA_BMS_TXT  •  Category: Communication Devices
 13,T3,COM_C_DEV_BACNET_INSTANCE_INT,,°C,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, COM_C_DEV_BACNET_INSTANCE_INT, """")"
 14,T3,COM_C_DEV_CONTROLLER_NAME_TXT,,°C,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, COM_C_DEV_CONTROLLER_NAME_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_COM_DEVICE_COVERAGE,Coverage radius < 15 m,BS EN 50174 / Uganda NBC,Common,Text,⚠ Warning: Device Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, """")",,
+2,MEDIUM,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 3%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")",,
+
 Tag Family #23: STING - Data Device Tag
 TAG7: ICT_TAG_7_PARA_DATA_TXT  •  Category: Data Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -459,6 +554,11 @@ TAG7: ICT_TAG_7_PARA_DATA_TXT  •  Category: Data Devices
 6,T3,ICT_TAG_7_PARA_DATA_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ICT_TAG_7_PARA_DATA_TXT, """")"
 7,T3,ICT_DEV_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ICT_DEV_TAG_01_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_COM_DEVICE_COVERAGE,Coverage radius < 15 m,BS EN 50174 / Uganda NBC,Common,Text,⚠ Warning: Device Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, """")",,
+2,MEDIUM,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 3%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")",,
+
 Tag Family #24: STING - Nurse Call Device Tag
 TAG7: NCL_TAG_7_PARA_NURSECALL_TXT  •  Category: Nurse Call Devices
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -468,6 +568,11 @@ TAG7: NCL_TAG_7_PARA_NURSECALL_TXT  •  Category: Nurse Call Devices
 4,T2,MNT_HGT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")"
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,NCL_TAG_7_PARA_NURSECALL_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, NCL_TAG_7_PARA_NURSECALL_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_COM_DEVICE_COVERAGE,Coverage radius < 15 m,BS EN 50174 / HTM 08-03,Common,Text,⚠ Warning: Device Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, """")",,
+2,HIGH,WARN_FLS_SFTY_SPACING,Response path > 12 m,HTM 08-03 / BS 5839,Common,Text,⚠ Warning: Response Distance,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_SPACING, """")",,
 
 Tag Family #25: STING - Security Device Tag
 TAG7: SEC_TAG_7_PARA_SECURITY_TXT  •  Category: Security Devices
@@ -479,6 +584,11 @@ TAG7: SEC_TAG_7_PARA_SECURITY_TXT  •  Category: Security Devices
 5,T2,MNT_HGT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")"
 6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 7,T3,SEC_TAG_7_PARA_SECURITY_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, SEC_TAG_7_PARA_SECURITY_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_COM_DEVICE_COVERAGE,Coverage radius < 15 m,BS EN 50131 / Uganda NBC,Common,Text,⚠ Warning: Device Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, """")",,
+2,HIGH,WARN_FLS_SFTY_SPACING,Spacing > 12 m,BS EN 50131 / Uganda NBC,Common,Text,⚠ Warning: Device Spacing,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_SPACING, """")",,
 
 Tag Family #26: STING - Telephone Devices Tag
 TAG7: ICT_TAG_7_PARA_TEL_TXT  •  Category: Telephone Devices
@@ -495,6 +605,11 @@ TAG7: ICT_TAG_7_PARA_TEL_TXT  •  Category: Telephone Devices
 10,T3,ICT_TEL_PORT_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ICT_TEL_PORT_TYPE_TXT, """")"
 
 6H — General
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_COM_DEVICE_COVERAGE,Coverage radius < 15 m,BS EN 50174 / Uganda NBC,Common,Text,⚠ Warning: Device Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_COM_DEVICE_COVERAGE, """")",,
+
 Tag Family #27: STING - Generic Model Tag
 TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Generic Models
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -515,6 +630,11 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Generic Models
 15,T3,CST_IMPORT_REQUIRED_BOOL,Import:,,0,,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, CST_IMPORT_REQUIRED_BOOL, """")"
 16,T3,PER_SUST_EPD_REF_TXT,| EPD:,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EPD_REF_TXT, """")"
 17,T3,RGL_QA_STD_COMPLY_TXT,Standard:,,0,,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_STD_COMPLY_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_BLE_GENERIC_CLEARANCE_MM,Clearance < 600 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Clearance Zone,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_GENERIC_CLEARANCE_MM, """")",,
+2,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / FM Guide,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
 
 Tag Family #28: STING - Specialty Equipment Tag
 TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
@@ -543,6 +663,13 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
 22,T3,RGL_QA_COMMISSIONING_REQ_TXT,Comm:,,0,,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
 
 6D — MEP
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / FM Guide,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
+2,MEDIUM,WARN_BLE_GENERIC_CLEARANCE_MM,Clearance < 600 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Clearance Zone,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_GENERIC_CLEARANCE_MM, """")",,
+3,HIGH,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 3%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")",,
+
 Tag Family #29: STING - Duct Insulation Tag
 TAG7: HVC_TAG_7_PARA_DUCT_INSULATION_TXT  •  Category: Duct Insulation
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -553,7 +680,8 @@ TAG7: HVC_TAG_7_PARA_DUCT_INSULATION_TXT  •  Category: Duct Insulation
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,WARN_INS_THICKNESS_MM,Thickness < required minimum,ASHRAE 90.1,Common,Text,⚠ Warning: Insulation Below Minimum,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, """")",,
+1,MEDIUM,WARN_INS_THICKNESS_MM,Thickness < 25 mm,ASHRAE 90.1 / CIBSE Guide B,Common,Text,⚠ Warning: Insulation Thickness,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, """")",,
+2,LOW,WARN_PER_VOC_EMISSIONS,VOC > 250 µg/m³,EDGE / IFC Performance,Common,Text,⚠ Warning: VOC Emissions,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, """")",,
 
 Tag Family #30: STING - Duct Lining Tag
 TAG7: HVC_TAG_7_PARA_DUCT_LINING_TXT  •  Category: Duct Lining
@@ -562,6 +690,11 @@ TAG7: HVC_TAG_7_PARA_DUCT_LINING_TXT  •  Category: Duct Lining
 2,T1,INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_INS_THICKNESS_MM,Thickness < 25 mm,ASHRAE 90.1 / CIBSE Guide B,Common,Text,⚠ Warning: Lining Thickness,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, """")",,
+2,MEDIUM,WARN_HVC_DCT_SOUNDLVL_DB,Sound attenuation insufficient,ASHRAE Fundamentals / CIBSE Guide B,Common,Text,⚠ Warning: Sound Level,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DCT_SOUNDLVL_DB, """")",,
+
 Tag Family #31: STING - Pipe Insulation Tag
 TAG7: PLM_TAG_7_PARA_PIPE_INSULATION_TXT  •  Category: Pipe Insulation
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -569,6 +702,10 @@ TAG7: PLM_TAG_7_PARA_PIPE_INSULATION_TXT  •  Category: Pipe Insulation
 2,T1,INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,INS_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_INS_THICKNESS_MM,Thickness < 25 mm,ASHRAE 90.1 / BS 5422,Common,Text,⚠ Warning: Insulation Thickness,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, """")",,
 
 Tag Family #32: STING - Plumbing Equipment Tag
 TAG7: PLM_TAG_7_PARA_PLM_EQUIP_TXT  •  Category: Plumbing Equipment
@@ -592,7 +729,9 @@ TAG7: PLM_TAG_7_PARA_PLM_EQUIP_TXT  •  Category: Plumbing Equipment
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,CRITICAL,WARN_PLM_EQP_PRESSURE_KPA,Pressure exceeds rating,BS EN 806,Common,Text,⚠ Warning: Plumbing Pressure Exceeded,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_EQP_PRESSURE_KPA, """")",,
+1,CRITICAL,WARN_PLM_EQP_PRESSURE_KPA,Pressure > 600 kPa,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Equipment Pressure,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_EQP_PRESSURE_KPA, """")",,
+2,HIGH,WARN_PLM_VEL_MPS_PIPES,Velocity > 2.5 m/s,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Pipe Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_PIPES, """")",,
+3,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / FM Guide,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
 
 Tag Family #33: STING - Mechanical Control Devices Tag
 TAG7: HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT  •  Category: Mechanical Control Devices
@@ -602,12 +741,23 @@ TAG7: HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT  •  Category: Mechanical Control Device
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,MEC_CTRL_SIGNAL_TXT,Signal:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MEC_CTRL_SIGNAL_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / FM Guide,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
+2,MEDIUM,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 3%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")",,
+
 Tag Family #34: STING - Mechanical Equipment Sets Tag
 TAG7: HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT  •  Category: Mechanical Equipment Sets
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T3,MEC_SET_CAPACITY_KW,Capacity:,kW,0,✓,Common,Text,Show Tier 3 - 3,"if(TAG_PARA_STATE_3_BOOL, MEC_SET_CAPACITY_KW, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,COP/EER < 3.0,ASHRAE 90.1 / EDGE,Common,Text,⚠ Warning: Efficiency Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, """")",,
+2,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / FM Guide,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
+3,MEDIUM,WARN_HVC_DCT_SOUNDLVL_DB,Sound level > 35 dB,ASHRAE Fundamentals / CIBSE Guide B,Common,Text,⚠ Warning: Sound Level,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DCT_SOUNDLVL_DB, """")",,
 
 Tag Family #35: STING - Electrical Connectors Tag
 TAG7: ELC_TAG_7_PARA_ELC_CONNECTORS_TXT  •  Category: Electrical Connectors
@@ -616,6 +766,11 @@ TAG7: ELC_TAG_7_PARA_ELC_CONNECTORS_TXT  •  Category: Electrical Connectors
 2,T1,ELC_CONN_TYPE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,ELC_CONN_RATING_A,,A,1,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CONN_RATING_A, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_ELC_CONNECTOR_RATING,Rating < 16 A,IEC 60364 / BS 7671,Common,Text,⚠ Warning: Connector Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CONNECTOR_RATING, """")",,
+2,HIGH,WARN_ELC_IP_RATING,IP rating < IP44,IEC 60529 / BS 7671,Common,Text,⚠ Warning: IP Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_IP_RATING, """")",,
 
 Tag Family #36: STING - Fire Protection Tag
 TAG7: FLS_TAG_7_PARA_FIRE_PROT_TXT  •  Category: Fire Protection
@@ -633,7 +788,9 @@ TAG7: FLS_TAG_7_PARA_FIRE_PROT_TXT  •  Category: Fire Protection
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,CRITICAL,WARN_FLS_PROT_COVERAGE,Coverage gap detected,BS 9999,Common,Text,⚠ Warning: Fire Protection Coverage Gap,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_PROT_COVERAGE, """")",,
+1,CRITICAL,WARN_FLS_PROT_COVERAGE,Coverage gap detected,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Coverage Gap,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_PROT_COVERAGE, """")",,
+2,HIGH,WARN_FLS_TRAVEL_DIST_M,Travel distance > limit,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Travel Distance,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_TRAVEL_DIST_M, """")",,
+3,HIGH,WARN_FLS_SFTY_SPACING,Spacing > maximum,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Device Spacing,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_SPACING, """")",,
 
 Tag Family #37: STING - MEP Fabrication Containment Tag
 TAG7: ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT  •  Category: MEP Fabrication Containment
@@ -643,6 +800,11 @@ TAG7: ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT  •  Category: MEP Fabrication Contain
 3,T1,FAB_CONTAINMENT_D_MM,,mm,0,✓,---,---,---,Add directly
 4,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_ELC_CTR_FILL_RATIO,Fill ratio > 40%,IEC 61537 / BS 7671,Common,Text,⚠ Warning: Fill Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_FILL_RATIO, """")",,
+2,MEDIUM,WARN_FAB_HANGER_LOAD_KN,Hanger load > 5 kN,BS 7671 / IEC 61537,Common,Text,⚠ Warning: Hanger Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, """")",,
+
 Tag Family #38: STING - MEP Fabrication Ductwork Tag
 TAG7: HVC_TAG_7_PARA_FAB_DUCTWORK_TXT  •  Category: MEP Fabrication Ductwork
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -651,12 +813,22 @@ TAG7: HVC_TAG_7_PARA_FAB_DUCTWORK_TXT  •  Category: MEP Fabrication Ductwork
 3,T1,FAB_DCT_H_MM,,mm,0,✓,---,---,---,Add directly
 4,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_HVC_VEL_MPS_DUCTS,Velocity > 6 m/s,ASHRAE Fundamentals / DW/144,Common,Text,⚠ Warning: Duct Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_DUCTS, """")",,
+2,MEDIUM,WARN_HVC_DUCT_LEAKAGE_CLASS,Leakage class > C,DW/144 / EN 12237,Common,Text,⚠ Warning: Duct Leakage,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DUCT_LEAKAGE_CLASS, """")",,
+3,MEDIUM,WARN_FAB_HANGER_LOAD_KN,Hanger load > 5 kN,BS 7671 / DW/144,Common,Text,⚠ Warning: Hanger Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, """")",,
+
 Tag Family #39: STING - MEP Fabrication Ductwork Stiffeners Tag
 TAG7: HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT  •  Category: MEP Fabrication Ductwork Stiffeners
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,FAB_STIFF_TYPE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_FAB_HANGER_LOAD_KN,Stiffener load > 5 kN,DW/144,Common,Text,⚠ Warning: Stiffener Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, """")",,
 
 Tag Family #40: STING - MEP Fabrication Hangers Tag
 TAG7: MEP_TAG_7_PARA_FAB_HANGERS_TXT  •  Category: MEP Fabrication Hangers
@@ -668,7 +840,8 @@ TAG7: MEP_TAG_7_PARA_FAB_HANGERS_TXT  •  Category: MEP Fabrication Hangers
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,WARN_FAB_HANGER_LOAD_KN,Check parameter value,Applicable codes,Common,Text,⚠ Warning: Hanger Overloaded,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, """")",,
+1,MEDIUM,WARN_FAB_HANGER_LOAD_KN,Hanger load > 5 kN,BS 7671 / DW/144,Common,Text,⚠ Warning: Hanger Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, """")",,
+2,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / FM Guide,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
 
 Tag Family #41: STING - MEP Fabrication Pipework Tag
 TAG7: PLM_TAG_7_PARA_FAB_PIPEWORK_TXT  •  Category: MEP Fabrication Pipework
@@ -676,6 +849,11 @@ TAG7: PLM_TAG_7_PARA_FAB_PIPEWORK_TXT  •  Category: MEP Fabrication Pipework
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,FAB_PIPE_DN_MM,DN,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_PLM_VEL_MPS_PIPES,Velocity > 2.5 m/s,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Pipe Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_PIPES, """")",,
+2,MEDIUM,WARN_FAB_HANGER_LOAD_KN,Hanger load > 5 kN,BS 7671 / BS EN 806,Common,Text,⚠ Warning: Hanger Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, """")",,
 
 Tag Family #42: STING - Materials Tag
 TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
@@ -698,3 +876,10 @@ TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 16,T3,PER_SUST_RECYCLABILITY_PCT,Recyclable:,%,0,,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_RECYCLABILITY_PCT, """")"
 17,T3,PER_SUST_EPD_REF_TXT,| EPD:,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EPD_REF_TXT, """")"
 18,T3,RGL_QA_CERTIFICATION_TXT,Cert:,,0,,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_CERTIFICATION_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_PER_VOC_EMISSIONS,VOC > 250 µg/m³,EDGE / IFC Performance,Common,Text,⚠ Warning: VOC Emissions,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, """")",,
+2,MEDIUM,WARN_PER_RECYCLABILITY_LOW,Recyclability < 30%,EDGE / IFC Performance,Common,Text,⚠ Warning: Recyclability,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, """")",,
+3,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+

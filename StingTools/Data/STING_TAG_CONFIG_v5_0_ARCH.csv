@@ -14,6 +14,12 @@ TAG7: ARCH_TAG_7_PARA_CASEWORK_TXT  •  Category: Casework
 8,T3,BLE_CASEWORK_FINISH_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, BLE_CASEWORK_FINISH_TXT, """")"
 9,T3,ASS_EXPECTED_LIFE_YEARS_YRS,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_BLE_CASEWORK_DEPTH_MM,Depth > 600 mm (accessibility),Uganda Accessibility Act,Common,Text,⚠ Warning: Casework Depth,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CASEWORK_DEPTH_MM, """")",,
+2,CRITICAL,WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Clear width < 900 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Access Clear Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, """")",,
+3,LOW,WARN_PER_VOC_EMISSIONS,VOC > 250 µg/m³,EDGE / IFC Performance,Common,Text,⚠ Warning: VOC Emissions,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, """")",,
+
 Tag Family #2: STING - Ceiling Tag
 TAG7: ARCH_TAG_7_PARA_CEIL_TXT  •  Category: Ceilings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -39,6 +45,15 @@ TAG7: ARCH_TAG_7_PARA_CEIL_TXT  •  Category: Ceilings
 20,T3,CST_CALC_STEEL_KG,| Susp:,kg,0,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, CST_CALC_STEEL_KG, """")"
 21,T3,CST_CALC_PAINT_LITERS,Paint:,L,0,,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, CST_CALC_PAINT_LITERS, """")"
 22,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_CEIL_HEIGHT_MM,Height < 2400 mm,Uganda NBC,Common,Text,⚠ Warning: Ceiling Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CEIL_HEIGHT_MM, """")",,
+2,CRITICAL,WARN_DOOR_FRR,Fire resistance < required,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, """")",,
+3,MEDIUM,WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,U > 0.45 W/m²K,Uganda NBC,Common,Text,⚠ Warning: Thermal U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS, """")",,
+4,HIGH,WARN_PER_VOC_EMISSIONS,VOC > 250 µg/m³,EDGE / IFC Performance,Common,Text,⚠ Warning: VOC Emissions,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, """")",,
+5,MEDIUM,WARN_PER_ACOUSTIC_FLOOR_IIC,IIC < 50 dB,Uganda NBC,Common,Text,⚠ Warning: Impact Insulation,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_ACOUSTIC_FLOOR_IIC, """")",,
+6,LOW,WARN_PER_RECYCLABILITY_LOW,Recyclability < 30%,EDGE / IFC Performance,Common,Text,⚠ Warning: Recyclability,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, """")",,
 
 Tag Family #3: STING - Door Tag
 TAG7: ARCH_TAG_7_PARA_DOOR_TXT  •  Category: Doors
@@ -72,11 +87,10 @@ TAG7: ARCH_TAG_7_PARA_DOOR_TXT  •  Category: Doors
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,BLE_DOOR_WIDTH_MM,Check parameter value,Applicable codes,Common,Text,Door Width,"if(TAG_WARN_VISIBLE_BOOL, BLE_DOOR_WIDTH_MM, """")",,
-2,CRITICAL,WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Clear width < 900 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Access Clear Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, """")",,
-3,MEDIUM,FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Check parameter value,Applicable codes,Common,Text,FRR: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN, """")",,
-4,CRITICAL,WARN_DOOR_FRR,Fire resistance < required,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Door Frr,"if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, """")",,
-5,MEDIUM,WARN_BLE_DOOR_ACOUSTIC,STC < 30 dB,Uganda NBC,Common,Text,⚠ Warning: Ble Door Acoustic,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_DOOR_ACOUSTIC, """")",,
+1,CRITICAL,WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Clear width < 900 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Access Clear Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, """")",,
+2,CRITICAL,WARN_DOOR_FRR,Fire resistance < required,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, """")",,
+3,HIGH,WARN_BLE_DOOR_ACOUSTIC,STC < 35 dB,Uganda NBC,Common,Text,⚠ Warning: Door Acoustic Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_DOOR_ACOUSTIC, """")",,
+4,CRITICAL,WARN_BLE_DOOR_HEIGHT_MM,Height < 2100 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Door Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_DOOR_HEIGHT_MM, """")",,
 
 Tag Family #4: STING - Floor Tag
 TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Floors
@@ -119,9 +133,10 @@ TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Floors
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
 1,MEDIUM,WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,U > 0.70 W/m²K,Uganda NBC,Common,Text,⚠ Warning: Floor U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS, """")",,
-2,MEDIUM,FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Check parameter value,Applicable codes,Common,Text,FRR: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN, """")",,
-3,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
-4,CRITICAL,WARN_BLE_FLR_LD_CAP_KPA,Load capacity exceeded,Eurocode 1 / Uganda PWD,Common,Text,⚠ Warning: Ble Flr Ld Cap Kpa,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLR_LD_CAP_KPA, """")",,
+2,CRITICAL,WARN_BLE_FLR_LD_CAP_KPA,Load capacity < 2.5 kPa,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Floor Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLR_LD_CAP_KPA, """")",,
+3,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > 500 kg/unit,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+4,MEDIUM,WARN_PER_ACOUSTIC_FLOOR_IIC,IIC < 50 dB,Uganda NBC,Common,Text,⚠ Warning: Impact Insulation,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_ACOUSTIC_FLOOR_IIC, """")",,
+5,CRITICAL,WARN_DOOR_FRR,Fire resistance < required,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, """")",,
 
 Tag Family #5: STING - Furniture Tag
 TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Furniture
@@ -140,6 +155,12 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Furniture
 12,T3,ASS_SERIAL_NR_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_SERIAL_NR_TXT, """")"
 13,T3,PER_SUST_RECYCLABLE_BOOL,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_RECYCLABLE_BOOL, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_BLE_FURNITURE_CLEARANCE_MM,Clearance < 900 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Furniture Clearance,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FURNITURE_CLEARANCE_MM, """")",,
+2,HIGH,WARN_PER_VOC_EMISSIONS,VOC > 250 µg/m³,EDGE / IFC Performance,Common,Text,⚠ Warning: VOC Emissions,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, """")",,
+3,LOW,WARN_PER_RECYCLABILITY_LOW,Recyclability < 30%,EDGE / IFC Performance,Common,Text,⚠ Warning: Recyclability,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, """")",,
+
 Tag Family #6: STING - Furniture Systems Tag
 TAG7: ARCH_TAG_7_PARA_FURN_SYS_TXT  •  Category: Furniture Systems
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -150,6 +171,12 @@ TAG7: ARCH_TAG_7_PARA_FURN_SYS_TXT  •  Category: Furniture Systems
 5,T2,ASS_MODEL_NR_TXT,|,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_MODEL_NR_TXT, """")"
 6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 7,T3,ARCH_TAG_7_PARA_FURN_SYS_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FURN_SYS_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_BLE_FURNITURE_CLEARANCE_MM,Clearance < 900 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Furniture Clearance,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FURNITURE_CLEARANCE_MM, """")",,
+2,HIGH,WARN_PER_VOC_EMISSIONS,VOC > 250 µg/m³,EDGE / IFC Performance,Common,Text,⚠ Warning: VOC Emissions,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, """")",,
+3,LOW,WARN_PER_RECYCLABILITY_LOW,Recyclability < 30%,EDGE / IFC Performance,Common,Text,⚠ Warning: Recyclability,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, """")",,
 
 Tag Family #7: STING - Parking Tag
 TAG7: ARCH_TAG_7_PARA_PARKING_TXT  •  Category: Parking
@@ -163,6 +190,12 @@ TAG7: ARCH_TAG_7_PARA_PARKING_TXT  •  Category: Parking
 7,T3,ARCH_TAG_7_PARA_PARKING_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_PARKING_TXT, """")"
 8,T3,RGL_PARKING_SPACES_REQ_NR,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, RGL_PARKING_SPACES_REQ_NR, """")"
 9,T3,RGL_KCCA_APPROVAL_REQ_BOOL,,A,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, RGL_KCCA_APPROVAL_REQ_BOOL, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,CRITICAL,WARN_BLE_PARKING_WIDTH_MM,Bay width < 2400 mm,Uganda NBC / BS 8300,Common,Text,⚠ Warning: Parking Bay Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_PARKING_WIDTH_MM, """")",,
+2,CRITICAL,WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Accessible route < 900 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Access Clear Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, """")",,
+3,MEDIUM,WARN_ROAD_GRADIENT_PCT,Gradient > 8%,Uganda NBC,Common,Text,⚠ Warning: Parking Gradient,"if(TAG_WARN_VISIBLE_BOOL, WARN_ROAD_GRADIENT_PCT, """")",,
 
 Tag Family #8: STING - Ramp Tag
 TAG7: ARCH_TAG_7_PARA_RAMP_TXT  •  Category: Ramps
@@ -187,8 +220,9 @@ TAG7: ARCH_TAG_7_PARA_RAMP_TXT  •  Category: Ramps
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,CRITICAL,WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Slope > 8% (1:12),Uganda Accessibility Act,Common,Text,⚠ Warning: Ramp Slope,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAMP_SLOPE_PCT_RAMPS, """")",,
+1,CRITICAL,WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Slope > 8.33% (1:12),Uganda Accessibility Act,Common,Text,⚠ Warning: Ramp Slope,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAMP_SLOPE_PCT_RAMPS, """")",,
 2,CRITICAL,WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Clear width < 900 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Access Clear Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, """")",,
+3,HIGH,WARN_BLE_RAIL_HEIGHT_MM,Handrail height < 900 mm or > 1100 mm,Uganda NBC / BS 8300,Common,Text,⚠ Warning: Handrail Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, """")",,
 
 Tag Family #9: STING - Roof Tag
 TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roofs
@@ -222,9 +256,10 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roofs
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
 1,MEDIUM,WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,U > 0.45 W/m²K,Uganda NBC,Common,Text,⚠ Warning: Roof U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS, """")",,
-2,MEDIUM,FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Check parameter value,Applicable codes,Common,Text,FRR: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN, """")",,
-3,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
-4,MEDIUM,WARN_BLE_ROOF_SLOPE,Slope < minimum drainage,Uganda NBC,Common,Text,⚠ Warning: Ble Roof Slope,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOF_SLOPE, """")",,
+2,MEDIUM,WARN_BLE_ROOF_SLOPE,Slope < 1.5% (drainage),Uganda NBC,Common,Text,⚠ Warning: Roof Drainage Slope,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOF_SLOPE, """")",,
+3,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > 500 kg/unit,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+4,CRITICAL,WARN_DOOR_FRR,Fire resistance < required,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, """")",,
+5,MEDIUM,WARN_BLE_STRUCT_LD_CAP,Load capacity check,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Structural Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
 
 Tag Family #10: STING - Room Tag
 TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Rooms
@@ -258,6 +293,15 @@ TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Rooms
 27,T3,RGL_ACCESS_REFUGE_AREA_TXT,Refuge:,,0,,Common,Text,Show Tier 3 - 27,"if(TAG_PARA_STATE_3_BOOL, RGL_ACCESS_REFUGE_AREA_TXT, """")"
 28,T3,RGL_KCCA_APPROVAL_REQ_BOOL,| KCCA:,,0,✓,Common,Text,Show Tier 3 - 28,"if(TAG_PARA_STATE_3_BOOL, RGL_KCCA_APPROVAL_REQ_BOOL, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_ASS_ROOM_AREA_MIN,Area < 7.0 m²,Uganda NBC,Common,Text,⚠ Warning: Room Minimum Area,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_AREA_MIN, """")",,
+2,HIGH,WARN_ASS_ROOM_HEIGHT_MM,Height < 2700 mm,Uganda NBC,Common,Text,⚠ Warning: Room Clear Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_HEIGHT_MM, """")",,
+3,MEDIUM,WARN_ASS_ROOM_VENTILATION,Ventilation < 10 ACH,Uganda NBC / ASHRAE 62.1,Common,Text,⚠ Warning: Ventilation Rate,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_VENTILATION, """")",,
+4,MEDIUM,WARN_ASS_ROOM_DAYLIGHT,Daylight factor < 2%,Uganda NBC / EDGE,Common,Text,⚠ Warning: Daylight Factor,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_DAYLIGHT, """")",,
+5,MEDIUM,WARN_FLS_TRAVEL_DIST_M,Travel distance > limit,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Escape Distance,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_TRAVEL_DIST_M, """")",,
+6,HIGH,WARN_FLS_COMPARTMENT_AREA,Compartment area > limit,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Compartment,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_COMPARTMENT_AREA, """")",,
+
 Tag Family #11: STING - Site Tag
 TAG7: ARCH_TAG_7_PARA_SITE_TXT  •  Category: Site
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -285,6 +329,12 @@ TAG7: ARCH_TAG_7_PARA_SITE_TXT  •  Category: Site
 22,T3,RGL_SETBACK_FRONT_CHECK_BOOL,Check:,,0,,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, RGL_SETBACK_FRONT_CHECK_BOOL, """")"
 23,T3,RGL_PARKING_PROVISION_M2_NR,| Parking:,bays,0,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, RGL_PARKING_PROVISION_M2_NR, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_SITE_BEARING_CAP_KPA,Bearing capacity < 100 kPa,Eurocode 7 / Uganda NBC,Common,Text,⚠ Warning: Bearing Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, """")",,
+2,MEDIUM,WARN_ROAD_GRADIENT_PCT,Gradient > 8%,Uganda NBC,Common,Text,⚠ Warning: Site Gradient,"if(TAG_WARN_VISIBLE_BOOL, WARN_ROAD_GRADIENT_PCT, """")",,
+3,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+
 Tag Family #12: STING - Stair Tag
 TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stairs
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -306,11 +356,11 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stairs
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,BLE_STAIR_RISE_MM,Check parameter value,Applicable codes,Common,Text,Rise: Stair Rise,"if(TAG_WARN_VISIBLE_BOOL, BLE_STAIR_RISE_MM, """")",,
-2,MEDIUM,BLE_STAIR_GOING_MM,Check parameter value,Applicable codes,Common,Text,Going: Stair Going,"if(TAG_WARN_VISIBLE_BOOL, BLE_STAIR_GOING_MM, """")",,
-3,MEDIUM,BLE_STAIR_WIDTH_MM,Check parameter value,Applicable codes,Common,Text,Width: Stair Width,"if(TAG_WARN_VISIBLE_BOOL, BLE_STAIR_WIDTH_MM, """")",,
-4,CRITICAL,WARN_BLE_STAIR_RISE,Rise > 190 mm or < 150 mm,Uganda NBC / BS 5395,Common,Text,⚠ Warning: Ble Stair Rise,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISE, """")",,
-5,CRITICAL,WARN_BLE_STAIR_GOING,Going < 250 mm,Uganda NBC / BS 5395,Common,Text,⚠ Warning: Ble Stair Going,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_GOING, """")",,
+1,CRITICAL,WARN_BLE_STAIR_RISE,Rise > 190 mm or < 150 mm,Uganda NBC / BS 5395,Common,Text,⚠ Warning: Stair Rise,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISE, """")",,
+2,CRITICAL,WARN_BLE_STAIR_GOING,Going < 250 mm,Uganda NBC / BS 5395,Common,Text,⚠ Warning: Stair Going,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_GOING, """")",,
+3,CRITICAL,WARN_BLE_STAIR_WIDTH_MM,Width < 1000 mm,Uganda NBC / BS 5395,Common,Text,⚠ Warning: Stair Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_WIDTH_MM, """")",,
+4,HIGH,WARN_BLE_STAIR_HEADROOM_MM,Headroom < 2100 mm,Uganda NBC / BS 5395,Common,Text,⚠ Warning: Stair Headroom,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_HEADROOM_MM, """")",,
+5,HIGH,WARN_BLE_RAIL_HEIGHT_MM,Handrail height < 900 mm,Uganda NBC / BS 5395,Common,Text,⚠ Warning: Handrail Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, """")",,
 
 Tag Family #13: STING - Wall Tag
 TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Walls
@@ -366,8 +416,10 @@ TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Walls
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
 1,MEDIUM,WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,U > 0.70 W/m²K,Uganda NBC,Common,Text,⚠ Warning: Wall U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS, """")",,
-2,MEDIUM,FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Check parameter value,Applicable codes,Common,Text,FRR: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN, """")",,
-3,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+2,CRITICAL,WARN_DOOR_FRR,Fire resistance < required,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, """")",,
+3,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > 500 kg/unit,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+4,MEDIUM,WARN_PER_ACOUSTIC_WALL_STC,STC < 50 dB,Uganda NBC,Common,Text,⚠ Warning: Wall Acoustic STC,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_ACOUSTIC_WALL_STC, """")",,
+5,HIGH,WARN_BLE_WALL_HEIGHT_RATIO,Height-to-thickness ratio exceeded,Eurocode 6 / Uganda NBC,Common,Text,⚠ Warning: Wall Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WALL_HEIGHT_RATIO, """")",,
 
 Tag Family #14: STING - Window Tag
 TAG7: ARCH_TAG_7_PARA_WIN_TXT  •  Category: Windows
@@ -394,9 +446,9 @@ TAG7: ARCH_TAG_7_PARA_WIN_TXT  •  Category: Windows
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,BLE_WINDOW_U_VALUE_W_M_2K_NR,Check parameter value,Applicable codes,Common,Text,U=Window U-Value,"if(TAG_WARN_VISIBLE_BOOL, BLE_WINDOW_U_VALUE_W_M_2K_NR, """")",,
-2,MEDIUM,WARN_BLE_WINDOW_U_VALUE,U > 3.0 W/m²K,Uganda NBC,Common,Text,⚠ Warning: Ble Window U Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WINDOW_U_VALUE, """")",,
-3,MEDIUM,WARN_BLE_WINDOW_SHGC,SHGC > 0.40,ASHRAE 90.1,Common,Text,⚠ Warning: Ble Window Shgc,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WINDOW_SHGC, """")",,
+1,MEDIUM,WARN_BLE_WINDOW_U_VALUE,U > 3.0 W/m²K,Uganda NBC,Common,Text,⚠ Warning: Window U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WINDOW_U_VALUE, """")",,
+2,MEDIUM,WARN_BLE_WINDOW_SHGC,SHGC > 0.40,Uganda NBC / EDGE,Common,Text,⚠ Warning: Window SHGC,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WINDOW_SHGC, """")",,
+3,HIGH,WARN_BLE_DOOR_HEIGHT_MM,Sill height < 900 mm (safety),Uganda NBC / BS 8213,Common,Text,⚠ Warning: Window Sill Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_DOOR_HEIGHT_MM, """")",,
 
 Tag Family #15: STING - Structural Rebar Tag
 TAG7: STR_TAG_7_PARA_STR_REBAR_TXT  •  Category: Structural Rebar
@@ -416,8 +468,9 @@ TAG7: STR_TAG_7_PARA_STR_REBAR_TXT  •  Category: Structural Rebar
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,CRITICAL,WARN_STR_RBR_COVER_MM,Cover < minimum,BS 8110 / Eurocode 2,Common,Text,⚠ Warning: Rebar Cover Below Min,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, """")",,
-2,CRITICAL,WARN_STR_RBR_LAP_LENGTH_MM,Lap length insufficient,BS 8110 / Eurocode 2,Common,Text,⚠ Warning: Rebar Lap Too Short,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_LAP_LENGTH_MM, """")",,
+1,CRITICAL,WARN_STR_RBR_COVER_MM,Cover < 25 mm minimum,Eurocode 2 / Uganda NBC,Common,Text,⚠ Warning: Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, """")",,
+2,CRITICAL,WARN_STR_RBR_LAP_LENGTH_MM,Lap length < 500 mm,Eurocode 2 / Uganda NBC,Common,Text,⚠ Warning: Rebar Lap Length,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_LAP_LENGTH_MM, """")",,
+3,HIGH,WARN_STR_REBAR_MIN_DIA,Diameter < 10 mm minimum,Eurocode 2,Common,Text,⚠ Warning: Rebar Min Diameter,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_MIN_DIA, """")",,
 
 Tag Family #16: STING - Railing Tag
 TAG7: BLE_TAG_7_PARA_RAILINGS_TXT  •  Category: Railings
@@ -432,8 +485,8 @@ TAG7: BLE_TAG_7_PARA_RAILINGS_TXT  •  Category: Railings
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,CRITICAL,WARN_BLE_RAIL_HEIGHT_MM,Height < 900 mm or > 1100 mm,Uganda NBC / BS 5395,Common,Text,⚠ Warning: Rail Height Non-Compliant,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, """")",,
-2,CRITICAL,WARN_BLE_RAIL_LOAD_KN_M,Load < 0.74 kN/m,BS 6180,Common,Text,⚠ Warning: Rail Load Insufficient,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_LOAD_KN_M, """")",,
+1,CRITICAL,WARN_BLE_RAIL_HEIGHT_MM,Height < 900 mm or > 1100 mm,Uganda NBC / BS 6180,Common,Text,⚠ Warning: Railing Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, """")",,
+2,CRITICAL,WARN_BLE_RAIL_LOAD_KN_M,Load resistance < 0.74 kN/m,Eurocode 1 / BS 6180,Common,Text,⚠ Warning: Railing Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_LOAD_KN_M, """")",,
 
 Tag Family #17: STING - Area Tag
 TAG7: ARCH_TAG_7_PARA_AREAS_TXT  •  Category: Areas
@@ -442,6 +495,11 @@ TAG7: ARCH_TAG_7_PARA_AREAS_TXT  •  Category: Areas
 2,T1,ARCH_AREA_VALUE_SQ_M,,m²,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,ARCH_AREA_TYPE_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ARCH_AREA_TYPE_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_ASS_ROOM_AREA_MIN,Area < minimum threshold,Uganda NBC,Common,Text,⚠ Warning: Minimum Area,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_AREA_MIN, """")",,
+2,MEDIUM,WARN_FLS_COMPARTMENT_AREA,Compartment area > limit,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Compartment,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_COMPARTMENT_AREA, """")",,
 
 Tag Family #18: STING - Space Tag
 TAG7: ARCH_TAG_7_PARA_SPACES_TXT  •  Category: Spaces
@@ -455,9 +513,10 @@ TAG7: ARCH_TAG_7_PARA_SPACES_TXT  •  Category: Spaces
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,WARN_MEP_SPC_LIGHTING,Check parameter value,Applicable codes,Common,Text,⚠ Warning: Lighting Below Design Level,"if(TAG_WARN_VISIBLE_BOOL, WARN_MEP_SPC_LIGHTING, """")",,
+1,MEDIUM,WARN_MEP_SPC_LIGHTING,Lighting power > 10 W/m²,ASHRAE 90.1 / Uganda NBC,Common,Text,⚠ Warning: Lighting Power Density,"if(TAG_WARN_VISIBLE_BOOL, WARN_MEP_SPC_LIGHTING, """")",,
+2,MEDIUM,WARN_ASS_ROOM_VENTILATION,Ventilation < minimum,ASHRAE 62.1 / Uganda NBC,Common,Text,⚠ Warning: Ventilation Rate,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_VENTILATION, """")",,
+3,HIGH,WARN_ASS_ROOM_AREA_MIN,Area < minimum,Uganda NBC,Common,Text,⚠ Warning: Minimum Area,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_AREA_MIN, """")",,
 
-6B — Building Elements
 Tag Family #19: STING - Curtain Panel Tag
 TAG7: BLE_TAG_7_PARA_CURTAIN_PANELS_TXT  •  Category: Curtain Panels
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -469,8 +528,9 @@ TAG7: BLE_TAG_7_PARA_CURTAIN_PANELS_TXT  •  Category: Curtain Panels
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,WARN_BLE_CW_PANEL_U_VALUE,Check parameter value,Applicable codes,Common,Text,⚠ Warning: Panel U-Value Exceeded,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CW_PANEL_U_VALUE, """")",,
-2,MEDIUM,WARN_BLE_CW_PANEL_SHGC,Check parameter value,Applicable codes,Common,Text,⚠ Warning: Panel SHGC Exceeded,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CW_PANEL_SHGC, """")",,
+1,MEDIUM,WARN_BLE_CW_PANEL_U_VALUE,U > 3.0 W/m²K,Uganda NBC,Common,Text,⚠ Warning: Panel U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CW_PANEL_U_VALUE, """")",,
+2,MEDIUM,WARN_BLE_CW_PANEL_SHGC,SHGC > 0.40,Uganda NBC / EDGE,Common,Text,⚠ Warning: Panel SHGC,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CW_PANEL_SHGC, """")",,
+3,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
 
 Tag Family #20: STING - Curtain Mullion Tag
 TAG7: BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT  •  Category: Curtain Wall Mullions
@@ -482,6 +542,12 @@ TAG7: BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT  •  Category: Curtain Wall Mullions
 5,T3,BLE_CW_MULLION_DEPTH_MM,Depth:,mm,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, BLE_CW_MULLION_DEPTH_MM, """")"
 
 6A — Architecture
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Structural load capacity check,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Structural Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+2,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+
 Tag Family #21: STING - Column Tag
 TAG7: ARCH_TAG_7_PARA_COLUMNS_TXT  •  Category: Columns
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -492,6 +558,12 @@ TAG7: ARCH_TAG_7_PARA_COLUMNS_TXT  •  Category: Columns
 5,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 6,T2,BLE_COL_MAT_TXT,,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_COL_MAT_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_COLUMN_SLENDERNESS,Slenderness ratio > 30,Eurocode 2/3 / Uganda NBC,Common,Text,⚠ Warning: Column Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_COLUMN_SLENDERNESS, """")",,
+2,CRITICAL,WARN_BLE_STRUCT_LD_CAP,Load capacity exceeded,Eurocode 2/3 / Uganda NBC,Common,Text,⚠ Warning: Structural Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+3,MEDIUM,WARN_DOOR_FRR,Fire resistance < required,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, """")",,
+
 Tag Family #22: STING - Assemblies Tag
 TAG7: ARCH_TAG_7_PARA_ASSEMBLIES_TXT  •  Category: Assemblies
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -499,17 +571,30 @@ TAG7: ARCH_TAG_7_PARA_ASSEMBLIES_TXT  •  Category: Assemblies
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+2,LOW,WARN_PER_RECYCLABILITY_LOW,Recyclability < 30%,EDGE / IFC Performance,Common,Text,⚠ Warning: Recyclability,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, """")",,
+
 Tag Family #23: STING - Detail Items Tag
 TAG7: ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT  •  Category: Detail Items
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_BLE_GENERIC_CLEARANCE_MM,Clearance < 600 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Clearance Zone,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_GENERIC_CLEARANCE_MM, """")",,
+
 Tag Family #24: STING - Entourage Tag
 TAG7: ARCH_TAG_7_PARA_ENTOURAGE_TXT  •  Category: Entourage
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,LOW,WARN_BLE_ENTOURAGE_SCALE,Scale factor ≠ 1.0,Project standards,Common,Text,⚠ Warning: Scale Factor,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ENTOURAGE_SCALE, """")",,
 
 Tag Family #25: STING - Food Service Equipment Tag
 TAG7: ARCH_TAG_7_PARA_FOOD_EQUIP_TXT  •  Category: Food Service Equipment
@@ -520,6 +605,12 @@ TAG7: ARCH_TAG_7_PARA_FOOD_EQUIP_TXT  •  Category: Food Service Equipment
 4,T2,FSE_POWER_KW,Power:,kW,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, FSE_POWER_KW, """")"
 5,T3,FSE_GAS_KW,Gas:,kW,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, FSE_GAS_KW, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,CRITICAL,WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Clear access < 900 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Access Clear Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, """")",,
+2,HIGH,WARN_PER_VOC_EMISSIONS,VOC > 250 µg/m³,EDGE / IFC Performance,Common,Text,⚠ Warning: VOC Emissions,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, """")",,
+3,MEDIUM,WARN_MNT_ACCESS_CLEARANCE,Maintenance access < 600 mm,BS 8300 / Facility Management,Common,Text,⚠ Warning: Maintenance Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_MNT_ACCESS_CLEARANCE, """")",,
+
 Tag Family #26: STING - Hardscape Tag
 TAG7: ARCH_TAG_7_PARA_HARDSCAPE_TXT  •  Category: Hardscape
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -529,6 +620,12 @@ TAG7: ARCH_TAG_7_PARA_HARDSCAPE_TXT  •  Category: Hardscape
 4,T2,HARDSCAPE_THICKNESS_MM,t=,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, HARDSCAPE_THICKNESS_MM, """")"
 5,T3,HARDSCAPE_FINISH_TXT,Finish:,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, HARDSCAPE_FINISH_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_BLE_FLR_LD_CAP_KPA,Load capacity < minimum,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLR_LD_CAP_KPA, """")",,
+2,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+3,MEDIUM,WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Slope > 8.33%,Uganda Accessibility Act,Common,Text,⚠ Warning: Surface Slope,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAMP_SLOPE_PCT_RAMPS, """")",,
+
 Tag Family #27: STING - Mass Tag
 TAG7: ARCH_TAG_7_PARA_MASS_TXT  •  Category: Mass
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -536,11 +633,20 @@ TAG7: ARCH_TAG_7_PARA_MASS_TXT  •  Category: Mass
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T3,BLE_MASS_VOLUME_M3,V=,m³,0,✓,Common,Text,Show Tier 3 - 3,"if(TAG_PARA_STATE_3_BOOL, BLE_MASS_VOLUME_M3, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+2,MEDIUM,WARN_BLE_STRUCT_LD_CAP,Structural load check,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Structural Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+
 Tag Family #28: STING - Model Groups Tag
 TAG7: ARCH_TAG_7_PARA_MODEL_GROUPS_TXT  •  Category: Model Groups
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
 
 Tag Family #29: STING - Pads Tag
 TAG7: ARCH_TAG_7_PARA_PADS_TXT  •  Category: Pads
@@ -551,11 +657,22 @@ TAG7: ARCH_TAG_7_PARA_PADS_TXT  •  Category: Pads
 4,T2,PAD_THICKNESS_MM,t=,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PAD_THICKNESS_MM, """")"
 5,T3,PAD_BEARING_KPA,Bearing:,kPa,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, PAD_BEARING_KPA, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_BLE_FLR_LD_CAP_KPA,Load capacity < minimum,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLR_LD_CAP_KPA, """")",,
+2,HIGH,WARN_BLE_STRUCT_FDN_BEARING,Bearing capacity < 100 kPa,Eurocode 7 / Uganda NBC,Common,Text,⚠ Warning: Bearing Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_FDN_BEARING, """")",,
+3,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+
 Tag Family #30: STING - Parts Tag
 TAG7: ARCH_TAG_7_PARA_PARTS_TXT  •  Category: Parts
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+2,LOW,WARN_PER_RECYCLABILITY_LOW,Recyclability < 30%,EDGE / IFC Performance,Common,Text,⚠ Warning: Recyclability,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, """")",,
 
 Tag Family #31: STING - Planting Tag
 TAG7: ARCH_TAG_7_PARA_PLANTING_TXT  •  Category: Planting
@@ -565,6 +682,11 @@ TAG7: ARCH_TAG_7_PARA_PLANTING_TXT  •  Category: Planting
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,PLANT_SIZE_TXT,Size:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PLANT_SIZE_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,LOW,WARN_BLE_ENTOURAGE_SCALE,Scale factor ≠ 1.0,Project standards,Common,Text,⚠ Warning: Scale Factor,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ENTOURAGE_SCALE, """")",,
+2,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+
 Tag Family #32: STING - Profiles Tag
 TAG7: ARCH_TAG_7_PARA_PROFILES_TXT  •  Category: Profiles
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -573,12 +695,20 @@ TAG7: ARCH_TAG_7_PARA_PROFILES_TXT  •  Category: Profiles
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,PROF_MAT_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PROF_MAT_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+
 Tag Family #33: STING - Property Lines Tag
 TAG7: ARCH_TAG_7_PARA_PROPERTY_LINES_TXT  •  Category: Property Lines
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T3,PROP_LENGTH_M,L=,m,0,✓,Common,Text,Show Tier 3 - 3,"if(TAG_PARA_STATE_3_BOOL, PROP_LENGTH_M, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_SITE_BEARING_CAP_KPA,Bearing capacity check,Eurocode 7 / Uganda NBC,Common,Text,⚠ Warning: Bearing Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, """")",,
 
 Tag Family #34: STING - Roads Tag
 TAG7: ARCH_TAG_7_PARA_ROADS_TXT  •  Category: Roads
@@ -591,7 +721,8 @@ TAG7: ARCH_TAG_7_PARA_ROADS_TXT  •  Category: Roads
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,WARN_ROAD_GRADIENT_PCT,Gradient > 12%,Uganda MOWT Standards,Common,Text,⚠ Warning: Road Gradient Excessive,"if(TAG_WARN_VISIBLE_BOOL, WARN_ROAD_GRADIENT_PCT, """")",,
+1,MEDIUM,WARN_ROAD_GRADIENT_PCT,Gradient > 8%,Uganda NBC,Common,Text,⚠ Warning: Road Gradient,"if(TAG_WARN_VISIBLE_BOOL, WARN_ROAD_GRADIENT_PCT, """")",,
+2,CRITICAL,WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Clear width < 900 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Access Clear Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, """")",,
 
 Tag Family #35: STING - Signage Tag
 TAG7: ARCH_TAG_7_PARA_SIGNAGE_TXT  •  Category: Signage
@@ -601,11 +732,21 @@ TAG7: ARCH_TAG_7_PARA_SIGNAGE_TXT  •  Category: Signage
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,SIGN_SIZE_TXT,Size:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, SIGN_SIZE_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_SIGNAGE_HEIGHT_MM,Mounting height < 2100 mm,Uganda NBC / BS 8300,Common,Text,⚠ Warning: Signage Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_SIGNAGE_HEIGHT_MM, """")",,
+2,CRITICAL,WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Clear path < 900 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Access Clear Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, """")",,
+
 Tag Family #36: STING - Toposolid Tag
 TAG7: ARCH_TAG_7_PARA_TOPOSOLID_TXT  •  Category: Toposolid
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_SITE_BEARING_CAP_KPA,Bearing capacity < 100 kPa,Eurocode 7 / Uganda NBC,Common,Text,⚠ Warning: Bearing Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_BEARING_CAP_KPA, """")",,
+2,MEDIUM,WARN_ROAD_GRADIENT_PCT,Gradient > 8%,Uganda NBC,Common,Text,⚠ Warning: Surface Gradient,"if(TAG_WARN_VISIBLE_BOOL, WARN_ROAD_GRADIENT_PCT, """")",,
 
 Tag Family #37: STING - Vertical Circulation Tag
 TAG7: ARCH_TAG_7_PARA_VERT_CIRC_TXT  •  Category: Vertical Circulation
@@ -618,7 +759,9 @@ TAG7: ARCH_TAG_7_PARA_VERT_CIRC_TXT  •  Category: Vertical Circulation
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,WARN_BLE_VERT_CIRC_LOAD,Check parameter value,Applicable codes,Common,Text,⚠ Warning: Circulation Rated Load Exceeded,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_VERT_CIRC_LOAD, """")",,
+1,HIGH,WARN_BLE_VERT_CIRC_LOAD,Load capacity < 5 kN,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Structural Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_VERT_CIRC_LOAD, """")",,
+2,CRITICAL,WARN_RGL_LIFT_CAR_SIZE,Lift car < 1100x1400 mm,Uganda Accessibility Act / BS EN 81-70,Common,Text,⚠ Warning: Lift Car Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_LIFT_CAR_SIZE, """")",,
+3,CRITICAL,WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Door width < 900 mm,Uganda Accessibility Act,Common,Text,⚠ Warning: Lift Door Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C, """")",,
 
 Tag Family #38: STING - Zones Tag
 TAG7: ARCH_TAG_7_PARA_ZONES_TXT  •  Category: Zones
@@ -628,6 +771,11 @@ TAG7: ARCH_TAG_7_PARA_ZONES_TXT  •  Category: Zones
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,ZONE_AREA_SQ_M,,m²,1,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ZONE_AREA_SQ_M, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_ASS_ROOM_VENTILATION,Ventilation < minimum,ASHRAE 62.1 / Uganda NBC,Common,Text,⚠ Warning: Zone Ventilation,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_VENTILATION, """")",,
+2,HIGH,WARN_FLS_COMPARTMENT_AREA,Compartment area > limit,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Compartment,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_COMPARTMENT_AREA, """")",,
+
 Tag Family #39: STING - RVT Links Tag
 TAG7: ARCH_TAG_7_PARA_RVT_LINKS_TXT  •  Category: RVT Links
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -636,6 +784,11 @@ TAG7: ARCH_TAG_7_PARA_RVT_LINKS_TXT  •  Category: RVT Links
 3,T3,RVT_LINK_FILE_TXT,File:,,0,✓,Common,Text,Show Tier 3 - 3,"if(TAG_PARA_STATE_3_BOOL, RVT_LINK_FILE_TXT, """")"
 
 6B — Building Elements
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+
 Tag Family #40: STING - Fascia Tag
 TAG7: BLE_TAG_7_PARA_FASCIA_TXT  •  Category: Fascia
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -643,6 +796,11 @@ TAG7: BLE_TAG_7_PARA_FASCIA_TXT  •  Category: Fascia
 2,T1,BLE_FASCIA_MAT_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,BLE_FASCIA_PROFILE_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_FASCIA_PROFILE_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+2,LOW,WARN_PER_RECYCLABILITY_LOW,Recyclability < 30%,EDGE / IFC Performance,Common,Text,⚠ Warning: Recyclability,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, """")",,
 
 Tag Family #41: STING - Gutter Tag
 TAG7: BLE_TAG_7_PARA_GUTTER_TXT  •  Category: Gutter
@@ -653,6 +811,11 @@ TAG7: BLE_TAG_7_PARA_GUTTER_TXT  •  Category: Gutter
 4,T2,BLE_GUTTER_MAT_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_GUTTER_MAT_TXT, """")"
 5,T3,BLE_GUTTER_FLOW_LPS,Flow:,L/s,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, BLE_GUTTER_FLOW_LPS, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PLM_PIPE_GRADIENT,Gradient < 1:100,BS EN 12056 / Uganda NBC,Common,Text,⚠ Warning: Gutter Gradient,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PIPE_GRADIENT, """")",,
+2,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+
 Tag Family #42: STING - Handrails Tag
 TAG7: BLE_TAG_7_PARA_HANDRAILS_TXT  •  Category: Handrails
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -660,6 +823,11 @@ TAG7: BLE_TAG_7_PARA_HANDRAILS_TXT  •  Category: Handrails
 2,T1,BLE_RAIL_HEIGHT_MM,H=,mm,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,BLE_RAIL_MAT_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAIL_MAT_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,CRITICAL,WARN_BLE_RAIL_HEIGHT_MM,Height < 900 mm or > 1100 mm,Uganda NBC / BS 6180,Common,Text,⚠ Warning: Handrail Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, """")",,
+2,CRITICAL,WARN_BLE_RAIL_LOAD_KN_M,Load resistance < 0.74 kN/m,Eurocode 1 / BS 6180,Common,Text,⚠ Warning: Handrail Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_LOAD_KN_M, """")",,
 
 Tag Family #43: STING - Roof Soffits Tag
 TAG7: BLE_TAG_7_PARA_ROOF_SOFFITS_TXT  •  Category: Roof Soffits
@@ -669,12 +837,23 @@ TAG7: BLE_TAG_7_PARA_ROOF_SOFFITS_TXT  •  Category: Roof Soffits
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,BLE_SOFFIT_THICKNESS_MM,t=,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_SOFFIT_THICKNESS_MM, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,U > 0.45 W/m²K,Uganda NBC,Common,Text,⚠ Warning: Soffit U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS, """")",,
+2,HIGH,WARN_PER_VOC_EMISSIONS,VOC > 250 µg/m³,EDGE / IFC Performance,Common,Text,⚠ Warning: VOC Emissions,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_VOC_EMISSIONS, """")",,
+3,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+
 Tag Family #44: STING - Slab Edges Tag
 TAG7: BLE_TAG_7_PARA_SLAB_EDGES_TXT  •  Category: Slab Edges
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,BLE_SLAB_EDGE_PROFILE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+2,MEDIUM,WARN_DOOR_FRR,Fire resistance < required,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, """")",,
 
 Tag Family #45: STING - Stair Landings Tag
 TAG7: BLE_TAG_7_PARA_STAIR_LANDINGS_TXT  •  Category: Stair Landings
@@ -683,12 +862,24 @@ TAG7: BLE_TAG_7_PARA_STAIR_LANDINGS_TXT  •  Category: Stair Landings
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T3,BLE_STAIR_LANDING_WIDTH_MM,W=,mm,0,✓,Common,Text,Show Tier 3 - 3,"if(TAG_PARA_STATE_3_BOOL, BLE_STAIR_LANDING_WIDTH_MM, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_FLR_LD_CAP_KPA,Load capacity < minimum,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Landing Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLR_LD_CAP_KPA, """")",,
+2,CRITICAL,WARN_BLE_STAIR_WIDTH_MM,Width < 1000 mm,Uganda NBC / BS 5395,Common,Text,⚠ Warning: Landing Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_WIDTH_MM, """")",,
+3,CRITICAL,WARN_DOOR_FRR,Fire resistance < required,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, """")",,
+
 Tag Family #46: STING - Stair Runs Tag
 TAG7: BLE_TAG_7_PARA_STAIR_RUNS_TXT  •  Category: Stair Runs
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T3,BLE_STAIR_RUN_WIDTH_MM,W=,mm,0,✓,Common,Text,Show Tier 3 - 3,"if(TAG_PARA_STATE_3_BOOL, BLE_STAIR_RUN_WIDTH_MM, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,CRITICAL,WARN_BLE_STAIR_RISE,Rise > 190 mm or < 150 mm,Uganda NBC / BS 5395,Common,Text,⚠ Warning: Stair Rise,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISE, """")",,
+2,CRITICAL,WARN_BLE_STAIR_GOING,Going < 250 mm,Uganda NBC / BS 5395,Common,Text,⚠ Warning: Stair Going,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_GOING, """")",,
+3,HIGH,WARN_BLE_STAIR_HEADROOM_MM,Headroom < 2100 mm,Uganda NBC / BS 5395,Common,Text,⚠ Warning: Stair Headroom,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_HEADROOM_MM, """")",,
 
 Tag Family #47: STING - Stair Supports Tag
 TAG7: BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT  •  Category: Stair Supports
@@ -697,6 +888,11 @@ TAG7: BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT  •  Category: Stair Supports
 2,T1,BLE_STAIR_SUPPORT_TYPE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Load capacity check,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Structural Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+2,CRITICAL,WARN_DOOR_FRR,Fire resistance < required,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, """")",,
+
 Tag Family #48: STING - Top Rails Tag
 TAG7: BLE_TAG_7_PARA_TOP_RAILS_TXT  •  Category: Top Rails
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -704,9 +900,20 @@ TAG7: BLE_TAG_7_PARA_TOP_RAILS_TXT  •  Category: Top Rails
 2,T1,BLE_RAIL_HEIGHT_MM,H=,mm,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,CRITICAL,WARN_BLE_RAIL_HEIGHT_MM,Height < 900 mm or > 1100 mm,Uganda NBC / BS 6180,Common,Text,⚠ Warning: Rail Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_HEIGHT_MM, """")",,
+2,HIGH,WARN_BLE_RAIL_LOAD_KN_M,Load resistance < 0.74 kN/m,Eurocode 1 / BS 6180,Common,Text,⚠ Warning: Rail Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAIL_LOAD_KN_M, """")",,
+
 Tag Family #49: STING - Wall Sweeps Tag
 TAG7: BLE_TAG_7_PARA_WALL_SWEEPS_TXT  •  Category: Wall Sweeps
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,BLE_WALL_SWEEP_PROFILE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
+2,LOW,WARN_PER_RECYCLABILITY_LOW,Recyclability < 30%,EDGE / IFC Performance,Common,Text,⚠ Warning: Recyclability,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_RECYCLABILITY_LOW, """")",,
+

@@ -28,7 +28,10 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Structural Columns
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,BLE_STRUCT_CONCRETE_GRADE_TXT,Check parameter value,Applicable codes,Common,Text,Grade: Concrete Grade,"if(TAG_WARN_VISIBLE_BOOL, BLE_STRUCT_CONCRETE_GRADE_TXT, """")",,
+1,HIGH,WARN_BLE_COLUMN_SLENDERNESS,Slenderness ratio > 30,Eurocode 2/3 / Uganda NBC,Common,Text,⚠ Warning: Column Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_COLUMN_SLENDERNESS, """")",,
+2,CRITICAL,WARN_BLE_STRUCT_LD_CAP,Load capacity exceeded,Eurocode 2/3 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+3,MEDIUM,WARN_STR_COL_ECCENTRICITY,Eccentricity ratio > 15,Eurocode 2 / Uganda NBC,Common,Text,⚠ Warning: Column Eccentricity,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_COL_ECCENTRICITY, """")",,
+4,CRITICAL,WARN_DOOR_FRR,Fire resistance < required,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, """")",,
 
 Tag Family #2: STING - Structural Foundation Tag
 TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
@@ -57,8 +60,9 @@ TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,BLE_STRUCT_CONCRETE_GRADE_TXT,Check parameter value,Applicable codes,Common,Text,Grade: Concrete Grade,"if(TAG_WARN_VISIBLE_BOOL, BLE_STRUCT_CONCRETE_GRADE_TXT, """")",,
-2,CRITICAL,WARN_BLE_STRUCT_FDN_BEARING,Bearing capacity exceeded,Eurocode 7 / Uganda PWD,Common,Text,⚠ Warning: Ble Struct Fdn Bearing,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_FDN_BEARING, """")",,
+1,CRITICAL,WARN_BLE_STRUCT_FDN_BEARING,Bearing capacity < 100 kPa,Eurocode 7 / Uganda NBC,Common,Text,⚠ Warning: Bearing Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_FDN_BEARING, """")",,
+2,HIGH,WARN_STR_FDN_DEPTH_MM,Depth < 900 mm minimum,Eurocode 7 / Uganda NBC,Common,Text,⚠ Warning: Foundation Depth,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_DEPTH_MM, """")",,
+3,MEDIUM,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Embodied carbon > threshold,EDGE / IFC Performance,Common,Text,⚠ Warning: Carbon Footprint,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__, """")",,
 
 Tag Family #3: STING - Structural Framing Tag
 TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
@@ -84,10 +88,11 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,BLE_STRUCT_CONCRETE_GRADE_TXT,Check parameter value,Applicable codes,Common,Text,Grade: Concrete Grade,"if(TAG_WARN_VISIBLE_BOOL, BLE_STRUCT_CONCRETE_GRADE_TXT, """")",,
-2,CRITICAL,WARN_BLE_STRUCT_LD_CAP,Load exceeds capacity,Eurocode 3 / Uganda PWD,Common,Text,⚠ Warning: Ble Struct Ld Cap,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+1,CRITICAL,WARN_BLE_STRUCT_LD_CAP,Load exceeds capacity,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+2,HIGH,WARN_STR_BEAM_SPAN_DEPTH,Span/depth ratio > 20,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Beam Span-Depth,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_SPAN_DEPTH, """")",,
+3,HIGH,WARN_STR_BEAM_DEFLECTION,Deflection > L/250,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Beam Deflection,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_DEFLECTION, """")",,
+4,CRITICAL,WARN_DOOR_FRR,Fire resistance < required,BS 9999 / Uganda NBC,Common,Text,⚠ Warning: Fire Resistance,"if(TAG_WARN_VISIBLE_BOOL, WARN_DOOR_FRR, """")",,
 
-6C — Structural
 Tag Family #4: STING - Fabric Reinforcement Tag
 TAG7: STR_TAG_7_PARA_STR_FABRIC_REINF_TXT  •  Category: Structural Fabric Reinforcement
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -99,7 +104,8 @@ TAG7: STR_TAG_7_PARA_STR_FABRIC_REINF_TXT  •  Category: Structural Fabric Rein
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,MEDIUM,WARN_STR_FABRIC_SPEC,Fabric spec non-compliant,BS 4483,Common,Text,⚠ Warning: Fabric Reinforcement Non-Compliant,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FABRIC_SPEC, """")",,
+1,MEDIUM,WARN_STR_FABRIC_SPEC,Fabric spec non-compliant,BS 4483 / Eurocode 2,Common,Text,⚠ Warning: Fabric Specification,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FABRIC_SPEC, """")",,
+2,HIGH,WARN_STR_RBR_COVER_MM,Cover < minimum,Eurocode 2 / Uganda NBC,Common,Text,⚠ Warning: Concrete Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, """")",,
 
 Tag Family #5: STING - Analytical Links Tag
 TAG7: STR_TAG_7_PARA_ANAL_LINKS_TXT  •  Category: Analytical Links
@@ -110,6 +116,10 @@ TAG7: STR_TAG_7_PARA_ANAL_LINKS_TXT  •  Category: Analytical Links
 4,T2,ANAL_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ANAL_MATERIAL_TXT, """")"
 5,T3,ANAL_STIFFNESS_KN_M,K=,kN/m,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ANAL_STIFFNESS_KN_M, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Load capacity check,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+
 Tag Family #6: STING - Analytical Members Tag
 TAG7: STR_TAG_7_PARA_ANAL_MEMBERS_TXT  •  Category: Analytical Members
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -119,6 +129,11 @@ TAG7: STR_TAG_7_PARA_ANAL_MEMBERS_TXT  •  Category: Analytical Members
 4,T2,ANAL_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ANAL_MATERIAL_TXT, """")"
 5,T3,ANAL_FIXITY_TXT,Fixity:,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ANAL_FIXITY_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Load capacity check,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+2,HIGH,WARN_STR_BEAM_DEFLECTION,Deflection > L/250,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Deflection,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_DEFLECTION, """")",,
+
 Tag Family #7: STING - Analytical Nodes Tag
 TAG7: STR_TAG_7_PARA_ANAL_NODES_TXT  •  Category: Analytical Nodes
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -126,11 +141,19 @@ TAG7: STR_TAG_7_PARA_ANAL_NODES_TXT  •  Category: Analytical Nodes
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T3,ANAL_FIXITY_TXT,Support:,,0,✓,Common,Text,Show Tier 3 - 3,"if(TAG_PARA_STATE_3_BOOL, ANAL_FIXITY_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Load capacity check,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+
 Tag Family #8: STING - Analytical Openings Tag
 TAG7: STR_TAG_7_PARA_ANAL_OPENINGS_TXT  •  Category: Analytical Openings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Load capacity check,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
 
 Tag Family #9: STING - Analytical Panels Tag
 TAG7: STR_TAG_7_PARA_ANAL_PANELS_TXT  •  Category: Analytical Panels
@@ -138,6 +161,10 @@ TAG7: STR_TAG_7_PARA_ANAL_PANELS_TXT  •  Category: Analytical Panels
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,ANAL_MATERIAL_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Load capacity check,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
 
 Tag Family #10: STING - Area Loads Tag
 TAG7: STR_TAG_7_PARA_AREA_LOADS_TXT  •  Category: Area Loads
@@ -148,6 +175,11 @@ TAG7: STR_TAG_7_PARA_AREA_LOADS_TXT  •  Category: Area Loads
 4,T2,STR_LD_TYPE_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_LD_TYPE_TXT, """")"
 5,T3,STR_LD_CASE_TXT,Load Case:,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, STR_LD_CASE_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Load exceeds capacity,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+2,HIGH,WARN_BLE_FLR_LD_CAP_KPA,Floor load > rating,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Floor Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLR_LD_CAP_KPA, """")",,
+
 Tag Family #11: STING - Line Loads Tag
 TAG7: STR_TAG_7_PARA_LINE_LOADS_TXT  •  Category: Line Loads
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -155,6 +187,10 @@ TAG7: STR_TAG_7_PARA_LINE_LOADS_TXT  •  Category: Line Loads
 2,T1,STR_LD_VALUE_KN,,kN/m,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,STR_LD_TYPE_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_LD_TYPE_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Load exceeds capacity,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
 
 Tag Family #12: STING - Point Loads Tag
 TAG7: STR_TAG_7_PARA_POINT_LOADS_TXT  •  Category: Point Loads
@@ -164,12 +200,20 @@ TAG7: STR_TAG_7_PARA_POINT_LOADS_TXT  •  Category: Point Loads
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,STR_LD_TYPE_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_LD_TYPE_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Load exceeds capacity,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+
 Tag Family #13: STING - Internal Area Loads Tag
 TAG7: STR_TAG_7_PARA_INT_AREA_LOADS_TXT  •  Category: Internal Area Loads
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,STR_LD_VALUE_KPA,,kPa,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Load exceeds capacity,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
 
 Tag Family #14: STING - Internal Line Loads Tag
 TAG7: STR_TAG_7_PARA_INT_LINE_LOADS_TXT  •  Category: Internal Line Loads
@@ -178,12 +222,20 @@ TAG7: STR_TAG_7_PARA_INT_LINE_LOADS_TXT  •  Category: Internal Line Loads
 2,T1,STR_LD_VALUE_KN,,kN/m,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Load exceeds capacity,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+
 Tag Family #15: STING - Internal Point Loads Tag
 TAG7: STR_TAG_7_PARA_INT_POINT_LOADS_TXT  •  Category: Internal Point Loads
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,STR_LD_VALUE_KN,,kN,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_BLE_STRUCT_LD_CAP,Load exceeds capacity,Eurocode 1 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
 
 Tag Family #16: STING - Bolt Tag
 TAG7: STR_TAG_7_PARA_BOLT_TXT  •  Category: Bolt
@@ -197,7 +249,8 @@ TAG7: STR_TAG_7_PARA_BOLT_TXT  •  Category: Bolt
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,CRITICAL,WARN_STR_BLT_PROOF_LOAD_KN,Proof load exceeded,BS EN 14399,Common,Text,⚠ Warning: Bolt Proof Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BLT_PROOF_LOAD_KN, """")",,
+1,CRITICAL,WARN_STR_BLT_PROOF_LOAD_KN,Proof load < 100 kN,BS EN 14399 / Eurocode 3,Common,Text,⚠ Warning: Bolt Proof Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BLT_PROOF_LOAD_KN, """")",,
+2,HIGH,WARN_STR_CONN_CAPACITY_KN,Connection capacity insufficient,Eurocode 3,Common,Text,⚠ Warning: Connection Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_CONN_CAPACITY_KN, """")",,
 
 Tag Family #17: STING - Weld Tag
 TAG7: STR_TAG_7_PARA_WELD_TXT  •  Category: Weld
@@ -212,8 +265,8 @@ TAG7: STR_TAG_7_PARA_WELD_TXT  •  Category: Weld
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,CRITICAL,WARN_STR_WLD_THROAT_MM,Throat size < minimum,AWS D1.1,Common,Text,⚠ Warning: Weld Throat Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WLD_THROAT_MM, """")",,
-2,CRITICAL,WARN_STR_WLD_STRENGTH_MPA,Strength < design minimum,AWS D1.1 / BS EN 1993-1-8,Common,Text,⚠ Warning: Weld Strength Below Threshold,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WLD_STRENGTH_MPA, """")",,
+1,CRITICAL,WARN_STR_WLD_THROAT_MM,Throat size < 6 mm minimum,AWS D1.1 / BS EN 1993-1-8,Common,Text,⚠ Warning: Weld Throat,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WLD_THROAT_MM, """")",,
+2,CRITICAL,WARN_STR_WLD_STRENGTH_MPA,Strength < 250 MPa minimum,AWS D1.1 / BS EN 1993-1-8,Common,Text,⚠ Warning: Weld Strength,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WLD_STRENGTH_MPA, """")",,
 
 Tag Family #18: STING - Wire Tag
 TAG7: STR_TAG_7_PARA_WIRE_TXT  •  Category: Wire
@@ -227,7 +280,8 @@ TAG7: STR_TAG_7_PARA_WIRE_TXT  •  Category: Wire
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,CRITICAL,WARN_STR_WIR_TENSILE_MPA,Tensile strength insufficient,BS 4449,Common,Text,⚠ Warning: Wire Tensile Strength,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WIR_TENSILE_MPA, """")",,
+1,CRITICAL,WARN_STR_WIR_TENSILE_MPA,Tensile strength insufficient,BS 4449 / Eurocode 2,Common,Text,⚠ Warning: Wire Tensile,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WIR_TENSILE_MPA, """")",,
+2,HIGH,WARN_STR_REBAR_MIN_DIA,Diameter < 10 mm minimum,Eurocode 2,Common,Text,⚠ Warning: Minimum Diameter,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_MIN_DIA, """")",,
 
 Tag Family #19: STING - Structural Area Reinforcement Tag
 TAG7: STR_TAG_7_PARA_STR_AREA_REINF_TXT  •  Category: Structural Area Reinforcement
@@ -236,11 +290,23 @@ TAG7: STR_TAG_7_PARA_STR_AREA_REINF_TXT  •  Category: Structural Area Reinforc
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T3,STR_REINF_AREA_MM2_M,As=,mm²/m,0,✓,Common,Text,Show Tier 3 - 3,"if(TAG_PARA_STATE_3_BOOL, STR_REINF_AREA_MM2_M, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,CRITICAL,WARN_STR_RBR_COVER_MM,Cover < 25 mm minimum,Eurocode 2 / Uganda NBC,Common,Text,⚠ Warning: Concrete Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, """")",,
+2,HIGH,WARN_STR_REBAR_MIN_DIA,Diameter < 10 mm minimum,Eurocode 2,Common,Text,⚠ Warning: Minimum Diameter,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_MIN_DIA, """")",,
+3,HIGH,WARN_STR_RBR_LAP_LENGTH_MM,Lap length < minimum,Eurocode 2 / Uganda NBC,Common,Text,⚠ Warning: Lap Length,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_LAP_LENGTH_MM, """")",,
+
 Tag Family #20: STING - Structural Path Reinforcement Tag
 TAG7: STR_TAG_7_PARA_STR_PATH_REINF_TXT  •  Category: Structural Path Reinforcement
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,CRITICAL,WARN_STR_RBR_COVER_MM,Cover < 25 mm minimum,Eurocode 2 / Uganda NBC,Common,Text,⚠ Warning: Concrete Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, """")",,
+2,HIGH,WARN_STR_REBAR_MIN_DIA,Diameter < 10 mm minimum,Eurocode 2,Common,Text,⚠ Warning: Minimum Diameter,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_MIN_DIA, """")",,
+3,HIGH,WARN_STR_RBR_LAP_LENGTH_MM,Lap length < minimum,Eurocode 2 / Uganda NBC,Common,Text,⚠ Warning: Lap Length,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_LAP_LENGTH_MM, """")",,
 
 Tag Family #21: STING - Structural Rebar Couplers Tag
 TAG7: STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT  •  Category: Structural Rebar Couplers
@@ -250,6 +316,11 @@ TAG7: STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT  •  Category: Structural Rebar Cou
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,STR_RBR_COUPLER_RATING_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_RBR_COUPLER_RATING_TXT, """")"
 
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_STR_RBR_LAP_LENGTH_MM,Coupler capacity < lap equivalent,Eurocode 2 / Uganda NBC,Common,Text,⚠ Warning: Coupler Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_LAP_LENGTH_MM, """")",,
+2,CRITICAL,WARN_STR_CONN_CAPACITY_KN,Connection capacity insufficient,Eurocode 2,Common,Text,⚠ Warning: Connection Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_CONN_CAPACITY_KN, """")",,
+
 Tag Family #22: STING - Structural Beam Systems Tag
 TAG7: STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT  •  Category: Structural Beam Systems
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -257,6 +328,12 @@ TAG7: STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT  •  Category: Structural Beam System
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T3,STR_SYS_SPAN_MM,Span:,mm,0,✓,Common,Text,Show Tier 3 - 3,"if(TAG_PARA_STATE_3_BOOL, STR_SYS_SPAN_MM, """")"
 4,T3,STR_SYS_SPACING_MM,Spacing:,mm,0,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, STR_SYS_SPACING_MM, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,CRITICAL,WARN_BLE_STRUCT_LD_CAP,Load exceeds capacity,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+2,HIGH,WARN_STR_BEAM_DEFLECTION,Deflection > L/250,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Beam Deflection,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_DEFLECTION, """")",,
+3,HIGH,WARN_STR_BEAM_SPAN_DEPTH,Span/depth ratio > 20,Eurocode 3,Common,Text,⚠ Warning: Span-Depth Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_SPAN_DEPTH, """")",,
 
 Tag Family #23: STING - Structural Connections Tag
 TAG7: STR_TAG_7_PARA_STR_CONNECTIONS_TXT  •  Category: Structural Connections
@@ -268,7 +345,8 @@ TAG7: STR_TAG_7_PARA_STR_CONNECTIONS_TXT  •  Category: Structural Connections
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,CRITICAL,WARN_STR_CONN_CAPACITY_KN,Connection capacity exceeded,Eurocode 3,Common,Text,⚠ Warning: Connection Capacity Insufficient,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_CONN_CAPACITY_KN, """")",,
+1,CRITICAL,WARN_STR_CONN_CAPACITY_KN,Connection capacity < 200 kN,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Connection Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_CONN_CAPACITY_KN, """")",,
+2,HIGH,WARN_STR_BLT_PROOF_LOAD_KN,Bolt proof load insufficient,BS EN 14399 / Eurocode 3,Common,Text,⚠ Warning: Bolt Proof Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BLT_PROOF_LOAD_KN, """")",,
 
 Tag Family #24: STING - Structural Stiffeners Tag
 TAG7: STR_TAG_7_PARA_STR_STIFFENERS_TXT  •  Category: Structural Stiffeners
@@ -277,6 +355,11 @@ TAG7: STR_TAG_7_PARA_STR_STIFFENERS_TXT  •  Category: Structural Stiffeners
 2,T1,STR_STIFF_TYPE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,STR_STIFF_THICKNESS_MM,t=,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_STIFF_THICKNESS_MM, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
+1,HIGH,WARN_STR_STIFFENER_WELD,Weld specification < 6 mm,Eurocode 3 / AWS D1.1,Common,Text,⚠ Warning: Stiffener Weld,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_STIFFENER_WELD, """")",,
+2,HIGH,WARN_BLE_STRUCT_LD_CAP,Load capacity check,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
 
 Tag Family #25: STING - Structural Trusses Tag
 TAG7: STR_TAG_7_PARA_STR_TRUSSES_TXT  •  Category: Structural Trusses
@@ -289,4 +372,7 @@ TAG7: STR_TAG_7_PARA_STR_TRUSSES_TXT  •  Category: Structural Trusses
 
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula,,
-1,CRITICAL,WARN_STR_TRUSS_SPAN,Span exceeds maximum,Eurocode 3 / Timber code,Common,Text,⚠ Warning: Truss Span Exceeds Limit,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_TRUSS_SPAN, """")",,
+1,CRITICAL,WARN_STR_TRUSS_SPAN,Span exceeds maximum ratio,Eurocode 3 / Timber code,Common,Text,⚠ Warning: Truss Span,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_TRUSS_SPAN, """")",,
+2,HIGH,WARN_STR_BEAM_DEFLECTION,Deflection > L/250,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Truss Deflection,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_DEFLECTION, """")",,
+3,CRITICAL,WARN_BLE_STRUCT_LD_CAP,Load exceeds capacity,Eurocode 3 / Uganda NBC,Common,Text,⚠ Warning: Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STRUCT_LD_CAP, """")",,
+
