@@ -84,8 +84,8 @@ namespace StingTools.BIMManager
             if (_validDisc != null) return;
             _validDisc = new HashSet<string>(TagConfig.DiscMap.Values.Distinct(), StringComparer.OrdinalIgnoreCase);
             _validSys = new HashSet<string>(TagConfig.SysMap.Keys, StringComparer.OrdinalIgnoreCase);
-            _validLoc = new HashSet<string>(TagConfig.LocCodes ?? new[] { "BLD1", "BLD2", "BLD3", "EXT", "XX" }, StringComparer.OrdinalIgnoreCase);
-            _validZone = new HashSet<string>(TagConfig.ZoneCodes ?? new[] { "Z01", "Z02", "Z03", "Z04", "ZZ", "XX" }, StringComparer.OrdinalIgnoreCase);
+            _validLoc = new HashSet<string>(TagConfig.LocCodes ?? (IEnumerable<string>)new[] { "BLD1", "BLD2", "BLD3", "EXT", "XX" }, StringComparer.OrdinalIgnoreCase);
+            _validZone = new HashSet<string>(TagConfig.ZoneCodes ?? (IEnumerable<string>)new[] { "Z01", "Z02", "Z03", "Z04", "ZZ", "XX" }, StringComparer.OrdinalIgnoreCase);
         }
 
         internal static (List<Element> elements, string scope) CollectElements(
@@ -278,7 +278,7 @@ namespace StingTools.BIMManager
                         ws.Cell(r, 1).Value = vs.Name;
                         var def = vs.Definition;
                         ws.Cell(r, 2).Value = vs.Definition?.CategoryId != null
-                            ? (doc.GetElement(vs.Definition.CategoryId) as Category)?.Name ?? "" : "";
+                            ? Category.GetCategory(doc, vs.Definition.CategoryId)?.Name ?? "" : "";
                         ws.Cell(r, 3).Value = def?.GetFieldCount() ?? 0;
                         ws.Cell(r, 4).Value = def?.GetFilterCount() ?? 0;
                         r++;
@@ -929,7 +929,7 @@ namespace StingTools.BIMManager
                         try
                         {
                             if (vs.Definition?.CategoryId != null)
-                                catName = (doc.GetElement(vs.Definition.CategoryId) as Category)?.Name ?? "";
+                                catName = Category.GetCategory(doc, vs.Definition.CategoryId)?.Name ?? "";
                         }
                         catch { }
                         indexWs.Cell(indexRow, 2).Value = catName;
@@ -1204,7 +1204,7 @@ namespace StingTools.BIMManager
                 {
                     var range = ws.Range(2, statusCol, validationRows + 1, statusCol);
                     range.CreateDataValidation().List(
-                        valSheet.Range(1, 5, statusCodes.Count, 5));
+                        valSheet.Range(1, 5, statusCodes.Length, 5));
                 }
 
                 // Auto-fit columns

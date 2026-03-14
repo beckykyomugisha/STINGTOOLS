@@ -220,17 +220,17 @@ namespace StingTools.Select
             if (picked == null || picked.Count == 0)
                 return Result.Cancelled;
 
-            var ids = new List<ElementId>();
+            var pickedIds = new List<ElementId>();
             foreach (var item in picked)
             {
                 if (item.Tag is ElementId lvlId && elemsByLevel.ContainsKey(lvlId))
-                    ids.AddRange(elemsByLevel[lvlId]);
+                    pickedIds.AddRange(elemsByLevel[lvlId]);
             }
 
-            uidoc.Selection.SetElementIds(ids);
+            uidoc.Selection.SetElementIds(pickedIds);
             string lvlNames = string.Join(", ", picked.Select(p => p.Label));
             TaskDialog.Show("Select by Level",
-                $"Selected {ids.Count} elements on: {lvlNames}");
+                $"Selected {pickedIds.Count} elements on: {lvlNames}");
 
             return Result.Succeeded;
         }

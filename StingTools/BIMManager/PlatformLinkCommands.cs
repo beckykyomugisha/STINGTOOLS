@@ -144,13 +144,13 @@ namespace StingTools.BIMManager
                 var result = ComplianceScan.Scan(doc);
                 if (result != null)
                 {
-                    summary["rag_status"] = result.Status.ToString();
+                    summary["rag_status"] = result.RAGStatus;
                     summary["tagged_complete"] = result.TaggedComplete;
                     summary["tagged_incomplete"] = result.TaggedIncomplete;
                     summary["untagged"] = result.Untagged;
-                    summary["completeness_pct"] = result.CompletenessPct;
+                    summary["completeness_pct"] = result.CompliancePercent;
                     if (result.TopIssues != null)
-                        summary["top_issues"] = new JArray(result.TopIssues.Select(i => new JValue(i)));
+                        summary["top_issues"] = result.TopIssues;
                 }
             }
             catch (Exception ex)

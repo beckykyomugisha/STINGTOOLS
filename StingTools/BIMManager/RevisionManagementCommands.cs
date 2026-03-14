@@ -345,7 +345,7 @@ namespace StingTools.BIMManager
                     var rev = Revision.Create(doc);
                     rev.Description = description;
                     rev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
-                    rev.NumberType = RevisionNumberType.Alphanumeric;
+
                     rev.Visibility = RevisionVisibility.CloudAndTagVisible;
 
                     tx.Commit();
@@ -1388,7 +1388,7 @@ namespace StingTools.BIMManager
                     var rev = Revision.Create(doc);
                     rev.Description = description;
                     rev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
-                    rev.NumberType = RevisionNumberType.Alphanumeric;
+
                     rev.Visibility = RevisionVisibility.CloudAndTagVisible;
                     tx.Commit();
                 }

@@ -3792,6 +3792,8 @@ namespace StingTools.Temp
             int viewsReset = 0;
             int elementsCleared = 0;
 
+            bool phaseCancelled = false;
+
             // Phase 1: Standardise STING templates
             if (doTemplates)
             {
@@ -3812,8 +3814,6 @@ namespace StingTools.Temp
                 catch { }
 
                 var stingTemplates = TemplateManager.GetStingTemplates(doc);
-
-                bool phaseCancelled = false;
                 int p1Idx = 0;
 
                 using (Transaction tx = new Transaction(doc, "STING Standardise Template VG"))
