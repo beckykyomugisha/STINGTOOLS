@@ -2230,16 +2230,23 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Load BEP from data directory
-            string bepPath = StingToolsApp.FindDataFile("project_bep.json");
-            if (string.IsNullOrEmpty(bepPath) || !File.Exists(bepPath))
+            // Load BEP from project-specific BIM manager directory (where Create/Update BEP save it),
+            // falling back to the data directory for legacy/standalone BEP files.
+            string bepPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "project_bep.json");
+            if (!File.Exists(bepPath))
+            {
+                // Fallback: check data directory for legacy BEP files
+                string fallback = StingToolsApp.FindDataFile("project_bep.json");
+                if (!string.IsNullOrEmpty(fallback) && File.Exists(fallback))
+                    bepPath = fallback;
+            }
+            if (!File.Exists(bepPath))
             {
                 TaskDialog.Show("BEP Validation",
-                    "No project_bep.json found in data directory.\n\n" +
-                    "Create a BEP file with allowed codes:\n" +
-                    "{\n  \"allowed_loc\": [\"BLD1\", \"BLD2\"],\n" +
-                    "  \"allowed_zone\": [\"Z01\", \"Z02\", \"Z03\"],\n" +
-                    "  \"allowed_disc\": [\"M\", \"E\", \"P\", \"A\", \"S\"]\n}");
+                    "No project_bep.json found.\n\n" +
+                    "Use 'Create BEP' (ISO 19650-2 §5.3) to create a pre-contract BEP first.\n\n" +
+                    "The BEP file is stored in the project's STING_BIM_MANAGER folder\n" +
+                    "alongside the Revit model.");
                 return Result.Succeeded;
             }
 

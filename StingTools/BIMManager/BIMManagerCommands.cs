@@ -3052,35 +3052,35 @@ namespace StingTools.BIMManager
 
             var updated = BIMManagerEngine.UpdateBEPFromModel(doc, existingBep);
 
-            // GAP-014: Auto-enrich BEP with element counts, parameter bindings, and tag completeness
+            // GAP-014: Auto-enrich BEP with compliance data and risk register update.
+            // NOTE: Element counts and tag completeness are already computed by
+            // UpdateBEPFromModel() above (stored in model_data), so we reuse those
+            // values instead of scanning all elements a second time.
             try
             {
                 var enrichment = new JObject();
+                var md = updated["model_data"] as JObject;
 
-                // Element count summary per category
-                var catCounts = new JObject();
-                var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
-                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
-                {
-                    string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!knownCats.Contains(cat)) continue;
-                    int cur = catCounts[cat]?.Value<int>() ?? 0;
-                    catCounts[cat] = cur + 1;
-                }
-                enrichment["element_counts_by_category"] = catCounts;
+                // Reuse element counts already computed by UpdateBEPFromModel
+                if (md?["element_counts_by_category"] is JObject existingCats)
+                    enrichment["element_counts_by_category"] = existingCats.DeepClone();
 
                 // Parameter binding count from ParamRegistry
                 enrichment["parameter_binding_count"] = ParamRegistry.AllParamGuids.Count;
 
-                // Tag completeness from ComplianceScan
-                var compliance = ComplianceScan.Scan(doc);
-                enrichment["tag_completeness_pct"] = Math.Round(compliance.CompliancePercent, 1);
-                enrichment["tag_rag_status"] = compliance.RAGStatus;
-                enrichment["tagged_elements"] = compliance.TaggedComplete;
-                enrichment["untagged_elements"] = compliance.Untagged;
+                // Reuse tag completeness already computed by UpdateBEPFromModel
+                double tagPct = md?["tag_completeness_pct"]?.Value<double>() ?? 0;
+                string ragStatus = md?["tag_rag_status"]?.ToString() ?? "RED";
+                int tagged = md?["tagged_elements"]?.Value<int>() ?? 0;
+                int untagged = md?["untagged_elements"]?.Value<int>() ?? 0;
+
+                enrichment["tag_completeness_pct"] = tagPct;
+                enrichment["tag_rag_status"] = ragStatus;
+                enrichment["tagged_elements"] = tagged;
+                enrichment["untagged_elements"] = untagged;
 
                 updated["auto_enrichment"] = enrichment;
-                if (updated["model_data"] is JObject md)
+                if (md != null)
                     md["enriched_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
 
                 // GAP-014: Auto-update risk register with compliance data
@@ -3092,8 +3092,8 @@ namespace StingTools.BIMManager
                         string riskText = risk["risk"]?.ToString() ?? "";
                         if (riskText.Contains("asset data") || riskText.Contains("COBie"))
                         {
-                            risk["current_status"] = compliance.RAGStatus;
-                            risk["current_pct"] = $"{Math.Round(compliance.CompliancePercent, 1)}%";
+                            risk["current_status"] = ragStatus;
+                            risk["current_pct"] = $"{tagPct}%";
                         }
                     }
                 }
@@ -4817,13 +4817,19 @@ namespace StingTools.BIMManager
 
     #endregion
 
-    // Backwards-compatible alias so old command handler wiring still works
+    /// <summary>
+    /// DEPRECATED: Legacy alias for CreateBEPCommand. Retained for backwards compatibility
+    /// with old command handler wiring. New code should use CreateBEPCommand directly.
+    /// The name "Generate" was misleading — it implied model-driven computation, but the
+    /// BEP is created from templates per ISO 19650-2 §5.3 (pre-contract, before modelling).
+    /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class GenerateBEPCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            StingLog.Warn("GenerateBEPCommand is deprecated — use CreateBEPCommand instead.");
             return new CreateBEPCommand().Execute(commandData, ref message, elements);
         }
     }
