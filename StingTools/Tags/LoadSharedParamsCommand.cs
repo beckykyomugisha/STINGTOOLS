@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -10,16 +11,14 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Bind ALL shared parameters from MR_PARAMETERS.txt to project categories.
+    /// Bind ALL shared parameters from MR_PARAMETERS.txt to ALL project categories.
     ///
-    /// Binds every parameter definition found in the shared parameter file to all
-    /// taggable categories (from ParamRegistry) plus Materials. This ensures that
-    /// ALL 1,527+ parameters (tagging, material, property, MEP, BLE, etc.) are
-    /// available on elements and materials for data population.
+    /// Always uses MR_PARAMETERS.txt from the data directory (overrides whatever
+    /// shared parameter file is currently set in Revit). Binds every parameter
+    /// definition to every category that allows bound parameters — not just the
+    /// taggable subset from ParamRegistry.
     ///
     /// CRASH FIX: Uses ONE transaction instead of many batched transactions.
-    /// Rapid-fire transaction commits trigger Revit's deferred regeneration engine
-    /// which causes native segfaults (C++ level).
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -54,19 +53,24 @@ namespace StingTools.Tags
             Autodesk.Revit.ApplicationServices.Application app =
                 uiApp.Application;
 
-            // ── Step 1: Ensure shared parameter file is set ──
-            StingLog.Info("LoadSharedParams: step 1 — checking shared parameter file");
-            string spFile = app.SharedParametersFilename;
-            if (string.IsNullOrEmpty(spFile) || !File.Exists(spFile))
+            // ── Step 1: ALWAYS set shared parameter file to MR_PARAMETERS.txt ──
+            // Override any existing shared parameter file to ensure we use the
+            // full STING parameter set (1,527+ params), not a subset.
+            StingLog.Info("LoadSharedParams: step 1 — setting shared parameter file to MR_PARAMETERS.txt");
+            string previousSpFile = app.SharedParametersFilename;
+            string mrParamsPath = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+
+            if (!string.IsNullOrEmpty(mrParamsPath) && File.Exists(mrParamsPath))
             {
-                string autoPath = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
-                if (!string.IsNullOrEmpty(autoPath) && File.Exists(autoPath))
-                {
-                    app.SharedParametersFilename = autoPath;
-                    spFile = autoPath;
-                    StingLog.Info($"Auto-set shared parameter file: {autoPath}");
-                }
-                else
+                app.SharedParametersFilename = mrParamsPath;
+                StingLog.Info($"Set shared parameter file: {mrParamsPath}");
+                if (!string.IsNullOrEmpty(previousSpFile) && previousSpFile != mrParamsPath)
+                    StingLog.Info($"Previous shared parameter file was: {previousSpFile}");
+            }
+            else
+            {
+                // Fallback: use whatever is already set, or fail
+                if (string.IsNullOrEmpty(previousSpFile) || !File.Exists(previousSpFile))
                 {
                     TaskDialog.Show("STING Tools - Load Shared Params",
                         "Could not find MR_PARAMETERS.txt.\n\n" +
@@ -76,7 +80,11 @@ namespace StingTools.Tags
                         "Manage → Shared Parameters and set the path manually.");
                     return Result.Failed;
                 }
+                mrParamsPath = previousSpFile;
+                StingLog.Warn($"MR_PARAMETERS.txt not found, using existing: {previousSpFile}");
             }
+
+            string spFile = mrParamsPath;
 
             // ── Step 2: Open definition file and index ALL parameters ──
             StingLog.Info("LoadSharedParams: step 2 — opening definition file");
@@ -88,7 +96,7 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
-            // Index all parameters from all groups in the shared parameter file
+            // Index all parameters from all groups
             var allDefs = new List<ExternalDefinition>();
             var groupCounts = new Dictionary<string, int>();
             foreach (DefinitionGroup group in defFile.Groups)
@@ -105,6 +113,12 @@ namespace StingTools.Tags
                 groupCounts[group.Name] = count;
             }
             StingLog.Info($"LoadSharedParams: {allDefs.Count} definitions indexed from {groupCounts.Count} groups");
+
+            if (allDefs.Count < 100)
+            {
+                StingLog.Warn($"Only {allDefs.Count} parameters found — expected 1,527+. " +
+                    "Ensure MR_PARAMETERS.txt is the full STING parameter file.");
+            }
 
             // ── Step 3: Pre-scan existing bindings ──
             StingLog.Info("LoadSharedParams: step 3 — scanning existing bindings");
@@ -135,36 +149,37 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            // ── Step 4: Build comprehensive category set ──
-            // Include all taggable categories from ParamRegistry PLUS Materials
-            StingLog.Info("LoadSharedParams: step 4 — building category set");
-            var universalCatEnums = SharedParamGuids.AllCategoryEnums;
-            CategorySet allCats = SharedParamGuids.BuildCategorySet(doc, universalCatEnums);
+            // ── Step 4: Build ALL-categories set ──
+            // Iterate every category in the document and include all that allow bound parameters.
+            // This ensures parameters are available on ALL element types, not just the taggable subset.
+            StingLog.Info("LoadSharedParams: step 4 — building ALL-categories set");
+            CategorySet allCats = new CategorySet();
+            int catTotal = 0;
+            int catAdded = 0;
 
-            // Ensure Materials category is included (required for MAT_* and PROP_* parameters)
-            try
+            foreach (Category cat in doc.Settings.Categories)
             {
-                Category matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
-                if (matCat != null && matCat.AllowsBoundParameters && !allCats.Contains(matCat))
+                catTotal++;
+                try
                 {
-                    allCats.Insert(matCat);
-                    StingLog.Info("Added Materials category for MAT/PROP parameter binding");
+                    if (cat != null && cat.AllowsBoundParameters)
+                    {
+                        allCats.Insert(cat);
+                        catAdded++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Category '{cat?.Name}' skipped: {ex.Message}");
                 }
             }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"Could not add Materials category: {ex.Message}");
-            }
-
-            StingLog.Info($"CategorySet built: {allCats.Size} categories");
+            StingLog.Info($"CategorySet built: {catAdded} of {catTotal} categories accept bound parameters");
 
             if (allCats.Size == 0)
             {
-                StingLog.Warn("No categories resolved — PARAMETER_REGISTRY.json may be missing. " +
-                    $"DataPath: {StingToolsApp.DataPath}");
                 TaskDialog.Show("STING Tools - Load Shared Params",
-                    "No categories resolved for parameter binding.\n\n" +
-                    "Check that PARAMETER_REGISTRY.json is in the data directory.");
+                    "No categories found that accept bound parameters.\n" +
+                    "This should not happen — contact support.");
                 return Result.Failed;
             }
 
@@ -194,7 +209,6 @@ namespace StingTools.Tags
                             if (result)
                             {
                                 bound++;
-                                // Track which group this param belongs to
                                 string grpName = extDef.OwnerGroup?.Name ?? "Unknown";
                                 if (!boundByGroup.ContainsKey(grpName))
                                     boundByGroup[grpName] = 0;
@@ -230,7 +244,7 @@ namespace StingTools.Tags
             }
 
             // ── Report ──
-            var report = new System.Text.StringBuilder();
+            var report = new StringBuilder();
             report.AppendLine($"Bound: {bound} parameters");
             report.AppendLine($"Already present: {alreadyBound}");
             report.AppendLine($"Skipped/failed: {skipped}");
@@ -239,7 +253,6 @@ namespace StingTools.Tags
             report.AppendLine($"Groups: {groupCounts.Count}");
             report.AppendLine();
 
-            // Group breakdown
             if (boundByGroup.Count > 0)
             {
                 report.AppendLine("Bound by group:");
