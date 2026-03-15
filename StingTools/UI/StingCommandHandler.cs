@@ -631,7 +631,7 @@ namespace StingTools.UI
                         break;
 
                     case "GenSheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
-                    case "ExportSheetCSV": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
+                    case "ExportSheetCSV": ExportSheetCSV(app); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — DOCS TAB (StingDocs organizer features)
@@ -1934,44 +1934,8 @@ namespace StingTools.UI
 
         private static void ScheduleEqualiseColumns(UIApplication app)
         {
-            var doc = app.ActiveUIDocument?.Document;
-            if (doc == null) return;
-            if (!(doc.ActiveView is ViewSchedule sched))
-            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
-
-            var def = sched.Definition;
-            int fieldCount = def.GetFieldCount();
-            if (fieldCount == 0) return;
-
-            // Find max width
-            double maxWidth = 0;
-            for (int i = 0; i < fieldCount; i++)
-            {
-                try
-                {
-                    double w = def.GetField(i).GridColumnWidth;
-                    if (w > maxWidth) maxWidth = w;
-                }
-                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
-            }
-
-            int updated = 0;
-            using (Transaction tx = new Transaction(doc, "STING Equalise Columns"))
-            {
-                tx.Start();
-                for (int i = 0; i < fieldCount; i++)
-                {
-                    try
-                    {
-                        def.GetField(i).GridColumnWidth = maxWidth;
-                        updated++;
-                    }
-                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
-                }
-                tx.Commit();
-            }
-            TaskDialog.Show("Equalise Columns",
-                $"Set {updated} columns to width {maxWidth * 304.8:F1}mm.");
+            // Delegates to ScheduleMatchWidest — identical operation
+            ScheduleMatchWidest(app);
         }
 
         private static void ScheduleAutoFit(UIApplication app)
@@ -2017,7 +1981,7 @@ namespace StingTools.UI
                                 if (val != null && val.Length > maxLen)
                                     maxLen = val.Length;
                             }
-                            catch { break; }
+                            catch (Exception ex) { StingLog.Warn($"AutoFit cell read: {ex.Message}"); break; }
                         }
 
                         // Convert character count to approximate width
@@ -2612,13 +2576,64 @@ namespace StingTools.UI
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());
             }
-            catch { exportPath = null; }
+            catch (Exception ex) { StingLog.Warn($"Color legend export: {ex.Message}"); exportPath = null; }
 
             var msg = report.ToString();
             if (exportPath != null)
                 msg += $"\n\nExported to: {exportPath}";
 
             TaskDialog.Show("Color Legend", msg);
+        }
+
+        // ── Sheet CSV export ─────────────────────────────────────────
+
+        private static void ExportSheetCSV(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .OrderBy(s => s.SheetNumber)
+                .ToList();
+
+            if (sheets.Count == 0)
+            { TaskDialog.Show("Export Sheets", "No sheets in project."); return; }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Sheet_Number,Sheet_Name,Revision,Issue_Date,Discipline,Drawn_By,Checked_By,Approved_By,Views_Placed");
+            foreach (var sheet in sheets)
+            {
+                try
+                {
+                    string num = (sheet.SheetNumber ?? "").Replace(",", ";");
+                    string name = (sheet.Name ?? "").Replace(",", ";");
+                    string rev = (sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString() ?? "").Replace(",", ";");
+                    string issueDate = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION_DATE)?.AsString() ?? "";
+                    string disc = ParameterHelpers.GetString(sheet, "SHEET_DISCIPLINE") ?? "";
+                    string drawn = sheet.get_Parameter(BuiltInParameter.SHEET_DRAWN_BY)?.AsString() ?? "";
+                    string check = sheet.get_Parameter(BuiltInParameter.SHEET_CHECKED_BY)?.AsString() ?? "";
+                    string approved = sheet.get_Parameter(BuiltInParameter.SHEET_APPROVED_BY)?.AsString() ?? "";
+                    int viewCount = sheet.GetAllPlacedViews()?.Count ?? 0;
+                    sb.AppendLine($"{num},{name},{rev},{issueDate},{disc},{drawn},{check},{approved},{viewCount}");
+                }
+                catch (Exception ex) { StingLog.Warn($"Sheet CSV row {sheet.Id}: {ex.Message}"); }
+            }
+
+            string exportPath = Path.Combine(
+                StingToolsApp.DataPath ?? Path.GetTempPath(),
+                $"SHEET_REGISTER_{DateTime.Now:yyyyMMdd_HHmm}.csv");
+            try
+            {
+                System.IO.File.WriteAllText(exportPath, sb.ToString());
+                TaskDialog.Show("Export Sheets", $"Exported {sheets.Count} sheets to:\n{exportPath}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"Sheet CSV export: {ex.Message}", ex);
+                TaskDialog.Show("Export Sheets", $"Export failed: {ex.Message}\n\n{sb}");
+            }
         }
 
         // ── TitleBlock operations ───────────────────────────────────
@@ -2983,7 +2998,7 @@ namespace StingTools.UI
                     }
                     if (!anyValid) orphaned.Add(tag.Id);
                 }
-                catch { orphaned.Add(tag.Id); }
+                catch (Exception ex) { StingLog.Warn($"Orphan check {tag.Id}: {ex.Message}"); orphaned.Add(tag.Id); }
             }
 
             if (orphaned.Count == 0)
@@ -3017,12 +3032,37 @@ namespace StingTools.UI
             }
         }
 
+        // Persisted tag layout for clone/apply across views
+        private static Dictionary<ElementId, (XYZ headPos, bool hasLeader, TagOrientation orient)> _clonedTagLayout;
+        private static string _clonedSourceViewName;
+
         private static void CloneTagLayout(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             var doc = uidoc.Document;
             var sourceView = doc.ActiveView;
+
+            // If layout already cloned, offer to apply it
+            if (_clonedTagLayout != null && _clonedTagLayout.Count > 0)
+            {
+                TaskDialog dlg = new TaskDialog("Clone Tag Layout");
+                dlg.MainInstruction = $"Layout from '{_clonedSourceViewName}' ({_clonedTagLayout.Count} tags) is stored.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Apply to Current View", "Move existing tags to cloned positions");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Capture New Layout", "Replace stored layout with current view's tags");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var result = dlg.Show();
+                if (result == TaskDialogResult.CommandLink1)
+                {
+                    ApplyClonedLayout(app);
+                    return;
+                }
+                else if (result != TaskDialogResult.CommandLink2)
+                    return;
+            }
 
             // Get tag positions from source view
             var sourceTags = new FilteredElementCollector(doc, sourceView.Id)
@@ -3037,7 +3077,8 @@ namespace StingTools.UI
             }
 
             // Build mapping: host element ID → tag head position + orientation
-            var tagLayout = new Dictionary<ElementId, (XYZ headPos, bool hasLeader, TagOrientation orient)>();
+            _clonedTagLayout = new Dictionary<ElementId, (XYZ headPos, bool hasLeader, TagOrientation orient)>();
+            _clonedSourceViewName = sourceView.Name;
             foreach (var tag in sourceTags)
             {
                 try
@@ -3045,19 +3086,63 @@ namespace StingTools.UI
                     var hostIds = tag.GetTaggedLocalElementIds();
                     if (hostIds.Count > 0)
                     {
-                        tagLayout[hostIds.First()] = (tag.TagHeadPosition, tag.HasLeader, tag.TagOrientation);
+                        _clonedTagLayout[hostIds.First()] = (tag.TagHeadPosition, tag.HasLeader, tag.TagOrientation);
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"CloneTagLayout: {ex.Message}"); }
             }
 
             TaskDialog.Show("Clone Tag Layout",
-                $"Captured layout for {tagLayout.Count} tags in '{sourceView.Name}'.\n" +
-                "Navigate to target view and use 'Apply Cloned Layout' to apply.\n\n" +
-                "(Tag positions are stored relative to host elements. " +
-                "Matching is by element ID — same elements must exist in target view.)");
+                $"Captured layout for {_clonedTagLayout.Count} tags in '{sourceView.Name}'.\n" +
+                "Navigate to target view and click Clone again to apply.");
 
-            StingLog.Info($"CloneTagLayout: captured {tagLayout.Count} positions from '{sourceView.Name}'");
+            StingLog.Info($"CloneTagLayout: captured {_clonedTagLayout.Count} positions from '{sourceView.Name}'");
+        }
+
+        private static void ApplyClonedLayout(UIApplication app)
+        {
+            if (_clonedTagLayout == null || _clonedTagLayout.Count == 0)
+            {
+                TaskDialog.Show("Apply Layout", "No cloned layout stored. Clone a view first.");
+                return;
+            }
+
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var targetView = doc.ActiveView;
+
+            var targetTags = new FilteredElementCollector(doc, targetView.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            int applied = 0;
+            using (Transaction tx = new Transaction(doc, "STING Apply Cloned Tag Layout"))
+            {
+                tx.Start();
+                foreach (var tag in targetTags)
+                {
+                    try
+                    {
+                        var hostIds = tag.GetTaggedLocalElementIds();
+                        if (hostIds.Count == 0) continue;
+                        ElementId hostId = hostIds.First();
+                        if (!_clonedTagLayout.ContainsKey(hostId)) continue;
+
+                        var layout = _clonedTagLayout[hostId];
+                        tag.TagHeadPosition = layout.headPos;
+                        tag.TagOrientation = layout.orient;
+                        applied++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"ApplyLayout {tag.Id}: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Apply Layout",
+                $"Applied cloned positions to {applied}/{targetTags.Count} tags in '{targetView.Name}'.");
+            StingLog.Info($"ApplyClonedLayout: {applied} tags repositioned in '{targetView.Name}'");
         }
 
         // ── Room tag placement ──────────────────────────────────────
@@ -3988,7 +4073,7 @@ namespace StingTools.UI
                 .Where(fs =>
                 {
                     try { return fs.Family?.FamilyCategory?.Name?.Contains("Tag") == true; }
-                    catch { return false; }
+                    catch (Exception ex) { StingLog.Warn($"Tag family filter: {ex.Message}"); return false; }
                 })
                 .ToList();
 
@@ -4152,8 +4237,9 @@ namespace StingTools.UI
                 // Otherwise assume 45° or unknown → cycle to 0 (straight)
                 return "0"; // Cycle: 45 → 0
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"ElbowAngle detect: {ex.Message}");
                 return "90";
             }
         }
@@ -4715,8 +4801,9 @@ namespace StingTools.UI
                     string status = linkDoc != null ? "Loaded" : "Unloaded";
                     report.AppendLine($"  [{status}] {name}");
                 }
-                catch
+                catch (Exception ex)
                 {
+                    StingLog.Warn($"Link read {link.Id}: {ex.Message}");
                     report.AppendLine($"  [Error] {link.Id}");
                 }
             }
@@ -4752,7 +4839,7 @@ namespace StingTools.UI
                     else
                         unloaded++;
                 }
-                catch { unloaded++; }
+                catch (Exception ex) { StingLog.Warn($"Link type check: {ex.Message}"); unloaded++; }
             }
 
             TaskDialog.Show("Audit Links",

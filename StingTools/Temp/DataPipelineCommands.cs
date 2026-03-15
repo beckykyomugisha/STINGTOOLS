@@ -1770,25 +1770,36 @@ namespace StingTools.Temp
         {
             try
             {
-                if (el is Autodesk.Revit.DB.MEPCurve curve)
+                // Length: try CURVE_ELEM_LENGTH on any element (walls, MEP curves, beams, etc.)
+                Parameter lenParam = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
+                if (lenParam != null && lenParam.HasValue && lenParam.AsDouble() > 0)
+                    item.MeasuredLength_m = lenParam.AsDouble() * 0.3048;
+                else
                 {
-                    Parameter lenParam = curve.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
-                    if (lenParam != null)
-                        item.MeasuredLength_m = lenParam.AsDouble() * 0.3048;
-                }
-                else if (el is Wall wall)
-                {
-                    Parameter lenParam = wall.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
-                    if (lenParam != null)
-                        item.MeasuredLength_m = lenParam.AsDouble() * 0.3048;
+                    // Fallback to named "Length" parameter (structural framing, etc.)
+                    Parameter namedLen = el.LookupParameter("Length");
+                    if (namedLen != null && namedLen.StorageType == StorageType.Double && namedLen.AsDouble() > 0)
+                        item.MeasuredLength_m = namedLen.AsDouble() * 0.3048;
                 }
 
+                // Area: try multiple built-in parameters (HOST_AREA, ROOM_AREA, curtain wall)
                 Parameter areaParam = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
-                if (areaParam != null && areaParam.AsDouble() > 0)
+                if (areaParam == null || !areaParam.HasValue || areaParam.AsDouble() <= 0)
+                    areaParam = el.get_Parameter(BuiltInParameter.ROOM_AREA);
+                if (areaParam == null || !areaParam.HasValue || areaParam.AsDouble() <= 0)
+                    areaParam = el.get_Parameter(BuiltInParameter.CURTAIN_WALL_PANELS_HOST_AREA);
+                if (areaParam != null && areaParam.HasValue && areaParam.AsDouble() > 0)
                     item.MeasuredArea_m2 = areaParam.AsDouble() * 0.092903;
 
+                // Volume: try built-in then named parameter
                 Parameter volParam = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
-                if (volParam != null && volParam.AsDouble() > 0)
+                if (volParam == null || !volParam.HasValue || volParam.AsDouble() <= 0)
+                {
+                    Parameter namedVol = el.LookupParameter("Volume");
+                    if (namedVol != null && namedVol.StorageType == StorageType.Double && namedVol.AsDouble() > 0)
+                        volParam = namedVol;
+                }
+                if (volParam != null && volParam.HasValue && volParam.AsDouble() > 0)
                     item.Volume_m3 = volParam.AsDouble() * 0.0283168;
             }
             catch (Exception ex)

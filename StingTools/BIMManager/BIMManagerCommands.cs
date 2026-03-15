@@ -5129,7 +5129,8 @@ namespace StingTools.BIMManager
 
     /// <summary>
     /// Full ISO 19650 compliance dashboard integrating tag compliance,
-    /// naming conventions, suitability codes, and deliverable tracking.
+    /// model health, deliverable tracking, BEP status, issue register,
+    /// and document naming compliance.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
@@ -5144,34 +5145,108 @@ namespace StingTools.BIMManager
                 if (ctx == null) return Result.Failed;
                 Document doc = ctx.Doc;
 
+                // ── Core subsystem scans ──
                 var tagCompliance = ComplianceScan.Scan(doc);
                 var healthReport = ModelHealthEngine.RunHealthCheck(doc);
                 var midpData = MidpEngine.BuildMidpRegister(doc);
 
+                // ── BEP status ──
+                string bepPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "BEP.json");
+                bool bepExists = File.Exists(bepPath);
+                int bepScore = 0;
+                if (bepExists)
+                {
+                    try
+                    {
+                        var bepJson = JObject.Parse(File.ReadAllText(bepPath));
+                        int sectionCount = bepJson.Properties().Count();
+                        bepScore = Math.Min(100, sectionCount * 5); // ~20 sections = 100%
+                    }
+                    catch { bepScore = 50; } // File exists but parse issue
+                }
+
+                // ── Issue register ──
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+                int totalIssues = issues.Count;
+                int openIssues = issues.Count(i =>
+                {
+                    string status = i["Status"]?.ToString() ?? i["status"]?.ToString() ?? "";
+                    return status == "OPEN" || status == "IN_PROGRESS";
+                });
+                int closedIssues = totalIssues - openIssues;
+                int issueScore = totalIssues == 0 ? 100 : (int)(closedIssues * 100.0 / totalIssues);
+
+                // ── Document naming compliance ──
+                int totalSheets = 0, compliantSheets = 0;
+                try
+                {
+                    var sheets = new FilteredElementCollector(doc)
+                        .OfClass(typeof(ViewSheet))
+                        .Cast<ViewSheet>()
+                        .Where(s => !s.IsPlaceholder)
+                        .ToList();
+                    totalSheets = sheets.Count;
+                    foreach (var sheet in sheets)
+                    {
+                        string num = sheet.SheetNumber ?? "";
+                        // ISO 19650 naming: expect at least 2 hyphens (e.g., XXX-XX-XX-...)
+                        if (num.Count(c => c == '-') >= 2)
+                            compliantSheets++;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Sheet naming scan: {ex.Message}"); }
+                int namingScore = totalSheets > 0 ? (int)(compliantSheets * 100.0 / totalSheets) : 100;
+
+                // ── Build report ──
                 var report = new StringBuilder();
                 report.AppendLine("ISO 19650 Full Compliance Dashboard");
                 report.AppendLine(new string('═', 60));
                 report.AppendLine();
-                report.AppendLine($"  TAG COMPLIANCE:     {tagCompliance.StatusBarText ?? "N/A"}");
+                report.AppendLine("SUBSYSTEM SCORES:");
+                report.AppendLine($"  TAG COMPLIANCE:     {tagCompliance.CompliancePercent:F0}% ({tagCompliance.RAGStatus})");
                 report.AppendLine($"  MODEL HEALTH:       {healthReport.OverallScore}/100 ({healthReport.Rating})");
-                report.AppendLine($"  MIDP COVERAGE:      {midpData.TotalDeliverables} deliverables");
-                report.AppendLine($"  SHEETS PUBLISHED:   {midpData.PublishedSheets}/{midpData.TotalSheets}");
+                report.AppendLine($"  MIDP COVERAGE:      {midpData.PublishedSheets}/{midpData.TotalSheets} sheets published");
+                report.AppendLine($"  BEP STATUS:         {(bepExists ? $"{bepScore}% complete" : "NOT CREATED")}");
+                report.AppendLine($"  ISSUE REGISTER:     {closedIssues}/{totalIssues} resolved ({issueScore}%)");
+                report.AppendLine($"  DOC NAMING:         {compliantSheets}/{totalSheets} compliant ({namingScore}%)");
                 report.AppendLine();
 
-                // RAG summary
-                int overallScore = (int)((tagCompliance.CompliancePercent * 0.5)
-                    + (healthReport.OverallScore * 0.3)
-                    + (midpData.TotalSheets > 0 ? (midpData.PublishedSheets * 100.0 / midpData.TotalSheets) * 0.2 : 0));
+                // Weighted overall score (6 subsystems)
+                double sheetPct = midpData.TotalSheets > 0
+                    ? midpData.PublishedSheets * 100.0 / midpData.TotalSheets : 100;
+                int overallScore = (int)(
+                    tagCompliance.CompliancePercent * 0.30 +
+                    healthReport.OverallScore * 0.20 +
+                    sheetPct * 0.10 +
+                    bepScore * 0.15 +
+                    issueScore * 0.10 +
+                    namingScore * 0.15);
                 string overallRag = overallScore >= 80 ? "GREEN" : overallScore >= 50 ? "AMBER" : "RED";
 
                 report.AppendLine($"  OVERALL: {overallScore}% — {overallRag}");
 
+                // Top tag issues
                 string topIssues = tagCompliance.TopIssues;
                 if (!string.IsNullOrEmpty(topIssues) && topIssues != "No issues")
                 {
                     report.AppendLine();
-                    report.AppendLine($"Top Issues: {topIssues}");
+                    report.AppendLine($"  Tag Issues: {topIssues}");
                 }
+
+                // Action items
+                report.AppendLine();
+                report.AppendLine("ACTIONS NEEDED:");
+                if (tagCompliance.CompliancePercent < 100)
+                    report.AppendLine($"  → Run 'Resolve All Issues' to fix {tagCompliance.Untagged + tagCompliance.TaggedIncomplete} tag issues");
+                if (!bepExists)
+                    report.AppendLine("  → Run 'Create BEP' to generate BIM Execution Plan");
+                if (openIssues > 0)
+                    report.AppendLine($"  → Resolve {openIssues} open issues in Issue Dashboard");
+                if (namingScore < 100)
+                    report.AppendLine($"  → Run 'Sheet Naming Check' to fix {totalSheets - compliantSheets} non-compliant sheets");
+                if (tagCompliance.CompliancePercent >= 100 && bepExists && openIssues == 0 && namingScore >= 100)
+                    report.AppendLine("  ✓ All subsystems compliant — no actions needed");
 
                 TaskDialog td = new TaskDialog("ISO 19650 Compliance");
                 td.MainInstruction = $"Overall Compliance: {overallScore}% ({overallRag})";

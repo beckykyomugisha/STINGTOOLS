@@ -85,10 +85,22 @@ namespace StingTools.Core
 
             try
             {
-                // Materialize to List to avoid "object not valid" during iteration
-                var allElements = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .ToList();
+                // Use multi-category filter to avoid iterating ALL non-type elements
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                FilteredElementCollector collector;
+                if (catEnums != null && catEnums.Length > 0)
+                {
+                    var catList = new List<BuiltInCategory>(catEnums);
+                    collector = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .WherePasses(new ElementMulticategoryFilter(catList));
+                }
+                else
+                {
+                    collector = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType();
+                }
+                var allElements = collector.ToList();
                 foreach (Element elem in allElements)
                 {
                     if (elem == null || !elem.IsValidObject) continue;
