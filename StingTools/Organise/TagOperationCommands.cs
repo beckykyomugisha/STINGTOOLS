@@ -9,7 +9,7 @@ using StingTools.Core;
 
 namespace StingTools.Organise
 {
-    /// <summary>Tag selected elements only (Tag Sel from STINGTags ORGANISE tab).
+    /// <summary>Tag selected elements only (Tag Sel from StingTools ORGANISE tab).
     /// Writes ISO 19650 tag data to parameters AND places visual IndependentTag
     /// annotations in the active view so tags are immediately visible.
     /// Includes collision mode selection for handling already-tagged elements.</summary>
@@ -125,9 +125,16 @@ namespace StingTools.Organise
                         stats: stats);
 
                     // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    string catTag7 = ParameterHelpers.GetCategoryName(elem);
-                    string[] tVals = ParamRegistry.ReadTokenValues(elem);
-                    TagConfig.WriteTag7All(doc, elem, catTag7, tVals, overwrite: true);
+                    try
+                    {
+                        string catTag7 = ParameterHelpers.GetCategoryName(elem);
+                        string[] tVals = ParamRegistry.ReadTokenValues(elem);
+                        TagConfig.WriteTag7All(doc, elem, catTag7, tVals, overwrite: true);
+                    }
+                    catch (Exception exTag7)
+                    {
+                        StingLog.Warn($"TAG7 write failed for {id}: {exTag7.Message}");
+                    }
 
                     // Place visual IndependentTag annotation if not already present
                     if (activeView != null && !existingVisualTags.Contains(id))
@@ -145,6 +152,7 @@ namespace StingTools.Organise
                 }
                 tx.Commit();
             }
+            ComplianceScan.InvalidateCache();
 
             string report = $"Tagged {stats.TotalTagged} of {selected.Count} selected elements.\n" +
                 $"Visual annotations placed: {visualTagsPlaced}";
@@ -256,12 +264,20 @@ namespace StingTools.Organise
                         retagged++;
 
                     // Rebuild TAG7 + sub-sections with updated tokens
-                    string catRT = ParameterHelpers.GetCategoryName(elem);
-                    string[] tvRT = ParamRegistry.ReadTokenValues(elem);
-                    TagConfig.WriteTag7All(doc, elem, catRT, tvRT, overwrite: true);
+                    try
+                    {
+                        string catRT = ParameterHelpers.GetCategoryName(elem);
+                        string[] tvRT = ParamRegistry.ReadTokenValues(elem);
+                        TagConfig.WriteTag7All(doc, elem, catRT, tvRT, overwrite: true);
+                    }
+                    catch (Exception exTag7)
+                    {
+                        StingLog.Warn($"ReTag TAG7 write failed for {id}: {exTag7.Message}");
+                    }
                 }
                 tx.Commit();
             }
+            ComplianceScan.InvalidateCache();
 
             TaskDialog.Show("Re-Tag", $"Re-tagged {retagged} of {selected.Count} elements.");
             return Result.Succeeded;
@@ -436,6 +452,7 @@ namespace StingTools.Organise
             if (remainingDupes > 0)
                 StingLog.Warn($"FixDuplicates: post-fix scan found {remainingDupes} remaining duplicate tag values");
 
+            ComplianceScan.InvalidateCache();
             TaskDialog.Show("Fix Duplicates",
                 $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.{dupeNote}");
             return Result.Succeeded;
@@ -510,6 +527,7 @@ namespace StingTools.Organise
                 }
                 tx.Commit();
             }
+            ComplianceScan.InvalidateCache();
 
             TaskDialog.Show("Delete Tags", $"Cleared tags and containers from {cleared} elements.");
             return Result.Succeeded;
@@ -708,14 +726,13 @@ namespace StingTools.Organise
                 sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{rev},{valid},{resolved}");
             }
 
-            // Write to file
-            string dir = System.IO.Path.GetDirectoryName(doc.PathName);
-            if (string.IsNullOrEmpty(dir)) dir = System.IO.Path.GetTempPath();
-            string path = System.IO.Path.Combine(dir, "STING_Tag_Audit.csv");
+            // Write to file — uses user-preferred output location
+            string path = OutputLocationHelper.GetOutputPath(doc, "STING_Tag_Audit.csv");
 
             try
             {
                 System.IO.File.WriteAllText(path, sb.ToString());
+                StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, path, "SH", "Tag audit export (all element tags)");
                 TaskDialog.Show("Audit CSV",
                     $"Exported {total} elements to:\n{path}");
             }
@@ -1065,17 +1082,25 @@ namespace StingTools.Organise
                         ParameterHelpers.SetString(target, kvp.Key, kvp.Value, overwrite: true);
                     }
 
-                    // Update containers with copied values
+                    // Rebuild TAG1 from copied tokens and update all containers
                     try
                     {
                         string catName = ParameterHelpers.GetCategoryName(target);
                         string[] tokenVals = ParamRegistry.ReadTokenValues(target);
                         if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                        {
+                            // Rebuild TAG1 from the copied token values
+                            string rebuiltTag = string.Join(ParamRegistry.Separator, tokenVals);
+                            ParameterHelpers.SetString(target, ParamRegistry.TAG1, rebuiltTag, overwrite: true);
                             ParamRegistry.WriteContainers(target, tokenVals, catName, overwrite: true);
+                        }
+                        // Rebuild TAG7 narrative
+                        string[] tvCopy = ParamRegistry.ReadTokenValues(target);
+                        TagConfig.WriteTag7All(doc, target, catName, tvCopy, overwrite: true);
                     }
                     catch (Exception ex)
                     {
-                        StingLog.Warn($"CopyTags: container write failed for {target.Id}: {ex.Message}");
+                        StingLog.Warn($"CopyTags: TAG1/container write failed for {target.Id}: {ex.Message}");
                     }
 
                     copied++;
@@ -1083,6 +1108,7 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
+            ComplianceScan.InvalidateCache();
             TaskDialog.Show("Copy Tags", $"Copied tag values to {copied} elements.");
             return Result.Succeeded;
         }
@@ -1150,27 +1176,38 @@ namespace StingTools.Organise
                     ParameterHelpers.SetString(b, param, valA, overwrite: true);
                 }
 
-                // Update containers for both elements
+                // Rebuild TAG1 and update containers for both elements
                 try
                 {
                     string catA = ParameterHelpers.GetCategoryName(a);
                     string[] tokensA = ParamRegistry.ReadTokenValues(a);
                     if (tokensA.Any(v => !string.IsNullOrEmpty(v)))
+                    {
+                        string rebuiltTagA = string.Join(ParamRegistry.Separator, tokensA);
+                        ParameterHelpers.SetString(a, ParamRegistry.TAG1, rebuiltTagA, overwrite: true);
                         ParamRegistry.WriteContainers(a, tokensA, catA, overwrite: true);
+                    }
+                    TagConfig.WriteTag7All(doc, a, catA, tokensA, overwrite: true);
 
                     string catB = ParameterHelpers.GetCategoryName(b);
                     string[] tokensB = ParamRegistry.ReadTokenValues(b);
                     if (tokensB.Any(v => !string.IsNullOrEmpty(v)))
+                    {
+                        string rebuiltTagB = string.Join(ParamRegistry.Separator, tokensB);
+                        ParameterHelpers.SetString(b, ParamRegistry.TAG1, rebuiltTagB, overwrite: true);
                         ParamRegistry.WriteContainers(b, tokensB, catB, overwrite: true);
+                    }
+                    TagConfig.WriteTag7All(doc, b, catB, tokensB, overwrite: true);
                 }
                 catch (Exception ex)
                 {
-                    StingLog.Warn($"SwapTags: container write failed: {ex.Message}");
+                    StingLog.Warn($"SwapTags: TAG1/container write failed: {ex.Message}");
                 }
 
                 tx.Commit();
             }
 
+            ComplianceScan.InvalidateCache();
             TaskDialog.Show("Swap Tags", "Tags swapped successfully.");
             return Result.Succeeded;
         }
@@ -1488,6 +1525,13 @@ namespace StingTools.Organise
                 if (tags.Count > 0) return (tags, true);
             }
 
+            // Guard against null view (schedule view, family editor, no view open)
+            if (view == null)
+            {
+                StingLog.Warn("GetTargetTags: No active graphical view — returning empty list.");
+                return (new List<IndependentTag>(), false);
+            }
+
             var allTags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
                 .Cast<IndependentTag>()
@@ -1495,7 +1539,8 @@ namespace StingTools.Organise
             return (allTags, false);
         }
 
-        /// <summary>Get the discipline code from the element that a tag hosts.</summary>
+        /// <summary>Get the discipline code from the element that a tag hosts.
+        /// Falls back to category-based discipline lookup if parameter is empty.</summary>
         public static string GetTagDiscipline(IndependentTag tag, Document doc)
         {
             try
@@ -1504,9 +1549,23 @@ namespace StingTools.Organise
                 if (hostIds.Count == 0) return null;
                 Element host = doc.GetElement(hostIds.First());
                 if (host == null) return null;
-                return ParameterHelpers.GetString(host, ParamRegistry.DISC);
+
+                // Primary: read DISC parameter directly
+                string disc = ParameterHelpers.GetString(host, ParamRegistry.DISC);
+                if (!string.IsNullOrEmpty(disc)) return disc;
+
+                // Fallback: derive DISC from element category using TagConfig lookup
+                string catName = ParameterHelpers.GetCategoryName(host);
+                if (!string.IsNullOrEmpty(catName) && TagConfig.DiscMap.TryGetValue(catName, out string catDisc))
+                    return catDisc;
+
+                return null;
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetTagDiscipline failed for tag {tag.Id}: {ex.Message}");
+                return null;
+            }
         }
     }
 
@@ -2908,16 +2967,13 @@ namespace StingTools.Organise
                 sb.AppendLine(Esc(omniclass));
             }
 
-            // Write to file
-            string dir = System.IO.Path.GetDirectoryName(doc.PathName);
-            if (string.IsNullOrEmpty(dir)) dir = System.IO.Path.GetTempPath();
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            string path = System.IO.Path.Combine(dir,
-                $"STING_Tag_Register_{timestamp}.csv");
+            // Write to file — uses user-preferred output location
+            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_Tag_Register", ".csv");
 
             try
             {
                 System.IO.File.WriteAllText(path, sb.ToString(), System.Text.Encoding.UTF8);
+                StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, path, "SH", "Comprehensive asset tag register (40+ columns)");
 
                 double pct = total > 0 ? (valid * 100.0 / total) : 0;
                 var report = new StringBuilder();
@@ -3183,6 +3239,8 @@ namespace StingTools.Organise
 
             // Calculate actual tag widths for smart spacing
             double maxTagWidth = 0;
+            double totalTagWidth = 0;
+            int measuredCount = 0;
             foreach (var tag in tags)
             {
                 try
@@ -3191,14 +3249,26 @@ namespace StingTools.Organise
                     if (bb != null)
                     {
                         double w = bb.Max.X - bb.Min.X;
-                        if (w > maxTagWidth) maxTagWidth = w;
+                        if (w > 0.001)
+                        {
+                            totalTagWidth += w;
+                            measuredCount++;
+                            if (w > maxTagWidth) maxTagWidth = w;
+                        }
                     }
                 }
                 catch { }
             }
-            // Fallback: use view scale-based estimate
+            // Use average width if max seems unreliable, scale-based fallback as last resort
             if (maxTagWidth < 0.001)
-                maxTagWidth = view.Scale * 0.01;
+                maxTagWidth = view.Scale * 0.008; // ~8mm at paper scale
+            else if (measuredCount > 1)
+            {
+                double avgWidth = totalTagWidth / measuredCount;
+                // If max is >3x average, one tag is anomalously wide — use average instead
+                if (maxTagWidth > avgWidth * 3.0)
+                    maxTagWidth = avgWidth;
+            }
             double autoSpacing = maxTagWidth * 1.2; // 20% gap between tags
 
             // Ask alignment direction
@@ -3315,6 +3385,25 @@ namespace StingTools.Organise
                 return Result.Succeeded;
             }
 
+            // Ask whether to preserve leaders
+            int withLeaders = tags.Count(t => t.HasLeader);
+            bool removeLeaders = false;
+            if (withLeaders > 0)
+            {
+                TaskDialog askDlg = new TaskDialog("Reset Tag Positions");
+                askDlg.MainInstruction = $"{withLeaders} of {tags.Count} tags have leaders";
+                askDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Reset position, keep leaders",
+                    "Move tag heads to element centers but preserve leader lines");
+                askDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Reset position AND remove leaders",
+                    "Move tag heads to element centers and strip leaders");
+                askDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var askResult = askDlg.Show();
+                if (askResult == TaskDialogResult.Cancel) return Result.Cancelled;
+                removeLeaders = askResult == TaskDialogResult.CommandLink2;
+            }
+
             int reset = 0;
             using (Transaction tx = new Transaction(doc, "STING Reset Tag Positions"))
             {
@@ -3331,13 +3420,15 @@ namespace StingTools.Organise
                         XYZ center = LeaderHelper.GetElementCenter(host);
                         if (center == null) continue;
 
-                        // Move tag head to element center with small offset
+                        // Move tag head to element center with small offset (scale-aware)
                         View view = doc.GetElement(tag.OwnerViewId) as View;
                         double offset = view != null ? view.Scale * 0.005 : 0.5;
                         XYZ tagPos = center + new XYZ(offset, offset, 0);
 
                         tag.TagHeadPosition = tagPos;
-                        if (tag.HasLeader)
+
+                        // Only remove leaders if user explicitly chose to
+                        if (removeLeaders && tag.HasLeader)
                             tag.HasLeader = false;
 
                         reset++;
@@ -3350,8 +3441,9 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
+            string leaderNote = removeLeaders ? " (leaders removed)" : withLeaders > 0 ? " (leaders preserved)" : "";
             TaskDialog.Show("Reset Tags",
-                $"Reset {reset} of {tags.Count} tag positions to element centers.");
+                $"Reset {reset} of {tags.Count} tag positions to element centers{leaderNote}.");
             return Result.Succeeded;
         }
     }
@@ -3513,9 +3605,15 @@ namespace StingTools.Organise
                 .ToList();
         }
 
-        /// <summary>Get center point of an element for tag placement.</summary>
-        public static XYZ GetElementCenter(Element el)
+        /// <summary>
+        /// Get center point of an element for tag/leader placement.
+        /// Uses Location first (most reliable), then view-aware bounding box,
+        /// then global bounding box as final fallback. Returns XY center at
+        /// element Z for proper 2D annotation placement.
+        /// </summary>
+        public static XYZ GetElementCenter(Element el, View view = null)
         {
+            // Location is the most reliable source for point/curve elements
             if (el.Location is LocationPoint lp)
                 return lp.Point;
             if (el.Location is LocationCurve lc)
@@ -3524,7 +3622,23 @@ namespace StingTools.Organise
                 return (c.GetEndPoint(0) + c.GetEndPoint(1)) / 2.0;
             }
 
-            // Fallback: bounding box center
+            // View-aware bounding box — more accurate for annotation context
+            if (view != null)
+            {
+                try
+                {
+                    BoundingBoxXYZ vbb = el.get_BoundingBox(view);
+                    if (vbb != null)
+                    {
+                        XYZ center3D = (vbb.Min + vbb.Max) / 2.0;
+                        // Flatten to view plane Z for proper 2D placement
+                        return new XYZ(center3D.X, center3D.Y, vbb.Min.Z);
+                    }
+                }
+                catch { /* fall through to global BB */ }
+            }
+
+            // Global bounding box as final fallback
             BoundingBoxXYZ bb = el.get_BoundingBox(null);
             if (bb != null)
                 return (bb.Min + bb.Max) / 2.0;
@@ -3545,12 +3659,26 @@ namespace StingTools.Organise
                 Element host = doc.GetElement(hostIds.First());
                 if (host == null) return "right";
 
-                XYZ hostCenter = GetElementCenter(host);
+                View view = doc.GetElement(tag.OwnerViewId) as View;
+                XYZ hostCenter = GetElementCenter(host, view);
                 if (hostCenter == null) return "right";
 
+                // Use actual elbow if available for more accurate side detection
+                XYZ reference = hostCenter;
+                try
+                {
+                    var refs = tag.GetTaggedReferences();
+                    if (tag.HasLeader && refs != null && refs.Count > 0)
+                    {
+                        XYZ elbow = tag.GetLeaderElbow(refs.First());
+                        if (elbow != null) reference = elbow;
+                    }
+                }
+                catch { }
+
                 XYZ tagHead = tag.TagHeadPosition;
-                double dx = tagHead.X - hostCenter.X;
-                double dy = tagHead.Y - hostCenter.Y;
+                double dx = tagHead.X - reference.X;
+                double dy = tagHead.Y - reference.Y;
 
                 if (Math.Abs(dx) > Math.Abs(dy))
                     return dx > 0 ? "right" : "left";
@@ -3562,9 +3690,10 @@ namespace StingTools.Organise
 
         /// <summary>
         /// Auto-align tag head position relative to leader direction.
-        /// Positions tags with proper clearance from the leader endpoint so text
-        /// is readable and doesn't overlap the leader line or the element.
-        /// Uses scale-aware offsets and element bounding box for accurate placement.
+        /// Uses actual leader elbow geometry (not just host center) to determine
+        /// the true leader direction, then positions the tag head so text reads
+        /// away from the leader line with proper clearance.
+        /// Falls back to host center when elbow data is unavailable.
         /// </summary>
         public static int AutoAlignTagsToLeaders(Document doc, List<IndependentTag> tags, View view)
         {
@@ -3586,8 +3715,23 @@ namespace StingTools.Organise
                     if (hostCenter == null) continue;
 
                     XYZ tagHead = tag.TagHeadPosition;
-                    double dx = tagHead.X - hostCenter.X;
-                    double dy = tagHead.Y - hostCenter.Y;
+
+                    // Try to get actual leader elbow position for accurate direction
+                    XYZ leaderAnchor = hostCenter; // fallback
+                    try
+                    {
+                        var refs = tag.GetTaggedReferences();
+                        if (refs != null && refs.Count > 0)
+                        {
+                            XYZ elbow = tag.GetLeaderElbow(refs.First());
+                            if (elbow != null)
+                                leaderAnchor = elbow; // Use elbow as the anchor — more accurate direction
+                        }
+                    }
+                    catch { /* fallback to hostCenter */ }
+
+                    double dx = tagHead.X - leaderAnchor.X;
+                    double dy = tagHead.Y - leaderAnchor.Y;
                     double dist = Math.Sqrt(dx * dx + dy * dy);
                     if (dist < 0.01) continue;
 
@@ -3601,39 +3745,27 @@ namespace StingTools.Organise
                     double elHalfW = elBB != null ? (elBB.Max.X - elBB.Min.X) * 0.5 : scaleFactor * 0.5;
                     double elHalfH = elBB != null ? (elBB.Max.Y - elBB.Min.Y) * 0.5 : scaleFactor * 0.5;
 
-                    // Clearance gap between element edge and tag edge (scale-aware)
+                    // Clearance gap between leader anchor and tag edge (scale-aware)
                     double clearance = Math.Max(scaleFactor * 0.3, 0.15);
 
                     XYZ newPos = tagHead;
                     if (Math.Abs(dx) > Math.Abs(dy))
                     {
-                        // Primarily horizontal arrangement
-                        double tagEdgeDist = elHalfW + clearance + tagW * 0.5;
+                        // Primarily horizontal arrangement — position tag along X axis
+                        double tagEdgeDist = clearance + tagW * 0.5;
                         if (dx > 0)
-                        {
-                            // Tag to the right of element
-                            newPos = new XYZ(hostCenter.X + tagEdgeDist, tagHead.Y, tagHead.Z);
-                        }
+                            newPos = new XYZ(leaderAnchor.X + tagEdgeDist, tagHead.Y, tagHead.Z);
                         else
-                        {
-                            // Tag to the left of element
-                            newPos = new XYZ(hostCenter.X - tagEdgeDist, tagHead.Y, tagHead.Z);
-                        }
+                            newPos = new XYZ(leaderAnchor.X - tagEdgeDist, tagHead.Y, tagHead.Z);
                     }
                     else
                     {
-                        // Primarily vertical arrangement
-                        double tagEdgeDist = elHalfH + clearance + tagH * 0.5;
+                        // Primarily vertical arrangement — position tag along Y axis
+                        double tagEdgeDist = clearance + tagH * 0.5;
                         if (dy > 0)
-                        {
-                            // Tag above element
-                            newPos = new XYZ(tagHead.X, hostCenter.Y + tagEdgeDist, tagHead.Z);
-                        }
+                            newPos = new XYZ(tagHead.X, leaderAnchor.Y + tagEdgeDist, tagHead.Z);
                         else
-                        {
-                            // Tag below element
-                            newPos = new XYZ(tagHead.X, hostCenter.Y - tagEdgeDist, tagHead.Z);
-                        }
+                            newPos = new XYZ(tagHead.X, leaderAnchor.Y - tagEdgeDist, tagHead.Z);
                     }
 
                     if (newPos.DistanceTo(tagHead) > 0.001)
@@ -3694,6 +3826,8 @@ namespace StingTools.Organise
         /// <summary>
         /// Detect the predominant current elbow angle and return the next in cycle.
         /// Cycle: 90° → 45° → Straight (0°) → 90°
+        /// Uses vector dot product for reliable angle classification instead of
+        /// distance-based heuristics which fail when tag/element sizes vary.
         /// </summary>
         private static string DetectCurrentAngleAndCycle(Document doc, List<IndependentTag> tags)
         {
@@ -3714,19 +3848,35 @@ namespace StingTools.Organise
                     var refs = tag.GetTaggedReferences();
                     if (refs == null || refs.Count == 0) continue;
 
-                    XYZ elbow = tag.GetLeaderElbow(refs.First());
+                    XYZ elbow;
+                    try { elbow = tag.GetLeaderElbow(refs.First()); }
+                    catch { count90++; continue; }
                     if (elbow == null) { count90++; continue; }
 
-                    // Classify the elbow position
-                    XYZ mid = (hostCenter + tagHead) / 2.0;
-                    XYZ ortho90 = new XYZ(hostCenter.X, tagHead.Y, hostCenter.Z);
+                    // Use vector dot product to classify angle between two leader segments:
+                    // Segment 1: host → elbow, Segment 2: elbow → tag
+                    XYZ seg1 = elbow - hostCenter;
+                    XYZ seg2 = tagHead - elbow;
+                    double len1 = seg1.GetLength();
+                    double len2 = seg2.GetLength();
 
-                    if (elbow.DistanceTo(mid) < 0.2)
-                        count0++;       // Straight
-                    else if (elbow.DistanceTo(ortho90) < 0.2)
-                        count90++;      // 90°
+                    if (len1 < 0.01 || len2 < 0.01)
+                    {
+                        count0++; // Degenerate — effectively straight
+                        continue;
+                    }
+
+                    // Dot product of normalized vectors gives cos(angle)
+                    // cos(0°)=1 straight, cos(45°)≈0.707, cos(90°)=0
+                    double cosAngle = seg1.Normalize().DotProduct(seg2.Normalize());
+                    double absCos = Math.Abs(cosAngle);
+
+                    if (absCos > 0.9)
+                        count0++;       // Nearly straight (< ~25°)
+                    else if (absCos < 0.25)
+                        count90++;      // Near 90° (> ~75°)
                     else
-                        count45++;      // 45° or other
+                        count45++;      // Between — 45° range
                 }
                 catch { count90++; }
             }
@@ -3808,21 +3958,29 @@ namespace StingTools.Organise
             }
             else if (angleMode == "45")
             {
-                // 45° elbow: diagonal run from host, then orthogonal run to tag.
-                // The elbow sits where the diagonal meets the horizontal/vertical
-                // line through the tag head.
+                // 45° elbow: create a proper 45° diagonal from host center,
+                // then an orthogonal run to the tag head.
+                // The diagonal travels equal X and Y until it reaches the
+                // orthogonal line through the tag head.
                 double diag = Math.Min(absDx, absDy);
+
+                // Guard against near-zero diagonal (tags almost level or stacked)
+                if (diag < 0.01)
+                {
+                    // Nearly aligned — place elbow at midpoint for a gentle bend
+                    return (hostCenter + tagHead) / 2.0;
+                }
 
                 if (absDx >= absDy)
                 {
-                    // Wider than tall: diagonal goes at 45° until Y matches tag, then horizontal to tag
-                    // Elbow is at (hostX + diag*signX, tagHead.Y)
+                    // Wider than tall: 45° diagonal from host until Y matches tag Y,
+                    // then horizontal run to tag head X.
                     return new XYZ(hostCenter.X + diag * signX, tagHead.Y, hostCenter.Z);
                 }
                 else
                 {
-                    // Taller than wide: diagonal goes at 45° until X matches tag, then vertical to tag
-                    // Elbow is at (tagHead.X, hostY + diag*signY)
+                    // Taller than wide: 45° diagonal from host until X matches tag X,
+                    // then vertical run to tag head Y.
                     return new XYZ(tagHead.X, hostCenter.Y + diag * signY, hostCenter.Z);
                 }
             }
@@ -3969,6 +4127,43 @@ namespace StingTools.Organise
                         }
 
                         tag.TagHeadPosition = newHead;
+
+                        // Also flip leader elbow to maintain clean geometry
+                        if (tag.HasLeader)
+                        {
+                            try
+                            {
+                                var refs = tag.GetTaggedReferences();
+                                if (refs != null && refs.Count > 0)
+                                {
+                                    XYZ elbow = tag.GetLeaderElbow(refs.First());
+                                    if (elbow != null)
+                                    {
+                                        XYZ elbowDelta = elbow - center;
+                                        XYZ newElbow;
+                                        switch (result)
+                                        {
+                                            case TaskDialogResult.CommandLink1:
+                                                newElbow = new XYZ(center.X - elbowDelta.X, elbow.Y, elbow.Z);
+                                                break;
+                                            case TaskDialogResult.CommandLink2:
+                                                newElbow = new XYZ(elbow.X, center.Y - elbowDelta.Y, elbow.Z);
+                                                break;
+                                            default: // CommandLink3
+                                                newElbow = new XYZ(center.X - elbowDelta.X,
+                                                    center.Y - elbowDelta.Y, elbow.Z);
+                                                break;
+                                        }
+                                        tag.SetLeaderElbow(refs.First(), newElbow);
+                                    }
+                                }
+                            }
+                            catch (Exception lex)
+                            {
+                                StingLog.Warn($"Flip elbow on tag {tag.Id}: {lex.Message}");
+                            }
+                        }
+
                         flipped++;
                     }
                     catch (Exception ex)
@@ -4193,12 +4388,12 @@ namespace StingTools.Organise
     [Regeneration(RegenerationOption.Manual)]
     public class NudgeTagsCommand : IExternalCommand
     {
-        /// <summary>Nudge amount in feet (1/4 inch = 0.0208 ft, approx 6.35mm).</summary>
-        private const double SmallNudge = 0.0208;
-        /// <summary>Medium nudge (1 inch = 0.0833 ft, approx 25mm).</summary>
-        private const double MediumNudge = 0.0833;
-        /// <summary>Large nudge (3 inches = 0.25 ft, approx 76mm).</summary>
-        private const double LargeNudge = 0.25;
+        /// <summary>Small nudge base in feet (scaled by view.Scale/100).</summary>
+        private const double SmallNudgeBase = 0.0208;
+        /// <summary>Medium nudge base in feet (scaled by view.Scale/100).</summary>
+        private const double MediumNudgeBase = 0.0833;
+        /// <summary>Large nudge base in feet (scaled by view.Scale/100).</summary>
+        private const double LargeNudgeBase = 0.25;
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
@@ -4242,8 +4437,13 @@ namespace StingTools.Organise
                 default: return Result.Cancelled;
             }
 
+            // Scale nudge amount based on view scale for consistent visual displacement
+            View view = doc.ActiveView;
+            double scaleFactor = view != null ? view.Scale / 100.0 : 1.0;
+            double nudgeAmount = MediumNudgeBase * scaleFactor;
+
             int nudged = 0;
-            XYZ offset = direction * MediumNudge;
+            XYZ offset = direction * nudgeAmount;
 
             using (Transaction tx = new Transaction(doc, "STING Nudge Tags"))
             {
@@ -4273,15 +4473,20 @@ namespace StingTools.Organise
         /// </summary>
         public static int NudgeInDirection(Document doc, View view, List<IndependentTag> tags, string direction)
         {
+            // Scale nudge by view scale for consistent visual distance at any zoom
+            double scaleFactor = view != null ? view.Scale / 100.0 : 1.0;
+            double medium = MediumNudgeBase * scaleFactor;
+            double small = SmallNudgeBase * scaleFactor;
+
             XYZ offset;
             switch (direction?.ToUpperInvariant())
             {
-                case "UP": offset = XYZ.BasisY * MediumNudge; break;
-                case "DOWN": offset = -XYZ.BasisY * MediumNudge; break;
-                case "LEFT": offset = -XYZ.BasisX * MediumNudge; break;
-                case "RIGHT": offset = XYZ.BasisX * MediumNudge; break;
-                case "NEAR": offset = XYZ.BasisY * SmallNudge; break;
-                case "FAR": offset = -XYZ.BasisY * SmallNudge; break;
+                case "UP": offset = XYZ.BasisY * medium; break;
+                case "DOWN": offset = -XYZ.BasisY * medium; break;
+                case "LEFT": offset = -XYZ.BasisX * medium; break;
+                case "RIGHT": offset = XYZ.BasisX * medium; break;
+                case "NEAR": offset = XYZ.BasisY * small; break;
+                case "FAR": offset = -XYZ.BasisY * small; break;
                 default: return 0;
             }
 
@@ -4340,6 +4545,7 @@ namespace StingTools.Organise
 
             bool attach = result == TaskDialogResult.CommandLink1;
             int modified = 0;
+            int skipped = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Attach Leaders"))
             {
@@ -4350,6 +4556,22 @@ namespace StingTools.Organise
                     {
                         if (attach)
                         {
+                            // Validate: tag must have a host element to attach to
+                            var hostIds = tag.GetTaggedLocalElementIds();
+                            if (hostIds.Count == 0)
+                            {
+                                skipped++;
+                                StingLog.Warn($"Tag {tag.Id} has no host element — cannot attach leader.");
+                                continue;
+                            }
+                            // Verify host still exists
+                            Element host = doc.GetElement(hostIds.First());
+                            if (host == null)
+                            {
+                                skipped++;
+                                StingLog.Warn($"Tag {tag.Id} host element deleted — cannot attach leader.");
+                                continue;
+                            }
                             tag.LeaderEndCondition = LeaderEndCondition.Attached;
                         }
                         else
@@ -4360,6 +4582,7 @@ namespace StingTools.Organise
                     }
                     catch (Exception ex)
                     {
+                        skipped++;
                         StingLog.Warn($"Attach leader on tag {tag.Id}: {ex.Message}");
                     }
                 }
@@ -4367,8 +4590,9 @@ namespace StingTools.Organise
             }
 
             string action = attach ? "Attached (locked)" : "Set to Free";
+            string skipNote = skipped > 0 ? $"\n{skipped} skipped (no valid host element)." : "";
             TaskDialog.Show("Attach Leaders",
-                $"{action} {modified} of {tags.Count} leader endpoints.");
+                $"{action} {modified} of {tags.Count} leader endpoints.{skipNote}");
             return Result.Succeeded;
         }
     }

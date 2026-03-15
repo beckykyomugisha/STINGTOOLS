@@ -427,9 +427,7 @@ namespace StingTools.Tags
             // Export CSV
             try
             {
-                string dir = Path.GetDirectoryName(doc.PathName);
-                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
-                string csvPath = Path.Combine(dir, $"STING_PreTagAudit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_PreTagAudit", ".csv");
                 File.WriteAllText(csvPath, string.Join("\n", csvRows));
                 report2.AppendLine();
                 report2.AppendLine($"  CSV exported: {csvPath}");

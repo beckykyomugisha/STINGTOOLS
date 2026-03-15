@@ -598,6 +598,131 @@ namespace StingTools.BIMManager
         }
 
         // ═══════════════════════════════════════════════════════════
+        //  Tagging ↔ BIM Integration Helpers
+        // ═══════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Auto-register an exported file in the BIM document register.
+        /// Called after any STING export operation to maintain a complete document trail.
+        /// </summary>
+        internal static void AutoRegisterExport(Document doc, string filePath, string docType, string description)
+        {
+            try
+            {
+                string regPath = GetBIMManagerFilePath(doc, "document_register.json");
+                var register = LoadJsonArray(regPath);
+
+                string fileName = Path.GetFileName(filePath);
+                // Check for existing entry with same filename (avoid duplicates)
+                bool exists = register.Any(r => r["file_name"]?.ToString() == fileName);
+                if (exists) return;
+
+                string nextId = $"DOC-{(register.Count + 1):D4}";
+                var entry = new JObject
+                {
+                    ["document_id"] = nextId,
+                    ["file_name"] = fileName,
+                    ["file_path"] = filePath,
+                    ["document_type"] = docType,
+                    ["description"] = description,
+                    ["originator"] = Environment.UserName,
+                    ["date_created"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+                    ["suitability"] = "S0",
+                    ["revision"] = "P01",
+                    ["status"] = "WIP",
+                    ["source"] = "STING Auto-Export"
+                };
+
+                register.Add(entry);
+                SaveJsonFile(regPath, register);
+                StingLog.Info($"Auto-registered export: {nextId} — {fileName}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AutoRegisterExport: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Auto-raise BIM issues from tag compliance scan results.
+        /// Creates issues for untagged elements exceeding a threshold.
+        /// Called after batch tagging or validation operations.
+        /// </summary>
+        internal static int AutoRaiseComplianceIssues(Document doc)
+        {
+            try
+            {
+                var scanResult = ComplianceScan.Scan(doc);
+                if (scanResult == null || scanResult.RAGStatus == "GREEN") return 0;
+
+                string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
+                var issues = LoadJsonArray(issuesPath);
+                int raised = 0;
+
+                // Only auto-raise if significant non-compliance detected
+                if (scanResult.Untagged > 10)
+                {
+                    // Check if a similar open issue already exists
+                    bool alreadyRaised = issues.Any(i =>
+                        i["type"]?.ToString() == "NCR" &&
+                        i["status"]?.ToString() == "OPEN" &&
+                        (i["title"]?.ToString() ?? "").Contains("Untagged Elements"));
+
+                    if (!alreadyRaised)
+                    {
+                        string priority = scanResult.RAGStatus == "RED" ? "HIGH" : "MEDIUM";
+                        string nextId = GetNextIssueId(issues, "NCR");
+                        string title = $"Untagged Elements: {scanResult.Untagged} elements lack ISO 19650 tags";
+                        string desc = $"Compliance scan detected {scanResult.Untagged} untagged elements " +
+                            $"out of {scanResult.TotalElements} total ({scanResult.CompliancePercent:F1}% compliant).\n" +
+                            $"RAG status: {scanResult.RAGStatus}\n" +
+                            $"Top issues: {scanResult.TopIssues}";
+
+                        var issue = CreateIssue(nextId, "NCR", priority, title, desc,
+                            Environment.UserName, "", new List<ElementId>(), "");
+                        issues.Add(issue);
+                        raised++;
+                    }
+                }
+
+                // Raise issue for incomplete tags
+                if (scanResult.TaggedIncomplete > 20)
+                {
+                    bool alreadyRaised = issues.Any(i =>
+                        i["type"]?.ToString() == "NCR" &&
+                        i["status"]?.ToString() == "OPEN" &&
+                        (i["title"]?.ToString() ?? "").Contains("Incomplete Tags"));
+
+                    if (!alreadyRaised)
+                    {
+                        string nextId = GetNextIssueId(issues, "NCR");
+                        string title = $"Incomplete Tags: {scanResult.TaggedIncomplete} elements have partial tags";
+                        string desc = $"{scanResult.TaggedIncomplete} elements have incomplete ISO 19650 tags " +
+                            $"(missing segments). Run 'Validate Tags' for details.";
+
+                        var issue = CreateIssue(nextId, "NCR", "MEDIUM", title, desc,
+                            Environment.UserName, "", new List<ElementId>(), "");
+                        issues.Add(issue);
+                        raised++;
+                    }
+                }
+
+                if (raised > 0)
+                {
+                    SaveJsonFile(issuesPath, issues);
+                    StingLog.Info($"AutoRaiseComplianceIssues: raised {raised} new issues");
+                }
+
+                return raised;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AutoRaiseComplianceIssues: {ex.Message}");
+                return 0;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
         //  BEP Generation — TEMPLATE-DRIVEN (Pre-Contract)
         //  BEP is written BEFORE modelling starts. It defines the
         //  project's information management approach.
@@ -792,7 +917,7 @@ namespace StingTools.BIMManager
             var software = new JArray
             {
                 new JObject { ["platform"] = "Autodesk Revit 2025+", ["purpose"] = "BIM Authoring", ["version"] = "" },
-                new JObject { ["platform"] = "STING Tools", ["purpose"] = "ISO 19650 Asset Tagging & BIM Management", ["version"] = "v9.6" },
+                new JObject { ["platform"] = "StingTools", ["purpose"] = "ISO 19650 Asset Tagging & BIM Management", ["version"] = "V2.1" },
                 new JObject { ["platform"] = "Navisworks Manage", ["purpose"] = "Federated model review & clash detection", ["version"] = "" },
                 new JObject { ["platform"] = "IFC 4 / IFC 2x3", ["purpose"] = "Open BIM data exchange", ["version"] = "" }
             };
@@ -1028,7 +1153,7 @@ namespace StingTools.BIMManager
                 ["generated_by"] = "STING BIM Manager v2.0",
                 ["generated_date"] = now.ToString("yyyy-MM-dd HH:mm:ss"),
                 ["iso_standard"] = "BS EN ISO 19650-1:2018 / BS EN ISO 19650-2:2018",
-                ["sting_version"] = "v9.6",
+                ["sting_version"] = "V2.1",
                 ["bep_type"] = "pre_contract"
             };
 
@@ -1600,7 +1725,8 @@ namespace StingTools.BIMManager
                 ["response"] = "",
                 ["element_ids"] = new JArray(elementIds?.Select(id => id.Value.ToString()) ?? Enumerable.Empty<string>()),
                 ["view_name"] = viewName ?? "",
-                ["revision"] = "P01",
+                ["revision"] = "",  // GAP-007: populated by caller with actual current revision
+                ["resolved_in_revision"] = "",  // GAP-013: tracks which revision resolved this issue
                 ["comments"] = new JArray()
             };
         }
@@ -1874,9 +2000,20 @@ namespace StingTools.BIMManager
                     else if (t != null) typeName = t.Name;
                 }
 
-                // GAP-011: Map STING tag data to COBie Component fields
+                // Map STING tag data to COBie Component fields with full tag decomposition
                 string stingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 string assetId = !string.IsNullOrEmpty(stingTag) ? stingTag : tag;
+
+                // Decompose 8-segment tag into individual COBie-compatible fields
+                string tagDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                string tagLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                string tagZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                string tagLvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                string tagSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string tagFunc = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                string tagProd = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                string tagSeq = ParameterHelpers.GetString(el, ParamRegistry.SEQ);
+                string tagStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
 
                 // Build friendly name: prefer description or family:type, fall back to tag
                 string desc = ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT");
@@ -1884,25 +2021,67 @@ namespace StingTools.BIMManager
                     : !string.IsNullOrEmpty(typeName) ? typeName
                     : tag;
 
+                // Map DISC to COBie-compatible AssetType category
+                string assetType = tagDisc switch
+                {
+                    "M" => "Mechanical",
+                    "E" => "Electrical",
+                    "P" => "Plumbing",
+                    "A" => "Architectural",
+                    "S" => "Structural",
+                    "FP" => "Fire Protection",
+                    "LV" => "Low Voltage",
+                    "G" => "General",
+                    _ => "Fixed"
+                };
+
                 // Extract serial number, installation date, warranty start, barcode from STING parameters
                 string serialNumber = ParameterHelpers.GetString(el, "ASS_SERIAL_NUMBER_TXT");
                 string installDate = ParameterHelpers.GetString(el, "COM_INSTALL_DATE_TXT");
+                // Fallback: derive installation date from phase if STING param empty
+                if (string.IsNullOrEmpty(installDate))
+                {
+                    try
+                    {
+                        var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                        if (phaseParam != null)
+                        {
+                            var phase = doc.GetElement(phaseParam.AsElementId());
+                            if (phase != null) installDate = phase.Name;
+                        }
+                    }
+                    catch { }
+                }
                 string warrantyStart = ParameterHelpers.GetString(el, "COM_WARRANTY_START_TXT");
                 string barCode = ParameterHelpers.GetString(el, "ASS_BARCODE_TXT");
+
+                // Read TAG7 narrative for rich description
+                string tag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
 
                 components.Add(new Dictionary<string, string>
                 {
                     ["Name"] = friendlyName, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["TypeName"] = typeName, ["Space"] = roomName,
-                    ["Description"] = desc,
+                    ["Description"] = !string.IsNullOrEmpty(tag7) ? tag7 : desc,
                     ["ExternalSystem"] = "Revit", ["ExternalObject"] = cat,
                     ["ExternalIdentifier"] = el.UniqueId,
                     ["SerialNumber"] = serialNumber,
                     ["InstallationDate"] = installDate,
                     ["WarrantyStartDate"] = warrantyStart,
                     ["TagNumber"] = assetId,
-                    ["BarCode"] = barCode,
-                    ["AssetIdentifier"] = assetId
+                    ["BarCode"] = !string.IsNullOrEmpty(barCode) ? barCode : assetId,
+                    ["AssetIdentifier"] = assetId,
+                    ["Category"] = cat,
+                    ["AssetType"] = assetType,
+                    ["Discipline"] = tagDisc,
+                    ["Location"] = tagLoc,
+                    ["Zone"] = tagZone,
+                    ["Level"] = tagLvl,
+                    ["System"] = tagSys,
+                    ["Function"] = tagFunc,
+                    ["ProductCode"] = tagProd,
+                    ["SequenceNumber"] = tagSeq,
+                    ["Status"] = tagStatus
                 });
             }
             data["Component"] = components;
@@ -3068,16 +3247,104 @@ namespace StingTools.BIMManager
                 // Parameter binding count from ParamRegistry
                 enrichment["parameter_binding_count"] = ParamRegistry.AllParamGuids.Count;
 
-                // Reuse tag completeness already computed by UpdateBEPFromModel
-                double tagPct = md?["tag_completeness_pct"]?.Value<double>() ?? 0;
-                string ragStatus = md?["tag_rag_status"]?.ToString() ?? "RED";
-                int tagged = md?["tagged_elements"]?.Value<int>() ?? 0;
-                int untagged = md?["untagged_elements"]?.Value<int>() ?? 0;
+                // Tag completeness from ComplianceScan
+                var compliance = ComplianceScan.Scan(doc);
+                enrichment["tag_completeness_pct"] = Math.Round(compliance.CompliancePercent, 1);
+                enrichment["tag_rag_status"] = compliance.RAGStatus;
+                enrichment["tagged_elements"] = compliance.TaggedComplete;
+                enrichment["untagged_elements"] = compliance.Untagged;
+                enrichment["tagged_incomplete"] = compliance.TaggedIncomplete;
+                enrichment["fully_resolved"] = compliance.FullyResolved;
+                enrichment["strict_compliance_pct"] = Math.Round(compliance.StrictPercent, 1);
+                enrichment["top_issues"] = compliance.TopIssues;
 
-                enrichment["tag_completeness_pct"] = tagPct;
-                enrichment["tag_rag_status"] = ragStatus;
-                enrichment["tagged_elements"] = tagged;
-                enrichment["untagged_elements"] = untagged;
+                // Per-discipline tag breakdown
+                var discBreakdown = new JObject();
+                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType().ToList())
+                {
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (!knownCats.Contains(cat)) continue;
+                    string disc = TagConfig.DiscMap.ContainsKey(cat) ? TagConfig.DiscMap[cat] : "X";
+                    string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    bool complete = TagConfig.TagIsComplete(tag);
+                    bool resolved = TagConfig.TagIsFullyResolved(tag);
+
+                    var dEntry = discBreakdown[disc] as JObject ?? new JObject
+                        { ["total"] = 0, ["tagged"] = 0, ["resolved"] = 0 };
+                    dEntry["total"] = (dEntry["total"]?.Value<int>() ?? 0) + 1;
+                    if (complete) dEntry["tagged"] = (dEntry["tagged"]?.Value<int>() ?? 0) + 1;
+                    if (resolved) dEntry["resolved"] = (dEntry["resolved"]?.Value<int>() ?? 0) + 1;
+                    discBreakdown[disc] = dEntry;
+                }
+                enrichment["tag_breakdown_by_discipline"] = discBreakdown;
+
+                // Stage-gated compliance assessment
+                int ribaStage = 2;
+                string stageStr = updated["project_information"]?["project_stage"]?.ToString() ?? "";
+                if (stageStr.Length > 0 && char.IsDigit(stageStr[0]))
+                    int.TryParse(stageStr[0].ToString(), out ribaStage);
+
+                var stageCompliance = new JObject
+                {
+                    ["riba_stage"] = ribaStage,
+                    ["stage_name"] = BIMManagerEngine.RIBAStages.ContainsKey(ribaStage)
+                        ? BIMManagerEngine.RIBAStages[ribaStage] : $"Stage {ribaStage}"
+                };
+                switch (ribaStage)
+                {
+                    case 0: case 1: case 2:
+                        stageCompliance["requirement"] = "≥80% elements with DISC token";
+                        stageCompliance["max_suitability"] = compliance.CompliancePercent >= 80 ? "S3" : "S1";
+                        break;
+                    case 3:
+                        stageCompliance["requirement"] = "≥90% elements with DISC+LOC+ZONE+LVL";
+                        stageCompliance["max_suitability"] = compliance.CompliancePercent >= 90 ? "S4" : "S2";
+                        break;
+                    case 4:
+                        stageCompliance["requirement"] = "≥95% full 8-segment tags";
+                        stageCompliance["max_suitability"] = compliance.CompliancePercent >= 95 ? "S4" : "S3";
+                        break;
+                    default:
+                        stageCompliance["requirement"] = "≥98% fully resolved tags (no placeholders)";
+                        stageCompliance["max_suitability"] = compliance.StrictPercent >= 98 ? "S6" : "S4";
+                        break;
+                }
+                enrichment["stage_compliance"] = stageCompliance;
+
+                // Cross-validate actual tags against BEP allowed codes
+                var allowedCodes = updated["allowed_codes"] as JObject;
+                if (allowedCodes != null)
+                {
+                    var violations = new JArray();
+                    var allowedDisc = new HashSet<string>();
+                    var allowedSys = new HashSet<string>();
+                    if (allowedCodes["allowed_disc"] is JArray ad)
+                        foreach (var d in ad) allowedDisc.Add(d.ToString());
+                    if (allowedCodes["allowed_sys"] is JArray asys)
+                        foreach (var s in asys) allowedSys.Add(s.ToString());
+
+                    if (allowedDisc.Count > 0 || allowedSys.Count > 0)
+                    {
+                        int discViolations = 0, sysViolations = 0;
+                        foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                        {
+                            string cat = ParameterHelpers.GetCategoryName(el);
+                            if (!knownCats.Contains(cat)) continue;
+                            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                            if (allowedDisc.Count > 0 && !string.IsNullOrEmpty(disc) && !allowedDisc.Contains(disc))
+                                discViolations++;
+                            if (allowedSys.Count > 0 && !string.IsNullOrEmpty(sys) && !allowedSys.Contains(sys))
+                                sysViolations++;
+                        }
+                        if (discViolations > 0)
+                            violations.Add($"{discViolations} elements use DISC codes not in BEP allowed list");
+                        if (sysViolations > 0)
+                            violations.Add($"{sysViolations} elements use SYS codes not in BEP allowed list");
+                    }
+                    enrichment["bep_code_violations"] = violations;
+                    enrichment["bep_codes_compliant"] = violations.Count == 0;
+                }
 
                 updated["auto_enrichment"] = enrichment;
                 if (md != null)
@@ -3427,6 +3694,9 @@ namespace StingTools.BIMManager
             var issue = BIMManagerEngine.CreateIssue(nextId, issueType, priority,
                 autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name);
 
+            // GAP-007 fix: Link issue to current project revision
+            try { issue["revision"] = RevisionEngine.GetCurrentProjectRevision(doc); } catch { }
+
             issues.Add(issue);
             BIMManagerEngine.SaveJsonFile(issuesPath, issues);
 
@@ -3657,9 +3927,10 @@ namespace StingTools.BIMManager
             {
                 BIMManagerEngine.SaveJsonFile(issuesPath, issues);
 
-                // GAP-016: When issues are closed/accepted, check if linked elements are tagged
+                // Validate closed/accepted issues: check linked elements are tagged and compliant
                 var closeReport = new StringBuilder();
                 closeReport.AppendLine($"{updated} issue(s) updated.");
+                int issuesWithWarnings = 0;
                 foreach (var issue in issues.Where(i =>
                 {
                     string s = i["status"]?.ToString() ?? "";
@@ -3670,18 +3941,58 @@ namespace StingTools.BIMManager
                     if (ids != null && ids.Count > 0)
                     {
                         int untagged = 0;
+                        int incomplete = 0;
+                        int missingElements = 0;
                         foreach (var id in ids)
                         {
                             if (long.TryParse(id.ToString(), out long idVal))
                             {
                                 Element el = doc.GetElement(new ElementId(idVal));
-                                if (el != null && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.TAG1)))
+                                if (el == null || !el.IsValidObject)
+                                {
+                                    missingElements++;
+                                    continue;
+                                }
+                                string elTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                if (string.IsNullOrEmpty(elTag))
                                     untagged++;
+                                else if (!TagConfig.TagIsComplete(elTag))
+                                    incomplete++;
                             }
                         }
+                        bool hasWarning = false;
                         if (untagged > 0)
-                            closeReport.AppendLine($"  \u26a0 {issue["issue_id"]}: {untagged} linked element(s) still untagged");
+                        {
+                            closeReport.AppendLine($"  WARNING {issue["issue_id"]}: {untagged} linked element(s) still untagged");
+                            hasWarning = true;
+                        }
+                        if (incomplete > 0)
+                        {
+                            closeReport.AppendLine($"  WARNING {issue["issue_id"]}: {incomplete} linked element(s) have incomplete tags");
+                            hasWarning = true;
+                        }
+                        if (missingElements > 0)
+                        {
+                            closeReport.AppendLine($"  INFO {issue["issue_id"]}: {missingElements} linked element(s) no longer exist in model");
+                            hasWarning = true;
+                        }
+                        if (hasWarning) issuesWithWarnings++;
                     }
+                }
+
+                if (issuesWithWarnings > 0)
+                {
+                    closeReport.AppendLine();
+                    closeReport.AppendLine($"{issuesWithWarnings} closed issue(s) have compliance warnings.");
+                    closeReport.AppendLine("Consider re-opening or running 'Batch Tag' to resolve.");
+                }
+
+                // Add overall compliance context
+                var compResult = ComplianceScan.Scan(doc);
+                if (compResult != null)
+                {
+                    closeReport.AppendLine();
+                    closeReport.AppendLine($"Model compliance: {compResult.StatusBarText}");
                 }
 
                 TaskDialog.Show("STING Issue Tracker", closeReport.ToString());
@@ -5995,10 +6306,7 @@ namespace StingTools.BIMManager
                 return Result.Succeeded;
             }
 
-            string dir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName)
-                : Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            string path = Path.Combine(dir, $"STING_StickyNotes_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_StickyNotes", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("ElementId,Category,Family,Tag,Note,Date");
@@ -6091,20 +6399,101 @@ namespace StingTools.BIMManager
             int tagScore = (int)(compScan.CompliancePercent / 10.0);
             checks.Add(("Tag Completeness", tagScore, 10, $"{compScan.CompliancePercent:F0}% complete"));
 
-            // 9. Room coverage
+            // 8b. Revision health — are REV parameters populated and valid?
+            int revScore = 0;
+            string revDetail = "No REV data";
+            try
+            {
+                if (compScan.RevisionPercent > 0)
+                {
+                    revScore = (int)(compScan.RevisionPercent / 10.0);
+                    revDetail = $"{compScan.RevisionPercent:F0}% elements have valid REV";
+                }
+                else
+                {
+                    // Check if revisions exist in the model at all
+                    int revCount = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Revision)).GetElementCount();
+                    if (revCount > 0)
+                    {
+                        revScore = 5;
+                        revDetail = $"{revCount} revisions defined, REV params not yet populated";
+                    }
+                    else
+                    {
+                        revScore = 0;
+                        revDetail = "No revisions defined — run 'Create Revision' from BIM tab";
+                    }
+                }
+            }
+            catch { revDetail = "Could not check REV status"; }
+            checks.Add(("Revision Status", revScore, 10, revDetail));
+
+            // 9. Room coverage (ratio-based: expect at least 3 rooms per level for a meaningful model)
             int rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
                 .WhereElementIsNotElementType().GetElementCount();
             int levels = new FilteredElementCollector(doc)
                 .OfClass(typeof(Level)).GetElementCount();
-            int roomScore = rooms > 0 && levels > 0 ? Math.Min(10, rooms / levels) : 0;
-            checks.Add(("Room Coverage", roomScore, 10, $"{rooms} rooms across {levels} levels"));
+            int roomScore;
+            if (rooms == 0 || levels == 0)
+                roomScore = 0;
+            else
+            {
+                double ratio = (double)rooms / levels;
+                roomScore = ratio >= 5 ? 10 : ratio >= 3 ? 8 : ratio >= 1 ? 5 : 2;
+            }
+            checks.Add(("Room Coverage", roomScore, 10, $"{rooms} rooms across {levels} levels ({(levels > 0 ? ((double)rooms / levels).ToString("F1") : "0")} avg/level)"));
 
             // 10. Sheet coverage
             int sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet)).GetElementCount();
-            int sheetScore = sheets > 0 ? 10 : 0;
+            int sheetScore = sheets >= 10 ? 10 : sheets > 0 ? 7 : 0;
             checks.Add(("Sheet Setup", sheetScore, 10, $"{sheets} sheets"));
+
+            // 11. Workset health (workshared models only)
+            int worksetScore = 10;
+            string worksetDetail = "Not workshared";
+            if (doc.IsWorkshared)
+            {
+                var worksets = new FilteredWorksetCollector(doc)
+                    .OfKind(WorksetKind.UserWorkset).ToWorksets();
+                int wsCount = worksets.Count;
+                int openWs = worksets.Count(w => w.IsOpen);
+                worksetScore = wsCount >= 3 && wsCount <= 30 ? 10 : wsCount > 30 ? 5 : wsCount > 0 ? 7 : 3;
+                worksetDetail = $"{wsCount} worksets ({openWs} open)";
+            }
+            checks.Add(("Workset Health", worksetScore, 10, worksetDetail));
+
+            // 12. Parameter completeness (are STING shared params bound?)
+            int paramScore = 0;
+            int boundParams = 0;
+            try
+            {
+                var testCats = new[] { BuiltInCategory.OST_MechanicalEquipment, BuiltInCategory.OST_ElectricalEquipment,
+                    BuiltInCategory.OST_LightingFixtures, BuiltInCategory.OST_PlumbingFixtures };
+                foreach (var testCat in testCats)
+                {
+                    var testEl = new FilteredElementCollector(doc)
+                        .OfCategory(testCat).WhereElementIsNotElementType().FirstElement();
+                    if (testEl != null)
+                    {
+                        if (testEl.LookupParameter(ParamRegistry.DISC) != null) boundParams++;
+                        if (testEl.LookupParameter(ParamRegistry.TAG1) != null) boundParams++;
+                        if (testEl.LookupParameter(ParamRegistry.SYS) != null) boundParams++;
+                        break;
+                    }
+                }
+                paramScore = boundParams >= 3 ? 10 : boundParams >= 1 ? 5 : 0;
+            }
+            catch { paramScore = 0; }
+            checks.Add(("Parameter Binding", paramScore, 10, $"{boundParams}/3 key STING parameters bound"));
+
+            // 13. File size estimation via element count (proxy for model bloat)
+            int totalElements = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType().GetElementCount();
+            int elemScore = totalElements < 50000 ? 10 : totalElements < 200000 ? 7 : totalElements < 500000 ? 4 : 1;
+            checks.Add(("Model Size", elemScore, 10, $"{totalElements:N0} total element instances"));
 
             int totalScore = checks.Sum(c => c.score);
             int maxTotal = checks.Sum(c => c.maxScore);
@@ -6113,7 +6502,7 @@ namespace StingTools.BIMManager
 
             var summary = new StringBuilder();
             foreach (var c in checks)
-                summary.AppendLine($"  [{c.score}/{c.maxScore}] {c.name}: {c.detail}");
+                summary.AppendLine($"  [{c.score,2}/{c.maxScore}] {c.name}: {c.detail}");
 
             var details = new StringBuilder();
             details.AppendLine("Recommendations:");
@@ -6121,6 +6510,12 @@ namespace StingTools.BIMManager
             if (inPlace > 5) details.AppendLine("  • Convert in-place families to loadable families");
             if (imports > 0) details.AppendLine("  • Remove or link CAD imports instead of importing");
             if (unplacedViews > 50) details.AppendLine("  • Delete unplaced views to reduce model size");
+            if (rooms == 0) details.AppendLine("  • Add rooms for spatial context and tag LOC/ZONE detection");
+            if (paramScore < 10) details.AppendLine("  • Run 'Load Params' to bind STING shared parameters");
+            if (tagScore < 5) details.AppendLine("  • Run 'Batch Tag' or 'Tag & Combine' to improve tag coverage");
+            if (revScore < 5) details.AppendLine("  • Create revisions and run 'Auto Revision on Tag Change' for revision tracking");
+            if (totalElements > 200000) details.AppendLine("  • Consider model splitting to reduce element count");
+            if (doc.IsWorkshared && worksetScore < 7) details.AppendLine("  • Organize worksets (aim for 3-30 user worksets)");
 
             return new HealthReport
             {
@@ -6133,17 +6528,45 @@ namespace StingTools.BIMManager
 
         public static string ExportReport(Document doc, HealthReport report)
         {
-            string dir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName)
-                : Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            string path = Path.Combine(dir, $"STING_ModelHealth_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_ModelHealth", ".csv");
 
             var sb = new StringBuilder();
-            sb.AppendLine("Metric,Value");
-            sb.AppendLine($"\"Overall Score\",\"{report.OverallScore}\"");
-            sb.AppendLine($"\"Rating\",\"{report.Rating}\"");
-            sb.AppendLine($"\"Date\",\"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\"");
-            sb.AppendLine($"\"Summary\",\"{report.Summary.Replace("\"", "\"\"")}\"");
+            sb.AppendLine("Metric,Score,MaxScore,Details");
+            sb.AppendLine($"\"Overall Score\",\"{report.OverallScore}\",\"100\",\"{report.Rating}\"");
+            sb.AppendLine($"\"Date\",\"\",\"\",\"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\"");
+            sb.AppendLine($"\"Project\",\"\",\"\",\"{doc.ProjectInformation?.Name ?? doc.Title}\"");
+            sb.AppendLine();
+
+            // Parse summary lines into structured CSV rows
+            foreach (string line in report.Summary.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed)) continue;
+                // Format: [score/max] Name: detail
+                int bracketEnd = trimmed.IndexOf(']');
+                if (bracketEnd > 0 && bracketEnd + 2 < trimmed.Length)
+                {
+                    string scoreStr = trimmed.Substring(1, bracketEnd - 1); // "score/max"
+                    string rest = trimmed.Substring(bracketEnd + 2);
+                    int colonIdx = rest.IndexOf(':');
+                    if (colonIdx > 0)
+                    {
+                        string metricName = rest.Substring(0, colonIdx).Trim();
+                        string detail = rest.Substring(colonIdx + 1).Trim();
+                        string[] scoreParts = scoreStr.Split('/');
+                        sb.AppendLine($"\"{metricName}\",\"{scoreParts[0].Trim()}\",\"{(scoreParts.Length > 1 ? scoreParts[1].Trim() : "10")}\",\"{detail.Replace("\"", "\"\"")}\"");
+                    }
+                }
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"\"Recommendations\",\"\",\"\",\"\"");
+            foreach (string line in report.Details.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed) || trimmed == "Recommendations:") continue;
+                sb.AppendLine($"\"\",\"\",\"\",\"{trimmed.TrimStart('•', ' ').Replace("\"", "\"\"")}\"");
+            }
 
             File.WriteAllText(path, sb.ToString());
             return path;
@@ -6277,10 +6700,7 @@ namespace StingTools.BIMManager
     {
         public static string Export4DTimeline(Document doc)
         {
-            string dir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName)
-                : Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            string path = Path.Combine(dir, $"STING_4D_Timeline_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_4D_Timeline", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("ElementId,Category,Tag,Phase,Level,Discipline,StartDate,EndDate,Predecessors,Duration_Days");
@@ -6335,10 +6755,7 @@ namespace StingTools.BIMManager
 
         public static string Export5DCostData(Document doc)
         {
-            string dir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName)
-                : Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            string path = Path.Combine(dir, $"STING_5D_CostData_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_5D_CostData", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("ElementId,Category,Tag,Discipline,Family,Type,Quantity,Unit,EstimatedCost_GBP");
@@ -6381,10 +6798,7 @@ namespace StingTools.BIMManager
 
         public static string ExportMeasuredQuantities(Document doc)
         {
-            string dir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName)
-                : Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            string path = Path.Combine(dir, $"STING_MeasuredQty_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_MeasuredQty", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("Category,Discipline,Count,TotalLength_m,TotalArea_m2,TotalVolume_m3");
@@ -6482,5 +6896,213 @@ namespace StingTools.BIMManager
     }
 
     #endregion
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  SET OUTPUT DIRECTORY — user-preferred save location for all STING exports
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Set the preferred output directory for all STING export operations.
+    /// All CSV, XLSX, HTML, and JSON exports will save to this location.
+    /// The setting is persisted to project_config.json.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public class SetOutputDirectoryCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            // Show current setting
+            string current = OutputLocationHelper.PreferredDirectory;
+            string currentDisplay = string.IsNullOrEmpty(current) ? "(not set — using project directory)" : current;
+
+            TaskDialog dlg = new TaskDialog("Set Output Directory");
+            dlg.MainInstruction = "Choose where all STING exports are saved";
+            dlg.MainContent =
+                $"Current setting: {currentDisplay}\n\n" +
+                "All CSV, XLSX, HTML, and JSON exports will be saved to your chosen location.\n" +
+                "This setting is saved to project_config.json.";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Choose a folder...",
+                "Browse to select your preferred export directory");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Use project directory",
+                "Save exports alongside the .rvt file (in STING_Exports subfolder)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Use Desktop",
+                "Save exports to the Desktop folder");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            TaskDialogResult result = dlg.Show();
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1:
+                    string chosen = OutputLocationHelper.PromptSetPreferredDirectory();
+                    if (chosen != null)
+                        TaskDialog.Show("Output Directory", $"All exports will now save to:\n{chosen}");
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    OutputLocationHelper.PreferredDirectory = null; // clear = use project dir
+                    OutputLocationHelper.SaveToConfig();
+                    TaskDialog.Show("Output Directory", "Exports will save alongside the project file.");
+                    break;
+                case TaskDialogResult.CommandLink3:
+                    string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                    OutputLocationHelper.PreferredDirectory = desktop;
+                    OutputLocationHelper.SaveToConfig();
+                    TaskDialog.Show("Output Directory", $"All exports will now save to:\n{desktop}");
+                    break;
+                default:
+                    return Result.Cancelled;
+            }
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  STAGE-GATED COMPLIANCE — enforces tag completeness per RIBA stage
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validate that current tag completeness meets the minimum requirements
+    /// for the project's RIBA stage. Enforces stage-gated compliance:
+    ///   Stage 0-2: Minimum DISC token (auto-filled from category)
+    ///   Stage 3:   DISC + LOC + ZONE + LVL mandatory (≥90%)
+    ///   Stage 4:   Full 8-segment tags mandatory (≥95%)
+    ///   Stage 5+:  100% complete + fully resolved (no XX/ZZ/0000 placeholders)
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public class StageComplianceGateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // Determine current RIBA stage from BEP or project info
+            int ribaStage = DetectRIBAStage(doc);
+            var scan = ComplianceScan.Scan(doc, forceRefresh: true);
+
+            // Calculate stage-specific metrics
+            int totalTaggable = scan.TotalElements;
+            if (totalTaggable == 0)
+            {
+                TaskDialog.Show("Stage Compliance", "No taggable elements found.");
+                return Result.Succeeded;
+            }
+
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            int hasDisc = 0, hasSpatial = 0, hasComplete = 0, fullyResolved = 0;
+
+            var allElements = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            foreach (Element elem in allElements)
+            {
+                if (elem?.Category == null || !known.Contains(elem.Category.Name)) continue;
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
+                string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+
+                if (!string.IsNullOrEmpty(disc)) hasDisc++;
+                if (!string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(loc) &&
+                    !string.IsNullOrEmpty(zone) && !string.IsNullOrEmpty(lvl))
+                    hasSpatial++;
+                if (TagConfig.TagIsComplete(tag)) hasComplete++;
+                if (TagConfig.TagIsFullyResolved(tag)) fullyResolved++;
+            }
+
+            double discPct = totalTaggable > 0 ? hasDisc * 100.0 / totalTaggable : 0;
+            double spatialPct = totalTaggable > 0 ? hasSpatial * 100.0 / totalTaggable : 0;
+            double completePct = totalTaggable > 0 ? hasComplete * 100.0 / totalTaggable : 0;
+            double resolvedPct = totalTaggable > 0 ? fullyResolved * 100.0 / totalTaggable : 0;
+
+            // Determine pass/fail per stage
+            string stageName = BIMManagerEngine.RIBAStages.ContainsKey(ribaStage)
+                ? BIMManagerEngine.RIBAStages[ribaStage] : $"Stage {ribaStage}";
+
+            bool passed;
+            string requirement;
+            string suitabilityMax;
+            switch (ribaStage)
+            {
+                case 0: case 1: case 2:
+                    passed = discPct >= 80;
+                    requirement = $"Stage {ribaStage} ({stageName}): ≥80% elements need DISC token";
+                    suitabilityMax = passed ? "S3" : "S1";
+                    break;
+                case 3:
+                    passed = spatialPct >= 90;
+                    requirement = $"Stage 3 ({stageName}): ≥90% elements need DISC+LOC+ZONE+LVL";
+                    suitabilityMax = passed ? "S4" : "S2";
+                    break;
+                case 4:
+                    passed = completePct >= 95;
+                    requirement = $"Stage 4 ({stageName}): ≥95% elements need full 8-segment tags";
+                    suitabilityMax = passed ? "S4" : "S3";
+                    break;
+                default: // Stage 5-7
+                    passed = resolvedPct >= 98;
+                    requirement = $"Stage {ribaStage} ({stageName}): ≥98% elements fully resolved (no placeholders)";
+                    suitabilityMax = passed ? "S6" : "S4";
+                    break;
+            }
+
+            var report = new System.Text.StringBuilder();
+            report.AppendLine($"RIBA Stage: {ribaStage} — {stageName}");
+            report.AppendLine($"Result: {(passed ? "PASSED ✓" : "FAILED ✗")}");
+            report.AppendLine();
+            report.AppendLine($"Requirement: {requirement}");
+            report.AppendLine($"Maximum suitability code: {suitabilityMax}");
+            report.AppendLine();
+            report.AppendLine($"── Tag Metrics ({totalTaggable} elements) ──");
+            report.AppendLine($"  DISC populated:     {hasDisc,5} ({discPct:F1}%)");
+            report.AppendLine($"  Spatial (D+L+Z+V):  {hasSpatial,5} ({spatialPct:F1}%)");
+            report.AppendLine($"  Complete tags:       {hasComplete,5} ({completePct:F1}%)");
+            report.AppendLine($"  Fully resolved:      {fullyResolved,5} ({resolvedPct:F1}%)");
+            report.AppendLine();
+            report.AppendLine($"── RAG Status: {scan.RAGStatus} ({scan.CompliancePercent:F0}%) ──");
+            report.AppendLine($"  {scan.TopIssues}");
+
+            TaskDialog td = new TaskDialog("Stage Compliance Gate");
+            td.MainInstruction = passed
+                ? $"PASSED — Stage {ribaStage} compliance met"
+                : $"FAILED — Stage {ribaStage} requirements not met";
+            td.MainContent = report.ToString();
+            td.Show();
+
+            return Result.Succeeded;
+        }
+
+        private static int DetectRIBAStage(Document doc)
+        {
+            // Try to read from BEP file
+            try
+            {
+                string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+                string bepPath = Path.Combine(bimDir, "BEP.json");
+                if (File.Exists(bepPath))
+                {
+                    string json = File.ReadAllText(bepPath);
+                    var bep = Newtonsoft.Json.Linq.JObject.Parse(json);
+                    string stageStr = bep["project_information"]?["project_stage"]?.ToString() ?? "";
+                    if (stageStr.Length > 0 && char.IsDigit(stageStr[0]))
+                        return int.Parse(stageStr[0].ToString());
+                }
+            }
+            catch { }
+
+            // Fallback: infer from project phases
+            var phases = new FilteredElementCollector(doc)
+                .OfClass(typeof(Phase)).Cast<Phase>().ToList();
+            if (phases.Any(p => p.Name.Contains("Construction") || p.Name.Contains("Stage 5"))) return 5;
+            if (phases.Any(p => p.Name.Contains("Technical") || p.Name.Contains("Stage 4"))) return 4;
+            if (phases.Any(p => p.Name.Contains("Coordination") || p.Name.Contains("Stage 3"))) return 3;
+            return 2; // Default to concept design
+        }
+    }
 
 }

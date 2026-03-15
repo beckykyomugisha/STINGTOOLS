@@ -89,6 +89,11 @@ namespace StingTools.UI
                     case "SelectAllTaggable": RunCommand<Select.SelectAllTaggableCommand>(app); break;
                     case "SelectCustomCategory": RunCommand<Select.SelectCustomCategoryCommand>(app); break;
 
+                    // ── Selection scope ──
+                    case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
+                    case "SetScopeProject": Select.SelectionScopeHelper.SetScope(true); TaskDialog.Show("Scope", "Selection scope: WHOLE PROJECT"); break;
+                    case "SetSelectionScope": RunCommand<Select.SetSelectionScopeCommand>(app); break;
+
                     // ── State selectors ──
                     case "SelectUntagged": RunCommand<Select.SelectUntaggedCommand>(app); break;
                     case "SelectTagged": RunCommand<Select.SelectTaggedCommand>(app); break;
@@ -464,6 +469,7 @@ namespace StingTools.UI
                     case "ClashDetect": RunCommand<Temp.ClashDetectionCommand>(app); break;
                     case "IFCExport": RunCommand<Temp.IFCExportCommand>(app); break;
                     case "ExcelImport": RunCommand<Temp.ExcelBOQImportCommand>(app); break;
+                    case "ExcelBOQImport": RunCommand<Temp.ExcelBOQImportCommand>(app); break;
                     case "KeynoteSync": RunCommand<Temp.KeynoteSyncCommand>(app); break;
                     case "ExcelToDraftingView": RunCommand<Temp.ExcelToDraftingViewCommand>(app); break;
                     case "ScheduleToExcel": RunCommand<Temp.ScheduleToExcelCommand>(app); break;
@@ -542,7 +548,7 @@ namespace StingTools.UI
                     case "CondClear": ConditionClear(app); break;
                     case "CondPreview": ConditionPreview(app); break;
                     case "CondApply": ConditionApply(app); break;
-                    case "ShowHelp": TaskDialog.Show("STING Tools", "STING Tags v9.6\nISO 19650 BIM Asset Tagging\nhttps://stingbim.com"); break;
+                    case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://stingbim.com"); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)
@@ -859,10 +865,50 @@ namespace StingTools.UI
                     case "MilestoneRegister": RunCommand<BIMManager.MilestoneRegisterCommand>(app); break;
                     case "WorkingCalendar": RunCommand<BIMManager.WorkingCalendarCommand>(app); break;
 
+                    // Output & Compliance
+                    case "SetOutputDirectory": RunCommand<BIMManager.SetOutputDirectoryCommand>(app); break;
+                    case "StageComplianceGate": RunCommand<BIMManager.StageComplianceGateCommand>(app); break;
+
+                    // Excel Link — Bidirectional (6 commands)
+                    case "ExportToExcel": RunCommand<BIMManager.ExportToExcelCommand>(app); break;
+                    case "ImportFromExcel": RunCommand<BIMManager.ImportFromExcelCommand>(app); break;
+                    case "ExcelRoundTrip": RunCommand<BIMManager.ExcelRoundTripCommand>(app); break;
+                    case "ExportSchedulesToExcel": RunCommand<BIMManager.ExportSchedulesToExcelCommand>(app); break;
+                    case "ImportSchedulesFromExcel": RunCommand<BIMManager.ImportSchedulesFromExcelCommand>(app); break;
+                    case "ExportExcelTemplate": RunCommand<BIMManager.ExportTemplateCommand>(app); break;
+
+                    // Platform Integration (12 commands)
+                    case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
+                    case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
+                    case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
+                    case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
+                    case "SharePointExport": RunCommand<BIMManager.SharePointExportCommand>(app); break;
+                    case "ProcorePackage": RunCommand<BIMManager.ProcorePackageCommand>(app); break;
+                    case "TrimbleExport": RunCommand<BIMManager.TrimbleConnectExportCommand>(app); break;
+                    case "AconexPackage": RunCommand<BIMManager.AconexPackageCommand>(app); break;
+                    case "ProjectWiseExport": RunCommand<BIMManager.ProjectWiseExportCommand>(app); break;
+                    case "PlatformDashboard": RunCommand<BIMManager.PlatformDashboardCommand>(app); break;
+                    case "WebhookPayload": RunCommand<BIMManager.WebhookPayloadCommand>(app); break;
+
+                    // Revision Management (12 commands)
+                    case "CreateRevision": RunCommand<BIMManager.CreateRevisionCommand>(app); break;
+                    case "RevisionDashboard": RunCommand<BIMManager.RevisionDashboardCommand>(app); break;
+                    case "AutoRevisionCloud": RunCommand<BIMManager.AutoRevisionCloudCommand>(app); break;
+                    case "RevisionSchedule": RunCommand<BIMManager.RevisionScheduleCommand>(app); break;
+                    case "TrackElementRevisions": RunCommand<BIMManager.TrackElementRevisionsCommand>(app); break;
+                    case "RevisionCompare": RunCommand<BIMManager.RevisionCompareCommand>(app); break;
+                    case "IssueSheetsForRevision": RunCommand<BIMManager.IssueSheetsForRevisionCommand>(app); break;
+                    case "RevisionNamingEnforce": RunCommand<BIMManager.RevisionNamingEnforceCommand>(app); break;
+                    case "RevisionTagIntegration": RunCommand<BIMManager.RevisionTagIntegrationCommand>(app); break;
+                    case "RevisionExport": RunCommand<BIMManager.RevisionExportCommand>(app); break;
+                    case "BulkRevisionStamp": RunCommand<BIMManager.BulkRevisionStampCommand>(app); break;
+                    case "AutoRevisionOnTagChange": RunCommand<BIMManager.AutoRevisionOnTagChangeCommand>(app); break;
+
                     // ── Unmapped / placeholder ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
-                        TaskDialog.Show("STING Tools",
+                        TaskDialog.Show("StingTools",
                             $"Command '{tag}' is not yet available.\nCheck for plugin updates.");
                         break;
                 }
@@ -874,7 +920,7 @@ namespace StingTools.UI
             catch (Exception ex)
             {
                 StingLog.Error($"DockPanel command '{tag}' failed", ex);
-                TaskDialog.Show("STING Tools", $"Command failed: {ex.Message}");
+                TaskDialog.Show("StingTools", $"Command failed: {ex.Message}");
             }
             finally
             {

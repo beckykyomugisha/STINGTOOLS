@@ -29,6 +29,12 @@ namespace StingTools.Core
             public int TaggedIncomplete { get; set; }
             public int Untagged { get; set; }
             public int FullyResolved { get; set; }
+            /// <summary>GAP-006 fix: Elements with REV parameter populated.</summary>
+            public int RevisionComplete { get; set; }
+            /// <summary>GAP-006 fix: Elements with empty REV parameter.</summary>
+            public int RevisionMissing { get; set; }
+            /// <summary>GAP-006 fix: Distribution of REV values across elements.</summary>
+            public Dictionary<string, int> RevisionDistribution { get; set; } = new Dictionary<string, int>();
             public Dictionary<string, int> IssuesByType { get; set; } = new Dictionary<string, int>();
             public DateTime ScanTime { get; set; }
 
@@ -38,21 +44,28 @@ namespace StingTools.Core
             public double StrictPercent =>
                 TotalElements > 0 ? FullyResolved * 100.0 / TotalElements : 0;
 
-            /// <summary>RAG status: Red (&lt;50%), Amber (50-80%), Green (&gt;80%)</summary>
+            /// <summary>GAP-006 fix: Percentage of elements with REV populated.</summary>
+            public double RevisionPercent =>
+                TotalElements > 0 ? RevisionComplete * 100.0 / TotalElements : 0;
+
+            /// <summary>RAG status: factors in both tagging AND revision completeness.</summary>
             public string RAGStatus
             {
                 get
                 {
-                    double pct = CompliancePercent;
-                    if (pct >= 80) return "GREEN";
-                    if (pct >= 50) return "AMBER";
+                    double tagPct = CompliancePercent;
+                    double revPct = RevisionPercent;
+                    // Weighted: 70% tag compliance + 30% revision compliance
+                    double combined = (tagPct * 0.7) + (revPct * 0.3);
+                    if (combined >= 80) return "GREEN";
+                    if (combined >= 50) return "AMBER";
                     return "RED";
                 }
             }
 
-            /// <summary>Short summary for status bar display.</summary>
+            /// <summary>Short summary for status bar display — includes revision status.</summary>
             public string StatusBarText =>
-                $"{RAGStatus} {CompliancePercent:F0}% | {TaggedComplete}/{TotalElements} tagged | {Untagged} untagged";
+                $"{RAGStatus} {CompliancePercent:F0}% tagged | {RevisionPercent:F0}% REV | {Untagged} untagged";
 
             /// <summary>Top 5 issues for dashboard display.</summary>
             public string TopIssues
@@ -116,12 +129,16 @@ namespace StingTools.Core
                     else if (TagConfig.TagIsComplete(tag))
                     {
                         result.TaggedComplete++;
-                        // Has placeholders — check which tokens
-                        string[] parts = tag.Split(ParamRegistry.Separator[0]);
+                        // Has placeholders — check which tokens are default/placeholder
+                        string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
                         if (parts.Length >= 8)
                         {
                             if (parts[1] == "XX") AddIssue(result, "Missing LOC");
                             if (parts[2] == "XX" || parts[2] == "ZZ") AddIssue(result, "Missing ZONE");
+                            if (parts[3] == "XX") AddIssue(result, "Missing LVL");
+                            if (parts[4] == "GEN") AddIssue(result, "Generic SYS");
+                            if (parts[5] == "GEN") AddIssue(result, "Generic FUNC");
+                            if (parts[6] == "GEN") AddIssue(result, "Generic PROD");
                             if (parts[7] == "0000") AddIssue(result, "SEQ=0000");
                         }
                     }
@@ -129,6 +146,21 @@ namespace StingTools.Core
                     {
                         result.TaggedIncomplete++;
                         AddIssue(result, "Incomplete tag");
+                    }
+
+                    // GAP-006 fix: Track revision completeness
+                    string rev = ParameterHelpers.GetString(elem, ParamRegistry.REV);
+                    if (!string.IsNullOrEmpty(rev))
+                    {
+                        result.RevisionComplete++;
+                        if (!result.RevisionDistribution.ContainsKey(rev))
+                            result.RevisionDistribution[rev] = 0;
+                        result.RevisionDistribution[rev]++;
+                    }
+                    else
+                    {
+                        result.RevisionMissing++;
+                        AddIssue(result, "Missing REV");
                     }
                 }
             }

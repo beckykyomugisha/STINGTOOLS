@@ -570,9 +570,18 @@ namespace StingTools.Temp
             }
 
             StingLog.Info($"{dialogTitle}: {rows.Count} materials to create in batches of {MaterialBatchSize} (skipping {skipped} existing)");
+            bool cancelled = false;
 
             for (int batchStart = 0; batchStart < rows.Count; batchStart += MaterialBatchSize)
             {
+                // Cancellation check between batches
+                if (EscapeChecker.IsEscapePressed())
+                {
+                    cancelled = true;
+                    StingLog.Info($"{dialogTitle}: cancelled by user at batch {(batchStart / MaterialBatchSize) + 1}");
+                    break;
+                }
+
                 int batchEnd = Math.Min(batchStart + MaterialBatchSize, rows.Count);
                 int batchNum = (batchStart / MaterialBatchSize) + 1;
 
@@ -631,6 +640,7 @@ namespace StingTools.Temp
                 $"  Duplicated from base: {duplicated}\n" +
                 $"  Created blank: {created - duplicated}\n" +
                 $"Skipped {skipped} (already exist).\n" +
+                (cancelled ? "CANCELLED by user (Escape key). Materials created so far are kept.\n" : "") +
                 (batchErrors > 0 ? $"Batch errors: {batchErrors}\n" : "") +
                 $"Source: {Path.GetFileName(csvPath)} ({lines.Count} rows)";
             TaskDialog.Show(dialogTitle, report);

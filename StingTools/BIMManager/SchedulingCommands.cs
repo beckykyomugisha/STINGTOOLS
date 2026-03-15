@@ -293,7 +293,7 @@ namespace StingTools.BIMManager
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!knownCats.Contains(cat) && !TradeSequence.ContainsKey(cat)) continue;
 
-                // GAP-012: Skip elements in demolished or temporary phases
+                // Skip elements in demolished/temporary phases or with DEMOLISHED/TEMPORARY status
                 var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
                 if (phaseParam != null && demolishedPhaseIds.Contains(phaseParam.AsElementId().Value))
                     continue;
@@ -304,6 +304,10 @@ namespace StingTools.BIMManager
                     if (demoPhaseid != null && demoPhaseid.Value > 0)
                         continue; // Element is scheduled for demolition
                 }
+                // Also check STING STATUS parameter for DEMOLISHED/TEMPORARY
+                string stingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                if (stingStatus == "DEMOLISHED" || stingStatus == "TEMPORARY")
+                    continue;
 
                 string levelName = "Unassigned";
                 var levelParam = el.get_Parameter(BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM)
@@ -1816,10 +1820,7 @@ namespace StingTools.BIMManager
                 var phases = new FilteredElementCollector(doc)
                     .OfClass(typeof(Phase)).Cast<Phase>().ToList();
 
-                string dir = !string.IsNullOrEmpty(doc.PathName)
-                    ? Path.GetDirectoryName(doc.PathName)
-                    : Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                string path = Path.Combine(dir, $"STING_Milestones_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_Milestones", ".csv");
 
                 var sb = new StringBuilder();
                 sb.AppendLine("Phase,PhaseOrdinal,ElementCount,Categories,PrimaryDiscipline,MilestoneStatus");
@@ -1892,10 +1893,7 @@ namespace StingTools.BIMManager
                 if (ctx == null) return Result.Failed;
                 Document doc = ctx.Doc;
 
-                string dir = !string.IsNullOrEmpty(doc.PathName)
-                    ? Path.GetDirectoryName(doc.PathName)
-                    : Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                string path = Path.Combine(dir, $"STING_WorkingCalendar_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_WorkingCalendar", ".csv");
 
                 var sb = new StringBuilder();
                 sb.AppendLine("Date,DayOfWeek,IsWorkingDay,WorkingHours,Notes");

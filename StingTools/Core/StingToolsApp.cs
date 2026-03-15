@@ -59,6 +59,10 @@ namespace StingTools.Core
                     StingLog.Error("ParamRegistry pre-load failed (commands will use defaults)", ex);
                 }
 
+                // Load user-preferred output directory from project_config.json
+                try { OutputLocationHelper.LoadFromConfig(); }
+                catch (Exception ex) { StingLog.Warn($"OutputLocationHelper config load: {ex.Message}"); }
+
                 // CRASH FIX: Subscribe to DocumentClosing to clear stale static caches.
                 // ElementId-based caches and Definition caches become invalid when a
                 // document closes. Using them against a new document causes native crashes.

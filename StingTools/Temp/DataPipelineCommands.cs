@@ -99,14 +99,12 @@ namespace StingTools.Temp
             // Export to CSV
             try
             {
-                string dir = Path.GetDirectoryName(doc.PathName);
-                string csvPath = Path.Combine(
-                    string.IsNullOrEmpty(dir) ? Path.GetTempPath() : dir,
-                    $"STING_Validation_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Validation", ".csv");
                 var csvLines = new List<string> { "Check,Severity,Status,Detail" };
                 foreach (var r in results)
                     csvLines.Add($"\"{r.CheckName}\",\"{r.Severity}\",{(r.Passed ? "PASS" : "FAIL")},\"{r.Detail}\"");
                 File.WriteAllLines(csvPath, csvLines);
+                StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, csvPath, "RP", "BIM template validation report (45 checks)");
                 report.AppendLine($"\nCSV exported: {csvPath}");
             }
             catch (Exception ex)
@@ -1539,35 +1537,28 @@ namespace StingTools.Temp
             //  SAVE WORKBOOK
             // ═══════════════════════════════════════════════════════════════
             // Let user choose save location
-            string defaultDir = Path.GetDirectoryName(doc.PathName);
-            if (string.IsNullOrEmpty(defaultDir))
-                defaultDir = StingToolsApp.DataPath ?? Path.GetTempPath();
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string safeTitle = string.Join("_", doc.Title.Split(Path.GetInvalidFileNameChars()));
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string fileName = $"STING_BOQ_{safeTitle}_{timestamp}.xlsx";
 
-            var dlg = new Microsoft.Win32.SaveFileDialog
-            {
-                Title = "Save Bill of Quantities",
-                Filter = "Excel Files (*.xlsx)|*.xlsx|All Files (*.*)|*.*",
-                FileName = fileName,
-                InitialDirectory = defaultDir
-            };
-            if (dlg.ShowDialog() != true)
+            string exportPath = OutputLocationHelper.PromptForSaveLocation(
+                doc, "Save Bill of Quantities", fileName,
+                "Excel Files (*.xlsx)|*.xlsx|All Files (*.*)|*.*");
+            if (exportPath == null)
                 return Result.Cancelled;
-            string exportPath = dlg.FileName;
 
             try
             {
                 wb.SaveAs(exportPath);
                 StingLog.Info($"BOQ exported to {exportPath}");
+                StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, exportPath, "BQ", "Bill of Quantities (STING BOQ export)");
             }
             catch (Exception ex)
             {
                 StingLog.Error($"BOQ export failed: {ex.Message}");
                 try
                 {
-                    exportPath = Path.Combine(Path.GetTempPath(), fileName);
+                    exportPath = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc), fileName);
                     wb.SaveAs(exportPath);
                 }
                 catch (Exception ex2)
@@ -2173,9 +2164,7 @@ namespace StingTools.Temp
             }
 
             // Save the mapping file
-            string dir = Path.GetDirectoryName(doc.PathName);
-            if (string.IsNullOrEmpty(dir)) dir = StingToolsApp.DataPath ?? Path.GetTempPath();
-            string outputPath = Path.Combine(dir, "STING_IFC_PropertyMap.txt");
+            string outputPath = OutputLocationHelper.GetOutputPath(doc, "STING_IFC_PropertyMap.txt");
 
             try
             {
@@ -2530,9 +2519,7 @@ namespace StingTools.Temp
             {
                 try
                 {
-                    string csvPath = Path.Combine(
-                        Path.GetDirectoryName(doc.PathName ?? Path.GetTempPath()) ?? Path.GetTempPath(),
-                        $"STING_CLASH_REPORT_{DateTime.Now:yyyyMMdd_HHmm}.csv");
+                    string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_CLASH_REPORT", ".csv");
 
                     var csv = new StringBuilder();
                     csv.AppendLine("ClashType,MEP_ElementId,MEP_Category,MEP_Tag,Other_ElementId,Other_Category,Level");
@@ -2643,8 +2630,7 @@ namespace StingTools.Temp
                 return Result.Cancelled;
 
             // Generate the IFC property mapping file
-            string projectDir = Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath();
-            string mappingPath = Path.Combine(projectDir, "STING_IFC_MAPPING.txt");
+            string mappingPath = OutputLocationHelper.GetOutputPath(doc, "STING_IFC_MAPPING.txt");
 
             GeneratePropertyMappingFile(mappingPath);
 
@@ -2665,10 +2651,11 @@ namespace StingTools.Temp
                 ifcOptions.AddOption("ExportUserDefinedPsets", "true");
                 ifcOptions.AddOption("ExportUserDefinedPsetsFileName", mappingPath);
 
-                doc.Export(projectDir, ifcFileName, ifcOptions);
+                string exportDir = Path.GetDirectoryName(doc.PathName);
+                doc.Export(exportDir, ifcFileName, ifcOptions);
 
                 string version = useIfc4 ? "IFC 4" : "IFC 2x3";
-                string outputPath = Path.Combine(projectDir, ifcFileName + ".ifc");
+                string outputPath = Path.Combine(exportDir, ifcFileName + ".ifc");
                 TaskDialog.Show("IFC Export",
                     $"Export complete ({version}).\n\n" +
                     $"File: {outputPath}\n" +
@@ -2936,11 +2923,7 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             var doc = ctx.Doc;
 
-            string outputDir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()
-                : Path.GetTempPath();
-
-            string knoPath = Path.Combine(outputDir, "STING_KEYNOTES.txt");
+            string knoPath = OutputLocationHelper.GetOutputPath(doc, "STING_KEYNOTES.txt");
 
             // Generate keynote file from STING tag configuration
             var sb = new StringBuilder();
@@ -3366,9 +3349,8 @@ namespace StingTools.Temp
                 ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
 
                 // Save
-                string modelDir = !string.IsNullOrEmpty(doc.PathName) ? Path.GetDirectoryName(doc.PathName) : Path.GetTempPath();
                 string safeName = string.Join("_", schedule.Name.Split(Path.GetInvalidFileNameChars()));
-                string xlsxPath = Path.Combine(modelDir, $"STING_Schedule_{safeName}_{DateTime.Now:yyyyMMdd}.xlsx");
+                string xlsxPath = OutputLocationHelper.GetOutputPath(doc, $"STING_Schedule_{safeName}_{DateTime.Now:yyyyMMdd}.xlsx");
 
                 wb.SaveAs(xlsxPath);
 

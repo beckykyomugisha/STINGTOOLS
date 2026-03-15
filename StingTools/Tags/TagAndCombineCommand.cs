@@ -193,7 +193,15 @@ namespace StingTools.Tags
                             string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                             combined += ParamRegistry.WriteContainers(el, tokenVals, catName,
                                 overwrite: true, skipParam: ParamRegistry.TAG7);
-                            combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                            try
+                            {
+                                combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            }
+                            catch (Exception tag7Ex)
+                            {
+                                StingLog.Error($"TagAndCombine TAG7 write failed on element {id}: {tag7Ex.Message}", tag7Ex);
+                            }
                         }
                         else if (tagWritten)
                         {

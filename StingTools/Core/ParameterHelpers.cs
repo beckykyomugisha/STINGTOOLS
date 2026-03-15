@@ -47,7 +47,7 @@ namespace StingTools.Core
             var doc = uidoc.Document;
             if (doc == null) return null;
             View activeView = null;
-            try { activeView = doc.ActiveView; } catch { /* family editor / no view */ }
+            try { activeView = doc.ActiveView; } catch (Exception ex) { StingLog.Warn($"GetContext: no active view: {ex.Message}"); }
             return new CommandContext { App = app, UIDoc = uidoc, Doc = doc, ActiveView = activeView };
         }
 
@@ -1913,6 +1913,34 @@ namespace StingTools.Core
         private static int SetIfEmptyInt(Element el, string paramName, string value)
         {
             return ParameterHelpers.SetIfEmpty(el, paramName, value) ? 1 : 0;
+        }
+
+        /// <summary>
+        /// Pre-check utility: verifies that the core tag parameters (DISC, LOC, ZONE, LVL,
+        /// SYS, FUNC, PROD, SEQ, TAG1) are writable on the given element. Returns false if
+        /// any of these parameters are read-only, missing, or otherwise non-writable.
+        /// Use this before a tagging operation to avoid partial tag state from write failures.
+        /// </summary>
+        public static bool AreTagParamsWritable(Element el)
+        {
+            if (el == null) return false;
+
+            string[] coreParams = new[]
+            {
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.TAG1
+            };
+
+            foreach (string paramName in coreParams)
+            {
+                Parameter p = el.LookupParameter(paramName);
+                if (p == null || p.IsReadOnly)
+                    return false;
+                if (p.StorageType != StorageType.String)
+                    return false;
+            }
+            return true;
         }
 
         /// <summary>Find the solid fill pattern element in the document. Cached per document.</summary>

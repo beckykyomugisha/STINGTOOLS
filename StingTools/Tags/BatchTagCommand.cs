@@ -68,7 +68,7 @@ namespace StingTools.Tags
             foreach (Element e in allElements)
             {
                 string cat = ParameterHelpers.GetCategoryName(e);
-                if (!known.Contains(cat)) continue;
+                if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
                 totalTaggable++;
                 taggableElements.Add(e);
                 if (TagConfig.TagIsComplete(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
@@ -176,9 +176,16 @@ namespace StingTools.Tags
                                 cachedRev: popCtx.ProjectRev);
 
                             // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                            string catName = ParameterHelpers.GetCategoryName(el);
-                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
+                            try
+                            {
+                                string catName = ParameterHelpers.GetCategoryName(el);
+                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
+                            }
+                            catch (Exception tag7Ex)
+                            {
+                                StingLog.Error($"BatchTag TAG7 write failed on element {el?.Id}: {tag7Ex.Message}", tag7Ex);
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -207,6 +214,10 @@ namespace StingTools.Tags
 
             progress.Close();
             ComplianceScan.InvalidateCache();
+
+            // BIM integration: auto-raise compliance issues after batch tagging
+            try { StingTools.BIMManager.BIMManagerEngine.AutoRaiseComplianceIssues(doc); }
+            catch (Exception ex) { StingLog.Warn($"BatchTag BIM integration: {ex.Message}"); }
 
             if (cancelled)
             {
@@ -323,7 +334,7 @@ namespace StingTools.Tags
             foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
-                if (!known.Contains(cat)) continue;
+                if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
 
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(tag) && tag.Contains(ParamRegistry.Separator))
@@ -478,7 +489,7 @@ namespace StingTools.Tags
             foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
-                if (!known.Contains(cat)) continue;
+                if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
 
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag)) continue; // Only check already-tagged elements

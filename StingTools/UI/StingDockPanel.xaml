@@ -104,7 +104,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="STING TAGS v9.6" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                    <TextBlock Text="STINGTOOLS V2.1" FontWeight="Bold" FontSize="13" Foreground="White"/>
                     <TextBlock x:Name="txtStatus" Text="Always on top: ON" FontSize="9" Foreground="#CE93D8"/>
                 </StackPanel>
                 <TextBlock Grid.Column="1" x:Name="txtSelCount" Text="sel 0" FontSize="9" Foreground="#CE93D8" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -181,6 +181,15 @@
                                 <Button Style="{StaticResource CatBtn}" Content="Edge" Tag="SelectEdge" Click="Cmd_Click" ToolTip="Select edge elements"/>
                                 <Button Style="{StaticResource CatBtn}" Content="Grid" Tag="SelectGrid" Click="Cmd_Click" ToolTip="Select by grid"/>
                                 <Button Style="{StaticResource CatBtn}" Content="BBox" Tag="SelectBBox" Click="Cmd_Click" ToolTip="Select by bounding box"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- SELECTION SCOPE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SELECTION SCOPE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource CatBtn}" Content="View" Tag="SetScopeView" Click="Cmd_Click" Background="#2196F3" Foreground="White" FontWeight="Bold" ToolTip="Select from active view only (default)"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Project" Tag="SetScopeProject" Click="Cmd_Click" Background="#FF5722" Foreground="White" FontWeight="Bold" ToolTip="Select from entire project"/>
                             </WrapPanel>
                         </Border>
 
@@ -1861,6 +1870,10 @@
                                             ToolTip="FM Handover Manual + COBie V2.4"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Bulk Export" Tag="BulkBIMExport" Click="Cmd_Click"
                                             ToolTip="Export all: BEP + Dashboard + COBie + 4D/5D"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stage Gate" Tag="StageComplianceGate" Click="Cmd_Click"
+                                            ToolTip="RIBA stage-gated compliance check — verifies tag completeness meets stage requirements"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Set Output Dir" Tag="SetOutputDirectory" Click="Cmd_Click"
+                                            ToolTip="Set preferred output directory for all STING exports (CSV, XLSX, HTML, JSON)"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -1940,6 +1953,106 @@
                                             ToolTip="Project milestone register"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Calendar" Tag="WorkingCalendar" Click="Cmd_Click"
                                             ToolTip="Working calendar and non-working days"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- EXCEL LINK — BIDIRECTIONAL -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="EXCEL LINK — BIDIRECTIONAL"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#2E7D32">
+                            <StackPanel>
+                                <TextBlock Text="Export/import model data, schedules, and templates via Excel" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Export Elements" Tag="ExportToExcel" Click="Cmd_Click"
+                                            ToolTip="Export element tags/params (30+ columns) to editable Excel" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Import Changes" Tag="ImportFromExcel" Click="Cmd_Click"
+                                            ToolTip="Import edited Excel back with validation and audit trail" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Round Trip" Tag="ExcelRoundTrip" Click="Cmd_Click"
+                                            ToolTip="One-click: export → edit in Excel → import on return" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource GreenBtn}" Content="Export Schedules" Tag="ExportSchedulesToExcel" Click="Cmd_Click"
+                                            ToolTip="Export all Revit schedules to Excel (one worksheet per schedule)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Import Schedules" Tag="ImportSchedulesFromExcel" Click="Cmd_Click"
+                                            ToolTip="Import schedule changes from edited Excel back into Revit"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Template" Tag="ExportExcelTemplate" Click="Cmd_Click"
+                                            ToolTip="Export blank Excel template with dropdowns and validation"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PLATFORM INTEGRATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="PLATFORM INTEGRATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#0277BD">
+                            <StackPanel>
+                                <TextBlock Text="ACC, BCF, CDE, Procore, Trimble, Aconex, ProjectWise, SharePoint" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="ACC Publish" Tag="ACCPublish" Click="Cmd_Click"
+                                            ToolTip="Package BIM deliverables for ACC / BIM 360" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="CDE Package" Tag="CDEPackage" Click="Cmd_Click"
+                                            ToolTip="ISO 19650 CDE folder structure with discipline sub-folders"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BCF Export" Tag="BCFExport" Click="Cmd_Click"
+                                            ToolTip="Export issues as BCF 2.1 with viewpoints and element refs"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BCF Import" Tag="BCFImport" Click="Cmd_Click"
+                                            ToolTip="Import BCF issues with dedup detection"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Procore" Tag="ProcorePackage" Click="Cmd_Click"
+                                            ToolTip="Export RFIs, punch list, submittals for Procore"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Trimble" Tag="TrimbleExport" Click="Cmd_Click"
+                                            ToolTip="Export TODOs and BCF for Trimble Connect"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Aconex" Tag="AconexPackage" Click="Cmd_Click"
+                                            ToolTip="Export transmittals and docs for Aconex"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ProjectWise" Tag="ProjectWiseExport" Click="Cmd_Click"
+                                            ToolTip="Export for Bentley ProjectWise folder structure"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="SharePoint" Tag="SharePointExport" Click="Cmd_Click"
+                                            ToolTip="Corporate SharePoint/Teams package with HTML dashboard"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sync" Tag="PlatformSync" Click="Cmd_Click"
+                                            ToolTip="Delta sync with change tracking and history"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Dashboard" Tag="PlatformDashboard" Click="Cmd_Click"
+                                            ToolTip="Unified platform integration status overview"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Webhook" Tag="WebhookPayload" Click="Cmd_Click"
+                                            ToolTip="Generate webhook payload for Power Automate/Zapier"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- REVISION MANAGEMENT -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="REVISION MANAGEMENT"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#C62828">
+                            <StackPanel>
+                                <TextBlock Text="ISO 19650 revision tracking with tag integration" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource RedBtn}" Content="Create Revision" Tag="CreateRevision" Click="Cmd_Click"
+                                            ToolTip="Create new ISO 19650 revision (P01/C01/A01 auto-increment)" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Dashboard" Tag="RevisionDashboard" Click="Cmd_Click"
+                                            ToolTip="Revision overview: sequences, clouds, sheets, elements"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Auto Clouds" Tag="AutoRevisionCloud" Click="Cmd_Click"
+                                            ToolTip="Auto-create revision clouds for changed/new elements"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Track Elements" Tag="TrackElementRevisions" Click="Cmd_Click"
+                                            ToolTip="Stamp elements with current revision code"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compare" Tag="RevisionCompare" Click="Cmd_Click"
+                                            ToolTip="Compare tag changes between two revisions"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Issue Sheets" Tag="IssueSheetsForRevision" Click="Cmd_Click"
+                                            ToolTip="Bulk-issue sheets and create transmittal record"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Naming Check" Tag="RevisionNamingEnforce" Click="Cmd_Click"
+                                            ToolTip="Validate revision naming against ISO 19650"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource BlueBtn}" Content="Tag Integration" Tag="RevisionTagIntegration" Click="Cmd_Click"
+                                            ToolTip="Detect tag changes → auto-revision stamp → narrative update"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Bulk Stamp" Tag="BulkRevisionStamp" Click="Cmd_Click"
+                                            ToolTip="Stamp all elements in scope with current revision"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export" Tag="RevisionExport" Click="Cmd_Click"
+                                            ToolTip="Export revision history to CSV/Excel"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Schedule" Tag="RevisionSchedule" Click="Cmd_Click"
+                                            ToolTip="Create/update Revision Register schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto Rev" Tag="AutoRevisionOnTagChange" Click="Cmd_Click"
+                                            ToolTip="Auto-detect tag changes and create revision when threshold exceeded"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
