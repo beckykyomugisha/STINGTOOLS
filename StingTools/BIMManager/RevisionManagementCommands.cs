@@ -19,7 +19,7 @@ namespace StingTools.BIMManager
         // --- Revision naming format: REV-{ProjectCode}-{SeqNum}-{Date}-{Description} ---
         internal static string BuildRevisionName(Document doc, int seq, string description)
         {
-            string projCode = PlatformEngine.GetProjectCode(doc);
+            string projCode = doc.ProjectInformation?.Number ?? doc.Title ?? "PROJ";
             string date = DateTime.Now.ToString("yyyyMMdd");
             string descShort = description.Length > 20 ? description.Substring(0, 20).Trim() : description;
             descShort = System.Text.RegularExpressions.Regex.Replace(descShort, @"[^A-Za-z0-9_ ]", "")

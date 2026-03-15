@@ -67,6 +67,9 @@ namespace StingTools.Core
             public string StatusBarText =>
                 $"{RAGStatus} {CompliancePercent:F0}% tagged | {RevisionPercent:F0}% REV | {Untagged} untagged";
 
+            /// <summary>Per-discipline compliance breakdown.</summary>
+            public Dictionary<string, DiscComplianceData> ByDisc { get; set; } = new Dictionary<string, DiscComplianceData>();
+
             /// <summary>Top 5 issues for dashboard display.</summary>
             public string TopIssues
             {
@@ -114,31 +117,41 @@ namespace StingTools.Core
                     if (!known.Contains(cat)) continue;
 
                     result.TotalElements++;
+                    string disc = TagConfig.DiscMap.ContainsKey(cat) ? TagConfig.DiscMap[cat] : "X";
+                    if (!result.ByDisc.TryGetValue(disc, out var dd))
+                    {
+                        dd = new DiscComplianceData();
+                        result.ByDisc[disc] = dd;
+                    }
+                    dd.Total++;
                     string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
 
                     if (string.IsNullOrEmpty(tag))
                     {
                         result.Untagged++;
+                        dd.Untagged++;
                         AddIssue(result, "Untagged");
                     }
                     else if (TagConfig.TagIsFullyResolved(tag))
                     {
                         result.TaggedComplete++;
                         result.FullyResolved++;
+                        dd.Tagged++;
                     }
                     else if (TagConfig.TagIsComplete(tag))
                     {
                         result.TaggedComplete++;
+                        dd.Tagged++;
                         // Has placeholders — check which tokens are default/placeholder
                         string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
                         if (parts.Length >= 8)
                         {
-                            if (parts[1] == "XX") AddIssue(result, "Missing LOC");
+                            if (parts[1] == "XX") { AddIssue(result, "Missing LOC"); dd.MissingLoc++; }
                             if (parts[2] == "XX" || parts[2] == "ZZ") AddIssue(result, "Missing ZONE");
                             if (parts[3] == "XX") AddIssue(result, "Missing LVL");
-                            if (parts[4] == "GEN") AddIssue(result, "Generic SYS");
+                            if (parts[4] == "GEN") { AddIssue(result, "Generic SYS"); dd.MissingSys++; }
                             if (parts[5] == "GEN") AddIssue(result, "Generic FUNC");
-                            if (parts[6] == "GEN") AddIssue(result, "Generic PROD");
+                            if (parts[6] == "GEN") { AddIssue(result, "Generic PROD"); dd.MissingProd++; }
                             if (parts[7] == "0000") AddIssue(result, "SEQ=0000");
                         }
                     }
@@ -193,5 +206,17 @@ namespace StingTools.Core
                 result.IssuesByType[issueType] = 0;
             result.IssuesByType[issueType]++;
         }
+    }
+
+    /// <summary>Per-discipline compliance data.</summary>
+    public class DiscComplianceData
+    {
+        public int Total { get; set; }
+        public int Tagged { get; set; }
+        public int Untagged { get; set; }
+        public int MissingLoc { get; set; }
+        public int MissingSys { get; set; }
+        public int MissingProd { get; set; }
+        public double CompliancePct => Total > 0 ? Tagged * 100.0 / Total : 0;
     }
 }

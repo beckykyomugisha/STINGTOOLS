@@ -121,6 +121,23 @@ namespace StingTools.Core
             return string.Empty;
         }
 
+        /// <summary>Read an integer parameter with fallback. Handles Integer, Double, String storage.</summary>
+        public static int GetInt(Element el, string paramName, int defaultValue = 0)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return defaultValue;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null) return defaultValue;
+            switch (p.StorageType)
+            {
+                case StorageType.Integer: return p.AsInteger();
+                case StorageType.Double: return (int)p.AsDouble();
+                case StorageType.String:
+                    string s = p.AsString();
+                    return int.TryParse(s, out int v) ? v : defaultValue;
+                default: return defaultValue;
+            }
+        }
+
         /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
         public static bool SetString(Element el, string paramName, string value,
             bool overwrite = false)
@@ -1012,6 +1029,27 @@ namespace StingTools.Core
         /// detection available. Only fills empty values (non-destructive) unless
         /// overwrite is true.
         /// </summary>
+        /// <summary>
+        /// Copy non-empty token values from element TYPE to instance.
+        /// Runs before PopulateAll so inherited values are not overwritten.
+        /// </summary>
+        public static void TypeTokenInherit(Document doc, Element el)
+        {
+            if (el == null) return;
+            ElementId typeId = el.GetTypeId();
+            if (typeId == null || typeId == ElementId.InvalidElementId) return;
+            Element typeEl = doc.GetElement(typeId);
+            if (typeEl == null) return;
+
+            string[] tokenParams = { ParamRegistry.DISC, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD };
+            foreach (string param in tokenParams)
+            {
+                string typeVal = ParameterHelpers.GetString(typeEl, param);
+                if (!string.IsNullOrEmpty(typeVal))
+                    ParameterHelpers.SetIfEmpty(el, param, typeVal);
+            }
+        }
+
         public static PopulationResult PopulateAll(Document doc, Element el,
             PopulationContext ctx, bool overwrite = false)
         {
@@ -1504,6 +1542,22 @@ namespace StingTools.Core
                 return SetIfEmptyInt(el, targetParam, val);
             }
             catch { return 0; }
+        }
+
+        /// <summary>Map native sheet parameters to STING shared parameters for all sheets.</summary>
+        public static int MapSheets(Document doc)
+        {
+            int written = 0;
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .ToList();
+            foreach (var sheet in sheets)
+            {
+                written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NUMBER, "SHT_NUMBER_TXT");
+                written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NAME, "SHT_NAME_TXT");
+            }
+            return written;
         }
 
         /// <summary>Map a built-in string parameter directly (e.g., room finishes).</summary>

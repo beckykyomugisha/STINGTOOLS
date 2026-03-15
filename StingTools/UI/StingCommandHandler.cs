@@ -884,12 +884,14 @@ namespace StingTools.UI
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
                     case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
                     case "SharePointExport": RunCommand<BIMManager.SharePointExportCommand>(app); break;
-                    case "ProcorePackage": RunCommand<BIMManager.ProcorePackageCommand>(app); break;
-                    case "TrimbleExport": RunCommand<BIMManager.TrimbleConnectExportCommand>(app); break;
-                    case "AconexPackage": RunCommand<BIMManager.AconexPackageCommand>(app); break;
-                    case "ProjectWiseExport": RunCommand<BIMManager.ProjectWiseExportCommand>(app); break;
-                    case "PlatformDashboard": RunCommand<BIMManager.PlatformDashboardCommand>(app); break;
-                    case "WebhookPayload": RunCommand<BIMManager.WebhookPayloadCommand>(app); break;
+                    case "ProcorePackage":
+                    case "TrimbleExport":
+                    case "AconexPackage":
+                    case "ProjectWiseExport":
+                    case "PlatformDashboard":
+                    case "WebhookPayload":
+                        TaskDialog.Show("StingTools", $"'{tag}' platform integration is planned for a future release.");
+                        break;
 
                     // Revision Management (12 commands)
                     case "CreateRevision": RunCommand<BIMManager.CreateRevisionCommand>(app); break;

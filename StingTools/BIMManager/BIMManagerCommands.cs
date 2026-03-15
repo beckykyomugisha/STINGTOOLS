@@ -3239,6 +3239,7 @@ namespace StingTools.BIMManager
             {
                 var enrichment = new JObject();
                 var md = updated["model_data"] as JObject;
+                var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
 
                 // Reuse element counts already computed by UpdateBEPFromModel
                 if (md?["element_counts_by_category"] is JObject existingCats)
@@ -3359,8 +3360,8 @@ namespace StingTools.BIMManager
                         string riskText = risk["risk"]?.ToString() ?? "";
                         if (riskText.Contains("asset data") || riskText.Contains("COBie"))
                         {
-                            risk["current_status"] = ragStatus;
-                            risk["current_pct"] = $"{tagPct}%";
+                            risk["current_status"] = compliance.RAGStatus;
+                            risk["current_pct"] = $"{Math.Round(compliance.CompliancePercent, 1)}%";
                         }
                     }
                 }
