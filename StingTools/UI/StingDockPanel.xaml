@@ -197,7 +197,7 @@
                             </WrapPanel>
                         </Border>
 
-                        <!-- VIEW - ISOLATE & HIDE -->
+                        <!-- VIEW - ISOLATE and HIDE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="VIEW — ISOLATE &amp; HIDE"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
@@ -505,7 +505,7 @@
                             </WrapPanel>
                         </Border>
 
-                        <!-- MEP & ARCHITECTURAL LEGENDS -->
+                        <!-- MEP and ARCHITECTURAL LEGENDS -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="MEP &amp; ARCH LEGENDS"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
@@ -553,7 +553,7 @@
                             </WrapPanel>
                         </Border>
 
-                        <!-- ORIENTATION & TEXT ALIGNMENT -->
+                        <!-- ORIENTATION and TEXT ALIGNMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ORIENTATION &amp; TEXT ALIGNMENT"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
@@ -584,7 +584,7 @@
                             </WrapPanel>
                         </Border>
 
-                        <!-- ALIGN & DISTRIBUTE -->
+                        <!-- ALIGN and DISTRIBUTE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ALIGN &amp; DISTRIBUTE"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
@@ -1261,7 +1261,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- PARAGRAPH & PRESENTATION -->
+                        <!-- PARAGRAPH and PRESENTATION -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ PARAGRAPH &amp; PRESENTATION"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#7B1FA2">
                             <StackPanel>
@@ -1773,7 +1773,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- 4D/5D BIM — SCHEDULING & COST -->
+                        <!-- 4D/5D BIM - SCHEDULING and COST -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="4D/5D BIM — SCHEDULING &amp; COST"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#00695C">
                             <StackPanel>
@@ -1803,7 +1803,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- CDE & DOCUMENT CONTROL -->
+                        <!-- CDE and DOCUMENT CONTROL -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CDE — DOCUMENT CONTROL"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
@@ -1850,7 +1850,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- COBie & HANDOVER -->
+                        <!-- COBie and HANDOVER -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="COBie V2.4 — FM HANDOVER"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
                             <StackPanel>
@@ -1896,7 +1896,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- MODEL HEALTH & COMPLIANCE -->
+                        <!-- MODEL HEALTH and COMPLIANCE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="MODEL HEALTH &amp; COMPLIANCE"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#00838F">
                             <StackPanel>
