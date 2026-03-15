@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -23,6 +24,22 @@ namespace StingTools.Tags
     /// </summary>
     internal static class FamilyParamEngine
     {
+        /// <summary>
+        /// All 16 named position types: Ring 1 (cardinal 1x offset) + Ring 2 (far 1.5x offset).
+        /// </summary>
+        private static readonly (string Name, int Pos)[] AllPositionTypes = {
+            // Ring 1 — cardinal 1x offset
+            ("1x-N",  1), ("1x-E",  2), ("1x-S",  3),  ("1x-W",  4),
+            ("1x-NE", 5), ("1x-SE", 6), ("1x-SW", 7),  ("1x-NW", 8),
+            // Ring 2 — far 1.5x offset
+            ("1.5x-N", 9), ("1.5x-E",10), ("1.5x-S",11), ("1.5x-W",12),
+            ("1.5x-NE",13),("1.5x-SE",14),("1.5x-SW",15),("1.5x-NW",16)
+        };
+
+        /// <summary>COBie type map loaded from COBIE_TYPE_MAP.csv (family name → property dict).</summary>
+        private static Dictionary<string, Dictionary<string, string>> _cobieTypeMap;
+        private static bool _cobieTypeMapLoaded;
+
         /// <summary>Options for family processing.</summary>
         public class ProcessOptions
         {
@@ -46,6 +63,8 @@ namespace StingTools.Tags
             public int FormulasInjected { get; set; }
             public bool AnchorPlaced { get; set; }
             public int PositionTypesCreated { get; set; }
+            public int TokensSeeded { get; set; }
+            public int CobiePropsWritten { get; set; }
             public bool Success { get; set; }
             public string ErrorMessage { get; set; }
         }
@@ -192,6 +211,8 @@ namespace StingTools.Tags
 
         /// <summary>
         /// Inject tag position formulas into the family document.
+        /// Creates Tag_Offset_Base length param if missing, then sets 16-branch
+        /// nested-if formulas on Label_Offset_X and Label_Offset_Y.
         /// </summary>
         public static int InjectTagPosFormulas(Document famDoc)
         {
@@ -205,14 +226,74 @@ namespace StingTools.Tags
                     .FirstOrDefault(p => p.Definition.Name == ParamRegistry.TAG_POS);
                 if (tagPosParam == null) return 0;
 
-                // Check for required formula target params
-                var paramNames = fm.GetParameters()
+                // Ensure Tag_Offset_Base length param exists (default 10mm = 0.01m internal)
+                const string offsetBaseParamName = "Tag_Offset_Base";
+                var existingParams = fm.GetParameters();
+                var paramNameSet = existingParams
                     .Select(p => p.Definition.Name)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+                if (!paramNameSet.Contains(offsetBaseParamName))
+                {
+                    try
+                    {
+                        fm.AddParameter(
+                            offsetBaseParamName,
+                            GroupTypeId.General,
+                            SpecTypeId.Length,
+                            false); // type param
+                        paramNameSet.Add(offsetBaseParamName);
+                        StingLog.Info($"InjectTagPosFormulas: created '{offsetBaseParamName}' length param");
+
+                        // Set default value (10mm = ~0.0328 ft)
+                        var baseParam = fm.GetParameters()
+                            .FirstOrDefault(p => p.Definition.Name == offsetBaseParamName);
+                        if (baseParam != null)
+                        {
+                            fm.Set(baseParam, 0.0328084); // 10mm in feet
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"InjectTagPosFormulas: could not create '{offsetBaseParamName}': {ex.Message}");
+                    }
+                }
+
+                // 16-branch X formula: E(+d), W(-d), far E(+1.5d), far W(-1.5d), diagonals (±0.7d / ±1.05d)
+                string xFormula =
+                    "if(STING_TAG_POS = 2, Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 10, 1.5 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 4, -Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 12, -1.5 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 5, Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 6, Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 13, 1.05 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 14, 1.05 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 7, -Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 8, -Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 15, -1.05 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 16, -1.05 * Tag_Offset_Base, " +
+                    "0 mm))))))))))))";
+
+                // 16-branch Y formula: N(+d), S(-d), far N(+1.5d), far S(-1.5d), diagonals (±0.7d / ±1.05d)
+                string yFormula =
+                    "if(STING_TAG_POS = 1, Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 9, 1.5 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 3, -Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 11, -1.5 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 5, 0.7 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 8, 0.7 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 13, 1.05 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 16, 1.05 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 6, -0.7 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 7, -0.7 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 14, -1.05 * Tag_Offset_Base, " +
+                    "if(STING_TAG_POS = 15, -1.05 * Tag_Offset_Base, " +
+                    "0 mm))))))))))))";
+
                 string[] formulaPairs = {
-                    "Label_Offset_X", "if(STING_TAG_POS = 2, 0.01, if(STING_TAG_POS = 4, -0.01, 0))",
-                    "Label_Offset_Y", "if(STING_TAG_POS = 1, 0.01, if(STING_TAG_POS = 3, -0.01, 0))"
+                    "Label_Offset_X", xFormula,
+                    "Label_Offset_Y", yFormula
                 };
 
                 for (int i = 0; i < formulaPairs.Length; i += 2)
@@ -220,7 +301,7 @@ namespace StingTools.Tags
                     string targetParam = formulaPairs[i];
                     string formula = formulaPairs[i + 1];
 
-                    if (!paramNames.Contains(targetParam)) continue;
+                    if (!paramNameSet.Contains(targetParam)) continue;
 
                     try
                     {
@@ -230,7 +311,7 @@ namespace StingTools.Tags
                         {
                             fm.SetFormula(param, formula);
                             injected++;
-                            StingLog.Info($"InjectTagPosFormulas: set formula on '{targetParam}'");
+                            StingLog.Info($"InjectTagPosFormulas: set 16-branch formula on '{targetParam}'");
                         }
                     }
                     catch (Exception ex)
@@ -248,7 +329,8 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Create named position types in the family document (Item 13).
+        /// Create 16 named position types in the family document (Ring 1 + Ring 2).
+        /// Each type sets STING_TAG_POS to its position number (1-16).
         /// </summary>
         public static int InjectPositionTypes(Document famDoc)
         {
@@ -269,10 +351,9 @@ namespace StingTools.Tags
                         existingTypes.Add(ft.Name);
                 }
 
-                string[] posNames = { "Above", "Right", "Below", "Left" };
-                for (int pos = 1; pos <= posNames.Length; pos++)
+                foreach (var (name, pos) in AllPositionTypes)
                 {
-                    string typeName = $"2.5mm - {posNames[pos - 1]}";
+                    string typeName = $"2.5mm - {name}";
                     if (existingTypes.Contains(typeName)) continue;
 
                     try
@@ -297,7 +378,254 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Process a single family file: detect category, inject params, formulas, position types.
+        /// Seed default DISC, PROD, SYS, FUNC, TAG_POS type parameters into the family.
+        /// Returns the number of tokens written.
+        /// </summary>
+        public static int SeedDefaultTokens(Document famDoc, string catName, string discCode)
+        {
+            int seeded = 0;
+            if (famDoc == null || !famDoc.IsFamilyDocument) return 0;
+
+            try
+            {
+                FamilyManager fm = famDoc.FamilyManager;
+
+                // DISC
+                if (SetTypeParam(fm, ParamRegistry.DISC, discCode)) seeded++;
+
+                // PROD from TagConfig.ProdMap
+                string prodCode = "";
+                if (!string.IsNullOrEmpty(catName) &&
+                    TagConfig.ProdMap != null &&
+                    TagConfig.ProdMap.TryGetValue(catName, out string prod))
+                {
+                    prodCode = prod;
+                }
+                if (!string.IsNullOrEmpty(prodCode) && SetTypeParam(fm, ParamRegistry.PROD, prodCode))
+                    seeded++;
+
+                // SYS from TagConfig.GetSysCode
+                string sysCode = TagConfig.GetSysCode(catName ?? "");
+                if (!string.IsNullOrEmpty(sysCode) && SetTypeParam(fm, ParamRegistry.SYS, sysCode))
+                    seeded++;
+
+                // FUNC from TagConfig.GetFuncCode
+                string funcCode = !string.IsNullOrEmpty(sysCode)
+                    ? TagConfig.GetFuncCode(sysCode)
+                    : "";
+                if (!string.IsNullOrEmpty(funcCode) && SetTypeParam(fm, ParamRegistry.FUNC, funcCode))
+                    seeded++;
+
+                // TAG_POS from TagPlacementEngine preferred side + 1
+                try
+                {
+                    int preferred = TagPlacementEngine.GetPreferredSide(catName ?? "") + 1;
+                    if (SetTypeParam(fm, ParamRegistry.TAG_POS, preferred)) seeded++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"SeedDefaultTokens TAG_POS: {ex.Message}");
+                }
+
+                StingLog.Info($"SeedDefaultTokens: seeded {seeded} tokens for '{catName}' (DISC={discCode})");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"SeedDefaultTokens '{catName}'", ex);
+            }
+
+            return seeded;
+        }
+
+        /// <summary>
+        /// Safely set a type parameter value on the current FamilyType.
+        /// Looks up param by name, checks StorageType, and calls fm.Set() accordingly.
+        /// Returns true if the value was written successfully.
+        /// </summary>
+        private static bool SetTypeParam(FamilyManager fm, string paramName, object value)
+        {
+            if (fm == null || string.IsNullOrEmpty(paramName) || value == null) return false;
+
+            try
+            {
+                var param = fm.GetParameters()
+                    .FirstOrDefault(p => p.Definition.Name == paramName);
+                if (param == null) return false;
+
+                switch (param.StorageType)
+                {
+                    case StorageType.String:
+                        fm.Set(param, value.ToString());
+                        return true;
+
+                    case StorageType.Integer:
+                        if (value is int intVal)
+                            fm.Set(param, intVal);
+                        else if (int.TryParse(value.ToString(), out int parsed))
+                            fm.Set(param, parsed);
+                        else
+                            return false;
+                        return true;
+
+                    case StorageType.Double:
+                        if (value is double dblVal)
+                            fm.Set(param, dblVal);
+                        else if (double.TryParse(value.ToString(), out double dParsed))
+                            fm.Set(param, dParsed);
+                        else
+                            return false;
+                        return true;
+
+                    default:
+                        return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetTypeParam '{paramName}': {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Load the COBie type map from COBIE_TYPE_MAP.csv if it exists.
+        /// CSV format: FamilyName,UniclassCode,SFG20Code,AssetType,WarrantyDurationYears,...
+        /// First row is header. Family name is the key (case-insensitive).
+        /// </summary>
+        private static void EnsureCobieTypeMapLoaded()
+        {
+            if (_cobieTypeMapLoaded) return;
+            _cobieTypeMapLoaded = true;
+
+            try
+            {
+                string csvPath = StingToolsApp.FindDataFile("COBIE_TYPE_MAP.csv");
+                if (string.IsNullOrEmpty(csvPath) || !File.Exists(csvPath))
+                {
+                    StingLog.Info("EnsureCobieTypeMapLoaded: COBIE_TYPE_MAP.csv not found, skipping");
+                    return;
+                }
+
+                var map = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+                string[] lines = File.ReadAllLines(csvPath);
+                if (lines.Length < 2) return;
+
+                string[] headers = StingToolsApp.ParseCsvLine(lines[0]);
+
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                    string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
+                    if (cols.Length < 2) continue;
+
+                    string familyName = cols[0]?.Trim();
+                    if (string.IsNullOrEmpty(familyName)) continue;
+
+                    var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    for (int c = 1; c < cols.Length && c < headers.Length; c++)
+                    {
+                        string val = cols[c]?.Trim() ?? "";
+                        if (!string.IsNullOrEmpty(val))
+                            props[headers[c].Trim()] = val;
+                    }
+
+                    if (props.Count > 0)
+                        map[familyName] = props;
+                }
+
+                _cobieTypeMap = map;
+                StingLog.Info($"EnsureCobieTypeMapLoaded: loaded {map.Count} family mappings from COBIE_TYPE_MAP.csv");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"EnsureCobieTypeMapLoaded: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Seed COBie type properties into the family from COBIE_TYPE_MAP.csv.
+        /// Matches family name to CSV key and writes UniclassCode, SFG20Code, AssetType,
+        /// WarrantyDurationYears, etc. Only writes if param exists and value is non-empty.
+        /// Returns the number of properties written.
+        /// </summary>
+        public static int SeedCobieTypeProperties(Document famDoc, string familyName)
+        {
+            int written = 0;
+            if (famDoc == null || string.IsNullOrEmpty(familyName)) return 0;
+
+            try
+            {
+                EnsureCobieTypeMapLoaded();
+                if (_cobieTypeMap == null || _cobieTypeMap.Count == 0) return 0;
+
+                // Try exact match, then partial match
+                Dictionary<string, string> props = null;
+                if (!_cobieTypeMap.TryGetValue(familyName, out props))
+                {
+                    // Try partial match — find first key contained in family name
+                    string upperFam = familyName.ToUpperInvariant();
+                    foreach (var kvp in _cobieTypeMap)
+                    {
+                        if (upperFam.Contains(kvp.Key.ToUpperInvariant()))
+                        {
+                            props = kvp.Value;
+                            break;
+                        }
+                    }
+                }
+
+                if (props == null || props.Count == 0) return 0;
+
+                FamilyManager fm = famDoc.FamilyManager;
+                var existingParams = fm.GetParameters()
+                    .ToDictionary(p => p.Definition.Name, p => p, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var kvp in props)
+                {
+                    string paramName = kvp.Key;
+                    string value = kvp.Value;
+
+                    if (string.IsNullOrEmpty(value)) continue;
+                    if (!existingParams.TryGetValue(paramName, out FamilyParameter param)) continue;
+
+                    try
+                    {
+                        if (param.StorageType == StorageType.String)
+                        {
+                            fm.Set(param, value);
+                            written++;
+                        }
+                        else if (param.StorageType == StorageType.Integer && int.TryParse(value, out int intVal))
+                        {
+                            fm.Set(param, intVal);
+                            written++;
+                        }
+                        else if (param.StorageType == StorageType.Double && double.TryParse(value, out double dblVal))
+                        {
+                            fm.Set(param, dblVal);
+                            written++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"SeedCobieTypeProperties '{paramName}': {ex.Message}");
+                    }
+                }
+
+                if (written > 0)
+                    StingLog.Info($"SeedCobieTypeProperties: wrote {written} COBie props for '{familyName}'");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"SeedCobieTypeProperties '{familyName}'", ex);
+            }
+
+            return written;
+        }
+
+        /// <summary>
+        /// Process a single family file: detect category, inject params, seed tokens,
+        /// seed COBie properties, inject formulas, and create position types.
         /// </summary>
         public static FamilyResult ProcessFamily(
             Autodesk.Revit.ApplicationServices.Application app,
@@ -341,6 +669,13 @@ namespace StingTools.Tags
                     var (added, skipped) = InjectSharedParams(famDoc, app, paramList);
                     result.ParamsAdded = added;
                     result.ParamsSkipped = skipped;
+
+                    // Seed default tokens (DISC, PROD, SYS, FUNC, TAG_POS)
+                    result.TokensSeeded = SeedDefaultTokens(famDoc, catName, discCode);
+
+                    // Seed COBie type properties from COBIE_TYPE_MAP.csv
+                    string familyName = Path.GetFileNameWithoutExtension(rfaPath);
+                    result.CobiePropsWritten = SeedCobieTypeProperties(famDoc, familyName);
 
                     // Inject TAG_POS
                     if (opts.InjectTagPos)
@@ -500,28 +835,47 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            // Process
+            // Process with progress dialog
             var results = new List<FamilyParamEngine.FamilyResult>();
             int processed = 0;
+            bool cancelled = false;
 
-            foreach (string rfaPath in rfaFiles)
+            var progress = StingProgressDialog.Show("STING — Family Param Creator", rfaFiles.Count);
+            try
             {
-                if (processed % 5 == 0 && EscapeChecker.IsEscapePressed())
+                foreach (string rfaPath in rfaFiles)
                 {
-                    TaskDialog.Show("STING", $"Cancelled after processing {processed} of {rfaFiles.Count} files.");
-                    break;
-                }
+                    if (EscapeChecker.IsEscapePressed())
+                    {
+                        cancelled = true;
+                        break;
+                    }
 
-                string outPath = rfaPath; // overwrite in-place
-                var result = FamilyParamEngine.ProcessFamily(app, rfaPath, outPath, opts);
-                results.Add(result);
-                processed++;
+                    string fileName = Path.GetFileName(rfaPath);
+                    progress.Increment($"Processing {fileName} ({processed + 1}/{rfaFiles.Count})");
+
+                    string outPath = rfaPath; // overwrite in-place
+                    var result = FamilyParamEngine.ProcessFamily(app, rfaPath, outPath, opts);
+                    results.Add(result);
+                    processed++;
+                }
+            }
+            finally
+            {
+                progress.Close();
+            }
+
+            if (cancelled)
+            {
+                StingLog.Info($"FamilyParamCreator: cancelled after {processed}/{rfaFiles.Count} files");
             }
 
             // Report
             int succeeded = results.Count(r => r.Success);
             int failed = results.Count(r => !r.Success);
             int totalParamsAdded = results.Sum(r => r.ParamsAdded);
+            int totalTokensSeeded = results.Sum(r => r.TokensSeeded);
+            int totalCobieProps = results.Sum(r => r.CobiePropsWritten);
             var catBreakdown = results.Where(r => r.Success)
                 .GroupBy(r => r.Category)
                 .Select(g => $"  {g.Key}: {g.Count()}")
@@ -529,8 +883,11 @@ namespace StingTools.Tags
 
             var report = new StringBuilder();
             report.AppendLine($"Files: {processed} processed, {succeeded} succeeded, {failed} failed");
+            if (cancelled) report.AppendLine($"  (cancelled — {rfaFiles.Count - processed} remaining)");
             report.AppendLine($"Parameters added: {totalParamsAdded}");
             report.AppendLine($"Position types created: {results.Sum(r => r.PositionTypesCreated)}");
+            report.AppendLine($"Tokens seeded: {totalTokensSeeded}");
+            if (totalCobieProps > 0) report.AppendLine($"COBie properties written: {totalCobieProps}");
             if (catBreakdown.Count > 0)
             {
                 report.AppendLine("\nCategories:");
@@ -539,18 +896,19 @@ namespace StingTools.Tags
             }
 
             // Write CSV log
+            string logPath = null;
             try
             {
-                string logPath = Path.Combine(outputDir,
+                logPath = Path.Combine(outputDir,
                     $"STING_FamilyParamCreator_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 var csv = new StringBuilder();
                 csv.AppendLine("SourcePath,OutputPath,Category,DiscCode,ParamsAdded,ParamsSkipped," +
-                    "TagPosInjected,FormulasInjected,PositionTypesCreated,Status,ErrorMessage");
+                    "TagPosInjected,FormulasInjected,PositionTypesCreated,TokensSeeded,CobiePropsWritten,Status,ErrorMessage");
                 foreach (var r in results)
                 {
                     csv.AppendLine($"\"{r.SourcePath}\",\"{r.OutputPath}\",\"{r.Category}\"," +
                         $"{r.DiscCode},{r.ParamsAdded},{r.ParamsSkipped},{r.TagPosInjected}," +
-                        $"{r.FormulasInjected},{r.PositionTypesCreated}," +
+                        $"{r.FormulasInjected},{r.PositionTypesCreated},{r.TokensSeeded},{r.CobiePropsWritten}," +
                         $"{(r.Success ? "OK" : "FAILED")},\"{r.ErrorMessage ?? ""}\"");
                 }
                 File.WriteAllText(logPath, csv.ToString());

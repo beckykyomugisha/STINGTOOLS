@@ -627,4 +627,44 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
     }
+
+    /// <summary>
+    /// Map native Revit title block / sheet parameters (Drawn By, Checked By,
+    /// Approved By, Sheet Number, Sheet Name, Issue Date, Revision) to STING
+    /// shared parameters on all ViewSheets. Non-destructive: only writes to
+    /// empty STING parameters.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class MapSheetsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            int written;
+            using (Transaction tx = new Transaction(doc, "STING Map Sheet Parameters"))
+            {
+                tx.Start();
+                written = NativeParamMapper.MapSheets(doc);
+                tx.Commit();
+            }
+
+            int sheetCount = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet)).GetElementCount();
+
+            TaskDialog.Show("STING Map Sheets",
+                $"Sheet parameter mapping complete.\n\n" +
+                $"Sheets processed: {sheetCount}\n" +
+                $"Values written: {written}\n\n" +
+                "Mapped: Sheet Number, Sheet Name, Drawn By, Checked By,\n" +
+                "Approved By, Issue Date, Current Revision");
+
+            StingLog.Info($"MapSheetsCommand: {written} values written across {sheetCount} sheets");
+            return Result.Succeeded;
+        }
+    }
 }

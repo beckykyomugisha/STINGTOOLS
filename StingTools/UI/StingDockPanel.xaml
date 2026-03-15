@@ -2014,6 +2014,785 @@
                 </ScrollViewer>
             </TabItem>
 
+            <!-- ═══════════════════════ TAGS TAB (Tag Studio) ═══════════════════════ -->
+            <TabItem Header="TAGS">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="6">
+
+                        <!-- Inner TabControl for Tag Studio sub-tabs -->
+                        <TabControl x:Name="tagStudioTabs" FontSize="10" Padding="2">
+
+                            <!-- ─── Placement Tab ─── -->
+                            <TabItem Header="Placement">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
+
+                                        <!-- 16-POSITION COMPASS -->
+                                        <TextBlock Text="16-POSITION COMPASS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <UniformGrid Rows="4" Columns="4" Margin="2">
+                                                    <RadioButton Content="P1 N" GroupName="TagPos" x:Name="rbPos1" IsChecked="True" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P2 E" GroupName="TagPos" x:Name="rbPos2" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P3 S" GroupName="TagPos" x:Name="rbPos3" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P4 W" GroupName="TagPos" x:Name="rbPos4" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P5 NE" GroupName="TagPos" x:Name="rbPos5" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P6 SE" GroupName="TagPos" x:Name="rbPos6" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P7 SW" GroupName="TagPos" x:Name="rbPos7" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P8 NW" GroupName="TagPos" x:Name="rbPos8" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P9 N+" GroupName="TagPos" x:Name="rbPos9" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P10 E+" GroupName="TagPos" x:Name="rbPos10" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P11 S+" GroupName="TagPos" x:Name="rbPos11" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P12 W+" GroupName="TagPos" x:Name="rbPos12" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P13 NE+" GroupName="TagPos" x:Name="rbPos13" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P14 SE+" GroupName="TagPos" x:Name="rbPos14" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P15 SW+" GroupName="TagPos" x:Name="rbPos15" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="P16 NW+" GroupName="TagPos" x:Name="rbPos16" Margin="1" FontSize="9"/>
+                                                </UniformGrid>
+                                                <TextBlock Text="Ring 1 = cardinal/diagonal 1x · Ring 2 = far 1.5x" FontSize="8" Foreground="#999" Margin="2,2,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- DIRECTIONAL OFFSET OVERRIDE -->
+                                        <TextBlock Text="DIRECTIONAL OFFSET OVERRIDE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <UniformGrid Rows="2" Columns="4" Margin="2">
+                                                <RadioButton Content="NW" GroupName="DirOverride" Margin="1" FontSize="9"/>
+                                                <RadioButton Content="N" GroupName="DirOverride" IsChecked="True" Margin="1" FontSize="9" FontWeight="Bold"/>
+                                                <RadioButton Content="NE" GroupName="DirOverride" Margin="1" FontSize="9"/>
+                                                <RadioButton Content="W" GroupName="DirOverride" Margin="1" FontSize="9"/>
+                                                <RadioButton Content="E" GroupName="DirOverride" Margin="1" FontSize="9"/>
+                                                <RadioButton Content="SW" GroupName="DirOverride" Margin="1" FontSize="9"/>
+                                                <RadioButton Content="S" GroupName="DirOverride" Margin="1" FontSize="9"/>
+                                                <RadioButton Content="SE" GroupName="DirOverride" Margin="1" FontSize="9"/>
+                                            </UniformGrid>
+                                        </Border>
+
+                                        <!-- OFFSET CONTROLS -->
+                                        <TextBlock Text="OFFSET CONTROLS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Base offset" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldBaseOffset" Minimum="1" Maximum="30" Value="8" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldBaseOffset, StringFormat={}{0:F0} mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="N offset" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldNOffset" Minimum="-20" Maximum="20" Value="8" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldNOffset, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="E offset" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldEOffset" Minimum="-20" Maximum="20" Value="8" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldEOffset, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="S offset" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldSOffset" Minimum="-20" Maximum="20" Value="-8" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldSOffset, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="W offset" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldWOffset" Minimum="-20" Maximum="20" Value="-8" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldWOffset, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Ring 2 mult." FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldRing2" Minimum="1.0" Maximum="3.0" Value="1.5" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldRing2, StringFormat={}{0:F2}x}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Tag width est." FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldTagWidth" Minimum="10" Maximum="80" Value="30" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldTagWidth, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Tag height est." FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldTagHeight" Minimum="3" Maximum="30" Value="10" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldTagHeight, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- COLLISION SCORING WEIGHTS -->
+                                        <TextBlock Text="COLLISION SCORING WEIGHTS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Overlap penalty" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldOverlapPenalty" Minimum="100" Maximum="1000" Value="500" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldOverlapPenalty, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Proximity weight" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldProximity" Minimum="1" Maximum="20" Value="8" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldProximity, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Preferred bonus" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldPreferred" Minimum="10" Maximum="100" Value="40" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldPreferred, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Align bonus" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldAlign" Minimum="5" Maximum="50" Value="15" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldAlign, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Crop edge penalty" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldCropPenalty" Minimum="10" Maximum="200" Value="50" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldCropPenalty, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Expand search" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldExpand" Minimum="1.5" Maximum="5.0" Value="2.5" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldExpand, StringFormat={}{0:F1}x}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- SCOPE -->
+                                        <TextBlock Text="SCOPE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <ComboBox x:Name="cmbPlaceScope" FontSize="9" Height="22">
+                                                    <ComboBoxItem Content="Active view — all elements" IsSelected="True"/>
+                                                    <ComboBoxItem Content="Active view — untagged only"/>
+                                                    <ComboBoxItem Content="Selected elements"/>
+                                                    <ComboBoxItem Content="Entire project"/>
+                                                </ComboBox>
+                                                <ComboBox x:Name="cmbPlaceCatFilter" FontSize="9" Height="22" Margin="0,3,0,0">
+                                                    <ComboBoxItem Content="All categories" IsSelected="True"/>
+                                                    <ComboBoxItem Content="Mechanical only"/>
+                                                    <ComboBoxItem Content="Electrical only"/>
+                                                    <ComboBoxItem Content="Plumbing only"/>
+                                                    <ComboBoxItem Content="Fire Protection only"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- ACTION BUTTONS -->
+                                        <WrapPanel Margin="0,6,0,0">
+                                            <Button Style="{StaticResource GreenBtn}" Content="Smart place" Tag="TagStudio_SmartPlace" Click="Cmd_Click" Width="80" Height="30"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Arrange" Tag="TagStudio_Arrange" Click="Cmd_Click" Width="80" Height="30"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Align bands" Tag="TagStudio_AlignBands" Click="Cmd_Click" Width="80" Height="30"/>
+                                        </WrapPanel>
+
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+
+                            <!-- ─── Leader & Elbow Tab ─── -->
+                            <TabItem Header="Leader &amp; Elbow">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
+
+                                        <!-- LEADER MODE -->
+                                        <TextBlock Text="LEADER MODE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <WrapPanel>
+                                                    <RadioButton Content="Auto" GroupName="LeaderMode" x:Name="rbLeaderAuto" IsChecked="True" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Always" GroupName="LeaderMode" x:Name="rbLeaderAlways" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Never" GroupName="LeaderMode" x:Name="rbLeaderNever" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Smart (dist)" GroupName="LeaderMode" x:Name="rbLeaderSmart" Margin="2" FontSize="9"/>
+                                                </WrapPanel>
+                                                <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Leader length" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldLeaderLen" Minimum="1" Maximum="60" Value="14" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldLeaderLen, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Min length" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldLeaderMin" Minimum="1" Maximum="20" Value="5" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldLeaderMin, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Max length" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldLeaderMax" Minimum="10" Maximum="100" Value="43" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldLeaderMax, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Threshold" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldLeaderThreshold" Minimum="5" Maximum="50" Value="20" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldLeaderThreshold, StringFormat={}{0:F0} mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <TextBlock Text="Auto: leader fires when best score &lt; 0. Smart: fires when offset &gt; threshold." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- ELBOW GEOMETRY -->
+                                        <TextBlock Text="ELBOW GEOMETRY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <WrapPanel>
+                                                    <RadioButton Content="Straight" GroupName="ElbowType" x:Name="rbElbowStr" IsChecked="True" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="45°" GroupName="ElbowType" x:Name="rbElbow45" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="90°" GroupName="ElbowType" x:Name="rbElbow90" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Free" GroupName="ElbowType" x:Name="rbElbowFree" Margin="2" FontSize="9"/>
+                                                </WrapPanel>
+                                                <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Elbow X" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldElbowX" Minimum="-20" Maximum="20" Value="-2" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldElbowX, StringFormat={}{0:F0}mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Elbow Y" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldElbowY" Minimum="-30" Maximum="30" Value="-16" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldElbowY, StringFormat={}{0:F0}mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Elbow dist" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldElbowDist" Minimum="2" Maximum="30" Value="8" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldElbowDist, StringFormat={}{0:F0} mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- ARROW HEAD -->
+                                        <TextBlock Text="ARROW HEAD" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Arrow style" FontSize="9" VerticalAlignment="Center"/>
+                                                    <ComboBox Grid.Column="1" x:Name="cmbArrowStyle" FontSize="9" Height="22">
+                                                        <ComboBoxItem Content="None" IsSelected="True"/>
+                                                        <ComboBoxItem Content="Open"/>
+                                                        <ComboBoxItem Content="Filled"/>
+                                                        <ComboBoxItem Content="Dot"/>
+                                                        <ComboBoxItem Content="Tick"/>
+                                                    </ComboBox>
+                                                </Grid>
+                                                <Grid Margin="0,3,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Arrow size" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldArrowSize" Minimum="1" Maximum="10" Value="4" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldArrowSize, StringFormat={}{0:F0}mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,3,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Arrow color" FontSize="9" VerticalAlignment="Center"/>
+                                                    <ComboBox Grid.Column="1" x:Name="cmbArrowColor" FontSize="9" Height="22">
+                                                        <ComboBoxItem Content="Match scheme" IsSelected="True"/>
+                                                        <ComboBoxItem Content="Black"/>
+                                                        <ComboBoxItem Content="Blue"/>
+                                                        <ComboBoxItem Content="Red"/>
+                                                        <ComboBoxItem Content="Gray"/>
+                                                    </ComboBox>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- ACTIONS -->
+                                        <WrapPanel Margin="0,6,0,0">
+                                            <Button Style="{StaticResource ActionBtn}" Content="Adjust elbows" Tag="TagStudio_AdjustElbows" Click="Cmd_Click" Width="90" Height="30"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Set arrows" Tag="TagStudio_SetArrows" Click="Cmd_Click" Width="90" Height="30"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="API notes" Tag="TagStudio_APIGaps" Click="Cmd_Click" Width="90" Height="30"/>
+                                        </WrapPanel>
+
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+
+                            <!-- ─── Style & Color Tab ─── -->
+                            <TabItem Header="Style &amp; Color">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
+
+                                        <!-- TEXT APPEARANCE -->
+                                        <TextBlock Text="TEXT APPEARANCE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Size (mm)" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldTextSize" Minimum="1.5" Maximum="5.0" Value="2.5" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldTextSize, StringFormat={}{0:F1} mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <TextBlock Text="Weight" FontSize="9" Margin="0,3,0,2"/>
+                                                <WrapPanel>
+                                                    <RadioButton Content="Normal" GroupName="TextWeight" x:Name="rbWeightNormal" IsChecked="True" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Bold" GroupName="TextWeight" x:Name="rbWeightBold" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Italic" GroupName="TextWeight" x:Name="rbWeightItalic" Margin="2" FontSize="9"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="Text color" FontSize="9" Margin="0,3,0,2"/>
+                                                <WrapPanel>
+                                                    <RadioButton Content="Black" GroupName="TextColor" x:Name="rbColorBlack" IsChecked="True" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Red" GroupName="TextColor" x:Name="rbColorRed" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Blue" GroupName="TextColor" x:Name="rbColorBlue" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="White" GroupName="TextColor" x:Name="rbColorWhite" Margin="2" FontSize="9"/>
+                                                </WrapPanel>
+                                                <Grid Margin="0,3,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Letter spacing" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldLetterSpacing" Minimum="0" Maximum="5" Value="0" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldLetterSpacing, StringFormat={}{0:F0} pt}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- TAG BOX -->
+                                        <TextBlock Text="TAG BOX" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <WrapPanel>
+                                                    <RadioButton Content="Solid" GroupName="BoxStyle" x:Name="rbBoxSolid" IsChecked="True" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Dashed" GroupName="BoxStyle" x:Name="rbBoxDashed" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Round" GroupName="BoxStyle" x:Name="rbBoxRound" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="None" GroupName="BoxStyle" x:Name="rbBoxNone" Margin="2" FontSize="9"/>
+                                                </WrapPanel>
+                                                <Grid Margin="0,3,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Fill opacity" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldBoxOpacity" Minimum="0" Maximum="100" Value="15" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldBoxOpacity, StringFormat={}{0:F0}%}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Border weight" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldBoxBorder" Minimum="0" Maximum="5" Value="1" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldBoxBorder, StringFormat={}{0:F0} pt}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Corner radius" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldBoxRadius" Minimum="0" Maximum="10" Value="3" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldBoxRadius, StringFormat={}{0:F0} px}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Padding" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldBoxPadding" Minimum="0" Maximum="10" Value="3" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldBoxPadding, StringFormat={}{0:F0} mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- WARNING DISPLAY -->
+                                        <TextBlock Text="WARNING DISPLAY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <TextBlock Text="Show warnings" FontSize="9" Margin="0,0,0,2"/>
+                                                <WrapPanel>
+                                                    <RadioButton Content="Critical" GroupName="WarnLevel" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="High" GroupName="WarnLevel" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Medium" GroupName="WarnLevel" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="All" GroupName="WarnLevel" IsChecked="True" Margin="2" FontSize="9"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="Controls TAG_WARN_VISIBLE_BOOL + TAG_WARN_SEVERITY_FILTER_TXT" FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- COLOR SCHEME -->
+                                        <TextBlock Text="COLOR SCHEME" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <WrapPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Discipline" Tag="TagStudio_SchemeDiscipline" Click="Cmd_Click" Background="#FFE0B2" FontSize="9" Width="65"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Warm" Tag="TagStudio_SchemeWarm" Click="Cmd_Click" Background="#FFCCBC" FontSize="9" Width="50"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Cool" Tag="TagStudio_SchemeCool" Click="Cmd_Click" Background="#B2EBF2" FontSize="9" Width="50"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Red" Tag="TagStudio_SchemeRed" Click="Cmd_Click" Background="#FFCDD2" FontSize="9" Width="45"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Yellow" Tag="TagStudio_SchemeYellow" Click="Cmd_Click" Background="#FFF9C4" FontSize="9" Width="50"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Blue" Tag="TagStudio_SchemeBlue" Click="Cmd_Click" Background="#BBDEFB" FontSize="9" Width="50"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Mono" Tag="TagStudio_SchemeMono" Click="Cmd_Click" Background="#E0E0E0" FontSize="9" Width="50"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Dark" Tag="TagStudio_SchemeDark" Click="Cmd_Click" Background="#424242" Foreground="White" FontSize="9" Width="50"/>
+                                                </WrapPanel>
+                                                <WrapPanel Margin="0,3,0,0">
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Zone" Tag="TagStudio_SchemeZone" Click="Cmd_Click" Background="#C8E6C9" FontSize="9" Width="50"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Status" Tag="TagStudio_SchemeStatus" Click="Cmd_Click" Background="#D1C4E9" FontSize="9" Width="50"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Level" Tag="TagStudio_SchemeLevel" Click="Cmd_Click" Background="#B3E5FC" FontSize="9" Width="50"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Function" Tag="TagStudio_SchemeFunction" Click="Cmd_Click" Background="#F0F4C3" FontSize="9" Width="60"/>
+                                                </WrapPanel>
+                                                <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Variable by" FontSize="9" VerticalAlignment="Center"/>
+                                                    <ComboBox Grid.Column="1" x:Name="cmbStyleVariable" FontSize="9" Height="22">
+                                                        <ComboBoxItem Content="Discipline (DISC)" IsSelected="True"/>
+                                                        <ComboBoxItem Content="System (SYS)"/>
+                                                        <ComboBoxItem Content="Function (FUNC)"/>
+                                                        <ComboBoxItem Content="Zone (ZONE)"/>
+                                                        <ComboBoxItem Content="Level (LVL)"/>
+                                                        <ComboBoxItem Content="Status (STATUS)"/>
+                                                    </ComboBox>
+                                                </Grid>
+                                                <TextBlock Text="Element override" FontSize="9" Margin="0,3,0,2"/>
+                                                <WrapPanel>
+                                                    <RadioButton Content="Surface" GroupName="ElemOverride" IsChecked="True" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Cut" GroupName="ElemOverride" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Both" GroupName="ElemOverride" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="None" GroupName="ElemOverride" Margin="2" FontSize="9"/>
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- ACTIONS -->
+                                        <WrapPanel Margin="0,6,0,0">
+                                            <Button Style="{StaticResource GreenBtn}" Content="Apply style" Tag="TagStudio_ApplyStyle" Click="Cmd_Click" Width="80" Height="30"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Apply scheme" Tag="TagStudio_ApplyScheme" Click="Cmd_Click" Width="80" Height="30"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Clear overrides" Tag="TagStudio_ClearOverrides" Click="Cmd_Click" Width="90" Height="30"/>
+                                        </WrapPanel>
+
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+
+                            <!-- ─── Tokens & Depth Tab ─── -->
+                            <TabItem Header="Tokens &amp; Depth">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
+
+                                        <!-- TOKEN SEGMENT VISIBILITY -->
+                                        <TextBlock Text="TOKEN SEGMENT VISIBILITY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <WrapPanel>
+                                                    <CheckBox Content="DISC" x:Name="chkMaskDISC" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox Content="LOC" x:Name="chkMaskLOC" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox Content="ZONE" x:Name="chkMaskZONE" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox Content="LVL" x:Name="chkMaskLVL" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                </WrapPanel>
+                                                <WrapPanel>
+                                                    <CheckBox Content="SYS" x:Name="chkMaskSYS" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox Content="FUNC" x:Name="chkMaskFUNC" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox Content="PROD" x:Name="chkMaskPROD" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox Content="SEQ" x:Name="chkMaskSEQ" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="Separator" FontSize="9" Margin="0,3,0,1"/>
+                                                <WrapPanel>
+                                                    <RadioButton Content="Hyphen -" GroupName="SepStyle" IsChecked="True" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Slash /" GroupName="SepStyle" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Dot ." GroupName="SepStyle" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Underscore _" GroupName="SepStyle" Margin="2" FontSize="9"/>
+                                                </WrapPanel>
+                                                <Grid Margin="0,3,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="SEQ zero-pad" FontSize="9" VerticalAlignment="Center"/>
+                                                    <ComboBox Grid.Column="1" x:Name="cmbSeqPad" FontSize="9" Height="22">
+                                                        <ComboBoxItem Content="0001 (4-digit)" IsSelected="True"/>
+                                                        <ComboBoxItem Content="001 (3-digit)"/>
+                                                        <ComboBoxItem Content="00001 (5-digit)"/>
+                                                    </ComboBox>
+                                                </Grid>
+                                                <Grid Margin="0,3,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Segment order" FontSize="9" VerticalAlignment="Center"/>
+                                                    <ComboBox Grid.Column="1" x:Name="cmbSegOrder" FontSize="9" Height="22">
+                                                        <ComboBoxItem Content="DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ" IsSelected="True"/>
+                                                        <ComboBoxItem Content="DISC-SYS-FUNC-PROD-LOC-ZONE-LVL-SEQ"/>
+                                                        <ComboBoxItem Content="LOC-ZONE-LVL-DISC-SYS-FUNC-PROD-SEQ"/>
+                                                    </ComboBox>
+                                                </Grid>
+                                                <TextBlock Text="TAG_SEG_MASK_TXT: add to ParamRegistry + 3-line mask check in TagConfig.BuildAndWriteTag()" FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- PARAGRAPH DEPTH -->
+                                        <TextBlock Text="PARAGRAPH DEPTH (INFORMATION DENSITY)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Depth tier" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldParaDepth" Minimum="1" Maximum="10" Value="10" VerticalAlignment="Center" IsSnapToTickEnabled="True" TickFrequency="1"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldParaDepth, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <TextBlock Text="Full — all 10 data tiers. Each tier activates TAG_PARA_STATE_N_BOOL" FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- COBIE FIELD PRE-SEEDING -->
+                                        <TextBlock Text="COBie FIELD PRE-SEEDING" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <TextBlock Text="FAMILY STAGE" FontSize="8" Foreground="#888" Margin="0,0,0,2"/>
+                                                <WrapPanel>
+                                                    <CheckBox Content="UniclassCode" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox Content="SFG20Code" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox Content="AssetType" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox Content="WarrantyYrs" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                </WrapPanel>
+                                                <WrapPanel>
+                                                    <CheckBox Content="ExpectedLife" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox Content="MaintFreq" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox Content="ReplaceCost" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox Content="Manufacturer" Margin="3,1" FontSize="9"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="Pre-seeded from COBIE_TYPE_MAP.csv at .rfa stage. Reduces post-placement work." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- TAG CONTAINERS -->
+                                        <TextBlock Text="TAG CONTAINERS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <WrapPanel>
+                                                    <CheckBox Content="ARCH" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="MEP" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="STR" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="GEN" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="M" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="E" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="P" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="FP" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                </WrapPanel>
+                                                <WrapPanel>
+                                                    <CheckBox Content="LV" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="A" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="S" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="G" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="TAG1" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="TAG2" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="TAG3" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="TAG4" Margin="2,1" FontSize="9"/>
+                                                </WrapPanel>
+                                                <WrapPanel>
+                                                    <CheckBox Content="TAG5" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="TAG6" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox Content="TAG7" Margin="2,1" FontSize="9"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="37 discipline containers. Toggle which get written during Tag &amp; Combine." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- TOKEN PRE-POPULATION ORDER -->
+                                        <TextBlock Text="TOKEN PRE-POPULATION ORDER" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Write mode" FontSize="9" VerticalAlignment="Center"/>
+                                                    <WrapPanel Grid.Column="1">
+                                                        <RadioButton Content="Fill empty" GroupName="WriteMode" IsChecked="True" Margin="2" FontSize="9"/>
+                                                        <RadioButton Content="Overwrite all" GroupName="WriteMode" Margin="2" FontSize="9"/>
+                                                    </WrapPanel>
+                                                </Grid>
+                                                <Grid Margin="0,3,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Scope" FontSize="9" VerticalAlignment="Center"/>
+                                                    <ComboBox Grid.Column="1" FontSize="9" Height="22">
+                                                        <ComboBoxItem Content="Entire project" IsSelected="True"/>
+                                                        <ComboBoxItem Content="Active view"/>
+                                                        <ComboBoxItem Content="Selected elements"/>
+                                                    </ComboBox>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- ACTIONS -->
+                                        <WrapPanel Margin="0,6,0,0">
+                                            <Button Style="{StaticResource ActionBtn}" Content="Combine selected" Tag="CombineParameters" Click="Cmd_Click" Width="100" Height="28"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Combine all" Tag="TagAndCombine" Click="Cmd_Click" Width="80" Height="28"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Explain" Tag="TagStudio_Explain" Click="Cmd_Click" Width="60" Height="28"/>
+                                        </WrapPanel>
+                                        <WrapPanel Margin="0,3,0,0">
+                                            <Button Style="{StaticResource GreenBtn}" Content="Stage populate" Tag="FamilyStagePopulate" Click="Cmd_Click" Width="95" Height="28"/>
+                                            <Button Style="{StaticResource GreenBtn}" Content="Full auto" Tag="FullAutoPopulate" Click="Cmd_Click" Width="70" Height="28"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Pipeline" Tag="TagStudio_Pipeline" Click="Cmd_Click" Width="60" Height="28"/>
+                                        </WrapPanel>
+
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+
+                            <!-- ─── Tools Tab ─── -->
+                            <TabItem Header="Tools">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
+
+                                        <!-- TAG PLACEMENT TOOLS -->
+                                        <TextBlock Text="TAG PLACEMENT TOOLS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <WrapPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Smart place" Tag="SmartPlaceTags" Click="Cmd_Click" Width="72" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Batch place" Tag="BatchPlaceTags" Click="Cmd_Click" Width="72" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Arrange" Tag="ArrangeTags" Click="Cmd_Click" Width="62" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Align bands" Tag="TagStudio_AlignBands" Click="Cmd_Click" Width="72" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Overlap audit" Tag="TagOverlapAnalysis" Click="Cmd_Click" Width="80" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Remove tags" Tag="RemoveAnnotationTags" Click="Cmd_Click" Width="80" Height="26"/>
+                                            </WrapPanel>
+                                        </Border>
+
+                                        <!-- TOKEN PIPELINE -->
+                                        <TextBlock Text="TOKEN PIPELINE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <WrapPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Family params" Tag="FamilyParamCreator" Click="Cmd_Click" Width="82" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Stage populate" Tag="FamilyStagePopulate" Click="Cmd_Click" Width="88" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Auto tag" Tag="AutoTag" Click="Cmd_Click" Width="62" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Batch tag" Tag="BatchTag" Click="Cmd_Click" Width="62" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Tag + combine" Tag="TagAndCombine" Click="Cmd_Click" Width="82" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Pre-tag audit" Tag="PreTagAudit" Click="Cmd_Click" Width="78" Height="26"/>
+                                            </WrapPanel>
+                                        </Border>
+
+                                        <!-- TEMPLATE TOOLS -->
+                                        <TextBlock Text="TEMPLATE TOOLS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <WrapPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Learn from view" Tag="LearnTagPlacement" Click="Cmd_Click" Width="88" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Apply template" Tag="ApplyTagTemplate" Click="Cmd_Click" Width="88" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="List presets" Tag="ListWorkflowPresets" Click="Cmd_Click" Width="74" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Linked models" Tag="ExportLinkedManifest" Click="Cmd_Click" Width="88" Height="26"/>
+                                            </WrapPanel>
+                                        </Border>
+
+                                        <!-- VALIDATION TOOLS -->
+                                        <TextBlock Text="VALIDATION TOOLS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <WrapPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Validate tags" Tag="ValidateTags" Click="Cmd_Click" Width="78" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Check data" Tag="CheckData" Click="Cmd_Click" Width="72" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Compliance scan" Tag="ComplianceScan" Click="Cmd_Click" Width="100" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Resolve issues" Tag="ResolveAllIssues" Click="Cmd_Click" Width="88" Height="26"/>
+                                            </WrapPanel>
+                                        </Border>
+
+                                        <!-- STYLE PIPELINE -->
+                                        <TextBlock Text="STYLE PIPELINE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <WrapPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Apply style" Tag="ApplyTagStyle" Click="Cmd_Click" Width="72" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Batch style" Tag="BatchApplyColorScheme" Click="Cmd_Click" Width="72" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Set depth" Tag="SetParagraphDepth" Click="Cmd_Click" Width="66" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Style report" Tag="TagStyleReport" Click="Cmd_Click" Width="78" Height="26"/>
+                                            </WrapPanel>
+                                        </Border>
+
+                                        <!-- EXPORT TOOLS -->
+                                        <TextBlock Text="EXPORT TOOLS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <WrapPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Export positions" Tag="ExportCSV" Click="Cmd_Click" Width="96" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Export schedules" Tag="ExportSchedule4D" Click="Cmd_Click" Width="98" Height="26"/>
+                                            </WrapPanel>
+                                        </Border>
+
+                                        <!-- STATS -->
+                                        <TextBlock Text="STATS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock x:Name="txtStatTagsPlaced" Text="— Tags placed" FontSize="9" HorizontalAlignment="Center"/>
+                                                    <TextBlock x:Name="txtStatCollisions" Grid.Column="1" Text="— Collisions" FontSize="9" HorizontalAlignment="Center"/>
+                                                    <TextBlock x:Name="txtStatOverlap" Grid.Column="2" Text="— Overlap %" FontSize="9" HorizontalAlignment="Center"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- SCHEDULES -->
+                                        <TextBlock Text="SCHEDULES" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <WrapPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Batch schedules" Tag="BatchSchedules" Click="Cmd_Click" Width="92" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Auto-populate" Tag="AutoPopulate" Click="Cmd_Click" Width="88" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Drawing register" Tag="DrawingRegister" Click="Cmd_Click" Width="100" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Sheet index" Tag="SheetIndex" Click="Cmd_Click" Width="72" Height="26"/>
+                                            </WrapPanel>
+                                        </Border>
+
+                                        <!-- GENERATE CODE -->
+                                        <TextBlock Text="GENERATE CODE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Target" FontSize="9" VerticalAlignment="Center"/>
+                                                    <ComboBox Grid.Column="1" FontSize="9" Height="22">
+                                                        <ComboBoxItem Content="Current tab settings" IsSelected="True"/>
+                                                        <ComboBoxItem Content="Placement only"/>
+                                                        <ComboBoxItem Content="Style only"/>
+                                                        <ComboBoxItem Content="Full session"/>
+                                                    </ComboBox>
+                                                </Grid>
+                                                <WrapPanel>
+                                                    <Button Style="{StaticResource GreenBtn}" Content="Generate" Tag="TagStudio_Generate" Click="Cmd_Click" Width="72" Height="28"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Gap review" Tag="TagStudio_GapReview" Click="Cmd_Click" Width="78" Height="28"/>
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </Border>
+
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+
+                            <!-- ─── Scale Tab ─── -->
+                            <TabItem Header="Scale">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
+
+                                        <!-- SCALE-AWARE PLACEMENT -->
+                                        <TextBlock Text="SCALE-AWARE PLACEMENT" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <TextBlock Text="Scale tier rules (auto-detected from view)" FontSize="9" Margin="0,0,0,4"/>
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="1:1 – 1:50" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldScale50" Minimum="0.5" Maximum="10" Value="2" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldScale50, StringFormat={}{0:F1}mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="1:50 – 1:100" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldScale100" Minimum="1" Maximum="15" Value="5" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldScale100, StringFormat={}{0:F1}mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="1:100 – 1:200" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldScale200" Minimum="2" Maximum="20" Value="8" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldScale200, StringFormat={}{0:F1}mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="1:200 – 1:500" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldScale500" Minimum="5" Maximum="30" Value="12" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldScale500, StringFormat={}{0:F1}mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="1:500+" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldScale1000" Minimum="10" Maximum="50" Value="20" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldScale1000, StringFormat={}{0:F1}mm}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Offset cap (ft)" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" x:Name="sldOffsetCap" Minimum="5" Maximum="50" Value="30" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldOffsetCap, StringFormat={}{0:F0} ft}" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- PER-CATEGORY SCALE MULTIPLIERS -->
+                                        <TextBlock Text="PER-CATEGORY SCALE MULTIPLIERS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Ducts" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" Minimum="0.5" Maximum="3.0" Value="1.0" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="1.0x" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Pipes" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" Minimum="0.5" Maximum="3.0" Value="1.0" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="1.0x" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Equipment" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" Minimum="0.5" Maximum="3.0" Value="1.2" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="1.2x" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Fixtures" FontSize="9" VerticalAlignment="Center"/>
+                                                    <Slider Grid.Column="1" Minimum="0.5" Maximum="3.0" Value="0.8" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="0.8x" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- VIEW SCALE INFO -->
+                                        <TextBlock Text="CURRENT VIEW" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <TextBlock x:Name="txtViewScale" Text="Scale: —" FontSize="9"/>
+                                                <TextBlock x:Name="txtViewTier" Text="Tier: —" FontSize="9"/>
+                                                <TextBlock x:Name="txtViewOffset" Text="Offset: — mm (— ft)" FontSize="9"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+
+                        </TabControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
         </TabControl>
 
         <!-- Bottom bar -->

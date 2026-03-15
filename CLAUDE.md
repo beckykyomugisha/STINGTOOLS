@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **72 source files** (70 C# + 2 XAML, ~84,450 lines of code) across 10 directories
-- **344 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **73 source files** (71 C# + 2 XAML, ~88,500 lines of code) across 10 directories
+- **352 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **25 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (8 tabs) + 1 WPF project setup wizard
 
@@ -744,6 +744,7 @@ The plugin's primary user interface is a **WPF dockable panel** that consolidate
 | VIEW | View templates, template manager, styles, presentation modes | Temp Templates |
 | MODEL | Auto-modeling (walls, floors, roofs, columns, beams, MEP), DWG-to-BIM conversion | Model |
 | BIM | ISO 19650 BIM management: BEP, issues, documents, COBie, transmittals, CDE, reviews, briefcase, 4D/5D scheduling | BIMManager |
+| TAGS | Tag Studio: 6 sub-tabs (Placement/Leader/Style/Tokens/Tools/Scale), 16-position compass, collision scoring, leader/elbow, color schemes, scale tiers | Tags + Core |
 
 ### Thread Safety Pattern
 All button clicks dispatch through `IExternalEventHandler` to ensure Revit API calls execute on the correct thread:
@@ -1350,6 +1351,49 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 112. **Electrical circuit SYS patterns** — Added SAN/HWS/DCW/GAS/HVAC pattern checks in `GetSysFromElectricalCircuit` before catch-all `return "LV"`.
 113. **Linked model manifest export** — `ExportLinkedModelManifestCommand` derives all 9 tokens for linked model elements and exports `_LINKED_TOKENS.json` sidecar file.
 114. **SEQ migration guard** — `ConfigEditorCommand` snapshots SEQ settings before edits, warns if changed with existing tags, offers revert.
+
+#### Completed (Phase 13 — Tag Studio, 16-Position Pipeline & Full Automation)
+
+115. **InjectPositionTypes() expanded to 16** — 16 FamilyType entries aligned to `GetCandidateOffsets()` ring 1 (1x cardinal/diagonal) + ring 2 (1.5x far)
+116. **InjectTagPosFormulas() 16-branch** — Full X/Y offset formulas for all 16 positions with `Tag_Offset_Base` type parameter
+117. **SeedDefaultTokens()** — Pre-wires DISC/PROD/SYS/FUNC/TAG_POS into .rfa families at family stage
+118. **COBie type pre-seeding** — Loads COBIE_TYPE_MAP.csv for UniclassCode, SFG20Code, AssetType etc. at .rfa stage
+119. **DirectionalOffsetConfig** — Per-axis N/E/S/W offset overrides in placement engine (`GetCandidateOffsets` overload)
+120. **LeaderLengthMin/Max clamps** — `CategoryRule` gains min/max leader length clamps applied in `PlaceTagsInView`
+121. **AdjustElbowsCommand** — New command: Straight/45°/90°/Free elbow types via `tag.SetLeaderElbow`
+122. **SetArrowheadStyleCommand** — ObjectStyles annotation arrowhead control (with API gap logging)
+123. **TagControlSession** — Atomic settings class: Position, offsets, leader, elbow, arrow, style, scheme, depth, mask
+124. **TAG_SEG_MASK_TXT** — Per-element token segment visibility mask (8-char "10110101" format)
+125. **Zone/Status/Level/Function color schemes** — 4 new built-in VariableColorScheme entries
+126. **BuildDisplayTag()** — 5 display modes (full/SEQ/PROD-SEQ/DISC-SYS-SEQ/DISC-PROD-SEQ) wired to ASS_DISPLAY_TXT
+127. **Per-view style routing** — STING_VIEW_TAG_STYLE read in ApplyColorScheme for per-view scheme override
+128. **BuildSeqKey() helper** — Normalises all SEQ counter keys to `{disc}_{sys}_{func}_{prod}` format
+129. **NativeParamMapper SYS respect** — All Set() calls changed to SetIfEmpty() with `overwrite` parameter
+130. **LOC/ZONE ValidateLocationCode()** — Strict 3-6 char uppercase validation in SpatialAutoDetect
+131. **StingStaleMarker DocumentChanged** — Real-time stale detection via Application.DocumentChanged subscription
+132. **Alpha/ZonePrefix/DiscPrefix SEQ** — Full SeqScheme switch in BuildAndWriteTag with ToAlpha()
+133. **Formula cycle detection enhanced** — DFS topological sort verified from Phase 12
+134. **GetModelOffset() scale tiers** — 5-tier scale rules (1:50/100/200/500+) with configurable offset cap
+135. **Per-category ScaleMultiplier** — CategoryRule gains ScaleMultiplier applied in offset computation
+136. **ValidateTagsCommand three-bucket** — Fully/partially/untagged compliance with weighted scoring
+137. **ComplianceScan FullyTagged/PartiallyTagged** — DiscComplianceData extended with three-bucket counts
+138. **PreTagAudit auto-fix chain** — Static issue list with timestamp for AnomalyAutoFixCommand pass-through
+139. **WorkflowEngine threshold conditions** — maxCompliancePct/minCompliancePct wired to ComplianceScan in EvaluateStep
+140. **DocumentOpened quality gate** — Async ComplianceScan via Idling event + RAG status bar on project open
+141. **Workflow trend persistence** — DisciplineCompliance dictionary in WorkflowRunRecord
+142. **COBie System fix** — Groups by ASS_SYSTEM_TYPE_TXT parameter instead of name matching
+143. **MapSheetsCommand** — NativeParamMapper.MapSheets() maps native sheet params to STING shared params
+144. **SolidFillPattern cached in TagStyleEngine** — Per-doc.Title cache with ClearSolidFillCache()
+145. **PopulationContext cache assert** — Warns on double-Build() in same command frame
+146. **Batch log noise reduction** — Per-element logging changed to modulo-200 summaries
+147. **Tag Studio WPF tab** — 9th panel tab with 6 sub-tabs: Placement/Leader/Style/Tokens/Tools/Scale
+148. **Tag Studio 16-position compass** — 4x4 RadioButton grid for P1-P16 with directional override
+149. **Tag Studio collision weights** — Sliders for overlap penalty, proximity, preferred bonus, align bonus, crop edge
+150. **Tag Studio leader/elbow controls** — Auto/Always/Never/Smart modes + Straight/45°/90°/Free elbows
+151. **Tag Studio style/color controls** — Text size/weight/color, box style/opacity, 12 color scheme buttons
+152. **Tag Studio token controls** — Segment mask checkboxes, separator, SEQ pad, segment order, paragraph depth
+153. **Tag Studio tools dashboard** — Placement/pipeline/template/validation/style/export/schedules/generate panels
+154. **Tag Studio scale tab** — Scale-tier sliders, per-category multipliers, current view info readouts
 
 ### External Tool References
 

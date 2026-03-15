@@ -62,15 +62,27 @@ namespace StingTools.Core
                     StingLog.Error("ParamRegistry pre-load failed (commands will use defaults)", ex);
                 }
 
-                // Item 16: Document-open quality gate
+                // Item 16: Document-open quality gate with deferred Idling scan
                 try
                 {
                     application.ControlledApplication.DocumentOpened += OnDocumentOpened;
-                    StingLog.Info("DocumentOpened quality gate registered.");
+                    application.Idling += OnIdlingComplianceScan;
+                    StingLog.Info("DocumentOpened quality gate + Idling scan registered.");
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"DocumentOpened registration: {ex.Message}");
+                }
+
+                // Section 7.5: DocumentChanged stale-marking connection
+                try
+                {
+                    application.ControlledApplication.DocumentChanged += StingAutoTagger.OnDocumentChanged;
+                    StingLog.Info("DocumentChanged stale-marker registered.");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"DocumentChanged registration: {ex.Message}");
                 }
 
                 // CRASH FIX: Subscribe to DocumentClosing to clear stale static caches.
@@ -120,6 +132,10 @@ namespace StingTools.Core
             StingLog.Info("STING Tools shutting down");
             try { application.ControlledApplication.DocumentOpened -= OnDocumentOpened; }
             catch { }
+            try { application.Idling -= OnIdlingComplianceScan; }
+            catch { }
+            try { application.ControlledApplication.DocumentChanged -= StingAutoTagger.OnDocumentChanged; }
+            catch { }
             try { application.ControlledApplication.DocumentClosing -= OnDocumentClosing; }
             catch { }
             try { application.ControlledApplication.DocumentClosed -= OnDocumentClosed; }
@@ -148,7 +164,11 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>Document-open quality gate — runs compliance check on open.</summary>
+        /// <summary>Document-open quality gate — defers compliance check to Idling event
+        /// so it runs after the document is fully loaded and the UI is ready.</summary>
+        private static volatile bool _pendingComplianceScan;
+        private static Document _pendingScanDoc;
+
         private static void OnDocumentOpened(object sender,
             Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
         {
@@ -157,20 +177,53 @@ namespace StingTools.Core
                 Document doc = e.Document;
                 if (doc == null || doc.IsFamilyDocument) return;
 
+                // Defer compliance scan to Idling event for better UX
+                // (document may still be loading views/families at this point)
+                _pendingScanDoc = doc;
+                _pendingComplianceScan = true;
+
+                StingLog.Info($"DocumentOpened: '{doc.Title}' — compliance scan deferred to Idling");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DocumentOpened quality gate: {ex.Message}");
+            }
+        }
+
+        /// <summary>Idling handler that runs the deferred compliance scan once after document open.
+        /// Registered once at startup; only acts when _pendingComplianceScan is set.</summary>
+        private static void OnIdlingComplianceScan(object sender, Autodesk.Revit.DB.Events.IdlingEventArgs e)
+        {
+            if (!_pendingComplianceScan) return;
+            _pendingComplianceScan = false;
+
+            try
+            {
+                Document doc = _pendingScanDoc;
+                _pendingScanDoc = null;
+                if (doc == null || !doc.IsValidObject || doc.IsFamilyDocument) return;
+
                 var scan = ComplianceScan.Scan(doc, forceRefresh: true);
 
-                // Update dock panel status bar
+                // Update dock panel status bar with RAG colour
                 try
                 {
                     UI.StingDockPanel.UpdateComplianceStatus(scan.StatusBarText, scan.RAGStatus);
                 }
                 catch { }
 
-                StingLog.Info($"DocumentOpened: '{doc.Title}' — {scan.StatusBarText}");
+                StingLog.Info($"DocumentOpened quality gate: '{doc.Title}' — {scan.StatusBarText}");
+
+                // If compliance is critically low, suggest running DailyQA workflow
+                if (scan.CompliancePercent < 50.0)
+                {
+                    StingLog.Warn($"DocumentOpened: compliance is {scan.CompliancePercent:F0}% (RED). " +
+                        "Consider running the DailyQA workflow preset to improve tag coverage.");
+                }
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"DocumentOpened quality gate: {ex.Message}");
+                StingLog.Warn($"Idling compliance scan: {ex.Message}");
             }
         }
 

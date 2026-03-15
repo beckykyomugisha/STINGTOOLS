@@ -121,6 +121,22 @@ namespace StingTools.Tags
             }
         }
 
+        // ── Directional offset configuration ─────────────────────────
+
+        /// <summary>
+        /// Per-axis offset multipliers for directional tag placement.
+        /// Each multiplier scales the base offset for that cardinal direction.
+        /// Ring2Scale controls how much further ring 2 positions are placed.
+        /// </summary>
+        public class DirectionalOffsetConfig
+        {
+            public double NOffset { get; set; } = 1.0;
+            public double EOffset { get; set; } = 1.0;
+            public double SOffset { get; set; } = 1.0;
+            public double WOffset { get; set; } = 1.0;
+            public double Ring2Scale { get; set; } = 1.5;
+        }
+
         // ── Candidate position generation ──────────────────────────────
 
         /// <summary>
@@ -153,11 +169,73 @@ namespace StingTools.Tags
             };
         }
 
-        /// <summary>Scale-aware offset: baseOffset * viewScale gives consistent paper-space distance.</summary>
+        /// <summary>
+        /// Directional 16-position candidate generation with per-axis offset multipliers.
+        /// Each cardinal direction uses its own multiplier from config, and diagonals
+        /// combine the relevant axis multipliers. Ring 2 positions are scaled by config.Ring2Scale.
+        /// </summary>
+        public static XYZ[] GetCandidateOffsets(double offset, DirectionalOffsetConfig config)
+        {
+            if (config == null) return GetCandidateOffsets(offset);
+
+            double n = offset * config.NOffset;
+            double e = offset * config.EOffset;
+            double s = offset * config.SOffset;
+            double w = offset * config.WOffset;
+            double r2 = config.Ring2Scale;
+
+            return new[]
+            {
+                // Ring 1: cardinal directions with per-axis multipliers
+                new XYZ(0, n, 0),            // N  (P1)
+                new XYZ(e, 0, 0),            // E  (P2)
+                new XYZ(0, -s, 0),           // S  (P3)
+                new XYZ(-w, 0, 0),           // W  (P4)
+                new XYZ(e, n, 0),            // NE (P5)
+                new XYZ(e, -s, 0),           // SE (P6)
+                new XYZ(-w, -s, 0),          // SW (P7)
+                new XYZ(-w, n, 0),           // NW (P8)
+                // Ring 2: scaled by Ring2Scale
+                new XYZ(0, n * r2, 0),                       // N far  (P9)
+                new XYZ(e * r2, 0, 0),                       // E far  (P10)
+                new XYZ(0, -s * r2, 0),                      // S far  (P11)
+                new XYZ(-w * r2, 0, 0),                      // W far  (P12)
+                new XYZ(e * r2 * 0.7, n * r2 * 0.7, 0),     // NE far (P13)
+                new XYZ(e * r2 * 0.7, -s * r2 * 0.7, 0),    // SE far (P14)
+                new XYZ(-w * r2 * 0.7, -s * r2 * 0.7, 0),   // SW far (P15)
+                new XYZ(-w * r2 * 0.7, n * r2 * 0.7, 0),    // NW far (P16)
+            };
+        }
+
+        /// <summary>Configurable maximum offset cap in feet (default 30.0).</summary>
+        public static double MaxOffsetCapFt { get; set; } = 30.0;
+
+        /// <summary>
+        /// Scale-tier-aware offset: uses mm-based tiers that scale with view scale.
+        /// Tiers: 1:1–1:50 = 2mm, 1:50–1:100 = 5mm, 1:100–1:200 = 8mm,
+        ///        1:200–1:500 = 12mm, 1:500+ = 20mm.
+        /// Result is converted to feet and multiplied by viewScale, capped at MaxOffsetCapFt.
+        /// </summary>
         public static double GetModelOffset(View view, double baseOffset = 0.01)
         {
             int viewScale = view.Scale > 0 ? view.Scale : 100;
-            return Math.Min(baseOffset * viewScale, 10.0); // cap at 10 ft for high-scale views
+
+            // Determine base mm from scale tier
+            double baseMm;
+            if (viewScale <= 50)
+                baseMm = 2.0;
+            else if (viewScale <= 100)
+                baseMm = 5.0;
+            else if (viewScale <= 200)
+                baseMm = 8.0;
+            else if (viewScale <= 500)
+                baseMm = 12.0;
+            else
+                baseMm = 20.0;
+
+            // Convert mm to feet, then multiply by view scale for model-space distance
+            double offsetFt = (baseMm / 304.8) * viewScale;
+            return Math.Min(offsetFt, MaxOffsetCapFt);
         }
 
         /// <summary>Get element center point in view coordinates.</summary>
@@ -594,6 +672,24 @@ namespace StingTools.Tags
             Box2D? viewCrop = GetViewCropBox(view);
             var tagTypeCache = new Dictionary<ElementId, ElementId>();
 
+            // Load category scale multipliers from presets if available
+            var scaleMultipliers = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string presetsPath = TagPlacementPresets.GetPresetsPath();
+                var presets = TagPlacementPresets.LoadPresets(presetsPath);
+                if (presets.Count > 0)
+                {
+                    var latest = presets[presets.Count - 1];
+                    foreach (var kvp in latest.Rules)
+                    {
+                        if (Math.Abs(kvp.Value.ScaleMultiplier - 1.0) > 0.001)
+                            scaleMultipliers[kvp.Key] = kvp.Value.ScaleMultiplier;
+                    }
+                }
+            }
+            catch { }
+
             foreach (Element elem in elements)
             {
                 XYZ center = GetElementCenter(elem, view);
@@ -613,9 +709,14 @@ namespace StingTools.Tags
                 if (tagTypeId == ElementId.InvalidElementId) { skipped++; continue; }
 
                 string catName = elem.Category?.Name ?? "";
+                // Apply per-category scale multiplier to offset
+                double catOffset = offset;
+                if (scaleMultipliers.TryGetValue(catName, out double scaleMult))
+                    catOffset = offset * scaleMult;
+
                 // Use smart preferred side that considers element orientation
                 int preferred = GetSmartPreferredSide(elem, view);
-                var offsets = GetCandidateOffsets(offset);
+                var offsets = GetCandidateOffsets(catOffset);
 
                 XYZ bestPos = null;
                 double bestScore = double.MinValue;
@@ -653,6 +754,33 @@ namespace StingTools.Tags
                     bestPos = center + new XYZ(0, offset, 0);
                     needsLeader = true;
                 }
+
+                // Leader length clamping: enforce min/max distance from element center
+                double leaderMinFt = 3.0;
+                double leaderMaxFt = 40.0;
+                double distToBest = bestPos.DistanceTo(center);
+                if (distToBest > 0.001)
+                {
+                    XYZ direction = (bestPos - center).Normalize();
+                    if (distToBest < leaderMinFt)
+                    {
+                        bestPos = center + direction * leaderMinFt;
+                    }
+                    else if (distToBest > leaderMaxFt)
+                    {
+                        bestPos = center + direction * leaderMaxFt;
+                        needsLeader = true;
+                    }
+                }
+
+                // Log TAG_SEG_MASK_TXT if set on element (mask application happens in TagConfig.BuildAndWriteTag)
+                try
+                {
+                    string segMask = ParameterHelpers.GetString(elem, "TAG_SEG_MASK_TXT");
+                    if (!string.IsNullOrEmpty(segMask))
+                        StingLog.Info($"PlaceTagsInView: element {elem.Id} has TAG_SEG_MASK_TXT={segMask}");
+                }
+                catch { }
 
                 var finalBox = Box2D.EstimateTag(bestPos, tagWidth, tagHeight);
                 if (grid.HasOverlap(finalBox)) collisions++;
@@ -798,6 +926,12 @@ namespace StingTools.Tags
             public double OffsetY { get; set; } = 0;
             public string Orientation { get; set; } = "Horizontal";
             public double LeaderThreshold { get; set; } = 3.0;
+            /// <summary>Minimum leader length in feet. Tags closer than this are pushed out.</summary>
+            public double LeaderLengthMin { get; set; } = 3.0;
+            /// <summary>Maximum leader length in feet. Tags farther than this are pulled in.</summary>
+            public double LeaderLengthMax { get; set; } = 40.0;
+            /// <summary>Per-category scale multiplier applied to offset distance (1.0 = default).</summary>
+            public double ScaleMultiplier { get; set; } = 1.0;
         }
 
         /// <summary>A saved placement preset.</summary>
@@ -2529,6 +2663,468 @@ namespace StingTools.Tags
             td.Show();
 
             return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Adjust Elbows — reposition leader elbows on annotation tags
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Adjust leader elbow positions on IndependentTag annotations in the active view.
+    /// Supports Straight (midpoint), 90-degree (horizontal-first), 45-degree (angled),
+    /// and Free (user-specified delta) elbow styles.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AdjustElbowsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.ActiveView == null)
+            {
+                TaskDialog.Show("STING", "No active view.");
+                return Result.Failed;
+            }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+
+            // Choose elbow style
+            TaskDialog dlg = new TaskDialog("STING — Adjust Elbows");
+            dlg.MainInstruction = "Select leader elbow style";
+            dlg.MainContent = "Adjusts elbows on all tags with leaders in the active view.";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Straight", "Elbow at midpoint of element-to-tag vector");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "90 degrees", "Horizontal-first: elbow at (tagX, elemY)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "45 degrees", "Angled: elbow offset to create 45-degree bend");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Free", "No elbow adjustment — set elbow at leader end");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int mode;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: mode = 0; break;
+                case TaskDialogResult.CommandLink2: mode = 1; break;
+                case TaskDialogResult.CommandLink3: mode = 2; break;
+                case TaskDialogResult.CommandLink4: mode = 3; break;
+                default: return Result.Cancelled;
+            }
+
+            var tags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            int adjusted = 0, skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Adjust Elbows"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        if (!tag.HasLeader) { skipped++; continue; }
+
+                        var hostIds = tag.GetTaggedLocalElementIds();
+                        if (hostIds.Count == 0) { skipped++; continue; }
+
+                        Element host = doc.GetElement(hostIds.First());
+                        if (host == null) { skipped++; continue; }
+
+                        XYZ elemCenter = TagPlacementEngine.GetElementCenter(host, view);
+                        XYZ tagPos = tag.TagHeadPosition;
+
+                        Reference hostRef = new Reference(host);
+                        XYZ elbowPos;
+
+                        switch (mode)
+                        {
+                            case 0: // Straight: midpoint
+                                elbowPos = (elemCenter + tagPos) / 2.0;
+                                break;
+                            case 1: // 90 degrees: horizontal-first
+                                elbowPos = new XYZ(tagPos.X, elemCenter.Y, elemCenter.Z);
+                                break;
+                            case 2: // 45 degrees: midpoint + perpendicular offset
+                                XYZ mid = (elemCenter + tagPos) / 2.0;
+                                XYZ dir = tagPos - elemCenter;
+                                double halfDist = dir.GetLength() / 2.0;
+                                // Perpendicular in XY plane
+                                XYZ perp = new XYZ(-dir.Y, dir.X, 0);
+                                double perpLen = perp.GetLength();
+                                if (perpLen > 0.001)
+                                    elbowPos = mid + perp * (halfDist * 0.5 / perpLen);
+                                else
+                                    elbowPos = mid;
+                                break;
+                            case 3: // Free: set elbow at leader end (minimal adjustment)
+                            default:
+                                try
+                                {
+                                    elbowPos = tag.GetLeaderEnd(hostRef);
+                                }
+                                catch
+                                {
+                                    elbowPos = elemCenter;
+                                }
+                                break;
+                        }
+
+                        tag.SetLeaderElbow(hostRef, elbowPos);
+                        adjusted++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"AdjustElbows: tag {tag.Id}: {ex.Message}");
+                        skipped++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            string modeName = mode switch
+            {
+                0 => "Straight",
+                1 => "90 degrees",
+                2 => "45 degrees",
+                3 => "Free",
+                _ => "Unknown"
+            };
+
+            TaskDialog.Show("STING — Adjust Elbows",
+                $"Adjusted {adjusted} leader elbows to '{modeName}' style.\nSkipped: {skipped}");
+            StingLog.Info($"AdjustElbows: adjusted={adjusted}, skipped={skipped}, mode={modeName}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Set Arrowhead Style — annotation category line weight control
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Attempts to set arrowhead style on annotation tag types.
+    /// The Revit API does not directly expose ArrowheadType on IndependentTag,
+    /// so this command provides line weight control on annotation categories
+    /// as the closest available alternative.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetArrowheadStyleCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            StingLog.Warn("SetArrowheadStyle: The Revit API does not expose IndependentTag.ArrowheadType " +
+                "directly. Providing line weight control on annotation categories as alternative.");
+
+            TaskDialog dlg = new TaskDialog("STING — Set Arrowhead Style");
+            dlg.MainInstruction = "Annotation leader line weight";
+            dlg.MainContent = "NOTE: The Revit API does not directly expose arrowhead type " +
+                "on IndependentTag annotations. This command controls leader line weight " +
+                "on annotation categories as the closest available control.\n\n" +
+                "To change arrowhead style, edit the tag family .rfa directly.";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Hairline (pen 1)", "Thinnest leader lines");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Medium (pen 3)", "Standard leader weight");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Bold (pen 6)", "Heavy leader lines for emphasis");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int pen;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: pen = 1; break;
+                case TaskDialogResult.CommandLink2: pen = 3; break;
+                case TaskDialogResult.CommandLink3: pen = 6; break;
+                default: return Result.Cancelled;
+            }
+
+            int changed = 0;
+            using (Transaction tx = new Transaction(doc, "STING Set Arrowhead Style"))
+            {
+                tx.Start();
+                foreach (Category cat in doc.Settings.Categories)
+                {
+                    try
+                    {
+                        if (cat.CategoryType != CategoryType.Annotation) continue;
+                        string name = cat.Name?.ToUpperInvariant() ?? "";
+                        if (!name.Contains("TAG")) continue;
+
+                        cat.SetLineWeight(pen, GraphicsStyleType.Projection);
+                        changed++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("STING — Set Arrowhead Style",
+                $"Set leader line weight to pen {pen} on {changed} tag annotation categories.");
+            StingLog.Info($"SetArrowheadStyle: set pen {pen} on {changed} annotation categories");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  TagControlSession — aggregate all panel settings for batch apply
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Aggregates all tag control panel settings into a single session object.
+    /// Allows batch application of position, leader, elbow, text, color, and
+    /// segment mask settings in a single transaction.
+    /// </summary>
+    internal class TagControlSession
+    {
+        // Position settings (1-16 for 16 candidate positions)
+        public int Position { get; set; } = 1;
+        public double OffsetN { get; set; } = 1.0;
+        public double OffsetE { get; set; } = 1.0;
+        public double OffsetS { get; set; } = 1.0;
+        public double OffsetW { get; set; } = 1.0;
+        public double Ring2Scale { get; set; } = 1.5;
+
+        // Leader settings
+        public enum LeaderModeEnum { Auto, Always, Never, Smart }
+        public LeaderModeEnum LeaderMode { get; set; } = LeaderModeEnum.Auto;
+        public double LeaderLengthMin { get; set; } = 3.0;
+        public double LeaderLengthMax { get; set; } = 40.0;
+
+        // Elbow settings
+        public enum ElbowTypeEnum { Straight, FortyFive, Ninety, Free }
+        public ElbowTypeEnum ElbowType { get; set; } = ElbowTypeEnum.Straight;
+        public double ElbowX { get; set; } = 0.0;
+        public double ElbowY { get; set; } = 0.0;
+
+        // Text settings
+        public double TextSize { get; set; } = 2.5;
+        public string TextWeight { get; set; } = "NOM";
+        public string TextColor { get; set; } = "BLACK";
+        public string BoxStyle { get; set; } = "NONE";
+        public double BoxOpacity { get; set; } = 1.0;
+
+        // Color and style
+        public string ColorSchemeName { get; set; } = "";
+        public int ParaDepth { get; set; } = 3;
+
+        // Segment mask (8 segments: DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ)
+        public bool[] TagSegmentMask { get; set; } = new bool[] { true, true, true, true, true, true, true, true };
+
+        // Scope
+        public string Scope { get; set; } = "ActiveView";
+        public string CategoryFilter { get; set; } = "";
+
+        /// <summary>
+        /// Apply all session settings to tags in the specified view.
+        /// Uses a single transaction for atomicity.
+        /// </summary>
+        public int Apply(Document doc, View view)
+        {
+            if (doc == null || view == null) return 0;
+            int applied = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Apply Tag Control Session"))
+            {
+                tx.Start();
+
+                var tags = new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(IndependentTag))
+                    .Cast<IndependentTag>()
+                    .ToList();
+
+                // Build directional offset config from session
+                var dirConfig = new TagPlacementEngine.DirectionalOffsetConfig
+                {
+                    NOffset = OffsetN,
+                    EOffset = OffsetE,
+                    SOffset = OffsetS,
+                    WOffset = OffsetW,
+                    Ring2Scale = Ring2Scale,
+                };
+
+                double baseOffset = TagPlacementEngine.GetModelOffset(view);
+
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        // Apply category filter if specified
+                        if (!string.IsNullOrEmpty(CategoryFilter))
+                        {
+                            var hostIds = tag.GetTaggedLocalElementIds();
+                            if (hostIds.Count > 0)
+                            {
+                                Element host = doc.GetElement(hostIds.First());
+                                string catName = host?.Category?.Name ?? "";
+                                if (!catName.Equals(CategoryFilter, StringComparison.OrdinalIgnoreCase))
+                                    continue;
+                            }
+                        }
+
+                        // Apply leader mode
+                        switch (LeaderMode)
+                        {
+                            case LeaderModeEnum.Always:
+                                if (!tag.HasLeader) tag.HasLeader = true;
+                                break;
+                            case LeaderModeEnum.Never:
+                                if (tag.HasLeader) tag.HasLeader = false;
+                                break;
+                            case LeaderModeEnum.Smart:
+                            case LeaderModeEnum.Auto:
+                                // Auto/Smart: leave as-is
+                                break;
+                        }
+
+                        // Apply elbow type if tag has leader
+                        if (tag.HasLeader)
+                        {
+                            try
+                            {
+                                var hostIds = tag.GetTaggedLocalElementIds();
+                                if (hostIds.Count > 0)
+                                {
+                                    Element host = doc.GetElement(hostIds.First());
+                                    if (host != null)
+                                    {
+                                        XYZ elemCenter = TagPlacementEngine.GetElementCenter(host, view);
+                                        XYZ tagPos = tag.TagHeadPosition;
+                                        Reference hostRef = new Reference(host);
+                                        XYZ elbowPos;
+
+                                        switch (ElbowType)
+                                        {
+                                            case ElbowTypeEnum.Straight:
+                                                elbowPos = (elemCenter + tagPos) / 2.0;
+                                                break;
+                                            case ElbowTypeEnum.Ninety:
+                                                elbowPos = new XYZ(tagPos.X, elemCenter.Y, elemCenter.Z);
+                                                break;
+                                            case ElbowTypeEnum.FortyFive:
+                                                XYZ mid = (elemCenter + tagPos) / 2.0;
+                                                XYZ dir = tagPos - elemCenter;
+                                                double halfDist = dir.GetLength() / 2.0;
+                                                XYZ perp = new XYZ(-dir.Y, dir.X, 0);
+                                                double perpLen = perp.GetLength();
+                                                elbowPos = perpLen > 0.001
+                                                    ? mid + perp * (halfDist * 0.5 / perpLen)
+                                                    : mid;
+                                                break;
+                                            case ElbowTypeEnum.Free:
+                                            default:
+                                                elbowPos = tagPos + new XYZ(ElbowX, ElbowY, 0);
+                                                break;
+                                        }
+
+                                        tag.SetLeaderElbow(hostRef, elbowPos);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"TagControlSession elbow: {tag.Id}: {ex.Message}");
+                            }
+                        }
+
+                        // Write segment mask as TAG_SEG_MASK_TXT to host element
+                        if (TagSegmentMask != null && TagSegmentMask.Length == 8)
+                        {
+                            try
+                            {
+                                var hostIds = tag.GetTaggedLocalElementIds();
+                                if (hostIds.Count > 0)
+                                {
+                                    Element host = doc.GetElement(hostIds.First());
+                                    if (host != null)
+                                    {
+                                        string maskStr = string.Join("",
+                                            TagSegmentMask.Select(b => b ? "1" : "0"));
+                                        // Only write if not all segments enabled (default)
+                                        if (maskStr != "11111111")
+                                        {
+                                            ParameterHelpers.SetString(host, "TAG_SEG_MASK_TXT",
+                                                maskStr, overwrite: true);
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+
+                        // Write TAG style BOOL params if text settings differ from default
+                        if (!string.IsNullOrEmpty(TextWeight) && !string.IsNullOrEmpty(TextColor))
+                        {
+                            try
+                            {
+                                var hostIds = tag.GetTaggedLocalElementIds();
+                                if (hostIds.Count > 0)
+                                {
+                                    Element host = doc.GetElement(hostIds.First());
+                                    if (host != null)
+                                    {
+                                        // Build the TAG style param name: TAG_{SIZE}{STYLE}_{COLOR}_BOOL
+                                        string sizeKey = TextSize.ToString("F1").Replace(".", "").TrimStart('0');
+                                        if (string.IsNullOrEmpty(sizeKey)) sizeKey = "25";
+                                        string paramName = $"TAG_{sizeKey}{TextWeight}_{TextColor}_BOOL";
+                                        Parameter p = host.LookupParameter(paramName);
+                                        if (p != null && p.StorageType == StorageType.Integer && !p.IsReadOnly)
+                                            p.Set(1);
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+
+                        // Write paragraph depth
+                        if (ParaDepth >= 1 && ParaDepth <= 10)
+                        {
+                            try
+                            {
+                                var hostIds = tag.GetTaggedLocalElementIds();
+                                if (hostIds.Count > 0)
+                                {
+                                    Element host = doc.GetElement(hostIds.First());
+                                    if (host != null)
+                                    {
+                                        for (int tier = 1; tier <= 3; tier++)
+                                        {
+                                            string boolParam = $"TAG_PARA_STATE_{tier}_BOOL";
+                                            Parameter p = host.LookupParameter(boolParam);
+                                            if (p != null && !p.IsReadOnly)
+                                                p.Set(tier <= ParaDepth ? 1 : 0);
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+
+                        applied++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"TagControlSession: tag {tag.Id}: {ex.Message}");
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            StingLog.Info($"TagControlSession.Apply: applied settings to {applied} tags in '{view.Name}'");
+            return applied;
         }
     }
 }

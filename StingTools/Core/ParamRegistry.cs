@@ -127,6 +127,10 @@ namespace StingTools.Core
         public const string TAG_POS_GUID = "E1F2A3B4-C5D6-4E7F-8A9B-0C1D2E3F4A5B";
         public const string VIEW_TAG_STYLE = "STING_VIEW_TAG_STYLE";
         public const string VIEW_TAG_STYLE_GUID = "E2F3A4B5-C6D7-4E8F-9A0B-1C2D3E4F5A6C";
+        public const string TAG_SEG_MASK = "TAG_SEG_MASK_TXT";
+        public const string TAG_SEG_MASK_GUID = "F3A4B5C6-D7E8-4F9A-0B1C-2D3E4F5A6B7D";
+        public const string DISPLAY_MODE = "STING_DISPLAY_MODE";
+        public const string DISPLAY_MODE_GUID = "A4B5C6D7-E8F9-4A0B-1C2D-3E4F5A6B7C8E";
 
         // ── Extended parameter names (identity, spatial, dimensional, MEP) ──
         // Loaded from extended_params section. Keys map to param_name values.

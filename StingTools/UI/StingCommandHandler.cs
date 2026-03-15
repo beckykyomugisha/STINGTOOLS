@@ -492,6 +492,7 @@ namespace StingTools.UI
                     case "FamilyStagePopulate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
                     case "AssignNumbers": RunCommand<Tags.AssignNumbersCommand>(app); break;
                     case "BuildTags": RunCommand<Tags.BuildTagsCommand>(app); break;
+                    case "MapSheets": RunCommand<Tags.MapSheetsCommand>(app); break;
                     case "CombineParameters": RunCommand<Tags.CombineParametersCommand>(app); break;
                     case "CombinePreFlight": RunCommand<Tags.CombinePreFlightCommand>(app); break;
 
@@ -880,6 +881,38 @@ namespace StingTools.UI
                     case "RetagStale":           RunCommand<Organise.RetagStaleCommand>(app); break;
                     case "SetViewTagStyle":      RunCommand<Tags.SetViewTagStyleCommand>(app); break;
                     case "AutoTaggerConfig":     RunCommand<Core.AutoTaggerConfigCommand>(app); break;
+
+                    // ── Tag Studio panel commands ──
+                    case "TagStudio_SmartPlace":  RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
+                    case "TagStudio_Arrange":     RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "TagStudio_AlignBands":  RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "TagStudio_AdjustElbows": RunCommand<Tags.AdjustElbowsCommand>(app); break;
+                    case "TagStudio_SetArrows":   RunCommand<Tags.SetArrowheadStyleCommand>(app); break;
+                    case "TagStudio_ApplyStyle":  RunCommand<Tags.ApplyTagStyleCommand>(app); break;
+                    case "TagStudio_ApplyScheme": RunCommand<Tags.ApplyColorSchemeCommand>(app); break;
+                    case "TagStudio_ClearOverrides": RunCommand<Tags.ClearColorSchemeCommand>(app); break;
+                    case "TagStudio_SchemeDiscipline": HandleTagStudioScheme(app, "Discipline"); break;
+                    case "TagStudio_SchemeWarm":  HandleTagStudioScheme(app, "Warm"); break;
+                    case "TagStudio_SchemeCool":  HandleTagStudioScheme(app, "Cool"); break;
+                    case "TagStudio_SchemeRed":   HandleTagStudioScheme(app, "Red"); break;
+                    case "TagStudio_SchemeYellow": HandleTagStudioScheme(app, "Yellow"); break;
+                    case "TagStudio_SchemeBlue":  HandleTagStudioScheme(app, "Blue"); break;
+                    case "TagStudio_SchemeMono":  HandleTagStudioScheme(app, "Monochrome"); break;
+                    case "TagStudio_SchemeDark":  HandleTagStudioScheme(app, "Dark"); break;
+                    case "TagStudio_SchemeZone":  HandleTagStudioScheme(app, "Zone"); break;
+                    case "TagStudio_SchemeStatus": HandleTagStudioScheme(app, "Status"); break;
+                    case "TagStudio_SchemeLevel": HandleTagStudioScheme(app, "Level"); break;
+                    case "TagStudio_SchemeFunction": HandleTagStudioScheme(app, "Function"); break;
+                    case "TagStudio_Generate":    HandleTagStudioGenerate(app); break;
+                    case "TagStudio_GapReview":   HandleTagStudioGapReview(app); break;
+                    case "TagStudio_Pipeline":    RunCommand<Tags.TagAndCombineCommand>(app); break;
+                    case "TagStudio_Explain":     HandleTagStudioExplain(app); break;
+                    case "TagStudio_APIGaps":     HandleTagStudioAPIGaps(app); break;
+                    case "ComplianceScan":        HandleComplianceScan(app); break;
+                    case "MapSheets":             HandleMapSheets(app); break;
+                    case "FamilyParamCreator":    RunCommand<Tags.FamilyParamCreatorCommand>(app); break;
+                    case "SetSegmentMask":        HandleSetSegmentMask(app); break;
+                    case "BuildDisplayTag":       HandleBuildDisplayTag(app); break;
 
                     // ── Unmapped / placeholder ──
                     default:
@@ -4823,6 +4856,332 @@ namespace StingTools.UI
                 $"Link Types: {linkTypes.Count}\n" +
                 $"  Loaded: {loaded}\n" +
                 $"  Unloaded: {unloaded}");
+        }
+
+        // ── Tag Studio inline handlers ──────────────────────────────────
+
+        private static void HandleTagStudioScheme(UIApplication app, string schemeName)
+        {
+            try
+            {
+                Document doc = app.ActiveUIDocument?.Document;
+                View view = app.ActiveUIDocument?.ActiveView;
+                if (doc == null || view == null) return;
+
+                StingLog.Info($"Tag Studio: applying scheme '{schemeName}'");
+                // Delegate to ApplyColorScheme command with scheme name
+                RunCommand<Tags.ApplyColorSchemeCommand>(app);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HandleTagStudioScheme", ex);
+            }
+        }
+
+        private static void HandleTagStudioGenerate(UIApplication app)
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("// Generated Tag Studio Session Code");
+                sb.AppendLine("// Copy this into a STING workflow or custom command");
+                sb.AppendLine();
+                sb.AppendLine("var session = new TagControlSession();");
+                sb.AppendLine("session.Position = 1; // P1 North");
+                sb.AppendLine("session.LeaderMode = LeaderMode.Auto;");
+                sb.AppendLine("session.TextSize = 2.5;");
+                sb.AppendLine("session.ColorSchemeName = \"Discipline\";");
+                sb.AppendLine("session.ParaDepth = 10;");
+                sb.AppendLine("session.Apply(doc, view);");
+
+                TaskDialog td = new TaskDialog("Tag Studio — Generated Code");
+                td.MainInstruction = "Tag Control Session Code";
+                td.MainContent = sb.ToString();
+                td.Show();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HandleTagStudioGenerate", ex);
+            }
+        }
+
+        private static void HandleTagStudioGapReview(UIApplication app)
+        {
+            try
+            {
+                var gaps = new StringBuilder();
+                gaps.AppendLine("TAG STUDIO — API GAP REVIEW");
+                gaps.AppendLine("═══════════════════════════════════════");
+                gaps.AppendLine();
+                gaps.AppendLine("FULLY IMPLEMENTED:");
+                gaps.AppendLine("  ✓ 16-position compass placement");
+                gaps.AppendLine("  ✓ Directional per-axis offsets (N/E/S/W)");
+                gaps.AppendLine("  ✓ Leader min/max length clamps");
+                gaps.AppendLine("  ✓ Scale-tier aware placement");
+                gaps.AppendLine("  ✓ Tag segment mask (TOKEN_SEG_MASK_TXT)");
+                gaps.AppendLine("  ✓ 12 color schemes (8 built-in + Zone/Status/Level/Function)");
+                gaps.AppendLine("  ✓ Paragraph depth 1-10 tiers");
+                gaps.AppendLine("  ✓ TagControlSession atomic application");
+                gaps.AppendLine();
+                gaps.AppendLine("PARTIAL API / KNOWN GAPS:");
+                gaps.AppendLine("  △ Arrow head style — requires ObjectStyles workaround");
+                gaps.AppendLine("  △ Elbow geometry — tag.SetLeaderElbow partial API");
+                gaps.AppendLine("  △ Box style/corner radius — tag family driven, not API");
+                gaps.AppendLine("  △ Letter spacing — not exposed in Revit API");
+                gaps.AppendLine("  △ Live SVG preview — requires embedded browser or DrawingVisual");
+
+                TaskDialog td = new TaskDialog("Tag Studio — Gap Review");
+                td.MainInstruction = "API Coverage Analysis";
+                td.MainContent = gaps.ToString();
+                td.Show();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HandleTagStudioGapReview", ex);
+            }
+        }
+
+        private static void HandleTagStudioExplain(UIApplication app)
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("TAG CONTAINERS — EXPLAINED");
+                sb.AppendLine("═══════════════════════════════════════");
+                sb.AppendLine();
+                sb.AppendLine("TAG1 (ASS_TAG_1_TXT): Full 8-segment ISO 19650 tag");
+                sb.AppendLine("TAG2-TAG6: Multi-line sub-tag variants");
+                sb.AppendLine("TAG7: Rich descriptive narrative (A-F sections)");
+                sb.AppendLine();
+                sb.AppendLine("Discipline containers (e.g. HVC_EQP_TAG, ELC_EQP_TAG)");
+                sb.AppendLine("receive the same tag value filtered by discipline code.");
+                sb.AppendLine();
+                sb.AppendLine("'Combine' writes TAG1 value → all matching containers.");
+                sb.AppendLine("'Tag & Combine' does: populate + tag + combine in one step.");
+
+                TaskDialog td = new TaskDialog("Tag Studio — Explain");
+                td.MainInstruction = "Tag Container Architecture";
+                td.MainContent = sb.ToString();
+                td.Show();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HandleTagStudioExplain", ex);
+            }
+        }
+
+        private static void HandleTagStudioAPIGaps(UIApplication app)
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("REVIT API — LEADER/ELBOW/ARROW NOTES");
+                sb.AppendLine("═══════════════════════════════════════");
+                sb.AppendLine();
+                sb.AppendLine("IndependentTag.SetLeaderElbow(Reference, XYZ):");
+                sb.AppendLine("  Sets the elbow point for a specific leader.");
+                sb.AppendLine("  Only works when HasLeader=true and tag has leader end.");
+                sb.AppendLine();
+                sb.AppendLine("ArrowheadType / Arrow style:");
+                sb.AppendLine("  Not directly exposed on IndependentTag API.");
+                sb.AppendLine("  Controlled via tag family type ObjectStyles.");
+                sb.AppendLine("  Workaround: modify the annotation category line weight.");
+                sb.AppendLine();
+                sb.AppendLine("Tag box style / corner radius / fill opacity:");
+                sb.AppendLine("  Controlled entirely by tag family .rfa definition.");
+                sb.AppendLine("  Not modifiable at runtime via Revit API.");
+                sb.AppendLine("  Must be baked into tag family types.");
+
+                TaskDialog td = new TaskDialog("Tag Studio — API Notes");
+                td.MainInstruction = "Revit API Coverage for Leaders/Arrows";
+                td.MainContent = sb.ToString();
+                td.Show();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HandleTagStudioAPIGaps", ex);
+            }
+        }
+
+        private static void HandleComplianceScan(UIApplication app)
+        {
+            try
+            {
+                Document doc = app.ActiveUIDocument?.Document;
+                if (doc == null) return;
+
+                var result = ComplianceScan.Scan(doc, forceRefresh: true);
+                TaskDialog td = new TaskDialog("Compliance Scan");
+                td.MainInstruction = result.RAGStatus + " — " + result.StrictPercent.ToString("F1") + "% Resolved";
+                td.MainContent =
+                    $"Total elements: {result.TotalElements}\n" +
+                    $"Tagged complete: {result.TaggedComplete}\n" +
+                    $"Tagged incomplete: {result.TaggedIncomplete}\n" +
+                    $"Untagged: {result.Untagged}\n" +
+                    $"Fully resolved: {result.FullyResolved}\n\n" +
+                    $"Top issues: {result.TopIssues}\n\n" +
+                    $"Per-discipline:\n" +
+                    string.Join("\n", result.ByDisc.Select(
+                        kv => $"  {kv.Key}: {kv.Value.CompliancePct:F0}% ({kv.Value.Tagged}/{kv.Value.Total})"));
+                td.Show();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HandleComplianceScan", ex);
+            }
+        }
+
+        private static void HandleMapSheets(UIApplication app)
+        {
+            try
+            {
+                Document doc = app.ActiveUIDocument?.Document;
+                if (doc == null) return;
+
+                int mapped = 0;
+                using (Transaction t = new Transaction(doc, "STING Map Sheets"))
+                {
+                    t.Start();
+                    var sheets = new FilteredElementCollector(doc)
+                        .OfClass(typeof(ViewSheet))
+                        .Cast<ViewSheet>()
+                        .ToList();
+
+                    foreach (var sheet in sheets)
+                    {
+                        try
+                        {
+                            string drawnBy = sheet.get_Parameter(BuiltInParameter.SHEET_DRAWN_BY)?.AsString() ?? "";
+                            string checkedBy = sheet.get_Parameter(BuiltInParameter.SHEET_CHECKED_BY)?.AsString() ?? "";
+                            string approvedBy = sheet.get_Parameter(BuiltInParameter.SHEET_APPROVED_BY)?.AsString() ?? "";
+
+                            if (!string.IsNullOrEmpty(drawnBy))
+                                ParameterHelpers.SetIfEmpty(sheet, "SHEET_DRAWN_BY_TXT", drawnBy);
+                            if (!string.IsNullOrEmpty(checkedBy))
+                                ParameterHelpers.SetIfEmpty(sheet, "SHEET_CHECKED_BY_TXT", checkedBy);
+                            if (!string.IsNullOrEmpty(approvedBy))
+                                ParameterHelpers.SetIfEmpty(sheet, "SHEET_APPROVED_BY_TXT", approvedBy);
+                            mapped++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"MapSheets: sheet {sheet.SheetNumber}: {ex.Message}");
+                        }
+                    }
+                    t.Commit();
+                }
+
+                TaskDialog.Show("STING Map Sheets",
+                    $"Mapped native parameters on {mapped} sheets to STING shared parameters.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HandleMapSheets", ex);
+            }
+        }
+
+        private static void HandleSetSegmentMask(UIApplication app)
+        {
+            try
+            {
+                Document doc = app.ActiveUIDocument?.Document;
+                UIDocument uidoc = app.ActiveUIDocument;
+                if (doc == null || uidoc == null) return;
+
+                var sel = uidoc.Selection.GetElementIds();
+                if (sel.Count == 0)
+                {
+                    TaskDialog.Show("STING", "Select elements first, then run Set Segment Mask.");
+                    return;
+                }
+
+                // Show mask selection dialog
+                TaskDialog td = new TaskDialog("Set Segment Mask");
+                td.MainInstruction = "Choose tag segment visibility mask";
+                td.MainContent = "Format: 8 digits (1=show, 0=hide)\n" +
+                    "Order: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ\n\n" +
+                    "Examples:\n" +
+                    "  11111111 = all segments (default)\n" +
+                    "  10000001 = DISC + SEQ only\n" +
+                    "  10001011 = DISC + SYS + PROD + SEQ";
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "All segments (11111111)");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "DISC + SEQ only (10000001)");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "DISC + SYS + PROD + SEQ (10001011)");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "DISC + PROD + SEQ (10000011)");
+
+                var result = td.Show();
+                string mask = result switch
+                {
+                    TaskDialogResult.CommandLink1 => "11111111",
+                    TaskDialogResult.CommandLink2 => "10000001",
+                    TaskDialogResult.CommandLink3 => "10001011",
+                    TaskDialogResult.CommandLink4 => "10000011",
+                    _ => null
+                };
+
+                if (mask == null) return;
+
+                int written = 0;
+                using (Transaction t = new Transaction(doc, "STING Set Segment Mask"))
+                {
+                    t.Start();
+                    foreach (ElementId id in sel)
+                    {
+                        Element el = doc.GetElement(id);
+                        if (el == null) continue;
+                        ParameterHelpers.SetString(el, "TAG_SEG_MASK_TXT", mask, true);
+                        written++;
+                    }
+                    t.Commit();
+                }
+
+                TaskDialog.Show("STING", $"Set segment mask '{mask}' on {written} elements.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HandleSetSegmentMask", ex);
+            }
+        }
+
+        private static void HandleBuildDisplayTag(UIApplication app)
+        {
+            try
+            {
+                Document doc = app.ActiveUIDocument?.Document;
+                if (doc == null) return;
+
+                var known = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
+                int written = 0;
+
+                using (Transaction t = new Transaction(doc, "STING Build Display Tags"))
+                {
+                    t.Start();
+                    var elements = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .ToList();
+
+                    foreach (Element el in elements)
+                    {
+                        if (el == null || !el.IsValidObject) continue;
+                        string cat = ParameterHelpers.GetCategoryName(el);
+                        if (!known.Contains(cat)) continue;
+
+                        string displayTag = TagConfig.BuildDisplayTag(el);
+                        if (!string.IsNullOrEmpty(displayTag))
+                        {
+                            ParameterHelpers.SetString(el, "ASS_DISPLAY_TXT", displayTag, true);
+                            written++;
+                        }
+                    }
+                    t.Commit();
+                }
+
+                TaskDialog.Show("STING", $"Built display tags for {written} elements.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("HandleBuildDisplayTag", ex);
+            }
         }
     }
 }

@@ -565,6 +565,36 @@ namespace StingTools.Core
         private static bool _seqSchemeWarned = false;
 
         /// <summary>
+        /// Build a canonical SEQ counter key from element token values.
+        /// Used to ensure consistent grouping across all tagging commands.
+        /// Format matches BuildAndWriteTag: DISC_SYS_LVL (or DISC_ZONE_SYS_LVL when SeqIncludeZone).
+        /// </summary>
+        public static string BuildSeqKey(Element el)
+        {
+            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+            string sys  = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+            string lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+
+            // Normalise empty tokens to avoid key drift
+            if (string.IsNullOrEmpty(disc)) disc = "A";
+            if (string.IsNullOrEmpty(sys))  sys  = "GEN";
+            if (string.IsNullOrEmpty(func)) func = "GEN";
+            if (string.IsNullOrEmpty(prod)) prod = "GEN";
+            if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
+
+            if (SeqIncludeZone)
+            {
+                string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
+                return $"{disc}_{zone}_{sys}_{lvl}";
+            }
+
+            return $"{disc}_{sys}_{lvl}";
+        }
+
+        /// <summary>
         /// Build a SEQ string for sequence number n using the configured scheme.
         /// </summary>
         public static string BuildSeqString(int n, SeqScheme scheme, string zoneOrDisc = "")
@@ -613,6 +643,92 @@ namespace StingTools.Core
                 result = result * 26 + (c - 'A' + 1);
             }
             return result;
+        }
+
+        // ── Segment mask + display mode helpers ──────────────────────────
+
+        /// <summary>
+        /// Apply a segment mask to a full tag. Mask is 8-char string of 1/0 (e.g. "10000001"
+        /// shows DISC + SEQ only). Returns the masked tag with suppressed segments removed.
+        /// </summary>
+        public static string ApplySegmentMask(string fullTag, string mask)
+        {
+            if (string.IsNullOrEmpty(fullTag) || string.IsNullOrEmpty(mask) || mask.Length < 8)
+                return fullTag;
+
+            string[] parts = fullTag.Split(ParamRegistry.Separator[0]);
+            if (parts.Length < 8) return fullTag;
+
+            var visible = new List<string>();
+            for (int i = 0; i < 8 && i < parts.Length; i++)
+            {
+                if (i < mask.Length && mask[i] == '1')
+                    visible.Add(parts[i]);
+            }
+            return visible.Count > 0 ? string.Join(ParamRegistry.Separator, visible) : fullTag;
+        }
+
+        /// <summary>
+        /// Build a display tag based on STING_DISPLAY_MODE parameter.
+        /// Mode 0/5: full 8-segment, 1: SEQ only, 2: PROD-SEQ, 3: DISC-SYS-SEQ, 4: DISC-PROD-SEQ.
+        /// Also applies TAG_SEG_MASK_TXT if set.
+        /// </summary>
+        public static string BuildDisplayTag(Element el)
+        {
+            if (el == null) return "";
+
+            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+            if (string.IsNullOrEmpty(tag1)) return "";
+
+            // Read display mode (default 0 = full tag)
+            int mode = 0;
+            try
+            {
+                string modeStr = ParameterHelpers.GetString(el, ParamRegistry.DISPLAY_MODE);
+                if (!string.IsNullOrEmpty(modeStr))
+                    int.TryParse(modeStr, out mode);
+            }
+            catch { }
+
+            string[] parts = tag1.Split(ParamRegistry.Separator[0]);
+            string result;
+
+            if (parts.Length >= 8)
+            {
+                string disc = parts[0], prod = parts[6], seq = parts[7], sys = parts[4];
+                result = mode switch
+                {
+                    1 => seq,
+                    2 => prod + ParamRegistry.Separator + seq,
+                    3 => disc + ParamRegistry.Separator + sys + ParamRegistry.Separator + seq,
+                    4 => disc + ParamRegistry.Separator + prod + ParamRegistry.Separator + seq,
+                    _ => tag1
+                };
+            }
+            else
+            {
+                result = tag1;
+            }
+
+            // Apply segment mask if present
+            string mask = ParameterHelpers.GetString(el, ParamRegistry.TAG_SEG_MASK);
+            if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mode == 0)
+                result = ApplySegmentMask(tag1, mask);
+
+            return result;
+        }
+
+        /// <summary>
+        /// Normalised SEQ counter key from element's current token values.
+        /// Used to ensure all SEQ counter lookups use the same key format.
+        /// </summary>
+        public static string BuildSeqKey(Element el)
+        {
+            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+            return $"{disc}_{sys}_{func}_{prod}";
         }
 
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
@@ -1479,6 +1595,17 @@ namespace StingTools.Core
             }
             ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
 
+            // 5.3: Re-read TAG1 to catch write failures and add to existingTags
+            // to prevent same-batch duplicates even when existingTags was null at entry
+            {
+                string writtenTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(writtenTag) && writtenTag != tag)
+                    StingLog.Warn($"TAG1 write mismatch on {el.Id}: wrote '{tag}', read back '{writtenTag}'");
+                // Ensure the tag is in the index for same-batch duplicate prevention
+                if (existingTags != null && !string.IsNullOrEmpty(writtenTag))
+                    existingTags.Add(writtenTag);
+            }
+
             // Auto-populate STATUS from Revit phase/workset if not already set
             // Guaranteed default: every element gets a STATUS — never left empty
             {
@@ -1580,6 +1707,30 @@ namespace StingTools.Core
                 case 5: return string.Join(sep, tokens); // Full 8-segment
                 default: return string.Join(sep, tokens);
             }
+        }
+
+        /// <summary>
+        /// Reads STING_DISPLAY_MODE from the element (int parameter) and builds the
+        /// appropriate display tag variant. Writes the result to ASS_DISPLAY_TXT.
+        /// Modes: 0/5=full 8-segment, 1=SEQ only, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ.
+        /// Returns the display string (empty if element is null or has no tokens).
+        /// </summary>
+        public static string BuildDisplayTag(Element el)
+        {
+            if (el == null) return "";
+            int mode = ParameterHelpers.GetInt(el, "STING_DISPLAY_MODE", 5);
+            // Mode 0 is treated as full (same as 5/default)
+            if (mode == 0) mode = 5;
+            string display = BuildDisplayTag(el, mode);
+            if (!string.IsNullOrEmpty(display))
+            {
+                try
+                {
+                    ParameterHelpers.SetString(el, "ASS_DISPLAY_TXT", display, overwrite: true);
+                }
+                catch { /* ASS_DISPLAY_TXT param may not be bound */ }
+            }
+            return display;
         }
 
         /// <summary>

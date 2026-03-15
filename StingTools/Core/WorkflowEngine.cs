@@ -268,6 +268,10 @@ namespace StingTools.Core
         public double ComplianceAfter { get; set; }
         [JsonProperty("stepResults")]
         public List<string> StepResults { get; set; } = new List<string>();
+
+        /// <summary>Per-discipline compliance percentages at time of recording.</summary>
+        [JsonProperty("disciplineCompliance")]
+        public Dictionary<string, double> DisciplineCompliance { get; set; } = new Dictionary<string, double>();
     }
 
     internal static class WorkflowEngine
@@ -311,22 +315,24 @@ namespace StingTools.Core
                     break;
                 }
 
-                // Compliance threshold conditions (Item 15)
+                // Compliance threshold conditions
+                // maxCompliancePct: skip if current compliance > threshold (already good enough)
+                // minCompliancePct: skip if current compliance < threshold (not ready yet)
                 if (step.MinCompliancePct.HasValue || step.MaxCompliancePct.HasValue)
                 {
                     var scan = ComplianceScan.Scan(doc, forceRefresh: false);
                     double pct = scan.CompliancePercent;
 
-                    if (step.MinCompliancePct.HasValue && pct >= step.MinCompliancePct.Value)
+                    if (step.MaxCompliancePct.HasValue && pct > step.MaxCompliancePct.Value)
                     {
                         skipped++;
-                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% >= threshold {step.MinCompliancePct:F0}%)");
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% > max threshold {step.MaxCompliancePct.Value:F0}%)");
                         continue;
                     }
-                    if (step.MaxCompliancePct.HasValue && pct < step.MaxCompliancePct.Value)
+                    if (step.MinCompliancePct.HasValue && pct < step.MinCompliancePct.Value)
                     {
                         skipped++;
-                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% < required {step.MaxCompliancePct:F0}%)");
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% < min threshold {step.MinCompliancePct.Value:F0}%)");
                         continue;
                     }
                 }
@@ -423,6 +429,9 @@ namespace StingTools.Core
                     ComplianceAfter = scanAfter.CompliancePercent,
                     StepResults = report.ToString().Split('\n').ToList()
                 };
+                // Populate per-discipline compliance from ComplianceScan.ByDisc
+                foreach (var kvp in scanAfter.ByDisc)
+                    record.DisciplineCompliance[kvp.Key] = kvp.Value.CompliancePct;
                 AppendWorkflowRecord(doc, record);
             }
             catch (Exception ex)
@@ -534,6 +543,7 @@ namespace StingTools.Core
                 case "FamilyStagePopulate": return new Tags.FamilyStagePopulateCommand();
                 case "CombineParams": return new Tags.CombineParametersCommand();
                 case "BuildTags": return new Tags.BuildTagsCommand();
+                case "MapSheets": return new Tags.MapSheetsCommand();
 
                 // Validation
                 case "ValidateTags": return new Tags.ValidateTagsCommand();

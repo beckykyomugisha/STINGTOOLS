@@ -76,6 +76,9 @@ namespace StingTools.Core
                 "Revit ribbon or the STING dockable panel.");
         }
 
+        // Batch log noise reduction: throttle per-element logging
+        private static int _unrecognizedLevelCount = 0;
+
         // Parameter lookup cache: avoids O(n) LookupParameter on every call.
         // Keyed by (ElementId typeId, string paramName) → Definition.
         // Null values are cached to avoid repeated miss lookups.
@@ -246,7 +249,10 @@ namespace StingTools.Core
 
                 // Unrecognized pattern — return XX rather than truncating the name
                 // which could produce nonsensical level codes
-                StingLog.Info($"GetLevelCode: unrecognized level name '{name}', defaulting to XX");
+                // Throttled: only log every 200th occurrence to reduce batch noise
+                _unrecognizedLevelCount++;
+                if (_unrecognizedLevelCount % 200 == 1)
+                    StingLog.Info($"GetLevelCode: unrecognized level name '{name}', defaulting to XX (occurrence #{_unrecognizedLevelCount})");
                 return "XX";
             }
             catch (Exception ex)
@@ -470,14 +476,20 @@ namespace StingTools.Core
 
                 // Workset-based fallback: check workset name for LOC patterns
                 string wsLoc = DetectLocFromWorkset(el);
-                if (!string.IsNullOrEmpty(wsLoc)) return wsLoc;
+                if (!string.IsNullOrEmpty(wsLoc))
+                {
+                    string validWsLoc = ValidateLocationCode(wsLoc);
+                    return !string.IsNullOrEmpty(validWsLoc) ? validWsLoc : wsLoc;
+                }
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"DetectLoc: {ex.Message}");
             }
 
-            return !string.IsNullOrEmpty(projectLoc) ? projectLoc : "BLD1";
+            string result = !string.IsNullOrEmpty(projectLoc) ? projectLoc : "BLD1";
+            string validated = ValidateLocationCode(result);
+            return !string.IsNullOrEmpty(validated) ? validated : "BLD1";
         }
 
         /// <summary>
@@ -514,7 +526,11 @@ namespace StingTools.Core
 
                 // Workset-based fallback: check workset name for ZONE patterns
                 string wsZone = DetectZoneFromWorkset(el);
-                if (!string.IsNullOrEmpty(wsZone)) return wsZone;
+                if (!string.IsNullOrEmpty(wsZone))
+                {
+                    string validWsZone = ValidateLocationCode(wsZone);
+                    return !string.IsNullOrEmpty(validWsZone) ? validWsZone : wsZone;
+                }
             }
             catch (Exception ex)
             {
@@ -522,6 +538,26 @@ namespace StingTools.Core
             }
 
             return "Z01"; // Safe default
+        }
+
+        /// <summary>
+        /// Validate and sanitize a location or zone code:
+        /// strips whitespace, removes spaces, converts to uppercase,
+        /// truncates to 6 chars, rejects non A-Z 0-9 characters.
+        /// Returns empty string if the result is invalid.
+        /// </summary>
+        public static string ValidateLocationCode(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return "";
+            code = code.Trim().Replace(" ", "").ToUpperInvariant();
+            if (code.Length > 6) code = code.Substring(0, 6);
+            // Only allow alphanumeric characters
+            foreach (char c in code)
+            {
+                if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')))
+                    return "";
+            }
+            return code;
         }
 
         /// <summary>
@@ -990,17 +1026,32 @@ namespace StingTools.Core
             /// <summary>GAP-019: Configurable default REV (from project_config.json or "P01").</summary>
             public string DefaultRev { get; set; } = "P01";
 
+            // Cache assert: warn if Build() is called redundantly for the same document
+            private static string _lastBuildDocTitle;
+            private static DateTime _lastBuildTime;
+            private static PopulationContext _lastCachedContext;
+
             /// <summary>
             /// Build a PopulationContext once for a batch operation.
             /// Caches all project-level lookups: room index, LOC, REV, phases.
+            /// If called again for the same document within 1 second, returns the cached instance.
             /// </summary>
             public static PopulationContext Build(Document doc)
             {
+                string docTitle = doc?.Title ?? "";
+                if (!string.IsNullOrEmpty(docTitle) &&
+                    docTitle == _lastBuildDocTitle &&
+                    _lastCachedContext != null &&
+                    (DateTime.UtcNow - _lastBuildTime).TotalSeconds < 1.0)
+                {
+                    StingLog.Warn("PopulationContext.Build() called multiple times for same document — use cached context");
+                    return _lastCachedContext;
+                }
                 var phases = new FilteredElementCollector(doc)
                     .OfClass(typeof(Phase))
                     .Cast<Phase>()
                     .ToList();
-                return new PopulationContext
+                var ctx = new PopulationContext
                 {
                     RoomIndex = SpatialAutoDetect.BuildRoomIndex(doc),
                     ProjectLoc = SpatialAutoDetect.DetectProjectLoc(doc),
@@ -1018,6 +1069,13 @@ namespace StingTools.Core
                         .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
                         .ToList(),
                 };
+
+                // Cache for redundant call detection
+                _lastBuildDocTitle = docTitle;
+                _lastBuildTime = DateTime.UtcNow;
+                _lastCachedContext = ctx;
+
+                return ctx;
             }
         }
 
@@ -1397,10 +1455,13 @@ namespace StingTools.Core
     {
         /// <summary>
         /// Auto-map all applicable Revit native parameters to STING shared parameters.
-        /// Only writes to empty STING parameters (non-destructive).
+        /// Only writes to empty STING parameters (non-destructive) unless overwrite is true.
         /// Returns the number of values written.
         /// </summary>
-        public static int MapAll(Document doc, Element el)
+        /// <param name="doc">The Revit document.</param>
+        /// <param name="el">The element to map parameters for.</param>
+        /// <param name="overwrite">When false (default), only writes to empty parameters via SetIfEmpty.</param>
+        public static int MapAll(Document doc, Element el, bool overwrite = false)
         {
             int written = 0;
 
@@ -2082,5 +2143,66 @@ namespace StingTools.Core
 
         /// <summary>Clear the solid fill pattern cache (call on document close/switch).</summary>
         public static void ClearSolidFillCache() { _solidFillCache.Clear(); }
+
+        /// <summary>
+        /// Map native Revit sheet parameters to STING shared parameters for all ViewSheets.
+        /// Reads SHEET_DRAWN_BY, SHEET_CHECKED_BY, SHEET_NUMBER, SHEET_NAME, issue date,
+        /// and current revision, writing to corresponding STING shared params via SetIfEmpty.
+        /// Returns the total number of values written.
+        /// </summary>
+        public static int MapSheets(Document doc)
+        {
+            int written = 0;
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .ToList();
+
+            foreach (ViewSheet sheet in sheets)
+            {
+                try
+                {
+                    // Sheet number and name
+                    string sheetNumber = sheet.SheetNumber ?? "";
+                    string sheetName = sheet.Name ?? "";
+                    if (!string.IsNullOrEmpty(sheetNumber))
+                        written += SetIfEmptyInt(sheet, "ASS_SHEET_NUMBER_TXT", sheetNumber);
+                    if (!string.IsNullOrEmpty(sheetName))
+                        written += SetIfEmptyInt(sheet, "ASS_SHEET_NAME_TXT", sheetName);
+
+                    // Drawn by
+                    Parameter drawnBy = sheet.get_Parameter(BuiltInParameter.SHEET_DRAWN_BY);
+                    if (drawnBy != null && drawnBy.HasValue && !string.IsNullOrEmpty(drawnBy.AsString()))
+                        written += SetIfEmptyInt(sheet, "ASS_DRAWN_BY_TXT", drawnBy.AsString());
+
+                    // Checked by
+                    Parameter checkedBy = sheet.get_Parameter(BuiltInParameter.SHEET_CHECKED_BY);
+                    if (checkedBy != null && checkedBy.HasValue && !string.IsNullOrEmpty(checkedBy.AsString()))
+                        written += SetIfEmptyInt(sheet, "ASS_CHECKED_BY_TXT", checkedBy.AsString());
+
+                    // Approved by (not a standard BuiltInParameter — look up by name)
+                    Parameter approvedBy = sheet.LookupParameter("Approved By");
+                    if (approvedBy != null && approvedBy.HasValue && !string.IsNullOrEmpty(approvedBy.AsString()))
+                        written += SetIfEmptyInt(sheet, "ASS_APPROVED_BY_TXT", approvedBy.AsString());
+
+                    // Sheet issue date
+                    Parameter issueDate = sheet.get_Parameter(BuiltInParameter.SHEET_ISSUE_DATE);
+                    if (issueDate != null && issueDate.HasValue && !string.IsNullOrEmpty(issueDate.AsString()))
+                        written += SetIfEmptyInt(sheet, "ASS_SHEET_ISSUE_DATE_TXT", issueDate.AsString());
+
+                    // Current revision on sheet
+                    Parameter currentRev = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION);
+                    if (currentRev != null && currentRev.HasValue && !string.IsNullOrEmpty(currentRev.AsString()))
+                        written += SetIfEmptyInt(sheet, "ASS_SHEET_REVISION_TXT", currentRev.AsString());
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"MapSheets: sheet '{sheet.SheetNumber}': {ex.Message}");
+                }
+            }
+
+            StingLog.Info($"NativeParamMapper.MapSheets: {written} values written across {sheets.Count} sheets");
+            return written;
+        }
     }
 }

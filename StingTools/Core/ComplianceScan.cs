@@ -78,10 +78,17 @@ namespace StingTools.Core
             public int Total { get; set; }
             public int Tagged { get; set; }
             public int Untagged { get; set; }
+            /// <summary>Fully tagged: TagIsComplete AND TagIsFullyResolved.</summary>
+            public int FullyTagged { get; set; }
+            /// <summary>Partially tagged: non-empty tag but not fully complete/resolved.</summary>
+            public int PartiallyTagged { get; set; }
             public int MissingLoc { get; set; }
             public int MissingSys { get; set; }
             public int MissingProd { get; set; }
-            public double CompliancePct => Total > 0 ? Tagged * 100.0 / Total : 0;
+            /// <summary>Three-bucket compliance: fully=1.0, partial=0.5, untagged=0.0.</summary>
+            public double CompliancePct => Total > 0
+                ? (FullyTagged + 0.5 * PartiallyTagged) / Math.Max(1, Total) * 100.0
+                : 0;
         }
 
         /// <summary>
@@ -137,16 +144,18 @@ namespace StingTools.Core
                         discData.Untagged++;
                         AddIssue(result, "Untagged");
                     }
-                    else if (TagConfig.TagIsFullyResolved(tag))
+                    else if (TagConfig.TagIsComplete(tag) && TagConfig.TagIsFullyResolved(tag))
                     {
                         result.TaggedComplete++;
                         result.FullyResolved++;
                         discData.Tagged++;
+                        discData.FullyTagged++;
                     }
                     else if (TagConfig.TagIsComplete(tag))
                     {
                         result.TaggedComplete++;
                         discData.Tagged++;
+                        discData.PartiallyTagged++;
                         // Has placeholders — check which tokens
                         string[] parts = tag.Split(ParamRegistry.Separator[0]);
                         if (parts.Length >= 8)
@@ -159,7 +168,7 @@ namespace StingTools.Core
                     else
                     {
                         result.TaggedIncomplete++;
-                        discData.Untagged++;
+                        discData.PartiallyTagged++;
                         AddIssue(result, "Incomplete tag");
                     }
                 }

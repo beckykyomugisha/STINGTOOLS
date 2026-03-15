@@ -382,6 +382,99 @@ namespace StingTools.Core
             }
         }
 
+        // ── DocumentChanged stale-marking ──────────────────────────────────────
+
+        /// <summary>Throttle: track recently stale-marked element IDs to avoid redundant writes.</summary>
+        private static readonly Dictionary<long, DateTime> _recentStaleMarks = new Dictionary<long, DateTime>();
+        private static readonly TimeSpan StaleThrottle = TimeSpan.FromSeconds(5);
+
+        /// <summary>
+        /// DocumentChanged event handler that marks modified tagged elements as stale.
+        /// For each element with a non-empty ASS_TAG_1_TXT, sets STING_STALE_BOOL = 1
+        /// to indicate that spatial tokens (LOC, ZONE, LVL) may need re-derivation.
+        /// Throttled: skips elements stale-marked in the last 5 seconds.
+        /// Subscribe via application.ControlledApplication.DocumentChanged.
+        /// </summary>
+        public static void OnDocumentChanged(object sender,
+            Autodesk.Revit.DB.Events.DocumentChangedEventArgs args)
+        {
+            if (!StingStaleMarker.IsEnabled) return;
+
+            try
+            {
+                Document doc = args.GetDocument();
+                if (doc == null || !doc.IsValidObject || doc.IsFamilyDocument) return;
+
+                var modifiedIds = args.GetModifiedElementIds();
+                if (modifiedIds == null || modifiedIds.Count == 0) return;
+
+                // Limit batch size to prevent performance issues
+                if (modifiedIds.Count > 100) return;
+
+                var now = DateTime.Now;
+                var idsToMark = new List<ElementId>();
+
+                foreach (ElementId id in modifiedIds)
+                {
+                    // Throttle: skip if recently marked
+                    if (_recentStaleMarks.TryGetValue(id.Value, out DateTime lastMarked) &&
+                        (now - lastMarked) < StaleThrottle)
+                        continue;
+
+                    Element el = doc.GetElement(id);
+                    if (el == null || !el.IsValidObject) continue;
+
+                    // Only mark elements that already have a tag
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1)) continue;
+
+                    idsToMark.Add(id);
+                }
+
+                if (idsToMark.Count == 0) return;
+
+                using (Transaction tx = new Transaction(doc, "STING Mark Stale"))
+                {
+                    tx.Start();
+                    foreach (ElementId id in idsToMark)
+                    {
+                        try
+                        {
+                            Element el = doc.GetElement(id);
+                            if (el == null || !el.IsValidObject) continue;
+                            Parameter p = el.LookupParameter(ParamRegistry.STALE);
+                            if (p != null && !p.IsReadOnly)
+                            {
+                                p.Set(1);
+                                _recentStaleMarks[id.Value] = now;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"OnDocumentChanged stale-mark {id.Value}: {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+
+                // Prune throttle cache when it grows too large
+                if (_recentStaleMarks.Count > 5000)
+                {
+                    var expired = _recentStaleMarks
+                        .Where(kvp => (now - kvp.Value) > TimeSpan.FromMinutes(1))
+                        .Select(kvp => kvp.Key).ToList();
+                    foreach (var key in expired)
+                        _recentStaleMarks.Remove(key);
+                }
+
+                StingLog.Info($"OnDocumentChanged: marked {idsToMark.Count} elements stale");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"OnDocumentChanged stale-marking: {ex.Message}");
+            }
+        }
+
         /// <summary>Public accessor for the multi-category filter (used by StingStaleMarker).</summary>
         public static ElementMulticategoryFilter CreateMultiCategoryFilterStatic()
         {
