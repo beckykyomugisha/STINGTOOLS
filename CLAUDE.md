@@ -131,7 +131,7 @@ STINGTOOLS/
     └── Data/                           # Runtime data files (23 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
-        ├── MR_PARAMETERS.txt           # Shared parameter file (200+ params)
+        ├── MR_PARAMETERS.txt           # Shared parameter file (1,527 params, 21 groups)
         ├── MR_PARAMETERS.csv           # Parameter definitions
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
@@ -666,7 +666,7 @@ Additionally, 39 **paragraph container parameters** exist for category-specific 
 
 The recommended tagging workflow is a multi-layered pipeline:
 
-1. **Load Parameters** (`LoadSharedParamsCommand`) — Bind 200+ shared parameters to 53 categories (2-pass: universal + discipline-specific)
+1. **Load Parameters** (`LoadSharedParamsCommand`) — Bind 1,527 shared parameters (21 groups) to 53 categories (2-pass: universal + discipline-specific)
 2. **Family-Stage Populate** (`FamilyStagePopulateCommand`) — Pre-populate all 7 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD) from category, spatial, and family data
 3. **Pre-Tag Audit** (`PreTagAuditCommand`) — Dry-run: predict tag assignments, collisions, ISO violations before committing
 4. **Tag** (`AutoTagCommand` / `BatchTagCommand` / `TagAndCombineCommand`) — Assign SEQ numbers and assemble final 8-segment tags with collision handling
@@ -803,7 +803,7 @@ Tag families contain label rows bound to `TAG_{SIZE}{STYLE}_{COLOR}_BOOL` parame
 - **Sizes**: 2, 2.5, 3, 3.5 (mm text height)
 - **Styles**: NOM (normal), BOLD, ITALIC
 - **Colors**: BLACK, BLUE, GREEN, RED
-- **Total combinations**: 4 × 3 × 4 = **48 per tag** (128 with paragraph depth variants)
+- **Total combinations**: 4 sizes × 4 styles × 8 colors = **128 per tag** (all now registered in MR_PARAMETERS.txt)
 
 ### Built-in Color Schemes
 Discipline, Warm, Cool, Red, Yellow, Blue, Monochrome, Dark — each scheme maps discipline codes to specific element graphic overrides and optionally switches tag text styles to match.
