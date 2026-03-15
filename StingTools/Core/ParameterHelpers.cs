@@ -121,6 +121,25 @@ namespace StingTools.Core
             return string.Empty;
         }
 
+        /// <summary>Read an integer parameter value, returning defaultValue if not found or null.</summary>
+        public static int GetInt(Element el, string paramName, int defaultValue = 0)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return defaultValue;
+            try
+            {
+                Parameter p = CachedLookup(el, paramName);
+                if (p == null || !p.HasValue) return defaultValue;
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                if (p.StorageType == StorageType.Double) return (int)p.AsDouble();
+                if (p.StorageType == StorageType.String)
+                {
+                    if (int.TryParse(p.AsString(), out int v)) return v;
+                }
+                return defaultValue;
+            }
+            catch { return defaultValue; }
+        }
+
         /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
         public static bool SetString(Element el, string paramName, string value,
             bool overwrite = false)
@@ -1008,6 +1027,113 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Copies non-empty token values from the element TYPE to the instance,
+        /// only for tokens currently empty on the instance. Type-level values
+        /// are treated as higher-confidence seeds than auto-detection defaults.
+        /// Returns count of tokens inherited.
+        /// Call BEFORE PopulateAll() so inherited values are not overwritten.
+        /// </summary>
+        public static int TypeTokenInherit(Document doc, Element el)
+        {
+            if (el == null || el is ElementType) return 0;
+            ElementId typeId = el.GetTypeId();
+            if (typeId == null || typeId == ElementId.InvalidElementId) return 0;
+            Element typeEl = doc.GetElement(typeId);
+            if (typeEl == null) return 0;
+
+            int count = 0;
+            string[] tokenParams = { ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                                     ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD };
+            foreach (string paramName in tokenParams)
+            {
+                try
+                {
+                    string typeVal = typeEl.LookupParameter(paramName)?.AsString();
+                    if (!string.IsNullOrEmpty(typeVal))
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, paramName, typeVal))
+                            count++;
+                    }
+                }
+                catch { }
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// Finds the nearest already-tagged element of the same category in the same
+        /// level and copies the specified token values to el (only to empty params).
+        /// Uses a simple 2D distance check on element bounding box centers.
+        /// Falls back gracefully if no nearby tagged element exists.
+        /// Returns count of tokens copied.
+        /// Max search radius: 10 ft (model units). Only copies tokens listed in tokensToCopy.
+        /// </summary>
+        public static int CopyTokensFromNearest(
+            Document doc, Element el, string[] tokensToCopy,
+            IList<Element> candidatePool)
+        {
+            if (el == null || tokensToCopy == null || candidatePool == null || candidatePool.Count == 0)
+                return 0;
+
+            BoundingBoxXYZ bb = el.get_BoundingBox(null);
+            if (bb == null) return 0;
+            XYZ center = (bb.Min + bb.Max) / 2.0;
+
+            string catName = el.Category?.Name ?? "";
+            ElementId levelId = el.LevelId;
+
+            Element nearest = null;
+            double minDist = double.MaxValue;
+            const double maxRadius = 10.0; // 10 ft
+
+            foreach (Element cand in candidatePool)
+            {
+                try
+                {
+                    if (cand.Id == el.Id) continue;
+                    if ((cand.Category?.Name ?? "") != catName) continue;
+                    if (cand.LevelId != levelId) continue;
+
+                    // Must be already tagged
+                    string tag1 = ParameterHelpers.GetString(cand, ParamRegistry.AllTokenParams[0]);
+                    if (string.IsNullOrEmpty(tag1)) continue;
+
+                    BoundingBoxXYZ candBb = cand.get_BoundingBox(null);
+                    if (candBb == null) continue;
+                    XYZ candCenter = (candBb.Min + candBb.Max) / 2.0;
+
+                    double dx = center.X - candCenter.X;
+                    double dy = center.Y - candCenter.Y;
+                    double dist = Math.Sqrt(dx * dx + dy * dy);
+                    if (dist < minDist && dist <= maxRadius)
+                    {
+                        minDist = dist;
+                        nearest = cand;
+                    }
+                }
+                catch { }
+            }
+
+            if (nearest == null) return 0;
+
+            int count = 0;
+            foreach (string tokenName in tokensToCopy)
+            {
+                try
+                {
+                    string srcVal = ParameterHelpers.GetString(nearest, tokenName);
+                    if (!string.IsNullOrEmpty(srcVal))
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, tokenName, srcVal))
+                            count++;
+                    }
+                }
+                catch { }
+            }
+            return count;
+        }
+
+        /// <summary>
         /// Populate all 9 tokens on a single element using the highest-intelligence
         /// detection available. Only fills empty values (non-destructive) unless
         /// overwrite is true.
@@ -1020,6 +1146,9 @@ namespace StingTools.Core
             // GAP-026: Skip ElementType instances — only populate element instances
             if (el is ElementType)
                 return result;
+
+            // Item 1: Inherit tokens from family type before auto-detection
+            TypeTokenInherit(doc, el);
 
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))

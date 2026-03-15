@@ -1,0 +1,14 @@
+{
+  "name": "Daily QA Enhanced",
+  "description": "Adaptive daily sync — skips steps already meeting thresholds",
+  "steps": [
+    { "commandTag": "TagNewOnly", "label": "Tag new elements" },
+    { "commandTag": "RetagStale", "label": "Retag stale elements", "optional": true, "requiresStaleElements": true },
+    { "commandTag": "AnomalyAutoFix", "label": "Fix anomalies", "optional": true, "maxCompliancePct": 90 },
+    { "commandTag": "ResolveAllIssues", "label": "Resolve all issues (if low compliance)", "optional": true, "maxCompliancePct": 70 },
+    { "commandTag": "ValidateTags", "label": "Validate ISO 19650 compliance" },
+    { "commandTag": "SmartPlaceTags", "label": "Smart place tags (active view)", "optional": true },
+    { "commandTag": "ArrangeTags", "label": "Arrange tags", "optional": true },
+    { "commandTag": "DiscComplianceReport", "label": "Per-discipline compliance report" }
+  ]
+}

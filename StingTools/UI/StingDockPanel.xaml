@@ -703,8 +703,26 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="By Discipline" Tag="SelectByDiscipline" Click="Cmd_Click" ToolTip="Select elements by discipline code"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Pin" Tag="PinTags" Click="Cmd_Click" ToolTip="Pin/unpin tags in place"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Reset Pos" Tag="ResetTagPositions" Click="Cmd_Click" ToolTip="Reset tags to element centers"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Disc Compliance" Tag="DiscComplianceReport" Click="Cmd_Click" ToolTip="Per-discipline compliance report"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Workflow Trend" Tag="WorkflowTrend" Click="Cmd_Click" ToolTip="View workflow compliance history"/>
                                 </WrapPanel>
                             </StackPanel>
+                        </Border>
+
+                        <!-- TAG POSITION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG POSITION"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Pos 1 Above" Tag="SwitchTagPos1" Click="Cmd_Click" ToolTip="Set tag position: Above"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Pos 2 Right" Tag="SwitchTagPos2" Click="Cmd_Click" ToolTip="Set tag position: Right"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Pos 3 Below" Tag="SwitchTagPos3" Click="Cmd_Click" ToolTip="Set tag position: Below"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Pos 4 Left" Tag="SwitchTagPos4" Click="Cmd_Click" ToolTip="Set tag position: Left"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Switch Pos..." Tag="SwitchTagPos" Click="Cmd_Click" ToolTip="Switch tag position dialog"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Align Bands" Tag="AlignTagBands" Click="Cmd_Click" ToolTip="Align tags into horizontal bands"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Cluster Tags" Tag="ClusterTags" Click="Cmd_Click" ToolTip="Cluster nearby identical tags"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Decluster" Tag="DeclusterTags" Click="Cmd_Click" ToolTip="Reverse tag clustering"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Export Pos" Tag="ExportTagPositions" Click="Cmd_Click" ToolTip="Export tag positions to CSV"/>
+                            </WrapPanel>
                         </Border>
 
                         <!-- PATTERN LEARNING -->
@@ -1325,6 +1343,19 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- FAMILY & DISPLAY -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ FAMILY &amp; DISPLAY"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Family Param Creator" Tag="FamilyParamCreator" Click="Cmd_Click" ToolTip="Inject STING params into .rfa family files"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Display Mode..." Tag="SetDisplayMode" Click="Cmd_Click" ToolTip="Set tag display variant (SEQ only, PROD-SEQ, etc.)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Seq Scheme..." Tag="SetSeqScheme" Click="Cmd_Click" ToolTip="Configure numbering scheme"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Auto-Tag Visual" Tag="AutoTagVisual" Click="Cmd_Click" ToolTip="Toggle visual auto-tagging"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Linked Tags" Tag="BatchPlaceLinkedTags" Click="Cmd_Click" ToolTip="Place visual tags on linked model elements"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Retag Stale" Tag="RetagStale" Click="Cmd_Click" ToolTip="Retag elements marked as stale"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- EXPORT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ EXPORT"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -1360,6 +1391,15 @@
             <TabItem Header="VIEW">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel>
+
+                        <!-- VIEW TAG STYLE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="VIEW TAG STYLE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Set View Style..." Tag="SetViewTagStyle" Click="Cmd_Click" ToolTip="Set per-view tag style preference"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Auto-Tagger Config" Tag="AutoTaggerConfig" Click="Cmd_Click" ToolTip="Configure auto-tagger settings"/>
+                            </WrapPanel>
+                        </Border>
 
                         <!-- PROJECT HEALTH SCORE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="[Param] PROJECT HEALTH SCORE"/>

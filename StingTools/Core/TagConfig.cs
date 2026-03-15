@@ -21,6 +21,19 @@ namespace StingTools.Core
         Overwrite,
     }
 
+    /// <summary>Sequence numbering scheme variants.</summary>
+    public enum SeqScheme
+    {
+        /// <summary>Zero-padded numeric: 0001, 0042</summary>
+        Numeric,
+        /// <summary>Alphabetic: A, B, ... Z, AA, AB</summary>
+        Alpha,
+        /// <summary>Zone-prefixed: Z1-0042</summary>
+        ZonePrefix,
+        /// <summary>Discipline-prefixed: M-0042</summary>
+        DiscPrefix
+    }
+
     /// <summary>
     /// Tracks tagging operation statistics across a batch for rich post-operation reporting.
     /// Captures per-category counts, collision details, skipped elements, warnings, and
@@ -484,6 +497,50 @@ namespace StingTools.Core
         public static string Separator => ParamRegistry.Separator;
         public static string[] SegmentOrder => ParamRegistry.SegmentOrder;
         public const int MaxCollisionDepth = 10000;
+
+        /// <summary>Current sequence numbering scheme (loaded from project_config.json).</summary>
+        internal static SeqScheme CurrentSeqScheme { get; set; } = SeqScheme.Numeric;
+        /// <summary>Whether SEQ resets per zone.</summary>
+        internal static bool SeqIncludeZone { get; set; } = false;
+        /// <summary>Whether SEQ resets per level within DISC-SYS group.</summary>
+        internal static bool SeqLevelReset { get; set; } = false;
+
+        /// <summary>
+        /// Build a SEQ string for sequence number n using the configured scheme.
+        /// </summary>
+        public static string BuildSeqString(int n, SeqScheme scheme, string zoneOrDisc = "")
+        {
+            switch (scheme)
+            {
+                case SeqScheme.Alpha:
+                    return ToAlpha(n);
+                case SeqScheme.ZonePrefix:
+                    string zPrefix = !string.IsNullOrEmpty(zoneOrDisc) && zoneOrDisc.Length >= 2
+                        ? zoneOrDisc.Substring(0, 2)
+                        : "Z1";
+                    return $"{zPrefix}-{n.ToString().PadLeft(ParamRegistry.NumPad, '0')}";
+                case SeqScheme.DiscPrefix:
+                    string dPrefix = !string.IsNullOrEmpty(zoneOrDisc) ? zoneOrDisc : "X";
+                    return $"{dPrefix}-{n.ToString().PadLeft(ParamRegistry.NumPad, '0')}";
+                case SeqScheme.Numeric:
+                default:
+                    return n.ToString().PadLeft(ParamRegistry.NumPad, '0');
+            }
+        }
+
+        /// <summary>Convert an integer to alphabetic (A=1, B=2... Z=26, AA=27...).</summary>
+        private static string ToAlpha(int n)
+        {
+            if (n <= 0) return "A";
+            string result = "";
+            while (n > 0)
+            {
+                n--;
+                result = (char)('A' + (n % 26)) + result;
+                n /= 26;
+            }
+            return result;
+        }
 
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
         public static Dictionary<string, string> DiscMap { get; private set; }
@@ -1201,7 +1258,9 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(func)) func = "GEN";
             if (string.IsNullOrEmpty(prod)) prod = "GEN";
 
-            string seqKey = $"{disc}_{sys}_{lvl}";
+            string seqKey = SeqIncludeZone
+                ? $"{disc}_{zone}_{sys}_{lvl}"
+                : $"{disc}_{sys}_{lvl}";
             if (!sequenceCounters.ContainsKey(seqKey))
                 sequenceCounters[seqKey] = 0;
             sequenceCounters[seqKey]++;
@@ -1215,7 +1274,11 @@ namespace StingTools.Core
                 stats?.RecordWarning(overflowMsg);
             }
 
-            string seq = sequenceCounters[seqKey].ToString().PadLeft(NumPad, '0');
+            // Build SEQ string using the configured numbering scheme
+            string seqSchemeContext = CurrentSeqScheme == SeqScheme.ZonePrefix ? zone
+                                   : CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
+                                   : "";
+            string seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
 
             string tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
 
@@ -1236,7 +1299,7 @@ namespace StingTools.Core
                         stats?.RecordWarning(overflowMsg);
                         break;
                     }
-                    seq = sequenceCounters[seqKey].ToString().PadLeft(NumPad, '0');
+                    seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
                     tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
                 }
                 if (collisionCount > 0)
@@ -1351,6 +1414,33 @@ namespace StingTools.Core
 
             stats?.RecordTagged(catName, disc, sys, lvl);
             return true;
+        }
+
+        /// <summary>
+        /// Build a display variant of the ISO tag based on display mode:
+        ///   1 = SEQ only            (e.g. "0042")
+        ///   2 = PROD-SEQ            (e.g. "AHU-0042")
+        ///   3 = DISC-SYS-SEQ        (e.g. "M-HVAC-0042")
+        ///   4 = DISC-PROD-SEQ       (e.g. "M-AHU-0042")
+        ///   5 = Full 8-segment      (default — current behaviour)
+        /// Returns the full tag if mode is unrecognised.
+        /// </summary>
+        public static string BuildDisplayTag(Element el, int mode)
+        {
+            if (el == null) return "";
+            string[] tokens = ParamRegistry.ReadTokenValues(el);
+            if (tokens == null || tokens.Length < 8) return "";
+
+            string sep = ParamRegistry.Separator;
+            switch (mode)
+            {
+                case 1: return tokens[7]; // SEQ only
+                case 2: return $"{tokens[6]}{sep}{tokens[7]}"; // PROD-SEQ
+                case 3: return $"{tokens[0]}{sep}{tokens[4]}{sep}{tokens[7]}"; // DISC-SYS-SEQ
+                case 4: return $"{tokens[0]}{sep}{tokens[6]}{sep}{tokens[7]}"; // DISC-PROD-SEQ
+                case 5: return string.Join(sep, tokens); // Full 8-segment
+                default: return string.Join(sep, tokens);
+            }
         }
 
         /// <summary>

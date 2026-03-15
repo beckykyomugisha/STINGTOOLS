@@ -684,6 +684,97 @@ namespace StingTools.Tags
 
             return (placed, skipped, collisions);
         }
+
+        // ── Linked model visual tagging ─────────────────────────────────
+
+        /// <summary>
+        /// Place visual annotation tags on elements in linked Revit models.
+        /// These are visual-only — no parameter data is written to linked elements.
+        /// </summary>
+        public static (int placed, int skipped, int collisions) PlaceTagsInLinkedViews(
+            Document doc, View view, bool tagOnlyUntagged)
+        {
+            int placed = 0, skipped = 0, collisions = 0;
+
+            var linkInstances = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance))
+                .Cast<RevitLinkInstance>()
+                .Where(li => li.GetLinkDocument() != null)
+                .ToList();
+
+            if (linkInstances.Count == 0) return (0, 0, 0);
+
+            var existingTagRefs = new HashSet<string>();
+            foreach (var existingTag in new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>())
+            {
+                try
+                {
+                    var refs = existingTag.GetTaggedReferences();
+                    foreach (var r in refs)
+                        existingTagRefs.Add(r.ConvertToStableRepresentation(doc));
+                }
+                catch { }
+            }
+
+            foreach (RevitLinkInstance linkInst in linkInstances)
+            {
+                try
+                {
+                    Document linkDoc = linkInst.GetLinkDocument();
+                    if (linkDoc == null) continue;
+
+                    var linkElements = new FilteredElementCollector(linkDoc)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                        .ToList();
+
+                    foreach (Element linkEl in linkElements)
+                    {
+                        try
+                        {
+                            Reference linkRef = new Reference(linkEl)
+                                .CreateLinkReference(linkInst);
+                            if (linkRef == null) { skipped++; continue; }
+
+                            string refKey = linkRef.ConvertToStableRepresentation(doc);
+                            if (existingTagRefs.Contains(refKey))
+                            {
+                                skipped++;
+                                continue;
+                            }
+
+                            FamilySymbol tagType = FindTagType(doc, linkEl.Category);
+                            if (tagType == null) { skipped++; continue; }
+
+                            XYZ center = GetElementCenter(linkEl, view);
+                            double offset = GetModelOffset(view);
+                            int preferred = GetPreferredSide(linkEl.Category?.Name ?? "");
+                            XYZ[] candidates = GetCandidateOffsets(offset);
+                            XYZ tagPos = center + candidates[preferred < candidates.Length ? preferred : 0];
+
+                            IndependentTag tag = IndependentTag.Create(
+                                doc, tagType.Id, view.Id, linkRef,
+                                false, TagOrientation.Horizontal, tagPos);
+
+                            if (tag != null) placed++;
+                            else skipped++;
+                        }
+                        catch
+                        {
+                            skipped++;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PlaceTagsInLinkedViews link: {ex.Message}");
+                }
+            }
+
+            return (placed, skipped, collisions);
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -913,6 +1004,61 @@ namespace StingTools.Tags
         {
             string dataPath = StingToolsApp.DataPath ?? "";
             return Path.Combine(dataPath, "TAG_PLACEMENT_PRESETS.json");
+        }
+
+        /// <summary>
+        /// Align nearby tags into horizontal bands by snapping them to the median Y position
+        /// of their group.
+        /// </summary>
+        public static int AlignTagBands(Document doc, View view, double tagHeightEstimate)
+        {
+            var tags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .OrderBy(t => { try { return t.TagHeadPosition.Y; } catch { return 0.0; } })
+                .ToList();
+
+            if (tags.Count < 2) return 0;
+
+            var groups = new List<List<IndependentTag>>();
+            var current = new List<IndependentTag> { tags[0] };
+            for (int i = 1; i < tags.Count; i++)
+            {
+                double prevY, thisY;
+                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch { prevY = 0; }
+                try { thisY = tags[i].TagHeadPosition.Y; } catch { thisY = 0; }
+
+                if (Math.Abs(thisY - prevY) <= tagHeightEstimate * 1.2)
+                    current.Add(tags[i]);
+                else
+                {
+                    if (current.Count > 1) groups.Add(current);
+                    current = new List<IndependentTag> { tags[i] };
+                }
+            }
+            if (current.Count > 1) groups.Add(current);
+
+            int moved = 0;
+            foreach (var group in groups)
+            {
+                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch { return 0.0; } })
+                    .OrderBy(y => y).ToList();
+                double medianY = ys[ys.Count / 2];
+                foreach (var tag in group)
+                {
+                    try
+                    {
+                        XYZ pos = tag.TagHeadPosition;
+                        if (Math.Abs(pos.Y - medianY) > 0.001)
+                        {
+                            tag.TagHeadPosition = new XYZ(pos.X, medianY, pos.Z);
+                            moved++;
+                        }
+                    }
+                    catch { }
+                }
+            }
+            return moved;
         }
     }
 
@@ -1989,6 +2135,251 @@ namespace StingTools.Tags
             TaskDialog.Show("Set Tag Category Line Weight",
                 $"Set line weight to pen {pen} on {changed} tag categories.\n" +
                 "This affects leader lines and tag borders project-wide.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Align Tag Bands — snap nearby tags to horizontal bands
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>Align tags in the active view into horizontal bands.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AlignTagBandsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            double tagH = TagPlacementEngine.GetModelOffset(view);
+            int moved = 0;
+            using (Transaction tx = new Transaction(doc, "STING Align Tag Bands"))
+            {
+                tx.Start();
+                moved = TagPlacementPresets.AlignTagBands(doc, view, tagH);
+                tx.Commit();
+            }
+            TaskDialog.Show("STING \u2014 Align Tag Bands",
+                $"Aligned {moved} tags into horizontal bands in '{view.Name}'.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Switch Tag Position — set STING_TAG_POS on family types
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Switch STING_TAG_POS integer on family types to control tag position.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SwitchTagPositionCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var td = new TaskDialog("STING \u2014 Tag Position");
+            td.MainInstruction = "Select tag position";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "1 \u2014 Above");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "2 \u2014 Right");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "3 \u2014 Below");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "4 \u2014 Left");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+            var result = td.Show();
+
+            int posValue;
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1: posValue = 1; break;
+                case TaskDialogResult.CommandLink2: posValue = 2; break;
+                case TaskDialogResult.CommandLink3: posValue = 3; break;
+                case TaskDialogResult.CommandLink4: posValue = 4; break;
+                default: return Result.Cancelled;
+            }
+
+            // Get scope elements
+            UIDocument uidoc = ctx.UIDoc;
+            View view = ctx.ActiveView;
+            var selectedIds = uidoc.Selection.GetElementIds();
+            IList<Element> scope;
+            if (selectedIds.Count > 0)
+            {
+                scope = selectedIds.Select(id => doc.GetElement(id)).Where(e => e != null).ToList();
+            }
+            else if (view != null)
+            {
+                scope = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                    .ToList();
+            }
+            else
+            {
+                TaskDialog.Show("STING", "No active view or selection.");
+                return Result.Failed;
+            }
+
+            var typeIds = new HashSet<ElementId>(
+                scope.Select(e => { try { return e.GetTypeId(); } catch { return ElementId.InvalidElementId; } })
+                    .Where(id => id != ElementId.InvalidElementId));
+
+            int updated = 0;
+            using (Transaction tx = new Transaction(doc, "STING Switch Tag Position"))
+            {
+                tx.Start();
+                foreach (ElementId typeId in typeIds)
+                {
+                    try
+                    {
+                        Element typeEl = doc.GetElement(typeId);
+                        Parameter p = typeEl?.LookupParameter(ParamRegistry.TAG_POS);
+                        if (p != null && !p.IsReadOnly) { p.Set(posValue); updated++; }
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("STING \u2014 Tag Position",
+                $"Set position {posValue} on {updated} element types.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Export Tag Positions — CSV export for analysis
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Export tag positions to CSV for analysis and documentation.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExportTagPositionsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var tags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("STING", "No tags found in active view.");
+                return Result.Succeeded;
+            }
+
+            var csv = new StringBuilder();
+            csv.AppendLine("ViewName,ViewType,ViewScale,ElementId,Category,TagFamilyName," +
+                "TagTypeName,TagPosX_mm,TagPosY_mm,OffsetX_mm,OffsetY_mm,HasLeader,STING_TAG");
+
+            double mmPerFt = 304.8;
+            foreach (var tag in tags)
+            {
+                try
+                {
+                    var refs = tag.GetTaggedReferences();
+                    if (refs == null || refs.Count == 0) continue;
+                    Element host = doc.GetElement(refs[0]);
+                    if (host == null) continue;
+
+                    XYZ tagPos;
+                    try { tagPos = tag.TagHeadPosition; }
+                    catch { continue; }
+
+                    XYZ hostCenter = TagPlacementEngine.GetElementCenter(host, view);
+                    double offsetX = (tagPos.X - hostCenter.X) * mmPerFt;
+                    double offsetY = (tagPos.Y - hostCenter.Y) * mmPerFt;
+
+                    string stingTag = ParameterHelpers.GetString(host, ParamRegistry.TAG1);
+                    bool hasLeader = false;
+                    try { hasLeader = tag.HasLeader; } catch { }
+
+                    csv.AppendLine($"\"{view.Name}\",{view.ViewType},{view.Scale}," +
+                        $"{host.Id.Value},\"{host.Category?.Name ?? ""}\",\"{tag.TagText}\"," +
+                        $"\"\",{tagPos.X * mmPerFt:F1},{tagPos.Y * mmPerFt:F1}," +
+                        $"{offsetX:F1},{offsetY:F1},{hasLeader},\"{stingTag}\"");
+                }
+                catch { }
+            }
+
+            string dir = !string.IsNullOrEmpty(doc.PathName)
+                ? System.IO.Path.GetDirectoryName(doc.PathName)
+                : StingToolsApp.DataPath ?? "";
+            string csvPath = System.IO.Path.Combine(dir ?? "",
+                $"STING_TagPositions_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+
+            try
+            {
+                System.IO.File.WriteAllText(csvPath, csv.ToString());
+                TaskDialog.Show("STING \u2014 Export Tag Positions",
+                    $"Exported {tags.Count} tag positions to:\n{csvPath}");
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("STING", $"Export failed: {ex.Message}");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Linked Model Visual Tagging — visual-only tags on linked elements
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Place visual annotation tags on elements in linked Revit models.
+    /// Visual-only — no parameter data is written to linked elements.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BatchPlaceLinkedTagsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var td = new TaskDialog("STING — Linked Model Tags");
+            td.MainInstruction = "Place visual tags on linked model elements";
+            td.MainContent = "WARNING: Linked elements are read-only.\n" +
+                "Visual tags only — no parameter data will be written.\n\n" +
+                "This places annotation tags on elements visible in linked Revit models.";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Tag linked elements in active view");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+            if (td.Show() != TaskDialogResult.CommandLink1) return Result.Cancelled;
+
+            int placed, skipped, collisions;
+            using (Transaction tx = new Transaction(doc, "STING Place Linked Tags"))
+            {
+                tx.Start();
+                (placed, skipped, collisions) = TagPlacementEngine.PlaceTagsInLinkedViews(doc, view, true);
+                tx.Commit();
+            }
+
+            TaskDialog.Show("STING — Linked Model Tags",
+                $"Placed {placed} visual tags on linked elements.\n" +
+                $"Skipped: {skipped}, Collisions: {collisions}");
             return Result.Succeeded;
         }
     }
