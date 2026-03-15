@@ -168,7 +168,8 @@ namespace StingTools.Tags
                                 skipComplete: skipComplete,
                                 existingTags: tagIndex,
                                 collisionMode: collisionMode,
-                                stats: stats);
+                                stats: stats,
+                                cachedRev: popCtx.ProjectRev);
 
                             // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                             string catName = ParameterHelpers.GetCategoryName(el);
@@ -353,7 +354,6 @@ namespace StingTools.Tags
                 {
                     preview.AppendLine($"    {currentTag}");
                     preview.AppendLine($"  → {rebuilt}");
-                    wouldChange++;
                 }
                 else
                 {
@@ -361,7 +361,7 @@ namespace StingTools.Tags
                 }
             }
 
-            // Count total that would change
+            // Count total that would change (includes sample elements — single pass)
             foreach (var (el, currentTag) in tagged)
             {
                 string[] tokens = ParamRegistry.ReadTokenValues(el);

@@ -173,7 +173,8 @@ namespace StingTools.Tags
                             skipComplete: false,
                             existingTags: tagIndex,
                             collisionMode: TagCollisionMode.Overwrite,
-                            stats: stats);
+                            stats: stats,
+                            cachedRev: popCtx.ProjectRev);
                         tagsRebuilt++;
 
                         // Step 3: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative

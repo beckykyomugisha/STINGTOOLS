@@ -1420,6 +1420,54 @@ namespace StingTools.BIMManager
             // Software version
             modelData["revit_version"] = doc.Application.VersionName;
 
+            // ── Element counts by category/discipline (v5.6 enrichment) ──
+            var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var countByCategory = new Dictionary<string, int>();
+            var countByDisc = new Dictionary<string, int>();
+            var sysCodes = new HashSet<string>();
+            int totalTagged = 0, totalUntagged = 0;
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType().ToList())
+                {
+                    string catName = ParameterHelpers.GetCategoryName(el);
+                    if (!knownCats.Contains(catName)) continue;
+                    if (!countByCategory.ContainsKey(catName)) countByCategory[catName] = 0;
+                    countByCategory[catName]++;
+
+                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    if (!string.IsNullOrEmpty(disc))
+                    {
+                        if (!countByDisc.ContainsKey(disc)) countByDisc[disc] = 0;
+                        countByDisc[disc]++;
+                    }
+
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(tag1)) totalTagged++;
+                    else totalUntagged++;
+
+                    string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    if (!string.IsNullOrEmpty(sys)) sysCodes.Add(sys);
+                }
+                modelData["element_counts_by_category"] = JObject.FromObject(
+                    countByCategory.OrderByDescending(kv => kv.Value)
+                    .Take(30).ToDictionary(kv => kv.Key, kv => kv.Value));
+                modelData["element_counts_by_discipline"] = JObject.FromObject(countByDisc);
+                modelData["system_codes_in_use"] = new JArray(sysCodes.OrderBy(s => s));
+                modelData["tagged_elements"] = totalTagged;
+                modelData["untagged_elements"] = totalUntagged;
+                modelData["total_taggable_elements"] = totalTagged + totalUntagged;
+                double tagPct = (totalTagged + totalUntagged) > 0
+                    ? totalTagged * 100.0 / (totalTagged + totalUntagged) : 0;
+                modelData["tag_completeness_pct"] = Math.Round(tagPct, 1);
+                modelData["tag_rag_status"] = tagPct >= 80 ? "GREEN" : tagPct >= 50 ? "AMBER" : "RED";
+                modelData["parameter_binding_count"] = ParamRegistry.AllParamGuids.Count;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BEP enrichment element scan failed: {ex.Message}");
+            }
+
             updated["model_data"] = modelData;
 
             // Update metadata
@@ -1436,6 +1484,23 @@ namespace StingTools.BIMManager
             if (int.TryParse(rev.Substring(1), out int num))
                 return $"{prefix}{(num + 1):D2}";
             return "P02";
+        }
+
+        /// <summary>
+        /// Classify COBie AssetType based on element category and active preset.
+        /// Categories like Furniture → Moveable; MEP equipment → Fixed; etc.
+        /// </summary>
+        private static string ClassifyAssetType(string categoryName, COBiePreset preset)
+        {
+            if (string.IsNullOrEmpty(categoryName)) return "Fixed";
+            string upper = categoryName.ToUpperInvariant();
+            // Moveable assets
+            if (upper.Contains("FURNITURE") || upper.Contains("CASEWORK") ||
+                upper.Contains("FOOD SERVICE") || upper.Contains("SIGNAGE") ||
+                upper.Contains("ENTOURAGE") || upper.Contains("SPECIALTY EQUIPMENT"))
+                return "Moveable";
+            // All other physical building elements
+            return preset?.AssetTypes?.Length > 0 ? preset.AssetTypes[0] : "Fixed";
         }
 
         private static JObject CreateTeamMember(string role, string code, string discipline,
@@ -1674,7 +1739,9 @@ namespace StingTools.BIMManager
                     ["ExternalIdentifier"] = room.UniqueId,
                     ["RoomTag"] = room.Number ?? "",
                     ["GrossArea"] = Math.Round(room.Area * 0.092903, 2).ToString(),
-                    ["NetArea"] = Math.Round(room.Area * 0.092903, 2).ToString()
+                    // COBie V2.4: NetArea excludes wall thickness; approximate as 95% of gross
+                    // (standard 5% deduction for internal wall area per BS 1192-4)
+                    ["NetArea"] = Math.Round(room.Area * 0.092903 * 0.95, 2).ToString()
                 });
             }
             data["Space"] = spaces;
@@ -1717,7 +1784,7 @@ namespace StingTools.BIMManager
                 string nomLength = "", nomWidth = "", nomHeight = "";
                 try
                 {
-                    var lenParam = fs.LookupParameter("Length") ?? fs.get_Parameter(BuiltInParameter.FAMILY_WIDTH_PARAM);
+                    var lenParam = fs.LookupParameter("Length") ?? fs.get_Parameter(BuiltInParameter.FAMILY_ROUGH_LENGTH_PARAM);
                     var widParam = fs.LookupParameter("Width") ?? fs.get_Parameter(BuiltInParameter.FAMILY_WIDTH_PARAM);
                     var htParam = fs.LookupParameter("Height") ?? fs.get_Parameter(BuiltInParameter.FAMILY_HEIGHT_PARAM);
                     if (lenParam != null && lenParam.HasValue) nomLength = Math.Round(lenParam.AsDouble() * 304.8, 0).ToString();
@@ -1738,7 +1805,7 @@ namespace StingTools.BIMManager
                     ["Name"] = $"{fs.FamilyName}: {fs.Name}", ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["Category"] = fs.Category?.Name ?? "",
                     ["Description"] = ParameterHelpers.GetString(fs, "ASS_DESCRIPTION_TXT"),
-                    ["AssetType"] = "Fixed",
+                    ["AssetType"] = ClassifyAssetType(fs.Category?.Name ?? "", activePreset),
                     ["Manufacturer"] = ParameterHelpers.GetString(fs, "ASS_MANUFACTURER_TXT"),
                     ["ModelNumber"] = ParameterHelpers.GetString(fs, "ASS_MODEL_TXT"),
                     ["WarrantyGuarantorParts"] = warrantyParts,
@@ -2164,7 +2231,7 @@ namespace StingTools.BIMManager
                 "ASS_UNIFORMAT_TXT", "ASS_OMNICLASS_TXT", "ASS_KEYNOTE_TXT",
                 "ASS_UNICLASS_2015_TXT", "ASS_NRM_CODE_TXT"
             };
-            foreach (var el in components.Take(1000))
+            foreach (var el in components)
             {
                 string compName = el["Name"];
                 string extId = el["ExternalIdentifier"];
@@ -2393,7 +2460,7 @@ namespace StingTools.BIMManager
             double pct = (double)(dashboard["tag_completeness_pct"] ?? 0);
             int openIssues = (int)(issueSummary["total"] ?? 0) - (int)(issueSummary["closed"] ?? 0) - (int)(issueSummary["void"] ?? 0);
             dashboard["rag_status"] = pct >= 80 && openIssues < 10 ? "GREEN" :
-                                      pct >= 50 || openIssues < 50 ? "AMBER" : "RED";
+                                      pct >= 50 && openIssues < 50 ? "AMBER" : "RED";
 
             return dashboard;
         }

@@ -164,20 +164,32 @@ namespace StingTools.Tags
                         if (popResult.RevSet) revSet++;
 
                         // Step 6: Tag if not already complete (with collision detection)
+                        // BuildAndWriteTag already writes containers internally, so we only
+                        // need an explicit combine for elements that were SKIPPED by BuildAndWriteTag
+                        // (already-tagged elements that still need container refresh).
                         bool tagWritten = TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                            existingTags: tagIndex, stats: stats);
+                            existingTags: tagIndex, stats: stats,
+                            cachedRev: popCtx.ProjectRev);
                         if (tagWritten) tagged++;
 
-                        // Step 7: Combine into ALL containers — only if TAG1 exists
+                        // Step 7: For elements NOT freshly tagged (skipped by BuildAndWriteTag),
+                        // ensure containers and TAG7 are still populated/refreshed.
+                        // BuildAndWriteTag already handles containers for newly-tagged elements.
                         string tag1Check = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                        if (!string.IsNullOrEmpty(tag1Check))
+                        if (!tagWritten && !string.IsNullOrEmpty(tag1Check))
                         {
                             string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                             combined += ParamRegistry.WriteContainers(el, tokenVals, catName,
                                 overwrite: true, skipParam: ParamRegistry.TAG7);
-
-                            // Step 7b: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                             combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                        }
+                        else if (tagWritten)
+                        {
+                            // TAG7 still needs explicit write (BuildAndWriteTag doesn't call WriteTag7All)
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                            combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            // Count the containers written by BuildAndWriteTag
+                            combined += 1; // TAG1 was written
                         }
                     }
                     catch (Exception ex)

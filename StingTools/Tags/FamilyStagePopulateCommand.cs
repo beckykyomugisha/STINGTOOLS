@@ -127,19 +127,15 @@ namespace StingTools.Tags
                 default: return Result.Cancelled;
             }
 
-            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            // Build PopulationContext ONCE — caches room index, project LOC, REV, phases
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             var sw = Stopwatch.StartNew();
 
-            // Pre-detect project-level values once (not per-element)
-            string projectRev = PhaseAutoDetect.DetectProjectRevision(doc);
-
             int processed = 0;
-            int discSet = 0, locSet = 0, zoneSet = 0, lvlSet = 0;
-            int sysSet = 0, funcSet = 0, prodSet = 0, statusSet = 0, revSet = 0;
+            int totalTokensSet = 0;
+            int locDetected = 0, zoneDetected = 0, statusDetected = 0, revSet = 0;
             int familyProdUsed = 0;
-            int phaseDetected = 0;
+            int errors = 0;
 
             bool cancelled = false;
 
@@ -162,165 +158,27 @@ namespace StingTools.Tags
                     if (el == null) continue;
 
                     string catName = ParameterHelpers.GetCategoryName(el);
-                    if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
+                    if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
                         continue;
 
                     processed++;
 
                     try
                     {
-                    // DISC — deterministic from category (default "A" for unmapped)
-                    string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true))
-                            discSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc))
-                            discSet++;
-                    }
-
-                    // LOC — from spatial context
-                    string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true))
-                            locSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc))
-                            locSet++;
-                    }
-
-                    // ZONE — from room data
-                    string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true))
-                            zoneSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone))
-                            zoneSet++;
-                    }
-
-                    // LVL — deterministic from element level (guaranteed default: "L00" for levelless)
-                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                    if (lvl == "XX") lvl = "L00";
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.LVL, lvl, overwrite: true))
-                            lvlSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl))
-                            lvlSet++;
-                    }
-
-                    // SYS — MEP system-aware (6-layer detection, guaranteed default from DISC)
-                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                    if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true))
-                            sysSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys))
-                            sysSet++;
-                    }
-
-                    // DISC correction — system-aware override (e.g. M→P for plumbing pipes, M→FP for fire)
-                    string correctedDisc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
-                    if (correctedDisc != disc)
-                    {
-                        disc = correctedDisc;
-                        ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);
-                    }
-
-                    // FUNC — smart subsystem differentiation (guaranteed default via FuncMap or "GEN")
-                    string func = TagConfig.GetSmartFuncCode(el, sys);
-                    if (string.IsNullOrEmpty(func))
-                        func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true))
-                            funcSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func))
-                            funcSet++;
-                    }
-
-                    // PROD — family-aware (highest intelligence)
-                    string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                    string catProd = TagConfig.ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
-                    if (prod != catProd) familyProdUsed++;
-
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.PROD, prod, overwrite: true))
-                            prodSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod))
-                            prodSet++;
-                    }
-
-                    // STATUS — from Revit phase/workset (EXISTING, NEW, DEMOLISHED, TEMPORARY)
-                    string status = PhaseAutoDetect.DetectStatus(doc, el);
-                    if (!string.IsNullOrEmpty(status))
-                    {
-                        phaseDetected++;
-                        if (overwrite)
-                        {
-                            if (ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true))
-                                statusSet++;
-                        }
-                        else
-                        {
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, status))
-                                statusSet++;
-                        }
-                    }
-                    else
-                    {
-                        // Fallback: default to NEW if no phase data available
-                        if (overwrite)
-                        {
-                            if (ParameterHelpers.SetString(el, ParamRegistry.STATUS, "NEW", overwrite: true))
-                                statusSet++;
-                        }
-                        else
-                        {
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, "NEW"))
-                                statusSet++;
-                        }
-                    }
-
-                    // REV — from project revision sequence (guaranteed default: "P01")
-                    string rev = !string.IsNullOrEmpty(projectRev) ? projectRev : "P01";
-                    if (overwrite)
-                    {
-                        if (ParameterHelpers.SetString(el, ParamRegistry.REV, rev, overwrite: true))
-                            revSet++;
-                    }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, rev))
-                            revSet++;
-                    }
+                        // Delegate to shared TokenAutoPopulator — single source of truth for
+                        // all 9 token derivation logic (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV).
+                        // Uses cached phases/rooms/project data — no per-element collectors.
+                        var result = TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite);
+                        totalTokensSet += result.TokensSet;
+                        if (result.LocDetected) locDetected++;
+                        if (result.ZoneDetected) zoneDetected++;
+                        if (result.StatusDetected) statusDetected++;
+                        if (result.RevSet) revSet++;
+                        if (result.FamilyProdUsed) familyProdUsed++;
                     }
                     catch (Exception ex)
                     {
+                        errors++;
                         StingLog.Error($"FamilyStagePopulate: element {el?.Id}: {ex.Message}", ex);
                     }
                 }
@@ -335,7 +193,7 @@ namespace StingTools.Tags
                 tx.Commit();
             }
             sw.Stop();
-            int totalPopulated = discSet + locSet + zoneSet + lvlSet + sysSet + funcSet + prodSet + statusSet + revSet;
+            int totalPopulated = totalTokensSet;
 
             var report = new StringBuilder();
             report.AppendLine("Family-Stage Pre-Population Complete");
@@ -345,20 +203,14 @@ namespace StingTools.Tags
             report.AppendLine($"  Elements: {processed}");
             report.AppendLine($"  Duration: {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
-            report.AppendLine("── TAG TOKENS ──");
-            report.AppendLine($"  DISC:    {discSet,5}");
-            report.AppendLine($"  LOC:     {locSet,5}  (spatial + workset auto-detect)");
-            report.AppendLine($"  ZONE:    {zoneSet,5}  (room + workset auto-detect)");
-            report.AppendLine($"  LVL:     {lvlSet,5}  (from element level)");
-            report.AppendLine($"  SYS:     {sysSet,5}  (6-layer MEP-aware)");
-            report.AppendLine($"  FUNC:    {funcSet,5}  (smart subsystem)");
-            report.AppendLine($"  PROD:    {prodSet,5}  ({familyProdUsed} family-specific)");
-            report.AppendLine();
-            report.AppendLine("── CONSTRUCTION & REVISION ──");
-            report.AppendLine($"  STATUS:  {statusSet,5}  ({phaseDetected} from Revit phases)");
-            report.AppendLine($"  REV:     {revSet,5}  {(string.IsNullOrEmpty(projectRev) ? "(no revisions)" : $"('{projectRev}')")}");
-            report.AppendLine($"  ─────────────");
-            report.AppendLine($"  Total:   {totalPopulated,5} token values set");
+            report.AppendLine("── TOKEN POPULATION ──");
+            report.AppendLine($"  Total tokens set: {totalPopulated}");
+            if (locDetected > 0) report.AppendLine($"  LOC auto-detect:  {locDetected} (from spatial data)");
+            if (zoneDetected > 0) report.AppendLine($"  ZONE auto-detect: {zoneDetected} (from room data)");
+            if (statusDetected > 0) report.AppendLine($"  STATUS detect:    {statusDetected} (from Revit phases)");
+            if (revSet > 0) report.AppendLine($"  REV auto-set:     {revSet} (revision '{popCtx.ProjectRev}')");
+            if (familyProdUsed > 0) report.AppendLine($"  Family PROD:      {familyProdUsed} (family-specific codes)");
+            if (errors > 0) report.AppendLine($"  Errors:           {errors} (see log)");
             report.AppendLine();
             report.AppendLine("Next step: Run Auto Tag / Batch Tag / Tag & Combine");
             report.AppendLine("to assign SEQ numbers and assemble final tags.");
@@ -370,7 +222,8 @@ namespace StingTools.Tags
 
             StingLog.Info($"FamilyStagePopulate: scope={scopeLabel}, elements={processed}, " +
                 $"tokens={totalPopulated}, familyProd={familyProdUsed}, " +
-                $"status={statusSet}, phaseDetected={phaseDetected}, rev={revSet}, " +
+                $"locDetect={locDetected}, zoneDetect={zoneDetected}, " +
+                $"statusDetect={statusDetected}, rev={revSet}, errors={errors}, " +
                 $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;
