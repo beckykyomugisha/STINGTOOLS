@@ -1883,31 +1883,30 @@ namespace StingTools.BIMManager
             }
             data["Component"] = components;
 
-            // ── System (grouped by actual SYS parameter values from tagged elements) ──
+            // ── System (grouped by ASS_SYSTEM_TYPE_TXT parameter value) ──
+            // Groups components by their actual SYS parameter value read from each
+            // Revit element, ensuring parameter-driven grouping rather than name matching.
             var systems = new List<Dictionary<string, string>>();
-            var sysGroups = new Dictionary<string, List<string>>();
-            foreach (var comp in components)
+            var sysGroups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
-                string extId = comp["ExternalIdentifier"];
-                var revitEl = doc.GetElement(extId);
-                if (revitEl == null) continue;
-                string sysCode = ParameterHelpers.GetString(revitEl, ParamRegistry.SYS);
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!knownCats.Contains(cat)) continue;
+                string sysCode = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                 if (string.IsNullOrEmpty(sysCode)) continue;
+
                 if (!sysGroups.ContainsKey(sysCode))
                     sysGroups[sysCode] = new List<string>();
+
                 if (sysGroups[sysCode].Count < 50)
-                    sysGroups[sysCode].Add(comp["Name"]);
-            }
-            // Also include systems from TagConfig that have components matched by name
-            foreach (var sysCode in TagConfig.SysMap.Keys.OrderBy(k => k))
-            {
-                if (sysGroups.ContainsKey(sysCode)) continue;
-                var sysComps = components.Where(c =>
-                    c.ContainsKey("TagNumber") && !string.IsNullOrEmpty(c["TagNumber"]) &&
-                    c["TagNumber"].Contains($"-{sysCode}-"))
-                    .Select(c => c["Name"]).Take(20).ToList();
-                if (sysComps.Count > 0)
-                    sysGroups[sysCode] = sysComps;
+                {
+                    string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    string desc = ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT");
+                    string compName = !string.IsNullOrEmpty(desc) ? desc
+                        : !string.IsNullOrEmpty(tag) ? tag
+                        : el.Name ?? el.Id.Value.ToString();
+                    sysGroups[sysCode].Add(compName);
+                }
             }
             foreach (var kvp in sysGroups.OrderBy(k => k.Key))
             {

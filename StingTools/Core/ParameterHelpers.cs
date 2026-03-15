@@ -76,6 +76,9 @@ namespace StingTools.Core
                 "Revit ribbon or the STING dockable panel.");
         }
 
+        // Batch log noise reduction: throttle per-element logging
+        private static int _unrecognizedLevelCount = 0;
+
         // Parameter lookup cache: avoids O(n) LookupParameter on every call.
         // Keyed by (ElementId typeId, string paramName) → Definition.
         // Null values are cached to avoid repeated miss lookups.
@@ -119,6 +122,25 @@ namespace StingTools.Core
                 return v ?? string.Empty;
             }
             return string.Empty;
+        }
+
+        /// <summary>Read an integer parameter value, returning defaultValue if not found or null.</summary>
+        public static int GetInt(Element el, string paramName, int defaultValue = 0)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return defaultValue;
+            try
+            {
+                Parameter p = CachedLookup(el, paramName);
+                if (p == null || !p.HasValue) return defaultValue;
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                if (p.StorageType == StorageType.Double) return (int)p.AsDouble();
+                if (p.StorageType == StorageType.String)
+                {
+                    if (int.TryParse(p.AsString(), out int v)) return v;
+                }
+                return defaultValue;
+            }
+            catch { return defaultValue; }
         }
 
         /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
@@ -227,7 +249,10 @@ namespace StingTools.Core
 
                 // Unrecognized pattern — return XX rather than truncating the name
                 // which could produce nonsensical level codes
-                StingLog.Info($"GetLevelCode: unrecognized level name '{name}', defaulting to XX");
+                // Throttled: only log every 200th occurrence to reduce batch noise
+                _unrecognizedLevelCount++;
+                if (_unrecognizedLevelCount % 200 == 1)
+                    StingLog.Info($"GetLevelCode: unrecognized level name '{name}', defaulting to XX (occurrence #{_unrecognizedLevelCount})");
                 return "XX";
             }
             catch (Exception ex)
@@ -451,14 +476,20 @@ namespace StingTools.Core
 
                 // Workset-based fallback: check workset name for LOC patterns
                 string wsLoc = DetectLocFromWorkset(el);
-                if (!string.IsNullOrEmpty(wsLoc)) return wsLoc;
+                if (!string.IsNullOrEmpty(wsLoc))
+                {
+                    string validWsLoc = ValidateLocationCode(wsLoc);
+                    return !string.IsNullOrEmpty(validWsLoc) ? validWsLoc : wsLoc;
+                }
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"DetectLoc: {ex.Message}");
             }
 
-            return !string.IsNullOrEmpty(projectLoc) ? projectLoc : "BLD1";
+            string result = !string.IsNullOrEmpty(projectLoc) ? projectLoc : "BLD1";
+            string validated = ValidateLocationCode(result);
+            return !string.IsNullOrEmpty(validated) ? validated : "BLD1";
         }
 
         /// <summary>
@@ -495,7 +526,11 @@ namespace StingTools.Core
 
                 // Workset-based fallback: check workset name for ZONE patterns
                 string wsZone = DetectZoneFromWorkset(el);
-                if (!string.IsNullOrEmpty(wsZone)) return wsZone;
+                if (!string.IsNullOrEmpty(wsZone))
+                {
+                    string validWsZone = ValidateLocationCode(wsZone);
+                    return !string.IsNullOrEmpty(validWsZone) ? validWsZone : wsZone;
+                }
             }
             catch (Exception ex)
             {
@@ -503,6 +538,26 @@ namespace StingTools.Core
             }
 
             return "Z01"; // Safe default
+        }
+
+        /// <summary>
+        /// Validate and sanitize a location or zone code:
+        /// strips whitespace, removes spaces, converts to uppercase,
+        /// truncates to 6 chars, rejects non A-Z 0-9 characters.
+        /// Returns empty string if the result is invalid.
+        /// </summary>
+        public static string ValidateLocationCode(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return "";
+            code = code.Trim().Replace(" ", "").ToUpperInvariant();
+            if (code.Length > 6) code = code.Substring(0, 6);
+            // Only allow alphanumeric characters
+            foreach (char c in code)
+            {
+                if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')))
+                    return "";
+            }
+            return code;
         }
 
         /// <summary>
@@ -962,23 +1017,41 @@ namespace StingTools.Core
             /// <summary>Last phase ID in the project sequence — used for EXISTING inference.</summary>
             public ElementId LastPhaseId { get; set; }
 
+            /// <summary>Pool of already-tagged elements for CopyTokensFromNearest spatial inheritance.</summary>
+            public IList<Element> CandidatePool { get; set; }
+
             /// <summary>GAP-019: Configurable default STATUS (from project_config.json or "NEW").</summary>
             public string DefaultStatus { get; set; } = "NEW";
 
             /// <summary>GAP-019: Configurable default REV (from project_config.json or "P01").</summary>
             public string DefaultRev { get; set; } = "P01";
 
+            // Cache assert: warn if Build() is called redundantly for the same document
+            private static string _lastBuildDocTitle;
+            private static DateTime _lastBuildTime;
+            private static PopulationContext _lastCachedContext;
+
             /// <summary>
             /// Build a PopulationContext once for a batch operation.
             /// Caches all project-level lookups: room index, LOC, REV, phases.
+            /// If called again for the same document within 1 second, returns the cached instance.
             /// </summary>
             public static PopulationContext Build(Document doc)
             {
+                string docTitle = doc?.Title ?? "";
+                if (!string.IsNullOrEmpty(docTitle) &&
+                    docTitle == _lastBuildDocTitle &&
+                    _lastCachedContext != null &&
+                    (DateTime.UtcNow - _lastBuildTime).TotalSeconds < 1.0)
+                {
+                    StingLog.Warn("PopulationContext.Build() called multiple times for same document — use cached context");
+                    return _lastCachedContext;
+                }
                 var phases = new FilteredElementCollector(doc)
                     .OfClass(typeof(Phase))
                     .Cast<Phase>()
                     .ToList();
-                return new PopulationContext
+                var ctx = new PopulationContext
                 {
                     RoomIndex = SpatialAutoDetect.BuildRoomIndex(doc),
                     ProjectLoc = SpatialAutoDetect.DetectProjectLoc(doc),
@@ -989,7 +1062,20 @@ namespace StingTools.Core
                     // GAP-019: Apply config overrides for STATUS/REV defaults
                     DefaultStatus = !string.IsNullOrEmpty(TagConfig.StatusDefault) ? TagConfig.StatusDefault : "NEW",
                     DefaultRev = !string.IsNullOrEmpty(TagConfig.RevDefault) ? TagConfig.RevDefault : "P01",
+                    // C1: Build candidate pool for CopyTokensFromNearest spatial inheritance
+                    CandidatePool = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .ToList()
+                        .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
+                        .ToList(),
                 };
+
+                // Cache for redundant call detection
+                _lastBuildDocTitle = docTitle;
+                _lastBuildTime = DateTime.UtcNow;
+                _lastCachedContext = ctx;
+
+                return ctx;
             }
         }
 
@@ -1008,6 +1094,113 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Copies non-empty token values from the element TYPE to the instance,
+        /// only for tokens currently empty on the instance. Type-level values
+        /// are treated as higher-confidence seeds than auto-detection defaults.
+        /// Returns count of tokens inherited.
+        /// Call BEFORE PopulateAll() so inherited values are not overwritten.
+        /// </summary>
+        public static int TypeTokenInherit(Document doc, Element el)
+        {
+            if (el == null || el is ElementType) return 0;
+            ElementId typeId = el.GetTypeId();
+            if (typeId == null || typeId == ElementId.InvalidElementId) return 0;
+            Element typeEl = doc.GetElement(typeId);
+            if (typeEl == null) return 0;
+
+            int count = 0;
+            string[] tokenParams = { ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                                     ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD };
+            foreach (string paramName in tokenParams)
+            {
+                try
+                {
+                    string typeVal = typeEl.LookupParameter(paramName)?.AsString();
+                    if (!string.IsNullOrEmpty(typeVal))
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, paramName, typeVal))
+                            count++;
+                    }
+                }
+                catch { }
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// Finds the nearest already-tagged element of the same category in the same
+        /// level and copies the specified token values to el (only to empty params).
+        /// Uses a simple 2D distance check on element bounding box centers.
+        /// Falls back gracefully if no nearby tagged element exists.
+        /// Returns count of tokens copied.
+        /// Max search radius: 10 ft (model units). Only copies tokens listed in tokensToCopy.
+        /// </summary>
+        public static int CopyTokensFromNearest(
+            Document doc, Element el, string[] tokensToCopy,
+            IList<Element> candidatePool)
+        {
+            if (el == null || tokensToCopy == null || candidatePool == null || candidatePool.Count == 0)
+                return 0;
+
+            BoundingBoxXYZ bb = el.get_BoundingBox(null);
+            if (bb == null) return 0;
+            XYZ center = (bb.Min + bb.Max) / 2.0;
+
+            string catName = el.Category?.Name ?? "";
+            ElementId levelId = el.LevelId;
+
+            Element nearest = null;
+            double minDist = double.MaxValue;
+            const double maxRadius = 10.0; // 10 ft
+
+            foreach (Element cand in candidatePool)
+            {
+                try
+                {
+                    if (cand.Id == el.Id) continue;
+                    if ((cand.Category?.Name ?? "") != catName) continue;
+                    if (cand.LevelId != levelId) continue;
+
+                    // Must be already tagged
+                    string tag1 = ParameterHelpers.GetString(cand, ParamRegistry.AllTokenParams[0]);
+                    if (string.IsNullOrEmpty(tag1)) continue;
+
+                    BoundingBoxXYZ candBb = cand.get_BoundingBox(null);
+                    if (candBb == null) continue;
+                    XYZ candCenter = (candBb.Min + candBb.Max) / 2.0;
+
+                    double dx = center.X - candCenter.X;
+                    double dy = center.Y - candCenter.Y;
+                    double dist = Math.Sqrt(dx * dx + dy * dy);
+                    if (dist < minDist && dist <= maxRadius)
+                    {
+                        minDist = dist;
+                        nearest = cand;
+                    }
+                }
+                catch { }
+            }
+
+            if (nearest == null) return 0;
+
+            int count = 0;
+            foreach (string tokenName in tokensToCopy)
+            {
+                try
+                {
+                    string srcVal = ParameterHelpers.GetString(nearest, tokenName);
+                    if (!string.IsNullOrEmpty(srcVal))
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, tokenName, srcVal))
+                            count++;
+                    }
+                }
+                catch { }
+            }
+            return count;
+        }
+
+        /// <summary>
         /// Populate all 9 tokens on a single element using the highest-intelligence
         /// detection available. Only fills empty values (non-destructive) unless
         /// overwrite is true.
@@ -1021,6 +1214,9 @@ namespace StingTools.Core
             if (el is ElementType)
                 return result;
 
+            // Item 1: Inherit tokens from family type before auto-detection
+            TypeTokenInherit(doc, el);
+
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
                 return result;
@@ -1030,9 +1226,17 @@ namespace StingTools.Core
 
             // SYS — 6-layer MEP system-aware detection (must come before DISC correction)
             string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-            // Guaranteed SYS default: derive from discipline when MEP detection returns empty
-            if (string.IsNullOrEmpty(sys))
-                sys = TagConfig.GetDiscDefaultSysCode(disc);
+            // C1: Try inheriting SYS/FUNC from nearest tagged element before generic fallback
+            if (string.IsNullOrEmpty(sys) || sys == TagConfig.GetDiscDefaultSysCode(disc))
+            {
+                if (ctx.CandidatePool != null && ctx.CandidatePool.Count > 0)
+                {
+                    CopyTokensFromNearest(doc, el, new[] { ParamRegistry.SYS, ParamRegistry.FUNC }, ctx.CandidatePool);
+                    string inheritedSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    if (!string.IsNullOrEmpty(inheritedSys)) sys = inheritedSys;
+                }
+                if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+            }
 
             // DISC correction — system-aware override for pipes
             disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
@@ -1190,6 +1394,8 @@ namespace StingTools.Core
         /// Populate only the core 7 tag tokens (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD)
         /// without STATUS and REV. Used when only tag-building tokens are needed.
         /// </summary>
+        // DEPRECATED: This method is incomplete. Use PopulateAll(doc, el, ctx) instead.
+        [Obsolete("Use PopulateAll instead. PopulateTagTokens is missing TypeTokenInherit, STATUS, REV, and overwrite support.", false)]
         public static int PopulateTagTokens(Document doc, Element el,
             PopulationContext ctx)
         {
@@ -1249,10 +1455,13 @@ namespace StingTools.Core
     {
         /// <summary>
         /// Auto-map all applicable Revit native parameters to STING shared parameters.
-        /// Only writes to empty STING parameters (non-destructive).
+        /// Only writes to empty STING parameters (non-destructive) unless overwrite is true.
         /// Returns the number of values written.
         /// </summary>
-        public static int MapAll(Document doc, Element el)
+        /// <param name="doc">The Revit document.</param>
+        /// <param name="el">The element to map parameters for.</param>
+        /// <param name="overwrite">When false (default), only writes to empty parameters via SetIfEmpty.</param>
+        public static int MapAll(Document doc, Element el, bool overwrite = false)
         {
             int written = 0;
 
@@ -1773,8 +1982,7 @@ namespace StingTools.Core
             // ── Mechanical Equipment ───────────────────────────────────────────
             if (catName == "Mechanical Equipment")
             {
-                written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    ParamRegistry.SYS);
+                // NOTE: SYS token is intentionally NOT mapped here. Use TokenAutoPopulator.PopulateAll for SYS derivation.
             }
 
             // ── Pipe parameters ────────────────────────────────────────────────
@@ -1788,9 +1996,7 @@ namespace StingTools.Core
                 // Pipe length
                 written += MapDimension(el, BuiltInParameter.CURVE_ELEM_LENGTH,
                     ParamRegistry.PLM_PIPE_LENGTH, 0.3048); // ft → m
-                // System type
-                written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    ParamRegistry.SYS);
+                // NOTE: SYS token is intentionally NOT mapped here. Use TokenAutoPopulator.PopulateAll for SYS derivation.
             }
 
             // ── Fire Alarm Devices ─────────────────────────────────────────────
@@ -1898,7 +2104,7 @@ namespace StingTools.Core
                         break;
                 }
 
-                if (string.IsNullOrEmpty(val) || val == "0") return 0;
+                if (val == null || val.Length == 0) return 0;
 
                 Element writeTarget = target ?? source;
                 return SetIfEmptyInt(writeTarget, targetParamName, val);
@@ -1915,13 +2121,88 @@ namespace StingTools.Core
             return ParameterHelpers.SetIfEmpty(el, paramName, value) ? 1 : 0;
         }
 
+        private static readonly Dictionary<int, ElementId> _solidFillCache = new Dictionary<int, ElementId>();
+
         /// <summary>Find the solid fill pattern element in the document. Cached per document.</summary>
         public static FillPatternElement GetSolidFillPattern(Document doc)
         {
-            return new FilteredElementCollector(doc)
+            int docHash = doc.GetHashCode();
+            if (_solidFillCache.TryGetValue(docHash, out ElementId cachedId))
+            {
+                var cached = doc.GetElement(cachedId) as FillPatternElement;
+                if (cached != null && cached.IsValidObject) return cached;
+                _solidFillCache.Remove(docHash);
+            }
+            var result = new FilteredElementCollector(doc)
                 .OfClass(typeof(FillPatternElement))
                 .Cast<FillPatternElement>()
                 .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            if (result != null) _solidFillCache[docHash] = result.Id;
+            return result;
+        }
+
+        /// <summary>Clear the solid fill pattern cache (call on document close/switch).</summary>
+        public static void ClearSolidFillCache() { _solidFillCache.Clear(); }
+
+        /// <summary>
+        /// Map native Revit sheet parameters to STING shared parameters for all ViewSheets.
+        /// Reads SHEET_DRAWN_BY, SHEET_CHECKED_BY, SHEET_NUMBER, SHEET_NAME, issue date,
+        /// and current revision, writing to corresponding STING shared params via SetIfEmpty.
+        /// Returns the total number of values written.
+        /// </summary>
+        public static int MapSheets(Document doc)
+        {
+            int written = 0;
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .ToList();
+
+            foreach (ViewSheet sheet in sheets)
+            {
+                try
+                {
+                    // Sheet number and name
+                    string sheetNumber = sheet.SheetNumber ?? "";
+                    string sheetName = sheet.Name ?? "";
+                    if (!string.IsNullOrEmpty(sheetNumber))
+                        written += SetIfEmptyInt(sheet, "ASS_SHEET_NUMBER_TXT", sheetNumber);
+                    if (!string.IsNullOrEmpty(sheetName))
+                        written += SetIfEmptyInt(sheet, "ASS_SHEET_NAME_TXT", sheetName);
+
+                    // Drawn by
+                    Parameter drawnBy = sheet.get_Parameter(BuiltInParameter.SHEET_DRAWN_BY);
+                    if (drawnBy != null && drawnBy.HasValue && !string.IsNullOrEmpty(drawnBy.AsString()))
+                        written += SetIfEmptyInt(sheet, "ASS_DRAWN_BY_TXT", drawnBy.AsString());
+
+                    // Checked by
+                    Parameter checkedBy = sheet.get_Parameter(BuiltInParameter.SHEET_CHECKED_BY);
+                    if (checkedBy != null && checkedBy.HasValue && !string.IsNullOrEmpty(checkedBy.AsString()))
+                        written += SetIfEmptyInt(sheet, "ASS_CHECKED_BY_TXT", checkedBy.AsString());
+
+                    // Approved by (not a standard BuiltInParameter — look up by name)
+                    Parameter approvedBy = sheet.LookupParameter("Approved By");
+                    if (approvedBy != null && approvedBy.HasValue && !string.IsNullOrEmpty(approvedBy.AsString()))
+                        written += SetIfEmptyInt(sheet, "ASS_APPROVED_BY_TXT", approvedBy.AsString());
+
+                    // Sheet issue date
+                    Parameter issueDate = sheet.get_Parameter(BuiltInParameter.SHEET_ISSUE_DATE);
+                    if (issueDate != null && issueDate.HasValue && !string.IsNullOrEmpty(issueDate.AsString()))
+                        written += SetIfEmptyInt(sheet, "ASS_SHEET_ISSUE_DATE_TXT", issueDate.AsString());
+
+                    // Current revision on sheet
+                    Parameter currentRev = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION);
+                    if (currentRev != null && currentRev.HasValue && !string.IsNullOrEmpty(currentRev.AsString()))
+                        written += SetIfEmptyInt(sheet, "ASS_SHEET_REVISION_TXT", currentRev.AsString());
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"MapSheets: sheet '{sheet.SheetNumber}': {ex.Message}");
+                }
+            }
+
+            StingLog.Info($"NativeParamMapper.MapSheets: {written} values written across {sheets.Count} sheets");
+            return written;
         }
     }
 }

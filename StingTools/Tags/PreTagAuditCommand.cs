@@ -30,10 +30,32 @@ namespace StingTools.Tags
     ///
     /// This is the "measure twice, cut once" approach — eliminates surprises.
     /// </summary>
+    /// <summary>
+    /// Describes a single audit issue found during pre-tag audit.
+    /// Stored in <see cref="PreTagAuditCommand.LastAuditIssues"/> for
+    /// downstream integration (e.g., AnomalyAutoFixCommand).
+    /// </summary>
+    public class AuditIssue
+    {
+        public ElementId ElementId { get; set; }
+        public string IssueType { get; set; }
+        public string Description { get; set; }
+    }
+
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class PreTagAuditCommand : IExternalCommand
     {
+        /// <summary>Most recent audit issues from the last run.</summary>
+        private static List<AuditIssue> _lastAuditIssues;
+        private static DateTime _lastAuditTime = DateTime.MinValue;
+
+        /// <summary>Read the most recent audit issues (null if no audit has been run).</summary>
+        public static List<AuditIssue> LastAuditIssues => _lastAuditIssues;
+
+        /// <summary>Timestamp of the last audit run.</summary>
+        public static DateTime LastAuditTime => _lastAuditTime;
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -42,6 +64,8 @@ namespace StingTools.Tags
             UIDocument uidoc = ctx.UIDoc;
             Document doc = ctx.Doc;
             var sw = Stopwatch.StartNew();
+
+            double scanBefore = ComplianceScan.Scan(doc).CompliancePercent;
 
             // Scope selection
             TaskDialog scopeDlg = new TaskDialog("Pre-Tag Audit");
@@ -111,6 +135,9 @@ namespace StingTools.Tags
             // Family PROD intelligence
             var familyProdBreakdown = new Dictionary<string, int>();
 
+            // Collect audit issues for downstream auto-fix integration
+            var auditIssues = new List<AuditIssue>();
+
             // Simulate tagging
             var simTags = new HashSet<string>(existingTags, StringComparer.Ordinal);
             var simCounters = new Dictionary<string, int>(seqCounters);
@@ -152,12 +179,24 @@ namespace StingTools.Tags
                 if (hasTag)
                 {
                     string formatError = ISO19650Validator.ValidateTagFormat(existingTag);
-                    if (formatError != null) elementIsoErrors++;
+                    if (formatError != null)
+                    {
+                        elementIsoErrors++;
+                        auditIssues.Add(new AuditIssue { ElementId = el.Id, IssueType = "ISO_FORMAT", Description = formatError });
+                    }
                     var tokenErrors = ISO19650Validator.ValidateElement(el);
                     elementIsoErrors += tokenErrors.Count;
+                    foreach (var te in tokenErrors)
+                        auditIssues.Add(new AuditIssue { ElementId = el.Id, IssueType = "ISO_TOKEN", Description = te.Message });
                 }
 
                 if (elementIsoErrors > 0) isoViolations++;
+
+                // Collect missing-token issues
+                if (hasEmptyToken)
+                    auditIssues.Add(new AuditIssue { ElementId = el.Id, IssueType = "MISSING_TOKENS", Description = $"{emptyTokenCounts.Count(x => x.Value > 0)} tokens empty" });
+                if (!hasTag)
+                    auditIssues.Add(new AuditIssue { ElementId = el.Id, IssueType = "UNTAGGED", Description = $"No tag on {catName}" });
 
                 // Predict LOC/ZONE auto-detection
                 string locSource = "existing";
@@ -327,6 +366,11 @@ namespace StingTools.Tags
             willBeSkipped = totalTaggable - willBeTagged - alreadyTagged;
             sw.Stop();
 
+            // Store audit results for downstream auto-fix chain (e.g., AnomalyAutoFixCommand)
+            _lastAuditIssues = auditIssues;
+            _lastAuditTime = DateTime.Now;
+            StingLog.Info($"PreTagAudit: stored {auditIssues.Count} audit issues for auto-fix chain");
+
             // Build report
             var report2 = new StringBuilder();
             report2.AppendLine("══════════════════════════════════════════════════");
@@ -430,7 +474,41 @@ namespace StingTools.Tags
             TaskDialog td = new TaskDialog("Pre-Tag Audit");
             td.MainInstruction = $"Will tag {willBeTagged} elements ({alreadyTagged} already tagged, {predictedCollisions} collisions)";
             td.MainContent = report2.ToString();
-            td.Show();
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Auto-fix all correctable issues",
+                "Runs AnomalyAutoFix + ResolveAllIssues to address fixable issues");
+            td.CommonButtons = TaskDialogCommonButtons.Close;
+            var tdResult = td.Show();
+
+            if (tdResult == TaskDialogResult.CommandLink1)
+            {
+                try
+                {
+                    string msg2 = "";
+                    var fixCmd = new Organise.AnomalyAutoFixCommand();
+                    fixCmd.Execute(commandData, ref msg2, elements);
+
+                    var rescan = ComplianceScan.Scan(doc, forceRefresh: true);
+                    if (rescan.CompliancePercent < 80.0)
+                    {
+                        var resolveCmd = new Tags.ResolveAllIssuesCommand();
+                        resolveCmd.Execute(commandData, ref msg2, elements);
+                    }
+
+                    var afterScan = ComplianceScan.Scan(doc, forceRefresh: true);
+                    double improvement = afterScan.CompliancePercent - scanBefore;
+                    TaskDialog.Show("Pre-Tag Audit \u2014 Auto-Fix Complete",
+                        $"Compliance: {scanBefore:F1}% \u2192 {afterScan.CompliancePercent:F1}% " +
+                        $"({(improvement >= 0 ? "+" : "")}{improvement:F1}%)\n\n" +
+                        $"Elements now tagged: {afterScan.TaggedComplete}\n" +
+                        $"Still untagged: {afterScan.Untagged}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("PreTagAudit auto-fix", ex);
+                    TaskDialog.Show("STING", $"Auto-fix encountered an error: {ex.Message}");
+                }
+            }
 
             StingLog.Info($"PreTagAudit: {totalTaggable} elements, {predictedCollisions} predicted collisions, " +
                 $"{isoViolations} ISO violations, {willBeTagged} untagged" +

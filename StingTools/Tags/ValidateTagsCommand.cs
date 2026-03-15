@@ -55,6 +55,10 @@ namespace StingTools.Tags
             int tag1Valid = 0;
             int tag1Incomplete = 0;
             int tag1Missing = 0;
+            // Three mutually-exclusive compliance buckets
+            int bucketFully = 0;    // TagIsComplete AND TagIsFullyResolved
+            int bucketPartial = 0;  // non-empty but not fully complete/resolved
+            int bucketUntagged = 0; // null or empty
             int containersEmpty = 0; // TAG_2-6 not populated
             int tokensMissing = 0;
             int isoViolations = 0; // ISO 19650 code violations
@@ -89,19 +93,28 @@ namespace StingTools.Tags
                 if (string.IsNullOrEmpty(tag1))
                 {
                     tag1Missing++;
+                    bucketUntagged++;
                     tag1Status = "MISSING";
                     IncrementDict(issuesByCategory, catName);
+                }
+                else if (TagConfig.TagIsComplete(tag1) && TagConfig.TagIsFullyResolved(tag1))
+                {
+                    tag1Valid++;
+                    fullyResolved++;
+                    bucketFully++;
+                    tag1Status = "VALID";
                 }
                 else if (TagConfig.TagIsComplete(tag1))
                 {
                     tag1Valid++;
+                    bucketPartial++;
                     tag1Status = "VALID";
-                    if (TagConfig.TagIsFullyResolved(tag1))
-                        fullyResolved++;
                 }
                 else
                 {
+                    // Non-empty but not complete — partially tagged
                     tag1Incomplete++;
+                    bucketPartial++;
                     tag1Status = "INCOMPLETE";
                     IncrementDict(issuesByCategory, catName);
                 }
@@ -151,8 +164,7 @@ namespace StingTools.Tags
 
                 // Single-pass ISO validation via ValidateElement
                 var elementErrors = ISO19650Validator.ValidateElement(el);
-                int elementCrossErrors = elementErrors.Count(e =>
-                    e.Contains("mismatch") || e.Contains("typically belongs") || e.Contains("unexpected"));
+                int elementCrossErrors = elementErrors.Count(e => e.Type == ValidationErrorType.CrossValidation);
                 int elementTokenErrors = elementErrors.Count - elementCrossErrors;
                 // Count token-level and cross-validation errors separately (no double-counting)
                 isoViolations += elementTokenErrors;
@@ -162,8 +174,8 @@ namespace StingTools.Tags
                 {
                     if (tag1Status == "VALID") tag1Status = "ISO_INVALID";
                     IncrementDict(issuesByCategory, catName);
-                    foreach (string err in elementErrors)
-                        IncrementDict(isoIssueTypes, err);
+                    foreach (var err in elementErrors)
+                        IncrementDict(isoIssueTypes, err.Message);
                 }
 
                 // Check TAG_2-6 containers
@@ -203,6 +215,10 @@ namespace StingTools.Tags
             double resolvedPct = total > 0 ? fullyResolved * 100.0 / total : 0;
             double statusPct = total > 0 ? (total - statusEmpty) * 100.0 / total : 0;
             double revPct = total > 0 ? (total - revEmpty) * 100.0 / total : 0;
+            // Three-bucket compliance: fully=1.0, partially=0.5, untagged=0.0
+            double compliancePct = total > 0
+                ? (bucketFully + 0.5 * bucketPartial) / total * 100.0
+                : 0;
 
             // Build report — using paragraph-style narrative sections
             var report = new StringBuilder();
@@ -210,20 +226,21 @@ namespace StingTools.Tags
             report.AppendLine(new string('═', 55));
             report.AppendLine();
 
+            // Three-bucket compliance summary
+            report.AppendLine("── Three-Bucket Compliance ──");
+            report.AppendLine($"  Fully tagged:     {bucketFully,6:N0}  (complete + resolved, no placeholders)");
+            report.AppendLine($"  Partially tagged: {bucketPartial,6:N0}  (has tag data but incomplete or unresolved)");
+            report.AppendLine($"  Untagged:         {bucketUntagged,6:N0}  (no tag at all)");
+            report.AppendLine($"  Compliance score: {compliancePct:F1}%  (fully=1.0, partial=0.5, untagged=0.0)");
+            report.AppendLine();
+
             // Tag completeness narrative paragraph
             report.AppendLine("── Tag Completeness ──");
             report.Append($"Of the {total:N0} taggable elements in this project, ");
-            report.Append($"{tag1Valid:N0} ({tag1Pct:F1}%) have a complete 8-segment tag in ASS_TAG_1, ");
-            if (fullyResolved < tag1Valid)
-                report.Append($"though only {fullyResolved:N0} ({resolvedPct:F1}%) are fully resolved without any placeholder segments such as XX or ZZ. ");
-            else
-                report.Append($"and all of those tags are fully resolved with no placeholder segments. ");
-            if (tag1Missing > 0)
-                report.Append($"There are {tag1Missing:N0} elements with no tag at all, ");
-            if (tag1Incomplete > 0)
-                report.Append($"and {tag1Incomplete:N0} elements carry partial tags that are missing one or more segments. ");
-            if (tag1Missing == 0 && tag1Incomplete == 0)
-                report.Append("Every taggable element has been assigned a tag. ");
+            report.Append($"{bucketFully:N0} are fully tagged with complete resolved tags, ");
+            report.Append($"{bucketPartial:N0} are partially tagged (incomplete or containing placeholders), ");
+            report.Append($"and {bucketUntagged:N0} have no tag at all. ");
+            report.Append($"The weighted compliance score is {compliancePct:F1}%. ");
             report.AppendLine();
 
             // ISO 19650 compliance narrative
@@ -387,7 +404,7 @@ namespace StingTools.Tags
             }
 
             TaskDialog td = new TaskDialog("Validate Tags (ISO 19650)");
-            td.MainInstruction = $"TAG_1: {tag1Pct:F1}% | Full: {fullPct:F1}% | STATUS: {statusPct:F0}% | Violations: {isoViolations} | Dupes: {duplicateTags}";
+            td.MainInstruction = $"Compliance: {compliancePct:F1}% | Full: {bucketFully} | Partial: {bucketPartial} | Untagged: {bucketUntagged} | Violations: {isoViolations}";
             td.MainContent = report.ToString();
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 "Create Validation Legend", "Generate a validation status legend view");

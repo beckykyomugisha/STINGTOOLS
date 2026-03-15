@@ -749,4 +749,69 @@ namespace StingTools.Tags
             };
         }
     }
+
+    /// <summary>
+    /// Set a per-view tag style preference. When set, batch style commands
+    /// will use this view's preferred style instead of the global selection.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetViewTagStyleCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var td = new TaskDialog("STING — View Tag Style");
+            td.MainInstruction = "Select tag style for this view";
+            td.MainContent = $"Current view: {view.Name}";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Discipline (M=Blue, E=Gold, P=Green...)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Monochrome (black on white)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Warm (red/orange/yellow)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Cool (blue/cyan/mint)");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+            var result = td.Show();
+
+            string styleName;
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1: styleName = "Discipline"; break;
+                case TaskDialogResult.CommandLink2: styleName = "Monochrome"; break;
+                case TaskDialogResult.CommandLink3: styleName = "Warm"; break;
+                case TaskDialogResult.CommandLink4: styleName = "Cool"; break;
+                default: return Result.Cancelled;
+            }
+
+            using (Transaction tx = new Transaction(doc, "STING Set View Tag Style"))
+            {
+                tx.Start();
+                try
+                {
+                    Parameter p = view.LookupParameter(ParamRegistry.VIEW_TAG_STYLE);
+                    if (p != null && !p.IsReadOnly)
+                    {
+                        p.Set(styleName);
+                        TaskDialog.Show("STING", $"View '{view.Name}' tag style set to: {styleName}");
+                    }
+                    else
+                    {
+                        TaskDialog.Show("STING",
+                            "STING_VIEW_TAG_STYLE parameter not found on this view.\n" +
+                            "Run 'Load Parameters' first to bind view parameters.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("SetViewTagStyle", ex);
+                    TaskDialog.Show("STING", $"Failed: {ex.Message}");
+                }
+                tx.Commit();
+            }
+            return Result.Succeeded;
+        }
+    }
 }

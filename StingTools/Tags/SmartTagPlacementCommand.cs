@@ -121,6 +121,22 @@ namespace StingTools.Tags
             }
         }
 
+        // ── Directional offset configuration ─────────────────────────
+
+        /// <summary>
+        /// Per-axis offset multipliers for directional tag placement.
+        /// Each multiplier scales the base offset for that cardinal direction.
+        /// Ring2Scale controls how much further ring 2 positions are placed.
+        /// </summary>
+        public class DirectionalOffsetConfig
+        {
+            public double NOffset { get; set; } = 1.0;
+            public double EOffset { get; set; } = 1.0;
+            public double SOffset { get; set; } = 1.0;
+            public double WOffset { get; set; } = 1.0;
+            public double Ring2Scale { get; set; } = 1.5;
+        }
+
         // ── Candidate position generation ──────────────────────────────
 
         /// <summary>
@@ -153,11 +169,73 @@ namespace StingTools.Tags
             };
         }
 
-        /// <summary>Scale-aware offset: baseOffset * viewScale gives consistent paper-space distance.</summary>
+        /// <summary>
+        /// Directional 16-position candidate generation with per-axis offset multipliers.
+        /// Each cardinal direction uses its own multiplier from config, and diagonals
+        /// combine the relevant axis multipliers. Ring 2 positions are scaled by config.Ring2Scale.
+        /// </summary>
+        public static XYZ[] GetCandidateOffsets(double offset, DirectionalOffsetConfig config)
+        {
+            if (config == null) return GetCandidateOffsets(offset);
+
+            double n = offset * config.NOffset;
+            double e = offset * config.EOffset;
+            double s = offset * config.SOffset;
+            double w = offset * config.WOffset;
+            double r2 = config.Ring2Scale;
+
+            return new[]
+            {
+                // Ring 1: cardinal directions with per-axis multipliers
+                new XYZ(0, n, 0),            // N  (P1)
+                new XYZ(e, 0, 0),            // E  (P2)
+                new XYZ(0, -s, 0),           // S  (P3)
+                new XYZ(-w, 0, 0),           // W  (P4)
+                new XYZ(e, n, 0),            // NE (P5)
+                new XYZ(e, -s, 0),           // SE (P6)
+                new XYZ(-w, -s, 0),          // SW (P7)
+                new XYZ(-w, n, 0),           // NW (P8)
+                // Ring 2: scaled by Ring2Scale
+                new XYZ(0, n * r2, 0),                       // N far  (P9)
+                new XYZ(e * r2, 0, 0),                       // E far  (P10)
+                new XYZ(0, -s * r2, 0),                      // S far  (P11)
+                new XYZ(-w * r2, 0, 0),                      // W far  (P12)
+                new XYZ(e * r2 * 0.7, n * r2 * 0.7, 0),     // NE far (P13)
+                new XYZ(e * r2 * 0.7, -s * r2 * 0.7, 0),    // SE far (P14)
+                new XYZ(-w * r2 * 0.7, -s * r2 * 0.7, 0),   // SW far (P15)
+                new XYZ(-w * r2 * 0.7, n * r2 * 0.7, 0),    // NW far (P16)
+            };
+        }
+
+        /// <summary>Configurable maximum offset cap in feet (default 30.0).</summary>
+        public static double MaxOffsetCapFt { get; set; } = 30.0;
+
+        /// <summary>
+        /// Scale-tier-aware offset: uses mm-based tiers that scale with view scale.
+        /// Tiers: 1:1–1:50 = 2mm, 1:50–1:100 = 5mm, 1:100–1:200 = 8mm,
+        ///        1:200–1:500 = 12mm, 1:500+ = 20mm.
+        /// Result is converted to feet and multiplied by viewScale, capped at MaxOffsetCapFt.
+        /// </summary>
         public static double GetModelOffset(View view, double baseOffset = 0.01)
         {
             int viewScale = view.Scale > 0 ? view.Scale : 100;
-            return Math.Min(baseOffset * viewScale, 10.0); // cap at 10 ft for high-scale views
+
+            // Determine base mm from scale tier
+            double baseMm;
+            if (viewScale <= 50)
+                baseMm = 2.0;
+            else if (viewScale <= 100)
+                baseMm = 5.0;
+            else if (viewScale <= 200)
+                baseMm = 8.0;
+            else if (viewScale <= 500)
+                baseMm = 12.0;
+            else
+                baseMm = 20.0;
+
+            // Convert mm to feet, then multiply by view scale for model-space distance
+            double offsetFt = (baseMm / 304.8) * viewScale;
+            return Math.Min(offsetFt, MaxOffsetCapFt);
         }
 
         /// <summary>Get element center point in view coordinates.</summary>
@@ -594,6 +672,24 @@ namespace StingTools.Tags
             Box2D? viewCrop = GetViewCropBox(view);
             var tagTypeCache = new Dictionary<ElementId, ElementId>();
 
+            // Load category scale multipliers from presets if available
+            var scaleMultipliers = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string presetsPath = TagPlacementPresets.GetPresetsPath();
+                var presets = TagPlacementPresets.LoadPresets(presetsPath);
+                if (presets.Count > 0)
+                {
+                    var latest = presets[presets.Count - 1];
+                    foreach (var kvp in latest.Rules)
+                    {
+                        if (Math.Abs(kvp.Value.ScaleMultiplier - 1.0) > 0.001)
+                            scaleMultipliers[kvp.Key] = kvp.Value.ScaleMultiplier;
+                    }
+                }
+            }
+            catch { }
+
             foreach (Element elem in elements)
             {
                 XYZ center = GetElementCenter(elem, view);
@@ -613,9 +709,14 @@ namespace StingTools.Tags
                 if (tagTypeId == ElementId.InvalidElementId) { skipped++; continue; }
 
                 string catName = elem.Category?.Name ?? "";
+                // Apply per-category scale multiplier to offset
+                double catOffset = offset;
+                if (scaleMultipliers.TryGetValue(catName, out double scaleMult))
+                    catOffset = offset * scaleMult;
+
                 // Use smart preferred side that considers element orientation
                 int preferred = GetSmartPreferredSide(elem, view);
-                var offsets = GetCandidateOffsets(offset);
+                var offsets = GetCandidateOffsets(catOffset);
 
                 XYZ bestPos = null;
                 double bestScore = double.MinValue;
@@ -654,6 +755,33 @@ namespace StingTools.Tags
                     needsLeader = true;
                 }
 
+                // Leader length clamping: enforce min/max distance from element center
+                double leaderMinFt = 3.0;
+                double leaderMaxFt = 40.0;
+                double distToBest = bestPos.DistanceTo(center);
+                if (distToBest > 0.001)
+                {
+                    XYZ direction = (bestPos - center).Normalize();
+                    if (distToBest < leaderMinFt)
+                    {
+                        bestPos = center + direction * leaderMinFt;
+                    }
+                    else if (distToBest > leaderMaxFt)
+                    {
+                        bestPos = center + direction * leaderMaxFt;
+                        needsLeader = true;
+                    }
+                }
+
+                // Log TAG_SEG_MASK_TXT if set on element (mask application happens in TagConfig.BuildAndWriteTag)
+                try
+                {
+                    string segMask = ParameterHelpers.GetString(elem, "TAG_SEG_MASK_TXT");
+                    if (!string.IsNullOrEmpty(segMask))
+                        StingLog.Info($"PlaceTagsInView: element {elem.Id} has TAG_SEG_MASK_TXT={segMask}");
+                }
+                catch { }
+
                 var finalBox = Box2D.EstimateTag(bestPos, tagWidth, tagHeight);
                 if (grid.HasOverlap(finalBox)) collisions++;
 
@@ -684,6 +812,97 @@ namespace StingTools.Tags
 
             return (placed, skipped, collisions);
         }
+
+        // ── Linked model visual tagging ─────────────────────────────────
+
+        /// <summary>
+        /// Place visual annotation tags on elements in linked Revit models.
+        /// These are visual-only — no parameter data is written to linked elements.
+        /// </summary>
+        public static (int placed, int skipped, int collisions) PlaceTagsInLinkedViews(
+            Document doc, View view, bool tagOnlyUntagged)
+        {
+            int placed = 0, skipped = 0, collisions = 0;
+
+            var linkInstances = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance))
+                .Cast<RevitLinkInstance>()
+                .Where(li => li.GetLinkDocument() != null)
+                .ToList();
+
+            if (linkInstances.Count == 0) return (0, 0, 0);
+
+            var existingTagRefs = new HashSet<string>();
+            foreach (var existingTag in new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>())
+            {
+                try
+                {
+                    var refs = existingTag.GetTaggedReferences();
+                    foreach (var r in refs)
+                        existingTagRefs.Add(r.ConvertToStableRepresentation(doc));
+                }
+                catch { }
+            }
+
+            foreach (RevitLinkInstance linkInst in linkInstances)
+            {
+                try
+                {
+                    Document linkDoc = linkInst.GetLinkDocument();
+                    if (linkDoc == null) continue;
+
+                    var linkElements = new FilteredElementCollector(linkDoc)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                        .ToList();
+
+                    foreach (Element linkEl in linkElements)
+                    {
+                        try
+                        {
+                            Reference linkRef = new Reference(linkEl)
+                                .CreateLinkReference(linkInst);
+                            if (linkRef == null) { skipped++; continue; }
+
+                            string refKey = linkRef.ConvertToStableRepresentation(doc);
+                            if (existingTagRefs.Contains(refKey))
+                            {
+                                skipped++;
+                                continue;
+                            }
+
+                            FamilySymbol tagType = FindTagType(doc, linkEl.Category);
+                            if (tagType == null) { skipped++; continue; }
+
+                            XYZ center = GetElementCenter(linkEl, view);
+                            double offset = GetModelOffset(view);
+                            int preferred = GetPreferredSide(linkEl.Category?.Name ?? "");
+                            XYZ[] candidates = GetCandidateOffsets(offset);
+                            XYZ tagPos = center + candidates[preferred < candidates.Length ? preferred : 0];
+
+                            IndependentTag tag = IndependentTag.Create(
+                                doc, tagType.Id, view.Id, linkRef,
+                                false, TagOrientation.Horizontal, tagPos);
+
+                            if (tag != null) placed++;
+                            else skipped++;
+                        }
+                        catch
+                        {
+                            skipped++;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PlaceTagsInLinkedViews link: {ex.Message}");
+                }
+            }
+
+            return (placed, skipped, collisions);
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -707,6 +926,12 @@ namespace StingTools.Tags
             public double OffsetY { get; set; } = 0;
             public string Orientation { get; set; } = "Horizontal";
             public double LeaderThreshold { get; set; } = 3.0;
+            /// <summary>Minimum leader length in feet. Tags closer than this are pushed out.</summary>
+            public double LeaderLengthMin { get; set; } = 3.0;
+            /// <summary>Maximum leader length in feet. Tags farther than this are pulled in.</summary>
+            public double LeaderLengthMax { get; set; } = 40.0;
+            /// <summary>Per-category scale multiplier applied to offset distance (1.0 = default).</summary>
+            public double ScaleMultiplier { get; set; } = 1.0;
         }
 
         /// <summary>A saved placement preset.</summary>
@@ -913,6 +1138,61 @@ namespace StingTools.Tags
         {
             string dataPath = StingToolsApp.DataPath ?? "";
             return Path.Combine(dataPath, "TAG_PLACEMENT_PRESETS.json");
+        }
+
+        /// <summary>
+        /// Align nearby tags into horizontal bands by snapping them to the median Y position
+        /// of their group.
+        /// </summary>
+        public static int AlignTagBands(Document doc, View view, double tagHeightEstimate)
+        {
+            var tags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .OrderBy(t => { try { return t.TagHeadPosition.Y; } catch { return 0.0; } })
+                .ToList();
+
+            if (tags.Count < 2) return 0;
+
+            var groups = new List<List<IndependentTag>>();
+            var current = new List<IndependentTag> { tags[0] };
+            for (int i = 1; i < tags.Count; i++)
+            {
+                double prevY, thisY;
+                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch { prevY = 0; }
+                try { thisY = tags[i].TagHeadPosition.Y; } catch { thisY = 0; }
+
+                if (Math.Abs(thisY - prevY) <= tagHeightEstimate * 1.2)
+                    current.Add(tags[i]);
+                else
+                {
+                    if (current.Count > 1) groups.Add(current);
+                    current = new List<IndependentTag> { tags[i] };
+                }
+            }
+            if (current.Count > 1) groups.Add(current);
+
+            int moved = 0;
+            foreach (var group in groups)
+            {
+                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch { return 0.0; } })
+                    .OrderBy(y => y).ToList();
+                double medianY = ys[ys.Count / 2];
+                foreach (var tag in group)
+                {
+                    try
+                    {
+                        XYZ pos = tag.TagHeadPosition;
+                        if (Math.Abs(pos.Y - medianY) > 0.001)
+                        {
+                            tag.TagHeadPosition = new XYZ(pos.X, medianY, pos.Z);
+                            moved++;
+                        }
+                    }
+                    catch { }
+                }
+            }
+            return moved;
         }
     }
 
@@ -1990,6 +2270,861 @@ namespace StingTools.Tags
                 $"Set line weight to pen {pen} on {changed} tag categories.\n" +
                 "This affects leader lines and tag borders project-wide.");
             return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Align Tag Bands — snap nearby tags to horizontal bands
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>Align tags in the active view into horizontal bands.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AlignTagBandsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            double tagH = TagPlacementEngine.GetModelOffset(view);
+            int moved = 0;
+            using (Transaction tx = new Transaction(doc, "STING Align Tag Bands"))
+            {
+                tx.Start();
+                moved = TagPlacementPresets.AlignTagBands(doc, view, tagH);
+                tx.Commit();
+            }
+            TaskDialog.Show("STING \u2014 Align Tag Bands",
+                $"Aligned {moved} tags into horizontal bands in '{view.Name}'.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Switch Tag Position — set STING_TAG_POS on family types
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Switch STING_TAG_POS integer on family types to control tag position.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SwitchTagPositionCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var td = new TaskDialog("STING \u2014 Tag Position");
+            td.MainInstruction = "Select tag position";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "1 \u2014 Above");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "2 \u2014 Right");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "3 \u2014 Below");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "4 \u2014 Left");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+            var result = td.Show();
+
+            int posValue;
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1: posValue = 1; break;
+                case TaskDialogResult.CommandLink2: posValue = 2; break;
+                case TaskDialogResult.CommandLink3: posValue = 3; break;
+                case TaskDialogResult.CommandLink4: posValue = 4; break;
+                default: return Result.Cancelled;
+            }
+
+            // Get scope elements
+            UIDocument uidoc = ctx.UIDoc;
+            View view = ctx.ActiveView;
+            var selectedIds = uidoc.Selection.GetElementIds();
+            IList<Element> scope;
+            if (selectedIds.Count > 0)
+            {
+                scope = selectedIds.Select(id => doc.GetElement(id)).Where(e => e != null).ToList();
+            }
+            else if (view != null)
+            {
+                scope = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                    .ToList();
+            }
+            else
+            {
+                TaskDialog.Show("STING", "No active view or selection.");
+                return Result.Failed;
+            }
+
+            var typeIds = new HashSet<ElementId>(
+                scope.Select(e => { try { return e.GetTypeId(); } catch { return ElementId.InvalidElementId; } })
+                    .Where(id => id != ElementId.InvalidElementId));
+
+            int updated = 0;
+            using (Transaction tx = new Transaction(doc, "STING Switch Tag Position"))
+            {
+                tx.Start();
+                foreach (ElementId typeId in typeIds)
+                {
+                    try
+                    {
+                        Element typeEl = doc.GetElement(typeId);
+                        Parameter p = typeEl?.LookupParameter(ParamRegistry.TAG_POS);
+                        if (p != null && !p.IsReadOnly) { p.Set(posValue); updated++; }
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("STING \u2014 Tag Position",
+                $"Set position {posValue} on {updated} element types.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Export Tag Positions — CSV export for analysis
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Export tag positions to CSV for analysis and documentation.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExportTagPositionsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var tags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("STING", "No tags found in active view.");
+                return Result.Succeeded;
+            }
+
+            var csv = new StringBuilder();
+            csv.AppendLine("ViewName,ViewType,ViewScale,ElementId,Category,TagFamilyName," +
+                "TagTypeName,TagPosX_mm,TagPosY_mm,OffsetX_mm,OffsetY_mm,HasLeader,STING_TAG");
+
+            double mmPerFt = 304.8;
+            foreach (var tag in tags)
+            {
+                try
+                {
+                    var refs = tag.GetTaggedReferences();
+                    if (refs == null || refs.Count == 0) continue;
+                    Element host = doc.GetElement(refs[0]);
+                    if (host == null) continue;
+
+                    XYZ tagPos;
+                    try { tagPos = tag.TagHeadPosition; }
+                    catch { continue; }
+
+                    XYZ hostCenter = TagPlacementEngine.GetElementCenter(host, view);
+                    double offsetX = (tagPos.X - hostCenter.X) * mmPerFt;
+                    double offsetY = (tagPos.Y - hostCenter.Y) * mmPerFt;
+
+                    string stingTag = ParameterHelpers.GetString(host, ParamRegistry.TAG1);
+                    bool hasLeader = false;
+                    try { hasLeader = tag.HasLeader; } catch { }
+
+                    csv.AppendLine($"\"{view.Name}\",{view.ViewType},{view.Scale}," +
+                        $"{host.Id.Value},\"{host.Category?.Name ?? ""}\",\"{tag.TagText}\"," +
+                        $"\"\",{tagPos.X * mmPerFt:F1},{tagPos.Y * mmPerFt:F1}," +
+                        $"{offsetX:F1},{offsetY:F1},{hasLeader},\"{stingTag}\"");
+                }
+                catch { }
+            }
+
+            string dir = !string.IsNullOrEmpty(doc.PathName)
+                ? System.IO.Path.GetDirectoryName(doc.PathName)
+                : StingToolsApp.DataPath ?? "";
+            string csvPath = System.IO.Path.Combine(dir ?? "",
+                $"STING_TagPositions_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+
+            try
+            {
+                System.IO.File.WriteAllText(csvPath, csv.ToString());
+                TaskDialog.Show("STING \u2014 Export Tag Positions",
+                    $"Exported {tags.Count} tag positions to:\n{csvPath}");
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("STING", $"Export failed: {ex.Message}");
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Linked Model Visual Tagging — visual-only tags on linked elements
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Place visual annotation tags on elements in linked Revit models.
+    /// Visual-only — no parameter data is written to linked elements.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BatchPlaceLinkedTagsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var td = new TaskDialog("STING — Linked Model Tags");
+            td.MainInstruction = "Place visual tags on linked model elements";
+            td.MainContent = "WARNING: Linked elements are read-only.\n" +
+                "Visual tags only — no parameter data will be written.\n\n" +
+                "This places annotation tags on elements visible in linked Revit models.";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Tag linked elements in active view");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+            if (td.Show() != TaskDialogResult.CommandLink1) return Result.Cancelled;
+
+            int placed, skipped, collisions;
+            using (Transaction tx = new Transaction(doc, "STING Place Linked Tags"))
+            {
+                tx.Start();
+                (placed, skipped, collisions) = TagPlacementEngine.PlaceTagsInLinkedViews(doc, view, true);
+                tx.Commit();
+            }
+
+            TaskDialog.Show("STING — Linked Model Tags",
+                $"Placed {placed} visual tags on linked elements.\n" +
+                $"Skipped: {skipped}, Collisions: {collisions}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Linked Model Sidecar Export — token manifest for linked models
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Exports a JSON sidecar manifest for each linked Revit model, containing
+    /// derived ISO 19650 tokens for all taggable elements. This enables tag
+    /// coordination across linked models without writing to read-only documents.
+    /// The manifest is written alongside the host document as
+    /// {LinkedModelTitle}_LINKED_TOKENS.json.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExportLinkedModelManifestCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            string hostDir = Path.GetDirectoryName(doc.PathName);
+            if (string.IsNullOrEmpty(hostDir))
+            {
+                TaskDialog.Show("STING", "Save the host document first to establish a file path.");
+                return Result.Failed;
+            }
+
+            // Collect all RevitLinkInstance elements
+            var linkInstances = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance))
+                .Cast<RevitLinkInstance>()
+                .ToList();
+
+            if (linkInstances.Count == 0)
+            {
+                TaskDialog.Show("STING", "No linked Revit models found in this project.");
+                return Result.Succeeded;
+            }
+
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            int totalFiles = 0;
+            int totalElements = 0;
+            var summaryLines = new List<string>();
+
+            foreach (var linkInst in linkInstances)
+            {
+                Document linkedDoc = linkInst.GetLinkDocument();
+                if (linkedDoc == null)
+                {
+                    summaryLines.Add($"  {linkInst.Name}: not loaded (skipped)");
+                    continue;
+                }
+
+                string linkedTitle = linkedDoc.Title ?? "UnknownLinked";
+                // Sanitize filename
+                foreach (char c in Path.GetInvalidFileNameChars())
+                    linkedTitle = linkedTitle.Replace(c, '_');
+
+                var popCtx = TokenAutoPopulator.PopulationContext.Build(linkedDoc);
+                var entries = new List<Dictionary<string, string>>();
+
+                foreach (Element el in new FilteredElementCollector(linkedDoc)
+                    .WhereElementIsNotElementType())
+                {
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (!known.Contains(cat)) continue;
+
+                    // Derive tokens without writing (read-only)
+                    string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
+                    string loc = SpatialAutoDetect.DetectLoc(linkedDoc, el, popCtx.RoomIndex, popCtx.ProjectLoc);
+                    if (string.IsNullOrEmpty(loc)) loc = "XX";
+                    string zone = SpatialAutoDetect.DetectZone(linkedDoc, el, popCtx.RoomIndex);
+                    if (string.IsNullOrEmpty(zone)) zone = "XX";
+                    string lvl = ParameterHelpers.GetLevelCode(linkedDoc, el);
+                    string sys = TagConfig.GetMepSystemAwareSysCode(el, cat);
+                    if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                    string func = TagConfig.GetSmartFuncCode(el, sys);
+                    if (string.IsNullOrEmpty(func))
+                        func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                    string prod = TagConfig.GetFamilyAwareProdCode(el, cat);
+                    string status = PhaseAutoDetect.DetectStatus(linkedDoc, el);
+                    if (string.IsNullOrEmpty(status)) status = "NEW";
+                    string rev = !string.IsNullOrEmpty(popCtx.ProjectRev) ? popCtx.ProjectRev : "P01";
+                    string derivedTag = string.Join(ParamRegistry.Separator,
+                        disc, loc, zone, lvl, sys, func, prod, "0000");
+
+                    entries.Add(new Dictionary<string, string>
+                    {
+                        ["UniqueId"] = el.UniqueId,
+                        ["Category"] = cat,
+                        ["Discipline"] = disc,
+                        ["Loc"] = loc,
+                        ["Zone"] = zone,
+                        ["Lvl"] = lvl,
+                        ["Sys"] = sys,
+                        ["Func"] = func,
+                        ["Prod"] = prod,
+                        ["Status"] = status,
+                        ["Rev"] = rev,
+                        ["DerivedTag"] = derivedTag,
+                    });
+                }
+
+                if (entries.Count == 0)
+                {
+                    summaryLines.Add($"  {linkedDoc.Title}: 0 taggable elements (skipped)");
+                    continue;
+                }
+
+                // Write JSON sidecar
+                string jsonPath = Path.Combine(hostDir, $"{linkedTitle}_LINKED_TOKENS.json");
+                try
+                {
+                    string json = JsonConvert.SerializeObject(entries, Formatting.Indented);
+                    File.WriteAllText(jsonPath, json);
+                    totalFiles++;
+                    totalElements += entries.Count;
+                    summaryLines.Add($"  {linkedDoc.Title}: {entries.Count} elements -> {Path.GetFileName(jsonPath)}");
+                    StingLog.Info($"ExportLinkedManifest: wrote {entries.Count} entries to {jsonPath}");
+                }
+                catch (Exception ex)
+                {
+                    summaryLines.Add($"  {linkedDoc.Title}: FAILED — {ex.Message}");
+                    StingLog.Error($"ExportLinkedManifest: failed for {linkedDoc.Title}", ex);
+                }
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine("Linked Model Token Manifest Export");
+            report.AppendLine(new string('=', 50));
+            report.AppendLine($"  Links found:    {linkInstances.Count}");
+            report.AppendLine($"  Files written:  {totalFiles}");
+            report.AppendLine($"  Total elements: {totalElements}");
+            report.AppendLine();
+            foreach (string line in summaryLines)
+                report.AppendLine(line);
+
+            TaskDialog td = new TaskDialog("STING — Linked Model Manifest");
+            td.MainInstruction = $"Exported {totalElements} element tokens from {totalFiles} linked models";
+            td.MainContent = report.ToString();
+            td.Show();
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Adjust Elbows — reposition leader elbows on annotation tags
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Adjust leader elbow positions on IndependentTag annotations in the active view.
+    /// Supports Straight (midpoint), 90-degree (horizontal-first), 45-degree (angled),
+    /// and Free (user-specified delta) elbow styles.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AdjustElbowsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.ActiveView == null)
+            {
+                TaskDialog.Show("STING", "No active view.");
+                return Result.Failed;
+            }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+
+            // Choose elbow style
+            TaskDialog dlg = new TaskDialog("STING — Adjust Elbows");
+            dlg.MainInstruction = "Select leader elbow style";
+            dlg.MainContent = "Adjusts elbows on all tags with leaders in the active view.";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Straight", "Elbow at midpoint of element-to-tag vector");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "90 degrees", "Horizontal-first: elbow at (tagX, elemY)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "45 degrees", "Angled: elbow offset to create 45-degree bend");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Free", "No elbow adjustment — set elbow at leader end");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int mode;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: mode = 0; break;
+                case TaskDialogResult.CommandLink2: mode = 1; break;
+                case TaskDialogResult.CommandLink3: mode = 2; break;
+                case TaskDialogResult.CommandLink4: mode = 3; break;
+                default: return Result.Cancelled;
+            }
+
+            var tags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            int adjusted = 0, skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Adjust Elbows"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        if (!tag.HasLeader) { skipped++; continue; }
+
+                        var hostIds = tag.GetTaggedLocalElementIds();
+                        if (hostIds.Count == 0) { skipped++; continue; }
+
+                        Element host = doc.GetElement(hostIds.First());
+                        if (host == null) { skipped++; continue; }
+
+                        XYZ elemCenter = TagPlacementEngine.GetElementCenter(host, view);
+                        XYZ tagPos = tag.TagHeadPosition;
+
+                        Reference hostRef = new Reference(host);
+                        XYZ elbowPos;
+
+                        switch (mode)
+                        {
+                            case 0: // Straight: midpoint
+                                elbowPos = (elemCenter + tagPos) / 2.0;
+                                break;
+                            case 1: // 90 degrees: horizontal-first
+                                elbowPos = new XYZ(tagPos.X, elemCenter.Y, elemCenter.Z);
+                                break;
+                            case 2: // 45 degrees: midpoint + perpendicular offset
+                                XYZ mid = (elemCenter + tagPos) / 2.0;
+                                XYZ dir = tagPos - elemCenter;
+                                double halfDist = dir.GetLength() / 2.0;
+                                // Perpendicular in XY plane
+                                XYZ perp = new XYZ(-dir.Y, dir.X, 0);
+                                double perpLen = perp.GetLength();
+                                if (perpLen > 0.001)
+                                    elbowPos = mid + perp * (halfDist * 0.5 / perpLen);
+                                else
+                                    elbowPos = mid;
+                                break;
+                            case 3: // Free: set elbow at leader end (minimal adjustment)
+                            default:
+                                try
+                                {
+                                    elbowPos = tag.GetLeaderEnd(hostRef);
+                                }
+                                catch
+                                {
+                                    elbowPos = elemCenter;
+                                }
+                                break;
+                        }
+
+                        tag.SetLeaderElbow(hostRef, elbowPos);
+                        adjusted++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"AdjustElbows: tag {tag.Id}: {ex.Message}");
+                        skipped++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            string modeName = mode switch
+            {
+                0 => "Straight",
+                1 => "90 degrees",
+                2 => "45 degrees",
+                3 => "Free",
+                _ => "Unknown"
+            };
+
+            TaskDialog.Show("STING — Adjust Elbows",
+                $"Adjusted {adjusted} leader elbows to '{modeName}' style.\nSkipped: {skipped}");
+            StingLog.Info($"AdjustElbows: adjusted={adjusted}, skipped={skipped}, mode={modeName}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Set Arrowhead Style — annotation category line weight control
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Attempts to set arrowhead style on annotation tag types.
+    /// The Revit API does not directly expose ArrowheadType on IndependentTag,
+    /// so this command provides line weight control on annotation categories
+    /// as the closest available alternative.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetArrowheadStyleCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            StingLog.Warn("SetArrowheadStyle: The Revit API does not expose IndependentTag.ArrowheadType " +
+                "directly. Providing line weight control on annotation categories as alternative.");
+
+            TaskDialog dlg = new TaskDialog("STING — Set Arrowhead Style");
+            dlg.MainInstruction = "Annotation leader line weight";
+            dlg.MainContent = "NOTE: The Revit API does not directly expose arrowhead type " +
+                "on IndependentTag annotations. This command controls leader line weight " +
+                "on annotation categories as the closest available control.\n\n" +
+                "To change arrowhead style, edit the tag family .rfa directly.";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Hairline (pen 1)", "Thinnest leader lines");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Medium (pen 3)", "Standard leader weight");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Bold (pen 6)", "Heavy leader lines for emphasis");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int pen;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: pen = 1; break;
+                case TaskDialogResult.CommandLink2: pen = 3; break;
+                case TaskDialogResult.CommandLink3: pen = 6; break;
+                default: return Result.Cancelled;
+            }
+
+            int changed = 0;
+            using (Transaction tx = new Transaction(doc, "STING Set Arrowhead Style"))
+            {
+                tx.Start();
+                foreach (Category cat in doc.Settings.Categories)
+                {
+                    try
+                    {
+                        if (cat.CategoryType != CategoryType.Annotation) continue;
+                        string name = cat.Name?.ToUpperInvariant() ?? "";
+                        if (!name.Contains("TAG")) continue;
+
+                        cat.SetLineWeight(pen, GraphicsStyleType.Projection);
+                        changed++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("STING — Set Arrowhead Style",
+                $"Set leader line weight to pen {pen} on {changed} tag annotation categories.");
+            StingLog.Info($"SetArrowheadStyle: set pen {pen} on {changed} annotation categories");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  TagControlSession — aggregate all panel settings for batch apply
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Aggregates all tag control panel settings into a single session object.
+    /// Allows batch application of position, leader, elbow, text, color, and
+    /// segment mask settings in a single transaction.
+    /// </summary>
+    internal class TagControlSession
+    {
+        // Position settings (1-16 for 16 candidate positions)
+        public int Position { get; set; } = 1;
+        public double OffsetN { get; set; } = 1.0;
+        public double OffsetE { get; set; } = 1.0;
+        public double OffsetS { get; set; } = 1.0;
+        public double OffsetW { get; set; } = 1.0;
+        public double Ring2Scale { get; set; } = 1.5;
+
+        // Leader settings
+        public enum LeaderModeEnum { Auto, Always, Never, Smart }
+        public LeaderModeEnum LeaderMode { get; set; } = LeaderModeEnum.Auto;
+        public double LeaderLengthMin { get; set; } = 3.0;
+        public double LeaderLengthMax { get; set; } = 40.0;
+
+        // Elbow settings
+        public enum ElbowTypeEnum { Straight, FortyFive, Ninety, Free }
+        public ElbowTypeEnum ElbowType { get; set; } = ElbowTypeEnum.Straight;
+        public double ElbowX { get; set; } = 0.0;
+        public double ElbowY { get; set; } = 0.0;
+
+        // Text settings
+        public double TextSize { get; set; } = 2.5;
+        public string TextWeight { get; set; } = "NOM";
+        public string TextColor { get; set; } = "BLACK";
+        public string BoxStyle { get; set; } = "NONE";
+        public double BoxOpacity { get; set; } = 1.0;
+
+        // Color and style
+        public string ColorSchemeName { get; set; } = "";
+        public int ParaDepth { get; set; } = 3;
+
+        // Segment mask (8 segments: DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ)
+        public bool[] TagSegmentMask { get; set; } = new bool[] { true, true, true, true, true, true, true, true };
+
+        // Scope
+        public string Scope { get; set; } = "ActiveView";
+        public string CategoryFilter { get; set; } = "";
+
+        /// <summary>
+        /// Apply all session settings to tags in the specified view.
+        /// Uses a single transaction for atomicity.
+        /// </summary>
+        public int Apply(Document doc, View view)
+        {
+            if (doc == null || view == null) return 0;
+            int applied = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Apply Tag Control Session"))
+            {
+                tx.Start();
+
+                var tags = new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(IndependentTag))
+                    .Cast<IndependentTag>()
+                    .ToList();
+
+                // Build directional offset config from session
+                var dirConfig = new TagPlacementEngine.DirectionalOffsetConfig
+                {
+                    NOffset = OffsetN,
+                    EOffset = OffsetE,
+                    SOffset = OffsetS,
+                    WOffset = OffsetW,
+                    Ring2Scale = Ring2Scale,
+                };
+
+                double baseOffset = TagPlacementEngine.GetModelOffset(view);
+
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        // Apply category filter if specified
+                        if (!string.IsNullOrEmpty(CategoryFilter))
+                        {
+                            var hostIds = tag.GetTaggedLocalElementIds();
+                            if (hostIds.Count > 0)
+                            {
+                                Element host = doc.GetElement(hostIds.First());
+                                string catName = host?.Category?.Name ?? "";
+                                if (!catName.Equals(CategoryFilter, StringComparison.OrdinalIgnoreCase))
+                                    continue;
+                            }
+                        }
+
+                        // Apply leader mode
+                        switch (LeaderMode)
+                        {
+                            case LeaderModeEnum.Always:
+                                if (!tag.HasLeader) tag.HasLeader = true;
+                                break;
+                            case LeaderModeEnum.Never:
+                                if (tag.HasLeader) tag.HasLeader = false;
+                                break;
+                            case LeaderModeEnum.Smart:
+                            case LeaderModeEnum.Auto:
+                                // Auto/Smart: leave as-is
+                                break;
+                        }
+
+                        // Apply elbow type if tag has leader
+                        if (tag.HasLeader)
+                        {
+                            try
+                            {
+                                var hostIds = tag.GetTaggedLocalElementIds();
+                                if (hostIds.Count > 0)
+                                {
+                                    Element host = doc.GetElement(hostIds.First());
+                                    if (host != null)
+                                    {
+                                        XYZ elemCenter = TagPlacementEngine.GetElementCenter(host, view);
+                                        XYZ tagPos = tag.TagHeadPosition;
+                                        Reference hostRef = new Reference(host);
+                                        XYZ elbowPos;
+
+                                        switch (ElbowType)
+                                        {
+                                            case ElbowTypeEnum.Straight:
+                                                elbowPos = (elemCenter + tagPos) / 2.0;
+                                                break;
+                                            case ElbowTypeEnum.Ninety:
+                                                elbowPos = new XYZ(tagPos.X, elemCenter.Y, elemCenter.Z);
+                                                break;
+                                            case ElbowTypeEnum.FortyFive:
+                                                XYZ mid = (elemCenter + tagPos) / 2.0;
+                                                XYZ dir = tagPos - elemCenter;
+                                                double halfDist = dir.GetLength() / 2.0;
+                                                XYZ perp = new XYZ(-dir.Y, dir.X, 0);
+                                                double perpLen = perp.GetLength();
+                                                elbowPos = perpLen > 0.001
+                                                    ? mid + perp * (halfDist * 0.5 / perpLen)
+                                                    : mid;
+                                                break;
+                                            case ElbowTypeEnum.Free:
+                                            default:
+                                                elbowPos = tagPos + new XYZ(ElbowX, ElbowY, 0);
+                                                break;
+                                        }
+
+                                        tag.SetLeaderElbow(hostRef, elbowPos);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"TagControlSession elbow: {tag.Id}: {ex.Message}");
+                            }
+                        }
+
+                        // Write segment mask as TAG_SEG_MASK_TXT to host element
+                        if (TagSegmentMask != null && TagSegmentMask.Length == 8)
+                        {
+                            try
+                            {
+                                var hostIds = tag.GetTaggedLocalElementIds();
+                                if (hostIds.Count > 0)
+                                {
+                                    Element host = doc.GetElement(hostIds.First());
+                                    if (host != null)
+                                    {
+                                        string maskStr = string.Join("",
+                                            TagSegmentMask.Select(b => b ? "1" : "0"));
+                                        // Only write if not all segments enabled (default)
+                                        if (maskStr != "11111111")
+                                        {
+                                            ParameterHelpers.SetString(host, "TAG_SEG_MASK_TXT",
+                                                maskStr, overwrite: true);
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+
+                        // Write TAG style BOOL params if text settings differ from default
+                        if (!string.IsNullOrEmpty(TextWeight) && !string.IsNullOrEmpty(TextColor))
+                        {
+                            try
+                            {
+                                var hostIds = tag.GetTaggedLocalElementIds();
+                                if (hostIds.Count > 0)
+                                {
+                                    Element host = doc.GetElement(hostIds.First());
+                                    if (host != null)
+                                    {
+                                        // Build the TAG style param name: TAG_{SIZE}{STYLE}_{COLOR}_BOOL
+                                        string sizeKey = TextSize.ToString("F1").Replace(".", "").TrimStart('0');
+                                        if (string.IsNullOrEmpty(sizeKey)) sizeKey = "25";
+                                        string paramName = $"TAG_{sizeKey}{TextWeight}_{TextColor}_BOOL";
+                                        Parameter p = host.LookupParameter(paramName);
+                                        if (p != null && p.StorageType == StorageType.Integer && !p.IsReadOnly)
+                                            p.Set(1);
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+
+                        // Write paragraph depth
+                        if (ParaDepth >= 1 && ParaDepth <= 10)
+                        {
+                            try
+                            {
+                                var hostIds = tag.GetTaggedLocalElementIds();
+                                if (hostIds.Count > 0)
+                                {
+                                    Element host = doc.GetElement(hostIds.First());
+                                    if (host != null)
+                                    {
+                                        for (int tier = 1; tier <= 3; tier++)
+                                        {
+                                            string boolParam = $"TAG_PARA_STATE_{tier}_BOOL";
+                                            Parameter p = host.LookupParameter(boolParam);
+                                            if (p != null && !p.IsReadOnly)
+                                                p.Set(tier <= ParaDepth ? 1 : 0);
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+
+                        applied++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"TagControlSession: tag {tag.Id}: {ex.Message}");
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            StingLog.Info($"TagControlSession.Apply: applied settings to {applied} tags in '{view.Name}'");
+            return applied;
         }
     }
 }
