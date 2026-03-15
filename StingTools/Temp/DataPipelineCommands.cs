@@ -994,35 +994,23 @@ namespace StingTools.Temp
         };
 
         // ── Category → discipline mapping for items without DISC token ──
-        private static readonly Dictionary<string, string> CategoryDisc =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        // Delegates to TagConfig.DiscMap as single source of truth, with BOQ-specific fallbacks
+        private static Dictionary<string, string> CategoryDisc
         {
-            { "Electrical Equipment", "E" }, { "Electrical Fixtures", "E" },
-            { "Lighting Fixtures", "E" }, { "Lighting Devices", "E" },
-            { "Conduits", "E" }, { "Conduit Fittings", "E" },
-            { "Cable Trays", "E" }, { "Cable Tray Fittings", "E" },
-            { "Communication Devices", "E" }, { "Data Devices", "E" },
-            { "Security Devices", "E" }, { "Nurse Call Devices", "E" },
-            { "Mechanical Equipment", "M" }, { "Ducts", "M" },
-            { "Duct Fittings", "M" }, { "Duct Accessories", "M" },
-            { "Duct Insulations", "M" }, { "Air Terminals", "M" },
-            { "Flex Ducts", "M" },
-            { "Plumbing Fixtures", "P" }, { "Plumbing Equipment", "P" },
-            { "Pipes", "P" }, { "Pipe Fittings", "P" },
-            { "Pipe Accessories", "P" }, { "Pipe Insulations", "P" },
-            { "Flex Pipes", "P" },
-            { "Fire Alarm Devices", "FP" }, { "Sprinklers", "FP" },
-            { "Walls", "A" }, { "Doors", "A" }, { "Windows", "A" },
-            { "Floors", "A" }, { "Ceilings", "A" }, { "Roofs", "A" },
-            { "Stairs", "A" }, { "Ramps", "A" }, { "Railings", "A" },
-            { "Curtain Panels", "A" }, { "Curtain Wall Mullions", "A" },
-            { "Furniture", "A" }, { "Casework", "A" },
-            { "Furniture Systems", "A" }, { "Specialty Equipment", "A" },
-            { "Generic Models", "A" },
-            { "Structural Columns", "S" }, { "Structural Framing", "S" },
-            { "Structural Foundations", "S" },
-            { "Topography", "G" },
-        };
+            get
+            {
+                var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                // Pull from TagConfig.DiscMap (the authoritative source for all category→discipline mappings)
+                foreach (var kvp in TagConfig.DiscMap)
+                    map[kvp.Key] = kvp.Value;
+                // BOQ-specific additions not in TagConfig (architecture categories)
+                if (!map.ContainsKey("Stairs")) map["Stairs"] = "A";
+                if (!map.ContainsKey("Ramps")) map["Ramps"] = "A";
+                if (!map.ContainsKey("Railings")) map["Railings"] = "A";
+                if (!map.ContainsKey("Topography")) map["Topography"] = "G";
+                return map;
+            }
+        }
 
         // ── Standard percentages (Uganda) ──
         private const double ContingencyPercent = 0.05; // 5%

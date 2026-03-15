@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -534,26 +535,38 @@ namespace StingTools.BIMManager
 
         private static int ParseDuration(string isoDuration)
         {
-            // MS Project duration format: PT8H0M0S or P5D etc.
+            // MS Project duration format: PT8H0M0S, P5D, P0DT12H30M, PT1M, etc.
             if (string.IsNullOrEmpty(isoDuration)) return 0;
             try
             {
-                isoDuration = isoDuration.ToUpper().Trim();
-                if (isoDuration.StartsWith("PT"))
-                {
-                    // Hours-based: PT8H0M0S → 1 day per 8 hours
-                    string hoursPart = isoDuration.Replace("PT", "").Split('H')[0];
-                    if (double.TryParse(hoursPart, out double hours))
-                        return Math.Max(1, (int)Math.Ceiling(hours / 8.0));
-                }
-                else if (isoDuration.Contains("D"))
-                {
-                    string daysPart = isoDuration.Replace("P", "").Split('D')[0];
-                    if (int.TryParse(daysPart, out int days))
-                        return Math.Max(1, days);
-                }
+                // Use XmlConvert.ToTimeSpan for robust ISO 8601 duration parsing
+                var ts = XmlConvert.ToTimeSpan(isoDuration.Trim());
+                // Convert to working days (8 hours per day)
+                double totalHours = ts.TotalHours;
+                if (totalHours <= 0) return 1;
+                return Math.Max(1, (int)Math.Ceiling(totalHours / 8.0));
             }
-            catch (Exception ex) { StingLog.Warn($"ParseDuration failed for '{isoDuration}': {ex.Message}"); }
+            catch
+            {
+                // Fallback: manual parsing for non-standard formats
+                try
+                {
+                    string upper = isoDuration.ToUpper().Trim();
+                    if (upper.StartsWith("PT") && upper.Contains("H"))
+                    {
+                        string hoursPart = upper.Replace("PT", "").Split('H')[0];
+                        if (double.TryParse(hoursPart, out double hours))
+                            return Math.Max(1, (int)Math.Ceiling(hours / 8.0));
+                    }
+                    else if (upper.Contains("D"))
+                    {
+                        string daysPart = upper.Replace("P", "").Split('D')[0];
+                        if (int.TryParse(daysPart, out int days))
+                            return Math.Max(1, days);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ParseDuration failed for '{isoDuration}': {ex.Message}"); }
+            }
             return 1;
         }
 
@@ -669,13 +682,13 @@ namespace StingTools.BIMManager
             int skippedCount = 0;
             var skippedCategories = new Dictionary<string, int>();
 
-            // GAP-024: Build set of demolished/temporary phase IDs to exclude from costing
-            var demolishedPhaseIds = new HashSet<long>();
+            // GAP-024: Build sets of phase IDs for cost exclusion
+            var temporaryPhaseIds = new HashSet<long>();
             foreach (Phase ph in doc.Phases.Cast<Phase>())
             {
                 string phaseName = ph.Name?.ToUpperInvariant() ?? "";
-                if (phaseName.Contains("DEMOLISHED") || phaseName.Contains("TEMPORARY"))
-                    demolishedPhaseIds.Add(ph.Id.Value);
+                if (phaseName.Contains("TEMPORARY"))
+                    temporaryPhaseIds.Add(ph.Id.Value);
             }
 
             // Group elements by category
@@ -695,16 +708,18 @@ namespace StingTools.BIMManager
                     continue;
                 }
 
-                // GAP-024: Skip elements in demolished or temporary phases
+                // GAP-024: Skip temporary elements and demolished elements from costing
+                // 1. Skip elements created in a "Temporary" phase
                 var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
-                if (phaseParam != null && demolishedPhaseIds.Contains(phaseParam.AsElementId().Value))
+                if (phaseParam != null && temporaryPhaseIds.Contains(phaseParam.AsElementId().Value))
                     continue;
+                // 2. Skip elements that have a demolition phase assigned (they won't exist in final state)
                 var phaseDemoParam = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
                 if (phaseDemoParam != null)
                 {
-                    var demoPhaseid = phaseDemoParam.AsElementId();
-                    if (demoPhaseid != null && demoPhaseid.Value > 0)
-                        continue; // Element is scheduled for demolition
+                    var demoPhaseId = phaseDemoParam.AsElementId();
+                    if (demoPhaseId != null && demoPhaseId.Value > 0)
+                        continue;
                 }
 
                 if (!byCategory.ContainsKey(cat)) byCategory[cat] = new List<Element>();

@@ -1005,13 +1005,16 @@ namespace StingTools.BIMManager
             };
             bep["training_plan"] = training;
 
-            // ── Allowed Codes (for BEP Validation) ──
+            // ── Allowed Codes (dynamically from current TagConfig, which reflects project_config.json) ──
             var allowedCodes = new JObject
             {
                 ["allowed_disc"] = new JArray(TagConfig.DiscMap.Values.Distinct().OrderBy(v => v)),
                 ["allowed_loc"] = new JArray(TagConfig.LocCodes),
                 ["allowed_zone"] = new JArray(TagConfig.ZoneCodes),
-                ["allowed_sys"] = new JArray(TagConfig.SysMap.Keys.OrderBy(k => k))
+                ["allowed_sys"] = new JArray(TagConfig.SysMap.Keys.OrderBy(k => k)),
+                ["allowed_func"] = new JArray(TagConfig.FuncMap.Values.Distinct().OrderBy(v => v)),
+                ["allowed_prod"] = new JArray(TagConfig.ProdMap.Values.Distinct().OrderBy(v => v)),
+                ["config_source"] = TagConfig.ConfigSource ?? "defaults"
             };
             bep["allowed_codes"] = allowedCodes;
 
@@ -1607,7 +1610,10 @@ namespace StingTools.BIMManager
             var data = new Dictionary<string, List<Dictionary<string, string>>>();
             string createdBy = Environment.UserName;
             string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
-            var pi = doc.ProjectInformation;
+            var pi = doc.ProjectInformation; // may be null in family documents
+            string piName = pi?.Name ?? "Unnamed Project";
+            string piAddress = pi?.Address ?? "";
+            string piClientName = pi?.ClientName ?? "";
 
             // Resolve COBie preset for project type-specific configuration
             COBiePreset activePreset = null;
@@ -1685,7 +1691,7 @@ namespace StingTools.BIMManager
             {
                 contacts.Add(new Dictionary<string, string>
                 {
-                    ["Email"] = "", ["Company"] = pi?.ClientName ?? "", ["Phone"] = "",
+                    ["Email"] = "", ["Company"] = piClientName, ["Phone"] = "",
                     ["Department"] = "", ["OrganizationCode"] = "",
                     ["GivenName"] = createdBy, ["FamilyName"] = "",
                     ["Category"] = "Facility Manager", ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn
@@ -1698,12 +1704,12 @@ namespace StingTools.BIMManager
             {
                 new Dictionary<string, string>
                 {
-                    ["Name"] = pi?.Name ?? "Unnamed Facility", ["CreatedBy"] = createdBy,
+                    ["Name"] = piName, ["CreatedBy"] = createdBy,
                     ["CreatedOn"] = createdOn, ["Category"] = "Facility",
-                    ["ProjectName"] = pi?.Name ?? "", ["SiteName"] = pi?.Address ?? "",
+                    ["ProjectName"] = piName, ["SiteName"] = piAddress,
                     ["LinearUnits"] = "millimeters", ["AreaUnits"] = "square meters",
                     ["VolumeUnits"] = "cubic meters", ["CurrencyUnit"] = "GBP",
-                    ["AreaMeasurement"] = "NRM", ["Description"] = pi?.Name ?? "",
+                    ["AreaMeasurement"] = "NRM", ["Description"] = piName,
                     ["Phase"] = "New Construction"
                 }
             };
@@ -1746,17 +1752,31 @@ namespace StingTools.BIMManager
             }
             data["Space"] = spaces;
 
-            // ── Zone (from Room Departments) ──
+            // ── Zone (from STING ZONE parameter on rooms, fallback to Department) ──
             var zones = new List<Dictionary<string, string>>();
-            foreach (var dept in spaces.GroupBy(s => s.ContainsKey("Category") ? s["Category"] : "Unassigned"))
+            // Build zone grouping: prefer ASS_ZONE_TXT from room elements, fallback to Department
+            var zoneSpaceMap = new Dictionary<string, List<string>>();
+            foreach (var el in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType())
+            {
+                var room = el as Room;
+                if (room == null || room.Area <= 0) continue;
+                string zoneCode = ParameterHelpers.GetString(room, ParamRegistry.ZONE);
+                if (string.IsNullOrEmpty(zoneCode))
+                    zoneCode = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "Unassigned";
+                string roomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? room.Name;
+                if (!zoneSpaceMap.ContainsKey(zoneCode))
+                    zoneSpaceMap[zoneCode] = new List<string>();
+                zoneSpaceMap[zoneCode].Add(roomName);
+            }
+            foreach (var kvp in zoneSpaceMap.OrderBy(k => k.Key))
             {
                 zones.Add(new Dictionary<string, string>
                 {
-                    ["Name"] = dept.Key, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["Name"] = kvp.Key, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["Category"] = "Occupancy Zone",
-                    ["SpaceNames"] = string.Join(",", dept.Select(s => s["Name"]).Take(20)),
+                    ["SpaceNames"] = string.Join(",", kvp.Value.Take(20)),
                     ["ExternalSystem"] = "Revit", ["ExternalObject"] = "Zone",
-                    ["Description"] = $"Zone: {dept.Key} ({dept.Count()} spaces)"
+                    ["Description"] = $"Zone: {kvp.Key} ({kvp.Value.Count} spaces)"
                 });
             }
             data["Zone"] = zones;
@@ -1898,16 +1918,20 @@ namespace StingTools.BIMManager
                 if (sysGroups[sysCode].Count < 50)
                     sysGroups[sysCode].Add(comp["Name"]);
             }
-            // Also include systems from TagConfig that have components matched by name
-            foreach (var sysCode in TagConfig.SysMap.Keys.OrderBy(k => k))
+            // Also match components by tag string if SYS param was empty
+            foreach (var comp in components)
             {
-                if (sysGroups.ContainsKey(sysCode)) continue;
-                var sysComps = components.Where(c =>
-                    c.ContainsKey("TagNumber") && !string.IsNullOrEmpty(c["TagNumber"]) &&
-                    c["TagNumber"].Contains($"-{sysCode}-"))
-                    .Select(c => c["Name"]).Take(20).ToList();
-                if (sysComps.Count > 0)
-                    sysGroups[sysCode] = sysComps;
+                string tagNum = comp.ContainsKey("TagNumber") ? comp["TagNumber"] : "";
+                if (string.IsNullOrEmpty(tagNum)) continue;
+                foreach (var sysCode in TagConfig.SysMap.Keys)
+                {
+                    if (sysGroups.ContainsKey(sysCode)) continue;
+                    if (tagNum.Contains($"-{sysCode}-"))
+                    {
+                        sysGroups[sysCode] = new List<string> { comp["Name"] };
+                        break;
+                    }
+                }
             }
             foreach (var kvp in sysGroups.OrderBy(k => k.Key))
             {
@@ -1925,26 +1949,53 @@ namespace StingTools.BIMManager
             }
             data["System"] = systems;
 
-            // ── Job (maintenance) ──
+            // ── Job (maintenance — prefer element MNT_ params, fallback to defaults) ──
             var jobs = new List<Dictionary<string, string>>();
-            var maintFreq = new Dictionary<string, (string f, string u)>
+            var defaultMaintFreq = new Dictionary<string, (string f, string u)>
             {
                 ["HVAC"] = ("6", "months"), ["DCW"] = ("12", "months"), ["DHW"] = ("6", "months"),
                 ["HWS"] = ("6", "months"), ["SAN"] = ("12", "months"), ["GAS"] = ("6", "months"),
                 ["FP"] = ("3", "months"), ["LV"] = ("12", "months"), ["FLS"] = ("3", "months"),
                 ["LTG"] = ("12", "months"), ["ELC"] = ("12", "months")
             };
+            // Try to read actual maintenance intervals from tagged elements per system
+            var sysMaintenanceOverrides = new Dictionary<string, string>();
+            foreach (var comp in components)
+            {
+                string compExtId = comp["ExternalIdentifier"];
+                var compEl = doc.GetElement(compExtId);
+                if (compEl == null) continue;
+                string compSys = ParameterHelpers.GetString(compEl, ParamRegistry.SYS);
+                if (string.IsNullOrEmpty(compSys) || sysMaintenanceOverrides.ContainsKey(compSys)) continue;
+                string interval = ParameterHelpers.GetString(compEl, "MNT_SERVICE_INTERVAL_TXT");
+                if (!string.IsNullOrEmpty(interval))
+                    sysMaintenanceOverrides[compSys] = interval;
+            }
             foreach (var sys in systems)
             {
                 string code = sys["Name"];
-                var mf = maintFreq.ContainsKey(code) ? maintFreq[code] : ("12", "months");
+                string freq, freqUnit;
+                if (sysMaintenanceOverrides.ContainsKey(code))
+                {
+                    // Parse element-level interval (e.g. "6 months", "3 months", "1 year")
+                    string interval = sysMaintenanceOverrides[code];
+                    var parts = interval.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    freq = parts.Length > 0 ? parts[0] : "12";
+                    freqUnit = parts.Length > 1 ? parts[1].TrimEnd('s') + "s" : "months";
+                }
+                else
+                {
+                    var mf = defaultMaintFreq.ContainsKey(code) ? defaultMaintFreq[code] : ("12", "months");
+                    freq = mf.Item1;
+                    freqUnit = mf.Item2;
+                }
                 jobs.Add(new Dictionary<string, string>
                 {
                     ["Name"] = $"PPM-{code}", ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["Category"] = "Preventive", ["Status"] = "Not Started", ["TypeName"] = code,
                     ["Description"] = $"Planned Preventive Maintenance for {code} systems",
                     ["Duration"] = "4", ["DurationUnit"] = "hours",
-                    ["Frequency"] = mf.Item1, ["FrequencyUnit"] = mf.Item2, ["ResourceNames"] = "FM Technician"
+                    ["Frequency"] = freq, ["FrequencyUnit"] = freqUnit, ["ResourceNames"] = "FM Technician"
                 });
             }
             data["Job"] = jobs;
@@ -2149,26 +2200,62 @@ namespace StingTools.BIMManager
             }
             data["Resource"] = resources;
 
-            // ── Impact (environmental data from materials) ──
+            // ── Impact (sustainability params from tagged elements + material thermal data) ──
             var impacts = new List<Dictionary<string, string>>();
+            // First: export element-level sustainability data from STING params
+            var impactSeen = new HashSet<string>();
+            foreach (var comp in components)
+            {
+                string compExtId = comp["ExternalIdentifier"];
+                var compEl = doc.GetElement(compExtId);
+                if (compEl == null) continue;
+                string carbon = ParameterHelpers.GetString(compEl, "PER_CARBON_FOOTPRINT_KG_NR");
+                string embodied = ParameterHelpers.GetString(compEl, "PER_EMBODIED_CARBON_KG_NR");
+                string energyRating = ParameterHelpers.GetString(compEl, "PER_ENERGY_RATING_TXT");
+                string recycled = ParameterHelpers.GetString(compEl, "PER_RECYCLED_CONTENT_PCT_NR");
+                if (string.IsNullOrEmpty(carbon) && string.IsNullOrEmpty(embodied) &&
+                    string.IsNullOrEmpty(energyRating) && string.IsNullOrEmpty(recycled)) continue;
+                string impactName = $"Impact-{comp["Name"]}";
+                if (impactSeen.Contains(impactName)) continue;
+                impactSeen.Add(impactName);
+                string impactValue = !string.IsNullOrEmpty(carbon) ? carbon :
+                    !string.IsNullOrEmpty(embodied) ? embodied :
+                    !string.IsNullOrEmpty(energyRating) ? energyRating : recycled;
+                string impactUnit = !string.IsNullOrEmpty(carbon) ? "kgCO2e" :
+                    !string.IsNullOrEmpty(embodied) ? "kgCO2e" :
+                    !string.IsNullOrEmpty(recycled) ? "%" : "";
+                impacts.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = impactName,
+                    ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["ImpactType"] = "Environment",
+                    ["ImpactStage"] = "Operation",
+                    ["SheetName"] = "Component", ["RowName"] = comp["Name"],
+                    ["Value"] = impactValue,
+                    ["Unit"] = impactUnit,
+                    ["LeadInTime"] = "", ["Duration"] = "", ["LeadOutTime"] = "",
+                    ["ImpactUnit"] = impactUnit,
+                    ["Description"] = $"Carbon: {carbon}, Embodied: {embodied}, Energy: {energyRating}, Recycled: {recycled}".TrimEnd(',', ' ')
+                });
+            }
+            // Fallback: material thermal data for materials without element-level sustainability
             foreach (var matEl in new FilteredElementCollector(doc).OfClass(typeof(Material)).Cast<Material>().Take(200))
             {
+                string impactName = $"Impact-Mat-{matEl.Name}";
+                if (impactSeen.Contains(impactName)) continue;
                 string thermalStr = "";
                 try
                 {
                     var thermalId = matEl.ThermalAssetId;
                     if (thermalId != ElementId.InvalidElementId)
-                    {
-                        var thermalAsset = doc.GetElement(thermalId) as PropertySetElement;
-                        if (thermalAsset != null)
-                            thermalStr = "Thermal asset present";
-                    }
+                        thermalStr = "Thermal asset present";
                 }
-                catch { /* thermal asset not available */ }
-
+                catch { }
+                if (string.IsNullOrEmpty(thermalStr)) continue;
+                impactSeen.Add(impactName);
                 impacts.Add(new Dictionary<string, string>
                 {
-                    ["Name"] = $"Impact-{matEl.Name}",
+                    ["Name"] = impactName,
                     ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["ImpactType"] = "Environment",
                     ["ImpactStage"] = "Operation",
@@ -2184,6 +2271,7 @@ namespace StingTools.BIMManager
 
             // ── Attribute (comprehensive shared parameter export for tagged elements) ──
             var attributes = new List<Dictionary<string, string>>();
+            int attrSkippedOrphans = 0;
             // Export ALL STING parameters — source tokens, identity, spatial, MEP, lifecycle, compliance, TAG7
             var attrParamNames = new List<string>
             {
@@ -2237,7 +2325,7 @@ namespace StingTools.BIMManager
                 string compName = el["Name"];
                 string extId = el["ExternalIdentifier"];
                 var revitEl = doc.GetElement(extId);
-                if (revitEl == null) continue;
+                if (revitEl == null) { attrSkippedOrphans++; continue; }
                 foreach (string pName in attrParamNames)
                 {
                     string val = ParameterHelpers.GetString(revitEl, pName);
@@ -2277,28 +2365,49 @@ namespace StingTools.BIMManager
                     });
                 }
             }
+            if (attrSkippedOrphans > 0)
+                StingLog.Warn($"COBie Attribute: skipped {attrSkippedOrphans} orphaned components (element deleted after component list built)");
             data["Attribute"] = attributes;
 
-            // ── Coordinate (element XYZ from BoundingBox) ──
+            // ── Coordinate (prefer LocationPoint, fallback to BoundingBox center) ──
             var coordinates = new List<Dictionary<string, string>>();
             foreach (var comp in components)
             {
                 string extId = comp["ExternalIdentifier"];
                 var revitEl = doc.GetElement(extId);
                 if (revitEl == null) continue;
-                var bb = revitEl.get_BoundingBox(null);
-                if (bb == null) continue;
-                var center = (bb.Min + bb.Max) / 2.0;
+                XYZ point = null;
+                string rotation = "0";
+                // Prefer element Location (more accurate for placed families)
+                var loc = revitEl.Location;
+                if (loc is LocationPoint lp)
+                {
+                    point = lp.Point;
+                    rotation = (lp.Rotation * 180.0 / Math.PI).ToString("F1");
+                }
+                else if (loc is LocationCurve lc)
+                {
+                    // For linear elements (walls, pipes, ducts), use midpoint
+                    var curve = lc.Curve;
+                    point = curve.Evaluate(0.5, true);
+                }
+                // Fallback to bounding box center
+                if (point == null)
+                {
+                    var bb = revitEl.get_BoundingBox(null);
+                    if (bb == null) continue;
+                    point = (bb.Min + bb.Max) / 2.0;
+                }
                 coordinates.Add(new Dictionary<string, string>
                 {
                     ["Name"] = $"Coord-{comp["Name"]}",
                     ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["Category"] = "Point",
                     ["SheetName"] = "Component", ["RowName"] = comp["Name"],
-                    ["CoordinateXAxis"] = (center.X * 304.8).ToString("F1"),
-                    ["CoordinateYAxis"] = (center.Y * 304.8).ToString("F1"),
-                    ["CoordinateZAxis"] = (center.Z * 304.8).ToString("F1"),
-                    ["ClockwiseRotation"] = "0", ["ElevationalRotation"] = "0", ["YawRotation"] = "0"
+                    ["CoordinateXAxis"] = (point.X * 304.8).ToString("F1"),
+                    ["CoordinateYAxis"] = (point.Y * 304.8).ToString("F1"),
+                    ["CoordinateZAxis"] = (point.Z * 304.8).ToString("F1"),
+                    ["ClockwiseRotation"] = rotation, ["ElevationalRotation"] = "0", ["YawRotation"] = "0"
                 });
             }
             data["Coordinate"] = coordinates;
