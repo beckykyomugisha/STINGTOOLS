@@ -73,6 +73,11 @@ namespace StingTools.Tags
 
             var result = td.Show();
 
+            // G2: Snapshot current SEQ settings before any config change
+            bool prevSeqIncludeZone = TagConfig.SeqIncludeZone;
+            bool prevSeqLevelReset = TagConfig.SeqLevelReset;
+            SeqScheme prevSeqScheme = TagConfig.CurrentSeqScheme;
+
             switch (result)
             {
                 case TaskDialogResult.CommandLink1:
@@ -87,6 +92,15 @@ namespace StingTools.Tags
                     if (configExists)
                     {
                         TagConfig.LoadFromFile(configPath);
+                        if (!CheckSeqMigrationGuard(doc, prevSeqIncludeZone, prevSeqLevelReset, prevSeqScheme))
+                        {
+                            // User cancelled — restore original values
+                            TagConfig.SeqIncludeZone = prevSeqIncludeZone;
+                            TagConfig.SeqLevelReset = prevSeqLevelReset;
+                            TagConfig.CurrentSeqScheme = prevSeqScheme;
+                            StingLog.Info("ConfigEditor: SEQ setting change reverted by user");
+                            return Result.Cancelled;
+                        }
                         TaskDialog.Show("Config Loaded",
                             $"Loaded configuration from:\n{configPath}\n\n" +
                             $"Source: {TagConfig.ConfigSource}");
@@ -97,6 +111,14 @@ namespace StingTools.Tags
                         if (dataConfig != null)
                         {
                             TagConfig.LoadFromFile(dataConfig);
+                            if (!CheckSeqMigrationGuard(doc, prevSeqIncludeZone, prevSeqLevelReset, prevSeqScheme))
+                            {
+                                TagConfig.SeqIncludeZone = prevSeqIncludeZone;
+                                TagConfig.SeqLevelReset = prevSeqLevelReset;
+                                TagConfig.CurrentSeqScheme = prevSeqScheme;
+                                StingLog.Info("ConfigEditor: SEQ setting change reverted by user");
+                                return Result.Cancelled;
+                            }
                             TaskDialog.Show("Config Loaded",
                                 $"Loaded from data directory:\n{dataConfig}");
                         }
@@ -110,6 +132,14 @@ namespace StingTools.Tags
 
                 case TaskDialogResult.CommandLink4:
                     TagConfig.LoadDefaults();
+                    if (!CheckSeqMigrationGuard(doc, prevSeqIncludeZone, prevSeqLevelReset, prevSeqScheme))
+                    {
+                        TagConfig.SeqIncludeZone = prevSeqIncludeZone;
+                        TagConfig.SeqLevelReset = prevSeqLevelReset;
+                        TagConfig.CurrentSeqScheme = prevSeqScheme;
+                        StingLog.Info("ConfigEditor: SEQ setting change reverted by user on reset");
+                        return Result.Cancelled;
+                    }
                     TaskDialog.Show("Config Reset", "All lookup tables reset to built-in defaults.");
                     break;
 
@@ -206,6 +236,75 @@ namespace StingTools.Tags
                 TaskDialog.Show("Save Failed", $"Could not save config:\n{ex.Message}");
                 StingLog.Error("Config save failed", ex);
             }
+        }
+
+        /// <summary>
+        /// G2: SEQ scheme migration guard. If existing tags exist and SEQ settings
+        /// have changed, warn the user and let them cancel to restore original values.
+        /// Returns true to proceed, false to revert.
+        /// </summary>
+        private bool CheckSeqMigrationGuard(Document doc,
+            bool prevSeqIncludeZone, bool prevSeqLevelReset, SeqScheme prevSeqScheme)
+        {
+            // Check if any SEQ setting actually changed
+            bool seqChanged = TagConfig.SeqIncludeZone != prevSeqIncludeZone ||
+                              TagConfig.SeqLevelReset != prevSeqLevelReset ||
+                              TagConfig.CurrentSeqScheme != prevSeqScheme;
+            if (!seqChanged)
+                return true; // No change — proceed without warning
+
+            // Count existing tags in the project
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            int tagCount = 0;
+            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!known.Contains(cat)) continue;
+                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(tag))
+                {
+                    tagCount++;
+                    if (tagCount > 0) break; // Only need to know if any exist
+                }
+            }
+
+            if (tagCount == 0)
+                return true; // No existing tags — safe to change
+
+            // Build change summary
+            var changes = new StringBuilder();
+            changes.AppendLine("The following SEQ numbering settings have changed:");
+            if (TagConfig.CurrentSeqScheme != prevSeqScheme)
+                changes.AppendLine($"  Scheme: {prevSeqScheme} -> {TagConfig.CurrentSeqScheme}");
+            if (TagConfig.SeqIncludeZone != prevSeqIncludeZone)
+                changes.AppendLine($"  Include Zone in SEQ key: {prevSeqIncludeZone} -> {TagConfig.SeqIncludeZone}");
+            if (TagConfig.SeqLevelReset != prevSeqLevelReset)
+                changes.AppendLine($"  Reset SEQ per level: {prevSeqLevelReset} -> {TagConfig.SeqLevelReset}");
+
+            TaskDialog warn = new TaskDialog("STING — SEQ Scheme Change Warning");
+            warn.MainInstruction = "SEQ numbering settings changed with existing tags";
+            warn.MainContent =
+                $"This project already has tagged elements.\n\n" +
+                changes.ToString() + "\n" +
+                "Changing SEQ settings will cause newly tagged elements to use a different " +
+                "numbering scheme than existing tags. This may create inconsistent or " +
+                "duplicate sequence numbers.\n\n" +
+                "Recommendation: Run 'Tag Format Migration' or 'Batch Tag (Overwrite)' " +
+                "after changing SEQ settings to re-number all elements consistently.";
+            warn.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            warn.DefaultButton = TaskDialogResult.Cancel;
+
+            if (warn.Show() == TaskDialogResult.Cancel)
+            {
+                StingLog.Warn("ConfigEditor: SEQ setting change cancelled by user " +
+                    $"(scheme: {prevSeqScheme}->{TagConfig.CurrentSeqScheme}, " +
+                    $"zone: {prevSeqIncludeZone}->{TagConfig.SeqIncludeZone}, " +
+                    $"levelReset: {prevSeqLevelReset}->{TagConfig.SeqLevelReset})");
+                return false;
+            }
+
+            StingLog.Info("ConfigEditor: SEQ setting change accepted by user");
+            return true;
         }
     }
 }

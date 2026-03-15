@@ -67,6 +67,9 @@ namespace StingTools.Tags
                 if (totalChanges == 0)
                     report.AppendLine("All files are already in sync with PARAMETER_REGISTRY.json.");
 
+                // Clear parameter lookup cache so synced parameters are found immediately
+                ParameterHelpers.ClearParamCache();
+
                 TaskDialog td = new TaskDialog("Sync Parameter Schema");
                 td.MainInstruction = totalChanges > 0
                     ? $"Sync complete — {totalChanges} changes applied"

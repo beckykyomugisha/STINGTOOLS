@@ -78,6 +78,10 @@ namespace StingTools.Core
                 // document closes. Using them against a new document causes native crashes.
                 application.ControlledApplication.DocumentClosing += OnDocumentClosing;
 
+                // B3: Also subscribe to DocumentClosed to ensure param cache is cleared
+                // after the document is fully closed (Closing fires before close completes).
+                application.ControlledApplication.DocumentClosed += OnDocumentClosed;
+
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
             }
@@ -116,10 +120,32 @@ namespace StingTools.Core
             StingLog.Info("STING Tools shutting down");
             try { application.ControlledApplication.DocumentOpened -= OnDocumentOpened; }
             catch { }
+            try { application.ControlledApplication.DocumentClosing -= OnDocumentClosing; }
+            catch { }
+            try { application.ControlledApplication.DocumentClosed -= OnDocumentClosed; }
+            catch { }
             StingAutoTagger.Unregister();
             StingStaleMarker.Unregister();
             StingLog.Shutdown();
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// B3: Clear parameter cache after document is fully closed to ensure
+        /// no stale Definition references persist across document switches.
+        /// </summary>
+        private static void OnDocumentClosed(object sender,
+            Autodesk.Revit.DB.Events.DocumentClosedEventArgs e)
+        {
+            try
+            {
+                ParameterHelpers.ClearParamCache();
+                StingLog.Info("DocumentClosed: cleared parameter cache");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DocumentClosed cleanup: {ex.Message}");
+            }
         }
 
         /// <summary>Document-open quality gate — runs compliance check on open.</summary>

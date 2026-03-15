@@ -2796,7 +2796,7 @@ namespace StingTools.Organise
                 // Cross-validation (ISO 19650)
                 var isoErrors = ISO19650Validator.ValidateElement(el);
                 if (isoErrors.Count > 0)
-                    issues.AddRange(isoErrors);
+                    issues.AddRange(isoErrors.Select(e => e.Message));
 
                 bool isComplete = issues.Count == 0;
                 if (!isComplete) incomplete++;

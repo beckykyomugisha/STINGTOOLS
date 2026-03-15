@@ -876,6 +876,7 @@ namespace StingTools.UI
                     case "SetSeqScheme":         RunCommand<Tags.SetSeqSchemeCommand>(app); break;
                     case "AutoTagVisual":        RunCommand<Core.AutoTaggerToggleVisualCommand>(app); break;
                     case "BatchPlaceLinkedTags": RunCommand<Tags.BatchPlaceLinkedTagsCommand>(app); break;
+                    case "ExportLinkedManifest": RunCommand<Tags.ExportLinkedModelManifestCommand>(app); break;
                     case "RetagStale":           RunCommand<Organise.RetagStaleCommand>(app); break;
                     case "SetViewTagStyle":      RunCommand<Tags.SetViewTagStyleCommand>(app); break;
                     case "AutoTaggerConfig":     RunCommand<Core.AutoTaggerConfigCommand>(app); break;

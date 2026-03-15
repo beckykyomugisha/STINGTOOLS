@@ -47,7 +47,7 @@ namespace StingTools.Core
             {
                 get
                 {
-                    double pct = CompliancePercent;
+                    double pct = StrictPercent;
                     if (pct >= 80) return "GREEN";
                     if (pct >= 50) return "AMBER";
                     return "RED";
@@ -56,7 +56,7 @@ namespace StingTools.Core
 
             /// <summary>Short summary for status bar display.</summary>
             public string StatusBarText =>
-                $"{RAGStatus} {CompliancePercent:F0}% | {TaggedComplete}/{TotalElements} tagged | {Untagged} untagged";
+                $"{RAGStatus} {StrictPercent:F0}% resolved | {CompliancePercent:F0}% tagged | {Untagged} untagged";
 
             /// <summary>Top 5 issues for dashboard display.</summary>
             public string TopIssues

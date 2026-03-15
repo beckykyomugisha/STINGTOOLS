@@ -705,6 +705,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Reset Pos" Tag="ResetTagPositions" Click="Cmd_Click" ToolTip="Reset tags to element centers"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Disc Compliance" Tag="DiscComplianceReport" Click="Cmd_Click" ToolTip="Per-discipline compliance report"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Workflow Trend" Tag="WorkflowTrend" Click="Cmd_Click" ToolTip="View workflow compliance history"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Linked Manifest" Tag="ExportLinkedManifest" Click="Cmd_Click" ToolTip="Export token manifest JSON for linked models"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -122,98 +123,140 @@ namespace StingTools.Tags
                 $"{totalIssues} issues (noTag={noTag}, incomplete={incompleteTag}, " +
                 $"unresolved={unresolvedTag}, emptyStatus={emptyStatus}, emptyRev={emptyRev})");
 
-            using (Transaction tx = new Transaction(doc, "STING Resolve All Issues"))
+            bool cancelled = false;
+            const int BatchSize = 500;
+            int processed = 0;
+            var progress = StingProgressDialog.Show("Resolve All Issues", totalTaggable);
+
+            for (int batchStart = 0; batchStart < sorted.Count; batchStart += BatchSize)
             {
-                tx.Start();
+                if (cancelled) break;
 
-                int processed = 0;
-                foreach (Element el in sorted)
+                int batchEnd = Math.Min(batchStart + BatchSize, sorted.Count);
+                int batchNum = (batchStart / BatchSize) + 1;
+
+                using (Transaction tx = new Transaction(doc, $"STING Resolve Issues Batch {batchNum}"))
                 {
-                    try
+                    tx.Start();
+
+                    for (int idx = batchStart; idx < batchEnd; idx++)
                     {
-                        string catName = ParameterHelpers.GetCategoryName(el);
+                        Element el = sorted[idx];
 
-                        // Step 1: Force-populate all 9 tokens with guaranteed defaults
-                        var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: true);
-                        populated += popResult.TokensSet;
-                        if (popResult.StatusDetected) statusFixed++;
-                        if (popResult.RevSet) revFixed++;
-
-                        // Step 1b: Validate and fix ISO code violations
-                        string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-                        string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                        string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
-                        string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
-
-                        // Cross-validate DISC/SYS — fix SYS if invalid for discipline
-                        if (!string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(sys))
+                        if (progress.IsCancelled)
                         {
-                            string sysErr = ISO19650Validator.ValidateToken(ParamRegistry.SYS, sys);
-                            if (sysErr != null)
-                            {
-                                string expectedSys = TagConfig.GetSysCode(catName);
-                                if (!string.IsNullOrEmpty(expectedSys))
-                                    ParameterHelpers.SetString(el, ParamRegistry.SYS, expectedSys, overwrite: true);
-                            }
-                        }
-                        // Fix FUNC if invalid
-                        if (ISO19650Validator.ValidateToken(ParamRegistry.FUNC, func) != null)
-                        {
-                            string fixedFunc = TagConfig.GetFuncCode(
-                                ParameterHelpers.GetString(el, ParamRegistry.SYS));
-                            if (!string.IsNullOrEmpty(fixedFunc))
-                                ParameterHelpers.SetString(el, ParamRegistry.FUNC, fixedFunc, overwrite: true);
-                        }
-                        // Fix PROD if invalid
-                        if (ISO19650Validator.ValidateToken(ParamRegistry.PROD, prod) != null)
-                        {
-                            string fixedProd = TagConfig.GetFamilyAwareProdCode(el, catName);
-                            if (!string.IsNullOrEmpty(fixedProd))
-                                ParameterHelpers.SetString(el, ParamRegistry.PROD, fixedProd, overwrite: true);
+                            StingLog.Info($"ResolveAllIssues: cancelled by user at {processed}/{totalTaggable}");
+                            cancelled = true;
+                            break;
                         }
 
-                        // Step 2: Rebuild tag from scratch with fresh SEQ (overwrite mode)
-                        TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                            skipComplete: false,
-                            existingTags: tagIndex,
-                            collisionMode: TagCollisionMode.Overwrite,
-                            stats: stats,
-                            cachedRev: popCtx.ProjectRev);
-                        tagsRebuilt++;
-
-                        // Step 3: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                         try
                         {
-                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            string catName = ParameterHelpers.GetCategoryName(el);
+
+                            // Step 1: Force-populate all 9 tokens with guaranteed defaults
+                            var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: true);
+                            populated += popResult.TokensSet;
+                            if (popResult.StatusDetected) statusFixed++;
+                            if (popResult.RevSet) revFixed++;
+
+                            // Step 1b: Validate and fix ISO code violations
+                            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+
+                            // Cross-validate DISC/SYS — fix SYS if invalid for discipline
+                            if (!string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(sys))
+                            {
+                                string sysErr = ISO19650Validator.ValidateToken(ParamRegistry.SYS, sys);
+                                if (sysErr != null)
+                                {
+                                    string expectedSys = TagConfig.GetSysCode(catName);
+                                    if (!string.IsNullOrEmpty(expectedSys))
+                                        ParameterHelpers.SetString(el, ParamRegistry.SYS, expectedSys, overwrite: true);
+                                }
+                            }
+                            // Fix FUNC if invalid
+                            if (ISO19650Validator.ValidateToken(ParamRegistry.FUNC, func) != null)
+                            {
+                                string fixedFunc = TagConfig.GetFuncCode(
+                                    ParameterHelpers.GetString(el, ParamRegistry.SYS));
+                                if (!string.IsNullOrEmpty(fixedFunc))
+                                    ParameterHelpers.SetString(el, ParamRegistry.FUNC, fixedFunc, overwrite: true);
+                            }
+                            // Fix PROD if invalid
+                            if (ISO19650Validator.ValidateToken(ParamRegistry.PROD, prod) != null)
+                            {
+                                string fixedProd = TagConfig.GetFamilyAwareProdCode(el, catName);
+                                if (!string.IsNullOrEmpty(fixedProd))
+                                    ParameterHelpers.SetString(el, ParamRegistry.PROD, fixedProd, overwrite: true);
+                            }
+
+                            // Step 2: Rebuild tag from scratch with fresh SEQ (overwrite mode)
+                            TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
+                                skipComplete: false,
+                                existingTags: tagIndex,
+                                collisionMode: TagCollisionMode.Overwrite,
+                                stats: stats,
+                                cachedRev: popCtx.ProjectRev);
+                            tagsRebuilt++;
+
+                            // Step 3: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                            try
+                            {
+                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            }
+                            catch (Exception tag7Ex)
+                            {
+                                StingLog.Warn($"ResolveAllIssues TAG7 for {el.Id}: {tag7Ex.Message}");
+                            }
+
+                            // Step 4: Write ALL containers (universal + discipline-specific)
+                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            if (!string.IsNullOrEmpty(tag1))
+                            {
+                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                containersWritten += ParamRegistry.WriteContainers(el, tokenVals, catName,
+                                    overwrite: true, skipParam: ParamRegistry.TAG7);
+                            }
                         }
-                        catch (Exception tag7Ex)
+                        catch (Exception ex)
                         {
-                            StingLog.Warn($"ResolveAllIssues TAG7 for {el.Id}: {tag7Ex.Message}");
+                            StingLog.Error($"ResolveAllIssues: failed on element {el?.Id}: {ex.Message}", ex);
+                            stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
                         }
 
-                        // Step 4: Write ALL containers (universal + discipline-specific)
-                        string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                        if (!string.IsNullOrEmpty(tag1))
-                        {
-                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                            containersWritten += ParamRegistry.WriteContainers(el, tokenVals, catName,
-                                overwrite: true, skipParam: ParamRegistry.TAG7);
-                        }
+                        processed++;
+                        progress.Increment($"Fixing element {processed}/{totalTaggable}");
+
+                        if (processed % 500 == 0)
+                            StingLog.Info($"ResolveAllIssues progress: {processed}/{totalTaggable}...");
                     }
-                    catch (Exception ex)
+
+                    if (cancelled)
                     {
-                        StingLog.Error($"ResolveAllIssues: failed on element {el?.Id}: {ex.Message}", ex);
-                        stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
+                        tx.Commit();
                     }
-
-                    processed++;
-                    if (processed % 500 == 0)
-                        StingLog.Info($"ResolveAllIssues progress: {processed}/{totalTaggable} " +
-                            $"({tagsRebuilt} rebuilt, {stats.TotalCollisions} collisions resolved)");
+                    else
+                    {
+                        tx.Commit();
+                        StingLog.Info($"ResolveAllIssues: batch {batchNum} committed");
+                    }
                 }
+            }
 
-                tx.Commit();
+            progress.Close();
+
+            if (cancelled)
+            {
+                ComplianceScan.InvalidateCache();
+                TaskDialog.Show("Resolve All Issues",
+                    $"Cancelled by user at {processed}/{totalTaggable}.\n" +
+                    $"Previously committed batches were saved.\n" +
+                    $"Tags rebuilt so far: {tagsRebuilt}");
+                return Result.Cancelled;
             }
 
             sw.Stop();
