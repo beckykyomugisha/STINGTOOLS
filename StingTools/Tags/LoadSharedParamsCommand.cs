@@ -11,23 +11,25 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Bind ALL shared parameters from MR_PARAMETERS.txt to ALL project categories.
+    /// Bind ALL shared parameters from MR_PARAMETERS.txt to project categories.
     ///
     /// Always uses MR_PARAMETERS.txt from the data directory (overrides whatever
     /// shared parameter file is currently set in Revit).
     ///
-    /// PERFORMANCE:
-    ///   - Reuses a single InstanceBinding object (avoids copying CategorySet per param)
-    ///   - Small batches (25 params/tx) to avoid overwhelming Revit's regeneration engine
-    ///   - Suppresses failure warnings within transactions
-    ///   - Skips ReInsert (only needed for category expansion, not initial binding)
+    /// PERFORMANCE — why Revit hangs with naive "bind all to all":
+    ///   Each doc.ParameterBindings.Insert() with N categories creates N internal
+    ///   schema entries. 1,527 params × 200 categories = 305,000 registrations
+    ///   which overwhelms Revit's document engine.
+    ///
+    /// Strategy: bind ONE GROUP per transaction. Each group gets the categories
+    /// relevant to that group (e.g., MEP params → MEP categories only).
+    /// Groups without specific mappings get a core taggable set (~53 categories).
+    /// This keeps each transaction small and targeted.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class LoadSharedParamsCommand : IExternalCommand
     {
-        private const int BatchSize = 25;
-
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -57,7 +59,7 @@ namespace StingTools.Tags
             Autodesk.Revit.ApplicationServices.Application app =
                 uiApp.Application;
 
-            // ── Step 1: ALWAYS set shared parameter file to MR_PARAMETERS.txt ──
+            // ── Step 1: Locate and set MR_PARAMETERS.txt ──
             StingLog.Info("LoadSharedParams: step 1 — locating MR_PARAMETERS.txt");
             string previousSpFile = app.SharedParametersFilename;
             string mrParamsPath = FindMrParametersFile(previousSpFile);
@@ -87,7 +89,7 @@ namespace StingTools.Tags
 
             string spFile = mrParamsPath;
 
-            // ── Step 2: Open definition file and index ALL parameters ──
+            // ── Step 2: Open definition file ──
             StingLog.Info("LoadSharedParams: step 2 — opening definition file");
             DefinitionFile defFile = app.OpenSharedParameterFile();
             if (defFile == null)
@@ -97,26 +99,28 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
-            var allDefs = new List<ExternalDefinition>();
-            var groupCounts = new Dictionary<string, int>();
+            // Index params by group
+            var groupDefs = new List<(string groupName, List<ExternalDefinition> defs)>();
+            int totalDefs = 0;
             foreach (DefinitionGroup group in defFile.Groups)
             {
-                int count = 0;
+                var defs = new List<ExternalDefinition>();
                 foreach (Definition def in group.Definitions)
                 {
                     if (def is ExternalDefinition ext)
-                    {
-                        allDefs.Add(ext);
-                        count++;
-                    }
+                        defs.Add(ext);
                 }
-                groupCounts[group.Name] = count;
+                if (defs.Count > 0)
+                {
+                    groupDefs.Add((group.Name, defs));
+                    totalDefs += defs.Count;
+                }
             }
-            StingLog.Info($"LoadSharedParams: {allDefs.Count} definitions from {groupCounts.Count} groups");
+            StingLog.Info($"LoadSharedParams: {totalDefs} definitions in {groupDefs.Count} groups");
 
-            if (allDefs.Count < 100)
+            if (totalDefs < 100)
             {
-                StingLog.Warn($"Only {allDefs.Count} parameters found — expected 1,527+. " +
+                StingLog.Warn($"Only {totalDefs} parameters found — expected 1,527+. " +
                     "Ensure MR_PARAMETERS.txt is the full STING parameter file.");
             }
 
@@ -133,78 +137,108 @@ namespace StingTools.Tags
             }
             StingLog.Info($"Pre-scan: {existingBindings.Count} parameters already bound");
 
-            var toBind = allDefs.Where(d => !existingBindings.Contains(d.Name)).ToList();
-            int alreadyBound = allDefs.Count - toBind.Count;
+            // Filter each group to only unbound params
+            int totalToBind = 0;
+            int alreadyBound = 0;
+            var groupsToProcess = new List<(string groupName, List<ExternalDefinition> defs)>();
+            foreach (var (groupName, defs) in groupDefs)
+            {
+                var unbound = defs.Where(d => !existingBindings.Contains(d.Name)).ToList();
+                alreadyBound += defs.Count - unbound.Count;
+                if (unbound.Count > 0)
+                {
+                    groupsToProcess.Add((groupName, unbound));
+                    totalToBind += unbound.Count;
+                }
+            }
 
-            StingLog.Info($"To bind: {toBind.Count}, already bound: {alreadyBound}");
+            StingLog.Info($"To bind: {totalToBind}, already bound: {alreadyBound}");
 
-            if (toBind.Count == 0)
+            if (totalToBind == 0)
             {
                 TaskDialog.Show("STING Tools - Load Shared Params",
-                    $"All {allDefs.Count} parameters are already bound — nothing to do.\n\n" +
+                    $"All {totalDefs} parameters are already bound — nothing to do.\n\n" +
                     $"{alreadyBound} parameters already present in project.\n" +
-                    $"{groupCounts.Count} parameter groups.\n" +
                     $"\nSource: {spFile}");
                 return Result.Succeeded;
             }
 
-            // ── Step 4: Build category set ──
-            StingLog.Info("LoadSharedParams: step 4 — building category set");
-            CategorySet allCats = new CategorySet();
-            int catAdded = 0;
+            // ── Step 4: Build category sets ──
+            // Core set: ParamRegistry categories (~53 proven categories)
+            // This avoids the 200+ categories from doc.Settings.Categories which
+            // overwhelm Revit. ParamRegistry categories are the ones STING actually uses.
+            StingLog.Info("LoadSharedParams: step 4 — building category sets");
 
-            foreach (Category cat in doc.Settings.Categories)
+            var coreEnums = SharedParamGuids.AllCategoryEnums;
+            CategorySet coreCats = SharedParamGuids.BuildCategorySet(doc, coreEnums);
+
+            // Also add Materials category if not in core set (needed for MAT_* params)
+            try
             {
-                try
-                {
-                    if (cat != null && cat.AllowsBoundParameters)
-                    {
-                        allCats.Insert(cat);
-                        catAdded++;
-                    }
-                }
-                catch { /* skip problematic categories */ }
+                Category matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
+                if (matCat != null && matCat.AllowsBoundParameters && !coreCats.Contains(matCat))
+                    coreCats.Insert(matCat);
             }
-            StingLog.Info($"CategorySet: {catAdded} categories accept bound parameters");
+            catch { }
 
-            if (allCats.Size == 0)
+            StingLog.Info($"Core CategorySet: {coreCats.Size} categories");
+
+            if (coreCats.Size == 0)
+            {
+                // Fallback: if ParamRegistry failed to load, use doc categories
+                // but cap at reasonable number
+                StingLog.Warn("ParamRegistry categories empty — falling back to doc categories");
+                foreach (Category cat in doc.Settings.Categories)
+                {
+                    try
+                    {
+                        if (cat != null && cat.AllowsBoundParameters)
+                            coreCats.Insert(cat);
+                    }
+                    catch { }
+                }
+                StingLog.Info($"Fallback CategorySet: {coreCats.Size} categories");
+            }
+
+            if (coreCats.Size == 0)
             {
                 TaskDialog.Show("STING Tools - Load Shared Params",
                     "No categories found that accept bound parameters.");
                 return Result.Failed;
             }
 
-            // ── Step 5: Bind parameters in small batches ──
-            // PERFORMANCE CRITICAL:
-            //   - Create ONE InstanceBinding and REUSE it for all params.
-            //     NewInstanceBinding copies the CategorySet internally — creating
-            //     it once avoids 1,527 × N-category copy operations.
-            //   - Small batches (25) to keep Revit responsive.
-            //   - No ReInsert fallback — Insert handles fresh bindings;
-            //     ReInsert is only for expanding categories on existing bindings.
-            //   - Suppress failure warnings to avoid memory buildup.
+            // Build group-specific category sets for discipline groups
+            var disciplineBindings = SharedParamGuids.DisciplineBindings;
+            // Map group names to specific category sets where applicable
+            var groupCatOverrides = BuildGroupCategoryOverrides(doc, coreCats);
+
+            // ── Step 5: Bind ONE GROUP per transaction ──
+            // Each group gets its own transaction to keep Revit responsive.
+            // Reuse a single InstanceBinding per group (avoids CategorySet copy overhead).
             int bound = 0;
             int skipped = 0;
             var errors = new List<string>();
             var boundByGroup = new Dictionary<string, int>();
-            int totalBatches = (toBind.Count + BatchSize - 1) / BatchSize;
 
-            // Create the binding ONCE — reuse for every Insert call
-            InstanceBinding sharedBinding = app.Create.NewInstanceBinding(allCats);
+            StingLog.Info($"Binding {totalToBind} params across {groupsToProcess.Count} groups");
 
-            StingLog.Info($"Binding {toBind.Count} params to {allCats.Size} categories " +
-                $"in {totalBatches} batches of {BatchSize}");
-
-            for (int batchIdx = 0; batchIdx < totalBatches; batchIdx++)
+            for (int gi = 0; gi < groupsToProcess.Count; gi++)
             {
-                int startIdx = batchIdx * BatchSize;
-                int endIdx = Math.Min(startIdx + BatchSize, toBind.Count);
-                int batchNum = batchIdx + 1;
+                var (groupName, defs) = groupsToProcess[gi];
+
+                // Pick the right category set for this group
+                CategorySet cats = groupCatOverrides.TryGetValue(groupName, out CategorySet groupCats)
+                    ? groupCats : coreCats;
+
+                // Create ONE binding for this group, reuse for all params in the group
+                InstanceBinding groupBinding = app.Create.NewInstanceBinding(cats);
+
+                StingLog.Info($"Group [{gi + 1}/{groupsToProcess.Count}] '{groupName}': " +
+                    $"{defs.Count} params → {cats.Size} categories");
 
                 using (Transaction tx = new Transaction(doc,
-                    $"STING Load Params {batchNum}/{totalBatches}"))
+                    $"STING Params: {groupName}"))
                 {
-                    // Suppress failure warnings to prevent memory buildup
                     var failOpts = tx.GetFailureHandlingOptions();
                     failOpts.SetFailuresPreprocessor(new BindingWarningSwallower());
                     tx.SetFailureHandlingOptions(failOpts);
@@ -212,21 +246,28 @@ namespace StingTools.Tags
                     tx.Start();
                     try
                     {
-                        for (int i = startIdx; i < endIdx; i++)
+                        int groupBound = 0;
+                        foreach (ExternalDefinition extDef in defs)
                         {
-                            ExternalDefinition extDef = toBind[i];
                             try
                             {
+                                // Check if this param has discipline-specific categories
+                                InstanceBinding paramBinding = groupBinding;
+                                if (disciplineBindings.TryGetValue(extDef.Name,
+                                    out BuiltInCategory[] paramCats) && paramCats.Length > 0)
+                                {
+                                    CategorySet specific = SharedParamGuids.BuildCategorySet(doc, paramCats);
+                                    if (specific.Size > 0)
+                                        paramBinding = app.Create.NewInstanceBinding(specific);
+                                }
+
                                 bool result = doc.ParameterBindings.Insert(
-                                    extDef, sharedBinding, GroupTypeId.General);
+                                    extDef, paramBinding, GroupTypeId.General);
 
                                 if (result)
                                 {
                                     bound++;
-                                    string grpName = extDef.OwnerGroup?.Name ?? "Unknown";
-                                    if (!boundByGroup.ContainsKey(grpName))
-                                        boundByGroup[grpName] = 0;
-                                    boundByGroup[grpName]++;
+                                    groupBound++;
                                 }
                                 else
                                 {
@@ -244,23 +285,20 @@ namespace StingTools.Tags
                         }
 
                         tx.Commit();
+                        boundByGroup[groupName] = groupBound;
+                        StingLog.Info($"  → committed: {groupBound} bound");
                     }
                     catch (Exception ex)
                     {
-                        StingLog.Error($"Batch {batchNum} failed", ex);
+                        StingLog.Error($"Group '{groupName}' transaction failed", ex);
                         if (tx.HasStarted() && !tx.HasEnded())
                             tx.RollBack();
 
-                        int batchSkipped = endIdx - startIdx;
-                        skipped += batchSkipped;
+                        skipped += defs.Count;
                         if (errors.Count < 10)
-                            errors.Add($"Batch {batchNum} ({batchSkipped} params): {ex.Message}");
+                            errors.Add($"Group '{groupName}' failed: {ex.Message}");
                     }
                 }
-
-                // Log progress every 5 batches
-                if (batchNum % 5 == 0 || batchNum == totalBatches)
-                    StingLog.Info($"Progress: batch {batchNum}/{totalBatches}, {bound} bound so far");
             }
 
             // ── Report ──
@@ -268,18 +306,16 @@ namespace StingTools.Tags
             report.AppendLine($"Bound: {bound} parameters");
             report.AppendLine($"Already present: {alreadyBound}");
             report.AppendLine($"Skipped/failed: {skipped}");
-            report.AppendLine($"Total in file: {allDefs.Count}");
-            report.AppendLine($"Categories: {allCats.Size}");
-            report.AppendLine($"Groups: {groupCounts.Count}");
+            report.AppendLine($"Total in file: {totalDefs}");
+            report.AppendLine($"Categories: {coreCats.Size}");
+            report.AppendLine($"Groups processed: {groupsToProcess.Count}");
             report.AppendLine();
 
             if (boundByGroup.Count > 0)
             {
                 report.AppendLine("Bound by group:");
-                foreach (var kvp in boundByGroup.OrderByDescending(kv => kv.Value).Take(15))
+                foreach (var kvp in boundByGroup.OrderByDescending(kv => kv.Value))
                     report.AppendLine($"  {kvp.Key}: {kvp.Value}");
-                if (boundByGroup.Count > 15)
-                    report.AppendLine($"  ... and {boundByGroup.Count - 15} more groups");
             }
 
             report.AppendLine($"\nSource: {spFile}");
@@ -300,6 +336,122 @@ namespace StingTools.Tags
             StingLog.Info($"LoadSharedParams complete: {bound} bound, {alreadyBound} already present, {skipped} skipped");
 
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Build group-specific category overrides. Groups with discipline-specific
+        /// parameters get smaller, targeted category sets instead of the full core set.
+        /// This dramatically reduces the number of internal bindings Revit must create.
+        /// </summary>
+        private static Dictionary<string, CategorySet> BuildGroupCategoryOverrides(
+            Document doc, CategorySet coreCats)
+        {
+            var overrides = new Dictionary<string, CategorySet>(StringComparer.OrdinalIgnoreCase);
+
+            // MEP groups → only MEP categories
+            var mepCats = BuildCatSet(doc, new[]
+            {
+                BuiltInCategory.OST_MechanicalEquipment,
+                BuiltInCategory.OST_DuctTerminal,
+                BuiltInCategory.OST_DuctCurves,
+                BuiltInCategory.OST_DuctFitting,
+                BuiltInCategory.OST_DuctAccessory,
+                BuiltInCategory.OST_FlexDuctCurves,
+                BuiltInCategory.OST_PipeCurves,
+                BuiltInCategory.OST_PipeFitting,
+                BuiltInCategory.OST_PipeAccessory,
+                BuiltInCategory.OST_FlexPipeCurves,
+                BuiltInCategory.OST_PlumbingFixtures,
+                BuiltInCategory.OST_Sprinklers,
+                BuiltInCategory.OST_ElectricalEquipment,
+                BuiltInCategory.OST_ElectricalFixtures,
+                BuiltInCategory.OST_LightingFixtures,
+                BuiltInCategory.OST_LightingDevices,
+                BuiltInCategory.OST_CableTray,
+                BuiltInCategory.OST_CableTrayFitting,
+                BuiltInCategory.OST_Conduit,
+                BuiltInCategory.OST_ConduitFitting,
+                BuiltInCategory.OST_CommunicationDevices,
+                BuiltInCategory.OST_DataDevices,
+                BuiltInCategory.OST_FireAlarmDevices,
+                BuiltInCategory.OST_NurseCallDevices,
+                BuiltInCategory.OST_SecurityDevices,
+                BuiltInCategory.OST_TelephoneDevices,
+            });
+
+            if (mepCats.Size > 0)
+            {
+                overrides["ELC_PWR"] = mepCats;
+                overrides["HVC_SYSTEMS"] = mepCats;
+                overrides["PLM_DRN"] = mepCats;
+                overrides["LTG_CONTROLS"] = mepCats;
+                overrides["FLS_LIFE_SFTY"] = mepCats;
+                overrides["MEP_GENERIC"] = mepCats;
+            }
+
+            // BLE groups → building element categories
+            var bleCats = BuildCatSet(doc, new[]
+            {
+                BuiltInCategory.OST_Walls,
+                BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings,
+                BuiltInCategory.OST_Roofs,
+                BuiltInCategory.OST_Doors,
+                BuiltInCategory.OST_Windows,
+                BuiltInCategory.OST_Columns,
+                BuiltInCategory.OST_StructuralColumns,
+                BuiltInCategory.OST_StructuralFraming,
+                BuiltInCategory.OST_StructuralFoundation,
+                BuiltInCategory.OST_Stairs,
+                BuiltInCategory.OST_StairsRailing,
+                BuiltInCategory.OST_Ramps,
+                BuiltInCategory.OST_CurtainWallPanels,
+                BuiltInCategory.OST_CurtainWallMullions,
+                BuiltInCategory.OST_Casework,
+                BuiltInCategory.OST_Furniture,
+                BuiltInCategory.OST_FurnitureSystems,
+                BuiltInCategory.OST_GenericModel,
+                BuiltInCategory.OST_SpecialityEquipment,
+            });
+
+            if (bleCats.Size > 0)
+            {
+                overrides["BLE_ELES"] = bleCats;
+                overrides["BLE_STRUCTURE"] = bleCats;
+            }
+
+            // Material groups → Materials category only
+            var matCats = BuildCatSet(doc, new[]
+            {
+                BuiltInCategory.OST_Materials,
+            });
+
+            if (matCats.Size > 0)
+            {
+                overrides["MAT_INFO"] = matCats;
+                overrides["PROP_PHYSICAL"] = matCats;
+            }
+
+            // TAG_STYLES → use core cats (these go on all taggable elements)
+            // No override needed — will use coreCats
+
+            return overrides;
+        }
+
+        private static CategorySet BuildCatSet(Document doc, BuiltInCategory[] enums)
+        {
+            var set = new CategorySet();
+            foreach (var bic in enums)
+            {
+                try
+                {
+                    Category cat = doc.Settings.Categories.get_Item(bic);
+                    if (cat != null && cat.AllowsBoundParameters)
+                        set.Insert(cat);
+                }
+                catch { }
+            }
+            return set;
         }
 
         /// <summary>
@@ -419,7 +571,6 @@ namespace StingTools.Tags
             var failures = failuresAccessor.GetFailureMessages();
             foreach (FailureMessageAccessor failure in failures)
             {
-                // Delete warnings (not errors) — binding warnings are non-critical
                 if (failure.GetSeverity() == FailureSeverity.Warning)
                     failuresAccessor.DeleteWarning(failure);
             }
