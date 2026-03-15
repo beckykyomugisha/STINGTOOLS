@@ -355,6 +355,9 @@ namespace StingTools.Core
                     }
                 }
 
+                // GAP-002 fix: Invalidate compliance cache so dashboard reflects auto-tagged elements
+                ComplianceScan.InvalidateCache();
+
                 // Reset failure counter on success
                 _consecutiveFailures = 0;
             }

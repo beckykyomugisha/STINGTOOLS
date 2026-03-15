@@ -351,13 +351,26 @@ namespace StingTools.Temp
         }
 
         /// <summary>Set a shared parameter by name on the material, handling both string and double storage.</summary>
+        private static int _sharedParamWarnings;
+
         private static void SetSharedParam(Material mat, string paramName, string value)
         {
             if (string.IsNullOrEmpty(value)) return;
             try
             {
                 Parameter p = mat.LookupParameter(paramName);
-                if (p == null || p.IsReadOnly) return;
+                if (p == null)
+                {
+                    // Log first 5 warnings per batch — indicates params not bound to Material category
+                    if (_sharedParamWarnings < 5)
+                    {
+                        StingLog.Warn($"Material parameter '{paramName}' not found on '{mat.Name}' — " +
+                            "run Load Shared Parameters first to bind parameters to the Material category");
+                        _sharedParamWarnings++;
+                    }
+                    return;
+                }
+                if (p.IsReadOnly) return;
 
                 switch (p.StorageType)
                 {
@@ -365,7 +378,8 @@ namespace StingTools.Temp
                         p.Set(value);
                         break;
                     case StorageType.Double:
-                        if (double.TryParse(value, out double dVal))
+                        if (double.TryParse(value, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double dVal))
                             p.Set(dVal);
                         break;
                     case StorageType.Integer:
@@ -374,7 +388,10 @@ namespace StingTools.Temp
                         break;
                 }
             }
-            catch { /* Expected: parameter not bound to Material category */ }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetSharedParam '{paramName}' on '{mat.Name}': {ex.Message}");
+            }
         }
 
         /// <summary>Set a string BuiltInParameter on the material if the value is non-empty.</summary>
@@ -505,6 +522,7 @@ namespace StingTools.Temp
         public static Result CreateMaterialsFromCsv(Document doc, string csvFileName,
             string dialogTitle)
         {
+            _sharedParamWarnings = 0; // Reset per batch
             string csvPath = StingToolsApp.FindDataFile(csvFileName);
             if (csvPath == null)
             {
@@ -552,9 +570,18 @@ namespace StingTools.Temp
             }
 
             StingLog.Info($"{dialogTitle}: {rows.Count} materials to create in batches of {MaterialBatchSize} (skipping {skipped} existing)");
+            bool cancelled = false;
 
             for (int batchStart = 0; batchStart < rows.Count; batchStart += MaterialBatchSize)
             {
+                // Cancellation check between batches
+                if (EscapeChecker.IsEscapePressed())
+                {
+                    cancelled = true;
+                    StingLog.Info($"{dialogTitle}: cancelled by user at batch {(batchStart / MaterialBatchSize) + 1}");
+                    break;
+                }
+
                 int batchEnd = Math.Min(batchStart + MaterialBatchSize, rows.Count);
                 int batchNum = (batchStart / MaterialBatchSize) + 1;
 
@@ -613,6 +640,7 @@ namespace StingTools.Temp
                 $"  Duplicated from base: {duplicated}\n" +
                 $"  Created blank: {created - duplicated}\n" +
                 $"Skipped {skipped} (already exist).\n" +
+                (cancelled ? "CANCELLED by user (Escape key). Materials created so far are kept.\n" : "") +
                 (batchErrors > 0 ? $"Batch errors: {batchErrors}\n" : "") +
                 $"Source: {Path.GetFileName(csvPath)} ({lines.Count} rows)";
             TaskDialog.Show(dialogTitle, report);

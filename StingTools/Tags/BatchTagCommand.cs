@@ -54,9 +54,13 @@ namespace StingTools.Tags
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Step 1: Pre-flight scan — collect and classify all elements
-            var allElements = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .ToList();
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements at API level
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var collector = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            var allElements = collector.ToList();
 
             int totalTaggable = 0, alreadyTagged = 0, untagged = 0;
             var taggableElements = new List<Element>();
@@ -64,7 +68,7 @@ namespace StingTools.Tags
             foreach (Element e in allElements)
             {
                 string cat = ParameterHelpers.GetCategoryName(e);
-                if (!known.Contains(cat)) continue;
+                if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
                 totalTaggable++;
                 taggableElements.Add(e);
                 if (TagConfig.TagIsComplete(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
@@ -172,9 +176,16 @@ namespace StingTools.Tags
                                 cachedRev: popCtx.ProjectRev);
 
                             // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                            string catName = ParameterHelpers.GetCategoryName(el);
-                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
+                            try
+                            {
+                                string catName = ParameterHelpers.GetCategoryName(el);
+                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
+                            }
+                            catch (Exception tag7Ex)
+                            {
+                                StingLog.Error($"BatchTag TAG7 write failed on element {el?.Id}: {tag7Ex.Message}", tag7Ex);
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -203,6 +214,10 @@ namespace StingTools.Tags
 
             progress.Close();
             ComplianceScan.InvalidateCache();
+
+            // BIM integration: auto-raise compliance issues after batch tagging
+            try { StingTools.BIMManager.BIMManagerEngine.AutoRaiseComplianceIssues(doc); }
+            catch (Exception ex) { StingLog.Warn($"BatchTag BIM integration: {ex.Message}"); }
 
             if (cancelled)
             {
@@ -319,7 +334,7 @@ namespace StingTools.Tags
             foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
-                if (!known.Contains(cat)) continue;
+                if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
 
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(tag) && tag.Contains(ParamRegistry.Separator))
@@ -474,7 +489,7 @@ namespace StingTools.Tags
             foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
-                if (!known.Contains(cat)) continue;
+                if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
 
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag)) continue; // Only check already-tagged elements

@@ -82,8 +82,16 @@ namespace StingTools.Temp
                     .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
                     .Skip(1); // skip header row
 
+                int lineNum = 0;
                 foreach (string line in lines)
                 {
+                    // Cancellation check every 20 schedules
+                    if (++lineNum % 20 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        StingLog.Info($"BatchSchedules: cancelled by user at schedule {lineNum}");
+                        break;
+                    }
+
                     string[] cols = StingToolsApp.ParseCsvLine(line);
                     if (cols.Length < 4) continue;
 
@@ -416,7 +424,11 @@ namespace StingTools.Temp
         {
             var remaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             string path = StingToolsApp.FindDataFile("SCHEDULE_FIELD_REMAP.csv");
-            if (path == null) return remaps;
+            if (path == null)
+            {
+                StingLog.Info("SCHEDULE_FIELD_REMAP.csv not found — field remapping disabled");
+                return remaps;
+            }
 
             try
             {
@@ -871,6 +883,7 @@ namespace StingTools.Temp
 
             // Container definitions loaded from ParamRegistry.ContainerGroups
 
+            bool cancelled = false;
             using (Transaction tx = new Transaction(doc, "STING Full Auto-Populate"))
             {
                 tx.Start();
@@ -881,6 +894,13 @@ namespace StingTools.Temp
                         continue;
 
                     totalElements++;
+                    // Cancellation check every 200 elements
+                    if (totalElements % 200 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        cancelled = true;
+                        StingLog.Info($"FullAutoPopulate: cancelled by user at {totalElements} elements");
+                        break;
+                    }
 
                     try
                     {
@@ -968,6 +988,7 @@ namespace StingTools.Temp
                 tx.Commit();
             }
             sw.Stop();
+            ComplianceScan.InvalidateCache();
 
             var report = new StringBuilder();
             report.AppendLine("Full Schedule Auto-Populate Complete");
@@ -988,6 +1009,8 @@ namespace StingTools.Temp
                 report.AppendLine($"  Errors (skipped):      {errors}");
             report.AppendLine($"  Duration:              {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
+            if (cancelled)
+                report.AppendLine("CANCELLED by user (Escape key). Partial results committed.");
             report.AppendLine("Pipeline: Tokens(9) → Dimensions → MEP → Formulas → Tags → Combine → Grid");
 
             TaskDialog.Show("Full Auto-Populate", report.ToString());
@@ -1253,12 +1276,7 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
-            string outputDir = Path.GetDirectoryName(doc.PathName);
-            if (string.IsNullOrEmpty(outputDir))
-                outputDir = Path.GetTempPath();
-
-            string exportDir = Path.Combine(outputDir, "STING_Exports");
-            Directory.CreateDirectory(exportDir);
+            string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
 
             int exported = 0;
             foreach (var schedule in schedules)
@@ -1906,9 +1924,7 @@ namespace StingTools.Temp
                         $"\"{row.StingTag}\",\"{row.Location}\"");
                 }
 
-                string dir = Path.GetDirectoryName(doc.PathName);
-                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
-                csvPath = Path.Combine(dir, $"STING_DrawingRegister_{DateTime.Now:yyyyMMdd}.csv");
+                csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_DrawingRegister", ".csv");
                 File.WriteAllText(csvPath, csv.ToString());
             }
             catch (Exception ex)

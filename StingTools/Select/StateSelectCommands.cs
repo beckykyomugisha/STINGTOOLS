@@ -11,8 +11,8 @@ using StingTools.Core;
 namespace StingTools.Select
 {
     /// <summary>
-    /// State-based selection commands from STINGTags v9.6 SELECT tab:
-    /// Untagged, Tagged, EmptyMark, Pinned, Unpinned.
+    /// State-based selection commands: Untagged, Tagged, EmptyMark, Pinned, Unpinned.
+    /// Each supports project-wide or view-only scope via SelectionScopeHelper.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class SelectUntaggedCommand : IExternalCommand
@@ -23,7 +23,8 @@ namespace StingTools.Select
             if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
+            var collector = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView);
+            var ids = collector
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
@@ -36,7 +37,8 @@ namespace StingTools.Select
                 .Select(e => e.Id).ToList();
 
             ctx.UIDoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Untagged", $"Selected {ids.Count} untagged elements.");
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Untagged", $"Selected {ids.Count} untagged elements ({scope}).");
             return Result.Succeeded;
         }
     }
@@ -50,7 +52,8 @@ namespace StingTools.Select
             if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
+            var collector = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView);
+            var ids = collector
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
@@ -58,12 +61,14 @@ namespace StingTools.Select
                     string cat = ParameterHelpers.GetCategoryName(e);
                     if (!known.Contains(cat)) return false;
                     string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
-                    return TagConfig.TagIsComplete(tag);
+                    // Tagged = has any non-empty tag value (not just complete 8-segment tags)
+                    return !string.IsNullOrEmpty(tag);
                 })
                 .Select(e => e.Id).ToList();
 
             ctx.UIDoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Tagged", $"Selected {ids.Count} tagged elements.");
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Tagged", $"Selected {ids.Count} tagged elements ({scope}).");
             return Result.Succeeded;
         }
     }
@@ -123,7 +128,7 @@ namespace StingTools.Select
 
             var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
                 .WhereElementIsNotElementType()
-                .Where(e => !e.Pinned && known.Contains(ParameterHelpers.GetCategoryName(e)))
+                .Where(e => !e.Pinned && e.Category != null && known.Contains(ParameterHelpers.GetCategoryName(e)))
                 .Select(e => e.Id).ToList();
 
             ctx.UIDoc.Selection.SetElementIds(ids);
@@ -193,7 +198,6 @@ namespace StingTools.Select
                     elemsByLevel[e.LevelId].Add(e.Id);
             }
 
-            // Page through levels (4 at a time)
             var nonEmpty = levels.Where(l => elemsByLevel[l.Id].Count > 0).ToList();
             if (nonEmpty.Count == 0)
             {
@@ -201,36 +205,32 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            // Show top 4 levels by element count
-            var top = nonEmpty.OrderByDescending(l => elemsByLevel[l.Id].Count).Take(4).ToList();
-            TaskDialog dlg = new TaskDialog("Select by Level");
-            dlg.MainInstruction = $"Pick a level ({nonEmpty.Count} levels with elements in view)";
-            for (int i = 0; i < top.Count; i++)
-            {
-                dlg.AddCommandLink(
-                    (TaskDialogCommandLinkId)(i + 1001),
-                    $"{top[i].Name} — {elemsByLevel[top[i].Id].Count} elements",
-                    $"Elevation: {top[i].Elevation:F2}");
-            }
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // Show scrollable WPF list picker (replaces paginated TaskDialog)
+            var picked = StingListPicker.Show(
+                "Select by Level",
+                $"{nonEmpty.Count} levels with elements in view",
+                nonEmpty.Select(l => new StingListPicker.ListItem
+                {
+                    Label = l.Name,
+                    Detail = $"{elemsByLevel[l.Id].Count} elements  (elev {l.Elevation:F1})",
+                    Tag = l.Id
+                }).ToList(),
+                allowMultiSelect: true);
 
-            int idx = -1;
-            switch (dlg.Show())
+            if (picked == null || picked.Count == 0)
+                return Result.Cancelled;
+
+            var pickedIds = new List<ElementId>();
+            foreach (var item in picked)
             {
-                case TaskDialogResult.CommandLink1: idx = 0; break;
-                case TaskDialogResult.CommandLink2: idx = 1; break;
-                case TaskDialogResult.CommandLink3: idx = 2; break;
-                case TaskDialogResult.CommandLink4: idx = 3; break;
-                default: return Result.Cancelled;
+                if (item.Tag is ElementId lvlId && elemsByLevel.ContainsKey(lvlId))
+                    pickedIds.AddRange(elemsByLevel[lvlId]);
             }
 
-            if (idx >= 0 && idx < top.Count)
-            {
-                var selectedIds = elemsByLevel[top[idx].Id];
-                uidoc.Selection.SetElementIds(selectedIds);
-                TaskDialog.Show("Select by Level",
-                    $"Selected {selectedIds.Count} elements on '{top[idx].Name}'.");
-            }
+            uidoc.Selection.SetElementIds(pickedIds);
+            string lvlNames = string.Join(", ", picked.Select(p => p.Label));
+            TaskDialog.Show("Select by Level",
+                $"Selected {pickedIds.Count} elements on: {lvlNames}");
 
             return Result.Succeeded;
         }
@@ -344,7 +344,7 @@ namespace StingTools.Select
                             ids.Add(e.Id);
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"SelectByRoom element {e.Id}: {ex.Message}"); }
             }
 
             uidoc.Selection.SetElementIds(ids);
@@ -500,35 +500,43 @@ namespace StingTools.Select
             }
 
             int written = 0;
+            int skipped = 0;
             using (Transaction tx = new Transaction(doc, "STING Bulk Set Token"))
             {
                 tx.Start();
                 foreach (ElementId id in selected)
                 {
                     Element elem = doc.GetElement(id);
-                    if (elem == null) continue;
+                    if (elem == null) { skipped++; continue; }
 
                     if (autoDetectStatus)
                     {
-                        // Per-element phase-aware STATUS detection
                         string status = PhaseAutoDetect.DetectStatus(doc, elem);
                         if (string.IsNullOrEmpty(status)) status = "NEW";
                         if (ParameterHelpers.SetString(elem, ParamRegistry.STATUS, status, overwrite: true))
                             written++;
+                        else
+                            skipped++;
                     }
                     else
                     {
                         if (ParameterHelpers.SetString(elem, paramName, paramValue, overwrite: true))
                             written++;
+                        else
+                            skipped++;
                     }
                 }
                 tx.Commit();
             }
 
-            string msg = autoDetectStatus
-                ? $"Auto-detected STATUS from Revit phases on {written} elements."
-                : $"Set '{paramName}' = '{paramValue}' on {written} elements.";
-            TaskDialog.Show("Bulk Set Token", msg);
+            var sb = new StringBuilder();
+            if (autoDetectStatus)
+                sb.AppendLine($"Auto-detected STATUS from Revit phases on {written} of {selected.Count} elements.");
+            else
+                sb.AppendLine($"Set '{paramName}' = '{paramValue}' on {written} of {selected.Count} elements.");
+            if (skipped > 0)
+                sb.AppendLine($"Skipped {skipped} elements (parameter not bound or read-only).");
+            TaskDialog.Show("Bulk Set Token", sb.ToString());
             return Result.Succeeded;
         }
 
@@ -603,7 +611,10 @@ namespace StingTools.Select
         private static Result BulkRetag(Document doc, ICollection<ElementId> selected)
         {
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            if (tagIndex == null) tagIndex = new HashSet<string>();
+            if (seqCounters == null) seqCounters = new Dictionary<string, int>();
             int retagged = 0;
+            int failed = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Bulk Re-Tag"))
             {
@@ -612,15 +623,73 @@ namespace StingTools.Select
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
-                    if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
-                        skipComplete: false,
-                        existingTags: tagIndex,
-                        collisionMode: TagCollisionMode.Overwrite))
-                        retagged++;
+                    try
+                    {
+                        if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                            skipComplete: false,
+                            existingTags: tagIndex,
+                            collisionMode: TagCollisionMode.Overwrite))
+                            retagged++;
+                        else
+                            failed++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        StingLog.Warn($"BulkRetag failed for element {id}: {ex.Message}");
+                    }
                 }
                 tx.Commit();
             }
-            TaskDialog.Show("Bulk Re-Tag", $"Re-tagged {retagged} of {selected.Count} elements.");
+
+            string report = $"Re-tagged {retagged} of {selected.Count} elements.";
+            if (failed > 0) report += $"\nFailed: {failed} elements (check log for details).";
+            TaskDialog.Show("Bulk Re-Tag", report);
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Manages project-wide vs view-only selection scope.
+    /// Toggle via SetSelectionScopeCommand; remembered per session.
+    /// </summary>
+    internal static class SelectionScopeHelper
+    {
+        private static bool _projectScope = false;
+
+        /// <summary>True if currently selecting from entire project, false for active view only.</summary>
+        public static bool IsProjectScope => _projectScope;
+
+        /// <summary>Toggle between project and view scope. Returns the new state.</summary>
+        public static bool Toggle()
+        {
+            _projectScope = !_projectScope;
+            return _projectScope;
+        }
+
+        /// <summary>Set scope explicitly.</summary>
+        public static void SetScope(bool projectWide) => _projectScope = projectWide;
+
+        /// <summary>
+        /// Get the appropriate FilteredElementCollector based on current scope.
+        /// </summary>
+        public static FilteredElementCollector GetCollector(Document doc, View activeView)
+        {
+            if (_projectScope)
+                return new FilteredElementCollector(doc);
+            return new FilteredElementCollector(doc, activeView.Id);
+        }
+    }
+
+    /// <summary>Toggle selection scope between project-wide and active view.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public class SetSelectionScopeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            bool newScope = SelectionScopeHelper.Toggle();
+            string label = newScope ? "WHOLE PROJECT" : "ACTIVE VIEW ONLY";
+            TaskDialog.Show("Selection Scope", $"Selection scope set to: {label}\n\nAll selection commands will now operate on the {label.ToLower()}.");
             return Result.Succeeded;
         }
     }

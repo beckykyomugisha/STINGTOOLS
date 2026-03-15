@@ -229,49 +229,6 @@ namespace StingTools.Core
 
         [JsonProperty("condition")]
         public string Condition { get; set; }
-
-        [JsonProperty("minCompliancePct")]
-        public double? MinCompliancePct { get; set; }
-
-        [JsonProperty("maxCompliancePct")]
-        public double? MaxCompliancePct { get; set; }
-
-        [JsonProperty("requiresStaleElements")]
-        public bool RequiresStaleElements { get; set; }
-
-        [JsonProperty("stepParams")]
-        public Dictionary<string, string> StepParams { get; set; } = new Dictionary<string, string>();
-    }
-
-    /// <summary>Persistent record of a workflow run for trend analysis.</summary>
-    public class WorkflowRunRecord
-    {
-        [JsonProperty("timestamp")]
-        public string Timestamp { get; set; }
-        [JsonProperty("presetName")]
-        public string PresetName { get; set; }
-        [JsonProperty("projectTitle")]
-        public string ProjectTitle { get; set; }
-        [JsonProperty("totalSteps")]
-        public int TotalSteps { get; set; }
-        [JsonProperty("passed")]
-        public int Passed { get; set; }
-        [JsonProperty("failed")]
-        public int Failed { get; set; }
-        [JsonProperty("skipped")]
-        public int Skipped { get; set; }
-        [JsonProperty("durationSeconds")]
-        public double DurationSeconds { get; set; }
-        [JsonProperty("complianceBefore")]
-        public double ComplianceBefore { get; set; }
-        [JsonProperty("complianceAfter")]
-        public double ComplianceAfter { get; set; }
-        [JsonProperty("stepResults")]
-        public List<string> StepResults { get; set; } = new List<string>();
-
-        /// <summary>Per-discipline compliance percentages at time of recording.</summary>
-        [JsonProperty("disciplineCompliance")]
-        public Dictionary<string, double> DisciplineCompliance { get; set; } = new Dictionary<string, double>();
     }
 
     internal static class WorkflowEngine
@@ -290,8 +247,6 @@ namespace StingTools.Core
             }
             Document doc = ctx.Doc;
             StingLog.Info($"Workflow '{preset.Name}': starting {preset.Steps.Count} steps");
-
-            var scanBefore = ComplianceScan.Scan(doc, forceRefresh: false);
 
             var report = new StringBuilder();
             report.AppendLine($"Workflow: {preset.Name}");
@@ -313,54 +268,6 @@ namespace StingTools.Core
                     report.AppendLine($"  {stepNum,2}. {step.Label} — CANCELLED (Escape)");
                     StingLog.Info($"Workflow step {stepNum}: cancelled by user");
                     break;
-                }
-
-                // Compliance threshold conditions
-                // maxCompliancePct: skip if current compliance > threshold (already good enough)
-                // minCompliancePct: skip if current compliance < threshold (not ready yet)
-                if (step.MinCompliancePct.HasValue || step.MaxCompliancePct.HasValue)
-                {
-                    var scan = ComplianceScan.Scan(doc, forceRefresh: false);
-                    double pct = scan.CompliancePercent;
-
-                    if (step.MaxCompliancePct.HasValue && pct > step.MaxCompliancePct.Value)
-                    {
-                        skipped++;
-                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% > max threshold {step.MaxCompliancePct.Value:F0}%)");
-                        continue;
-                    }
-                    if (step.MinCompliancePct.HasValue && pct < step.MinCompliancePct.Value)
-                    {
-                        skipped++;
-                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% < min threshold {step.MinCompliancePct.Value:F0}%)");
-                        continue;
-                    }
-                }
-
-                // Stale elements condition (Item 15)
-                if (step.RequiresStaleElements)
-                {
-                    bool hasStale = false;
-                    try
-                    {
-                        hasStale = new FilteredElementCollector(doc)
-                            .WhereElementIsNotElementType()
-                            .Any(e => {
-                                try
-                                {
-                                    var p = e.LookupParameter(ParamRegistry.STALE);
-                                    return p != null && p.AsInteger() == 1;
-                                }
-                                catch { return false; }
-                            });
-                    }
-                    catch { }
-                    if (!hasStale)
-                    {
-                        skipped++;
-                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)");
-                        continue;
-                    }
                 }
 
                 // Evaluate condition (workshared check etc.)
@@ -413,32 +320,6 @@ namespace StingTools.Core
             report.AppendLine($"  Skipped: {skipped}, Failed: {failed}");
             report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
 
-            // Item 17: Persist workflow results
-            try
-            {
-                var scanAfter = ComplianceScan.Scan(doc, forceRefresh: true);
-                var record = new WorkflowRunRecord
-                {
-                    Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                    PresetName = preset.Name,
-                    ProjectTitle = doc?.Title ?? "Untitled",
-                    TotalSteps = preset.Steps.Count,
-                    Passed = passed, Failed = failed, Skipped = skipped,
-                    DurationSeconds = totalSw.Elapsed.TotalSeconds,
-                    ComplianceBefore = scanBefore.CompliancePercent,
-                    ComplianceAfter = scanAfter.CompliancePercent,
-                    StepResults = report.ToString().Split('\n').ToList()
-                };
-                // Populate per-discipline compliance from ComplianceScan.ByDisc
-                foreach (var kvp in scanAfter.ByDisc)
-                    record.DisciplineCompliance[kvp.Key] = kvp.Value.CompliancePct;
-                AppendWorkflowRecord(doc, record);
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"Workflow record persistence: {ex.Message}");
-            }
-
             TaskDialog td = new TaskDialog($"Workflow: {preset.Name}");
             td.MainInstruction = $"{preset.Name}: {passed}/{preset.Steps.Count} steps complete";
             td.MainContent = report.ToString();
@@ -464,44 +345,6 @@ namespace StingTools.Core
 
             string msg = "";
             return cmd.Execute(data, ref msg, elems);
-        }
-
-        /// <summary>Append a workflow run record to the persistent JSON log.</summary>
-        private static void AppendWorkflowRecord(Document doc, WorkflowRunRecord record)
-        {
-            try
-            {
-                string dir = !string.IsNullOrEmpty(doc?.PathName)
-                    ? Path.GetDirectoryName(doc.PathName)
-                    : StingToolsApp.DataPath ?? "";
-                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return;
-
-                string logPath = Path.Combine(dir, "STING_WORKFLOW_LOG.json");
-                var records = new List<WorkflowRunRecord>();
-
-                if (File.Exists(logPath))
-                {
-                    try
-                    {
-                        string json = File.ReadAllText(logPath);
-                        records = JsonConvert.DeserializeObject<List<WorkflowRunRecord>>(json)
-                            ?? new List<WorkflowRunRecord>();
-                    }
-                    catch { records = new List<WorkflowRunRecord>(); }
-                }
-
-                records.Add(record);
-                if (records.Count > 100)
-                    records = records.Skip(records.Count - 100).ToList();
-
-                string output = JsonConvert.SerializeObject(records, Formatting.Indented);
-                File.WriteAllText(logPath, output);
-                StingLog.Info($"Workflow record saved to {logPath}");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"AppendWorkflowRecord: {ex.Message}");
-            }
         }
 
         /// <summary>
@@ -543,7 +386,6 @@ namespace StingTools.Core
                 case "FamilyStagePopulate": return new Tags.FamilyStagePopulateCommand();
                 case "CombineParams": return new Tags.CombineParametersCommand();
                 case "BuildTags": return new Tags.BuildTagsCommand();
-                case "MapSheets": return new Tags.MapSheetsCommand();
 
                 // Validation
                 case "ValidateTags": return new Tags.ValidateTagsCommand();
@@ -588,25 +430,13 @@ namespace StingTools.Core
                 case "COBieExport": return new BIMManager.COBieExportCommand();
                 case "DocumentBriefcase": return new BIMManager.DocumentBriefcaseCommand();
 
-                // Smart Tag Placement
-                case "SmartPlaceTags":       return new Tags.SmartPlaceTagsCommand();
-                case "ArrangeTags":          return new Tags.ArrangeTagsCommand();
-                case "RemoveAnnotationTags": return new Tags.RemoveAnnotationTagsCommand();
-                case "BatchPlaceTags":       return new Tags.BatchPlaceTagsCommand();
-                case "LearnTagPlacement":    return new Tags.LearnTagPlacementCommand();
-                case "ApplyTagTemplate":     return new Tags.ApplyTagTemplateCommand();
-                case "TagOverlapAnalysis":   return new Tags.TagOverlapAnalysisCommand();
-                case "BatchTagTextSize":     return new Tags.BatchTagTextSizeCommand();
-                case "SetTagLineWeight":     return new Tags.SetTagCategoryLineWeightCommand();
-                case "FamilyParamCreator":   return new Tags.FamilyParamCreatorCommand();
-                case "ClusterTags":          return new Organise.ClusterTagsCommand();
-                case "DeclusterTags":        return new Organise.DeclusterTagsCommand();
-                case "SetDisplayMode":       return new Organise.SetDisplayModeCommand();
-                case "SetSeqScheme":         return new Tags.SetSeqSchemeCommand();
-                case "BatchPlaceLinkedTags": return new Tags.BatchPlaceLinkedTagsCommand();
-                case "AutoTagVisual":        return new Core.AutoTaggerToggleVisualCommand();
-                case "DiscComplianceReport": return new Organise.DisciplineComplianceReportCommand();
-                case "WorkflowTrend":        return new Core.WorkflowTrendCommand();
+                // Revision Management (GAP-009)
+                case "CreateRevision": return new BIMManager.CreateRevisionCommand();
+                case "RevisionDashboard": return new BIMManager.RevisionDashboardCommand();
+                case "AutoRevisionCloud": return new BIMManager.AutoRevisionCloudCommand();
+                case "AutoRevisionOnTagChange": return new BIMManager.AutoRevisionOnTagChangeCommand();
+                case "RevisionTagIntegration": return new BIMManager.RevisionTagIntegrationCommand();
+                case "RevisionExport": return new BIMManager.RevisionExportCommand();
 
                 default: return null;
             }
@@ -690,6 +520,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "AutoFixTemplate", Label = "Auto-Fix Template Health" },
                             new WorkflowStep { CommandTag = "TagAndCombine", Label = "Tag & Combine (full pipeline)" },
                             new WorkflowStep { CommandTag = "AutoCreateLegends", Label = "Auto-Create Legends" },
+                            new WorkflowStep { CommandTag = "CreateRevision", Label = "Create Baseline Revision (P01)" },
                         }
                     };
 
@@ -707,9 +538,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "ValidateTemplate", Label = "Validate Data Integrity (45 checks)" },
                             new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Re-Assign Templates (new views)" },
                             new WorkflowStep { CommandTag = "AutoFixTemplate", Label = "Auto-Fix Template Issues" },
-                            new WorkflowStep { CommandTag = "RetagStale", Label = "Retag Stale Elements", Optional = true, RequiresStaleElements = true },
-                            new WorkflowStep { CommandTag = "SmartPlaceTags", Label = "Smart Place Tags (active view)", Optional = true },
-                            new WorkflowStep { CommandTag = "ArrangeTags", Label = "Arrange Tags (resolve overlaps)", Optional = true },
+                            new WorkflowStep { CommandTag = "AutoRevisionOnTagChange", Label = "Auto-Revision Check (score-based)" },
                         }
                     };
 
@@ -749,76 +578,6 @@ namespace StingTools.Core
                 default:
                     return new WorkflowPreset { Name = name, Description = "Unknown preset" };
             }
-        }
-    }
-
-    /// <summary>View compliance trend from workflow execution history.</summary>
-    [Transaction(TransactionMode.ReadOnly)]
-    [Regeneration(RegenerationOption.Manual)]
-    public class WorkflowTrendCommand : IExternalCommand
-    {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
-        {
-            var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
-            Document doc = ctx.Doc;
-
-            string dir = !string.IsNullOrEmpty(doc?.PathName)
-                ? Path.GetDirectoryName(doc.PathName)
-                : StingToolsApp.DataPath ?? "";
-
-            string logPath = Path.Combine(dir ?? "", "STING_WORKFLOW_LOG.json");
-            if (!File.Exists(logPath))
-            {
-                TaskDialog.Show("STING", "No workflow log found. Run a workflow preset first.");
-                return Result.Succeeded;
-            }
-
-            try
-            {
-                string json = File.ReadAllText(logPath);
-                var records = JsonConvert.DeserializeObject<List<WorkflowRunRecord>>(json);
-                if (records == null || records.Count == 0)
-                {
-                    TaskDialog.Show("STING", "Workflow log is empty.");
-                    return Result.Succeeded;
-                }
-
-                var sb = new StringBuilder();
-                sb.AppendLine($"Workflow History — {records.Count} runs\n");
-                double totalImprovement = 0;
-                double bestImprove = double.MinValue;
-                double worstImprove = double.MaxValue;
-
-                for (int i = 0; i < records.Count; i++)
-                {
-                    var r = records[i];
-                    double improve = r.ComplianceAfter - r.ComplianceBefore;
-                    totalImprovement += improve;
-                    if (improve > bestImprove) bestImprove = improve;
-                    if (improve < worstImprove) worstImprove = improve;
-
-                    sb.AppendLine($"  {i + 1}. {r.Timestamp} {r.PresetName} — " +
-                        $"{r.ComplianceBefore:F1}% → {r.ComplianceAfter:F1}% " +
-                        $"({(improve >= 0 ? "+" : "")}{improve:F1}%) " +
-                        $"[{r.Passed}P {r.Failed}F {r.Skipped}S]");
-                }
-
-                sb.AppendLine();
-                sb.AppendLine($"Average improvement: {(totalImprovement / records.Count):F1}% per run");
-                sb.AppendLine($"Best run: +{bestImprove:F1}%");
-                sb.AppendLine($"Worst run: {(worstImprove >= 0 ? "+" : "")}{worstImprove:F1}%");
-                sb.AppendLine($"Total runs: {records.Count}");
-
-                TaskDialog.Show("STING — Workflow Trend", sb.ToString());
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("WorkflowTrend", ex);
-                TaskDialog.Show("STING", $"Failed to read workflow log: {ex.Message}");
-            }
-
-            return Result.Succeeded;
         }
     }
 }

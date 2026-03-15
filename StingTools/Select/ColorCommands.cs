@@ -229,7 +229,7 @@ namespace StingTools.Select
                         }
                     }
                 }
-                if (++sampled >= 10) break;
+                if (++sampled >= 50) break;
             }
             var sorted = names.ToList();
             sorted.Sort(StringComparer.OrdinalIgnoreCase);
@@ -325,10 +325,10 @@ namespace StingTools.Select
             View view = ctx.ActiveView;
             if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
-            // Collect taggable elements in active view
+            // Collect taggable elements in active view (include all categorized elements, not just HasMaterialQuantities)
             var elems = new FilteredElementCollector(doc, view.Id)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
+                .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model)
                 .ToList();
 
             if (elems.Count == 0)
@@ -651,8 +651,10 @@ namespace StingTools.Select
             {
                 var parts = kvp.Key.Split(',');
                 if (parts.Length < 3) { groupNum++; continue; }
+                if (!int.TryParse(parts[0], out int r) || !int.TryParse(parts[1], out int g) || !int.TryParse(parts[2], out int b2))
+                { groupNum++; continue; }
                 preset.ValueColors[$"Group_{groupNum++} ({kvp.Value.Count} elements)"] =
-                    new[] { int.Parse(parts[0]), int.Parse(parts[1]), int.Parse(parts[2]) };
+                    new[] { r, g, b2 };
             }
 
             var presets = ColorHelper.LoadPresets();

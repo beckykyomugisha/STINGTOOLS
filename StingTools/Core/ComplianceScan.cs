@@ -29,12 +29,14 @@ namespace StingTools.Core
             public int TaggedIncomplete { get; set; }
             public int Untagged { get; set; }
             public int FullyResolved { get; set; }
+            /// <summary>GAP-006 fix: Elements with REV parameter populated.</summary>
+            public int RevisionComplete { get; set; }
+            /// <summary>GAP-006 fix: Elements with empty REV parameter.</summary>
+            public int RevisionMissing { get; set; }
+            /// <summary>GAP-006 fix: Distribution of REV values across elements.</summary>
+            public Dictionary<string, int> RevisionDistribution { get; set; } = new Dictionary<string, int>();
             public Dictionary<string, int> IssuesByType { get; set; } = new Dictionary<string, int>();
             public DateTime ScanTime { get; set; }
-
-            /// <summary>Per-discipline compliance breakdown.</summary>
-            public Dictionary<string, DiscComplianceData> ByDisc { get; set; }
-                = new Dictionary<string, DiscComplianceData>(StringComparer.OrdinalIgnoreCase);
 
             public double CompliancePercent =>
                 TotalElements > 0 ? TaggedComplete * 100.0 / TotalElements : 0;
@@ -42,21 +44,28 @@ namespace StingTools.Core
             public double StrictPercent =>
                 TotalElements > 0 ? FullyResolved * 100.0 / TotalElements : 0;
 
-            /// <summary>RAG status: Red (&lt;50%), Amber (50-80%), Green (&gt;80%)</summary>
+            /// <summary>GAP-006 fix: Percentage of elements with REV populated.</summary>
+            public double RevisionPercent =>
+                TotalElements > 0 ? RevisionComplete * 100.0 / TotalElements : 0;
+
+            /// <summary>RAG status: factors in both tagging AND revision completeness.</summary>
             public string RAGStatus
             {
                 get
                 {
-                    double pct = StrictPercent;
-                    if (pct >= 80) return "GREEN";
-                    if (pct >= 50) return "AMBER";
+                    double tagPct = CompliancePercent;
+                    double revPct = RevisionPercent;
+                    // Weighted: 70% tag compliance + 30% revision compliance
+                    double combined = (tagPct * 0.7) + (revPct * 0.3);
+                    if (combined >= 80) return "GREEN";
+                    if (combined >= 50) return "AMBER";
                     return "RED";
                 }
             }
 
-            /// <summary>Short summary for status bar display.</summary>
+            /// <summary>Short summary for status bar display — includes revision status.</summary>
             public string StatusBarText =>
-                $"{RAGStatus} {StrictPercent:F0}% resolved | {CompliancePercent:F0}% tagged | {Untagged} untagged";
+                $"{RAGStatus} {CompliancePercent:F0}% tagged | {RevisionPercent:F0}% REV | {Untagged} untagged";
 
             /// <summary>Top 5 issues for dashboard display.</summary>
             public string TopIssues
@@ -70,25 +79,6 @@ namespace StingTools.Core
                         .Select(x => $"{x.Key}:{x.Value}"));
                 }
             }
-        }
-
-        /// <summary>Per-discipline compliance data.</summary>
-        public class DiscComplianceData
-        {
-            public int Total { get; set; }
-            public int Tagged { get; set; }
-            public int Untagged { get; set; }
-            /// <summary>Fully tagged: TagIsComplete AND TagIsFullyResolved.</summary>
-            public int FullyTagged { get; set; }
-            /// <summary>Partially tagged: non-empty tag but not fully complete/resolved.</summary>
-            public int PartiallyTagged { get; set; }
-            public int MissingLoc { get; set; }
-            public int MissingSys { get; set; }
-            public int MissingProd { get; set; }
-            /// <summary>Three-bucket compliance: fully=1.0, partial=0.5, untagged=0.0.</summary>
-            public double CompliancePct => Total > 0
-                ? (FullyTagged + 0.5 * PartiallyTagged) / Math.Max(1, Total) * 100.0
-                : 0;
         }
 
         /// <summary>
@@ -109,9 +99,14 @@ namespace StingTools.Core
             try
             {
                 // Materialize to List to avoid "object not valid" during iteration
-                var allElements = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .ToList();
+                // Performance: use ElementMulticategoryFilter to skip non-taggable elements
+                var scanColl = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType();
+                var scanCatEnums = SharedParamGuids.AllCategoryEnums;
+                if (scanCatEnums != null && scanCatEnums.Length > 0)
+                    scanColl.WherePasses(new ElementMulticategoryFilter(
+                        new List<BuiltInCategory>(scanCatEnums)));
+                var allElements = scanColl.ToList();
                 foreach (Element elem in allElements)
                 {
                     if (elem == null || !elem.IsValidObject) continue;
@@ -119,57 +114,53 @@ namespace StingTools.Core
                     if (!known.Contains(cat)) continue;
 
                     result.TotalElements++;
-
-                    // Per-discipline tracking (Item 18)
-                    string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
-                    if (string.IsNullOrEmpty(disc))
-                        disc = TagConfig.DiscMap.TryGetValue(cat, out string dv) ? dv : "?";
-
-                    if (!result.ByDisc.TryGetValue(disc, out var discData))
-                    {
-                        discData = new DiscComplianceData();
-                        result.ByDisc[disc] = discData;
-                    }
-                    discData.Total++;
-
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.LOC))) discData.MissingLoc++;
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.SYS))) discData.MissingSys++;
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.PROD))) discData.MissingProd++;
-
                     string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
 
                     if (string.IsNullOrEmpty(tag))
                     {
                         result.Untagged++;
-                        discData.Untagged++;
                         AddIssue(result, "Untagged");
                     }
-                    else if (TagConfig.TagIsComplete(tag) && TagConfig.TagIsFullyResolved(tag))
+                    else if (TagConfig.TagIsFullyResolved(tag))
                     {
                         result.TaggedComplete++;
                         result.FullyResolved++;
-                        discData.Tagged++;
-                        discData.FullyTagged++;
                     }
                     else if (TagConfig.TagIsComplete(tag))
                     {
                         result.TaggedComplete++;
-                        discData.Tagged++;
-                        discData.PartiallyTagged++;
-                        // Has placeholders — check which tokens
-                        string[] parts = tag.Split(ParamRegistry.Separator[0]);
+                        // Has placeholders — check which tokens are default/placeholder
+                        string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
                         if (parts.Length >= 8)
                         {
                             if (parts[1] == "XX") AddIssue(result, "Missing LOC");
                             if (parts[2] == "XX" || parts[2] == "ZZ") AddIssue(result, "Missing ZONE");
+                            if (parts[3] == "XX") AddIssue(result, "Missing LVL");
+                            if (parts[4] == "GEN") AddIssue(result, "Generic SYS");
+                            if (parts[5] == "GEN") AddIssue(result, "Generic FUNC");
+                            if (parts[6] == "GEN") AddIssue(result, "Generic PROD");
                             if (parts[7] == "0000") AddIssue(result, "SEQ=0000");
                         }
                     }
                     else
                     {
                         result.TaggedIncomplete++;
-                        discData.PartiallyTagged++;
                         AddIssue(result, "Incomplete tag");
+                    }
+
+                    // GAP-006 fix: Track revision completeness
+                    string rev = ParameterHelpers.GetString(elem, ParamRegistry.REV);
+                    if (!string.IsNullOrEmpty(rev))
+                    {
+                        result.RevisionComplete++;
+                        if (!result.RevisionDistribution.ContainsKey(rev))
+                            result.RevisionDistribution[rev] = 0;
+                        result.RevisionDistribution[rev]++;
+                    }
+                    else
+                    {
+                        result.RevisionMissing++;
+                        AddIssue(result, "Missing REV");
                     }
                 }
             }

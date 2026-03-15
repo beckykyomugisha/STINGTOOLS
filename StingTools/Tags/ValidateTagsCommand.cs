@@ -46,8 +46,12 @@ namespace StingTools.Tags
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements
             var collector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType();
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
 
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
             int total = 0;
@@ -150,10 +154,19 @@ namespace StingTools.Tags
                     }
                 }
 
-                // Check REV token
+                // Check REV token — GAP-008 fix: validate format via RevisionEngine
                 string revVal = ParameterHelpers.GetString(el, ParamRegistry.REV);
                 if (string.IsNullOrEmpty(revVal))
                     revEmpty++;
+                else
+                {
+                    string revError = BIMManager.RevisionEngine.ValidateRevisionNumber(revVal);
+                    if (revError != null)
+                    {
+                        isoViolations++;
+                        IncrementDict(isoIssueTypes, $"Invalid REV format: {revVal}");
+                    }
+                }
 
                 // Track tag uniqueness
                 if (!string.IsNullOrEmpty(tag1))
@@ -391,9 +404,7 @@ namespace StingTools.Tags
             string csvPath = null;
             try
             {
-                string dir = Path.GetDirectoryName(doc.PathName);
-                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
-                csvPath = Path.Combine(dir, "STING_Validation_Report.csv");
+                csvPath = OutputLocationHelper.GetOutputPath(doc, "STING_Validation_Report.csv");
                 File.WriteAllText(csvPath, string.Join(Environment.NewLine, csvRows));
                 report.AppendLine();
                 report.AppendLine($"── CSV exported to: {csvPath} ──");
@@ -402,6 +413,13 @@ namespace StingTools.Tags
             {
                 StingLog.Warn($"Validation CSV export: {ex.Message}");
             }
+
+            // BIM integration: auto-register export and raise compliance issues
+            if (!string.IsNullOrEmpty(csvPath) && File.Exists(csvPath))
+                StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, csvPath, "RP", "Tag validation report (ISO 19650 compliance)");
+            int issuesRaised = StingTools.BIMManager.BIMManagerEngine.AutoRaiseComplianceIssues(doc);
+            if (issuesRaised > 0)
+                StingLog.Info($"ValidateTagsCommand: auto-raised {issuesRaised} BIM compliance issues");
 
             TaskDialog td = new TaskDialog("Validate Tags (ISO 19650)");
             td.MainInstruction = $"Compliance: {compliancePct:F1}% | Full: {bucketFully} | Partial: {bucketPartial} | Untagged: {bucketUntagged} | Violations: {isoViolations}";

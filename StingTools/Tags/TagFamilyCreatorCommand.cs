@@ -926,18 +926,18 @@ namespace StingTools.Tags
             Autodesk.Revit.ApplicationServices.Application app,
             List<string> paramNames = null)
         {
+            // Always restore the shared parameter file, even on crash.
+            // Failing to restore leaves Revit pointing at a wrong file
+            // (e.g. ARCH_001_Casework_Tag_PARAMETERS.txt) for all future commands.
+            string originalFile = app.SharedParametersFilename;
             try
             {
-                // Set the shared parameter file
-                string originalFile = app.SharedParametersFilename;
                 app.SharedParametersFilename = sharedParamFile;
 
                 DefinitionFile defFile = app.OpenSharedParameterFile();
                 if (defFile == null)
                 {
                     StingLog.Warn("Cannot open shared parameter file for tag family");
-                    if (!string.IsNullOrEmpty(originalFile))
-                        app.SharedParametersFilename = originalFile;
                     return false;
                 }
 
@@ -990,10 +990,6 @@ namespace StingTools.Tags
                     tx.Commit();
                 }
 
-                // Restore original shared parameter file
-                if (!string.IsNullOrEmpty(originalFile))
-                    app.SharedParametersFilename = originalFile;
-
                 StingLog.Info($"Added {added} shared parameters to tag family");
                 return added > 0;
             }
@@ -1001,6 +997,16 @@ namespace StingTools.Tags
             {
                 StingLog.Error("AddSharedParameters failed", ex);
                 return false;
+            }
+            finally
+            {
+                // ALWAYS restore — prevents leaving Revit pointed at wrong SP file
+                try
+                {
+                    if (!string.IsNullOrEmpty(originalFile))
+                        app.SharedParametersFilename = originalFile;
+                }
+                catch { /* best effort */ }
             }
         }
 

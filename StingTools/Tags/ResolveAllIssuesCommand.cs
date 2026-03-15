@@ -40,9 +40,13 @@ namespace StingTools.Tags
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Phase 1: Scan all elements and classify issues
-            var allElements = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .ToList();
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements
+            var resolveColl = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType();
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            if (catEnums != null && catEnums.Length > 0)
+                resolveColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            var allElements = resolveColl.ToList();
 
             int totalTaggable = 0;
             int noTag = 0, incompleteTag = 0, unresolvedTag = 0;
@@ -265,7 +269,10 @@ namespace StingTools.Tags
             int postEmptyStatus = 0, postEmptyRev = 0, postEmptyTokens = 0;
 
             var postFixElements = new List<Element>();
-            foreach (Element e in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var postColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                postColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            foreach (Element e in postColl)
             {
                 string cat = ParameterHelpers.GetCategoryName(e);
                 if (known.Contains(cat)) postFixElements.Add(e);

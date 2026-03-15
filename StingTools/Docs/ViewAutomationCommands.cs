@@ -74,9 +74,10 @@ namespace StingTools.Docs
                 }
                 catch (Exception ex)
                 {
-                    TaskDialog.Show("Duplicate View",
-                        $"Cannot duplicate this view:\n{ex.Message}");
+                    string errMsg = ex.Message;
                     tx.RollBack();
+                    TaskDialog.Show("Duplicate View",
+                        $"Cannot duplicate this view:\n{errMsg}");
                     return Result.Failed;
                 }
 

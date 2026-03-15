@@ -1324,7 +1324,32 @@ namespace StingTools.Core
                 if (string.IsNullOrWhiteSpace(parts[i]))
                     return false;
             }
+            // Reject tags containing placeholder tokens
+            if (TagHasPlaceholders(tagValue))
+                return false;
+
             return true;
+        }
+
+        /// <summary>
+        /// Checks whether a tag string contains placeholder tokens ("-XX-", "-ZZ-", "-0000")
+        /// that indicate incomplete or unresolved segments.
+        /// </summary>
+        public static bool TagHasPlaceholders(string tag)
+        {
+            if (string.IsNullOrEmpty(tag))
+                return false;
+            string sep = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+            foreach (string ph in _placeholders)
+            {
+                // Check for placeholder as a delimited segment (not substring of a real token)
+                if (tag.StartsWith(ph + sep, StringComparison.Ordinal) ||
+                    tag.EndsWith(sep + ph, StringComparison.Ordinal) ||
+                    tag.Contains(sep + ph + sep, StringComparison.Ordinal) ||
+                    tag == ph)
+                    return true;
+            }
+            return false;
         }
 
         private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "0000" };
@@ -1520,13 +1545,14 @@ namespace StingTools.Core
                 sequenceCounters[seqKey] = 0;
             sequenceCounters[seqKey]++;
 
-            // SEQ overflow detection: warn when sequence exceeds format capacity
+            // SEQ overflow detection: cap at format capacity to prevent invalid tag widths
             int maxSeq = (int)Math.Pow(10, NumPad) - 1; // 9999 for NumPad=4
             if (sequenceCounters[seqKey] > maxSeq)
             {
-                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq})";
+                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — capping at {maxSeq}";
                 StingLog.Warn(overflowMsg);
                 stats?.RecordWarning(overflowMsg);
+                sequenceCounters[seqKey] = maxSeq; // Cap to prevent invalid digit-width tags
             }
 
             // Build SEQ string using the configured numbering scheme
@@ -1559,6 +1585,13 @@ namespace StingTools.Core
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
+                // Safety limit exhausted: tag collision could not be resolved
+                if (collisionCount >= MaxCollisionDepth)
+                {
+                    string safetyMsg = $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — tag '{tag}' may still be a duplicate";
+                    StingLog.Warn(safetyMsg);
+                    stats?.RecordWarning(safetyMsg);
+                }
                 // Remove the element's old tag from index (it's being replaced)
                 // so stale entries don't cause false collisions for other elements
                 if (!string.IsNullOrEmpty(existingTag) && existingTag != tag)
@@ -1591,7 +1624,24 @@ namespace StingTools.Core
                 // Re-read actual token values (some may have been preserved by SetIfEmpty)
                 // to ensure TAG1 reflects what's actually on the element
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
+                // Validate token array: replace any null/empty segments with defaults
+                // to prevent malformed tags like "M--Z01-L02-..."
+                string[] defaults = { disc, loc, zone, lvl, sys, func, prod, seq };
+                for (int i = 0; i < actualTokens.Length && i < defaults.Length; i++)
+                {
+                    if (string.IsNullOrEmpty(actualTokens[i]))
+                        actualTokens[i] = defaults[i];
+                }
                 tag = string.Join(Separator, actualTokens);
+            }
+
+            // Final validation: ensure tag has correct segment count before writing
+            string[] tagParts = tag.Split(new[] { Separator }, StringSplitOptions.None);
+            if (tagParts.Length < 8)
+            {
+                StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {tagParts.Length} segments (expected 8)");
+                stats?.RecordWarning($"Element {el.Id}: malformed tag with {tagParts.Length} segments — skipped");
+                return false;
             }
             ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
 
@@ -1644,11 +1694,17 @@ namespace StingTools.Core
             try
             {
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                // Validate token array before container write
+                for (int i = 0; i < tokenVals.Length; i++)
+                {
+                    if (tokenVals[i] == null) tokenVals[i] = "";
+                }
                 ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"Container write failed for {el.Id}: {ex.Message}");
+                stats?.RecordWarning($"Element {el.Id}: container write failed — {ex.Message}");
             }
 
             // ── Auto-initialize display BOOLs (v5.6) ─────────────────────────
@@ -3611,6 +3667,10 @@ namespace StingTools.Core
                 if (lifecyclePlain.Length > 0) { lifecyclePlain.Append(", currently at "); lifecycleMarked.Append(", currently at "); }
                 lifecyclePlain.Append($"revision {rev}");
                 lifecycleMarked.Append($"\u00ABL\u00BBrevision\u00AB/L\u00BB \u00ABV\u00BB{rev}\u00AB/V\u00BB");
+                // GAP-010: Add tag timestamp for audit trail
+                string tagDate = DateTime.Now.ToString("yyyy-MM-dd");
+                lifecyclePlain.Append($" (tagged {tagDate})");
+                lifecycleMarked.Append($" (\u00ABL\u00BBtagged\u00AB/L\u00BB \u00ABV\u00BB{tagDate}\u00AB/V\u00BB)");
             }
             if (!string.IsNullOrEmpty(origin))
             {

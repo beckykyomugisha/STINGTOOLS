@@ -89,6 +89,11 @@ namespace StingTools.UI
                     case "SelectAllTaggable": RunCommand<Select.SelectAllTaggableCommand>(app); break;
                     case "SelectCustomCategory": RunCommand<Select.SelectCustomCategoryCommand>(app); break;
 
+                    // ── Selection scope ──
+                    case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
+                    case "SetScopeProject": Select.SelectionScopeHelper.SetScope(true); TaskDialog.Show("Scope", "Selection scope: WHOLE PROJECT"); break;
+                    case "SetSelectionScope": RunCommand<Select.SetSelectionScopeCommand>(app); break;
+
                     // ── State selectors ──
                     case "SelectUntagged": RunCommand<Select.SelectUntaggedCommand>(app); break;
                     case "SelectTagged": RunCommand<Select.SelectTaggedCommand>(app); break;
@@ -464,6 +469,7 @@ namespace StingTools.UI
                     case "ClashDetect": RunCommand<Temp.ClashDetectionCommand>(app); break;
                     case "IFCExport": RunCommand<Temp.IFCExportCommand>(app); break;
                     case "ExcelImport": RunCommand<Temp.ExcelBOQImportCommand>(app); break;
+                    case "ExcelBOQImport": RunCommand<Temp.ExcelBOQImportCommand>(app); break;
                     case "KeynoteSync": RunCommand<Temp.KeynoteSyncCommand>(app); break;
                     case "ExcelToDraftingView": RunCommand<Temp.ExcelToDraftingViewCommand>(app); break;
                     case "ScheduleToExcel": RunCommand<Temp.ScheduleToExcelCommand>(app); break;
@@ -492,7 +498,6 @@ namespace StingTools.UI
                     case "FamilyStagePopulate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
                     case "AssignNumbers": RunCommand<Tags.AssignNumbersCommand>(app); break;
                     case "BuildTags": RunCommand<Tags.BuildTagsCommand>(app); break;
-                    case "MapSheets": RunCommand<Tags.MapSheetsCommand>(app); break;
                     case "CombineParameters": RunCommand<Tags.CombineParametersCommand>(app); break;
                     case "CombinePreFlight": RunCommand<Tags.CombinePreFlightCommand>(app); break;
 
@@ -543,7 +548,7 @@ namespace StingTools.UI
                     case "CondClear": ConditionClear(app); break;
                     case "CondPreview": ConditionPreview(app); break;
                     case "CondApply": ConditionApply(app); break;
-                    case "ShowHelp": TaskDialog.Show("STING Tools", "STING Tags v9.6\nISO 19650 BIM Asset Tagging\nhttps://stingbim.com"); break;
+                    case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://stingbim.com"); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)
@@ -860,64 +865,50 @@ namespace StingTools.UI
                     case "MilestoneRegister": RunCommand<BIMManager.MilestoneRegisterCommand>(app); break;
                     case "WorkingCalendar": RunCommand<BIMManager.WorkingCalendarCommand>(app); break;
 
-                    // ── Tier 1-7 Enhancement Commands ──────────────────────────
-                    case "SwitchTagPos1":        RunSwitchTagPos(app, 1); break;
-                    case "SwitchTagPos2":        RunSwitchTagPos(app, 2); break;
-                    case "SwitchTagPos3":        RunSwitchTagPos(app, 3); break;
-                    case "SwitchTagPos4":        RunSwitchTagPos(app, 4); break;
-                    case "SwitchTagPos":         RunCommand<Tags.SwitchTagPositionCommand>(app); break;
-                    case "AlignTagBands":        RunCommand<Tags.AlignTagBandsCommand>(app); break;
-                    case "ClusterTags":          RunCommand<Organise.ClusterTagsCommand>(app); break;
-                    case "DeclusterTags":        RunCommand<Organise.DeclusterTagsCommand>(app); break;
-                    case "ExportTagPositions":   RunCommand<Tags.ExportTagPositionsCommand>(app); break;
-                    case "DiscComplianceReport": RunCommand<Organise.DisciplineComplianceReportCommand>(app); break;
-                    case "WorkflowTrend":        RunCommand<Core.WorkflowTrendCommand>(app); break;
-                    case "FamilyParamCreator":   RunCommand<Tags.FamilyParamCreatorCommand>(app); break;
-                    case "SetDisplayMode":       RunCommand<Organise.SetDisplayModeCommand>(app); break;
-                    case "SetSeqScheme":         RunCommand<Tags.SetSeqSchemeCommand>(app); break;
-                    case "AutoTagVisual":        RunCommand<Core.AutoTaggerToggleVisualCommand>(app); break;
-                    case "BatchPlaceLinkedTags": RunCommand<Tags.BatchPlaceLinkedTagsCommand>(app); break;
-                    case "ExportLinkedManifest": RunCommand<Tags.ExportLinkedModelManifestCommand>(app); break;
-                    case "RetagStale":           RunCommand<Organise.RetagStaleCommand>(app); break;
-                    case "SetViewTagStyle":      RunCommand<Tags.SetViewTagStyleCommand>(app); break;
-                    case "AutoTaggerConfig":     RunCommand<Core.AutoTaggerConfigCommand>(app); break;
+                    // Output & Compliance
+                    case "SetOutputDirectory": RunCommand<BIMManager.SetOutputDirectoryCommand>(app); break;
+                    case "StageComplianceGate": RunCommand<BIMManager.StageComplianceGateCommand>(app); break;
 
-                    // ── Tag Studio panel commands ──
-                    case "TagStudio_SmartPlace":  RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
-                    case "TagStudio_Arrange":     RunCommand<Tags.ArrangeTagsCommand>(app); break;
-                    case "TagStudio_AlignBands":  RunCommand<Tags.ArrangeTagsCommand>(app); break;
-                    case "TagStudio_AdjustElbows": RunCommand<Tags.AdjustElbowsCommand>(app); break;
-                    case "TagStudio_SetArrows":   RunCommand<Tags.SetArrowheadStyleCommand>(app); break;
-                    case "TagStudio_ApplyStyle":  RunCommand<Tags.ApplyTagStyleCommand>(app); break;
-                    case "TagStudio_ApplyScheme": RunCommand<Tags.ApplyColorSchemeCommand>(app); break;
-                    case "TagStudio_ClearOverrides": RunCommand<Tags.ClearColorSchemeCommand>(app); break;
-                    case "TagStudio_SchemeDiscipline": HandleTagStudioScheme(app, "Discipline"); break;
-                    case "TagStudio_SchemeWarm":  HandleTagStudioScheme(app, "Warm"); break;
-                    case "TagStudio_SchemeCool":  HandleTagStudioScheme(app, "Cool"); break;
-                    case "TagStudio_SchemeRed":   HandleTagStudioScheme(app, "Red"); break;
-                    case "TagStudio_SchemeYellow": HandleTagStudioScheme(app, "Yellow"); break;
-                    case "TagStudio_SchemeBlue":  HandleTagStudioScheme(app, "Blue"); break;
-                    case "TagStudio_SchemeMono":  HandleTagStudioScheme(app, "Monochrome"); break;
-                    case "TagStudio_SchemeDark":  HandleTagStudioScheme(app, "Dark"); break;
-                    case "TagStudio_SchemeZone":  HandleTagStudioScheme(app, "Zone"); break;
-                    case "TagStudio_SchemeStatus": HandleTagStudioScheme(app, "Status"); break;
-                    case "TagStudio_SchemeLevel": HandleTagStudioScheme(app, "Level"); break;
-                    case "TagStudio_SchemeFunction": HandleTagStudioScheme(app, "Function"); break;
-                    case "TagStudio_Generate":    HandleTagStudioGenerate(app); break;
-                    case "TagStudio_GapReview":   HandleTagStudioGapReview(app); break;
-                    case "TagStudio_Pipeline":    RunCommand<Tags.TagAndCombineCommand>(app); break;
-                    case "TagStudio_Explain":     HandleTagStudioExplain(app); break;
-                    case "TagStudio_APIGaps":     HandleTagStudioAPIGaps(app); break;
-                    case "ComplianceScan":        HandleComplianceScan(app); break;
-                    case "MapSheets":             HandleMapSheets(app); break;
-                    case "FamilyParamCreator":    RunCommand<Tags.FamilyParamCreatorCommand>(app); break;
-                    case "SetSegmentMask":        HandleSetSegmentMask(app); break;
-                    case "BuildDisplayTag":       HandleBuildDisplayTag(app); break;
+                    // Excel Link — Bidirectional (6 commands)
+                    case "ExportToExcel": RunCommand<BIMManager.ExportToExcelCommand>(app); break;
+                    case "ImportFromExcel": RunCommand<BIMManager.ImportFromExcelCommand>(app); break;
+                    case "ExcelRoundTrip": RunCommand<BIMManager.ExcelRoundTripCommand>(app); break;
+                    case "ExportSchedulesToExcel": RunCommand<BIMManager.ExportSchedulesToExcelCommand>(app); break;
+                    case "ImportSchedulesFromExcel": RunCommand<BIMManager.ImportSchedulesFromExcelCommand>(app); break;
+                    case "ExportExcelTemplate": RunCommand<BIMManager.ExportTemplateCommand>(app); break;
+
+                    // Platform Integration (12 commands)
+                    case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
+                    case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
+                    case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
+                    case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
+                    case "SharePointExport": RunCommand<BIMManager.SharePointExportCommand>(app); break;
+                    case "ProcorePackage": RunCommand<BIMManager.ProcorePackageCommand>(app); break;
+                    case "TrimbleExport": RunCommand<BIMManager.TrimbleConnectExportCommand>(app); break;
+                    case "AconexPackage": RunCommand<BIMManager.AconexPackageCommand>(app); break;
+                    case "ProjectWiseExport": RunCommand<BIMManager.ProjectWiseExportCommand>(app); break;
+                    case "PlatformDashboard": RunCommand<BIMManager.PlatformDashboardCommand>(app); break;
+                    case "WebhookPayload": RunCommand<BIMManager.WebhookPayloadCommand>(app); break;
+
+                    // Revision Management (12 commands)
+                    case "CreateRevision": RunCommand<BIMManager.CreateRevisionCommand>(app); break;
+                    case "RevisionDashboard": RunCommand<BIMManager.RevisionDashboardCommand>(app); break;
+                    case "AutoRevisionCloud": RunCommand<BIMManager.AutoRevisionCloudCommand>(app); break;
+                    case "RevisionSchedule": RunCommand<BIMManager.RevisionScheduleCommand>(app); break;
+                    case "TrackElementRevisions": RunCommand<BIMManager.TrackElementRevisionsCommand>(app); break;
+                    case "RevisionCompare": RunCommand<BIMManager.RevisionCompareCommand>(app); break;
+                    case "IssueSheetsForRevision": RunCommand<BIMManager.IssueSheetsForRevisionCommand>(app); break;
+                    case "RevisionNamingEnforce": RunCommand<BIMManager.RevisionNamingEnforceCommand>(app); break;
+                    case "RevisionTagIntegration": RunCommand<BIMManager.RevisionTagIntegrationCommand>(app); break;
+                    case "RevisionExport": RunCommand<BIMManager.RevisionExportCommand>(app); break;
+                    case "BulkRevisionStamp": RunCommand<BIMManager.BulkRevisionStampCommand>(app); break;
+                    case "AutoRevisionOnTagChange": RunCommand<BIMManager.AutoRevisionOnTagChangeCommand>(app); break;
 
                     // ── Unmapped / placeholder ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
-                        TaskDialog.Show("STING Tools",
+                        TaskDialog.Show("StingTools",
                             $"Command '{tag}' is not yet available.\nCheck for plugin updates.");
                         break;
                 }
@@ -929,7 +920,7 @@ namespace StingTools.UI
             catch (Exception ex)
             {
                 StingLog.Error($"DockPanel command '{tag}' failed", ex);
-                TaskDialog.Show("STING Tools", $"Command failed: {ex.Message}");
+                TaskDialog.Show("StingTools", $"Command failed: {ex.Message}");
             }
             finally
             {
@@ -960,47 +951,6 @@ namespace StingTools.UI
         /// Commands can use this as a fallback when ExternalCommandData is null.
         /// </summary>
         public static UIApplication CurrentApp { get; private set; }
-
-        // ── Quick tag position switch (inline helper) ────────────────
-
-        private static void RunSwitchTagPos(UIApplication app, int posValue)
-        {
-            try
-            {
-                var doc = app.ActiveUIDocument?.Document;
-                if (doc == null) return;
-                var view = doc.ActiveView;
-                if (view == null) return;
-
-                var elements = new FilteredElementCollector(doc, view.Id)
-                    .WhereElementIsNotElementType()
-                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
-                    .ToList();
-
-                var typeIds = new HashSet<ElementId>(
-                    elements.Select(e => { try { return e.GetTypeId(); } catch { return ElementId.InvalidElementId; } })
-                        .Where(id => id != ElementId.InvalidElementId));
-
-                int updated = 0;
-                using (Transaction tx = new Transaction(doc, $"STING Switch Tag Position {posValue}"))
-                {
-                    tx.Start();
-                    foreach (ElementId typeId in typeIds)
-                    {
-                        try
-                        {
-                            Element typeEl = doc.GetElement(typeId);
-                            Parameter p = typeEl?.LookupParameter(ParamRegistry.TAG_POS);
-                            if (p != null && !p.IsReadOnly) { p.Set(posValue); updated++; }
-                        }
-                        catch { }
-                    }
-                    tx.Commit();
-                }
-                StingLog.Info($"SwitchTagPos{posValue}: updated {updated} types in active view");
-            }
-            catch (Exception ex) { StingLog.Warn($"RunSwitchTagPos: {ex.Message}"); }
-        }
 
         // ── Generic command runner ────────────────────────────────────
 
@@ -1053,12 +1003,16 @@ namespace StingTools.UI
             new Dictionary<string, List<ElementId>>();
 
         /// <summary>
-        /// CRASH FIX: Clear selection memory slots that hold ElementId references.
-        /// Must be called on document close to prevent stale IDs being used against a new document.
+        /// CRASH FIX: Clear all static state that may hold stale references.
+        /// Must be called on document close to prevent stale IDs or conditions
+        /// being used against a different document.
         /// </summary>
         public static void ClearStaticState()
         {
             _memorySlots.Clear();
+            _conditions.Clear();
+            _scopeIsView = true;
+            _overwriteMode = false;
         }
 
         private static void ViewIsolateSelected(UIApplication app)
@@ -4856,332 +4810,6 @@ namespace StingTools.UI
                 $"Link Types: {linkTypes.Count}\n" +
                 $"  Loaded: {loaded}\n" +
                 $"  Unloaded: {unloaded}");
-        }
-
-        // ── Tag Studio inline handlers ──────────────────────────────────
-
-        private static void HandleTagStudioScheme(UIApplication app, string schemeName)
-        {
-            try
-            {
-                Document doc = app.ActiveUIDocument?.Document;
-                View view = app.ActiveUIDocument?.ActiveView;
-                if (doc == null || view == null) return;
-
-                StingLog.Info($"Tag Studio: applying scheme '{schemeName}'");
-                // Delegate to ApplyColorScheme command with scheme name
-                RunCommand<Tags.ApplyColorSchemeCommand>(app);
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("HandleTagStudioScheme", ex);
-            }
-        }
-
-        private static void HandleTagStudioGenerate(UIApplication app)
-        {
-            try
-            {
-                var sb = new StringBuilder();
-                sb.AppendLine("// Generated Tag Studio Session Code");
-                sb.AppendLine("// Copy this into a STING workflow or custom command");
-                sb.AppendLine();
-                sb.AppendLine("var session = new TagControlSession();");
-                sb.AppendLine("session.Position = 1; // P1 North");
-                sb.AppendLine("session.LeaderMode = LeaderMode.Auto;");
-                sb.AppendLine("session.TextSize = 2.5;");
-                sb.AppendLine("session.ColorSchemeName = \"Discipline\";");
-                sb.AppendLine("session.ParaDepth = 10;");
-                sb.AppendLine("session.Apply(doc, view);");
-
-                TaskDialog td = new TaskDialog("Tag Studio — Generated Code");
-                td.MainInstruction = "Tag Control Session Code";
-                td.MainContent = sb.ToString();
-                td.Show();
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("HandleTagStudioGenerate", ex);
-            }
-        }
-
-        private static void HandleTagStudioGapReview(UIApplication app)
-        {
-            try
-            {
-                var gaps = new StringBuilder();
-                gaps.AppendLine("TAG STUDIO — API GAP REVIEW");
-                gaps.AppendLine("═══════════════════════════════════════");
-                gaps.AppendLine();
-                gaps.AppendLine("FULLY IMPLEMENTED:");
-                gaps.AppendLine("  ✓ 16-position compass placement");
-                gaps.AppendLine("  ✓ Directional per-axis offsets (N/E/S/W)");
-                gaps.AppendLine("  ✓ Leader min/max length clamps");
-                gaps.AppendLine("  ✓ Scale-tier aware placement");
-                gaps.AppendLine("  ✓ Tag segment mask (TOKEN_SEG_MASK_TXT)");
-                gaps.AppendLine("  ✓ 12 color schemes (8 built-in + Zone/Status/Level/Function)");
-                gaps.AppendLine("  ✓ Paragraph depth 1-10 tiers");
-                gaps.AppendLine("  ✓ TagControlSession atomic application");
-                gaps.AppendLine();
-                gaps.AppendLine("PARTIAL API / KNOWN GAPS:");
-                gaps.AppendLine("  △ Arrow head style — requires ObjectStyles workaround");
-                gaps.AppendLine("  △ Elbow geometry — tag.SetLeaderElbow partial API");
-                gaps.AppendLine("  △ Box style/corner radius — tag family driven, not API");
-                gaps.AppendLine("  △ Letter spacing — not exposed in Revit API");
-                gaps.AppendLine("  △ Live SVG preview — requires embedded browser or DrawingVisual");
-
-                TaskDialog td = new TaskDialog("Tag Studio — Gap Review");
-                td.MainInstruction = "API Coverage Analysis";
-                td.MainContent = gaps.ToString();
-                td.Show();
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("HandleTagStudioGapReview", ex);
-            }
-        }
-
-        private static void HandleTagStudioExplain(UIApplication app)
-        {
-            try
-            {
-                var sb = new StringBuilder();
-                sb.AppendLine("TAG CONTAINERS — EXPLAINED");
-                sb.AppendLine("═══════════════════════════════════════");
-                sb.AppendLine();
-                sb.AppendLine("TAG1 (ASS_TAG_1_TXT): Full 8-segment ISO 19650 tag");
-                sb.AppendLine("TAG2-TAG6: Multi-line sub-tag variants");
-                sb.AppendLine("TAG7: Rich descriptive narrative (A-F sections)");
-                sb.AppendLine();
-                sb.AppendLine("Discipline containers (e.g. HVC_EQP_TAG, ELC_EQP_TAG)");
-                sb.AppendLine("receive the same tag value filtered by discipline code.");
-                sb.AppendLine();
-                sb.AppendLine("'Combine' writes TAG1 value → all matching containers.");
-                sb.AppendLine("'Tag & Combine' does: populate + tag + combine in one step.");
-
-                TaskDialog td = new TaskDialog("Tag Studio — Explain");
-                td.MainInstruction = "Tag Container Architecture";
-                td.MainContent = sb.ToString();
-                td.Show();
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("HandleTagStudioExplain", ex);
-            }
-        }
-
-        private static void HandleTagStudioAPIGaps(UIApplication app)
-        {
-            try
-            {
-                var sb = new StringBuilder();
-                sb.AppendLine("REVIT API — LEADER/ELBOW/ARROW NOTES");
-                sb.AppendLine("═══════════════════════════════════════");
-                sb.AppendLine();
-                sb.AppendLine("IndependentTag.SetLeaderElbow(Reference, XYZ):");
-                sb.AppendLine("  Sets the elbow point for a specific leader.");
-                sb.AppendLine("  Only works when HasLeader=true and tag has leader end.");
-                sb.AppendLine();
-                sb.AppendLine("ArrowheadType / Arrow style:");
-                sb.AppendLine("  Not directly exposed on IndependentTag API.");
-                sb.AppendLine("  Controlled via tag family type ObjectStyles.");
-                sb.AppendLine("  Workaround: modify the annotation category line weight.");
-                sb.AppendLine();
-                sb.AppendLine("Tag box style / corner radius / fill opacity:");
-                sb.AppendLine("  Controlled entirely by tag family .rfa definition.");
-                sb.AppendLine("  Not modifiable at runtime via Revit API.");
-                sb.AppendLine("  Must be baked into tag family types.");
-
-                TaskDialog td = new TaskDialog("Tag Studio — API Notes");
-                td.MainInstruction = "Revit API Coverage for Leaders/Arrows";
-                td.MainContent = sb.ToString();
-                td.Show();
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("HandleTagStudioAPIGaps", ex);
-            }
-        }
-
-        private static void HandleComplianceScan(UIApplication app)
-        {
-            try
-            {
-                Document doc = app.ActiveUIDocument?.Document;
-                if (doc == null) return;
-
-                var result = ComplianceScan.Scan(doc, forceRefresh: true);
-                TaskDialog td = new TaskDialog("Compliance Scan");
-                td.MainInstruction = result.RAGStatus + " — " + result.StrictPercent.ToString("F1") + "% Resolved";
-                td.MainContent =
-                    $"Total elements: {result.TotalElements}\n" +
-                    $"Tagged complete: {result.TaggedComplete}\n" +
-                    $"Tagged incomplete: {result.TaggedIncomplete}\n" +
-                    $"Untagged: {result.Untagged}\n" +
-                    $"Fully resolved: {result.FullyResolved}\n\n" +
-                    $"Top issues: {result.TopIssues}\n\n" +
-                    $"Per-discipline:\n" +
-                    string.Join("\n", result.ByDisc.Select(
-                        kv => $"  {kv.Key}: {kv.Value.CompliancePct:F0}% ({kv.Value.Tagged}/{kv.Value.Total})"));
-                td.Show();
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("HandleComplianceScan", ex);
-            }
-        }
-
-        private static void HandleMapSheets(UIApplication app)
-        {
-            try
-            {
-                Document doc = app.ActiveUIDocument?.Document;
-                if (doc == null) return;
-
-                int mapped = 0;
-                using (Transaction t = new Transaction(doc, "STING Map Sheets"))
-                {
-                    t.Start();
-                    var sheets = new FilteredElementCollector(doc)
-                        .OfClass(typeof(ViewSheet))
-                        .Cast<ViewSheet>()
-                        .ToList();
-
-                    foreach (var sheet in sheets)
-                    {
-                        try
-                        {
-                            string drawnBy = sheet.get_Parameter(BuiltInParameter.SHEET_DRAWN_BY)?.AsString() ?? "";
-                            string checkedBy = sheet.get_Parameter(BuiltInParameter.SHEET_CHECKED_BY)?.AsString() ?? "";
-                            string approvedBy = sheet.get_Parameter(BuiltInParameter.SHEET_APPROVED_BY)?.AsString() ?? "";
-
-                            if (!string.IsNullOrEmpty(drawnBy))
-                                ParameterHelpers.SetIfEmpty(sheet, "SHEET_DRAWN_BY_TXT", drawnBy);
-                            if (!string.IsNullOrEmpty(checkedBy))
-                                ParameterHelpers.SetIfEmpty(sheet, "SHEET_CHECKED_BY_TXT", checkedBy);
-                            if (!string.IsNullOrEmpty(approvedBy))
-                                ParameterHelpers.SetIfEmpty(sheet, "SHEET_APPROVED_BY_TXT", approvedBy);
-                            mapped++;
-                        }
-                        catch (Exception ex)
-                        {
-                            StingLog.Warn($"MapSheets: sheet {sheet.SheetNumber}: {ex.Message}");
-                        }
-                    }
-                    t.Commit();
-                }
-
-                TaskDialog.Show("STING Map Sheets",
-                    $"Mapped native parameters on {mapped} sheets to STING shared parameters.");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("HandleMapSheets", ex);
-            }
-        }
-
-        private static void HandleSetSegmentMask(UIApplication app)
-        {
-            try
-            {
-                Document doc = app.ActiveUIDocument?.Document;
-                UIDocument uidoc = app.ActiveUIDocument;
-                if (doc == null || uidoc == null) return;
-
-                var sel = uidoc.Selection.GetElementIds();
-                if (sel.Count == 0)
-                {
-                    TaskDialog.Show("STING", "Select elements first, then run Set Segment Mask.");
-                    return;
-                }
-
-                // Show mask selection dialog
-                TaskDialog td = new TaskDialog("Set Segment Mask");
-                td.MainInstruction = "Choose tag segment visibility mask";
-                td.MainContent = "Format: 8 digits (1=show, 0=hide)\n" +
-                    "Order: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ\n\n" +
-                    "Examples:\n" +
-                    "  11111111 = all segments (default)\n" +
-                    "  10000001 = DISC + SEQ only\n" +
-                    "  10001011 = DISC + SYS + PROD + SEQ";
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "All segments (11111111)");
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "DISC + SEQ only (10000001)");
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "DISC + SYS + PROD + SEQ (10001011)");
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "DISC + PROD + SEQ (10000011)");
-
-                var result = td.Show();
-                string mask = result switch
-                {
-                    TaskDialogResult.CommandLink1 => "11111111",
-                    TaskDialogResult.CommandLink2 => "10000001",
-                    TaskDialogResult.CommandLink3 => "10001011",
-                    TaskDialogResult.CommandLink4 => "10000011",
-                    _ => null
-                };
-
-                if (mask == null) return;
-
-                int written = 0;
-                using (Transaction t = new Transaction(doc, "STING Set Segment Mask"))
-                {
-                    t.Start();
-                    foreach (ElementId id in sel)
-                    {
-                        Element el = doc.GetElement(id);
-                        if (el == null) continue;
-                        ParameterHelpers.SetString(el, "TAG_SEG_MASK_TXT", mask, true);
-                        written++;
-                    }
-                    t.Commit();
-                }
-
-                TaskDialog.Show("STING", $"Set segment mask '{mask}' on {written} elements.");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("HandleSetSegmentMask", ex);
-            }
-        }
-
-        private static void HandleBuildDisplayTag(UIApplication app)
-        {
-            try
-            {
-                Document doc = app.ActiveUIDocument?.Document;
-                if (doc == null) return;
-
-                var known = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
-                int written = 0;
-
-                using (Transaction t = new Transaction(doc, "STING Build Display Tags"))
-                {
-                    t.Start();
-                    var elements = new FilteredElementCollector(doc)
-                        .WhereElementIsNotElementType()
-                        .ToList();
-
-                    foreach (Element el in elements)
-                    {
-                        if (el == null || !el.IsValidObject) continue;
-                        string cat = ParameterHelpers.GetCategoryName(el);
-                        if (!known.Contains(cat)) continue;
-
-                        string displayTag = TagConfig.BuildDisplayTag(el);
-                        if (!string.IsNullOrEmpty(displayTag))
-                        {
-                            ParameterHelpers.SetString(el, "ASS_DISPLAY_TXT", displayTag, true);
-                            written++;
-                        }
-                    }
-                    t.Commit();
-                }
-
-                TaskDialog.Show("STING", $"Built display tags for {written} elements.");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("HandleBuildDisplayTag", ex);
-            }
         }
     }
 }

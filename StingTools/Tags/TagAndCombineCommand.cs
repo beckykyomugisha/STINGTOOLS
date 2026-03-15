@@ -85,9 +85,15 @@ namespace StingTools.Tags
             {
                 case TaskDialogResult.CommandLink1:
                     if (doc.ActiveView == null) { TaskDialog.Show("Tag & Combine", "No active view."); return Result.Failed; }
-                    targetIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
-                        .WhereElementIsNotElementType()
-                        .Select(e => e.Id).ToList();
+                    {
+                        // Performance: use ElementMulticategoryFilter to skip non-taggable elements
+                        var viewCollector = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                            .WhereElementIsNotElementType();
+                        var catEnums = SharedParamGuids.AllCategoryEnums;
+                        if (catEnums != null && catEnums.Length > 0)
+                            viewCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                        targetIds = viewCollector.Select(e => e.Id).ToList();
+                    }
                     scopeLabel = $"active view '{doc.ActiveView.Name}'";
                     break;
                 case TaskDialogResult.CommandLink2:
@@ -100,9 +106,15 @@ namespace StingTools.Tags
                     scopeLabel = $"{targetIds.Count} selected elements";
                     break;
                 case TaskDialogResult.CommandLink3:
-                    targetIds = new FilteredElementCollector(doc)
-                        .WhereElementIsNotElementType()
-                        .Select(e => e.Id).ToList();
+                    {
+                        // Performance: use ElementMulticategoryFilter to skip non-taggable elements
+                        var projCollector = new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType();
+                        var catEnums = SharedParamGuids.AllCategoryEnums;
+                        if (catEnums != null && catEnums.Length > 0)
+                            projCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                        targetIds = projCollector.Select(e => e.Id).ToList();
+                    }
                     scopeLabel = "entire project";
                     break;
                 default:
@@ -181,15 +193,25 @@ namespace StingTools.Tags
                             string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                             combined += ParamRegistry.WriteContainers(el, tokenVals, catName,
                                 overwrite: true, skipParam: ParamRegistry.TAG7);
-                            combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                            try
+                            {
+                                combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            }
+                            catch (Exception tag7Ex)
+                            {
+                                StingLog.Error($"TagAndCombine TAG7 write failed on element {id}: {tag7Ex.Message}", tag7Ex);
+                            }
                         }
                         else if (tagWritten)
                         {
                             // TAG7 still needs explicit write (BuildAndWriteTag doesn't call WriteTag7All)
                             string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                             combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
-                            // Count the containers written by BuildAndWriteTag
-                            combined += 1; // TAG1 was written
+                            // BuildAndWriteTag writes TAG1 + all applicable containers internally
+                            // Estimate ~10 containers per element (TAG1-6 + discipline-specific)
+                            var applicableContainers = ParamRegistry.ContainersForCategory(catName);
+                            combined += applicableContainers != null ? applicableContainers.Length : 6;
                         }
                     }
                     catch (Exception ex)

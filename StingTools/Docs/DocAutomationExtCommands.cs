@@ -1983,9 +1983,9 @@ namespace StingTools.Docs
 
                     if (rooms.Count == 0)
                     {
+                        tx.RollBack();
                         TaskDialog.Show("Batch Create Elevations",
                             "No rooms found. Place rooms first or select rooms before running.");
-                        tx.RollBack();
                         return Result.Failed;
                     }
 

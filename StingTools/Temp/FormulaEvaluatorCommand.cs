@@ -75,12 +75,23 @@ namespace StingTools.Temp
             // Per-formula skip tracking — missing input parameters
             var formulaSkipCounts = new Dictionary<string, int>(StringComparer.Ordinal);
 
+            bool cancelled = false;
+            int elIndex = 0;
+
             using (Transaction tx = new Transaction(doc, "STING Evaluate Formulas"))
             {
                 tx.Start();
 
                 foreach (Element el in collector)
                 {
+                    // Cancellation check every 200 elements
+                    if (++elIndex % 200 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        cancelled = true;
+                        StingLog.Info($"Formula evaluator: cancelled by user at {elIndex}/{collector.Count} elements");
+                        break;
+                    }
+
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(catName)) continue;
 
@@ -172,7 +183,10 @@ namespace StingTools.Temp
             }
 
             var report = new StringBuilder();
-            report.AppendLine($"Formula Evaluation Complete");
+            if (cancelled)
+                report.AppendLine($"Formula Evaluation CANCELLED by user at {elIndex}/{collector.Count} elements");
+            else
+                report.AppendLine($"Formula Evaluation Complete");
             report.AppendLine($"Formulas loaded: {formulas.Count} (dependency levels 0-6)");
             report.AppendLine($"Elements updated: {elementsProcessed}");
             report.AppendLine($"Values written: {totalWritten}");

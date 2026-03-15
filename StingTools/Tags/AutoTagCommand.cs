@@ -51,9 +51,14 @@ namespace StingTools.Tags
             View activeView = ctx.ActiveView;
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
-            var viewElements = new FilteredElementCollector(doc, activeView.Id)
-                .WhereElementIsNotElementType()
-                .ToList();
+
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements at API level
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var collector = new FilteredElementCollector(doc, activeView.Id)
+                .WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            var viewElements = collector.ToList();
 
             // Intelligence Layer: detect relevant disciplines from view name/template/VG
             var relevantDiscs = TagConfig.GetViewRelevantDisciplines(activeView);
@@ -67,7 +72,7 @@ namespace StingTools.Tags
             foreach (Element e in viewElements)
             {
                 string cat = ParameterHelpers.GetCategoryName(e);
-                if (!known.Contains(cat)) continue;
+                if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
 
                 // Discipline-aware filtering: skip categories not relevant to this view
                 if (relevantDiscs != null)
@@ -171,10 +176,17 @@ namespace StingTools.Tags
                             cachedRev: popCtx.ProjectRev);
 
                         // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                        string catNameTag7 = ParameterHelpers.GetCategoryName(el);
-                        string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
-                        TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7,
-                            overwrite: collisionMode == TagCollisionMode.Overwrite);
+                        try
+                        {
+                            string catNameTag7 = ParameterHelpers.GetCategoryName(el);
+                            string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
+                            TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7,
+                                overwrite: collisionMode == TagCollisionMode.Overwrite);
+                        }
+                        catch (Exception tag7Ex)
+                        {
+                            StingLog.Error($"AutoTag TAG7 write failed on element {el?.Id}: {tag7Ex.Message}", tag7Ex);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -243,10 +255,20 @@ namespace StingTools.Tags
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Pre-filter: only elements with empty ASS_TAG_1_TXT
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements at API level
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var tagNewCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                tagNewCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
             var untagged = new List<Element>();
-            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            foreach (Element el in tagNewCollector)
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
+                if (string.IsNullOrEmpty(cat))
+                {
+                    StingLog.Warn($"TagNewOnly: skipping element {el?.Id} — null/empty category");
+                    continue;
+                }
                 if (!known.Contains(cat)) continue;
 
                 string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -312,9 +334,16 @@ namespace StingTools.Tags
                             cachedRev: popCtx.ProjectRev);
 
                         // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                        string catNameTag7 = ParameterHelpers.GetCategoryName(el);
-                        string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
-                        TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7, overwrite: false);
+                        try
+                        {
+                            string catNameTag7 = ParameterHelpers.GetCategoryName(el);
+                            string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
+                            TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7, overwrite: false);
+                        }
+                        catch (Exception tag7Ex)
+                        {
+                            StingLog.Error($"TagNewOnly TAG7 write failed on element {el?.Id}: {tag7Ex.Message}", tag7Ex);
+                        }
                     }
                     catch (Exception ex)
                     {

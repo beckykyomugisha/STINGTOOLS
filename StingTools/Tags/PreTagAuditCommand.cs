@@ -85,13 +85,25 @@ namespace StingTools.Tags
             {
                 case TaskDialogResult.CommandLink1:
                     if (doc.ActiveView == null) { TaskDialog.Show("Pre-Tag Audit", "No active view."); return Result.Failed; }
-                    targetElements = new FilteredElementCollector(doc, doc.ActiveView.Id)
-                        .WhereElementIsNotElementType().ToList();
+                    {
+                        var auditViewColl = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                            .WhereElementIsNotElementType();
+                        var auditCatEnums = SharedParamGuids.AllCategoryEnums;
+                        if (auditCatEnums != null && auditCatEnums.Length > 0)
+                            auditViewColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(auditCatEnums)));
+                        targetElements = auditViewColl.ToList();
+                    }
                     scopeLabel = $"active view '{doc.ActiveView.Name}'";
                     break;
                 case TaskDialogResult.CommandLink2:
-                    targetElements = new FilteredElementCollector(doc)
-                        .WhereElementIsNotElementType().ToList();
+                    {
+                        var auditProjColl = new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType();
+                        var auditCatEnums = SharedParamGuids.AllCategoryEnums;
+                        if (auditCatEnums != null && auditCatEnums.Length > 0)
+                            auditProjColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(auditCatEnums)));
+                        targetElements = auditProjColl.ToList();
+                    }
                     scopeLabel = "entire project";
                     break;
                 default:
@@ -459,9 +471,7 @@ namespace StingTools.Tags
             // Export CSV
             try
             {
-                string dir = Path.GetDirectoryName(doc.PathName);
-                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
-                string csvPath = Path.Combine(dir, $"STING_PreTagAudit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_PreTagAudit", ".csv");
                 File.WriteAllText(csvPath, string.Join("\n", csvRows));
                 report2.AppendLine();
                 report2.AppendLine($"  CSV exported: {csvPath}");
