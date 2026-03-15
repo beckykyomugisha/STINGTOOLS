@@ -981,6 +981,9 @@ namespace StingTools.Core
             /// <summary>Last phase ID in the project sequence — used for EXISTING inference.</summary>
             public ElementId LastPhaseId { get; set; }
 
+            /// <summary>Pool of already-tagged elements for CopyTokensFromNearest spatial inheritance.</summary>
+            public IList<Element> CandidatePool { get; set; }
+
             /// <summary>GAP-019: Configurable default STATUS (from project_config.json or "NEW").</summary>
             public string DefaultStatus { get; set; } = "NEW";
 
@@ -1008,6 +1011,12 @@ namespace StingTools.Core
                     // GAP-019: Apply config overrides for STATUS/REV defaults
                     DefaultStatus = !string.IsNullOrEmpty(TagConfig.StatusDefault) ? TagConfig.StatusDefault : "NEW",
                     DefaultRev = !string.IsNullOrEmpty(TagConfig.RevDefault) ? TagConfig.RevDefault : "P01",
+                    // C1: Build candidate pool for CopyTokensFromNearest spatial inheritance
+                    CandidatePool = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .ToList()
+                        .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
+                        .ToList(),
                 };
             }
         }
@@ -1159,9 +1168,17 @@ namespace StingTools.Core
 
             // SYS — 6-layer MEP system-aware detection (must come before DISC correction)
             string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-            // Guaranteed SYS default: derive from discipline when MEP detection returns empty
-            if (string.IsNullOrEmpty(sys))
-                sys = TagConfig.GetDiscDefaultSysCode(disc);
+            // C1: Try inheriting SYS/FUNC from nearest tagged element before generic fallback
+            if (string.IsNullOrEmpty(sys) || sys == TagConfig.GetDiscDefaultSysCode(disc))
+            {
+                if (ctx.CandidatePool != null && ctx.CandidatePool.Count > 0)
+                {
+                    CopyTokensFromNearest(doc, el, new[] { ParamRegistry.SYS, ParamRegistry.FUNC }, ctx.CandidatePool);
+                    string inheritedSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    if (!string.IsNullOrEmpty(inheritedSys)) sys = inheritedSys;
+                }
+                if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+            }
 
             // DISC correction — system-aware override for pipes
             disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
@@ -1319,6 +1336,8 @@ namespace StingTools.Core
         /// Populate only the core 7 tag tokens (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD)
         /// without STATUS and REV. Used when only tag-building tokens are needed.
         /// </summary>
+        // DEPRECATED: This method is incomplete. Use PopulateAll(doc, el, ctx) instead.
+        [Obsolete("Use PopulateAll instead. PopulateTagTokens is missing TypeTokenInherit, STATUS, REV, and overwrite support.", false)]
         public static int PopulateTagTokens(Document doc, Element el,
             PopulationContext ctx)
         {
@@ -1902,8 +1921,7 @@ namespace StingTools.Core
             // ── Mechanical Equipment ───────────────────────────────────────────
             if (catName == "Mechanical Equipment")
             {
-                written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    ParamRegistry.SYS);
+                // NOTE: SYS token is intentionally NOT mapped here. Use TokenAutoPopulator.PopulateAll for SYS derivation.
             }
 
             // ── Pipe parameters ────────────────────────────────────────────────
@@ -1917,9 +1935,7 @@ namespace StingTools.Core
                 // Pipe length
                 written += MapDimension(el, BuiltInParameter.CURVE_ELEM_LENGTH,
                     ParamRegistry.PLM_PIPE_LENGTH, 0.3048); // ft → m
-                // System type
-                written += MapBuiltIn(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM,
-                    ParamRegistry.SYS);
+                // NOTE: SYS token is intentionally NOT mapped here. Use TokenAutoPopulator.PopulateAll for SYS derivation.
             }
 
             // ── Fire Alarm Devices ─────────────────────────────────────────────
@@ -2027,7 +2043,7 @@ namespace StingTools.Core
                         break;
                 }
 
-                if (string.IsNullOrEmpty(val) || val == "0") return 0;
+                if (val == null || val.Length == 0) return 0;
 
                 Element writeTarget = target ?? source;
                 return SetIfEmptyInt(writeTarget, targetParamName, val);
@@ -2044,13 +2060,27 @@ namespace StingTools.Core
             return ParameterHelpers.SetIfEmpty(el, paramName, value) ? 1 : 0;
         }
 
+        private static readonly Dictionary<int, ElementId> _solidFillCache = new Dictionary<int, ElementId>();
+
         /// <summary>Find the solid fill pattern element in the document. Cached per document.</summary>
         public static FillPatternElement GetSolidFillPattern(Document doc)
         {
-            return new FilteredElementCollector(doc)
+            int docHash = doc.GetHashCode();
+            if (_solidFillCache.TryGetValue(docHash, out ElementId cachedId))
+            {
+                var cached = doc.GetElement(cachedId) as FillPatternElement;
+                if (cached != null && cached.IsValidObject) return cached;
+                _solidFillCache.Remove(docHash);
+            }
+            var result = new FilteredElementCollector(doc)
                 .OfClass(typeof(FillPatternElement))
                 .Cast<FillPatternElement>()
                 .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            if (result != null) _solidFillCache[docHash] = result.Id;
+            return result;
         }
+
+        /// <summary>Clear the solid fill pattern cache (call on document close/switch).</summary>
+        public static void ClearSolidFillCache() { _solidFillCache.Clear(); }
     }
 }

@@ -35,9 +35,19 @@ namespace StingTools.Core
         // if IUpdater fires during command execution or document switching
         private static readonly object _processedLock = new object();
         private static readonly HashSet<long> _recentlyProcessed = new HashSet<long>();
+        private static readonly Queue<long> _recentlyProcessedQueue = new Queue<long>();
         private static volatile int _processedCount;
         private static bool _visualTaggingEnabled = false;
         private static HashSet<string> _allowedDiscs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // D1: Cached context to avoid rebuilding PopulationContext on every trigger
+        private static TokenAutoPopulator.PopulationContext _cachedCtx;
+        private static HashSet<string> _cachedExistingTags;
+        private static Dictionary<string, int> _cachedSeqCounters;
+        private static bool _contextInvalid = true;
+
+        /// <summary>Invalidate cached context (call after external tagging operations).</summary>
+        public static void InvalidateContext() { _contextInvalid = true; }
 
         private readonly AddInId _addinId;
 
@@ -117,6 +127,7 @@ namespace StingTools.Core
 
                 UpdaterRegistry.DisableUpdater(_updaterId);
                 _enabled = false;
+                _contextInvalid = true;
                 StingLog.Info("StingAutoTagger: disabled (triggers removed)");
             }
             else
@@ -192,9 +203,19 @@ namespace StingTools.Core
                     return;
                 }
 
-                // Build context once for the batch
-                var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
-                var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                // D1: Use cached context; rebuild only when invalidated
+                if (_contextInvalid || _cachedCtx == null)
+                {
+                    _cachedCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                    var built = TagConfig.BuildTagIndexAndCounters(doc);
+                    _cachedExistingTags = built.Item1;
+                    _cachedSeqCounters = built.Item2;
+                    _contextInvalid = false;
+                    StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags)");
+                }
+                var ctx = _cachedCtx;
+                var existingTags = _cachedExistingTags;
+                var seqCounters = _cachedSeqCounters;
 
                 foreach (ElementId id in addedIds)
                 {
@@ -250,6 +271,10 @@ namespace StingTools.Core
                         collisionMode: TagCollisionMode.AutoIncrement,
                         cachedRev: ctx.ProjectRev);
 
+                    // D1: Incrementally track newly created tags to avoid rebuilding the full index
+                    string newTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(newTag)) existingTags.Add(newTag);
+
                     // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                     try
                     {
@@ -280,18 +305,27 @@ namespace StingTools.Core
                         try
                         {
                             View view = doc.ActiveView;
-                            FamilySymbol tagType = Tags.TagPlacementEngine.FindTagType(doc, el.Category);
-                            if (tagType != null)
+                            // F1: Skip visual tag if element is not visible in the active view
+                            BoundingBoxXYZ elBb = el.get_BoundingBox(view);
+                            if (elBb == null)
                             {
-                                XYZ elCenter = Tags.TagPlacementEngine.GetElementCenter(el, view);
-                                double offset = Tags.TagPlacementEngine.GetModelOffset(view);
-                                int preferred = Tags.TagPlacementEngine.GetPreferredSide(catName);
-                                XYZ[] candidates = Tags.TagPlacementEngine.GetCandidateOffsets(offset);
-                                XYZ bestPos = elCenter + candidates[preferred < candidates.Length ? preferred : 0];
+                                StingLog.Info($"AutoTagger: element {el.Id.Value} not visible in view '{view.Name}' — skipping visual tag");
+                            }
+                            else
+                            {
+                                FamilySymbol tagType = Tags.TagPlacementEngine.FindTagType(doc, el.Category);
+                                if (tagType != null)
+                                {
+                                    XYZ elCenter = Tags.TagPlacementEngine.GetElementCenter(el, view);
+                                    double offset = Tags.TagPlacementEngine.GetModelOffset(view);
+                                    int preferred = Tags.TagPlacementEngine.GetPreferredSide(catName);
+                                    XYZ[] candidates = Tags.TagPlacementEngine.GetCandidateOffsets(offset);
+                                    XYZ bestPos = elCenter + candidates[preferred < candidates.Length ? preferred : 0];
 
-                                IndependentTag.Create(
-                                    doc, tagType.Id, view.Id, new Reference(el),
-                                    false, TagOrientation.Horizontal, bestPos);
+                                    IndependentTag.Create(
+                                        doc, tagType.Id, view.Id, new Reference(el),
+                                        false, TagOrientation.Horizontal, bestPos);
+                                }
                             }
                         }
                         catch (Exception vex)
@@ -303,11 +337,21 @@ namespace StingTools.Core
                     lock (_processedLock)
                     {
                         _recentlyProcessed.Add(id.Value);
+                        _recentlyProcessedQueue.Enqueue(id.Value);
                         _processedCount++;
 
-                        // Trim processed cache to prevent unbounded growth
+                        // LRU eviction: remove oldest 1000 entries instead of clearing all.
+                        // Full Clear() creates a window where recently processed elements
+                        // can be re-tagged before the cache refills.
                         if (_recentlyProcessed.Count > 10000)
-                            _recentlyProcessed.Clear();
+                        {
+                            int toRemove = 1000;
+                            while (toRemove-- > 0 && _recentlyProcessedQueue.Count > 0)
+                            {
+                                long oldest = _recentlyProcessedQueue.Dequeue();
+                                _recentlyProcessed.Remove(oldest);
+                            }
+                        }
                     }
                 }
 
