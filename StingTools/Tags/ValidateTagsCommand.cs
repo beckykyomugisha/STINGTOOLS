@@ -151,8 +151,7 @@ namespace StingTools.Tags
 
                 // Single-pass ISO validation via ValidateElement
                 var elementErrors = ISO19650Validator.ValidateElement(el);
-                int elementCrossErrors = elementErrors.Count(e =>
-                    e.Contains("mismatch") || e.Contains("typically belongs") || e.Contains("unexpected"));
+                int elementCrossErrors = elementErrors.Count(e => e.Type == ValidationErrorType.CrossValidation);
                 int elementTokenErrors = elementErrors.Count - elementCrossErrors;
                 // Count token-level and cross-validation errors separately (no double-counting)
                 isoViolations += elementTokenErrors;
@@ -162,8 +161,8 @@ namespace StingTools.Tags
                 {
                     if (tag1Status == "VALID") tag1Status = "ISO_INVALID";
                     IncrementDict(issuesByCategory, catName);
-                    foreach (string err in elementErrors)
-                        IncrementDict(isoIssueTypes, err);
+                    foreach (var err in elementErrors)
+                        IncrementDict(isoIssueTypes, err.Message);
                 }
 
                 // Check TAG_2-6 containers

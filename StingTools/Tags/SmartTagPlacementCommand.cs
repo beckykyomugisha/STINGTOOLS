@@ -2383,4 +2383,152 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Linked Model Sidecar Export — token manifest for linked models
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Exports a JSON sidecar manifest for each linked Revit model, containing
+    /// derived ISO 19650 tokens for all taggable elements. This enables tag
+    /// coordination across linked models without writing to read-only documents.
+    /// The manifest is written alongside the host document as
+    /// {LinkedModelTitle}_LINKED_TOKENS.json.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExportLinkedModelManifestCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            string hostDir = Path.GetDirectoryName(doc.PathName);
+            if (string.IsNullOrEmpty(hostDir))
+            {
+                TaskDialog.Show("STING", "Save the host document first to establish a file path.");
+                return Result.Failed;
+            }
+
+            // Collect all RevitLinkInstance elements
+            var linkInstances = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance))
+                .Cast<RevitLinkInstance>()
+                .ToList();
+
+            if (linkInstances.Count == 0)
+            {
+                TaskDialog.Show("STING", "No linked Revit models found in this project.");
+                return Result.Succeeded;
+            }
+
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            int totalFiles = 0;
+            int totalElements = 0;
+            var summaryLines = new List<string>();
+
+            foreach (var linkInst in linkInstances)
+            {
+                Document linkedDoc = linkInst.GetLinkDocument();
+                if (linkedDoc == null)
+                {
+                    summaryLines.Add($"  {linkInst.Name}: not loaded (skipped)");
+                    continue;
+                }
+
+                string linkedTitle = linkedDoc.Title ?? "UnknownLinked";
+                // Sanitize filename
+                foreach (char c in Path.GetInvalidFileNameChars())
+                    linkedTitle = linkedTitle.Replace(c, '_');
+
+                var popCtx = TokenAutoPopulator.PopulationContext.Build(linkedDoc);
+                var entries = new List<Dictionary<string, string>>();
+
+                foreach (Element el in new FilteredElementCollector(linkedDoc)
+                    .WhereElementIsNotElementType())
+                {
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (!known.Contains(cat)) continue;
+
+                    // Derive tokens without writing (read-only)
+                    string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
+                    string loc = SpatialAutoDetect.DetectLoc(linkedDoc, el, popCtx.RoomIndex, popCtx.ProjectLoc);
+                    if (string.IsNullOrEmpty(loc)) loc = "XX";
+                    string zone = SpatialAutoDetect.DetectZone(linkedDoc, el, popCtx.RoomIndex);
+                    if (string.IsNullOrEmpty(zone)) zone = "XX";
+                    string lvl = ParameterHelpers.GetLevelCode(linkedDoc, el);
+                    string sys = TagConfig.GetMepSystemAwareSysCode(el, cat);
+                    if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                    string func = TagConfig.GetSmartFuncCode(el, sys);
+                    if (string.IsNullOrEmpty(func))
+                        func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                    string prod = TagConfig.GetFamilyAwareProdCode(el, cat);
+                    string status = PhaseAutoDetect.DetectStatus(linkedDoc, el);
+                    if (string.IsNullOrEmpty(status)) status = "NEW";
+                    string rev = !string.IsNullOrEmpty(popCtx.ProjectRev) ? popCtx.ProjectRev : "P01";
+                    string derivedTag = string.Join(ParamRegistry.Separator,
+                        disc, loc, zone, lvl, sys, func, prod, "0000");
+
+                    entries.Add(new Dictionary<string, string>
+                    {
+                        ["UniqueId"] = el.UniqueId,
+                        ["Category"] = cat,
+                        ["Discipline"] = disc,
+                        ["Loc"] = loc,
+                        ["Zone"] = zone,
+                        ["Lvl"] = lvl,
+                        ["Sys"] = sys,
+                        ["Func"] = func,
+                        ["Prod"] = prod,
+                        ["Status"] = status,
+                        ["Rev"] = rev,
+                        ["DerivedTag"] = derivedTag,
+                    });
+                }
+
+                if (entries.Count == 0)
+                {
+                    summaryLines.Add($"  {linkedDoc.Title}: 0 taggable elements (skipped)");
+                    continue;
+                }
+
+                // Write JSON sidecar
+                string jsonPath = Path.Combine(hostDir, $"{linkedTitle}_LINKED_TOKENS.json");
+                try
+                {
+                    string json = JsonConvert.SerializeObject(entries, Formatting.Indented);
+                    File.WriteAllText(jsonPath, json);
+                    totalFiles++;
+                    totalElements += entries.Count;
+                    summaryLines.Add($"  {linkedDoc.Title}: {entries.Count} elements -> {Path.GetFileName(jsonPath)}");
+                    StingLog.Info($"ExportLinkedManifest: wrote {entries.Count} entries to {jsonPath}");
+                }
+                catch (Exception ex)
+                {
+                    summaryLines.Add($"  {linkedDoc.Title}: FAILED — {ex.Message}");
+                    StingLog.Error($"ExportLinkedManifest: failed for {linkedDoc.Title}", ex);
+                }
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine("Linked Model Token Manifest Export");
+            report.AppendLine(new string('=', 50));
+            report.AppendLine($"  Links found:    {linkInstances.Count}");
+            report.AppendLine($"  Files written:  {totalFiles}");
+            report.AppendLine($"  Total elements: {totalElements}");
+            report.AppendLine();
+            foreach (string line in summaryLines)
+                report.AppendLine(line);
+
+            TaskDialog td = new TaskDialog("STING — Linked Model Manifest");
+            td.MainInstruction = $"Exported {totalElements} element tokens from {totalFiles} linked models";
+            td.MainContent = report.ToString();
+            td.Show();
+
+            return Result.Succeeded;
+        }
+    }
 }
