@@ -668,69 +668,6 @@ namespace StingTools.Core
             return visible.Count > 0 ? string.Join(ParamRegistry.Separator, visible) : fullTag;
         }
 
-        /// <summary>
-        /// Build a display tag based on STING_DISPLAY_MODE parameter.
-        /// Mode 0/5: full 8-segment, 1: SEQ only, 2: PROD-SEQ, 3: DISC-SYS-SEQ, 4: DISC-PROD-SEQ.
-        /// Also applies TAG_SEG_MASK_TXT if set.
-        /// </summary>
-        public static string BuildDisplayTag(Element el)
-        {
-            if (el == null) return "";
-
-            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-            if (string.IsNullOrEmpty(tag1)) return "";
-
-            // Read display mode (default 0 = full tag)
-            int mode = 0;
-            try
-            {
-                string modeStr = ParameterHelpers.GetString(el, ParamRegistry.DISPLAY_MODE);
-                if (!string.IsNullOrEmpty(modeStr))
-                    int.TryParse(modeStr, out mode);
-            }
-            catch { }
-
-            string[] parts = tag1.Split(ParamRegistry.Separator[0]);
-            string result;
-
-            if (parts.Length >= 8)
-            {
-                string disc = parts[0], prod = parts[6], seq = parts[7], sys = parts[4];
-                result = mode switch
-                {
-                    1 => seq,
-                    2 => prod + ParamRegistry.Separator + seq,
-                    3 => disc + ParamRegistry.Separator + sys + ParamRegistry.Separator + seq,
-                    4 => disc + ParamRegistry.Separator + prod + ParamRegistry.Separator + seq,
-                    _ => tag1
-                };
-            }
-            else
-            {
-                result = tag1;
-            }
-
-            // Apply segment mask if present
-            string mask = ParameterHelpers.GetString(el, ParamRegistry.TAG_SEG_MASK);
-            if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mode == 0)
-                result = ApplySegmentMask(tag1, mask);
-
-            return result;
-        }
-
-        /// <summary>
-        /// Normalised SEQ counter key from element's current token values.
-        /// Used to ensure all SEQ counter lookups use the same key format.
-        /// </summary>
-        public static string BuildSeqKey(Element el)
-        {
-            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
-            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
-            return $"{disc}_{sys}_{func}_{prod}";
-        }
-
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
         public static Dictionary<string, string> DiscMap { get; private set; }
 
