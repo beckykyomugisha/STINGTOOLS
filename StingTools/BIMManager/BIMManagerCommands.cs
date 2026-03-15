@@ -2068,6 +2068,7 @@ namespace StingTools.BIMManager
                     if (!conn.IsConnected) continue;
                     foreach (Connector other in conn.AllRefs)
                     {
+                        if (other.Owner == null) continue; // orphaned connector
                         if (other.Owner.Id.Value <= el.Id.Value) continue; // avoid duplicates
                         string elTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                         string otherTag = ParameterHelpers.GetString(other.Owner, ParamRegistry.TAG1);

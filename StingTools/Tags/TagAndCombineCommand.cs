@@ -200,8 +200,10 @@ namespace StingTools.Tags
                             // TAG7 still needs explicit write (BuildAndWriteTag doesn't call WriteTag7All)
                             string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                             combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
-                            // Count the containers written by BuildAndWriteTag
-                            combined += 1; // TAG1 was written
+                            // BuildAndWriteTag writes TAG1 + all applicable containers internally
+                            // Estimate ~10 containers per element (TAG1-6 + discipline-specific)
+                            var applicableContainers = ParamRegistry.ContainersForCategory(catName);
+                            combined += applicableContainers != null ? applicableContainers.Length : 6;
                         }
                     }
                     catch (Exception ex)
