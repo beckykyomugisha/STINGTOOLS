@@ -285,6 +285,10 @@ TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Tray Fittings
 4,T2,ELC_CTR_MAT_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_MAT_TXT, """")"
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,ELC_TAG_7_PARA_TRAY_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_TRAY_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_ELC_CTR_MAT_CABLE_TRAY_FTGS,Fitting material incompatible with tray,IEC 61537 / BS EN 61537,Common,Text,⚠ Warning: Cable Tray Fitting,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_MAT_CABLE_TRAY_FTGS, """")"
+
 Tag Family #15: STING - Cable Tray Tag
 TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Trays
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -314,6 +318,10 @@ TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduit Fittings
 4,T2,ELC_CDT_SZ_MM,Conduit:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CDT_SZ_MM, """")"
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,ELC_TAG_7_PARA_CONDUIT_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_CONDUIT_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_ELC_CDT_SZ_CONDUIT_FITTINGS,Conduit fitting size mismatch with conduit,BS EN 50086-1 / BS 7671,Common,Text,⚠ Warning: Conduit Fitting Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CDT_SZ_CONDUIT_FITTINGS, """")"
+
 Tag Family #17: STING - Conduit Tag
 TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduits
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -748,3 +756,55 @@ TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_PROP_FIRE_RATING_MATERIALS,Fire rating not specified,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Material Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_FIRE_RATING_MATERIALS, """")"
 2,MEDIUM,WARN_PER_SUST_EPD_MATERIALS,EPD reference missing,ISO 14025 / EN 15804,Common,Text,⚠ Warning: Material EPD Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_EPD_MATERIALS, """")"
+
+Tag Family #43: STING - Audio Visual Devices Tag
+TAG7: ELC_TAG_7_PARA_COMM_TXT  •  Category: Audio Visual Devices
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
+5,T2,ASS_MODEL_NR_TXT,|,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_MODEL_NR_TXT, """")"
+6,T2,MNT_HGT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,ELC_TAG_7_PARA_COMM_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_COMM_TXT, """")"
+9,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+10,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_RGL_STD_AV_DEVICES,AV device lacks electromagnetic compatibility (EMC) certification,BS EN 55032 / CE marking,Common,Text,⚠ Warning: AV Device EMC,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_STD_AV_DEVICES, """")"
+
+6G — HVAC Spaces/Zones
+Tag Family #44: STING - Spaces Tag
+TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_ROOM_AREA_SQ_M,Area:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOM_AREA_SQ_M, """")"
+5,T2,BLE_ROOM_VENTILATION_RATE_LPS,Vent:,L/s,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOM_VENTILATION_RATE_LPS, """")"
+6,T2,HVC_AIR_CHANGES_PER_HR,ACH:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, HVC_AIR_CHANGES_PER_HR, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,HVC_TAG_7_PARA_SPEC_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_SPEC_TXT, """")"
+9,T3,BLE_ROOM_OCCUPANCY_NR,Occ:,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, BLE_ROOM_OCCUPANCY_NR, """")"
+10,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_BLE_ROOM_VENTILATION_SPACES,Ventilation rate < 10 L/s/person,Building Regs Part F / CIBSE Guide A,Common,Text,⚠ Warning: Space Ventilation Rate,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_VENTILATION_SPACES, """")"
+2,MEDIUM,WARN_HVC_AIR_CHANGES_PER_HR_SPACES,ACH < minimum for space type,CIBSE Guide B2 / HTM 03-01,Common,Text,⚠ Warning: Space Air Changes,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_AIR_CHANGES_PER_HR_SPACES, """")"
+
+Tag Family #45: STING - Zones Tag
+TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_ROOM_AREA_SQ_M,Zone Area:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOM_AREA_SQ_M, """")"
+5,T2,HVC_CONTROL_TYPE_TXT,Ctrl:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, HVC_CONTROL_TYPE_TXT, """")"
+6,T2,HVC_BMS_CONTROL_TYPE_TXT,BMS:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, HVC_BMS_CONTROL_TYPE_TXT, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,HVC_TAG_7_PARA_SPEC_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_SPEC_TXT, """")"
+9,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_HVC_CONTROL_TYPE_ZONES,Zone has no BMS control type assigned,CIBSE Guide H / BS EN ISO 16484,Common,Text,⚠ Warning: Zone Control,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_CONTROL_TYPE_ZONES, """")"
