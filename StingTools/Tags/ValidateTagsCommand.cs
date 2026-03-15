@@ -110,15 +110,9 @@ namespace StingTools.Tags
                     bucketPartial++;
                     tag1Status = "VALID";
                 }
-                else if (!string.IsNullOrEmpty(tag1))
-                {
-                    tag1Incomplete++;
-                    bucketPartial++;
-                    tag1Status = "INCOMPLETE";
-                    IncrementDict(issuesByCategory, catName);
-                }
                 else
                 {
+                    // Non-empty but not complete — partially tagged
                     tag1Incomplete++;
                     bucketPartial++;
                     tag1Status = "INCOMPLETE";
