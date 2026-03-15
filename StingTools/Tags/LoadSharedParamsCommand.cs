@@ -18,12 +18,15 @@ namespace StingTools.Tags
     /// definition to every category that allows bound parameters — not just the
     /// taggable subset from ParamRegistry.
     ///
-    /// CRASH FIX: Uses ONE transaction instead of many batched transactions.
+    /// PERFORMANCE: Binds in batches of 50 parameters per transaction to avoid
+    /// crashing Revit with a single massive transaction.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class LoadSharedParamsCommand : IExternalCommand
     {
+        private const int BatchSize = 50;
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -54,11 +57,9 @@ namespace StingTools.Tags
                 uiApp.Application;
 
             // ── Step 1: ALWAYS set shared parameter file to MR_PARAMETERS.txt ──
-            // Override any existing shared parameter file to ensure we use the
-            // full STING parameter set (1,527+ params), not a subset.
             StingLog.Info("LoadSharedParams: step 1 — setting shared parameter file to MR_PARAMETERS.txt");
             string previousSpFile = app.SharedParametersFilename;
-            string mrParamsPath = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+            string mrParamsPath = FindMrParametersFile(previousSpFile);
 
             if (!string.IsNullOrEmpty(mrParamsPath) && File.Exists(mrParamsPath))
             {
@@ -76,12 +77,14 @@ namespace StingTools.Tags
                         "Could not find MR_PARAMETERS.txt.\n\n" +
                         "Expected location: " +
                         (StingToolsApp.DataPath ?? "(DataPath not set)") +
-                        "\n\nEither place the file there or go to " +
+                        "\n\nSearched paths:\n" +
+                        string.Join("\n", GetSearchPaths()) +
+                        "\n\nEither place the file in the data directory or go to " +
                         "Manage → Shared Parameters and set the path manually.");
                     return Result.Failed;
                 }
                 mrParamsPath = previousSpFile;
-                StingLog.Warn($"MR_PARAMETERS.txt not found, using existing: {previousSpFile}");
+                StingLog.Warn($"MR_PARAMETERS.txt not found in any search path, using existing: {previousSpFile}");
             }
 
             string spFile = mrParamsPath;
@@ -150,8 +153,6 @@ namespace StingTools.Tags
             }
 
             // ── Step 4: Build ALL-categories set ──
-            // Iterate every category in the document and include all that allow bound parameters.
-            // This ensures parameters are available on ALL element types, not just the taggable subset.
             StingLog.Info("LoadSharedParams: step 4 — building ALL-categories set");
             CategorySet allCats = new CategorySet();
             int catTotal = 0;
@@ -183,63 +184,79 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
-            // ── Step 5: Bind ALL parameters in a SINGLE transaction ──
+            // ── Step 5: Bind parameters in BATCHED transactions ──
+            // Binding 1,500+ params in a single transaction crashes Revit.
+            // Split into batches of 50 to keep each transaction lightweight.
             int bound = 0;
             int skipped = 0;
             var errors = new List<string>();
             var boundByGroup = new Dictionary<string, int>();
+            int totalBatches = (toBind.Count + BatchSize - 1) / BatchSize;
 
-            StingLog.Info($"Binding {toBind.Count} parameters to {allCats.Size} categories in single transaction");
-            using (Transaction tx = new Transaction(doc, "STING Load Shared Params"))
+            StingLog.Info($"Binding {toBind.Count} parameters to {allCats.Size} categories in {totalBatches} batches of {BatchSize}");
+
+            for (int batchIdx = 0; batchIdx < totalBatches; batchIdx++)
             {
-                tx.Start();
-                try
-                {
-                    foreach (ExternalDefinition extDef in toBind)
-                    {
-                        try
-                        {
-                            InstanceBinding binding = app.Create.NewInstanceBinding(allCats);
-                            bool result = doc.ParameterBindings.Insert(
-                                extDef, binding, GroupTypeId.General);
-                            if (!result)
-                                result = doc.ParameterBindings.ReInsert(
-                                    extDef, binding, GroupTypeId.General);
+                var batch = toBind.Skip(batchIdx * BatchSize).Take(BatchSize).ToList();
+                int batchNum = batchIdx + 1;
 
-                            if (result)
+                StingLog.Info($"Batch {batchNum}/{totalBatches}: binding {batch.Count} parameters");
+
+                using (Transaction tx = new Transaction(doc, $"STING Load Params Batch {batchNum}/{totalBatches}"))
+                {
+                    tx.Start();
+                    try
+                    {
+                        foreach (ExternalDefinition extDef in batch)
+                        {
+                            try
                             {
-                                bound++;
-                                string grpName = extDef.OwnerGroup?.Name ?? "Unknown";
-                                if (!boundByGroup.ContainsKey(grpName))
-                                    boundByGroup[grpName] = 0;
-                                boundByGroup[grpName]++;
+                                InstanceBinding binding = app.Create.NewInstanceBinding(allCats);
+                                bool result = doc.ParameterBindings.Insert(
+                                    extDef, binding, GroupTypeId.General);
+                                if (!result)
+                                    result = doc.ParameterBindings.ReInsert(
+                                        extDef, binding, GroupTypeId.General);
+
+                                if (result)
+                                {
+                                    bound++;
+                                    string grpName = extDef.OwnerGroup?.Name ?? "Unknown";
+                                    if (!boundByGroup.ContainsKey(grpName))
+                                        boundByGroup[grpName] = 0;
+                                    boundByGroup[grpName]++;
+                                }
+                                else
+                                {
+                                    skipped++;
+                                    if (skipped <= 20)
+                                        StingLog.Warn($"Parameter binding failed (Insert+ReInsert): {extDef.Name}");
+                                }
                             }
-                            else
+                            catch (Exception ex)
                             {
                                 skipped++;
-                                if (skipped <= 20)
-                                    StingLog.Warn($"Parameter binding failed (Insert+ReInsert): {extDef.Name}");
+                                if (errors.Count < 20)
+                                    errors.Add($"{extDef.Name}: {ex.Message}");
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            skipped++;
-                            if (errors.Count < 20)
-                                errors.Add($"{extDef.Name}: {ex.Message}");
-                        }
-                    }
 
-                    tx.Commit();
-                    StingLog.Info($"Transaction committed: {bound} bound, {skipped} skipped");
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Error("Parameter binding transaction failed", ex);
-                    if (tx.HasStarted() && !tx.HasEnded())
-                        tx.RollBack();
-                    TaskDialog.Show("STING Tools - Load Shared Params",
-                        $"Transaction failed:\n{ex.Message}");
-                    return Result.Failed;
+                        tx.Commit();
+                        StingLog.Info($"Batch {batchNum} committed: {batch.Count} processed, running total {bound} bound");
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error($"Batch {batchNum} transaction failed", ex);
+                        if (tx.HasStarted() && !tx.HasEnded())
+                            tx.RollBack();
+
+                        // Continue with remaining batches — don't abort entire operation
+                        int batchSkipped = batch.Count;
+                        skipped += batchSkipped;
+                        if (errors.Count < 20)
+                            errors.Add($"Batch {batchNum} failed ({batchSkipped} params): {ex.Message}");
+                        StingLog.Warn($"Continuing after batch {batchNum} failure — {totalBatches - batchNum} batches remain");
+                    }
                 }
             }
 
@@ -251,6 +268,7 @@ namespace StingTools.Tags
             report.AppendLine($"Total in file: {allDefs.Count}");
             report.AppendLine($"Categories: {allCats.Size}");
             report.AppendLine($"Groups: {groupCounts.Count}");
+            report.AppendLine($"Batches: {totalBatches} (size {BatchSize})");
             report.AppendLine();
 
             if (boundByGroup.Count > 0)
@@ -280,5 +298,112 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
 
+        /// <summary>
+        /// Search multiple locations for MR_PARAMETERS.txt.
+        /// The standard FindDataFile may miss it if the data directory path
+        /// doesn't match the deployment layout on the user's machine.
+        /// </summary>
+        private static string FindMrParametersFile(string currentSpFile)
+        {
+            const string fileName = "MR_PARAMETERS.txt";
+
+            // 1. Standard data path lookup
+            string found = StingToolsApp.FindDataFile(fileName);
+            if (!string.IsNullOrEmpty(found) && File.Exists(found))
+                return found;
+
+            // 2. Search relative to the currently set shared parameter file
+            //    (the user may have MR_PARAMETERS.txt in the same folder as their current .txt)
+            if (!string.IsNullOrEmpty(currentSpFile) && File.Exists(currentSpFile))
+            {
+                string spDir = Path.GetDirectoryName(currentSpFile);
+                if (!string.IsNullOrEmpty(spDir))
+                {
+                    string candidate = Path.Combine(spDir, fileName);
+                    if (File.Exists(candidate))
+                    {
+                        StingLog.Info($"Found {fileName} next to current SP file: {candidate}");
+                        return candidate;
+                    }
+                }
+            }
+
+            // 3. Search additional common paths
+            foreach (string path in GetSearchPaths())
+            {
+                try
+                {
+                    if (File.Exists(path))
+                    {
+                        StingLog.Info($"Found {fileName} at: {path}");
+                        return path;
+                    }
+                }
+                catch { /* path resolution failed */ }
+            }
+
+            // 4. Recursive search from DLL directory (up to 2 levels deep)
+            string dllDir = !string.IsNullOrEmpty(StingToolsApp.AssemblyPath)
+                ? Path.GetDirectoryName(StingToolsApp.AssemblyPath) : null;
+            if (!string.IsNullOrEmpty(dllDir))
+            {
+                try
+                {
+                    var files = Directory.GetFiles(dllDir, fileName, SearchOption.AllDirectories);
+                    if (files.Length > 0)
+                    {
+                        StingLog.Info($"Found {fileName} via recursive search: {files[0]}");
+                        return files[0];
+                    }
+
+                    // Also search parent directory
+                    string parentDir = Path.GetDirectoryName(dllDir);
+                    if (!string.IsNullOrEmpty(parentDir))
+                    {
+                        files = Directory.GetFiles(parentDir, fileName, SearchOption.AllDirectories);
+                        if (files.Length > 0)
+                        {
+                            StingLog.Info($"Found {fileName} via parent search: {files[0]}");
+                            return files[0];
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Recursive search for {fileName} failed: {ex.Message}");
+                }
+            }
+
+            StingLog.Warn($"{fileName} not found in any search path");
+            return null;
+        }
+
+        private static string[] GetSearchPaths()
+        {
+            const string fileName = "MR_PARAMETERS.txt";
+            var paths = new List<string>();
+
+            string dllDir = !string.IsNullOrEmpty(StingToolsApp.AssemblyPath)
+                ? Path.GetDirectoryName(StingToolsApp.AssemblyPath) : null;
+
+            if (!string.IsNullOrEmpty(dllDir))
+            {
+                paths.Add(Path.Combine(dllDir, "data", fileName));
+                paths.Add(Path.Combine(dllDir, "Data", fileName));
+                paths.Add(Path.Combine(dllDir, fileName));
+                paths.Add(Path.Combine(dllDir, "..", "data", fileName));
+                paths.Add(Path.Combine(dllDir, "..", "Data", fileName));
+                paths.Add(Path.Combine(dllDir, "..", "StingTools", "Data", fileName));
+                paths.Add(Path.Combine(dllDir, "..", "StingTools", "data", fileName));
+            }
+
+            if (!string.IsNullOrEmpty(StingToolsApp.DataPath))
+            {
+                paths.Add(Path.Combine(StingToolsApp.DataPath, fileName));
+                paths.Add(Path.Combine(StingToolsApp.DataPath, "..", fileName));
+            }
+
+            return paths.ToArray();
+        }
     }
 }
