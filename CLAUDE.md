@@ -8,9 +8,9 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **69 source files** (67 C# + 2 XAML, ~81,213 lines of code) across 10 directories
-- **325 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
-- **23 runtime data files** (CSV, JSON, TXT, XLSX, PY)
+- **76 source files** (74 C# + 2 XAML, ~89,013 lines of code) across 10 directories
+- **379 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **27 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (8 tabs) + 1 WPF project setup wizard
 
 ## Technology Stack
@@ -41,28 +41,30 @@ STINGTOOLS/
     ├── Properties/
     │   └── AssemblyInfo.cs             # Assembly metadata (v1.0.0.0)
     │
-    ├── Core/                           # Shared infrastructure (9 files, ~9,329 lines)
-    │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI + dockable panel registration + ToggleDockPanelCommand
+    ├── Core/                           # Shared infrastructure (10 files, ~10,772 lines)
+    │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI + dockable panel registration + ToggleDockPanelCommand + DocumentOpened quality gate
     │   ├── StingLog.cs                 # Thread-safe file logger (Info/Warn/Error) + EscapeChecker utility
-    │   ├── ParamRegistry.cs            # Single source of truth for parameter names, GUIDs, containers, bindings (loads from PARAMETER_REGISTRY.json)
-    │   ├── ParameterHelpers.cs         # Parameter read/write + SpatialAutoDetect + NativeParamMapper + TokenAutoPopulator + PhaseAutoDetect
+    │   ├── ParamRegistry.cs            # Single source of truth for parameter names, GUIDs, containers, bindings (loads from PARAMETER_REGISTRY.json) + stale/cluster/display/position constants
+    │   ├── ParameterHelpers.cs         # Parameter read/write + SpatialAutoDetect + NativeParamMapper + TokenAutoPopulator + PhaseAutoDetect + TypeTokenInherit + CopyTokensFromNearest
     │   ├── SharedParamGuids.cs         # Backwards-compatible facade wrapping ParamRegistry (GUID lookups, category bindings)
-    │   ├── TagConfig.cs               # ISO 19650 tag lookup tables, tag builder, TagIntelligence, TAG7 narrative builder
-    │   ├── StingAutoTagger.cs          # IUpdater — real-time auto-tagging of newly placed elements + AutoTaggerToggleCommand
-    │   ├── WorkflowEngine.cs           # Workflow orchestration — JSON preset command chaining + 3 commands
-    │   └── ComplianceScan.cs           # Cached compliance scan for live dashboard status bar display
+    │   ├── TagConfig.cs               # ISO 19650 tag lookup tables, tag builder, TagIntelligence, TAG7 narrative builder + SeqScheme variants + BuildDisplayTag
+    │   ├── StingAutoTagger.cs          # IUpdater — real-time auto-tagging + visual tag placement + discipline filter + StingStaleMarker IUpdater
+    │   ├── WorkflowEngine.cs           # Workflow orchestration — JSON preset command chaining + conditional steps + result persistence + WorkflowTrendCommand
+    │   ├── ComplianceScan.cs           # Cached compliance scan with per-discipline breakdown (DiscComplianceData)
+    │   └── OutputLocationHelper.cs     # Centralized output directory management with fallback chain + timestamped paths
     │
     ├── Select/                         # Element selection + color commands (3 files, 29 commands)
     │   ├── CategorySelectCommands.cs   # 14 category selectors + SelectAllTaggable + CategorySelector helper
     │   ├── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite
     │   └── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │
-    ├── UI/                             # WPF dockable panel UI + project wizard (5 C# files + 2 XAML, ~9,247 lines)
+    ├── UI/                             # WPF dockable panel UI + project wizard (6 C# files + 2 XAML, ~9,570 lines)
     │   ├── StingDockPanel.xaml         # WPF markup for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM)
     │   ├── StingDockPanel.xaml.cs      # Code-behind: button dispatch, colour swatches, status bar
-    │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 543+ button tags to 325 command classes + inline helpers
+    │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 590+ button tags to 379 command classes + inline helpers
     │   ├── StingDockPanelProvider.cs   # IDockablePaneProvider — registers panel with Revit
     │   ├── StingProgressDialog.cs      # Reusable modeless WPF progress window for batch operations (cancel, ETA, progress bar)
+    │   ├── StingListPicker.cs          # Reusable WPF list picker dialog with search/filter, replacing paginated TaskDialogs
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
     │   └── ProjectSetupWizard.xaml.cs  # Code-behind: presets, validation, discipline config, review summary
     │
@@ -104,8 +106,11 @@ STINGTOOLS/
     ├── Organise/                       # Tag management commands (1 file, 40 commands)
     │   └── TagOperationCommands.cs     # Tag Ops (7), Leaders (14), Analysis (7), Annotation Color (5), Tag Appearance (5), Tag Type (1), AnomalyAutoFix (1) + LeaderHelper + AnnotationColorHelper
     │
-    ├── BIMManager/                     # ISO 19650 BIM management + 4D/5D scheduling (2 files, 47 commands)
-    │   ├── BIMManagerCommands.cs       # 35 commands: BEP (Create/Update/Export/Generate), Issues (Raise/Dashboard/Update/SelectElements), Documents (Register/Add/ValidateNaming/Briefcase), COBie export, Transmittals, CDE status, Reviews, ISO reference, BulkExport, StickyNotes (Create/Export/Select), ModelHealth (Dashboard/Export), MidpTracker, Export4DTimeline, Export5DCostData, FullComplianceDashboard, LinkPredecessors, AssignPhaseDates, MeasuredQuantities, ElementCountSummary + BIMManagerEngine
+    ├── BIMManager/                     # ISO 19650 BIM management + 4D/5D scheduling + Excel/Platform/Revision (5 files, 73 commands)
+    │   ├── BIMManagerCommands.cs       # 37 commands: BEP (Create/Update/Export/Generate), Issues (Raise/Dashboard/Update/SelectElements), Documents (Register/Add/ValidateNaming/Briefcase), COBie export, Transmittals, CDE status, Reviews, ISO reference, BulkExport, StickyNotes (Create/Export/Select), ModelHealth (Dashboard/Export), MidpTracker, Export4DTimeline, Export5DCostData, FullComplianceDashboard, LinkPredecessors, AssignPhaseDates, MeasuredQuantities, ElementCountSummary, SetOutputDirectory, StageComplianceGate + BIMManagerEngine
+    │   ├── ExcelLinkCommands.cs        # 6 commands: ExportToExcel, ImportFromExcel, ExcelRoundTrip, ExportSchedulesToExcel, ImportSchedulesFromExcel, ExportTemplate + ExcelLinkEngine
+    │   ├── PlatformLinkCommands.cs     # 6 commands: ACCPublish, CDEPackage, BCFExport, BCFImport, PlatformSync, SharePointExport + PlatformLinkEngine
+    │   ├── RevisionManagementCommands.cs # 12 commands: CreateRevision, RevisionDashboard, AutoRevisionCloud, RevisionSchedule, TrackElementRevisions, RevisionCompare, IssueSheetsForRevision, RevisionNamingEnforce, RevisionTagIntegration, RevisionExport, BulkRevisionStamp, AutoRevisionOnTagChange + RevisionEngine
     │   └── SchedulingCommands.cs       # 12 commands: AutoSchedule4D, ImportMSProject, ViewTimeline4D, ExportSchedule4D, AutoCost5D, ImportCostRates, CostReport5D, CashFlow5D, PhaseFilter, PhaseSummary, MilestoneRegister, WorkingCalendar + Scheduling4DEngine
     │
     ├── Model/                          # Auto-modeling engine (3 files, 16 commands)
@@ -128,10 +133,10 @@ STINGTOOLS/
     │   ├── TemplateManagerCommands.cs  # 18 template intelligence commands + TemplateManager engine (~3,892 lines)
     │   └── DataPipelineCommands.cs     # ValidateTemplate (45 checks), DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit
     │
-    └── Data/                           # Runtime data files (23 files)
+    └── Data/                           # Runtime data files (27 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
-        ├── MR_PARAMETERS.txt           # Shared parameter file (1,527 params, 21 groups)
+        ├── MR_PARAMETERS.txt           # Shared parameter file (1,549 params, 21 groups)
         ├── MR_PARAMETERS.csv           # Parameter definitions
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
@@ -147,10 +152,16 @@ STINGTOOLS/
         ├── TAG_CONFIG_v5_0_CONTAINERS.csv    # 122 tag container definitions (v5.0)
         ├── TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv # 179 discipline/system/function code mappings (v5.0)
         ├── TAG_CONFIG_v5_0_VALIDATION.csv    # 180 validation rules for tag tokens (v5.0)
+        ├── STING_TAG_CONFIG_v5_0_ARCH.csv    # Architectural tag family definitions (v5.0)
+        ├── STING_TAG_CONFIG_v5_0_GEN.csv     # General tag family definitions (v5.0)
+        ├── STING_TAG_CONFIG_v5_0_MEP.csv     # MEP tag family definitions (v5.0)
+        ├── STING_TAG_CONFIG_v5_0_STR.csv     # Structural tag family definitions (v5.0)
         ├── PYREVIT_SCRIPT_MANIFEST.csv # Legacy pyRevit script manifest
         ├── TAG_GUIDE.xlsx              # Tag reference guide (original)
         ├── TAG GUIDE V2.xlsx           # Tag reference guide (comprehensive update)
         ├── TAG_GUIDE_V3.csv            # Tag reference guide (newest CSV version)
+        ├── TAG_PLACEMENT_PRESETS_DEFAULT.json  # Default tag placement preset (12 category rules)
+        ├── WORKFLOW_DailyQA_Enhanced.json     # Enhanced Daily QA workflow (8 conditional steps)
         └── VALIDAT_BIM_TEMPLATE.py     # BIM template validation (45 checks, ported to C#)
 ```
 
@@ -397,7 +408,10 @@ STINGTOOLS/
 | `Model/ModelCommands.cs` | 16 (Wall, Room, Floor, Ceiling, Roof, Door, Window, Column, ColumnGrid, Beam, Duct, Pipe, Fixture, BuildingShell, DWGToModel, DWGPreview) | 1,101 |
 | `Model/ModelEngine.cs` | 0 (model creation engine + FamilyResolver + WorksetAssigner + FailureHandler) | 1,349 |
 | `Model/CADToModelEngine.cs` | 0 (DWG-to-BIM conversion engine + LayerMapper) | 824 |
-| `BIMManager/BIMManagerCommands.cs` | 35 (CreateBEP, UpdateBEP, ExportBEP, GenerateBEP, ProjectDashboard, RaiseIssue, IssueDashboard, UpdateIssue, DocumentRegister, AddDocument, COBieExport, CreateTransmittal, CDEStatus, ValidateDocNaming, ReviewTracker, SelectIssueElements, ISO19650Reference, BulkBIMExport, BriefcaseView, BriefcaseRead, BriefcaseAddFile, DocumentBriefcase, ElementStickyNote, ExportStickyNotes, SelectStickyElements, ModelHealthDashboard, ExportModelHealth, MidpTracker, Export4DTimeline, Export5DCostData, FullComplianceDashboard, LinkPredecessors, AssignPhaseDates, MeasuredQuantities, ElementCountSummary) + BIMManagerEngine + COBiePreset (22 presets) | 6,266 |
+| `BIMManager/BIMManagerCommands.cs` | 37 (CreateBEP, UpdateBEP, ExportBEP, GenerateBEP, ProjectDashboard, RaiseIssue, IssueDashboard, UpdateIssue, DocumentRegister, AddDocument, COBieExport, CreateTransmittal, CDEStatus, ValidateDocNaming, ReviewTracker, SelectIssueElements, ISO19650Reference, BulkBIMExport, BriefcaseView, BriefcaseRead, BriefcaseAddFile, DocumentBriefcase, ElementStickyNote, ExportStickyNotes, SelectStickyElements, ModelHealthDashboard, ExportModelHealth, MidpTracker, Export4DTimeline, Export5DCostData, FullComplianceDashboard, LinkPredecessors, AssignPhaseDates, MeasuredQuantities, ElementCountSummary, SetOutputDirectory, StageComplianceGate) + BIMManagerEngine + COBiePreset (22 presets) | 6,986 |
+| `BIMManager/ExcelLinkCommands.cs` | 6 (ExportToExcel, ImportFromExcel, ExcelRoundTrip, ExportSchedulesToExcel, ImportSchedulesFromExcel, ExportTemplate) + ExcelLinkEngine | 2,055 |
+| `BIMManager/PlatformLinkCommands.cs` | 6 (ACCPublish, CDEPackage, BCFExport, BCFImport, PlatformSync, SharePointExport) + PlatformLinkEngine | 1,598 |
+| `BIMManager/RevisionManagementCommands.cs` | 12 (CreateRevision, RevisionDashboard, AutoRevisionCloud, RevisionSchedule, TrackElementRevisions, RevisionCompare, IssueSheetsForRevision, RevisionNamingEnforce, RevisionTagIntegration, RevisionExport, BulkRevisionStamp, AutoRevisionOnTagChange) + RevisionEngine | 1,590 |
 | `BIMManager/SchedulingCommands.cs` | 12 (AutoSchedule4D, ImportMSProject, ViewTimeline4D, ExportSchedule4D, AutoCost5D, ImportCostRates, CostReport5D, CashFlow5D, PhaseFilter, PhaseSummary, MilestoneRegister, WorkingCalendar) + Scheduling4DEngine | 1,713 |
 | `Temp/CreateParametersCommand.cs` | 1 | 27 |
 | `Temp/CheckDataCommand.cs` | 1 | 297 |
@@ -412,14 +426,15 @@ STINGTOOLS/
 | `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 316 |
 | `Temp/TemplateManagerCommands.cs` | 18 (AutoAssign, Audit, Diff, Compliance, AutoFix, SyncOverrides, FillPatterns, LineStyles, ObjectStyles, TextStyles, DimStyles, VGOverrides, BatchFamilyParams, TemplateSchedules, SetupWizard, CloneTemplate, BatchVGReset, FamilyParameterProcessor) + TemplateManager engine | 3,893 |
 | `Temp/DataPipelineCommands.cs` | 11 (ValidateTemplate, DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit, ExportIfcPropertyMap, ValidateBepCompliance, ClashDetection, IFCExport, ExcelBOQImport, KeynoteSync) | 3,013 |
-| `UI/StingCommandHandler.cs` | 1 (IExternalEventHandler — dispatches 543+ button tags to 325 commands + ~96 inline helpers) | 4,736 |
+| `UI/StingCommandHandler.cs` | 1 (IExternalEventHandler — dispatches 590+ button tags to 379 commands + ~96 inline helpers) | 4,828 |
 | `UI/StingDockPanel.xaml.cs` | 0 (WPF code-behind) | 377 |
 | `UI/StingDockPanelProvider.cs` | 0 (IDockablePaneProvider) | 37 |
 | `UI/StingProgressDialog.cs` | 0 (reusable modeless WPF progress window) | 238 |
+| `UI/StingListPicker.cs` | 0 (reusable WPF list picker dialog with search/filter) | 323 |
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
-| `UI/StingDockPanel.xaml` | — (WPF markup, 8-tab panel with ~560 buttons) | 1,942 |
+| `UI/StingDockPanel.xaml` | — (WPF markup, 8-tab panel with ~610 buttons) | 2,163 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
-| **Total** | **325 commands** | **~81,213** |
+| **Total** | **379 commands** | **~89,013** |
 
 ## Core Classes
 
@@ -606,7 +621,12 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `CADToModelEngine` | `Model/CADToModelEngine.cs` | DWG-to-BIM conversion: `LayerMapper` (18 category patterns), geometry extraction (parallel lines → walls, closed loops → floors, blocks → doors/windows) |
 | `BIMManagerEngine` | `BIMManager/BIMManagerCommands.cs` | ISO 19650 BIM management engine: BEP generation (22 presets, template-driven), issue tracker (BCF-compatible), document register, COBie V2.4 export (22 project type presets, 19 worksheets, full tag integration), transmittals, CDE status codes, briefcase viewer, asset management strategy, training plan + sequential ID generation |
 | `Scheduling4DEngine` | `BIMManager/SchedulingCommands.cs` | 4D/5D scheduling engine: 32-trade construction sequences, cost rates, MS Project import/export, cash flow forecasting, Gantt timeline generation |
-| `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 543+ dockable panel button tags to 325 command classes + ~96 inline helpers on the Revit API thread |
+| `ExcelLinkEngine` | `BIMManager/ExcelLinkCommands.cs` | Bidirectional Excel data exchange: 30+ column export, validation rules, change tracking with audit trail, ChangeRecord/ValidationWarning models |
+| `PlatformLinkEngine` | `BIMManager/PlatformLinkCommands.cs` | Platform integration engine: BCF 2.1 XML generation, ISO 19650 file naming validator, deliverable collector, platform sync with delta detection |
+| `RevisionEngine` | `BIMManager/RevisionManagementCommands.cs` | Revision management: tag snapshot/compare, revision sequence tracking, change delta computation, element tracking across revisions |
+| `OutputLocationHelper` | `Core/OutputLocationHelper.cs` | Centralized export path management: 4-level fallback chain (preferred → project → documents → temp), timestamped paths, config persistence |
+| `StingListPicker` | `UI/StingListPicker.cs` | Reusable WPF list picker dialog: search/filter, single/multi-select, corporate styling, replaces paginated TaskDialog workflows |
+| `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 590+ dockable panel button tags to 379 command classes + ~96 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM) with colour swatches and status bar |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers dockable panel with Revit; PaneGuid for panel identification |
 | `ColorHelper` | `Select/ColorCommands.cs` | 10 built-in colour palettes, `OverrideGraphicSettings` builder, solid fill pattern finder, preset save/load |
@@ -683,9 +703,9 @@ The plugin's primary user interface is a **WPF dockable panel** that consolidate
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| `StingDockPanel.xaml` | `UI/StingDockPanel.xaml` (1,942 lines) | WPF markup: 8-tab layout (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM), ~560 buttons, colour swatches, bulk parameter controls |
+| `StingDockPanel.xaml` | `UI/StingDockPanel.xaml` (2,163 lines) | WPF markup: 8-tab layout (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM), ~610 buttons, colour swatches, bulk parameter controls |
 | `StingDockPanel.xaml.cs` | `UI/StingDockPanel.xaml.cs` (377 lines) | Code-behind: button dispatch via `IExternalEventHandler`, colour swatch builder, status bar |
-| `StingCommandHandler` | `UI/StingCommandHandler.cs` (4,736 lines) | `IExternalEventHandler` — maps 543+ button Tag strings to 325 command classes + ~96 inline helpers, ensures Revit API calls run on the main thread |
+| `StingCommandHandler` | `UI/StingCommandHandler.cs` (4,828 lines) | `IExternalEventHandler` — maps 590+ button Tag strings to 379 command classes + ~96 inline helpers, ensures Revit API calls run on the main thread |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` (37 lines) | `IDockablePaneProvider` — registers panel with Revit, sets initial dock position (Right, 320×400 min) |
 | `ToggleDockPanelCommand` | `Core/StingToolsApp.cs` (line 825) | `IExternalCommand` — toggles panel visibility from ribbon button |
 
@@ -1259,6 +1279,18 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 70. **BEP Handover & Asset Management** — Enhanced with detailed COBie data drop schedule (DD1-DD4) per-stage: COBie sheets required, STING commands to use, tag completeness targets, responsible parties, and validation commands. Asset management strategy, CAFM integration, Golden Thread compliance, TIDP content.
 71. **BEP Risk Register enhanced** — 10 BIM-specific risks with likelihood, impact, mitigation, and owner. Auto-enrichment propagates tag completeness to risk register entries.
 72. **BEP Training and Competency Plan** — Section 17 added: role-based competency requirements and training schedule.
+
+#### Completed (Phase 14 — Excel Link, Platform Integration, Revision Management)
+
+155. **Bidirectional Excel link** — `ExcelLinkCommands.cs` (2,055 lines, 6 commands): ExportToExcel (30+ column export with tags, identity, spatial, MEP data), ImportFromExcel (validation, audit trail, change preview), ExcelRoundTrip (one-click export→edit→import), ExportSchedulesToExcel, ImportSchedulesFromExcel, ExportTemplate. `ExcelLinkEngine` with ChangeRecord tracking and ValidationWarning collection.
+156. **Platform integration** — `PlatformLinkCommands.cs` (1,598 lines, 6 commands): ACCPublish (ACC/BIM 360 packaging), CDEPackage (ISO 19650 CDE folder structure), BCFExport (BCF 2.1 with viewpoints), BCFImport (with dedup detection), PlatformSync (bidirectional delta sync), SharePointExport (corporate SharePoint/Teams). `PlatformLinkEngine` with ISO 19650 file naming validator and deliverable collector.
+157. **Revision management** — `RevisionManagementCommands.cs` (1,590 lines, 12 commands): CreateRevision (ISO 19650 naming), RevisionDashboard, AutoRevisionCloud, RevisionSchedule, TrackElementRevisions (tag snapshot), RevisionCompare (change deltas), IssueSheetsForRevision, RevisionNamingEnforce, RevisionTagIntegration (auto-stamp on tag changes), RevisionExport, BulkRevisionStamp, AutoRevisionOnTagChange. `RevisionEngine` with snapshot management and revision sequence tracking.
+158. **Centralized output management** — `OutputLocationHelper.cs` (222 lines): 4-level fallback chain for export paths (preferred → project → documents → temp), timestamped path generation, config persistence via project_config.json.
+159. **WPF list picker dialog** — `StingListPicker.cs` (323 lines): Reusable searchable list picker replacing paginated TaskDialogs, supports 100+ items with instant filtering, single/multi-select modes, corporate styling.
+160. **Stage compliance gate** — `StageComplianceGateCommand`: RIBA stage-aware compliance assessment with stage-specific tag completeness thresholds.
+161. **BEP enrichment enhanced** — ComplianceScan-based BEP auto-enrichment with per-discipline breakdown, stage-gated compliance, and BEP allowed code cross-validation.
+162. **COBie Component enriched** — AssetType mapping from discipline codes, phase-derived installation dates, expanded fields (Category, Discipline, Location, Zone, Level, System, Function, ProductCode, SequenceNumber, Status).
+163. **LoadSharedParams crash-proofed** — Group-per-transaction binding, targeted category filtering, crash recovery with parameter file restoration, 6 additional crash vector fixes.
 
 ### External Tool References
 
