@@ -351,10 +351,10 @@ namespace StingTools.Tags
                 Variable = StyleVariable.Status,
                 ValueColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
                 {
-                    { "NEW",         new Color(0, 180, 0) },      // Green
-                    { "EXISTING",    new Color(0, 128, 255) },    // Blue
-                    { "DEMOLISHED",  new Color(200, 0, 0) },      // Red
-                    { "TEMPORARY",   new Color(255, 160, 0) },    // Orange
+                    { "NEW",         new Color(76, 175, 80) },    // Green
+                    { "EXISTING",    new Color(158, 158, 158) },  // Gray
+                    { "DEMOLISHED",  new Color(244, 67, 54) },    // Red
+                    { "TEMPORARY",   new Color(255, 193, 7) },    // Amber
                 },
                 ValueStyles = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -379,10 +379,11 @@ namespace StingTools.Tags
                 Variable = StyleVariable.Zone,
                 ValueColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
                 {
-                    { "Z01", new Color(0, 128, 255) },    // Blue
-                    { "Z02", new Color(0, 180, 0) },      // Green
-                    { "Z03", new Color(255, 160, 0) },    // Orange
-                    { "Z04", new Color(200, 0, 0) },      // Red
+                    { "Z01", new Color(0, 120, 215) },    // Blue
+                    { "Z02", new Color(76, 175, 80) },    // Green
+                    { "Z03", new Color(255, 193, 7) },    // Amber
+                    { "Z04", new Color(244, 67, 54) },    // Red
+                    { "Z05", new Color(156, 39, 176) },   // Purple
                     { "ZZ",  new Color(128, 128, 128) },  // Grey (unassigned)
                     { "XX",  new Color(80, 80, 80) },     // Dark Grey (unknown)
                 },
@@ -402,13 +403,13 @@ namespace StingTools.Tags
                 Variable = StyleVariable.Level,
                 ValueColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
                 {
-                    { "GF",  new Color(0, 180, 0) },      // Green — Ground
-                    { "L01", new Color(0, 128, 255) },     // Blue — Level 1
-                    { "L02", new Color(160, 0, 200) },     // Purple — Level 2
+                    { "GF",  new Color(100, 149, 237) },   // Cornflower Blue — Ground
+                    { "L01", new Color(70, 130, 180) },    // Steel Blue — Level 1
+                    { "L02", new Color(30, 144, 255) },    // Dodger Blue — Level 2
                     { "L03", new Color(0, 200, 200) },     // Cyan — Level 3
-                    { "B1",  new Color(200, 0, 0) },       // Red — Basement
-                    { "B2",  new Color(160, 0, 0) },       // Dark Red — Sub-basement
-                    { "RF",  new Color(255, 160, 0) },     // Orange — Roof
+                    { "B1",  new Color(0, 128, 128) },     // Teal — Basement
+                    { "B2",  new Color(0, 100, 100) },     // Dark Teal — Sub-basement
+                    { "RF",  new Color(128, 0, 128) },     // Purple — Roof
                     { "XX",  new Color(128, 128, 128) },   // Grey — Unknown
                 },
                 ValueStyles = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase)
@@ -450,13 +451,16 @@ namespace StingTools.Tags
                 Variable = StyleVariable.Function,
                 ValueColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
                 {
-                    { "SUP", new Color(0, 128, 255) },      // Blue — Supply
-                    { "HTG", new Color(200, 60, 0) },        // Dark Orange — Heating
+                    { "SUP", new Color(66, 133, 244) },     // Blue — Supply
+                    { "RTN", new Color(0, 150, 136) },       // Teal — Return
+                    { "EXH", new Color(255, 111, 97) },      // Coral — Exhaust
+                    { "HTG", new Color(255, 179, 0) },       // Amber — Heating
+                    { "DHW", new Color(255, 152, 0) },       // Orange — Domestic Hot Water
+                    { "PWR", new Color(255, 235, 59) },      // Yellow — Power
+                    { "LTG", new Color(171, 71, 188) },      // Purple — Lighting
                     { "CLG", new Color(0, 180, 200) },       // Cyan — Cooling
                     { "DCW", new Color(0, 180, 120) },       // Teal — Cold Water
                     { "SAN", new Color(0, 160, 0) },         // Green — Sanitary
-                    { "PWR", new Color(255, 180, 0) },       // Gold — Power
-                    { "LTG", new Color(255, 255, 0) },       // Yellow — Lighting
                     { "FIR", new Color(200, 0, 0) },         // Red — Fire
                     { "COM", new Color(100, 100, 200) },     // Periwinkle — Comms
                     { "VEN", new Color(100, 200, 255) },     // Light Blue — Ventilation
@@ -466,6 +470,16 @@ namespace StingTools.Tags
             };
 
             return d;
+        }
+
+        /// <summary>
+        /// Retrieve a variable color scheme by name. Checks VariableSchemes dictionary
+        /// first (System, Status, Zone, Level, Location, Function), returns null if not found.
+        /// </summary>
+        public static VariableColorScheme GetVariableScheme(string schemeName)
+        {
+            if (string.IsNullOrEmpty(schemeName)) return null;
+            return VariableSchemes.TryGetValue(schemeName, out var scheme) ? scheme : null;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -587,6 +601,25 @@ namespace StingTools.Tags
         /// </summary>
         public static int ApplyColorScheme(Document doc, View view, ColorScheme scheme)
         {
+            // Per-view tag style routing: if the view has STING_VIEW_TAG_STYLE set,
+            // use that scheme name instead of the one passed in.
+            try
+            {
+                string viewStyle = ParameterHelpers.GetString(view, "STING_VIEW_TAG_STYLE");
+                if (!string.IsNullOrEmpty(viewStyle))
+                {
+                    // Check variable schemes first (Zone, Status, Level, Function, etc.)
+                    var varScheme = GetVariableScheme(viewStyle);
+                    if (varScheme != null)
+                        return ApplyVariableScheme(doc, view, varScheme);
+
+                    // Then check built-in discipline schemes
+                    if (BuiltInSchemes.TryGetValue(viewStyle, out ColorScheme overrideScheme))
+                        scheme = overrideScheme;
+                }
+            }
+            catch { /* STING_VIEW_TAG_STYLE param may not exist on this view — continue */ }
+
             int colored = 0;
             var solidFill = FindSolidFill(doc);
 
@@ -992,14 +1025,35 @@ namespace StingTools.Tags
 
         // ── Helper ────────────────────────────────────────────────────
 
+        /// <summary>Solid fill pattern cache keyed by document title.</summary>
+        private static readonly Dictionary<string, ElementId> _solidFillCache
+            = new Dictionary<string, ElementId>(StringComparer.Ordinal);
+
+        /// <summary>Clear the solid fill pattern cache (call on document close).</summary>
+        public static void ClearSolidFillCache() => _solidFillCache.Clear();
+
         private static FillPatternElement FindSolidFill(Document doc)
         {
             try
             {
-                return new FilteredElementCollector(doc)
+                string key = doc.Title ?? "";
+                if (_solidFillCache.TryGetValue(key, out ElementId cachedId))
+                {
+                    var cached = doc.GetElement(cachedId) as FillPatternElement;
+                    if (cached != null) return cached;
+                    // Cached ID no longer valid — remove and re-query
+                    _solidFillCache.Remove(key);
+                }
+
+                var found = new FilteredElementCollector(doc)
                     .OfClass(typeof(FillPatternElement))
                     .Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+
+                if (found != null)
+                    _solidFillCache[key] = found.Id;
+
+                return found;
             }
             catch { return null; }
         }

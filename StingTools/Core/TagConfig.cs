@@ -21,6 +21,19 @@ namespace StingTools.Core
         Overwrite,
     }
 
+    /// <summary>Sequence numbering scheme variants.</summary>
+    public enum SeqScheme
+    {
+        /// <summary>Zero-padded numeric: 0001, 0042</summary>
+        Numeric,
+        /// <summary>Alphabetic: A, B, ... Z, AA, AB</summary>
+        Alpha,
+        /// <summary>Zone-prefixed: Z1-0042</summary>
+        ZonePrefix,
+        /// <summary>Discipline-prefixed: M-0042</summary>
+        DiscPrefix
+    }
+
     /// <summary>
     /// Tracks tagging operation statistics across a batch for rich post-operation reporting.
     /// Captures per-category counts, collision details, skipped elements, warnings, and
@@ -163,6 +176,32 @@ namespace StingTools.Core
         }
     }
 
+    /// <summary>Categorizes ISO 19650 validation errors for separate counting.</summary>
+    public enum ValidationErrorType
+    {
+        /// <summary>Token value does not match allowed code list (e.g., DISC 'X' not valid).</summary>
+        TokenFormat,
+        /// <summary>Token value is empty/missing.</summary>
+        TokenEmpty,
+        /// <summary>Cross-validation mismatch between related tokens or element category.</summary>
+        CrossValidation
+    }
+
+    /// <summary>Structured validation error with message and categorized type.</summary>
+    public class ValidationError
+    {
+        public string Message { get; set; }
+        public ValidationErrorType Type { get; set; }
+
+        public ValidationError(string message, ValidationErrorType type)
+        {
+            Message = message;
+            Type = type;
+        }
+
+        public override string ToString() => Message;
+    }
+
     /// <summary>
     /// ISO 19650 naming and coding validation. Enforces that all token values
     /// conform to the allowed code lists defined in the tag configuration.
@@ -223,13 +262,31 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.LOC)
             {
-                if (!TagConfig.LocCodes.Contains(value))
-                    return $"LOC '{value}' not in valid set ({string.Join(",", TagConfig.LocCodes)})";
+                if (TagConfig.ValidateStrictMode)
+                {
+                    if (!TagConfig.LocCodes.Contains(value))
+                        return $"LOC '{value}' not in valid set ({string.Join(",", TagConfig.LocCodes)})";
+                }
+                else
+                {
+                    // Lenient: accept any alphanumeric string 1-8 chars, no spaces
+                    if (value.Length < 1 || value.Length > 8 || value.Contains(" ") || !value.All(char.IsLetterOrDigit))
+                        return $"LOC '{value}' must be 1-8 alphanumeric characters with no spaces";
+                }
             }
             else if (tokenName == ParamRegistry.ZONE)
             {
-                if (!TagConfig.ZoneCodes.Contains(value))
-                    return $"ZONE '{value}' not in valid set ({string.Join(",", TagConfig.ZoneCodes)})";
+                if (TagConfig.ValidateStrictMode)
+                {
+                    if (!TagConfig.ZoneCodes.Contains(value))
+                        return $"ZONE '{value}' not in valid set ({string.Join(",", TagConfig.ZoneCodes)})";
+                }
+                else
+                {
+                    // Lenient: accept any alphanumeric string 1-8 chars, no spaces
+                    if (value.Length < 1 || value.Length > 8 || value.Contains(" ") || !value.All(char.IsLetterOrDigit))
+                        return $"ZONE '{value}' must be 1-8 alphanumeric characters with no spaces";
+                }
             }
             else if (tokenName == ParamRegistry.SYS)
             {
@@ -285,9 +342,9 @@ namespace StingTools.Core
         /// Validate all 8 tokens on an element. Returns a list of validation errors
         /// (empty list = fully valid).
         /// </summary>
-        public static List<string> ValidateElement(Element el)
+        public static List<ValidationError> ValidateElement(Element el)
         {
-            var errors = new List<string>();
+            var errors = new List<ValidationError>();
             string[] tokenParams = new[]
             {
                 ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
@@ -300,7 +357,12 @@ namespace StingTools.Core
                 string val = ParameterHelpers.GetString(el, param);
                 string error = ValidateToken(param, val);
                 if (error != null)
-                    errors.Add(error);
+                {
+                    var errorType = string.IsNullOrEmpty(val)
+                        ? ValidationErrorType.TokenEmpty
+                        : ValidationErrorType.TokenFormat;
+                    errors.Add(new ValidationError(error, errorType));
+                }
             }
 
             // Cross-validate: DISC must match element category
@@ -315,7 +377,9 @@ namespace StingTools.Core
                 if (expectedDisc != null && !string.IsNullOrEmpty(sys))
                     expectedDisc = TagConfig.GetSystemAwareDisc(expectedDisc, sys, catName);
                 if (expectedDisc != null && expectedDisc != disc)
-                    errors.Add($"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'");
+                    errors.Add(new ValidationError(
+                        $"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'",
+                        ValidationErrorType.CrossValidation));
             }
 
             // Cross-validate: SYS should be valid for this category
@@ -339,7 +403,9 @@ namespace StingTools.Core
                     string validList = validSysForCat.Count > 0
                         ? string.Join("/", validSysForCat)
                         : TagConfig.GetDiscDefaultSysCode(discForCat);
-                    errors.Add($"SYS mismatch: category '{catName}' expects '{validList}' but has '{sys}'");
+                    errors.Add(new ValidationError(
+                        $"SYS mismatch: category '{catName}' expects '{validList}' but has '{sys}'",
+                        ValidationErrorType.CrossValidation));
                 }
             }
 
@@ -349,7 +415,7 @@ namespace StingTools.Core
             {
                 string prodError = ValidateProdForDisc(prod, disc);
                 if (prodError != null)
-                    errors.Add(prodError);
+                    errors.Add(new ValidationError(prodError, ValidationErrorType.CrossValidation));
             }
 
             // Cross-validate: FUNC should be consistent with SYS
@@ -364,7 +430,9 @@ namespace StingTools.Core
                     bool isSmartFunc = (sys == "HVAC" && (func == "SUP" || func == "RTN" || func == "EXH" || func == "FRA")) ||
                                        (sys == "HWS" && (func == "HTG" || func == "DHW"));
                     if (!isSmartFunc)
-                        errors.Add($"FUNC '{func}' unexpected for SYS '{sys}' (expected '{expectedFunc}')");
+                        errors.Add(new ValidationError(
+                            $"FUNC '{func}' unexpected for SYS '{sys}' (expected '{expectedFunc}')",
+                            ValidationErrorType.CrossValidation));
                 }
             }
 
@@ -485,6 +553,184 @@ namespace StingTools.Core
         public static string[] SegmentOrder => ParamRegistry.SegmentOrder;
         public const int MaxCollisionDepth = 10000;
 
+        /// <summary>Current sequence numbering scheme (loaded from project_config.json).</summary>
+        internal static SeqScheme CurrentSeqScheme { get; set; } = SeqScheme.Numeric;
+        /// <summary>Whether SEQ resets per zone.</summary>
+        internal static bool SeqIncludeZone { get; set; } = false;
+        /// <summary>Whether SEQ resets per level within DISC-SYS group.</summary>
+        internal static bool SeqLevelReset { get; set; } = false;
+
+        // A1: Track SEQ scheme changes to warn users about potential counter misalignment
+        private static bool _seqSchemeChanged = false;
+        private static bool _seqSchemeWarned = false;
+
+        /// <summary>
+        /// Build a canonical SEQ counter key from element token values.
+        /// Used to ensure consistent grouping across all tagging commands.
+        /// Format matches BuildAndWriteTag: DISC_SYS_LVL (or DISC_ZONE_SYS_LVL when SeqIncludeZone).
+        /// </summary>
+        public static string BuildSeqKey(Element el)
+        {
+            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+            string sys  = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+            string lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+
+            // Normalise empty tokens to avoid key drift
+            if (string.IsNullOrEmpty(disc)) disc = "A";
+            if (string.IsNullOrEmpty(sys))  sys  = "GEN";
+            if (string.IsNullOrEmpty(func)) func = "GEN";
+            if (string.IsNullOrEmpty(prod)) prod = "GEN";
+            if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
+
+            if (SeqIncludeZone)
+            {
+                string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
+                return $"{disc}_{zone}_{sys}_{lvl}";
+            }
+
+            return $"{disc}_{sys}_{lvl}";
+        }
+
+        /// <summary>
+        /// Build a SEQ string for sequence number n using the configured scheme.
+        /// </summary>
+        public static string BuildSeqString(int n, SeqScheme scheme, string zoneOrDisc = "")
+        {
+            switch (scheme)
+            {
+                case SeqScheme.Alpha:
+                    return ToAlpha(n);
+                case SeqScheme.ZonePrefix:
+                    string zPrefix = !string.IsNullOrEmpty(zoneOrDisc) && zoneOrDisc.Length >= 2
+                        ? zoneOrDisc.Substring(0, 2)
+                        : "Z1";
+                    return $"{zPrefix}-{n.ToString().PadLeft(ParamRegistry.NumPad, '0')}";
+                case SeqScheme.DiscPrefix:
+                    string dPrefix = !string.IsNullOrEmpty(zoneOrDisc) ? zoneOrDisc : "X";
+                    return $"{dPrefix}-{n.ToString().PadLeft(ParamRegistry.NumPad, '0')}";
+                case SeqScheme.Numeric:
+                default:
+                    return n.ToString().PadLeft(ParamRegistry.NumPad, '0');
+            }
+        }
+
+        /// <summary>Convert an integer to alphabetic (A=1, B=2... Z=26, AA=27...).</summary>
+        private static string ToAlpha(int n)
+        {
+            if (n <= 0) return "A";
+            string result = "";
+            while (n > 0)
+            {
+                n--;
+                result = (char)('A' + (n % 26)) + result;
+                n /= 26;
+            }
+            return result;
+        }
+
+        /// <summary>Convert alphabetic SEQ string back to integer (A=1, B=2... Z=26, AA=27...).</summary>
+        private static int FromAlpha(string alpha)
+        {
+            if (string.IsNullOrEmpty(alpha)) return 0;
+            alpha = alpha.ToUpperInvariant();
+            int result = 0;
+            foreach (char c in alpha)
+            {
+                if (c < 'A' || c > 'Z') return 0;
+                result = result * 26 + (c - 'A' + 1);
+            }
+            return result;
+        }
+
+        // ── Segment mask + display mode helpers ──────────────────────────
+
+        /// <summary>
+        /// Apply a segment mask to a full tag. Mask is 8-char string of 1/0 (e.g. "10000001"
+        /// shows DISC + SEQ only). Returns the masked tag with suppressed segments removed.
+        /// </summary>
+        public static string ApplySegmentMask(string fullTag, string mask)
+        {
+            if (string.IsNullOrEmpty(fullTag) || string.IsNullOrEmpty(mask) || mask.Length < 8)
+                return fullTag;
+
+            string[] parts = fullTag.Split(ParamRegistry.Separator[0]);
+            if (parts.Length < 8) return fullTag;
+
+            var visible = new List<string>();
+            for (int i = 0; i < 8 && i < parts.Length; i++)
+            {
+                if (i < mask.Length && mask[i] == '1')
+                    visible.Add(parts[i]);
+            }
+            return visible.Count > 0 ? string.Join(ParamRegistry.Separator, visible) : fullTag;
+        }
+
+        /// <summary>
+        /// Build a display tag based on STING_DISPLAY_MODE parameter.
+        /// Mode 0/5: full 8-segment, 1: SEQ only, 2: PROD-SEQ, 3: DISC-SYS-SEQ, 4: DISC-PROD-SEQ.
+        /// Also applies TAG_SEG_MASK_TXT if set.
+        /// </summary>
+        public static string BuildDisplayTag(Element el)
+        {
+            if (el == null) return "";
+
+            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+            if (string.IsNullOrEmpty(tag1)) return "";
+
+            // Read display mode (default 0 = full tag)
+            int mode = 0;
+            try
+            {
+                string modeStr = ParameterHelpers.GetString(el, ParamRegistry.DISPLAY_MODE);
+                if (!string.IsNullOrEmpty(modeStr))
+                    int.TryParse(modeStr, out mode);
+            }
+            catch { }
+
+            string[] parts = tag1.Split(ParamRegistry.Separator[0]);
+            string result;
+
+            if (parts.Length >= 8)
+            {
+                string disc = parts[0], prod = parts[6], seq = parts[7], sys = parts[4];
+                result = mode switch
+                {
+                    1 => seq,
+                    2 => prod + ParamRegistry.Separator + seq,
+                    3 => disc + ParamRegistry.Separator + sys + ParamRegistry.Separator + seq,
+                    4 => disc + ParamRegistry.Separator + prod + ParamRegistry.Separator + seq,
+                    _ => tag1
+                };
+            }
+            else
+            {
+                result = tag1;
+            }
+
+            // Apply segment mask if present
+            string mask = ParameterHelpers.GetString(el, ParamRegistry.TAG_SEG_MASK);
+            if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mode == 0)
+                result = ApplySegmentMask(tag1, mask);
+
+            return result;
+        }
+
+        /// <summary>
+        /// Normalised SEQ counter key from element's current token values.
+        /// Used to ensure all SEQ counter lookups use the same key format.
+        /// </summary>
+        public static string BuildSeqKey(Element el)
+        {
+            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+            return $"{disc}_{sys}_{func}_{prod}";
+        }
+
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
         public static Dictionary<string, string> DiscMap { get; private set; }
 
@@ -504,6 +750,13 @@ namespace StingTools.Core
         public static List<string> ZoneCodes { get; internal set; }
 
         public static string ConfigSource { get; private set; }
+
+        /// <summary>
+        /// When false (default), LOC/ZONE validation uses format checks (alphanumeric, 1-8 chars)
+        /// instead of strict code-list validation. Set to true in project_config.json via
+        /// VALIDATE_STRICT_MODE to enforce project-specific LOC/ZONE code lists.
+        /// </summary>
+        public static bool ValidateStrictMode { get; set; } = false;
 
         /// <summary>GAP-019: Default STATUS value from project_config.json (null = use "NEW").</summary>
         public static string StatusDefault { get; internal set; }
@@ -618,6 +871,39 @@ namespace StingTools.Core
                 if (data.TryGetValue("REV_DEFAULT", out object revObj) && revObj is string revStr
                     && !string.IsNullOrWhiteSpace(revStr))
                     RevDefault = revStr;
+
+                // A4: Load strict validation mode (optional — defaults to false/lenient)
+                ValidateStrictMode = false;
+                if (data.TryGetValue("VALIDATE_STRICT_MODE", out object strictObj))
+                {
+                    if (strictObj is bool sb) ValidateStrictMode = sb;
+                    else if (strictObj is string ss) ValidateStrictMode =
+                        ss.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
+
+                // A1: Track previous SEQ scheme settings for change warning
+                SeqScheme prevScheme = CurrentSeqScheme;
+                bool prevIncludeZone = SeqIncludeZone;
+
+                // Load SEQ scheme settings from config (optional)
+                if (data.TryGetValue("SEQ_SCHEME", out object seqSchemeObj) && seqSchemeObj is string seqSchemeStr)
+                {
+                    if (Enum.TryParse<SeqScheme>(seqSchemeStr, true, out var parsed))
+                        CurrentSeqScheme = parsed;
+                }
+                if (data.TryGetValue("SEQ_INCLUDE_ZONE", out object seqZoneObj))
+                {
+                    if (seqZoneObj is bool szb) SeqIncludeZone = szb;
+                    else if (seqZoneObj is string szs) SeqIncludeZone =
+                        szs.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
+
+                // A1: Detect SEQ scheme changes for warning in BuildAndWriteTag
+                if (CurrentSeqScheme != prevScheme || SeqIncludeZone != prevIncludeZone)
+                {
+                    _seqSchemeChanged = true;
+                    _seqSchemeWarned = false;
+                }
 
                 ConfigSource = "project_config.json";
 
@@ -1017,8 +1303,6 @@ namespace StingTools.Core
 
             // Fall back to category-based PROD code
             string fallbackProd = ProdMap.TryGetValue(categoryName, out string prod) ? prod : "GEN";
-            if (!string.IsNullOrEmpty(familyName))
-                StingLog.Info($"PROD fallback: '{familyName}' (cat={categoryName}) → using category default '{fallbackProd}'");
             return fallbackProd;
         }
 
@@ -1226,7 +1510,37 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(func)) func = "GEN";
             if (string.IsNullOrEmpty(prod)) prod = "GEN";
 
-            string seqKey = $"{disc}_{sys}_{lvl}";
+            // A3: In non-overwrite mode, use the element's actual stored token values for
+            // the seqKey so that the SEQ counter matches the group the element will end up in.
+            // SetIfEmpty preserves existing values, so derived values may differ from stored ones.
+            string seqLoc = loc, seqZone = zone, seqLvl = lvl, seqSys = sys;
+            if (!overwriteTokens)
+            {
+                string[] existingTokens = ParamRegistry.ReadTokenValues(el);
+                if (!string.IsNullOrEmpty(existingTokens[1]) && existingTokens[1] != "XX")
+                    seqLoc = existingTokens[1];
+                if (!string.IsNullOrEmpty(existingTokens[2]) && existingTokens[2] != "XX" && existingTokens[2] != "ZZ")
+                    seqZone = existingTokens[2];
+                if (!string.IsNullOrEmpty(existingTokens[3]) && existingTokens[3] != "L00")
+                    seqLvl = existingTokens[3];
+                if (!string.IsNullOrEmpty(existingTokens[4]))
+                    seqSys = existingTokens[4];
+            }
+
+            string seqKey = SeqIncludeZone
+                ? $"{disc}_{seqZone}_{seqSys}_{seqLvl}"
+                : $"{disc}_{seqSys}_{seqLvl}";
+
+            // A1: Warn once per session when SEQ scheme has changed — counter keys may not
+            // match existing tags, leading to duplicate or restarted sequences.
+            if (_seqSchemeChanged && !_seqSchemeWarned)
+            {
+                StingLog.Warn($"SEQ scheme changed (scheme={CurrentSeqScheme}, includeZone={SeqIncludeZone}). " +
+                    "Existing SEQ counters may not align with the new key format. " +
+                    "Run 'Assign Numbers' or 'Batch Tag' with Overwrite to re-sequence.");
+                _seqSchemeWarned = true;
+            }
+
             if (!sequenceCounters.ContainsKey(seqKey))
                 sequenceCounters[seqKey] = 0;
             sequenceCounters[seqKey]++;
@@ -1241,7 +1555,11 @@ namespace StingTools.Core
                 sequenceCounters[seqKey] = maxSeq; // Cap to prevent invalid digit-width tags
             }
 
-            string seq = sequenceCounters[seqKey].ToString().PadLeft(NumPad, '0');
+            // Build SEQ string using the configured numbering scheme
+            string seqSchemeContext = CurrentSeqScheme == SeqScheme.ZonePrefix ? zone
+                                   : CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
+                                   : "";
+            string seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
 
             string tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
 
@@ -1262,7 +1580,7 @@ namespace StingTools.Core
                         stats?.RecordWarning(overflowMsg);
                         break;
                     }
-                    seq = sequenceCounters[seqKey].ToString().PadLeft(NumPad, '0');
+                    seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
                     tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
                 }
                 if (collisionCount > 0)
@@ -1326,6 +1644,17 @@ namespace StingTools.Core
                 return false;
             }
             ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
+
+            // 5.3: Re-read TAG1 to catch write failures and add to existingTags
+            // to prevent same-batch duplicates even when existingTags was null at entry
+            {
+                string writtenTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(writtenTag) && writtenTag != tag)
+                    StingLog.Warn($"TAG1 write mismatch on {el.Id}: wrote '{tag}', read back '{writtenTag}'");
+                // Ensure the tag is in the index for same-batch duplicate prevention
+                if (existingTags != null && !string.IsNullOrEmpty(writtenTag))
+                    existingTags.Add(writtenTag);
+            }
 
             // Auto-populate STATUS from Revit phase/workset if not already set
             // Guaranteed default: every element gets a STATUS — never left empty
@@ -1407,6 +1736,57 @@ namespace StingTools.Core
 
             stats?.RecordTagged(catName, disc, sys, lvl);
             return true;
+        }
+
+        /// <summary>
+        /// Build a display variant of the ISO tag based on display mode:
+        ///   1 = SEQ only            (e.g. "0042")
+        ///   2 = PROD-SEQ            (e.g. "AHU-0042")
+        ///   3 = DISC-SYS-SEQ        (e.g. "M-HVAC-0042")
+        ///   4 = DISC-PROD-SEQ       (e.g. "M-AHU-0042")
+        ///   5 = Full 8-segment      (default — current behaviour)
+        /// Returns the full tag if mode is unrecognised.
+        /// </summary>
+        public static string BuildDisplayTag(Element el, int mode)
+        {
+            if (el == null) return "";
+            string[] tokens = ParamRegistry.ReadTokenValues(el);
+            if (tokens == null || tokens.Length < 8) return "";
+
+            string sep = ParamRegistry.Separator;
+            switch (mode)
+            {
+                case 1: return tokens[7]; // SEQ only
+                case 2: return $"{tokens[6]}{sep}{tokens[7]}"; // PROD-SEQ
+                case 3: return $"{tokens[0]}{sep}{tokens[4]}{sep}{tokens[7]}"; // DISC-SYS-SEQ
+                case 4: return $"{tokens[0]}{sep}{tokens[6]}{sep}{tokens[7]}"; // DISC-PROD-SEQ
+                case 5: return string.Join(sep, tokens); // Full 8-segment
+                default: return string.Join(sep, tokens);
+            }
+        }
+
+        /// <summary>
+        /// Reads STING_DISPLAY_MODE from the element (int parameter) and builds the
+        /// appropriate display tag variant. Writes the result to ASS_DISPLAY_TXT.
+        /// Modes: 0/5=full 8-segment, 1=SEQ only, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ.
+        /// Returns the display string (empty if element is null or has no tokens).
+        /// </summary>
+        public static string BuildDisplayTag(Element el)
+        {
+            if (el == null) return "";
+            int mode = ParameterHelpers.GetInt(el, "STING_DISPLAY_MODE", 5);
+            // Mode 0 is treated as full (same as 5/default)
+            if (mode == 0) mode = 5;
+            string display = BuildDisplayTag(el, mode);
+            if (!string.IsNullOrEmpty(display))
+            {
+                try
+                {
+                    ParameterHelpers.SetString(el, "ASS_DISPLAY_TXT", display, overwrite: true);
+                }
+                catch { /* ASS_DISPLAY_TXT param may not be bound */ }
+            }
+            return display;
         }
 
         /// <summary>
@@ -1526,6 +1906,12 @@ namespace StingTools.Core
                         return "COM";
                     if (panel.Contains("UPS"))
                         return "LV";
+                    // F2: Plumbing/HVAC panels connected to electrical circuits
+                    if (panel.Contains("SAN") || panel.Contains("SEWAGE") || panel.Contains("DRAIN")) return "SAN";
+                    if (panel.Contains("DHW") || panel.Contains("HWS") || panel.Contains("HOT WATER")) return "HWS";
+                    if (panel.Contains("DCW") || panel.Contains("COLD WATER") || panel.Contains("MAINS")) return "DCW";
+                    if (panel.Contains("GAS")) return "GAS";
+                    if (panel.Contains("HVAC") || panel.Contains("AHU") || panel.Contains("FCU")) return "HVAC";
                     // Default electrical panels → LV
                     if (panel.Length > 0)
                         return "LV";
@@ -2025,6 +2411,12 @@ namespace StingTools.Core
                     if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
                         maxSeq[key] = seqNum;
                 }
+                else if (CurrentSeqScheme == SeqScheme.Alpha && !string.IsNullOrEmpty(seqStr))
+                {
+                    int alphaNum = FromAlpha(seqStr);
+                    if (alphaNum > 0 && (!maxSeq.ContainsKey(key) || alphaNum > maxSeq[key]))
+                        maxSeq[key] = alphaNum;
+                }
             }
 
             return maxSeq;
@@ -2083,6 +2475,12 @@ namespace StingTools.Core
                 {
                     if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
                         maxSeq[key] = seqNum;
+                }
+                else if (CurrentSeqScheme == SeqScheme.Alpha && !string.IsNullOrEmpty(seqStr))
+                {
+                    int alphaNum = FromAlpha(seqStr);
+                    if (alphaNum > 0 && (!maxSeq.ContainsKey(key) || alphaNum > maxSeq[key]))
+                        maxSeq[key] = alphaNum;
                 }
             }
 
@@ -3707,9 +4105,11 @@ namespace StingTools.Core
             string warningText = EvaluateElementWarnings(doc, el, categoryName);
             if (!string.IsNullOrEmpty(warningText))
             {
-                // Append warnings to TAG7 if warning visibility is enabled
+                // Append warnings to TAG7 — but only once per unique warning text.
+                // In overwrite mode, TAG7 was freshly written above so append once.
+                // In non-overwrite mode, only append if the exact warning text is not already present.
                 string existingTag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
-                if (!string.IsNullOrEmpty(existingTag7) && !existingTag7.Contains("[!"))
+                if (!string.IsNullOrEmpty(existingTag7) && !existingTag7.Contains(warningText))
                 {
                     string withWarnings = existingTag7 + " | " + warningText;
                     if (ParameterHelpers.SetString(el, ParamRegistry.TAG7, withWarnings, true))

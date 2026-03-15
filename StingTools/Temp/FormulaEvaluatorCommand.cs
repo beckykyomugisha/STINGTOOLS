@@ -50,8 +50,7 @@ namespace StingTools.Temp
                 return Result.Failed;
             }
 
-            // Sort by dependency level (level 0 first, then 1, 2, ... 6)
-            formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
+            // LoadFormulas now returns topologically sorted list with cycle detection
 
             // DAT-005: Validate dependency DAG — check that formulas only depend on
             // parameters written at equal or lower dependency levels
@@ -352,6 +351,60 @@ namespace StingTools.Temp
             {
                 StingLog.Error($"Failed to load formulas: {ex.Message}", ex);
             }
+
+            // Sort by dependency level (integer sort is correct here since levels are 0-6)
+            formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
+
+            // Cycle detection via topological sort (Kahn's algorithm)
+            var formulaByName = formulas.ToDictionary(f => f.ParameterName, StringComparer.OrdinalIgnoreCase);
+            var adjList = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            var inDegree = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var f in formulas)
+            {
+                if (!adjList.ContainsKey(f.ParameterName)) adjList[f.ParameterName] = new List<string>();
+                if (!inDegree.ContainsKey(f.ParameterName)) inDegree[f.ParameterName] = 0;
+            }
+
+            foreach (var f in formulas)
+            {
+                foreach (var dep in formulas)
+                {
+                    if (dep.ParameterName == f.ParameterName) continue;
+                    if (f.Expression != null && f.Expression.Contains(dep.ParameterName))
+                    {
+                        if (!adjList.ContainsKey(dep.ParameterName)) adjList[dep.ParameterName] = new List<string>();
+                        adjList[dep.ParameterName].Add(f.ParameterName);
+                        inDegree[f.ParameterName] = inDegree.GetValueOrDefault(f.ParameterName) + 1;
+                    }
+                }
+            }
+
+            var queue = new Queue<string>(inDegree.Where(kv => kv.Value == 0).Select(kv => kv.Key));
+            var sorted = new List<FormulaDefinition>();
+            while (queue.Count > 0)
+            {
+                string name = queue.Dequeue();
+                if (formulaByName.TryGetValue(name, out var fd)) sorted.Add(fd);
+                if (adjList.TryGetValue(name, out var neighbors))
+                {
+                    foreach (var n in neighbors)
+                    {
+                        inDegree[n]--;
+                        if (inDegree[n] == 0) queue.Enqueue(n);
+                    }
+                }
+            }
+
+            if (sorted.Count < formulas.Count)
+            {
+                var cycleNodes = formulas.Where(f => !sorted.Any(s => s.ParameterName == f.ParameterName)).ToList();
+                foreach (var cn in cycleNodes)
+                    StingLog.Error($"Formula cycle detected: {cn.ParameterName} (level {cn.DependencyLevel})");
+                // Add cycle nodes at the end so they still execute (with potentially wrong values)
+                sorted.AddRange(cycleNodes);
+            }
+            formulas = sorted;
 
             return formulas;
         }

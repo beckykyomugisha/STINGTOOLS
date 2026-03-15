@@ -315,6 +315,9 @@ namespace StingTools.Tags
                     report.AppendLine($"  {err}");
             }
 
+            // Clear parameter lookup cache so newly bound parameters are found immediately
+            ParameterHelpers.ClearParamCache();
+
             var td = new TaskDialog("STING Tools - Load Shared Params");
             td.MainInstruction = $"Shared parameter binding complete — {bound} bound.";
             td.MainContent = report.ToString();

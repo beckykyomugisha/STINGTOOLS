@@ -2855,7 +2855,7 @@ namespace StingTools.Organise
                 // Cross-validation (ISO 19650)
                 var isoErrors = ISO19650Validator.ValidateElement(el);
                 if (isoErrors.Count > 0)
-                    issues.AddRange(isoErrors);
+                    issues.AddRange(isoErrors.Select(e => e.Message));
 
                 bool isComplete = issues.Count == 0;
                 if (!isComplete) incomplete++;
@@ -4804,6 +4804,494 @@ namespace StingTools.Organise
                 $"  SEQ (unique reassign):     {fixed_seq}");
 
             StingLog.Info($"AnomalyAutoFix: fixed {totalFixed}/{totalAnomalies} on {fixable.Count} elements");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  DISPLAY MODE — Tag Content Variants
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Set the display mode for tag content variants. Writes STING_DISPLAY_MODE
+    /// and ASS_DISPLAY_TXT parameters to control which tag segments are shown.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetDisplayModeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var td = new TaskDialog("STING — Display Mode");
+            td.MainInstruction = "Select tag display mode";
+            td.MainContent = "Controls which segments of the ISO tag are visible in annotations.";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "1 — SEQ only (e.g. 0042)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "2 — PROD-SEQ (e.g. AHU-0042)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "3 — DISC-SYS-SEQ (e.g. M-HVAC-0042)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "4 — DISC-PROD-SEQ (e.g. M-AHU-0042)");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+            var result = td.Show();
+
+            int mode;
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1: mode = 1; break;
+                case TaskDialogResult.CommandLink2: mode = 2; break;
+                case TaskDialogResult.CommandLink3: mode = 3; break;
+                case TaskDialogResult.CommandLink4: mode = 4; break;
+                default: return Result.Cancelled;
+            }
+
+            // Scope dialog
+            var scopeTd = new TaskDialog("STING — Scope");
+            scopeTd.MainInstruction = "Apply to which elements?";
+            scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Selected elements");
+            scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Active view");
+            scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Entire project");
+            var scopeResult = scopeTd.Show();
+
+            UIDocument uidoc = ctx.UIDoc;
+            IList<Element> scope;
+            switch (scopeResult)
+            {
+                case TaskDialogResult.CommandLink1:
+                    scope = uidoc.Selection.GetElementIds()
+                        .Select(id => doc.GetElement(id))
+                        .Where(e => e != null)
+                        .ToList();
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    View view = ctx.ActiveView;
+                    if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+                    scope = new FilteredElementCollector(doc, view.Id)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                        .ToList();
+                    break;
+                case TaskDialogResult.CommandLink3:
+                    scope = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                        .ToList();
+                    break;
+                default: return Result.Cancelled;
+            }
+
+            int updated = 0;
+            using (Transaction tx = new Transaction(doc, "STING Set Display Mode"))
+            {
+                tx.Start();
+                foreach (Element el in scope)
+                {
+                    try
+                    {
+                        Parameter p = el.LookupParameter(ParamRegistry.DISPLAY_MODE);
+                        if (p != null && !p.IsReadOnly) p.Set(mode);
+
+                        string displayTag = TagConfig.BuildDisplayTag(el, mode);
+                        ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, displayTag, overwrite: true);
+                        updated++;
+                    }
+                    catch { }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("STING — Display Mode",
+                $"Set display mode {mode} on {updated} elements.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  TAG CLUSTERING — Group nearby identical tags under shared representative
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Cluster nearby identical tags to reduce visual clutter in dense areas.
+    /// Groups tags whose host elements share category and DISC, removing duplicates
+    /// and keeping the best-positioned representative.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ClusterTagsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var tags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            if (tags.Count < 2)
+            {
+                TaskDialog.Show("STING", "Need at least 2 tags in view to cluster.");
+                return Result.Succeeded;
+            }
+
+            double clusterRadius = Tags.TagPlacementEngine.GetModelOffset(view) * 3.0;
+            int clustersFormed = 0, tagsConsolidated = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Cluster Tags"))
+            {
+                tx.Start();
+                try
+                {
+                    // Group tags by host category + DISC
+                    var tagGroups = new Dictionary<string, List<(IndependentTag tag, XYZ pos, Element host)>>();
+                    foreach (var tag in tags)
+                    {
+                        try
+                        {
+                            var refs = tag.GetTaggedReferences();
+                            if (refs == null || refs.Count == 0) continue;
+                            Element host = doc.GetElement(refs[0]);
+                            if (host == null) continue;
+
+                            string catName = host.Category?.Name ?? "";
+                            string disc = ParameterHelpers.GetString(host, ParamRegistry.DISC);
+                            string groupKey = $"{catName}|{disc}";
+
+                            XYZ pos;
+                            try { pos = tag.TagHeadPosition; }
+                            catch { continue; }
+
+                            if (!tagGroups.ContainsKey(groupKey))
+                                tagGroups[groupKey] = new List<(IndependentTag, XYZ, Element)>();
+                            tagGroups[groupKey].Add((tag, pos, host));
+                        }
+                        catch { }
+                    }
+
+                    // Cluster within each group
+                    foreach (var kvp in tagGroups)
+                    {
+                        var items = kvp.Value;
+                        var used = new HashSet<int>();
+
+                        for (int i = 0; i < items.Count; i++)
+                        {
+                            if (used.Contains(i)) continue;
+                            var cluster = new List<int> { i };
+
+                            for (int j = i + 1; j < items.Count; j++)
+                            {
+                                if (used.Contains(j)) continue;
+                                double dx = items[i].pos.X - items[j].pos.X;
+                                double dy = items[i].pos.Y - items[j].pos.Y;
+                                double dist = Math.Sqrt(dx * dx + dy * dy);
+                                if (dist <= clusterRadius)
+                                    cluster.Add(j);
+                            }
+
+                            if (cluster.Count >= 2)
+                            {
+                                clustersFormed++;
+                                // Keep first tag as representative, delete others
+                                var rep = items[cluster[0]];
+                                for (int k = 1; k < cluster.Count; k++)
+                                {
+                                    try
+                                    {
+                                        doc.Delete(items[cluster[k]].tag.Id);
+                                        tagsConsolidated++;
+                                    }
+                                    catch { }
+                                    used.Add(cluster[k]);
+                                }
+
+                                // Write cluster count to representative host
+                                try
+                                {
+                                    Parameter p = rep.host.LookupParameter(ParamRegistry.CLUSTER_COUNT);
+                                    if (p != null && !p.IsReadOnly) p.Set(cluster.Count);
+
+                                    Parameter lbl = rep.host.LookupParameter(ParamRegistry.CLUSTER_LABEL);
+                                    if (lbl != null && !lbl.IsReadOnly)
+                                        lbl.Set($"[×{cluster.Count}]");
+                                }
+                                catch { }
+                            }
+                        }
+                    }
+
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    tx.RollBack();
+                    StingLog.Error("ClusterTags", ex);
+                    TaskDialog.Show("STING", $"Clustering failed: {ex.Message}");
+                    return Result.Failed;
+                }
+            }
+
+            TaskDialog.Show("STING — Cluster Tags",
+                $"{clustersFormed} clusters formed, {tagsConsolidated} tags consolidated.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  PER-DISCIPLINE COMPLIANCE REPORT
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Generate a per-discipline compliance report showing tagged/untagged counts,
+    /// compliance percentage, and missing token breakdown per discipline.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class DisciplineComplianceReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var scan = ComplianceScan.Scan(doc, forceRefresh: true);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Overall: {scan.CompliancePercent:F1}% ({scan.RAGStatus})");
+            sb.AppendLine($"Total: {scan.TotalElements}, Tagged: {scan.TaggedComplete}, Untagged: {scan.Untagged}");
+            sb.AppendLine();
+            sb.AppendLine("DISC  Total  Tagged   Pct%  MissLOC  MissSYS  MissPROD  Status");
+            sb.AppendLine("\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500\u2500");
+
+            foreach (var kvp in scan.ByDisc.OrderByDescending(k => k.Value.Total))
+            {
+                var d = kvp.Value;
+                string rag = d.CompliancePct >= 80 ? "GREEN" : d.CompliancePct >= 50 ? "AMBER" : "RED";
+                sb.AppendLine($"{kvp.Key,-4}  {d.Total,5}  {d.Tagged,6}  {d.CompliancePct,4:F0}%  " +
+                    $"{d.MissingLoc,7}  {d.MissingSys,7}  {d.MissingProd,8}  {rag}");
+            }
+
+            // Export option
+            var td = new TaskDialog("STING \u2014 Discipline Compliance");
+            td.MainInstruction = $"Compliance: {scan.CompliancePercent:F1}% ({scan.RAGStatus})";
+            td.MainContent = sb.ToString();
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Export to CSV");
+            td.CommonButtons = TaskDialogCommonButtons.Close;
+            var result2 = td.Show();
+
+            if (result2 == TaskDialogResult.CommandLink1)
+            {
+                try
+                {
+                    string dir = !string.IsNullOrEmpty(doc.PathName)
+                        ? System.IO.Path.GetDirectoryName(doc.PathName)
+                        : StingToolsApp.DataPath ?? "";
+                    string csvPath = System.IO.Path.Combine(dir ?? "",
+                        $"STING_Discipline_Compliance_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+
+                    var csv = new StringBuilder();
+                    csv.AppendLine("Discipline,Total,Tagged,Untagged,Compliance%,MissingLOC,MissingSYS,MissingPROD,Status");
+                    foreach (var kvp in scan.ByDisc.OrderByDescending(k => k.Value.Total))
+                    {
+                        var d = kvp.Value;
+                        string rag = d.CompliancePct >= 80 ? "GREEN" : d.CompliancePct >= 50 ? "AMBER" : "RED";
+                        csv.AppendLine($"{kvp.Key},{d.Total},{d.Tagged},{d.Untagged},{d.CompliancePct:F1}," +
+                            $"{d.MissingLoc},{d.MissingSys},{d.MissingProd},{rag}");
+                    }
+                    System.IO.File.WriteAllText(csvPath, csv.ToString());
+                    TaskDialog.Show("STING", $"Exported to:\n{csvPath}");
+                }
+                catch (Exception ex)
+                {
+                    TaskDialog.Show("STING", $"Export failed: {ex.Message}");
+                }
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Reverse tag clustering by clearing cluster metadata and re-placing tags
+    /// on previously clustered elements.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class DeclusterTagsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            int cleared = 0;
+            using (Transaction tx = new Transaction(doc, "STING Decluster Tags"))
+            {
+                tx.Start();
+                try
+                {
+                    var allElements = new FilteredElementCollector(doc, view.Id)
+                        .WhereElementIsNotElementType()
+                        .Where(e =>
+                        {
+                            try
+                            {
+                                Parameter p = e.LookupParameter(ParamRegistry.CLUSTER_COUNT);
+                                return p != null && p.AsInteger() > 1;
+                            }
+                            catch { return false; }
+                        })
+                        .ToList();
+
+                    foreach (Element el in allElements)
+                    {
+                        try
+                        {
+                            Parameter p = el.LookupParameter(ParamRegistry.CLUSTER_COUNT);
+                            if (p != null && !p.IsReadOnly) p.Set(0);
+
+                            Parameter lbl = el.LookupParameter(ParamRegistry.CLUSTER_LABEL);
+                            if (lbl != null && !lbl.IsReadOnly) lbl.Set("");
+                            cleared++;
+                        }
+                        catch { }
+                    }
+
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    tx.RollBack();
+                    StingLog.Error("DeclusterTags", ex);
+                    return Result.Failed;
+                }
+            }
+
+            TaskDialog.Show("STING — Decluster Tags",
+                $"Cleared clustering from {cleared} elements.\n" +
+                "Run 'Smart Place Tags' to re-place individual tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  RETAG STALE ELEMENTS
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Find elements marked as stale (STING_STALE_BOOL = 1) and retag them
+    /// with fresh token population and tag assembly.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RetagStaleCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // Scope dialog
+            var scopeTd = new TaskDialog("STING — Retag Stale");
+            scopeTd.MainInstruction = "Retag stale elements";
+            scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Active view only");
+            scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Entire project");
+            scopeTd.CommonButtons = TaskDialogCommonButtons.Cancel;
+            var scopeResult = scopeTd.Show();
+
+            IList<Element> scope;
+            if (scopeResult == TaskDialogResult.CommandLink1)
+            {
+                View view = ctx.ActiveView;
+                if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+                scope = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(e =>
+                    {
+                        try
+                        {
+                            Parameter p = e.LookupParameter(ParamRegistry.STALE);
+                            return p != null && p.AsInteger() == 1;
+                        }
+                        catch { return false; }
+                    })
+                    .ToList();
+            }
+            else if (scopeResult == TaskDialogResult.CommandLink2)
+            {
+                scope = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Where(e =>
+                    {
+                        try
+                        {
+                            Parameter p = e.LookupParameter(ParamRegistry.STALE);
+                            return p != null && p.AsInteger() == 1;
+                        }
+                        catch { return false; }
+                    })
+                    .ToList();
+            }
+            else return Result.Cancelled;
+
+            if (scope.Count == 0)
+            {
+                TaskDialog.Show("STING", "No stale elements found.");
+                return Result.Succeeded;
+            }
+
+            int retagged = 0, failed = 0;
+            using (Transaction tx = new Transaction(doc, "STING Retag Stale"))
+            {
+                tx.Start();
+                var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+
+                foreach (Element el in scope)
+                {
+                    try
+                    {
+                        if (retagged % 100 == 0 && EscapeChecker.IsEscapePressed())
+                        {
+                            tx.RollBack();
+                            TaskDialog.Show("STING", $"Cancelled. Retagged {retagged} before cancel.");
+                            return Result.Cancelled;
+                        }
+
+                        TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: true);
+                        TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                            skipComplete: false, existingTags: existingTags,
+                            collisionMode: TagCollisionMode.AutoIncrement,
+                            cachedRev: popCtx.ProjectRev);
+
+                        // Clear stale flag
+                        Parameter staleP = el.LookupParameter(ParamRegistry.STALE);
+                        if (staleP != null && !staleP.IsReadOnly) staleP.Set(0);
+
+                        retagged++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"RetagStale element {el.Id.Value}: {ex.Message}");
+                        failed++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            ComplianceScan.InvalidateCache();
+            TaskDialog.Show("STING — Retag Stale",
+                $"{retagged} stale elements retagged, {failed} failed.");
             return Result.Succeeded;
         }
     }
