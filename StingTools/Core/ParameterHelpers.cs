@@ -152,6 +152,41 @@ namespace StingTools.Core
             return SetString(el, paramName, value, overwrite: false);
         }
 
+        /// <summary>
+        /// Set a Yes/No (integer) parameter. Works with YESNO StorageType.
+        /// Also handles string-stored BOOL params for compatibility.
+        /// </summary>
+        public static bool SetYesNo(Element el, string paramName, bool value, bool overwrite = false)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null || p.IsReadOnly) return false;
+
+            try
+            {
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int existing = p.AsInteger();
+                    if (existing != 0 && !overwrite) return false;
+                    p.Set(value ? 1 : 0);
+                    return true;
+                }
+                if (p.StorageType == StorageType.String)
+                {
+                    string existing = p.AsString() ?? "";
+                    if (existing.Length > 0 && !overwrite) return false;
+                    p.Set(value ? "Yes" : "No");
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetYesNo '{paramName}' on {el.Id} failed: {ex.Message}");
+                return false;
+            }
+        }
+
         /// <summary>Return a short level code from the element's host level.</summary>
         public static string GetLevelCode(Document doc, Element el)
         {

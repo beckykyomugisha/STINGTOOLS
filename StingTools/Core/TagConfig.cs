@@ -1326,26 +1326,27 @@ namespace StingTools.Core
             // Ensure tag families show content immediately after tagging by setting
             // default visibility parameters. Without this, tag families using
             // paragraph depth or style matrix BOOLs would show blank labels.
+            // Uses SetYesNo to handle YESNO (StorageType.Integer) parameters correctly.
             try
             {
                 // TAG_PARA_STATE_1_BOOL = Yes (compact mode default — ensures at least
                 // Tier 1 content is visible in tag families after tagging)
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.PARA_STATE_1, "Yes");
+                ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_1, true);
 
                 // TAG_WARN_VISIBLE_BOOL = No (default off — prevents expensive per-element
                 // warning evaluation on every WriteTag7All call for large models)
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.WARN_VISIBLE, "No");
+                ParameterHelpers.SetYesNo(el, ParamRegistry.WARN_VISIBLE, false);
 
                 // TAG_7_SECTION_VISIBLE_A-F = Yes (default all TAG7 sub-sections visible)
-                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_A_BOOL", "Yes");
-                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_B_BOOL", "Yes");
-                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_C_BOOL", "Yes");
-                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_D_BOOL", "Yes");
-                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_E_BOOL", "Yes");
-                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_F_BOOL", "Yes");
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_A_BOOL", true);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_B_BOOL", true);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_C_BOOL", true);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_D_BOOL", true);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_E_BOOL", true);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_F_BOOL", true);
 
                 // Default tag style: 2.5mm Normal Black (most common AEC standard)
-                ParameterHelpers.SetIfEmpty(el, "TAG_2.5NOM_BLACK_BOOL", "Yes");
+                ParameterHelpers.SetYesNo(el, "TAG_2.5NOM_BLACK_BOOL", true);
             }
             catch { /* Display BOOLs are optional — don't block tagging if params not bound */ }
 
@@ -3049,6 +3050,7 @@ namespace StingTools.Core
         public static Tag7Result BuildTag7Sections(Document doc, Element el, string categoryName, string[] tokenValues)
         {
             var result = new Tag7Result();
+            if (tokenValues == null) return result;
             var markedSections = new List<string>();
 
             string disc = tokenValues.Length > 0 ? tokenValues[0] : "";
