@@ -755,7 +755,7 @@ namespace StingTools.BIMManager
                     {
                         var areaParam = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED)
                             ?? el.get_Parameter(BuiltInParameter.ROOM_AREA)
-                            ?? el.get_Parameter(BuiltInParameter.CURTAIN_WALL_PANELS_HOST_AREA);
+                            ?? el.LookupParameter("Host Area");
                         if (areaParam != null && areaParam.HasValue)
                             qty += areaParam.AsDouble() * 0.092903; // sqft → m²
                         else

@@ -1808,7 +1808,7 @@ namespace StingTools.BIMManager
                 string nomLength = "", nomWidth = "", nomHeight = "";
                 try
                 {
-                    var lenParam = fs.LookupParameter("Length") ?? fs.get_Parameter(BuiltInParameter.FAMILY_ROUGH_LENGTH_PARAM);
+                    var lenParam = fs.LookupParameter("Length") ?? fs.LookupParameter("Nominal Length");
                     var widParam = fs.LookupParameter("Width") ?? fs.get_Parameter(BuiltInParameter.FAMILY_WIDTH_PARAM);
                     var htParam = fs.LookupParameter("Height") ?? fs.get_Parameter(BuiltInParameter.FAMILY_HEIGHT_PARAM);
                     if (lenParam != null && lenParam.HasValue) nomLength = Math.Round(lenParam.AsDouble() * 304.8, 0).ToString();
