@@ -262,13 +262,31 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.LOC)
             {
-                if (!TagConfig.LocCodes.Contains(value))
-                    return $"LOC '{value}' not in valid set ({string.Join(",", TagConfig.LocCodes)})";
+                if (TagConfig.ValidateStrictMode)
+                {
+                    if (!TagConfig.LocCodes.Contains(value))
+                        return $"LOC '{value}' not in valid set ({string.Join(",", TagConfig.LocCodes)})";
+                }
+                else
+                {
+                    // Lenient: accept any alphanumeric string 1-8 chars, no spaces
+                    if (value.Length < 1 || value.Length > 8 || value.Contains(" ") || !value.All(char.IsLetterOrDigit))
+                        return $"LOC '{value}' must be 1-8 alphanumeric characters with no spaces";
+                }
             }
             else if (tokenName == ParamRegistry.ZONE)
             {
-                if (!TagConfig.ZoneCodes.Contains(value))
-                    return $"ZONE '{value}' not in valid set ({string.Join(",", TagConfig.ZoneCodes)})";
+                if (TagConfig.ValidateStrictMode)
+                {
+                    if (!TagConfig.ZoneCodes.Contains(value))
+                        return $"ZONE '{value}' not in valid set ({string.Join(",", TagConfig.ZoneCodes)})";
+                }
+                else
+                {
+                    // Lenient: accept any alphanumeric string 1-8 chars, no spaces
+                    if (value.Length < 1 || value.Length > 8 || value.Contains(" ") || !value.All(char.IsLetterOrDigit))
+                        return $"ZONE '{value}' must be 1-8 alphanumeric characters with no spaces";
+                }
             }
             else if (tokenName == ParamRegistry.SYS)
             {
@@ -1371,6 +1389,17 @@ namespace StingTools.Core
             string seqKey = SeqIncludeZone
                 ? $"{disc}_{seqZone}_{seqSys}_{seqLvl}"
                 : $"{disc}_{seqSys}_{seqLvl}";
+
+            // A1: Warn once per session when SEQ scheme has changed — counter keys may not
+            // match existing tags, leading to duplicate or restarted sequences.
+            if (_seqSchemeChanged && !_seqSchemeWarned)
+            {
+                StingLog.Warn($"SEQ scheme changed (scheme={CurrentSeqScheme}, includeZone={SeqIncludeZone}). " +
+                    "Existing SEQ counters may not align with the new key format. " +
+                    "Run 'Assign Numbers' or 'Batch Tag' with Overwrite to re-sequence.");
+                _seqSchemeWarned = true;
+            }
+
             if (!sequenceCounters.ContainsKey(seqKey))
                 sequenceCounters[seqKey] = 0;
             sequenceCounters[seqKey]++;
