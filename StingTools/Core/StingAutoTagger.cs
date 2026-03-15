@@ -199,7 +199,8 @@ namespace StingTools.Core
                     // Build and write the tag
                     TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                         skipComplete: true, existingTags: existingTags,
-                        collisionMode: TagCollisionMode.AutoIncrement);
+                        collisionMode: TagCollisionMode.AutoIncrement,
+                        cachedRev: ctx.ProjectRev);
 
                     // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                     try

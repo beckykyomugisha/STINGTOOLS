@@ -833,6 +833,32 @@ namespace StingTools.UI
 
                     // IFCExport, BOQExport, ClashDetect, KeynoteSync, ValidateTemplate already wired above
 
+                    // Sticky Notes
+                    case "StickyNote": RunCommand<BIMManager.ElementStickyNoteCommand>(app); break;
+                    case "ExportStickyNotes": RunCommand<BIMManager.ExportStickyNotesCommand>(app); break;
+                    case "SelectStickyElements": RunCommand<BIMManager.SelectStickyElementsCommand>(app); break;
+
+                    // Model Health
+                    case "ModelHealthDashboard": RunCommand<BIMManager.ModelHealthDashboardCommand>(app); break;
+                    case "ExportModelHealth": RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
+
+                    // MIDP & Compliance
+                    case "MidpTracker": RunCommand<BIMManager.MidpTrackerCommand>(app); break;
+                    case "FullComplianceDashboard": RunCommand<BIMManager.FullComplianceDashboardCommand>(app); break;
+
+                    // 4D/5D Extended
+                    case "Export4DTimeline": RunCommand<BIMManager.Export4DTimelineCommand>(app); break;
+                    case "Export5DCostData": RunCommand<BIMManager.Export5DCostDataCommand>(app); break;
+                    case "LinkPredecessors": RunCommand<BIMManager.LinkPredecessorsCommand>(app); break;
+                    case "AssignPhaseDates": RunCommand<BIMManager.AssignPhaseDatesCommand>(app); break;
+                    case "MeasuredQuantities": RunCommand<BIMManager.MeasuredQuantitiesCommand>(app); break;
+                    case "ElementCountSummary": RunCommand<BIMManager.ElementCountSummaryCommand>(app); break;
+                    case "DocumentBriefcase": RunCommand<BIMManager.DocumentBriefcaseCommand>(app); break;
+                    case "PhaseFilter": RunCommand<BIMManager.PhaseFilterCommand>(app); break;
+                    case "PhaseSummary": RunCommand<BIMManager.PhaseSummaryCommand>(app); break;
+                    case "MilestoneRegister": RunCommand<BIMManager.MilestoneRegisterCommand>(app); break;
+                    case "WorkingCalendar": RunCommand<BIMManager.WorkingCalendarCommand>(app); break;
+
                     // ── Unmapped / placeholder ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");

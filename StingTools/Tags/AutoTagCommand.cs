@@ -167,7 +167,8 @@ namespace StingTools.Tags
                             skipComplete: skipComplete,
                             existingTags: tagIndex,
                             collisionMode: collisionMode,
-                            stats: stats);
+                            stats: stats,
+                            cachedRev: popCtx.ProjectRev);
 
                         // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                         string catNameTag7 = ParameterHelpers.GetCategoryName(el);
@@ -307,7 +308,8 @@ namespace StingTools.Tags
 
                         // Tag with collision detection and stats tracking
                         TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                            existingTags: tagIndex, stats: stats);
+                            existingTags: tagIndex, stats: stats,
+                            cachedRev: popCtx.ProjectRev);
 
                         // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
                         string catNameTag7 = ParameterHelpers.GetCategoryName(el);

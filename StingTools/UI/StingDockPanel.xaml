@@ -1881,6 +1881,69 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- STICKY NOTES -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="STICKY NOTES"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Add Note" Tag="StickyNote" Click="Cmd_Click"
+                                            ToolTip="Create element-linked QA/snagging note"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Notes" Tag="ExportStickyNotes" Click="Cmd_Click"
+                                            ToolTip="Export all sticky notes to CSV"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Select Noted" Tag="SelectStickyElements" Click="Cmd_Click"
+                                            ToolTip="Select all elements with sticky notes"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- MODEL HEALTH & COMPLIANCE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="MODEL HEALTH &amp; COMPLIANCE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00838F">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Health Dashboard" Tag="ModelHealthDashboard" Click="Cmd_Click"
+                                            ToolTip="Model health: warnings, file size, element counts, view efficiency" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Health" Tag="ExportModelHealth" Click="Cmd_Click"
+                                            ToolTip="Export model health report to CSV"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="MIDP Tracker" Tag="MidpTracker" Click="Cmd_Click"
+                                            ToolTip="Master Information Delivery Plan tracking"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Full Compliance" Tag="FullComplianceDashboard" Click="Cmd_Click"
+                                            ToolTip="Combined compliance: tags + model health + sheets" FontWeight="Bold"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 4D/5D EXTENDED -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="4D/5D EXTENDED"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00695C">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export 4D" Tag="Export4DTimeline" Click="Cmd_Click"
+                                            ToolTip="Export 4D timeline data as JSON"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export 5D" Tag="Export5DCostData" Click="Cmd_Click"
+                                            ToolTip="Export 5D cost data as JSON"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Link Predecessors" Tag="LinkPredecessors" Click="Cmd_Click"
+                                            ToolTip="Auto-link task predecessors in 4D schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Phase Dates" Tag="AssignPhaseDates" Click="Cmd_Click"
+                                            ToolTip="Assign construction phase dates from 4D schedule"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Quantities" Tag="MeasuredQuantities" Click="Cmd_Click"
+                                            ToolTip="Extract measured quantities from model elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Element Count" Tag="ElementCountSummary" Click="Cmd_Click"
+                                            ToolTip="Summary of element counts by category, discipline, level"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Phase Filter" Tag="PhaseFilter" Click="Cmd_Click"
+                                            ToolTip="Filter view by construction phase"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Phase Summary" Tag="PhaseSummary" Click="Cmd_Click"
+                                            ToolTip="Phase distribution summary"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Milestones" Tag="MilestoneRegister" Click="Cmd_Click"
+                                            ToolTip="Project milestone register"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Calendar" Tag="WorkingCalendar" Click="Cmd_Click"
+                                            ToolTip="Working calendar and non-working days"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- DATA PIPELINE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="DATA PIPELINE"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -1892,7 +1955,7 @@
                                             ToolTip="Generate IFC property set mapping table"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BOQ Export" Tag="BOQExport" Click="Cmd_Click"
                                             ToolTip="Professional Bill of Quantities export (XLSX)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Excel Import" Tag="ExcelBOQImport" Click="Cmd_Click"
+                                    <Button Style="{StaticResource ActionBtn}" Content="Excel Import" Tag="ExcelImport" Click="Cmd_Click"
                                             ToolTip="Import BOQ data from Excel back into Revit"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">

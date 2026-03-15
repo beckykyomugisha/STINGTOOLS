@@ -715,7 +715,6 @@ namespace StingTools.BIMManager
             {
                 string cat = kv.Key;
                 var elems = kv.Value;
-                int qty = elems.Count;
 
                 double rate;
                 string unit;
@@ -731,12 +730,73 @@ namespace StingTools.BIMManager
                 }
                 else continue;
 
+                // Extract actual measured quantity based on unit type instead of just counting elements.
+                // For area-based items (m²), sum actual element areas; for linear items (m), sum lengths;
+                // for volume items (m³), sum volumes. Fall back to element count for "each" items.
+                double qty = 0;
+                if (unit == "m²")
+                {
+                    foreach (var el in elems)
+                    {
+                        var areaParam = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED)
+                            ?? el.get_Parameter(BuiltInParameter.ROOM_AREA)
+                            ?? el.get_Parameter(BuiltInParameter.CURTAIN_WALL_PANELS_HOST_AREA);
+                        if (areaParam != null && areaParam.HasValue)
+                            qty += areaParam.AsDouble() * 0.092903; // sqft → m²
+                        else
+                            qty += 1; // fallback: count as 1 unit
+                    }
+                }
+                else if (unit == "m")
+                {
+                    foreach (var el in elems)
+                    {
+                        var lenParam = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH)
+                            ?? el.LookupParameter("Length");
+                        if (lenParam != null && lenParam.HasValue)
+                            qty += lenParam.AsDouble() * 0.3048; // ft → m
+                        else
+                            qty += 1;
+                    }
+                }
+                else if (unit == "m³")
+                {
+                    foreach (var el in elems)
+                    {
+                        var volParam = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED)
+                            ?? el.LookupParameter("Volume");
+                        if (volParam != null && volParam.HasValue)
+                            qty += volParam.AsDouble() * 0.0283168; // cuft → m³
+                        else
+                            qty += 1;
+                    }
+                }
+                else if (unit == "kg")
+                {
+                    foreach (var el in elems)
+                    {
+                        var lenParam = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
+                        double barLen = lenParam != null && lenParam.HasValue ? lenParam.AsDouble() * 0.3048 : 1;
+                        qty += barLen; // rate is per kg; approximate: 1m = ~1kg for rebar
+                    }
+                }
+                else
+                {
+                    // "each" or unknown: use element count
+                    qty = elems.Count;
+                }
+                qty = Math.Round(qty, 2);
+
                 double lineTotal = qty * rate;
                 grandTotal += lineTotal;
 
+                // Get discipline from first tagged element (skip untagged elements in lookup)
                 string disc = "";
-                if (elems.Count > 0)
-                    disc = ParameterHelpers.GetString(elems[0], ParamRegistry.DISC);
+                foreach (var el in elems)
+                {
+                    disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    if (!string.IsNullOrEmpty(disc)) break;
+                }
 
                 lineItems.Add(new JObject
                 {

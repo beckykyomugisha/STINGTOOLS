@@ -8,7 +8,7 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **69 source files** (67 C# + 2 XAML, ~77,349 lines of code) across 10 directories
+- **69 source files** (67 C# + 2 XAML, ~81,213 lines of code) across 10 directories
 - **325 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 1 `IUpdater`
 - **23 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (8 tabs) + 1 WPF project setup wizard
@@ -131,7 +131,7 @@ STINGTOOLS/
     └── Data/                           # Runtime data files (23 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
-        ├── MR_PARAMETERS.txt           # Shared parameter file (200+ params)
+        ├── MR_PARAMETERS.txt           # Shared parameter file (1,527 params, 21 groups)
         ├── MR_PARAMETERS.csv           # Parameter definitions
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
@@ -397,7 +397,7 @@ STINGTOOLS/
 | `Model/ModelCommands.cs` | 16 (Wall, Room, Floor, Ceiling, Roof, Door, Window, Column, ColumnGrid, Beam, Duct, Pipe, Fixture, BuildingShell, DWGToModel, DWGPreview) | 1,101 |
 | `Model/ModelEngine.cs` | 0 (model creation engine + FamilyResolver + WorksetAssigner + FailureHandler) | 1,349 |
 | `Model/CADToModelEngine.cs` | 0 (DWG-to-BIM conversion engine + LayerMapper) | 824 |
-| `BIMManager/BIMManagerCommands.cs` | 35 (CreateBEP, UpdateBEP, ExportBEP, GenerateBEP, ProjectDashboard, RaiseIssue, IssueDashboard, UpdateIssue, DocumentRegister, AddDocument, COBieExport, CreateTransmittal, CDEStatus, ValidateDocNaming, ReviewTracker, SelectIssueElements, ISO19650Reference, BulkBIMExport, BriefcaseView, BriefcaseRead, BriefcaseAddFile, DocumentBriefcase, ElementStickyNote, ExportStickyNotes, SelectStickyElements, ModelHealthDashboard, ExportModelHealth, MidpTracker, Export4DTimeline, Export5DCostData, FullComplianceDashboard, LinkPredecessors, AssignPhaseDates, MeasuredQuantities, ElementCountSummary) + BIMManagerEngine | 4,967 |
+| `BIMManager/BIMManagerCommands.cs` | 35 (CreateBEP, UpdateBEP, ExportBEP, GenerateBEP, ProjectDashboard, RaiseIssue, IssueDashboard, UpdateIssue, DocumentRegister, AddDocument, COBieExport, CreateTransmittal, CDEStatus, ValidateDocNaming, ReviewTracker, SelectIssueElements, ISO19650Reference, BulkBIMExport, BriefcaseView, BriefcaseRead, BriefcaseAddFile, DocumentBriefcase, ElementStickyNote, ExportStickyNotes, SelectStickyElements, ModelHealthDashboard, ExportModelHealth, MidpTracker, Export4DTimeline, Export5DCostData, FullComplianceDashboard, LinkPredecessors, AssignPhaseDates, MeasuredQuantities, ElementCountSummary) + BIMManagerEngine + COBiePreset (22 presets) | 6,266 |
 | `BIMManager/SchedulingCommands.cs` | 12 (AutoSchedule4D, ImportMSProject, ViewTimeline4D, ExportSchedule4D, AutoCost5D, ImportCostRates, CostReport5D, CashFlow5D, PhaseFilter, PhaseSummary, MilestoneRegister, WorkingCalendar) + Scheduling4DEngine | 1,713 |
 | `Temp/CreateParametersCommand.cs` | 1 | 27 |
 | `Temp/CheckDataCommand.cs` | 1 | 297 |
@@ -419,7 +419,7 @@ STINGTOOLS/
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
 | `UI/StingDockPanel.xaml` | — (WPF markup, 8-tab panel with ~560 buttons) | 1,942 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
-| **Total** | **325 commands** | **~77,349** |
+| **Total** | **325 commands** | **~81,213** |
 
 ## Core Classes
 
@@ -604,7 +604,7 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `TagStyleEngine` | `Tags/TagStyleEngine.cs` | Tag style control engine: `StylePreset` (size/style/color → BOOL param), `ColorScheme` (8 built-in schemes), paragraph depth tiers (1-10), 128 style combinations |
 | `ModelEngine` | `Model/ModelEngine.cs` | Auto-modeling engine: walls, floors, roofs, columns, beams, MEP, rooms, building shell + `FamilyResolver`, `WorksetAssigner`, `FailureHandler` |
 | `CADToModelEngine` | `Model/CADToModelEngine.cs` | DWG-to-BIM conversion: `LayerMapper` (18 category patterns), geometry extraction (parallel lines → walls, closed loops → floors, blocks → doors/windows) |
-| `BIMManagerEngine` | `BIMManager/BIMManagerCommands.cs` | ISO 19650 BIM management engine: BEP generation (template-driven), issue tracker (BCF-compatible), document register, COBie V2.4 export, transmittals, CDE status codes, briefcase viewer + sequential ID generation |
+| `BIMManagerEngine` | `BIMManager/BIMManagerCommands.cs` | ISO 19650 BIM management engine: BEP generation (22 presets, template-driven), issue tracker (BCF-compatible), document register, COBie V2.4 export (22 project type presets, 19 worksheets, full tag integration), transmittals, CDE status codes, briefcase viewer, asset management strategy, training plan + sequential ID generation |
 | `Scheduling4DEngine` | `BIMManager/SchedulingCommands.cs` | 4D/5D scheduling engine: 32-trade construction sequences, cost rates, MS Project import/export, cash flow forecasting, Gantt timeline generation |
 | `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 543+ dockable panel button tags to 325 command classes + ~96 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM) with colour swatches and status bar |
@@ -666,7 +666,7 @@ Additionally, 39 **paragraph container parameters** exist for category-specific 
 
 The recommended tagging workflow is a multi-layered pipeline:
 
-1. **Load Parameters** (`LoadSharedParamsCommand`) — Bind 200+ shared parameters to 53 categories (2-pass: universal + discipline-specific)
+1. **Load Parameters** (`LoadSharedParamsCommand`) — Bind 1,527 shared parameters (21 groups) to 53 categories (2-pass: universal + discipline-specific)
 2. **Family-Stage Populate** (`FamilyStagePopulateCommand`) — Pre-populate all 7 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD) from category, spatial, and family data
 3. **Pre-Tag Audit** (`PreTagAuditCommand`) — Dry-run: predict tag assignments, collisions, ISO violations before committing
 4. **Tag** (`AutoTagCommand` / `BatchTagCommand` / `TagAndCombineCommand`) — Assign SEQ numbers and assemble final 8-segment tags with collision handling
@@ -803,7 +803,7 @@ Tag families contain label rows bound to `TAG_{SIZE}{STYLE}_{COLOR}_BOOL` parame
 - **Sizes**: 2, 2.5, 3, 3.5 (mm text height)
 - **Styles**: NOM (normal), BOLD, ITALIC
 - **Colors**: BLACK, BLUE, GREEN, RED
-- **Total combinations**: 4 × 3 × 4 = **48 per tag** (128 with paragraph depth variants)
+- **Total combinations**: 4 sizes × 4 styles × 8 colors = **128 per tag** (all now registered in MR_PARAMETERS.txt)
 
 ### Built-in Color Schemes
 Discipline, Warm, Cool, Red, Yellow, Blue, Monochrome, Dark — each scheme maps discipline codes to specific element graphic overrides and optionally switches tag text styles to match.
@@ -1243,6 +1243,22 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 57. **TAG7 natural language** — Enhanced TAG7 narrative with natural language connecting words throughout all sections.
 58. **Family parameter processor** — `FamilyParameterProcessorCommand` for batch .rfa file parameter processing.
 59. **Material data fixes** — Fixed density, thermal, patterns, textures for 997 material rows across BLE/MEP CSV files.
+
+#### Completed (Phase 10 — COBie V2.4 & BEP Integration)
+
+60. **22 COBie project type presets** — `COBiePreset` class with project-specific COBie configurations: Commercial Office, Healthcare NHS, Healthcare Private, Education School, Education University, Residential Standard, Residential High-Rise, Retail, Hotel, Data Centre, Industrial, Transport Station, Transport Airport, Defence MOD, Heritage, Mixed-Use, Laboratory, Sports/Leisure, Cultural, Modular/Off-Site, Infrastructure Civil, Infrastructure Water, Fit-Out Interior.
+61. **COBie Type worksheet expanded** — Full COBie V2.4 Type fields: WarrantyGuarantorParts/Labor, WarrantyDuration, NominalLength/Width/Height, Shape, Size, Color, Finish, Grade, Material, Constituents, Features, AccessibilityPerformance, CodePerformance, SustainabilityPerformance — all populated from STING shared parameters.
+62. **COBie Component worksheet expanded** — SerialNumber, InstallationDate, WarrantyStartDate, BarCode populated from STING commissioning and identity parameters.
+63. **COBie Attribute worksheet expanded** — Export of 70+ STING parameters per component: source tokens, identity, spatial, lifecycle, commissioning, maintenance, regulatory, sustainability, MEP performance, BLE dimensions, TAG7 narratives, classification codes. Auto-categorized by parameter group.
+64. **COBie Instruction worksheet added** — First worksheet per COBie V2.4 standard with generation metadata, preset info, tag format reference, and column colour coding guidance.
+65. **COBie System worksheet fixed** — Groups by actual SYS parameter values from tagged elements instead of name string matching.
+66. **COBie PickLists expanded** — STING-specific pick lists: DisciplineCode, LocationCode, ZoneCode, SystemCode, FunctionCode, StatusCode, CDEStatus, SuitabilityCode, ConditionGrade, CriticalityRating.
+67. **COBie Connection classification** — Connector direction (Supply/Return/Bidirectional) and domain type (HVAC/Piping/Electrical/CableTray) classification.
+68. **COBie Assembly enriched** — Wall/floor compositions include total thickness and fire rating from STING parameters.
+69. **BEP presets expanded to 22** — Healthcare, Education, Retail, Hotel, Data Centre, Industrial, Transport, Defence, Heritage, Mixed-Use, Laboratory, Sports, Cultural, Modular, Residential High-Rise added.
+70. **BEP Handover & Asset Management** — Enhanced with detailed COBie data drop schedule (DD1-DD4) per-stage: COBie sheets required, STING commands to use, tag completeness targets, responsible parties, and validation commands. Asset management strategy, CAFM integration, Golden Thread compliance, TIDP content.
+71. **BEP Risk Register enhanced** — 10 BIM-specific risks with likelihood, impact, mitigation, and owner. Auto-enrichment propagates tag completeness to risk register entries.
+72. **BEP Training and Competency Plan** — Section 17 added: role-based competency requirements and training schedule.
 
 ### External Tool References
 

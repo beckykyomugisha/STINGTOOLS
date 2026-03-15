@@ -1094,12 +1094,16 @@ namespace StingTools.Core
         /// Overwrite = overwrite all tokens with fresh values.
         /// </param>
         /// <param name="stats">Optional stats tracker for batch reporting.</param>
+        /// <param name="cachedRev">Optional pre-cached project revision string. When provided,
+        /// skips the per-element FilteredElementCollector call in PhaseAutoDetect.DetectProjectRevision,
+        /// improving batch performance from O(n²) to O(n).</param>
         /// <returns>True if the element was tagged, false if skipped.</returns>
         public static bool BuildAndWriteTag(Document doc, Element el,
             Dictionary<string, int> sequenceCounters, bool skipComplete = true,
             HashSet<string> existingTags = null,
             TagCollisionMode collisionMode = TagCollisionMode.AutoIncrement,
-            TaggingStats stats = null)
+            TaggingStats stats = null,
+            string cachedRev = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName) || !DiscMap.ContainsKey(catName))
@@ -1137,9 +1141,7 @@ namespace StingTools.Core
 
             string disc = DiscMap.TryGetValue(catName, out string d) ? d : "A";
 
-            // Intelligence Layer: cross-validate DISC against element category
-            if (!DiscMap.ContainsKey(catName) && stats != null)
-                stats.RecordWarning($"Element {el.Id}: category '{catName}' has no DISC mapping — defaulted to 'A'");
+            // Note: DiscMap.ContainsKey(catName) is guaranteed true by the early return at line 1105
 
             string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
             if (string.IsNullOrEmpty(loc) || loc == "XX")
@@ -1194,7 +1196,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(disc)) disc = "A";
             if (string.IsNullOrEmpty(loc))  loc  = "BLD1";
             if (string.IsNullOrEmpty(zone)) zone = "Z01";
-            if (string.IsNullOrEmpty(lvl))  lvl  = "XX";
+            if (string.IsNullOrEmpty(lvl))  lvl  = "L00";
             if (string.IsNullOrEmpty(sys))  sys  = "GEN";
             if (string.IsNullOrEmpty(func)) func = "GEN";
             if (string.IsNullOrEmpty(prod)) prod = "GEN";
@@ -1292,11 +1294,12 @@ namespace StingTools.Core
 
             // Auto-populate REV from project revision sequence
             // Guaranteed default: every element gets a REV — "P01" when no revisions exist
+            // Uses cachedRev when provided to avoid O(n) collector per element
             {
                 string existingRev = ParameterHelpers.GetString(el, ParamRegistry.REV);
                 if (string.IsNullOrEmpty(existingRev) || overwriteTokens)
                 {
-                    string rev = PhaseAutoDetect.DetectProjectRevision(doc);
+                    string rev = cachedRev ?? PhaseAutoDetect.DetectProjectRevision(doc);
                     if (string.IsNullOrEmpty(rev)) rev = "P01";
                     if (overwriteTokens)
                         ParameterHelpers.SetString(el, ParamRegistry.REV, rev, overwrite: true);
@@ -1318,6 +1321,33 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"Container write failed for {el.Id}: {ex.Message}");
             }
+
+            // ── Auto-initialize display BOOLs (v5.6) ─────────────────────────
+            // Ensure tag families show content immediately after tagging by setting
+            // default visibility parameters. Without this, tag families using
+            // paragraph depth or style matrix BOOLs would show blank labels.
+            try
+            {
+                // TAG_PARA_STATE_1_BOOL = Yes (compact mode default — ensures at least
+                // Tier 1 content is visible in tag families after tagging)
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.PARA_STATE_1, "Yes");
+
+                // TAG_WARN_VISIBLE_BOOL = No (default off — prevents expensive per-element
+                // warning evaluation on every WriteTag7All call for large models)
+                ParameterHelpers.SetIfEmpty(el, ParamRegistry.WARN_VISIBLE, "No");
+
+                // TAG_7_SECTION_VISIBLE_A-F = Yes (default all TAG7 sub-sections visible)
+                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_A_BOOL", "Yes");
+                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_B_BOOL", "Yes");
+                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_C_BOOL", "Yes");
+                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_D_BOOL", "Yes");
+                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_E_BOOL", "Yes");
+                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_F_BOOL", "Yes");
+
+                // Default tag style: 2.5mm Normal Black (most common AEC standard)
+                ParameterHelpers.SetIfEmpty(el, "TAG_2.5NOM_BLACK_BOOL", "Yes");
+            }
+            catch { /* Display BOOLs are optional — don't block tagging if params not bound */ }
 
             stats?.RecordTagged(catName, disc, sys, lvl);
             return true;

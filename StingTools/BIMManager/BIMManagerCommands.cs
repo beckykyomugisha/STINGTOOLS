@@ -34,6 +34,19 @@ namespace StingTools.BIMManager
     //  documents (BEP, standards, specs) without leaving Revit.
     // ════════════════════════════════════════════════════════════════════════════
 
+    /// <summary>COBie V2.4 project type preset configuration.</summary>
+    internal class COBiePreset
+    {
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string[] RequiredSheets { get; set; } = Array.Empty<string>();
+        public string[] FocusCategories { get; set; } = Array.Empty<string>();
+        public string[] AssetTypes { get; set; } = new[] { "Fixed", "Moveable" };
+        public string[] ZoneTypes { get; set; } = new[] { "Occupancy Zone", "Fire Zone" };
+        public string MaintenanceEmphasis { get; set; } = "Standard PPM";
+        public string Notes { get; set; } = "";
+    }
+
     #region ── Internal Engine: BIMManagerEngine ──
 
     internal static class BIMManagerEngine
@@ -200,18 +213,271 @@ namespace StingTools.BIMManager
         // ── BEP Template Presets ──
         internal static readonly Dictionary<string, string> BEPPresets = new Dictionary<string, string>
         {
-            ["UK_GOV"]     = "UK Government Soft Landings — public sector, full ISO 19650",
-            ["NBS_STANDARD"] = "NBS Standard BEP — commercial/mixed-use, Uniclass 2015",
-            ["RESIDENTIAL"] = "Residential — housing, simplified deliverables",
-            ["INFRASTRUCTURE"] = "Infrastructure — civil, rail, highways (PAS 1192-6)",
-            ["FIT_OUT"]    = "Fit-Out / Refurbishment — existing building, measured survey",
-            ["MINIMAL"]    = "Minimal — small project, essential sections only",
-            ["CUSTOM"]     = "Custom — blank template, fill in all sections"
+            ["UK_GOV"]          = "UK Government Soft Landings — public sector, full ISO 19650",
+            ["NBS_STANDARD"]    = "NBS Standard BEP — commercial/mixed-use, Uniclass 2015",
+            ["RESIDENTIAL"]     = "Residential — housing, simplified deliverables",
+            ["INFRASTRUCTURE"]  = "Infrastructure — civil, rail, highways (PAS 1192-6)",
+            ["FIT_OUT"]         = "Fit-Out / Refurbishment — existing building, measured survey",
+            ["HEALTHCARE"]      = "Healthcare — NHS/hospital, HTM/HBN compliant, full COBie",
+            ["EDUCATION"]       = "Education — schools/universities, DfE BB103 requirements",
+            ["RETAIL"]          = "Retail — shopping centres/stores, tenant fit-out focus",
+            ["HOTEL"]           = "Hotel/Hospitality — FF&E heavy, room-based asset tracking",
+            ["DATA_CENTRE"]     = "Data Centre — critical infrastructure, M&E intensive",
+            ["INDUSTRIAL"]      = "Industrial — manufacturing/warehouse, equipment focus",
+            ["TRANSPORT"]       = "Transport — stations/terminals, high public-safety requirements",
+            ["DEFENCE"]         = "Defence — MOD, security-classified, ITAR-compliant BIM",
+            ["HERITAGE"]        = "Heritage/Conservation — listed buildings, measured survey emphasis",
+            ["MIXED_USE"]       = "Mixed-Use Development — residential + commercial + retail",
+            ["LABORATORY"]      = "Laboratory — research facilities, specialist MEP/containment",
+            ["SPORTS"]          = "Sports/Leisure — stadia, arenas, swimming pools",
+            ["CULTURAL"]        = "Cultural — museums, galleries, theatres, performance spaces",
+            ["RESIDENTIAL_HI"]  = "Residential High-Rise — tall buildings, fire safety focus (BS 9991)",
+            ["MODULAR"]         = "Modular/Off-Site — DfMA, pre-manufactured value",
+            ["MINIMAL"]         = "Minimal — small project, essential sections only",
+            ["CUSTOM"]          = "Custom — blank template, fill in all sections"
+        };
+
+        // ── COBie V2.4 Project Type Presets ──
+        // Each preset defines which COBie worksheets are required,
+        // which attribute parameters are most relevant, and project-specific configuration.
+        internal static readonly Dictionary<string, COBiePreset> COBiePresets = new Dictionary<string, COBiePreset>
+        {
+            ["COMMERCIAL_OFFICE"] = new COBiePreset
+            {
+                Name = "Commercial Office", Description = "Standard office building — full COBie export",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Air Terminals", "Furniture" },
+                AssetTypes = new[] { "Fixed", "Moveable" },
+                ZoneTypes = new[] { "Occupancy Zone", "Fire Zone", "HVAC Zone", "Lighting Zone" },
+                MaintenanceEmphasis = "Standard PPM",
+                Notes = "Typical commercial office with HVAC, electrical, lighting, and furniture assets."
+            },
+            ["HEALTHCARE_NHS"] = new COBiePreset
+            {
+                Name = "Healthcare (NHS)", Description = "NHS hospital/clinic — HTM/HBN compliant, full medical equipment tracking",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Medical Equipment", "Fire Alarm Devices", "Sprinklers" },
+                AssetTypes = new[] { "Fixed", "Moveable", "Portable" },
+                ZoneTypes = new[] { "Clinical Zone", "Ward", "Theatre", "Clean Room", "Fire Zone", "Decontamination Zone" },
+                MaintenanceEmphasis = "Critical — HTM 00/01 risk-based maintenance",
+                Notes = "NHS Premises Assurance Model (PAM). Department of Health (HTM/HBN) compliance required. Medical gas, ventilation validation, nurse call, and infection control zones tracked."
+            },
+            ["HEALTHCARE_PRIVATE"] = new COBiePreset
+            {
+                Name = "Healthcare (Private)", Description = "Private hospital/clinic — CQC compliant asset management",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Fire Alarm Devices", "Sprinklers" },
+                AssetTypes = new[] { "Fixed", "Moveable" },
+                ZoneTypes = new[] { "Clinical Zone", "Patient Area", "Fire Zone", "HVAC Zone" },
+                MaintenanceEmphasis = "CQC statutory maintenance compliance",
+                Notes = "Care Quality Commission (CQC) compliance. Similar to NHS but simplified governance."
+            },
+            ["EDUCATION_SCHOOL"] = new COBiePreset
+            {
+                Name = "Education (School)", Description = "Primary/secondary school — DfE BB103 environmental requirements",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Spare", "Resource", "Job", "Document", "Attribute", "Coordinate", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Furniture", "Fire Alarm Devices" },
+                AssetTypes = new[] { "Fixed", "Moveable" },
+                ZoneTypes = new[] { "Teaching Zone", "Circulation", "Fire Zone", "Sports Zone", "Administration" },
+                MaintenanceEmphasis = "Term-time constraints, safeguarding",
+                Notes = "DfE Output Specification and BB103 ventilation/acoustic requirements. Safeguarding-aware maintenance scheduling."
+            },
+            ["EDUCATION_UNIVERSITY"] = new COBiePreset
+            {
+                Name = "Education (University)", Description = "University campus — research labs, lecture halls, mixed-use",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Air Terminals", "Furniture", "Plumbing Fixtures" },
+                AssetTypes = new[] { "Fixed", "Moveable", "Portable" },
+                ZoneTypes = new[] { "Teaching Zone", "Research Lab", "Library", "Fire Zone", "HVAC Zone", "Security Zone" },
+                MaintenanceEmphasis = "Semester scheduling, lab equipment calibration",
+                Notes = "Multi-building campus with laboratory-grade MEP and specialist research equipment."
+            },
+            ["RESIDENTIAL_STANDARD"] = new COBiePreset
+            {
+                Name = "Residential (Standard)", Description = "Standard housing — simplified COBie for domestic dwellings",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Type", "Component", "System", "Job", "Document", "Attribute", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Lighting Fixtures", "Fire Alarm Devices" },
+                AssetTypes = new[] { "Fixed" },
+                ZoneTypes = new[] { "Dwelling", "Communal Area", "Fire Zone" },
+                MaintenanceEmphasis = "Annual gas safety, electrical testing (EICR), fire alarm",
+                Notes = "Simplified asset register for residential dwellings. Building Safety Act 2022 compliance for high-rise."
+            },
+            ["RESIDENTIAL_HIGH_RISE"] = new COBiePreset
+            {
+                Name = "Residential (High-Rise)", Description = "Tall residential — Building Safety Act 2022, enhanced fire safety",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Fire Alarm Devices", "Sprinklers", "Plumbing Fixtures", "Lighting Fixtures" },
+                AssetTypes = new[] { "Fixed", "Moveable" },
+                ZoneTypes = new[] { "Dwelling", "Communal Area", "Fire Zone", "Smoke Ventilation Zone", "Evacuation Zone" },
+                MaintenanceEmphasis = "Fire safety critical — BS 9991, Building Safety Act 2022",
+                Notes = "Golden Thread of Building Information. Fire door, compartmentation, and smoke ventilation asset tracking. Principal Accountable Person duties."
+            },
+            ["RETAIL_STANDARD"] = new COBiePreset
+            {
+                Name = "Retail (Standard)", Description = "Retail unit/shopping centre — tenant fit-out and shell/core",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Spare", "Resource", "Job", "Document", "Attribute", "Coordinate", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Fire Alarm Devices", "Sprinklers" },
+                AssetTypes = new[] { "Fixed", "Moveable" },
+                ZoneTypes = new[] { "Retail Unit", "Mall Common", "Fire Zone", "Loading Bay", "Back of House" },
+                MaintenanceEmphasis = "Trading-hour constraints, tenant demise handovers",
+                Notes = "Shell and core vs tenant fit-out separation. Anchor tenant vs unit shop asset boundaries."
+            },
+            ["HOTEL"] = new COBiePreset
+            {
+                Name = "Hotel/Hospitality", Description = "Hotel — FF&E intensive, room-based asset tracking per key count",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Spare", "Resource", "Job", "Document", "Attribute", "Coordinate", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Lighting Fixtures", "Furniture", "Fire Alarm Devices" },
+                AssetTypes = new[] { "Fixed", "Moveable", "FF&E" },
+                ZoneTypes = new[] { "Guest Room", "Public Area", "Back of House", "Fire Zone", "Kitchen", "Leisure" },
+                MaintenanceEmphasis = "Guest-facing uptime priority, room turnaround schedules",
+                Notes = "High FF&E content with brand-specific standards. Room-level asset tracking per key count."
+            },
+            ["DATA_CENTRE"] = new COBiePreset
+            {
+                Name = "Data Centre", Description = "Data centre — critical power/cooling infrastructure, Tier III/IV",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Cable Trays", "Conduits", "Air Terminals", "Fire Alarm Devices", "Sprinklers" },
+                AssetTypes = new[] { "Fixed", "Critical Infrastructure" },
+                ZoneTypes = new[] { "Server Hall", "UPS Room", "Generator Room", "Cooling Plant", "Fire Zone", "Security Zone" },
+                MaintenanceEmphasis = "Zero-downtime, N+1 redundancy, 24/7 critical maintenance",
+                Notes = "Uptime Institute Tier classification. Redundant power and cooling chains. Environmental monitoring and BMS integration."
+            },
+            ["INDUSTRIAL"] = new COBiePreset
+            {
+                Name = "Industrial/Manufacturing", Description = "Factory/warehouse — production equipment, process services",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Document", "Attribute", "Coordinate", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Pipes", "Ducts", "Sprinklers", "Fire Alarm Devices" },
+                AssetTypes = new[] { "Fixed", "Production Equipment" },
+                ZoneTypes = new[] { "Production Zone", "Warehouse", "Loading Bay", "Office", "Fire Zone", "Hazardous Area" },
+                MaintenanceEmphasis = "Production-line downtime minimisation, statutory inspections",
+                Notes = "DSEAR/ATEX zone classification for hazardous areas. Process service connections tracked."
+            },
+            ["TRANSPORT_STATION"] = new COBiePreset
+            {
+                Name = "Transport (Station)", Description = "Rail/metro station — high public safety, NR standards",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Fire Alarm Devices", "Sprinklers", "Plumbing Fixtures" },
+                AssetTypes = new[] { "Fixed", "Safety-Critical" },
+                ZoneTypes = new[] { "Platform", "Concourse", "Ticket Hall", "Fire Zone", "Evacuation Route", "Back of House" },
+                MaintenanceEmphasis = "Network Rail/TfL standards, possession-window maintenance",
+                Notes = "Network Rail GRIP or TfL Pathway process. Signalling and platform edge assets. Passenger safety critical."
+            },
+            ["TRANSPORT_AIRPORT"] = new COBiePreset
+            {
+                Name = "Transport (Airport)", Description = "Airport terminal — security zones, baggage, specialist systems",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Fire Alarm Devices", "Sprinklers", "Plumbing Fixtures", "Furniture" },
+                AssetTypes = new[] { "Fixed", "Safety-Critical", "Security Equipment" },
+                ZoneTypes = new[] { "Airside", "Landside", "Security Zone", "Baggage", "Fire Zone", "Retail Concession", "Gate" },
+                MaintenanceEmphasis = "24/7 operations, CAA/EASA compliance, security-critical",
+                Notes = "CAA aerodrome licensing requirements. Security-sensitive asset classification."
+            },
+            ["DEFENCE_MOD"] = new COBiePreset
+            {
+                Name = "Defence (MOD)", Description = "Ministry of Defence — security-classified, JSP 315 compliant",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Fire Alarm Devices", "Sprinklers", "Plumbing Fixtures" },
+                AssetTypes = new[] { "Fixed", "Security-Classified" },
+                ZoneTypes = new[] { "Secure Zone", "Restricted Area", "Fire Zone", "HVAC Zone", "Communications" },
+                MaintenanceEmphasis = "JSP 315, security-cleared maintenance personnel",
+                Notes = "MOD JSP 315 requirements. Security classification of BIM data. ITAR restrictions may apply."
+            },
+            ["HERITAGE"] = new COBiePreset
+            {
+                Name = "Heritage/Conservation", Description = "Listed building — conservation fabric recording, measured survey",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Document", "Attribute", "Coordinate", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Windows", "Doors" },
+                AssetTypes = new[] { "Fixed", "Heritage Fabric" },
+                ZoneTypes = new[] { "Grade I Zone", "Grade II Zone", "Conservation Area", "Fire Zone" },
+                MaintenanceEmphasis = "Conservation-sensitive, scheduled monument consent",
+                Notes = "Historic England guidance. Point cloud/scan-to-BIM integration. Heritage fabric condition recording."
+            },
+            ["MIXED_USE"] = new COBiePreset
+            {
+                Name = "Mixed-Use Development", Description = "Mixed-use — residential + commercial + retail with shared services",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Air Terminals", "Furniture", "Fire Alarm Devices", "Sprinklers", "Plumbing Fixtures" },
+                AssetTypes = new[] { "Fixed", "Moveable" },
+                ZoneTypes = new[] { "Residential", "Commercial", "Retail", "Communal", "Fire Zone", "Plant Room", "Car Park" },
+                MaintenanceEmphasis = "Multi-tenure management, service charge apportionment",
+                Notes = "Separate asset registers per tenure type. Shared plant and services apportionment. Building Safety Act compliance for residential above 18m."
+            },
+            ["LABORATORY"] = new COBiePreset
+            {
+                Name = "Laboratory", Description = "Research laboratory — specialist containment, fume cupboards, gases",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Air Terminals", "Pipes", "Ducts" },
+                AssetTypes = new[] { "Fixed", "Lab Equipment", "Calibrated Instrument" },
+                ZoneTypes = new[] { "Lab CL2", "Lab CL3", "Lab CL4", "Write-Up", "Fire Zone", "Chemical Store", "Gas Store" },
+                MaintenanceEmphasis = "COSHH compliance, LEV testing, calibration schedules",
+                Notes = "ACDP containment level classification. Fume cupboard face velocity validation. Lab gas manifold tracking."
+            },
+            ["SPORTS_LEISURE"] = new COBiePreset
+            {
+                Name = "Sports/Leisure", Description = "Sports facility — pool plant, pitch, spectator safety",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Lighting Fixtures", "Fire Alarm Devices" },
+                AssetTypes = new[] { "Fixed", "Sports Equipment" },
+                ZoneTypes = new[] { "Playing Surface", "Spectator Area", "Changing", "Plant Room", "Fire Zone", "Pool Hall" },
+                MaintenanceEmphasis = "Pool water treatment, spectator safety, event-day readiness",
+                Notes = "PWTAG pool water treatment guidance. Safety at Sports Grounds Act. Event-day asset readiness."
+            },
+            ["CULTURAL"] = new COBiePreset
+            {
+                Name = "Cultural (Museum/Gallery)", Description = "Museum, gallery, or theatre — environmental control, display lighting",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Air Terminals", "Fire Alarm Devices" },
+                AssetTypes = new[] { "Fixed", "Display Equipment" },
+                ZoneTypes = new[] { "Gallery", "Archive Store", "Performance Space", "Public Circulation", "Fire Zone", "Plant Room" },
+                MaintenanceEmphasis = "Environmental stability (RH/temp), conservation lighting lux limits",
+                Notes = "BS EN 16893 conservation environment standard. PD 5454 archive storage. Fire suppression vs collection preservation."
+            },
+            ["MODULAR_OFFSITE"] = new COBiePreset
+            {
+                Name = "Modular/Off-Site Construction", Description = "DfMA — pre-manufactured modules, factory QA, site assembly",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Document", "Attribute", "Coordinate", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures", "Lighting Fixtures", "Fire Alarm Devices" },
+                AssetTypes = new[] { "Modular Unit", "Fixed" },
+                ZoneTypes = new[] { "Module Zone", "Core Zone", "Fire Zone", "Connection Zone" },
+                MaintenanceEmphasis = "Module interface maintenance, factory warranty tracking",
+                Notes = "BOPAS accreditation tracking. Module-to-module connection classification. Factory QA certificates as COBie Documents."
+            },
+            ["INFRASTRUCTURE_CIVIL"] = new COBiePreset
+            {
+                Name = "Infrastructure (Civil)", Description = "Roads, bridges, tunnels — linear assets, DMRB/CS standards",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures", "Pipes" },
+                AssetTypes = new[] { "Fixed", "Linear Asset" },
+                ZoneTypes = new[] { "Carriageway", "Structure", "Drainage", "Lighting Column", "Sign Zone" },
+                MaintenanceEmphasis = "DMRB inspection regimes, bridge inspections (CS 450)",
+                Notes = "Highways England DMRB (Design Manual for Roads and Bridges). Linear referencing system. Structure inspections to CS 450."
+            },
+            ["INFRASTRUCTURE_WATER"] = new COBiePreset
+            {
+                Name = "Infrastructure (Water/Utilities)", Description = "Water treatment, pumping stations — process-intensive assets",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists" },
+                FocusCategories = new[] { "Mechanical Equipment", "Electrical Equipment", "Pipes", "Plumbing Fixtures" },
+                AssetTypes = new[] { "Fixed", "Process Equipment" },
+                ZoneTypes = new[] { "Process Zone", "Chemical Dosing", "Control Room", "Inlet Works", "Final Treatment" },
+                MaintenanceEmphasis = "OFWAT regulatory compliance, AMP programme",
+                Notes = "OFWAT Asset Management Period (AMP) planning. DWI compliance for potable water. EA discharge consent tracking."
+            },
+            ["FIT_OUT_INTERIOR"] = new COBiePreset
+            {
+                Name = "Fit-Out (Interior)", Description = "Cat A/B fit-out — FF&E, partitions, M&E modifications",
+                RequiredSheets = new[] { "Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Spare", "Job", "Document", "Attribute", "Coordinate", "PickLists" },
+                FocusCategories = new[] { "Electrical Equipment", "Lighting Fixtures", "Air Terminals", "Furniture" },
+                AssetTypes = new[] { "Fixed", "Moveable", "FF&E" },
+                ZoneTypes = new[] { "Open Plan", "Cellular Office", "Meeting Room", "Breakout", "Reception" },
+                MaintenanceEmphasis = "Lease-end reinstatement tracking, FF&E lifecycle",
+                Notes = "Cat A (shell) vs Cat B (tenant fit-out) asset separation. Lease-end schedule of condition."
+            }
         };
 
         // ── COBie V2.4 Worksheet Definitions ──
         internal static readonly Dictionary<string, string[]> COBieWorksheets = new Dictionary<string, string[]>
         {
+            ["Instruction"] = new[] { "SheetName", "RowNumber", "Description", "Notes" },
             ["Contact"] = new[] { "Email", "Company", "Phone", "Department", "OrganizationCode",
                 "GivenName", "FamilyName", "Street", "PostalBox", "Town", "StateRegion",
                 "PostalCode", "Country", "Category", "CreatedBy", "CreatedOn" },
@@ -618,36 +884,126 @@ namespace StingTools.BIMManager
             };
             bep["security"] = security;
 
-            // ── Section 15: Handover ──
+            // ── Section 15: Handover & Asset Management ──
             var handover = new JObject
             {
-                ["cobie_version"] = "COBie V2.4 (UK)",
+                ["cobie_version"] = "COBie V2.4 (UK) — BS 1192-4:2014 / ISO 19650-4:2022",
                 ["data_drops"] = new JArray(
-                    new JObject { ["drop"] = "DD1", ["stage"] = "End of Stage 2", ["content"] = "Spatial data, room lists, basic types" },
-                    new JObject { ["drop"] = "DD2", ["stage"] = "End of Stage 3", ["content"] = "Full asset register, system classifications" },
-                    new JObject { ["drop"] = "DD3", ["stage"] = "End of Stage 4", ["content"] = "Technical data, manufacturer info, specifications" },
-                    new JObject { ["drop"] = "DD4", ["stage"] = "End of Stage 6", ["content"] = "As-built data, serial numbers, warranty, O&M" }
+                    new JObject
+                    {
+                        ["drop"] = "DD1", ["stage"] = "End of Stage 2 (Concept Design)",
+                        ["cobie_sheets"] = new JArray("Contact", "Facility", "Floor", "Space", "Zone"),
+                        ["sting_commands"] = new JArray("Load Parameters", "Family-Stage Populate"),
+                        ["content"] = "Spatial data: levels, rooms, zones, basic room data. STING tags: DISC, LOC, ZONE, LVL populated.",
+                        ["tag_completeness_target"] = "30% — spatial tokens only",
+                        ["responsible"] = "Lead Designer",
+                        ["validation"] = "STING Validate Tags + Pre-Tag Audit"
+                    },
+                    new JObject
+                    {
+                        ["drop"] = "DD2", ["stage"] = "End of Stage 3 (Spatial Coordination)",
+                        ["cobie_sheets"] = new JArray("Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Attribute"),
+                        ["sting_commands"] = new JArray("Auto Tag", "Batch Tag", "Combine Parameters", "Validate Tags"),
+                        ["content"] = "Full asset register: all elements tagged with 8-segment ISO tags, system classifications, basic type data.",
+                        ["tag_completeness_target"] = "80% — all 8 segments populated",
+                        ["responsible"] = "All Task Teams",
+                        ["validation"] = "STING Completeness Dashboard (target: 80% GREEN)"
+                    },
+                    new JObject
+                    {
+                        ["drop"] = "DD3", ["stage"] = "End of Stage 4 (Technical Design)",
+                        ["cobie_sheets"] = new JArray("Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Job", "Document", "Attribute"),
+                        ["sting_commands"] = new JArray("Full Auto-Populate", "Tag & Combine", "COBie Export", "BOQ Export"),
+                        ["content"] = "Technical data: manufacturer, model, specifications, MEP performance data, maintenance schedules.",
+                        ["tag_completeness_target"] = "95% — including manufacturer/warranty data",
+                        ["responsible"] = "All Task Teams + Specialist Subcontractors",
+                        ["validation"] = "STING BEP Compliance + Template Validation (45 checks)"
+                    },
+                    new JObject
+                    {
+                        ["drop"] = "DD4", ["stage"] = "End of Stage 6 (Handover)",
+                        ["cobie_sheets"] = new JArray("Contact", "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Assembly", "Connection", "Spare", "Resource", "Job", "Impact", "Document", "Attribute", "Coordinate", "Issue", "PickLists"),
+                        ["sting_commands"] = new JArray("COBie Export (Full)", "Tag Register Export", "FM Handover Manual", "IFC Export"),
+                        ["content"] = "As-built data: serial numbers, installation dates, warranty start, O&M manuals, commissioning certificates.",
+                        ["tag_completeness_target"] = "100% — verified as-built, all COBie sheets populated",
+                        ["responsible"] = "Contractor + FM Team",
+                        ["validation"] = "Full Compliance Dashboard (target: 100% GREEN) + COBie completeness audit"
+                    }
                 ),
+                ["asset_management_strategy"] = new JObject
+                {
+                    ["aim_approach"] = "ISO 19650-3 Asset Information Management using STING tags as unique asset identifiers",
+                    ["asset_classification"] = "STING 8-segment ISO 19650 tags (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ)",
+                    ["cafm_integration"] = "COBie V2.4 XLSX import into CAFM/IWMS system (Maximo, Planon, Concept, MRI)",
+                    ["golden_thread"] = "Building Safety Act 2022 — STING tags provide traceable Golden Thread from design to operation",
+                    ["data_responsibility"] = new JObject
+                    {
+                        ["design_stage"] = "Lead Designer populates DISC, LOC, ZONE, LVL, SYS, FUNC, PROD",
+                        ["construction_stage"] = "Contractor adds serial numbers, installation dates, commissioning data",
+                        ["handover_stage"] = "FM Team validates COBie completeness, imports to CAFM"
+                    },
+                    ["maintenance_strategy"] = "STING Job worksheet pre-populated with PPM schedules derived from SYS codes",
+                    ["condition_assessment"] = "MNT_CONDITION_GRADE (A-E) and MNT_CRITICALITY_RATING (1-5) tracked per asset"
+                },
+                ["tidp_content"] = new JObject
+                {
+                    ["description"] = "Task Information Delivery Plan — defines what information each task team delivers at each stage",
+                    ["sting_tidp_integration"] = "STING MIDP Tracker command tracks deliverable status per discipline",
+                    ["information_containers"] = new JArray(
+                        "Native Revit models (.rvt) with STING shared parameters",
+                        "IFC 4 exports with STING property sets mapped",
+                        "COBie V2.4 XLSX (STING COBie Export)",
+                        "PDF drawings with STING tag annotations",
+                        "Asset Register CSV (STING Tag Register Export)",
+                        "BOQ XLSX (STING BOQ Export)"
+                    ),
+                    ["naming_example"] = "PRJ-ORG-VOL-LVL-TYP-ROL-CLS-NUM (per BS EN ISO 19650)"
+                },
                 ["deliverables"] = new JArray(
-                    "Native Revit model (.rvt) with STING tags",
-                    "IFC 4 export with STING property sets",
-                    "COBie V2.4 spreadsheet (STING FM Handover)",
-                    "Asset Register CSV (STING Tag Register Export)",
+                    "Native Revit model (.rvt) with STING tags (all 8 segments)",
+                    "IFC 4 export with STING property sets (ASS_TAG_1 → IfcAsset.Identification)",
+                    "COBie V2.4 XLSX — complete 19 worksheets (STING COBie Export)",
+                    "Asset Register CSV — 40+ column export (STING Tag Register Export)",
                     "Bill of Quantities XLSX (STING BOQ Export)",
-                    "FM O&M Handover Manual (STING Handover Manual)"
+                    "FM O&M Handover Manual (STING Handover Manual)",
+                    "BEP XLSX — updated with as-built enrichment (STING Update BEP)",
+                    "Compliance Dashboard Report — final RAG status (STING Full Compliance Dashboard)"
                 )
             };
             bep["handover_requirements"] = handover;
 
-            // ── Section 16: Risk Register ──
+            // ── Section 16: Risk Register (BIM-Specific) ──
             var risks = new JArray(
-                new JObject { ["risk"] = "Late model delivery", ["impact"] = "HIGH", ["mitigation"] = "MIDP milestone tracking in STING" },
-                new JObject { ["risk"] = "Coordination clashes", ["impact"] = "HIGH", ["mitigation"] = "Weekly clash detection via STING" },
-                new JObject { ["risk"] = "Incomplete asset data", ["impact"] = "MEDIUM", ["mitigation"] = "STING Completeness Dashboard + Pre-Tag Audit" },
-                new JObject { ["risk"] = "Non-compliant naming", ["impact"] = "MEDIUM", ["mitigation"] = "STING Doc Naming Validator" },
-                new JObject { ["risk"] = "Data loss/corruption", ["impact"] = "CRITICAL", ["mitigation"] = "Central model + backup schedule" }
+                new JObject { ["risk"] = "Late model delivery", ["impact"] = "HIGH", ["likelihood"] = "Medium", ["mitigation"] = "MIDP milestone tracking in STING", ["owner"] = "Information Manager" },
+                new JObject { ["risk"] = "Coordination clashes unresolved", ["impact"] = "HIGH", ["likelihood"] = "High", ["mitigation"] = "Weekly clash detection via STING + issue tracker", ["owner"] = "BIM Coordinator" },
+                new JObject { ["risk"] = "Incomplete asset data at handover", ["impact"] = "HIGH", ["likelihood"] = "Medium", ["mitigation"] = "STING Completeness Dashboard (target 95%) + Pre-Tag Audit at each data drop", ["owner"] = "All Task Teams" },
+                new JObject { ["risk"] = "Non-compliant file naming", ["impact"] = "MEDIUM", ["likelihood"] = "Medium", ["mitigation"] = "STING Sheet Naming Check + Document Naming Validator", ["owner"] = "Information Manager" },
+                new JObject { ["risk"] = "Data loss or corruption", ["impact"] = "CRITICAL", ["likelihood"] = "Low", ["mitigation"] = "Central model with Revit Server/BIM 360, daily backup schedule", ["owner"] = "BIM Coordinator" },
+                new JObject { ["risk"] = "COBie data drop incomplete", ["impact"] = "HIGH", ["likelihood"] = "Medium", ["mitigation"] = "STING COBie Export validation at DD1-DD4 milestones", ["owner"] = "Information Manager" },
+                new JObject { ["risk"] = "Team lacks BIM competency", ["impact"] = "MEDIUM", ["likelihood"] = "Low", ["mitigation"] = "STING Training Plan + competency assessment at mobilisation", ["owner"] = "Lead Appointed Party" },
+                new JObject { ["risk"] = "Tag collisions / duplicates", ["impact"] = "LOW", ["likelihood"] = "Medium", ["mitigation"] = "STING Auto-Increment collision mode + Fix Duplicates command", ["owner"] = "BIM Coordinator" },
+                new JObject { ["risk"] = "Shared parameters not loaded", ["impact"] = "HIGH", ["likelihood"] = "Low", ["mitigation"] = "STING Master Setup or Project Setup Wizard at project start", ["owner"] = "BIM Coordinator" },
+                new JObject { ["risk"] = "Building Safety Act non-compliance", ["impact"] = "CRITICAL", ["likelihood"] = "Low", ["mitigation"] = "STING Golden Thread compliance dashboard + full COBie data drops", ["owner"] = "Principal Designer" }
             );
             bep["risk_register"] = risks;
+
+            // ── Section 17: Training and Competency Plan ──
+            var training = new JObject
+            {
+                ["competency_requirements"] = new JArray(
+                    new JObject { ["role"] = "Information Manager", ["skills"] = "ISO 19650 process, CDE administration, BEP authoring, STING BIM Manager commands" },
+                    new JObject { ["role"] = "BIM Coordinator", ["skills"] = "Revit federated model management, STING Tag commands, clash detection, COBie export" },
+                    new JObject { ["role"] = "Task Team Member", ["skills"] = "Revit authoring, STING Auto Tag, parameter population, model checking" },
+                    new JObject { ["role"] = "FM Team", ["skills"] = "COBie data validation, CAFM system import, STING Tag Register Export" }
+                ),
+                ["training_schedule"] = new JArray(
+                    new JObject { ["session"] = "STING Tools Induction", ["when"] = "Project mobilisation", ["audience"] = "All team members" },
+                    new JObject { ["session"] = "ISO 19650 Tagging Workflow", ["when"] = "Before first model issue", ["audience"] = "All modellers" },
+                    new JObject { ["session"] = "COBie Data Drops", ["when"] = "Before each DD milestone", ["audience"] = "Data drop responsible parties" },
+                    new JObject { ["session"] = "BEP & Compliance Review", ["when"] = "Quarterly", ["audience"] = "Information Manager + BIM Coordinator" }
+                )
+            };
+            bep["training_plan"] = training;
 
             // ── Allowed Codes (for BEP Validation) ──
             var allowedCodes = new JObject
@@ -878,7 +1234,8 @@ namespace StingTools.BIMManager
             WriteSectionSheet(wb, "Clash Detection", bep["clash_detection"]);
             WriteSectionSheet(wb, "Quality Assurance", bep["quality_assurance"]);
             WriteSectionSheet(wb, "Security", bep["security"]);
-            WriteSectionSheet(wb, "Handover Requirements", bep["handover_requirements"]);
+            WriteSectionSheet(wb, "Handover & Asset Mgmt", bep["handover_requirements"]);
+            WriteSectionSheet(wb, "Training Plan", bep["training_plan"]);
 
             // ── Risk Register ──
             var riskWs = wb.AddWorksheet("Risk Register");
@@ -1063,6 +1420,54 @@ namespace StingTools.BIMManager
             // Software version
             modelData["revit_version"] = doc.Application.VersionName;
 
+            // ── Element counts by category/discipline (v5.6 enrichment) ──
+            var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var countByCategory = new Dictionary<string, int>();
+            var countByDisc = new Dictionary<string, int>();
+            var sysCodes = new HashSet<string>();
+            int totalTagged = 0, totalUntagged = 0;
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType().ToList())
+                {
+                    string catName = ParameterHelpers.GetCategoryName(el);
+                    if (!knownCats.Contains(catName)) continue;
+                    if (!countByCategory.ContainsKey(catName)) countByCategory[catName] = 0;
+                    countByCategory[catName]++;
+
+                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    if (!string.IsNullOrEmpty(disc))
+                    {
+                        if (!countByDisc.ContainsKey(disc)) countByDisc[disc] = 0;
+                        countByDisc[disc]++;
+                    }
+
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(tag1)) totalTagged++;
+                    else totalUntagged++;
+
+                    string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    if (!string.IsNullOrEmpty(sys)) sysCodes.Add(sys);
+                }
+                modelData["element_counts_by_category"] = JObject.FromObject(
+                    countByCategory.OrderByDescending(kv => kv.Value)
+                    .Take(30).ToDictionary(kv => kv.Key, kv => kv.Value));
+                modelData["element_counts_by_discipline"] = JObject.FromObject(countByDisc);
+                modelData["system_codes_in_use"] = new JArray(sysCodes.OrderBy(s => s));
+                modelData["tagged_elements"] = totalTagged;
+                modelData["untagged_elements"] = totalUntagged;
+                modelData["total_taggable_elements"] = totalTagged + totalUntagged;
+                double tagPct = (totalTagged + totalUntagged) > 0
+                    ? totalTagged * 100.0 / (totalTagged + totalUntagged) : 0;
+                modelData["tag_completeness_pct"] = Math.Round(tagPct, 1);
+                modelData["tag_rag_status"] = tagPct >= 80 ? "GREEN" : tagPct >= 50 ? "AMBER" : "RED";
+                modelData["parameter_binding_count"] = ParamRegistry.AllParamGuids.Count;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BEP enrichment element scan failed: {ex.Message}");
+            }
+
             updated["model_data"] = modelData;
 
             // Update metadata
@@ -1079,6 +1484,23 @@ namespace StingTools.BIMManager
             if (int.TryParse(rev.Substring(1), out int num))
                 return $"{prefix}{(num + 1):D2}";
             return "P02";
+        }
+
+        /// <summary>
+        /// Classify COBie AssetType based on element category and active preset.
+        /// Categories like Furniture → Moveable; MEP equipment → Fixed; etc.
+        /// </summary>
+        private static string ClassifyAssetType(string categoryName, COBiePreset preset)
+        {
+            if (string.IsNullOrEmpty(categoryName)) return "Fixed";
+            string upper = categoryName.ToUpperInvariant();
+            // Moveable assets
+            if (upper.Contains("FURNITURE") || upper.Contains("CASEWORK") ||
+                upper.Contains("FOOD SERVICE") || upper.Contains("SIGNAGE") ||
+                upper.Contains("ENTOURAGE") || upper.Contains("SPECIALTY EQUIPMENT"))
+                return "Moveable";
+            // All other physical building elements
+            return preset?.AssetTypes?.Length > 0 ? preset.AssetTypes[0] : "Fixed";
         }
 
         private static JObject CreateTeamMember(string role, string code, string discipline,
@@ -1180,12 +1602,60 @@ namespace StingTools.BIMManager
         //  COBie V2.4 Export Engine
         // ═══════════════════════════════════════════════════════════
 
-        internal static Dictionary<string, List<Dictionary<string, string>>> BuildCOBieData(Document doc)
+        internal static Dictionary<string, List<Dictionary<string, string>>> BuildCOBieData(Document doc, string presetKey = null)
         {
             var data = new Dictionary<string, List<Dictionary<string, string>>>();
             string createdBy = Environment.UserName;
             string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
             var pi = doc.ProjectInformation;
+
+            // Resolve COBie preset for project type-specific configuration
+            COBiePreset activePreset = null;
+            if (!string.IsNullOrEmpty(presetKey) && COBiePresets.ContainsKey(presetKey))
+                activePreset = COBiePresets[presetKey];
+
+            // ── Instruction (COBie V2.4 standard — first worksheet) ──
+            var instructions = new List<Dictionary<string, string>>();
+            instructions.Add(new Dictionary<string, string>
+            {
+                ["SheetName"] = "Instruction", ["RowNumber"] = "1",
+                ["Description"] = "This COBie V2.4 data set was generated by STING Tools (ISO 19650 Asset Tagging & BIM Management).",
+                ["Notes"] = $"Generated: {createdOn} by {createdBy}"
+            });
+            instructions.Add(new Dictionary<string, string>
+            {
+                ["SheetName"] = "Instruction", ["RowNumber"] = "2",
+                ["Description"] = "Standard: BS 1192-4:2014 (COBie UK 2012), now superseded by ISO 19650-4:2022.",
+                ["Notes"] = "All worksheets follow COBie V2.4 column definitions."
+            });
+            instructions.Add(new Dictionary<string, string>
+            {
+                ["SheetName"] = "Instruction", ["RowNumber"] = "3",
+                ["Description"] = "Yellow columns are required. Orange columns are required if applicable. Green columns are optional reference data.",
+                ["Notes"] = "See BS 1192-4 Annex A for column colour coding definitions."
+            });
+            if (activePreset != null)
+            {
+                instructions.Add(new Dictionary<string, string>
+                {
+                    ["SheetName"] = "Instruction", ["RowNumber"] = "4",
+                    ["Description"] = $"COBie Preset: {activePreset.Name} — {activePreset.Description}",
+                    ["Notes"] = activePreset.Notes
+                });
+                instructions.Add(new Dictionary<string, string>
+                {
+                    ["SheetName"] = "Instruction", ["RowNumber"] = "5",
+                    ["Description"] = $"Focus Categories: {string.Join(", ", activePreset.FocusCategories)}",
+                    ["Notes"] = $"Maintenance Emphasis: {activePreset.MaintenanceEmphasis}"
+                });
+            }
+            instructions.Add(new Dictionary<string, string>
+            {
+                ["SheetName"] = "Instruction", ["RowNumber"] = activePreset != null ? "6" : "4",
+                ["Description"] = $"Tag Format: {string.Join(ParamRegistry.Separator, ParamRegistry.SegmentOrder)} ({ParamRegistry.NumPad}-digit SEQ)",
+                ["Notes"] = "Example: M-BLD1-Z01-L02-HVAC-SUP-AHU-0003"
+            });
+            data["Instruction"] = instructions;
 
             // ── Contact (from project_bep.json team data + fallback) ──
             var contacts = new List<Dictionary<string, string>>();
@@ -1269,7 +1739,9 @@ namespace StingTools.BIMManager
                     ["ExternalIdentifier"] = room.UniqueId,
                     ["RoomTag"] = room.Number ?? "",
                     ["GrossArea"] = Math.Round(room.Area * 0.092903, 2).ToString(),
-                    ["NetArea"] = Math.Round(room.Area * 0.092903, 2).ToString()
+                    // COBie V2.4: NetArea excludes wall thickness; approximate as 95% of gross
+                    // (standard 5% deduction for internal wall area per BS 1192-4)
+                    ["NetArea"] = Math.Round(room.Area * 0.092903 * 0.95, 2).ToString()
                 });
             }
             data["Space"] = spaces;
@@ -1296,17 +1768,62 @@ namespace StingTools.BIMManager
                 .Where(fs => fs.Category != null && knownCats.Contains(fs.Category.Name))
                 .GroupBy(fs => fs.FamilyName + ": " + fs.Name).Select(g => g.First()))
             {
+                // Read all available type-level STING parameters
+                string warrantyParts = ParameterHelpers.GetString(fs, "ASS_WARRANTY_PARTS_TXT");
+                string warrantyLabor = ParameterHelpers.GetString(fs, "ASS_WARRANTY_LABOR_TXT");
+                string warrantyDurParts = ParameterHelpers.GetString(fs, "ASS_WARRANTY_DURATION_PARTS_YRS");
+                string warrantyDurLabor = ParameterHelpers.GetString(fs, "ASS_WARRANTY_DURATION_LABOR_YRS");
+                string color = ParameterHelpers.GetString(fs, "ASS_COLOR_TXT");
+                string finish = ParameterHelpers.GetString(fs, "ASS_FINISH_TXT");
+                string material = ParameterHelpers.GetString(fs, "ASS_MATERIAL_TXT");
+                string grade = ParameterHelpers.GetString(fs, "ASS_GRADE_TXT");
+                string shape = ParameterHelpers.GetString(fs, "ASS_SHAPE_TXT");
+                string size = ParameterHelpers.GetString(fs, "ASS_SIZE_TXT");
+
+                // Extract nominal dimensions from type parameters
+                string nomLength = "", nomWidth = "", nomHeight = "";
+                try
+                {
+                    var lenParam = fs.LookupParameter("Length") ?? fs.get_Parameter(BuiltInParameter.FAMILY_ROUGH_LENGTH_PARAM);
+                    var widParam = fs.LookupParameter("Width") ?? fs.get_Parameter(BuiltInParameter.FAMILY_WIDTH_PARAM);
+                    var htParam = fs.LookupParameter("Height") ?? fs.get_Parameter(BuiltInParameter.FAMILY_HEIGHT_PARAM);
+                    if (lenParam != null && lenParam.HasValue) nomLength = Math.Round(lenParam.AsDouble() * 304.8, 0).ToString();
+                    if (widParam != null && widParam.HasValue) nomWidth = Math.Round(widParam.AsDouble() * 304.8, 0).ToString();
+                    if (htParam != null && htParam.HasValue) nomHeight = Math.Round(htParam.AsDouble() * 304.8, 0).ToString();
+                }
+                catch { /* dimension extraction optional */ }
+
+                // Derive sustainability/code/accessibility from STING params
+                string sustainability = ParameterHelpers.GetString(fs, "PER_CARBON_FOOTPRINT_KG_NR");
+                if (string.IsNullOrEmpty(sustainability))
+                    sustainability = ParameterHelpers.GetString(fs, "PER_ENERGY_RATING_TXT");
+                string codePerf = ParameterHelpers.GetString(fs, "RGL_FIRE_RATING_TXT");
+                string accessibility = ParameterHelpers.GetString(fs, "RGL_ACCESSIBILITY_COMPLIANT_TXT");
+
                 types.Add(new Dictionary<string, string>
                 {
                     ["Name"] = $"{fs.FamilyName}: {fs.Name}", ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["Category"] = fs.Category?.Name ?? "",
                     ["Description"] = ParameterHelpers.GetString(fs, "ASS_DESCRIPTION_TXT"),
-                    ["AssetType"] = "Fixed",
+                    ["AssetType"] = ClassifyAssetType(fs.Category?.Name ?? "", activePreset),
                     ["Manufacturer"] = ParameterHelpers.GetString(fs, "ASS_MANUFACTURER_TXT"),
                     ["ModelNumber"] = ParameterHelpers.GetString(fs, "ASS_MODEL_TXT"),
+                    ["WarrantyGuarantorParts"] = warrantyParts,
+                    ["WarrantyDurationParts"] = warrantyDurParts,
+                    ["WarrantyGuarantorLabor"] = warrantyLabor,
+                    ["WarrantyDurationLabor"] = warrantyDurLabor,
+                    ["WarrantyDurationUnit"] = (!string.IsNullOrEmpty(warrantyDurParts) || !string.IsNullOrEmpty(warrantyDurLabor)) ? "years" : "",
                     ["ReplacementCost"] = ParameterHelpers.GetString(fs, "ASS_CST_UNIT_PRICE_UGX_NR"),
                     ["ExpectedLife"] = ParameterHelpers.GetString(fs, "ASS_EXPECTED_LIFE_YEARS_YRS"),
-                    ["DurationUnit"] = "years", ["ModelReference"] = fs.Name
+                    ["DurationUnit"] = "years",
+                    ["NominalLength"] = nomLength, ["NominalWidth"] = nomWidth, ["NominalHeight"] = nomHeight,
+                    ["ModelReference"] = fs.Name,
+                    ["Shape"] = shape, ["Size"] = size, ["Color"] = color, ["Finish"] = finish,
+                    ["Grade"] = grade, ["Material"] = material,
+                    ["Constituents"] = "", ["Features"] = "",
+                    ["AccessibilityPerformance"] = accessibility,
+                    ["CodePerformance"] = codePerf,
+                    ["SustainabilityPerformance"] = sustainability
                 });
             }
             data["Type"] = types;
@@ -1343,6 +1860,12 @@ namespace StingTools.BIMManager
                     : !string.IsNullOrEmpty(typeName) ? typeName
                     : tag;
 
+                // Extract serial number, installation date, warranty start, barcode from STING parameters
+                string serialNumber = ParameterHelpers.GetString(el, "ASS_SERIAL_NUMBER_TXT");
+                string installDate = ParameterHelpers.GetString(el, "COM_INSTALL_DATE_TXT");
+                string warrantyStart = ParameterHelpers.GetString(el, "COM_WARRANTY_START_TXT");
+                string barCode = ParameterHelpers.GetString(el, "ASS_BARCODE_TXT");
+
                 components.Add(new Dictionary<string, string>
                 {
                     ["Name"] = friendlyName, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
@@ -1350,29 +1873,55 @@ namespace StingTools.BIMManager
                     ["Description"] = desc,
                     ["ExternalSystem"] = "Revit", ["ExternalObject"] = cat,
                     ["ExternalIdentifier"] = el.UniqueId,
-                    ["TagNumber"] = assetId, ["AssetIdentifier"] = assetId,
-                    ["Category"] = cat
+                    ["SerialNumber"] = serialNumber,
+                    ["InstallationDate"] = installDate,
+                    ["WarrantyStartDate"] = warrantyStart,
+                    ["TagNumber"] = assetId,
+                    ["BarCode"] = barCode,
+                    ["AssetIdentifier"] = assetId
                 });
             }
             data["Component"] = components;
 
-            // ── System ──
+            // ── System (grouped by actual SYS parameter values from tagged elements) ──
             var systems = new List<Dictionary<string, string>>();
+            var sysGroups = new Dictionary<string, List<string>>();
+            foreach (var comp in components)
+            {
+                string extId = comp["ExternalIdentifier"];
+                var revitEl = doc.GetElement(extId);
+                if (revitEl == null) continue;
+                string sysCode = ParameterHelpers.GetString(revitEl, ParamRegistry.SYS);
+                if (string.IsNullOrEmpty(sysCode)) continue;
+                if (!sysGroups.ContainsKey(sysCode))
+                    sysGroups[sysCode] = new List<string>();
+                if (sysGroups[sysCode].Count < 50)
+                    sysGroups[sysCode].Add(comp["Name"]);
+            }
+            // Also include systems from TagConfig that have components matched by name
             foreach (var sysCode in TagConfig.SysMap.Keys.OrderBy(k => k))
             {
-                var sysComps = components.Where(c => c["Name"].Contains($"-{sysCode}-"))
+                if (sysGroups.ContainsKey(sysCode)) continue;
+                var sysComps = components.Where(c =>
+                    c.ContainsKey("TagNumber") && !string.IsNullOrEmpty(c["TagNumber"]) &&
+                    c["TagNumber"].Contains($"-{sysCode}-"))
                     .Select(c => c["Name"]).Take(20).ToList();
                 if (sysComps.Count > 0)
+                    sysGroups[sysCode] = sysComps;
+            }
+            foreach (var kvp in sysGroups.OrderBy(k => k.Key))
+            {
+                string sysDesc = TagConfig.SysMap.ContainsKey(kvp.Key)
+                    ? string.Join(", ", TagConfig.SysMap[kvp.Key]) : kvp.Key;
+                systems.Add(new Dictionary<string, string>
                 {
-                    systems.Add(new Dictionary<string, string>
-                    {
-                        ["Name"] = sysCode, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
-                        ["Category"] = sysCode, ["ComponentNames"] = string.Join(",", sysComps),
-                        ["ExternalSystem"] = "STING", ["ExternalObject"] = "System",
-                        ["ExternalIdentifier"] = sysCode,
-                        ["Description"] = TagConfig.SysMap.ContainsKey(sysCode) ? string.Join(", ", TagConfig.SysMap[sysCode]) : sysCode
-                    });
-                }
+                    ["Name"] = kvp.Key, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["Category"] = kvp.Key,
+                    ["ComponentNames"] = string.Join(",", kvp.Value.Take(20)),
+                    ["ExternalSystem"] = "STING", ["ExternalObject"] = "System",
+                    ["ExternalIdentifier"] = kvp.Key,
+                    ["Description"] = sysDesc
+                });
             }
             data["System"] = systems;
 
@@ -1445,19 +1994,36 @@ namespace StingTools.BIMManager
                 CompoundStructure cs = wallType.GetCompoundStructure();
                 if (cs == null || cs.LayerCount < 2) continue;
                 var childNames = new List<string>();
+                var layerProps = new List<string>();
                 foreach (var layer in cs.GetLayers())
                 {
-                    var mat = doc.GetElement(layer.MaterialId);
+                    var mat = doc.GetElement(layer.MaterialId) as Material;
                     string layerName = mat != null ? mat.Name : $"Layer ({layer.Width * 304.8:F0}mm)";
                     childNames.Add(layerName);
+                    // Extract material properties for assembly description
+                    string thermal = "", fireRating = "";
+                    if (mat != null)
+                    {
+                        try
+                        {
+                            if (mat.ThermalAssetId != ElementId.InvalidElementId)
+                                thermal = "Thermal";
+                        }
+                        catch { }
+                        fireRating = ParameterHelpers.GetString(wallType, "RGL_FIRE_RATING_TXT");
+                    }
+                    layerProps.Add($"{layerName} ({layer.Width * 304.8:F0}mm{(thermal.Length > 0 ? ", " + thermal : "")})");
                 }
+                string totalThickness = Math.Round(cs.GetWidth() * 304.8, 0).ToString();
+                string fireRatingStr = ParameterHelpers.GetString(wallType, "RGL_FIRE_RATING_TXT");
                 assemblies.Add(new Dictionary<string, string>
                 {
                     ["Name"] = $"Assembly-Wall-{wallType.Name}",
                     ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["SheetName"] = "Type", ["ParentName"] = $"Walls: {wallType.Name}",
                     ["ChildNames"] = string.Join(",", childNames),
-                    ["AssemblyType"] = "Fixed", ["Description"] = $"Wall composition: {wallType.Name}"
+                    ["AssemblyType"] = "Fixed",
+                    ["Description"] = $"Wall: {wallType.Name}, {totalThickness}mm total{(!string.IsNullOrEmpty(fireRatingStr) ? ", Fire: " + fireRatingStr : "")}, Layers: {string.Join(" + ", layerProps)}"
                 });
             }
             foreach (var floorType in new FilteredElementCollector(doc).OfClass(typeof(FloorType)).Cast<FloorType>())
@@ -1471,13 +2037,15 @@ namespace StingTools.BIMManager
                     string layerName = mat != null ? mat.Name : $"Layer ({layer.Width * 304.8:F0}mm)";
                     childNames.Add(layerName);
                 }
+                string totalThickness = Math.Round(cs.GetWidth() * 304.8, 0).ToString();
                 assemblies.Add(new Dictionary<string, string>
                 {
                     ["Name"] = $"Assembly-Floor-{floorType.Name}",
                     ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["SheetName"] = "Type", ["ParentName"] = $"Floors: {floorType.Name}",
                     ["ChildNames"] = string.Join(",", childNames),
-                    ["AssemblyType"] = "Fixed", ["Description"] = $"Floor composition: {floorType.Name}"
+                    ["AssemblyType"] = "Fixed",
+                    ["Description"] = $"Floor: {floorType.Name}, {totalThickness}mm total, {cs.LayerCount} layers"
                 });
             }
             data["Assembly"] = assemblies;
@@ -1506,11 +2074,27 @@ namespace StingTools.BIMManager
                         string name1 = !string.IsNullOrEmpty(elTag) ? elTag : el.Name;
                         string name2 = !string.IsNullOrEmpty(otherTag) ? otherTag : other.Owner.Name;
 
+                        // Classify connection direction/type from connector properties
+                        string connDirection = "";
+                        try
+                        {
+                            string dirStr = conn.Direction.ToString();
+                            if (dirStr == "Out") connDirection = "Supply";
+                            else if (dirStr == "In") connDirection = "Return";
+                            else if (dirStr == "Bidirectional") connDirection = "Bidirectional";
+                        }
+                        catch { }
+                        string connType = conn.Domain.ToString();
+                        if (connType.Contains("Hvac")) connType = "HVAC";
+                        else if (connType.Contains("Piping")) connType = "Piping";
+                        else if (connType.Contains("Electrical")) connType = "Electrical";
+                        else if (connType.Contains("CableTray") || connType.Contains("Conduit")) connType = "CableTray/Conduit";
+
                         connections.Add(new Dictionary<string, string>
                         {
                             ["Name"] = $"Connection-{++connIdx}",
                             ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
-                            ["ConnectionType"] = conn.Domain.ToString(),
+                            ["ConnectionType"] = $"{connType}{(!string.IsNullOrEmpty(connDirection) ? " (" + connDirection + ")" : "")}",
                             ["SheetName"] = "Component", ["RowName1"] = name1, ["RowName2"] = name2,
                             ["RealizingElement"] = "",
                             ["PortName1"] = $"{conn.Origin.X * 304.8:F0},{conn.Origin.Y * 304.8:F0},{conn.Origin.Z * 304.8:F0}",
@@ -1597,13 +2181,57 @@ namespace StingTools.BIMManager
             }
             data["Impact"] = impacts;
 
-            // ── Attribute (shared parameter export for tagged elements) ──
+            // ── Attribute (comprehensive shared parameter export for tagged elements) ──
             var attributes = new List<Dictionary<string, string>>();
-            var attrParamNames = new[] { ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            // Export ALL STING parameters — source tokens, identity, spatial, MEP, lifecycle, compliance, TAG7
+            var attrParamNames = new List<string>
+            {
+                // Source tokens (8 segments)
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
                 ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD, ParamRegistry.SEQ,
+                // Tag containers
+                ParamRegistry.TAG1,
+                // Identity & description
                 "ASS_MANUFACTURER_TXT", "ASS_MODEL_TXT", "ASS_DESCRIPTION_TXT",
-                "ASS_EXPECTED_LIFE_YEARS_YRS", "ASS_CST_UNIT_PRICE_UGX_NR" };
-            foreach (var el in components.Take(500))
+                "ASS_SERIAL_NUMBER_TXT", "ASS_BARCODE_TXT",
+                // Lifecycle
+                "ASS_EXPECTED_LIFE_YEARS_YRS", "ASS_CST_UNIT_PRICE_UGX_NR",
+                "ASS_WARRANTY_PARTS_TXT", "ASS_WARRANTY_LABOR_TXT",
+                "ASS_WARRANTY_DURATION_PARTS_YRS", "ASS_WARRANTY_DURATION_LABOR_YRS",
+                // Material / finish
+                "ASS_COLOR_TXT", "ASS_FINISH_TXT", "ASS_MATERIAL_TXT", "ASS_GRADE_TXT",
+                // Spatial
+                "ASS_ROOM_NAME_TXT", "ASS_ROOM_NUMBER_TXT", "ASS_DEPARTMENT_TXT", "ASS_GRID_REFERENCE_TXT",
+                // Status & revision
+                "ASS_STATUS_TXT", "ASS_REV_TXT", "ASS_ORIGIN_TXT",
+                // Commissioning
+                "COM_INSTALL_DATE_TXT", "COM_WARRANTY_START_TXT",
+                "COM_COMMISSION_DATE_TXT", "COM_COMMISSION_STATUS_TXT", "COM_COMMISSION_ENGINEER_TXT",
+                // Maintenance
+                "MNT_SERVICE_INTERVAL_TXT", "MNT_LAST_SERVICE_DATE_TXT", "MNT_NEXT_SERVICE_DATE_TXT",
+                "MNT_SERVICE_PROVIDER_TXT", "MNT_CONDITION_GRADE_TXT", "MNT_CRITICALITY_RATING_TXT",
+                "MNT_ACCESS_REQUIREMENTS_TXT", "MNT_SPARES_REQUIRED_TXT",
+                // Regulatory compliance
+                "RGL_FIRE_RATING_TXT", "RGL_ACCESSIBILITY_COMPLIANT_TXT",
+                "RGL_CERTIFICATION_REF_TXT", "RGL_INSPECTION_DATE_TXT", "RGL_COMPLIANCE_STATUS_TXT",
+                // Sustainability
+                "PER_CARBON_FOOTPRINT_KG_NR", "PER_ENERGY_RATING_TXT",
+                "PER_RECYCLED_CONTENT_PCT_NR", "PER_EMBODIED_CARBON_KG_NR",
+                // MEP specific
+                "ELC_RATED_VOLTAGE_V_NR", "ELC_RATED_CURRENT_A_NR", "ELC_CIRCUIT_NUMBER_TXT",
+                "HVC_AIRFLOW_RATE_LS_NR", "HVC_COOLING_CAPACITY_KW_NR", "HVC_HEATING_CAPACITY_KW_NR",
+                "PLM_FLOW_RATE_LS_NR", "PLM_PIPE_SIZE_MM_NR",
+                // BLE dimensions
+                "BLE_WALL_HEIGHT_MM", "BLE_WALL_THICKNESS_MM",
+                "BLE_FLOOR_THICKNESS_MM", "BLE_CEILING_HEIGHT_MM",
+                // TAG7 narrative sections
+                "ASS_TAG_7A_TXT", "ASS_TAG_7B_TXT", "ASS_TAG_7C_TXT",
+                "ASS_TAG_7D_TXT", "ASS_TAG_7E_TXT", "ASS_TAG_7F_TXT",
+                // Classification
+                "ASS_UNIFORMAT_TXT", "ASS_OMNICLASS_TXT", "ASS_KEYNOTE_TXT",
+                "ASS_UNICLASS_2015_TXT", "ASS_NRM_CODE_TXT"
+            };
+            foreach (var el in components)
             {
                 string compName = el["Name"];
                 string extId = el["ExternalIdentifier"];
@@ -1613,15 +2241,38 @@ namespace StingTools.BIMManager
                 {
                     string val = ParameterHelpers.GetString(revitEl, pName);
                     if (string.IsNullOrEmpty(val)) continue;
+
+                    // Determine unit based on parameter name suffix
+                    string unit = "";
+                    if (pName.EndsWith("_NR") && pName.Contains("_V_")) unit = "V";
+                    else if (pName.EndsWith("_NR") && pName.Contains("_A_")) unit = "A";
+                    else if (pName.EndsWith("_NR") && pName.Contains("_KW_")) unit = "kW";
+                    else if (pName.EndsWith("_NR") && pName.Contains("_LS_")) unit = "L/s";
+                    else if (pName.EndsWith("_NR") && pName.Contains("_KG_")) unit = "kg";
+                    else if (pName.EndsWith("_NR") && pName.Contains("_PCT_")) unit = "%";
+                    else if (pName.EndsWith("_MM")) unit = "mm";
+                    else if (pName.EndsWith("_YRS")) unit = "years";
+
+                    // Categorize attribute
+                    string attrCategory = "STING Parameter";
+                    if (pName.StartsWith("COM_")) attrCategory = "Commissioning";
+                    else if (pName.StartsWith("MNT_")) attrCategory = "Maintenance";
+                    else if (pName.StartsWith("RGL_")) attrCategory = "Regulatory Compliance";
+                    else if (pName.StartsWith("PER_")) attrCategory = "Sustainability";
+                    else if (pName.StartsWith("ELC_") || pName.StartsWith("HVC_") || pName.StartsWith("PLM_")) attrCategory = "MEP Performance";
+                    else if (pName.StartsWith("BLE_")) attrCategory = "Dimensional";
+                    else if (pName.Contains("TAG_7")) attrCategory = "TAG7 Narrative";
+                    else if (pName.Contains("UNIFORMAT") || pName.Contains("OMNICLASS") || pName.Contains("KEYNOTE") || pName.Contains("UNICLASS") || pName.Contains("NRM")) attrCategory = "Classification";
+
                     attributes.Add(new Dictionary<string, string>
                     {
                         ["Name"] = pName, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
-                        ["Category"] = "STING Parameter",
+                        ["Category"] = attrCategory,
                         ["SheetName"] = "Component", ["RowName"] = compName,
-                        ["Value"] = val, ["Unit"] = "",
+                        ["Value"] = val, ["Unit"] = unit,
                         ["ExternalSystem"] = "STING", ["ExternalObject"] = "SharedParameter",
                         ["ExternalIdentifier"] = pName,
-                        ["Description"] = pName, ["AllowedValues"] = ""
+                        ["Description"] = pName.Replace("_", " "), ["AllowedValues"] = ""
                     });
                 }
             }
@@ -1674,31 +2325,42 @@ namespace StingTools.BIMManager
             }
             data["Issue"] = issuesList;
 
-            // ── PickLists (valid COBie pick list values) ──
+            // ── PickLists (valid COBie pick list values + STING tag codes) ──
             var pickLists = new List<Dictionary<string, string>>();
             var pickListValues = new Dictionary<string, string[]>
             {
-                ["AssetType"] = new[] { "Fixed", "Moveable" },
+                ["AssetType"] = new[] { "Fixed", "Moveable", "Portable", "FF&E", "Safety-Critical", "Critical Infrastructure" },
                 ["CategoryFacility"] = new[] { "Facility" },
-                ["CategoryFloor"] = new[] { "Floor", "Site", "Basement" },
-                ["CategorySpace"] = new[] { "Office", "Corridor", "Plant Room", "WC", "Kitchen", "Store", "Circulation", "Room" },
-                ["CategoryZone"] = new[] { "Occupancy Zone", "Fire Zone", "Lighting Zone", "HVAC Zone", "Security Zone" },
+                ["CategoryFloor"] = new[] { "Floor", "Site", "Basement", "Mezzanine", "Roof" },
+                ["CategorySpace"] = new[] { "Office", "Corridor", "Plant Room", "WC", "Kitchen", "Store", "Circulation", "Room", "Lab", "Theatre", "Ward", "Meeting Room" },
+                ["CategoryZone"] = new[] { "Occupancy Zone", "Fire Zone", "Lighting Zone", "HVAC Zone", "Security Zone", "Clinical Zone", "Clean Room", "Evacuation Zone" },
                 ["DurationUnit"] = new[] { "years", "months", "weeks", "days", "hours" },
-                ["FloorType"] = new[] { "Basement", "Ground", "Upper", "Roof" },
+                ["FloorType"] = new[] { "Basement", "Ground", "Upper", "Roof", "Mezzanine", "Plant" },
                 ["ImpactType"] = new[] { "Environment", "Health", "Safety", "Cost" },
                 ["ImpactStage"] = new[] { "Construction", "Operation", "Demolition" },
-                ["JobStatus"] = new[] { "Not Started", "In Progress", "Complete" },
-                ["JobType"] = new[] { "Preventive", "Corrective", "Condition-Based", "Emergency" },
+                ["JobStatus"] = new[] { "Not Started", "In Progress", "Complete", "Overdue", "Cancelled" },
+                ["JobType"] = new[] { "Preventive", "Corrective", "Condition-Based", "Emergency", "Statutory" },
                 ["ObjType"] = new[] { "Fixed", "Moveable", "Component" },
                 ["LinearUnits"] = new[] { "millimeters", "meters", "feet", "inches" },
                 ["AreaUnits"] = new[] { "square meters", "square feet" },
                 ["VolumeUnits"] = new[] { "cubic meters", "cubic feet" },
-                ["CurrencyUnit"] = new[] { "GBP", "USD", "EUR" },
-                ["AreaMeasurement"] = new[] { "NRM", "RICS", "IPMS" },
-                ["ConnectionType"] = new[] { "Logical", "Physical", "Control" },
-                ["IssueRisk"] = new[] { "High", "Medium", "Low" },
+                ["CurrencyUnit"] = new[] { "GBP", "USD", "EUR", "UGX", "AED", "SGD" },
+                ["AreaMeasurement"] = new[] { "NRM", "RICS", "IPMS", "BOMA" },
+                ["ConnectionType"] = new[] { "Logical", "Physical", "Control", "Supply", "Return", "Drain", "Vent", "Exhaust" },
+                ["IssueRisk"] = new[] { "Critical", "High", "Medium", "Low", "Info" },
                 ["CoordinateType"] = new[] { "Point", "Box" }
             };
+            // Add STING-specific pick lists from tag configuration
+            pickListValues["STING_DisciplineCode"] = TagConfig.DiscMap.Values.Distinct().OrderBy(v => v).ToArray();
+            pickListValues["STING_LocationCode"] = TagConfig.LocCodes.ToArray();
+            pickListValues["STING_ZoneCode"] = TagConfig.ZoneCodes.ToArray();
+            pickListValues["STING_SystemCode"] = TagConfig.SysMap.Keys.OrderBy(k => k).ToArray();
+            pickListValues["STING_FunctionCode"] = TagConfig.FuncMap.Values.Distinct().OrderBy(v => v).ToArray();
+            pickListValues["STING_StatusCode"] = new[] { "NEW", "EXISTING", "DEMOLISHED", "TEMPORARY" };
+            pickListValues["STING_CDEStatus"] = CDEStates.Keys.ToArray();
+            pickListValues["STING_SuitabilityCode"] = SuitabilityCodes.Keys.ToArray();
+            pickListValues["STING_ConditionGrade"] = new[] { "A-Good", "B-Satisfactory", "C-Poor", "D-Bad", "E-End of Life" };
+            pickListValues["STING_CriticalityRating"] = new[] { "1-Critical", "2-Important", "3-Significant", "4-Standard", "5-Low" };
             foreach (var kvp in pickListValues)
             {
                 foreach (string val in kvp.Value)
@@ -1798,7 +2460,7 @@ namespace StingTools.BIMManager
             double pct = (double)(dashboard["tag_completeness_pct"] ?? 0);
             int openIssues = (int)(issueSummary["total"] ?? 0) - (int)(issueSummary["closed"] ?? 0) - (int)(issueSummary["void"] ?? 0);
             dashboard["rag_status"] = pct >= 80 && openIssues < 10 ? "GREEN" :
-                                      pct >= 50 || openIssues < 50 ? "AMBER" : "RED";
+                                      pct >= 50 && openIssues < 50 ? "AMBER" : "RED";
 
             return dashboard;
         }
@@ -2273,6 +2935,21 @@ namespace StingTools.BIMManager
                 updated["auto_enrichment"] = enrichment;
                 if (updated["model_data"] is JObject md)
                     md["enriched_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
+                // GAP-014: Auto-update risk register with compliance data
+                var riskReg = updated["risk_register"] as JArray;
+                if (riskReg != null)
+                {
+                    foreach (var risk in riskReg)
+                    {
+                        string riskText = risk["risk"]?.ToString() ?? "";
+                        if (riskText.Contains("asset data") || riskText.Contains("COBie"))
+                        {
+                            risk["current_status"] = compliance.RAGStatus;
+                            risk["current_pct"] = $"{Math.Round(compliance.CompliancePercent, 1)}%";
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -3113,8 +3790,42 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            StingLog.Info("BIMManager: Generating COBie V2.4 export...");
-            var cobieData = BIMManagerEngine.BuildCOBieData(doc);
+            // Select COBie preset for project type
+            string selectedPreset = null;
+            var presetDlg = new TaskDialog("STING COBie — Project Type");
+            presetDlg.MainInstruction = "Select COBie project type preset:";
+            presetDlg.MainContent = "Choose a project type to tailor the COBie export, or use the default full export.";
+            presetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Full Export (all worksheets, no preset filter)");
+            presetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Select from 22 project type presets...");
+            var presetResult = presetDlg.Show();
+            if (presetResult == TaskDialogResult.CommandLink2)
+            {
+                // Build preset selection list
+                var presetNames = BIMManagerEngine.COBiePresets.Keys.ToList();
+                var sb2 = new StringBuilder();
+                for (int i = 0; i < presetNames.Count; i++)
+                    sb2.AppendLine($"  {i + 1}. {BIMManagerEngine.COBiePresets[presetNames[i]].Name}");
+
+                var pickDlg = new TaskDialog("STING COBie — Select Preset");
+                pickDlg.MainInstruction = "Available COBie presets:";
+                pickDlg.MainContent = sb2.ToString() + "\nEnter preset number in the supplemental text below, or click Default.";
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Use default (Commercial Office)");
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Use Healthcare (NHS)");
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Use Data Centre");
+                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Use Residential (High-Rise)");
+                var pickResult = pickDlg.Show();
+                selectedPreset = pickResult switch
+                {
+                    TaskDialogResult.CommandLink1 => "COMMERCIAL_OFFICE",
+                    TaskDialogResult.CommandLink2 => "HEALTHCARE_NHS",
+                    TaskDialogResult.CommandLink3 => "DATA_CENTRE",
+                    TaskDialogResult.CommandLink4 => "RESIDENTIAL_HIGH_RISE",
+                    _ => null
+                };
+            }
+
+            StingLog.Info($"BIMManager: Generating COBie V2.4 export (preset={selectedPreset ?? "full"})...");
+            var cobieData = BIMManagerEngine.BuildCOBieData(doc, selectedPreset);
 
             string cobieDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc),
                 $"COBie_V24_{DateTime.Now:yyyyMMdd}");
