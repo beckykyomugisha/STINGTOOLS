@@ -589,4 +589,42 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
     }
+
+    /// <summary>
+    /// Configure the sequence numbering scheme (numeric, alphabetic, zone-prefixed, disc-prefixed).
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetSeqSchemeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var td = new TaskDialog("STING — Sequence Scheme");
+            td.MainInstruction = "Select numbering scheme for SEQ token";
+            td.MainContent = $"Current: {TagConfig.CurrentSeqScheme}\n\n" +
+                "WARNING: Changing scheme may require re-numbering all elements.";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Numeric (0001, 0042)", "Standard zero-padded numbers");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Alphabetic (A, B, AA)", "Base-26 letter codes");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Zone-Prefixed (Z1-0042)", "Zone prefix before number");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Discipline-Prefixed (M-0042)", "Discipline prefix before number");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+            var result = td.Show();
+
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1: TagConfig.CurrentSeqScheme = SeqScheme.Numeric; break;
+                case TaskDialogResult.CommandLink2: TagConfig.CurrentSeqScheme = SeqScheme.Alpha; break;
+                case TaskDialogResult.CommandLink3: TagConfig.CurrentSeqScheme = SeqScheme.ZonePrefix; break;
+                case TaskDialogResult.CommandLink4: TagConfig.CurrentSeqScheme = SeqScheme.DiscPrefix; break;
+                default: return Result.Cancelled;
+            }
+
+            TaskDialog.Show("STING", $"Sequence scheme set to: {TagConfig.CurrentSeqScheme}");
+            return Result.Succeeded;
+        }
+    }
 }

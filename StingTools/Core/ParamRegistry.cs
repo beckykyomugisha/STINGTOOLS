@@ -112,6 +112,22 @@ namespace StingTools.Core
         public static string DETAIL_NUM { get; private set; } = "ASS_INST_DETAIL_NUM_TXT";
         public static string MNT_TYPE { get; private set; } = "MNT_TYPE_TXT";
 
+        // ── Stale detection + display mode + tag position ───────────────
+        public const string STALE = "STING_STALE_BOOL";
+        public const string STALE_GUID = "C9D0E1F2-A3B4-4C5D-8E6F-7A8B9C0D1E2F";
+        public const string CLUSTER_COUNT = "STING_CLUSTER_COUNT";
+        public const string CLUSTER_COUNT_GUID = "D1E2F3A4-B5C6-4D7E-8F9A-0B1C2D3E4F5A";
+        public const string CLUSTER_LABEL = "STING_CLUSTER_LABEL";
+        public const string CLUSTER_LABEL_GUID = "D2E3F4A5-B6C7-4D8E-9F0A-1B2C3D4E5F6B";
+        public const string DISPLAY_MODE = "STING_DISPLAY_MODE";
+        public const string DISPLAY_MODE_GUID = "D0E1F2A3-B4C5-4D6E-8F7A-8B9C0D1E2F3A";
+        public const string DISPLAY_TXT = "ASS_DISPLAY_TXT";
+        public const string DISPLAY_TXT_GUID = "D3E4F5A6-B7C8-4D9E-0F1A-2B3C4D5E6F7C";
+        public const string TAG_POS = "STING_TAG_POS";
+        public const string TAG_POS_GUID = "E1F2A3B4-C5D6-4E7F-8A9B-0C1D2E3F4A5B";
+        public const string VIEW_TAG_STYLE = "STING_VIEW_TAG_STYLE";
+        public const string VIEW_TAG_STYLE_GUID = "E2F3A4B5-C6D7-4E8F-9A0B-1C2D3E4F5A6C";
+
         // ── Extended parameter names (identity, spatial, dimensional, MEP) ──
         // Loaded from extended_params section. Keys map to param_name values.
         private static Dictionary<string, string> _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);

@@ -32,6 +32,10 @@ namespace StingTools.Core
             public Dictionary<string, int> IssuesByType { get; set; } = new Dictionary<string, int>();
             public DateTime ScanTime { get; set; }
 
+            /// <summary>Per-discipline compliance breakdown.</summary>
+            public Dictionary<string, DiscComplianceData> ByDisc { get; set; }
+                = new Dictionary<string, DiscComplianceData>(StringComparer.OrdinalIgnoreCase);
+
             public double CompliancePercent =>
                 TotalElements > 0 ? TaggedComplete * 100.0 / TotalElements : 0;
 
@@ -68,6 +72,18 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>Per-discipline compliance data.</summary>
+        public class DiscComplianceData
+        {
+            public int Total { get; set; }
+            public int Tagged { get; set; }
+            public int Untagged { get; set; }
+            public int MissingLoc { get; set; }
+            public int MissingSys { get; set; }
+            public int MissingProd { get; set; }
+            public double CompliancePct => Total > 0 ? Tagged * 100.0 / Total : 0;
+        }
+
         /// <summary>
         /// Run a quick compliance scan (uses cache if recent).
         /// </summary>
@@ -96,21 +112,41 @@ namespace StingTools.Core
                     if (!known.Contains(cat)) continue;
 
                     result.TotalElements++;
+
+                    // Per-discipline tracking (Item 18)
+                    string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                    if (string.IsNullOrEmpty(disc))
+                        disc = TagConfig.DiscMap.TryGetValue(cat, out string dv) ? dv : "?";
+
+                    if (!result.ByDisc.TryGetValue(disc, out var discData))
+                    {
+                        discData = new DiscComplianceData();
+                        result.ByDisc[disc] = discData;
+                    }
+                    discData.Total++;
+
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.LOC))) discData.MissingLoc++;
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.SYS))) discData.MissingSys++;
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.PROD))) discData.MissingProd++;
+
                     string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
 
                     if (string.IsNullOrEmpty(tag))
                     {
                         result.Untagged++;
+                        discData.Untagged++;
                         AddIssue(result, "Untagged");
                     }
                     else if (TagConfig.TagIsFullyResolved(tag))
                     {
                         result.TaggedComplete++;
                         result.FullyResolved++;
+                        discData.Tagged++;
                     }
                     else if (TagConfig.TagIsComplete(tag))
                     {
                         result.TaggedComplete++;
+                        discData.Tagged++;
                         // Has placeholders — check which tokens
                         string[] parts = tag.Split(ParamRegistry.Separator[0]);
                         if (parts.Length >= 8)
@@ -123,6 +159,7 @@ namespace StingTools.Core
                     else
                     {
                         result.TaggedIncomplete++;
+                        discData.Untagged++;
                         AddIssue(result, "Incomplete tag");
                     }
                 }

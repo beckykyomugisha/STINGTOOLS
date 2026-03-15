@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -34,6 +36,8 @@ namespace StingTools.Core
         private static readonly object _processedLock = new object();
         private static readonly HashSet<long> _recentlyProcessed = new HashSet<long>();
         private static volatile int _processedCount;
+        private static bool _visualTaggingEnabled = false;
+        private static HashSet<string> _allowedDiscs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         private readonly AddInId _addinId;
 
@@ -140,6 +144,19 @@ namespace StingTools.Core
             return _enabled;
         }
 
+        /// <summary>Enable or disable visual tag placement during auto-tagging.</summary>
+        public static void SetVisualTagging(bool enabled) { _visualTaggingEnabled = enabled; }
+        /// <summary>Get current visual tagging state.</summary>
+        public static bool IsVisualTaggingEnabled => _visualTaggingEnabled;
+
+        /// <summary>Set the allowed discipline filter. Empty set = all disciplines.</summary>
+        public static void SetDisciplineFilter(IEnumerable<string> discs)
+        {
+            _allowedDiscs = discs != null
+                ? new HashSet<string>(discs, StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
         /// <summary>
         /// Called by Revit when elements are added to tagged categories.
         /// Auto-populates tokens and builds ISO 19650 tag.
@@ -193,6 +210,37 @@ namespace StingTools.Core
                     if (string.IsNullOrEmpty(catName)) continue;
                     if (!TagConfig.DiscMap.ContainsKey(catName)) continue;
 
+                    // Item 5: Discipline filter — skip elements not in allowed disciplines
+                    if (_allowedDiscs.Count > 0)
+                    {
+                        string elemDisc = TagConfig.DiscMap.TryGetValue(catName, out string dv) ? dv : "";
+                        if (!_allowedDiscs.Contains(elemDisc)) continue;
+                    }
+
+                    // Item 5: Workset filter — skip elements not owned by current user
+                    if (doc.IsWorkshared)
+                    {
+                        try
+                        {
+                            WorksetId wsId = el.WorksetId;
+                            if (wsId != null && wsId != WorksetId.InvalidWorksetId)
+                            {
+                                var wsInfo = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id);
+                                if (!string.IsNullOrEmpty(wsInfo.Owner)
+                                    && wsInfo.Owner != doc.Application.Username
+                                    && wsInfo.Owner != "")
+                                {
+                                    StingLog.Info($"AutoTagger: skipping el {id.Value} owned by '{wsInfo.Owner}'");
+                                    continue;
+                                }
+                            }
+                        }
+                        catch { /* workset check is advisory — never block tagging */ }
+                    }
+
+                    // Item 1: Inherit tokens from family type before auto-detection
+                    TokenAutoPopulator.TypeTokenInherit(doc, el);
+
                     // Populate all tokens
                     TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: false);
 
@@ -222,6 +270,34 @@ namespace StingTools.Core
                     catch (Exception ex)
                     {
                         StingLog.Warn($"AutoTagger combine failed for {el.Id.Value}: {ex.Message}");
+                    }
+
+                    // Item 4: Visual tag placement — only if user has enabled visual auto-tagging
+                    if (_visualTaggingEnabled && doc.ActiveView != null
+                        && !(doc.ActiveView is ViewSheet)
+                        && doc.ActiveView.CanBePrinted)
+                    {
+                        try
+                        {
+                            View view = doc.ActiveView;
+                            FamilySymbol tagType = Tags.TagPlacementEngine.FindTagType(doc, el.Category);
+                            if (tagType != null)
+                            {
+                                XYZ elCenter = Tags.TagPlacementEngine.GetElementCenter(el, view);
+                                double offset = Tags.TagPlacementEngine.GetModelOffset(view);
+                                int preferred = Tags.TagPlacementEngine.GetPreferredSide(catName);
+                                XYZ[] candidates = Tags.TagPlacementEngine.GetCandidateOffsets(offset);
+                                XYZ bestPos = elCenter + candidates[preferred < candidates.Length ? preferred : 0];
+
+                                IndependentTag.Create(
+                                    doc, tagType.Id, view.Id, new Reference(el),
+                                    false, TagOrientation.Horizontal, bestPos);
+                            }
+                        }
+                        catch (Exception vex)
+                        {
+                            StingLog.Warn($"AutoTagger visual tag placement: {vex.Message}");
+                        }
                     }
 
                     lock (_processedLock)
@@ -260,6 +336,12 @@ namespace StingTools.Core
                     catch { /* Panel may not be loaded yet */ }
                 }
             }
+        }
+
+        /// <summary>Public accessor for the multi-category filter (used by StingStaleMarker).</summary>
+        public static ElementMulticategoryFilter CreateMultiCategoryFilterStatic()
+        {
+            return CreateMultiCategoryFilter();
         }
 
         /// <summary>Build a multi-category filter covering all tagged categories.</summary>
@@ -330,6 +412,185 @@ namespace StingTools.Core
             }
             TaskDialog.Show("Auto-Tagger", msg);
             return Result.Succeeded;
+        }
+    }
+
+    /// <summary>Toggle visual tag placement during auto-tagging.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AutoTaggerToggleVisualCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            StingAutoTagger.SetVisualTagging(!StingAutoTagger.IsVisualTaggingEnabled);
+            TaskDialog.Show("STING Auto-Tagger",
+                $"Visual tag placement: {(StingAutoTagger.IsVisualTaggingEnabled ? "ENABLED" : "DISABLED")}\n\n" +
+                "When enabled, the auto-tagger will also place visual annotation tags on newly placed elements.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>Configure auto-tagger discipline filter and workset/visual options.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AutoTaggerConfigCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var td = new TaskDialog("STING Auto-Tagger Configuration");
+            td.MainInstruction = "Auto-Tagger Settings";
+            var sb = new StringBuilder();
+            sb.AppendLine($"Auto-Tagger: {(StingAutoTagger.IsEnabled ? "ENABLED" : "DISABLED")}");
+            sb.AppendLine($"Visual Tags: {(StingAutoTagger.IsVisualTaggingEnabled ? "ENABLED" : "DISABLED")}");
+            sb.AppendLine($"Stale Marker: {(StingStaleMarker.IsEnabled ? "ENABLED" : "DISABLED")}");
+            sb.AppendLine();
+            sb.AppendLine("Discipline Filter:");
+            sb.AppendLine("  M = Mechanical, E = Electrical, P = Plumbing");
+            sb.AppendLine("  A = Architectural, S = Structural, FP = Fire");
+            td.MainContent = sb.ToString();
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Toggle Visual Tags", "Enable/disable visual annotation placement");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Toggle Stale Marker", "Enable/disable geometry change detection");
+            td.CommonButtons = TaskDialogCommonButtons.Close;
+            var result = td.Show();
+            if (result == TaskDialogResult.CommandLink1)
+                StingAutoTagger.SetVisualTagging(!StingAutoTagger.IsVisualTaggingEnabled);
+            else if (result == TaskDialogResult.CommandLink2)
+                StingStaleMarker.SetEnabled(!StingStaleMarker.IsEnabled);
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  STALE TOKEN MARKER (IUpdater)
+    //
+    //  Marks elements as stale when their geometry changes (indicating a move
+    //  that may invalidate spatial tokens like LOC, ZONE, LVL).
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// IUpdater that detects geometry changes on tagged elements and sets
+    /// STING_STALE_BOOL = 1 when the element's spatial context may have changed.
+    /// </summary>
+    public class StingStaleMarker : IUpdater
+    {
+        private static StingStaleMarker _instance;
+        private static UpdaterId _updaterId;
+        private static bool _enabled = false;
+
+        private StingStaleMarker(AddInId addInId)
+        {
+            _updaterId = new UpdaterId(addInId, new Guid("F1A2B3C4-D5E6-4F7A-8B9C-0D1E2F3A4B5C"));
+        }
+
+        public UpdaterId GetUpdaterId() => _updaterId;
+        public ChangePriority GetChangePriority() => ChangePriority.FloorsRoofsStructuralWalls;
+        public string GetUpdaterName() => "STING Stale Token Marker";
+        public string GetAdditionalInformation() => "Marks elements as stale when geometry changes.";
+
+        /// <summary>Register the stale marker updater at startup.</summary>
+        public static void Register(UIControlledApplication app)
+        {
+            try
+            {
+                _instance = new StingStaleMarker(app.ActiveAddInId);
+                UpdaterRegistry.RegisterUpdater(_instance, true);
+                StingLog.Info("StingStaleMarker registered (disabled).");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StingStaleMarker.Register", ex);
+            }
+        }
+
+        /// <summary>Enable or disable the stale marker.</summary>
+        public static void SetEnabled(bool enabled)
+        {
+            if (_instance == null || _updaterId == null) return;
+            try
+            {
+                if (enabled && !_enabled)
+                {
+                    var filter = StingAutoTagger.CreateMultiCategoryFilterStatic();
+                    UpdaterRegistry.AddTrigger(_updaterId, filter,
+                        Element.GetChangeTypeGeometry());
+                    _enabled = true;
+                    StingLog.Info("StingStaleMarker enabled.");
+                }
+                else if (!enabled && _enabled)
+                {
+                    UpdaterRegistry.RemoveAllTriggers(_updaterId);
+                    _enabled = false;
+                    StingLog.Info("StingStaleMarker disabled.");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StingStaleMarker.SetEnabled", ex);
+            }
+        }
+
+        public static bool IsEnabled => _enabled;
+
+        /// <summary>Unregister on shutdown.</summary>
+        public static void Unregister()
+        {
+            try
+            {
+                if (_instance != null)
+                    UpdaterRegistry.UnregisterUpdater(_updaterId);
+            }
+            catch { }
+        }
+
+        private const int MaxElementsPerTrigger = 20;
+
+        public void Execute(UpdaterData data)
+        {
+            if (!_enabled) return;
+
+            try
+            {
+                Document doc = data.GetDocument();
+                if (doc == null || !doc.IsValidObject) return;
+
+                var modifiedIds = data.GetModifiedElementIds();
+                if (modifiedIds == null || modifiedIds.Count == 0) return;
+                if (modifiedIds.Count > MaxElementsPerTrigger) return;
+
+                foreach (ElementId id in modifiedIds)
+                {
+                    try
+                    {
+                        Element el = doc.GetElement(id);
+                        if (el == null || !el.IsValidObject) continue;
+
+                        // Only mark elements that already have a tag
+                        string tag1 = ParameterHelpers.GetString(el, ParamRegistry.AllTokenParams[0]);
+                        if (string.IsNullOrEmpty(tag1)) continue;
+
+                        // Check if spatial context changed
+                        string currentLvl = ParameterHelpers.GetLevelCode(doc, el);
+                        string storedLvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+
+                        if (!string.IsNullOrEmpty(storedLvl) && currentLvl != storedLvl)
+                        {
+                            Parameter p = el.LookupParameter(ParamRegistry.STALE);
+                            if (p != null && !p.IsReadOnly)
+                                p.Set(1);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"StingStaleMarker element {id.Value}: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"StingStaleMarker.Execute: {ex.Message}");
+            }
         }
     }
 }

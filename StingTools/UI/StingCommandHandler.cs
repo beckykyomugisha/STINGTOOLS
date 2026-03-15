@@ -859,6 +859,27 @@ namespace StingTools.UI
                     case "MilestoneRegister": RunCommand<BIMManager.MilestoneRegisterCommand>(app); break;
                     case "WorkingCalendar": RunCommand<BIMManager.WorkingCalendarCommand>(app); break;
 
+                    // ── Tier 1-7 Enhancement Commands ──────────────────────────
+                    case "SwitchTagPos1":        RunSwitchTagPos(app, 1); break;
+                    case "SwitchTagPos2":        RunSwitchTagPos(app, 2); break;
+                    case "SwitchTagPos3":        RunSwitchTagPos(app, 3); break;
+                    case "SwitchTagPos4":        RunSwitchTagPos(app, 4); break;
+                    case "SwitchTagPos":         RunCommand<Tags.SwitchTagPositionCommand>(app); break;
+                    case "AlignTagBands":        RunCommand<Tags.AlignTagBandsCommand>(app); break;
+                    case "ClusterTags":          RunCommand<Organise.ClusterTagsCommand>(app); break;
+                    case "DeclusterTags":        RunCommand<Organise.DeclusterTagsCommand>(app); break;
+                    case "ExportTagPositions":   RunCommand<Tags.ExportTagPositionsCommand>(app); break;
+                    case "DiscComplianceReport": RunCommand<Organise.DisciplineComplianceReportCommand>(app); break;
+                    case "WorkflowTrend":        RunCommand<Core.WorkflowTrendCommand>(app); break;
+                    case "FamilyParamCreator":   RunCommand<Tags.FamilyParamCreatorCommand>(app); break;
+                    case "SetDisplayMode":       RunCommand<Organise.SetDisplayModeCommand>(app); break;
+                    case "SetSeqScheme":         RunCommand<Tags.SetSeqSchemeCommand>(app); break;
+                    case "AutoTagVisual":        RunCommand<Core.AutoTaggerToggleVisualCommand>(app); break;
+                    case "BatchPlaceLinkedTags": RunCommand<Tags.BatchPlaceLinkedTagsCommand>(app); break;
+                    case "RetagStale":           RunCommand<Organise.RetagStaleCommand>(app); break;
+                    case "SetViewTagStyle":      RunCommand<Tags.SetViewTagStyleCommand>(app); break;
+                    case "AutoTaggerConfig":     RunCommand<Core.AutoTaggerConfigCommand>(app); break;
+
                     // ── Unmapped / placeholder ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
@@ -905,6 +926,47 @@ namespace StingTools.UI
         /// Commands can use this as a fallback when ExternalCommandData is null.
         /// </summary>
         public static UIApplication CurrentApp { get; private set; }
+
+        // ── Quick tag position switch (inline helper) ────────────────
+
+        private static void RunSwitchTagPos(UIApplication app, int posValue)
+        {
+            try
+            {
+                var doc = app.ActiveUIDocument?.Document;
+                if (doc == null) return;
+                var view = doc.ActiveView;
+                if (view == null) return;
+
+                var elements = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                    .ToList();
+
+                var typeIds = new HashSet<ElementId>(
+                    elements.Select(e => { try { return e.GetTypeId(); } catch { return ElementId.InvalidElementId; } })
+                        .Where(id => id != ElementId.InvalidElementId));
+
+                int updated = 0;
+                using (Transaction tx = new Transaction(doc, $"STING Switch Tag Position {posValue}"))
+                {
+                    tx.Start();
+                    foreach (ElementId typeId in typeIds)
+                    {
+                        try
+                        {
+                            Element typeEl = doc.GetElement(typeId);
+                            Parameter p = typeEl?.LookupParameter(ParamRegistry.TAG_POS);
+                            if (p != null && !p.IsReadOnly) { p.Set(posValue); updated++; }
+                        }
+                        catch { }
+                    }
+                    tx.Commit();
+                }
+                StingLog.Info($"SwitchTagPos{posValue}: updated {updated} types in active view");
+            }
+            catch (Exception ex) { StingLog.Warn($"RunSwitchTagPos: {ex.Message}"); }
+        }
 
         // ── Generic command runner ────────────────────────────────────
 

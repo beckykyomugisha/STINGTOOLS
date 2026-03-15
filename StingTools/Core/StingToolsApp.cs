@@ -43,6 +43,9 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
+                // Register the stale token marker (IUpdater) — starts disabled
+                StingStaleMarker.Register(application);
+
                 // CRASH FIX: Eagerly load ParamRegistry at startup instead of lazy-loading
                 // on first command. This ensures:
                 //   1. JSON parsing errors surface at startup where they're diagnosable
@@ -57,6 +60,17 @@ namespace StingTools.Core
                 catch (Exception ex)
                 {
                     StingLog.Error("ParamRegistry pre-load failed (commands will use defaults)", ex);
+                }
+
+                // Item 16: Document-open quality gate
+                try
+                {
+                    application.ControlledApplication.DocumentOpened += OnDocumentOpened;
+                    StingLog.Info("DocumentOpened quality gate registered.");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"DocumentOpened registration: {ex.Message}");
                 }
 
                 // CRASH FIX: Subscribe to DocumentClosing to clear stale static caches.
@@ -100,9 +114,38 @@ namespace StingTools.Core
         public Result OnShutdown(UIControlledApplication application)
         {
             StingLog.Info("STING Tools shutting down");
+            try { application.ControlledApplication.DocumentOpened -= OnDocumentOpened; }
+            catch { }
             StingAutoTagger.Unregister();
+            StingStaleMarker.Unregister();
             StingLog.Shutdown();
             return Result.Succeeded;
+        }
+
+        /// <summary>Document-open quality gate — runs compliance check on open.</summary>
+        private static void OnDocumentOpened(object sender,
+            Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
+        {
+            try
+            {
+                Document doc = e.Document;
+                if (doc == null || doc.IsFamilyDocument) return;
+
+                var scan = ComplianceScan.Scan(doc, forceRefresh: true);
+
+                // Update dock panel status bar
+                try
+                {
+                    UI.StingDockPanel.UpdateComplianceStatus(scan.StatusBarText, scan.RAGStatus);
+                }
+                catch { }
+
+                StingLog.Info($"DocumentOpened: '{doc.Title}' — {scan.StatusBarText}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DocumentOpened quality gate: {ex.Message}");
+            }
         }
 
         // ── Assembly Pre-Flight Check ────────────────────────────────

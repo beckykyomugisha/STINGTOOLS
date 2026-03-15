@@ -43,6 +43,8 @@ namespace StingTools.Tags
             Document doc = ctx.Doc;
             var sw = Stopwatch.StartNew();
 
+            double scanBefore = ComplianceScan.Scan(doc).CompliancePercent;
+
             // Scope selection
             TaskDialog scopeDlg = new TaskDialog("Pre-Tag Audit");
             scopeDlg.MainInstruction = "Audit scope — predict tag assignments";
@@ -430,7 +432,41 @@ namespace StingTools.Tags
             TaskDialog td = new TaskDialog("Pre-Tag Audit");
             td.MainInstruction = $"Will tag {willBeTagged} elements ({alreadyTagged} already tagged, {predictedCollisions} collisions)";
             td.MainContent = report2.ToString();
-            td.Show();
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Auto-fix all correctable issues",
+                "Runs AnomalyAutoFix + ResolveAllIssues to address fixable issues");
+            td.CommonButtons = TaskDialogCommonButtons.Close;
+            var tdResult = td.Show();
+
+            if (tdResult == TaskDialogResult.CommandLink1)
+            {
+                try
+                {
+                    string msg2 = "";
+                    var fixCmd = new Organise.AnomalyAutoFixCommand();
+                    fixCmd.Execute(commandData, ref msg2, elements);
+
+                    var rescan = ComplianceScan.Scan(doc, forceRefresh: true);
+                    if (rescan.CompliancePercent < 80.0)
+                    {
+                        var resolveCmd = new Tags.ResolveAllIssuesCommand();
+                        resolveCmd.Execute(commandData, ref msg2, elements);
+                    }
+
+                    var afterScan = ComplianceScan.Scan(doc, forceRefresh: true);
+                    double improvement = afterScan.CompliancePercent - scanBefore;
+                    TaskDialog.Show("Pre-Tag Audit \u2014 Auto-Fix Complete",
+                        $"Compliance: {scanBefore:F1}% \u2192 {afterScan.CompliancePercent:F1}% " +
+                        $"({(improvement >= 0 ? "+" : "")}{improvement:F1}%)\n\n" +
+                        $"Elements now tagged: {afterScan.TaggedComplete}\n" +
+                        $"Still untagged: {afterScan.Untagged}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("PreTagAudit auto-fix", ex);
+                    TaskDialog.Show("STING", $"Auto-fix encountered an error: {ex.Message}");
+                }
+            }
 
             StingLog.Info($"PreTagAudit: {totalTaggable} elements, {predictedCollisions} predicted collisions, " +
                 $"{isoViolations} ISO violations, {willBeTagged} untagged" +
