@@ -46,8 +46,12 @@ namespace StingTools.Tags
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements
             var collector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType();
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
 
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
             int total = 0;

@@ -91,15 +91,25 @@ namespace StingTools.Tags
                     break;
                 case TaskDialogResult.CommandLink2:
                     if (doc.ActiveView == null) { TaskDialog.Show("Populate", "No active view."); return Result.Failed; }
-                    targetIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
-                        .WhereElementIsNotElementType()
-                        .Select(e => e.Id).ToList();
+                    {
+                        var viewColl = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                            .WhereElementIsNotElementType();
+                        var catEnums = SharedParamGuids.AllCategoryEnums;
+                        if (catEnums != null && catEnums.Length > 0)
+                            viewColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                        targetIds = viewColl.Select(e => e.Id).ToList();
+                    }
                     scopeLabel = $"active view '{doc.ActiveView.Name}'";
                     break;
                 case TaskDialogResult.CommandLink3:
-                    targetIds = new FilteredElementCollector(doc)
-                        .WhereElementIsNotElementType()
-                        .Select(e => e.Id).ToList();
+                    {
+                        var projColl = new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType();
+                        var catEnums = SharedParamGuids.AllCategoryEnums;
+                        if (catEnums != null && catEnums.Length > 0)
+                            projColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                        targetIds = projColl.Select(e => e.Id).ToList();
+                    }
                     scopeLabel = "entire project";
                     break;
                 default:

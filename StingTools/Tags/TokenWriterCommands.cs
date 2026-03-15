@@ -490,7 +490,11 @@ namespace StingTools.Tags
             var stats = new Dictionary<string, (int total, int valid, int resolved, int incomplete, int missing)>();
             int emptyStatus = 0, emptyRev = 0;
 
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var dashColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var dashCatEnums = SharedParamGuids.AllCategoryEnums;
+            if (dashCatEnums != null && dashCatEnums.Length > 0)
+                dashColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(dashCatEnums)));
+            foreach (Element elem in dashColl)
             {
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;

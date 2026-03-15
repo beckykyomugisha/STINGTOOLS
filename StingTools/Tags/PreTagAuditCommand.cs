@@ -61,13 +61,25 @@ namespace StingTools.Tags
             {
                 case TaskDialogResult.CommandLink1:
                     if (doc.ActiveView == null) { TaskDialog.Show("Pre-Tag Audit", "No active view."); return Result.Failed; }
-                    targetElements = new FilteredElementCollector(doc, doc.ActiveView.Id)
-                        .WhereElementIsNotElementType().ToList();
+                    {
+                        var auditViewColl = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                            .WhereElementIsNotElementType();
+                        var auditCatEnums = SharedParamGuids.AllCategoryEnums;
+                        if (auditCatEnums != null && auditCatEnums.Length > 0)
+                            auditViewColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(auditCatEnums)));
+                        targetElements = auditViewColl.ToList();
+                    }
                     scopeLabel = $"active view '{doc.ActiveView.Name}'";
                     break;
                 case TaskDialogResult.CommandLink2:
-                    targetElements = new FilteredElementCollector(doc)
-                        .WhereElementIsNotElementType().ToList();
+                    {
+                        var auditProjColl = new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType();
+                        var auditCatEnums = SharedParamGuids.AllCategoryEnums;
+                        if (auditCatEnums != null && auditCatEnums.Length > 0)
+                            auditProjColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(auditCatEnums)));
+                        targetElements = auditProjColl.ToList();
+                    }
                     scopeLabel = "entire project";
                     break;
                 default:

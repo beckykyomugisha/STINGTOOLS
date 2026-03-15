@@ -54,9 +54,13 @@ namespace StingTools.Tags
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Step 1: Pre-flight scan — collect and classify all elements
-            var allElements = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .ToList();
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements at API level
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var collector = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            var allElements = collector.ToList();
 
             int totalTaggable = 0, alreadyTagged = 0, untagged = 0;
             var taggableElements = new List<Element>();

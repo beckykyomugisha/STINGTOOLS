@@ -4396,9 +4396,13 @@ namespace StingTools.Organise
             var doc = ctx.Doc;
 
             // Scan all taggable elements
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
-            var allElements = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
+            var anomalyColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var anomalyCatEnums = SharedParamGuids.AllCategoryEnums;
+            if (anomalyCatEnums != null && anomalyCatEnums.Length > 0)
+                anomalyColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(anomalyCatEnums)));
+            var allElements = anomalyColl
                 .Where(e => known.Contains(ParameterHelpers.GetCategoryName(e)))
                 .ToList();
 

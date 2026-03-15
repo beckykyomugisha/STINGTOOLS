@@ -88,7 +88,11 @@ namespace StingTools.Tags
         {
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
             var catCounts = new Dictionary<string, int>();
-            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var gpColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var gpCatEnums = SharedParamGuids.AllCategoryEnums;
+            if (gpCatEnums != null && gpCatEnums.Length > 0)
+                gpColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(gpCatEnums)));
+            foreach (Element el in gpColl)
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!knownCategories.Contains(cat)) continue;
@@ -168,6 +172,9 @@ namespace StingTools.Tags
         private Result ExecuteCombine(Document doc, ParamRegistry.ContainerGroupDef[] activeGroups)
         {
             var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var combCatEnums = SharedParamGuids.AllCategoryEnums;
+            if (combCatEnums != null && combCatEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(combCatEnums)));
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             int totalElements = 0;
@@ -303,7 +310,11 @@ namespace StingTools.Tags
                 ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS, ParamRegistry.REV
             };
 
-            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var pfColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var pfCatEnums = SharedParamGuids.AllCategoryEnums;
+            if (pfCatEnums != null && pfCatEnums.Length > 0)
+                pfColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(pfCatEnums)));
+            foreach (Element el in pfColl)
             {
                 string catName = ParameterHelpers.GetCategoryName(el);
                 if (!knownCategories.Contains(catName)) continue;

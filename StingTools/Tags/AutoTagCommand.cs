@@ -51,9 +51,14 @@ namespace StingTools.Tags
             View activeView = ctx.ActiveView;
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
-            var viewElements = new FilteredElementCollector(doc, activeView.Id)
-                .WhereElementIsNotElementType()
-                .ToList();
+
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements at API level
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var collector = new FilteredElementCollector(doc, activeView.Id)
+                .WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            var viewElements = collector.ToList();
 
             // Intelligence Layer: detect relevant disciplines from view name/template/VG
             var relevantDiscs = TagConfig.GetViewRelevantDisciplines(activeView);
@@ -243,8 +248,13 @@ namespace StingTools.Tags
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             // Pre-filter: only elements with empty ASS_TAG_1_TXT
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements at API level
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var tagNewCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                tagNewCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
             var untagged = new List<Element>();
-            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            foreach (Element el in tagNewCollector)
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!known.Contains(cat)) continue;

@@ -957,12 +957,16 @@ namespace StingTools.UI
             new Dictionary<string, List<ElementId>>();
 
         /// <summary>
-        /// CRASH FIX: Clear selection memory slots that hold ElementId references.
-        /// Must be called on document close to prevent stale IDs being used against a new document.
+        /// CRASH FIX: Clear all static state that may hold stale references.
+        /// Must be called on document close to prevent stale IDs or conditions
+        /// being used against a different document.
         /// </summary>
         public static void ClearStaticState()
         {
             _memorySlots.Clear();
+            _conditions.Clear();
+            _scopeIsView = true;
+            _overwriteMode = false;
         }
 
         private static void ViewIsolateSelected(UIApplication app)

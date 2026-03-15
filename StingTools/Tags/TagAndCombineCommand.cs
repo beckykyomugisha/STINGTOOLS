@@ -85,9 +85,15 @@ namespace StingTools.Tags
             {
                 case TaskDialogResult.CommandLink1:
                     if (doc.ActiveView == null) { TaskDialog.Show("Tag & Combine", "No active view."); return Result.Failed; }
-                    targetIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
-                        .WhereElementIsNotElementType()
-                        .Select(e => e.Id).ToList();
+                    {
+                        // Performance: use ElementMulticategoryFilter to skip non-taggable elements
+                        var viewCollector = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                            .WhereElementIsNotElementType();
+                        var catEnums = SharedParamGuids.AllCategoryEnums;
+                        if (catEnums != null && catEnums.Length > 0)
+                            viewCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                        targetIds = viewCollector.Select(e => e.Id).ToList();
+                    }
                     scopeLabel = $"active view '{doc.ActiveView.Name}'";
                     break;
                 case TaskDialogResult.CommandLink2:
@@ -100,9 +106,15 @@ namespace StingTools.Tags
                     scopeLabel = $"{targetIds.Count} selected elements";
                     break;
                 case TaskDialogResult.CommandLink3:
-                    targetIds = new FilteredElementCollector(doc)
-                        .WhereElementIsNotElementType()
-                        .Select(e => e.Id).ToList();
+                    {
+                        // Performance: use ElementMulticategoryFilter to skip non-taggable elements
+                        var projCollector = new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType();
+                        var catEnums = SharedParamGuids.AllCategoryEnums;
+                        if (catEnums != null && catEnums.Length > 0)
+                            projCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                        targetIds = projCollector.Select(e => e.Id).ToList();
+                    }
                     scopeLabel = "entire project";
                     break;
                 default:
