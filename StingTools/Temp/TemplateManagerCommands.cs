@@ -2723,8 +2723,8 @@ namespace StingTools.Temp
             {
                 TaskDialog.Show("Family Parameter Processor",
                     "Failed to open shared parameter file.");
-                if (!string.IsNullOrEmpty(previousSpf))
-                    app.SharedParametersFilename = previousSpf;
+                // Restore to MR_PARAMETERS.txt (not the previous file which may be wrong)
+                app.SharedParametersFilename = spfPath;
                 return Result.Failed;
             }
 
@@ -2747,7 +2747,7 @@ namespace StingTools.Temp
                 TaskDialog.Show("Family Parameter Processor",
                     "FAMILY_PARAMETER_BINDINGS.csv not found or empty.");
                 if (!string.IsNullOrEmpty(previousSpf))
-                    app.SharedParametersFilename = previousSpf;
+                    app.SharedParametersFilename = spfPath;
                 return Result.Failed;
             }
 
@@ -2840,7 +2840,7 @@ namespace StingTools.Temp
             else
             {
                 if (!string.IsNullOrEmpty(previousSpf))
-                    app.SharedParametersFilename = previousSpf;
+                    app.SharedParametersFilename = spfPath;
                 return Result.Cancelled;
             }
 
@@ -2848,7 +2848,7 @@ namespace StingTools.Temp
             {
                 TaskDialog.Show("Family Parameter Processor", "No family files selected.");
                 if (!string.IsNullOrEmpty(previousSpf))
-                    app.SharedParametersFilename = previousSpf;
+                    app.SharedParametersFilename = spfPath;
                 return Result.Cancelled;
             }
 
@@ -3070,7 +3070,7 @@ namespace StingTools.Temp
 
             // Restore previous shared parameter file
             if (!string.IsNullOrEmpty(previousSpf))
-                app.SharedParametersFilename = previousSpf;
+                app.SharedParametersFilename = spfPath;
 
             // ── Step 5: Report ──────────────────────────────────────────────
             var report = new StringBuilder();
