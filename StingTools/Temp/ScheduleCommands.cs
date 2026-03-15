@@ -416,7 +416,11 @@ namespace StingTools.Temp
         {
             var remaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             string path = StingToolsApp.FindDataFile("SCHEDULE_FIELD_REMAP.csv");
-            if (path == null) return remaps;
+            if (path == null)
+            {
+                StingLog.Info("SCHEDULE_FIELD_REMAP.csv not found — field remapping disabled");
+                return remaps;
+            }
 
             try
             {
