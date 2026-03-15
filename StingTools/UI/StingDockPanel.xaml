@@ -1762,13 +1762,13 @@
                                 <TextBlock Text="ISO 19650-2 §5.3 — template-driven pre-contract document" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource GreenBtn}" Content="Create BEP" Tag="CreateBEP" Click="Cmd_Click"
-                                            ToolTip="Create BEP from template (pre-contract): select preset, stage, disciplines" FontWeight="Bold"/>
+                                            ToolTip="ISO 19650-2 §5.3: Create pre-contract BEP BEFORE modelling (template + wizard input, no model data)" FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Update BEP" Tag="UpdateBEP" Click="Cmd_Click"
-                                            ToolTip="Enrich existing BEP with live model data (levels, rooms, worksets)"/>
+                                            ToolTip="ISO 19650-2 §5.4: Enrich existing BEP with live model data AFTER modelling (levels, rooms, tag completeness)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export BEP" Tag="ExportBEP" Click="Cmd_Click"
-                                            ToolTip="Export BEP as formatted text document"/>
+                                            ToolTip="Export BEP as formatted XLSX/text document"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Validate BEP" Tag="ValidateBepCompliance" Click="Cmd_Click"
-                                            ToolTip="Validate model against BEP allowed codes (DISC/LOC/ZONE)"/>
+                                            ToolTip="Check model compliance against BEP allowed codes (DISC/LOC/ZONE/SYS)"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

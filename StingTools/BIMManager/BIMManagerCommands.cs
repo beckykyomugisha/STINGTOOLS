@@ -611,7 +611,9 @@ namespace StingTools.BIMManager
             var now = DateTime.Now;
             bool isMinimal = presetKey == "MINIMAL";
 
-            // ── Section 1: Project Information (user input, NOT model) ──
+            // ── Section 1: Project Information ──
+            // NOTE: All data here comes from USER INPUT (wizard) or CONFIGURATION (TagConfig),
+            // NOT from live model data. This is a pre-contract BEP per ISO 19650-2 §5.3.
             var projInfo = new JObject
             {
                 ["project_name"] = projectName,
@@ -1005,7 +1007,9 @@ namespace StingTools.BIMManager
             };
             bep["training_plan"] = training;
 
-            // ── Allowed Codes (dynamically from current TagConfig, which reflects project_config.json) ──
+            // ── Allowed Codes (from TagConfig CONFIGURATION, not live model data) ──
+            // These define which codes are PERMITTED in the project. The model must comply.
+            // TagConfig loads from project_config.json (or built-in defaults if no config file).
             var allowedCodes = new JObject
             {
                 ["allowed_disc"] = new JArray(TagConfig.DiscMap.Values.Distinct().OrderBy(v => v)),
@@ -2891,10 +2895,37 @@ namespace StingTools.BIMManager
 
 
     // ════════════════════════════════════════════════════════════════════════════
-    //  COMMANDS
+    //  BEP COMMANDS — ISO 19650-2 BIM Execution Plan Lifecycle
+    //
+    //  The BEP follows a strict ISO 19650-2 lifecycle:
+    //
+    //  1. PRE-CONTRACT BEP (§5.3) — Created BEFORE modelling starts
+    //     - Template-driven: project info, team, standards, allowed codes, BIM uses
+    //     - NO live model data — uses wizard inputs + TagConfig (configuration only)
+    //     - Defines HOW the project will be managed (naming, classification, formats)
+    //     - Sets ALLOWED tag codes (DISC/LOC/ZONE/SYS) that model must comply with
+    //     → Command: "Create BEP" (CreateBEPCommand)
+    //
+    //  2. POST-CONTRACT BEP UPDATE (§5.4) — Enriched DURING/AFTER modelling
+    //     - Reads live model data: levels, rooms, GIA, worksets, element counts
+    //     - Adds tag completeness metrics, compliance RAG status
+    //     - Updates risk register with actual compliance data
+    //     - Increments BEP revision number
+    //     → Command: "Update BEP" (UpdateBEPCommand)
+    //
+    //  3. BEP VALIDATION — Checks model AGAINST BEP requirements
+    //     - Validates model elements use only BEP-allowed codes
+    //     - Reports violations (elements with codes not in BEP allowed lists)
+    //     → Command: "Validate BEP" (ValidateBepComplianceCommand)
+    //
+    //  4. BEP EXPORT — Generates formatted document from JSON
+    //     → Command: "Export BEP" (ExportBEPCommand)
+    //
+    //  The separation ensures the BEP defines project RULES first, then the model
+    //  is built compliant with those rules, then the BEP is updated with actual data.
     // ════════════════════════════════════════════════════════════════════════════
 
-    #region ── Command 1: Create BEP (Template-Driven, Pre-Contract) ──
+    #region ── Command 1: Create BEP (Template-Driven, Pre-Contract — ISO 19650-2 §5.3) ──
 
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
@@ -2988,7 +3019,10 @@ namespace StingTools.BIMManager
 
     #endregion
 
-    #region ── Command 2: Update BEP from Model (Post-Modelling Enrichment) ──
+    #region ── Command 2: Update BEP from Model (Post-Contract — ISO 19650-2 §5.4) ──
+    // This command enriches an EXISTING pre-contract BEP with live model data.
+    // It should ONLY be run AFTER modelling has started, to record actual project metrics.
+    // The pre-contract BEP must exist first (created via "Create BEP").
 
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
@@ -3005,8 +3039,11 @@ namespace StingTools.BIMManager
             if (!File.Exists(bepPath))
             {
                 TaskDialog.Show("STING BIM Manager",
-                    "No BEP found.\n\nUse 'Create BEP' first to generate a BEP from a template.\n" +
-                    "Then use 'Update BEP' to enrich it with live model data.");
+                    "No BEP found.\n\n" +
+                    "ISO 19650-2 §5.3: The BEP must be created BEFORE modelling starts.\n" +
+                    "Use 'Create BEP' first to generate a pre-contract BEP from a template.\n\n" +
+                    "Then use 'Update BEP' (§5.4) to enrich it with live model data\n" +
+                    "after modelling has progressed.");
                 return Result.Succeeded;
             }
 
