@@ -16,15 +16,14 @@ namespace StingTools.Tags
     /// Always uses MR_PARAMETERS.txt from the data directory (overrides whatever
     /// shared parameter file is currently set in Revit).
     ///
-    /// PERFORMANCE — why Revit hangs with naive "bind all to all":
-    ///   Each doc.ParameterBindings.Insert() with N categories creates N internal
-    ///   schema entries. 1,527 params × 200 categories = 305,000 registrations
-    ///   which overwhelms Revit's document engine.
-    ///
-    /// Strategy: bind ONE GROUP per transaction. Each group gets the categories
-    /// relevant to that group (e.g., MEP params → MEP categories only).
-    /// Groups without specific mappings get a core taggable set (~53 categories).
-    /// This keeps each transaction small and targeted.
+    /// CRASH PREVENTION — multiple vectors addressed:
+    ///   1. Volume: group-per-transaction with targeted category sets (~40K bindings vs 305K)
+    ///   2. InstanceBinding reuse: ONE per group, never inside the per-param loop
+    ///   3. No logging inside transactions: prevents disk I/O stalling Revit
+    ///   4. No BuildCategorySet inside loops: all sets pre-built before transactions
+    ///   5. No recursive directory search: capped search prevents hanging on broad dirs
+    ///   6. BindingWarningSwallower: prevents FailureMessage memory buildup
+    ///   7. Null guards: ActiveUIDocument, ParamRegistry fallback capped
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -55,6 +54,15 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             var uiApp = ParameterHelpers.GetApp(commandData);
+
+            // BUG FIX: null check ActiveUIDocument — crashes if no document open
+            if (uiApp.ActiveUIDocument == null)
+            {
+                TaskDialog.Show("STING Tools - Load Shared Params",
+                    "No document is open. Please open a project first.");
+                return Result.Failed;
+            }
+
             Document doc = uiApp.ActiveUIDocument.Document;
             Autodesk.Revit.ApplicationServices.Application app =
                 uiApp.Application;
@@ -77,8 +85,6 @@ namespace StingTools.Tags
                         "Could not find MR_PARAMETERS.txt.\n\n" +
                         "Expected location: " +
                         (StingToolsApp.DataPath ?? "(DataPath not set)") +
-                        "\n\nSearched paths:\n" +
-                        string.Join("\n", GetSearchPaths()) +
                         "\n\nEither place the file in the data directory or go to " +
                         "Manage → Shared Parameters and set the path manually.");
                     return Result.Failed;
@@ -163,16 +169,16 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            // ── Step 4: Build category sets ──
-            // Core set: ParamRegistry categories (~53 proven categories)
-            // This avoids the 200+ categories from doc.Settings.Categories which
-            // overwhelm Revit. ParamRegistry categories are the ones STING actually uses.
+            // ── Step 4: Build ALL category sets BEFORE any transactions ──
+            // CRITICAL: Never call BuildCategorySet or NewInstanceBinding inside
+            // the per-param loop — each call does doc.Settings.Categories.get_Item()
+            // lookups and object allocation that stall Revit mid-transaction.
             StingLog.Info("LoadSharedParams: step 4 — building category sets");
 
             var coreEnums = SharedParamGuids.AllCategoryEnums;
             CategorySet coreCats = SharedParamGuids.BuildCategorySet(doc, coreEnums);
 
-            // Also add Materials category if not in core set (needed for MAT_* params)
+            // Add Materials category (needed for MAT_* params)
             try
             {
                 Category matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
@@ -185,18 +191,10 @@ namespace StingTools.Tags
 
             if (coreCats.Size == 0)
             {
-                // Fallback: if ParamRegistry failed to load, use doc categories
-                // but cap at reasonable number
-                StingLog.Warn("ParamRegistry categories empty — falling back to doc categories");
-                foreach (Category cat in doc.Settings.Categories)
-                {
-                    try
-                    {
-                        if (cat != null && cat.AllowsBoundParameters)
-                            coreCats.Insert(cat);
-                    }
-                    catch { }
-                }
+                // BUG FIX: Fallback must NOT use all doc categories (causes the 305K hang).
+                // Instead, build from our hardcoded MEP + BLE sets.
+                StingLog.Warn("ParamRegistry categories empty — building from hardcoded fallback");
+                coreCats = BuildFallbackCoreSet(doc);
                 StingLog.Info($"Fallback CategorySet: {coreCats.Size} categories");
             }
 
@@ -207,14 +205,17 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
-            // Build group-specific category sets for discipline groups
-            var disciplineBindings = SharedParamGuids.DisciplineBindings;
-            // Map group names to specific category sets where applicable
-            var groupCatOverrides = BuildGroupCategoryOverrides(doc, coreCats);
+            // Pre-build group-specific category sets
+            var groupCatOverrides = BuildGroupCategoryOverrides(doc);
+
+            // Pre-build InstanceBindings for each group OUTSIDE the transaction loops.
+            // This avoids calling NewInstanceBinding() inside per-param loops.
+            var groupBindings = new Dictionary<string, InstanceBinding>(StringComparer.OrdinalIgnoreCase);
+            InstanceBinding coreBinding = app.Create.NewInstanceBinding(coreCats);
+            foreach (var kvp in groupCatOverrides)
+                groupBindings[kvp.Key] = app.Create.NewInstanceBinding(kvp.Value);
 
             // ── Step 5: Bind ONE GROUP per transaction ──
-            // Each group gets its own transaction to keep Revit responsive.
-            // Reuse a single InstanceBinding per group (avoids CategorySet copy overhead).
             int bound = 0;
             int skipped = 0;
             var errors = new List<string>();
@@ -226,15 +227,16 @@ namespace StingTools.Tags
             {
                 var (groupName, defs) = groupsToProcess[gi];
 
-                // Pick the right category set for this group
-                CategorySet cats = groupCatOverrides.TryGetValue(groupName, out CategorySet groupCats)
-                    ? groupCats : coreCats;
+                // Pick pre-built binding for this group
+                InstanceBinding binding = groupBindings.TryGetValue(groupName, out InstanceBinding gb)
+                    ? gb : coreBinding;
 
-                // Create ONE binding for this group, reuse for all params in the group
-                InstanceBinding groupBinding = app.Create.NewInstanceBinding(cats);
+                int catCount = groupCatOverrides.TryGetValue(groupName, out CategorySet gcs)
+                    ? gcs.Size : coreCats.Size;
 
+                // Log BEFORE transaction, not inside
                 StingLog.Info($"Group [{gi + 1}/{groupsToProcess.Count}] '{groupName}': " +
-                    $"{defs.Count} params → {cats.Size} categories");
+                    $"{defs.Count} params → {catCount} categories");
 
                 using (Transaction tx = new Transaction(doc,
                     $"STING Params: {groupName}"))
@@ -251,42 +253,28 @@ namespace StingTools.Tags
                         {
                             try
                             {
-                                // Check if this param has discipline-specific categories
-                                InstanceBinding paramBinding = groupBinding;
-                                if (disciplineBindings.TryGetValue(extDef.Name,
-                                    out BuiltInCategory[] paramCats) && paramCats.Length > 0)
-                                {
-                                    CategorySet specific = SharedParamGuids.BuildCategorySet(doc, paramCats);
-                                    if (specific.Size > 0)
-                                        paramBinding = app.Create.NewInstanceBinding(specific);
-                                }
-
+                                // Use the pre-built group binding — NEVER create
+                                // new InstanceBinding or call BuildCategorySet here
                                 bool result = doc.ParameterBindings.Insert(
-                                    extDef, paramBinding, GroupTypeId.General);
+                                    extDef, binding, GroupTypeId.General);
 
                                 if (result)
-                                {
-                                    bound++;
                                     groupBound++;
-                                }
                                 else
-                                {
                                     skipped++;
-                                    if (skipped <= 10)
-                                        StingLog.Warn($"Insert failed: {extDef.Name}");
-                                }
                             }
-                            catch (Exception ex)
+                            catch
                             {
                                 skipped++;
-                                if (errors.Count < 10)
-                                    errors.Add($"{extDef.Name}: {ex.Message}");
                             }
                         }
 
                         tx.Commit();
+                        bound += groupBound;
                         boundByGroup[groupName] = groupBound;
-                        StingLog.Info($"  → committed: {groupBound} bound");
+
+                        // Log AFTER transaction, not inside
+                        StingLog.Info($"  → committed: {groupBound} bound, {defs.Count - groupBound} skipped");
                     }
                     catch (Exception ex)
                     {
@@ -296,7 +284,7 @@ namespace StingTools.Tags
 
                         skipped += defs.Count;
                         if (errors.Count < 10)
-                            errors.Add($"Group '{groupName}' failed: {ex.Message}");
+                            errors.Add($"Group '{groupName}': {ex.Message}");
                     }
                 }
             }
@@ -338,47 +326,74 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
 
+        // ════════════════════════════════════════════════════════════════
+        // Category set builders — called ONCE before any transactions
+        // ════════════════════════════════════════════════════════════════
+
+        private static readonly BuiltInCategory[] MepCategories = new[]
+        {
+            BuiltInCategory.OST_MechanicalEquipment,
+            BuiltInCategory.OST_DuctTerminal,
+            BuiltInCategory.OST_DuctCurves,
+            BuiltInCategory.OST_DuctFitting,
+            BuiltInCategory.OST_DuctAccessory,
+            BuiltInCategory.OST_FlexDuctCurves,
+            BuiltInCategory.OST_PipeCurves,
+            BuiltInCategory.OST_PipeFitting,
+            BuiltInCategory.OST_PipeAccessory,
+            BuiltInCategory.OST_FlexPipeCurves,
+            BuiltInCategory.OST_PlumbingFixtures,
+            BuiltInCategory.OST_Sprinklers,
+            BuiltInCategory.OST_ElectricalEquipment,
+            BuiltInCategory.OST_ElectricalFixtures,
+            BuiltInCategory.OST_LightingFixtures,
+            BuiltInCategory.OST_LightingDevices,
+            BuiltInCategory.OST_CableTray,
+            BuiltInCategory.OST_CableTrayFitting,
+            BuiltInCategory.OST_Conduit,
+            BuiltInCategory.OST_ConduitFitting,
+            BuiltInCategory.OST_CommunicationDevices,
+            BuiltInCategory.OST_DataDevices,
+            BuiltInCategory.OST_FireAlarmDevices,
+            BuiltInCategory.OST_NurseCallDevices,
+            BuiltInCategory.OST_SecurityDevices,
+            BuiltInCategory.OST_TelephoneDevices,
+        };
+
+        private static readonly BuiltInCategory[] BleCategories = new[]
+        {
+            BuiltInCategory.OST_Walls,
+            BuiltInCategory.OST_Floors,
+            BuiltInCategory.OST_Ceilings,
+            BuiltInCategory.OST_Roofs,
+            BuiltInCategory.OST_Doors,
+            BuiltInCategory.OST_Windows,
+            BuiltInCategory.OST_Columns,
+            BuiltInCategory.OST_StructuralColumns,
+            BuiltInCategory.OST_StructuralFraming,
+            BuiltInCategory.OST_StructuralFoundation,
+            BuiltInCategory.OST_Stairs,
+            BuiltInCategory.OST_StairsRailing,
+            BuiltInCategory.OST_Ramps,
+            BuiltInCategory.OST_CurtainWallPanels,
+            BuiltInCategory.OST_CurtainWallMullions,
+            BuiltInCategory.OST_Casework,
+            BuiltInCategory.OST_Furniture,
+            BuiltInCategory.OST_FurnitureSystems,
+            BuiltInCategory.OST_GenericModel,
+            BuiltInCategory.OST_SpecialityEquipment,
+        };
+
         /// <summary>
         /// Build group-specific category overrides. Groups with discipline-specific
         /// parameters get smaller, targeted category sets instead of the full core set.
-        /// This dramatically reduces the number of internal bindings Revit must create.
+        /// Called ONCE before transactions — never inside a loop.
         /// </summary>
-        private static Dictionary<string, CategorySet> BuildGroupCategoryOverrides(
-            Document doc, CategorySet coreCats)
+        private static Dictionary<string, CategorySet> BuildGroupCategoryOverrides(Document doc)
         {
             var overrides = new Dictionary<string, CategorySet>(StringComparer.OrdinalIgnoreCase);
 
-            // MEP groups → only MEP categories
-            var mepCats = BuildCatSet(doc, new[]
-            {
-                BuiltInCategory.OST_MechanicalEquipment,
-                BuiltInCategory.OST_DuctTerminal,
-                BuiltInCategory.OST_DuctCurves,
-                BuiltInCategory.OST_DuctFitting,
-                BuiltInCategory.OST_DuctAccessory,
-                BuiltInCategory.OST_FlexDuctCurves,
-                BuiltInCategory.OST_PipeCurves,
-                BuiltInCategory.OST_PipeFitting,
-                BuiltInCategory.OST_PipeAccessory,
-                BuiltInCategory.OST_FlexPipeCurves,
-                BuiltInCategory.OST_PlumbingFixtures,
-                BuiltInCategory.OST_Sprinklers,
-                BuiltInCategory.OST_ElectricalEquipment,
-                BuiltInCategory.OST_ElectricalFixtures,
-                BuiltInCategory.OST_LightingFixtures,
-                BuiltInCategory.OST_LightingDevices,
-                BuiltInCategory.OST_CableTray,
-                BuiltInCategory.OST_CableTrayFitting,
-                BuiltInCategory.OST_Conduit,
-                BuiltInCategory.OST_ConduitFitting,
-                BuiltInCategory.OST_CommunicationDevices,
-                BuiltInCategory.OST_DataDevices,
-                BuiltInCategory.OST_FireAlarmDevices,
-                BuiltInCategory.OST_NurseCallDevices,
-                BuiltInCategory.OST_SecurityDevices,
-                BuiltInCategory.OST_TelephoneDevices,
-            });
-
+            var mepCats = BuildCatSet(doc, MepCategories);
             if (mepCats.Size > 0)
             {
                 overrides["ELC_PWR"] = mepCats;
@@ -389,73 +404,68 @@ namespace StingTools.Tags
                 overrides["MEP_GENERIC"] = mepCats;
             }
 
-            // BLE groups → building element categories
-            var bleCats = BuildCatSet(doc, new[]
-            {
-                BuiltInCategory.OST_Walls,
-                BuiltInCategory.OST_Floors,
-                BuiltInCategory.OST_Ceilings,
-                BuiltInCategory.OST_Roofs,
-                BuiltInCategory.OST_Doors,
-                BuiltInCategory.OST_Windows,
-                BuiltInCategory.OST_Columns,
-                BuiltInCategory.OST_StructuralColumns,
-                BuiltInCategory.OST_StructuralFraming,
-                BuiltInCategory.OST_StructuralFoundation,
-                BuiltInCategory.OST_Stairs,
-                BuiltInCategory.OST_StairsRailing,
-                BuiltInCategory.OST_Ramps,
-                BuiltInCategory.OST_CurtainWallPanels,
-                BuiltInCategory.OST_CurtainWallMullions,
-                BuiltInCategory.OST_Casework,
-                BuiltInCategory.OST_Furniture,
-                BuiltInCategory.OST_FurnitureSystems,
-                BuiltInCategory.OST_GenericModel,
-                BuiltInCategory.OST_SpecialityEquipment,
-            });
-
+            var bleCats = BuildCatSet(doc, BleCategories);
             if (bleCats.Size > 0)
             {
                 overrides["BLE_ELES"] = bleCats;
                 overrides["BLE_STRUCTURE"] = bleCats;
             }
 
-            // Material groups → Materials category only
-            var matCats = BuildCatSet(doc, new[]
-            {
-                BuiltInCategory.OST_Materials,
-            });
-
+            var matCats = BuildCatSet(doc, new[] { BuiltInCategory.OST_Materials });
             if (matCats.Size > 0)
             {
                 overrides["MAT_INFO"] = matCats;
                 overrides["PROP_PHYSICAL"] = matCats;
             }
 
-            // TAG_STYLES → use core cats (these go on all taggable elements)
-            // No override needed — will use coreCats
-
             return overrides;
+        }
+
+        /// <summary>
+        /// Fallback core category set when ParamRegistry fails to load.
+        /// Uses the MEP + BLE arrays (capped, known-good categories) instead
+        /// of doc.Settings.Categories which includes 200+ internal categories.
+        /// </summary>
+        private static CategorySet BuildFallbackCoreSet(Document doc)
+        {
+            var set = new CategorySet();
+            // Combine MEP + BLE + a few extra common categories
+            foreach (var bic in MepCategories) TryInsert(doc, set, bic);
+            foreach (var bic in BleCategories) TryInsert(doc, set, bic);
+            TryInsert(doc, set, BuiltInCategory.OST_Materials);
+            TryInsert(doc, set, BuiltInCategory.OST_Rooms);
+            TryInsert(doc, set, BuiltInCategory.OST_Areas);
+            TryInsert(doc, set, BuiltInCategory.OST_Parking);
+            return set;
+        }
+
+        private static void TryInsert(Document doc, CategorySet set, BuiltInCategory bic)
+        {
+            try
+            {
+                Category cat = doc.Settings.Categories.get_Item(bic);
+                if (cat != null && cat.AllowsBoundParameters)
+                    set.Insert(cat);
+            }
+            catch { }
         }
 
         private static CategorySet BuildCatSet(Document doc, BuiltInCategory[] enums)
         {
             var set = new CategorySet();
-            foreach (var bic in enums)
-            {
-                try
-                {
-                    Category cat = doc.Settings.Categories.get_Item(bic);
-                    if (cat != null && cat.AllowsBoundParameters)
-                        set.Insert(cat);
-                }
-                catch { }
-            }
+            foreach (var bic in enums) TryInsert(doc, set, bic);
             return set;
         }
 
+        // ════════════════════════════════════════════════════════════════
+        // File search — finds MR_PARAMETERS.txt across deployment layouts
+        // ════════════════════════════════════════════════════════════════
+
         /// <summary>
         /// Search multiple locations for MR_PARAMETERS.txt.
+        /// HANG FIX: No recursive directory search (Directory.GetFiles with
+        /// SearchOption.AllDirectories can scan thousands of files on broad paths
+        /// like C:\ProgramData\Autodesk\, freezing Revit for minutes).
         /// </summary>
         private static string FindMrParametersFile(string currentSpFile)
         {
@@ -467,95 +477,73 @@ namespace StingTools.Tags
                 return found;
 
             // 2. Search next to the currently set shared parameter file
-            if (!string.IsNullOrEmpty(currentSpFile) && File.Exists(currentSpFile))
-            {
-                string spDir = Path.GetDirectoryName(currentSpFile);
-                if (!string.IsNullOrEmpty(spDir))
-                {
-                    string candidate = Path.Combine(spDir, fileName);
-                    if (File.Exists(candidate))
-                    {
-                        StingLog.Info($"Found {fileName} next to current SP file: {candidate}");
-                        return candidate;
-                    }
-                }
-            }
-
-            // 3. Search common deployment paths
-            foreach (string path in GetSearchPaths())
+            if (!string.IsNullOrEmpty(currentSpFile))
             {
                 try
                 {
-                    if (File.Exists(path))
+                    if (File.Exists(currentSpFile))
                     {
-                        StingLog.Info($"Found {fileName} at: {path}");
-                        return path;
-                    }
-                }
-                catch { }
-            }
-
-            // 4. Recursive search from DLL directory
-            string dllDir = !string.IsNullOrEmpty(StingToolsApp.AssemblyPath)
-                ? Path.GetDirectoryName(StingToolsApp.AssemblyPath) : null;
-            if (!string.IsNullOrEmpty(dllDir))
-            {
-                try
-                {
-                    var files = Directory.GetFiles(dllDir, fileName, SearchOption.AllDirectories);
-                    if (files.Length > 0)
-                    {
-                        StingLog.Info($"Found {fileName} via recursive search: {files[0]}");
-                        return files[0];
-                    }
-
-                    string parentDir = Path.GetDirectoryName(dllDir);
-                    if (!string.IsNullOrEmpty(parentDir))
-                    {
-                        files = Directory.GetFiles(parentDir, fileName, SearchOption.AllDirectories);
-                        if (files.Length > 0)
+                        string spDir = Path.GetDirectoryName(currentSpFile);
+                        if (!string.IsNullOrEmpty(spDir))
                         {
-                            StingLog.Info($"Found {fileName} via parent search: {files[0]}");
-                            return files[0];
+                            string candidate = Path.Combine(spDir, fileName);
+                            if (File.Exists(candidate))
+                            {
+                                StingLog.Info($"Found {fileName} next to current SP file: {candidate}");
+                                return candidate;
+                            }
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"Recursive search for {fileName} failed: {ex.Message}");
-                }
+                catch { /* path resolution failed */ }
             }
 
-            StingLog.Warn($"{fileName} not found in any search path");
-            return null;
-        }
-
-        private static string[] GetSearchPaths()
-        {
-            const string fileName = "MR_PARAMETERS.txt";
-            var paths = new List<string>();
-
+            // 3. Search known deployment paths — flat lookups only, NO recursive search
             string dllDir = !string.IsNullOrEmpty(StingToolsApp.AssemblyPath)
                 ? Path.GetDirectoryName(StingToolsApp.AssemblyPath) : null;
 
             if (!string.IsNullOrEmpty(dllDir))
             {
-                paths.Add(Path.Combine(dllDir, "data", fileName));
-                paths.Add(Path.Combine(dllDir, "Data", fileName));
-                paths.Add(Path.Combine(dllDir, fileName));
-                paths.Add(Path.Combine(dllDir, "..", "data", fileName));
-                paths.Add(Path.Combine(dllDir, "..", "Data", fileName));
-                paths.Add(Path.Combine(dllDir, "..", "StingTools", "Data", fileName));
-                paths.Add(Path.Combine(dllDir, "..", "StingTools", "data", fileName));
+                string[] candidates = new[]
+                {
+                    Path.Combine(dllDir, "data", fileName),
+                    Path.Combine(dllDir, "Data", fileName),
+                    Path.Combine(dllDir, fileName),
+                    Path.Combine(dllDir, "..", "data", fileName),
+                    Path.Combine(dllDir, "..", "Data", fileName),
+                    Path.Combine(dllDir, "..", "StingTools", "Data", fileName),
+                    Path.Combine(dllDir, "..", "StingTools", "data", fileName),
+                };
+
+                foreach (string path in candidates)
+                {
+                    try
+                    {
+                        if (File.Exists(path))
+                        {
+                            string resolved = Path.GetFullPath(path);
+                            StingLog.Info($"Found {fileName} at: {resolved}");
+                            return resolved;
+                        }
+                    }
+                    catch { }
+                }
             }
 
             if (!string.IsNullOrEmpty(StingToolsApp.DataPath))
             {
-                paths.Add(Path.Combine(StingToolsApp.DataPath, fileName));
-                paths.Add(Path.Combine(StingToolsApp.DataPath, "..", fileName));
+                try
+                {
+                    string inData = Path.Combine(StingToolsApp.DataPath, fileName);
+                    if (File.Exists(inData)) return inData;
+                    string aboveData = Path.Combine(StingToolsApp.DataPath, "..", fileName);
+                    if (File.Exists(aboveData)) return Path.GetFullPath(aboveData);
+                }
+                catch { }
             }
 
-            return paths.ToArray();
+            StingLog.Warn($"{fileName} not found in any search path");
+            return null;
         }
     }
 
@@ -568,11 +556,19 @@ namespace StingTools.Tags
     {
         public FailureProcessingResult PreprocessFailures(FailuresAccessor failuresAccessor)
         {
-            var failures = failuresAccessor.GetFailureMessages();
-            foreach (FailureMessageAccessor failure in failures)
+            try
             {
-                if (failure.GetSeverity() == FailureSeverity.Warning)
-                    failuresAccessor.DeleteWarning(failure);
+                var failures = failuresAccessor.GetFailureMessages();
+                if (failures == null) return FailureProcessingResult.Continue;
+                foreach (FailureMessageAccessor failure in failures)
+                {
+                    if (failure.GetSeverity() == FailureSeverity.Warning)
+                        failuresAccessor.DeleteWarning(failure);
+                }
+            }
+            catch
+            {
+                // Never crash inside the failure preprocessor — Revit will hang
             }
             return FailureProcessingResult.Continue;
         }
