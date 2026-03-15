@@ -14,18 +14,19 @@ namespace StingTools.Tags
     /// Bind ALL shared parameters from MR_PARAMETERS.txt to ALL project categories.
     ///
     /// Always uses MR_PARAMETERS.txt from the data directory (overrides whatever
-    /// shared parameter file is currently set in Revit). Binds every parameter
-    /// definition to every category that allows bound parameters — not just the
-    /// taggable subset from ParamRegistry.
+    /// shared parameter file is currently set in Revit).
     ///
-    /// PERFORMANCE: Binds in batches of 50 parameters per transaction to avoid
-    /// crashing Revit with a single massive transaction.
+    /// PERFORMANCE:
+    ///   - Reuses a single InstanceBinding object (avoids copying CategorySet per param)
+    ///   - Small batches (25 params/tx) to avoid overwhelming Revit's regeneration engine
+    ///   - Suppresses failure warnings within transactions
+    ///   - Skips ReInsert (only needed for category expansion, not initial binding)
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class LoadSharedParamsCommand : IExternalCommand
     {
-        private const int BatchSize = 50;
+        private const int BatchSize = 25;
 
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
@@ -57,7 +58,7 @@ namespace StingTools.Tags
                 uiApp.Application;
 
             // ── Step 1: ALWAYS set shared parameter file to MR_PARAMETERS.txt ──
-            StingLog.Info("LoadSharedParams: step 1 — setting shared parameter file to MR_PARAMETERS.txt");
+            StingLog.Info("LoadSharedParams: step 1 — locating MR_PARAMETERS.txt");
             string previousSpFile = app.SharedParametersFilename;
             string mrParamsPath = FindMrParametersFile(previousSpFile);
 
@@ -65,12 +66,9 @@ namespace StingTools.Tags
             {
                 app.SharedParametersFilename = mrParamsPath;
                 StingLog.Info($"Set shared parameter file: {mrParamsPath}");
-                if (!string.IsNullOrEmpty(previousSpFile) && previousSpFile != mrParamsPath)
-                    StingLog.Info($"Previous shared parameter file was: {previousSpFile}");
             }
             else
             {
-                // Fallback: use whatever is already set, or fail
                 if (string.IsNullOrEmpty(previousSpFile) || !File.Exists(previousSpFile))
                 {
                     TaskDialog.Show("STING Tools - Load Shared Params",
@@ -84,7 +82,7 @@ namespace StingTools.Tags
                     return Result.Failed;
                 }
                 mrParamsPath = previousSpFile;
-                StingLog.Warn($"MR_PARAMETERS.txt not found in any search path, using existing: {previousSpFile}");
+                StingLog.Warn($"MR_PARAMETERS.txt not found, using existing: {previousSpFile}");
             }
 
             string spFile = mrParamsPath;
@@ -99,7 +97,6 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
-            // Index all parameters from all groups
             var allDefs = new List<ExternalDefinition>();
             var groupCounts = new Dictionary<string, int>();
             foreach (DefinitionGroup group in defFile.Groups)
@@ -115,7 +112,7 @@ namespace StingTools.Tags
                 }
                 groupCounts[group.Name] = count;
             }
-            StingLog.Info($"LoadSharedParams: {allDefs.Count} definitions indexed from {groupCounts.Count} groups");
+            StingLog.Info($"LoadSharedParams: {allDefs.Count} definitions from {groupCounts.Count} groups");
 
             if (allDefs.Count < 100)
             {
@@ -136,7 +133,6 @@ namespace StingTools.Tags
             }
             StingLog.Info($"Pre-scan: {existingBindings.Count} parameters already bound");
 
-            // Filter to only parameters not yet bound
             var toBind = allDefs.Where(d => !existingBindings.Contains(d.Name)).ToList();
             int alreadyBound = allDefs.Count - toBind.Count;
 
@@ -152,15 +148,13 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            // ── Step 4: Build ALL-categories set ──
-            StingLog.Info("LoadSharedParams: step 4 — building ALL-categories set");
+            // ── Step 4: Build category set ──
+            StingLog.Info("LoadSharedParams: step 4 — building category set");
             CategorySet allCats = new CategorySet();
-            int catTotal = 0;
             int catAdded = 0;
 
             foreach (Category cat in doc.Settings.Categories)
             {
-                catTotal++;
                 try
                 {
                     if (cat != null && cat.AllowsBoundParameters)
@@ -169,54 +163,62 @@ namespace StingTools.Tags
                         catAdded++;
                     }
                 }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"Category '{cat?.Name}' skipped: {ex.Message}");
-                }
+                catch { /* skip problematic categories */ }
             }
-            StingLog.Info($"CategorySet built: {catAdded} of {catTotal} categories accept bound parameters");
+            StingLog.Info($"CategorySet: {catAdded} categories accept bound parameters");
 
             if (allCats.Size == 0)
             {
                 TaskDialog.Show("STING Tools - Load Shared Params",
-                    "No categories found that accept bound parameters.\n" +
-                    "This should not happen — contact support.");
+                    "No categories found that accept bound parameters.");
                 return Result.Failed;
             }
 
-            // ── Step 5: Bind parameters in BATCHED transactions ──
-            // Binding 1,500+ params in a single transaction crashes Revit.
-            // Split into batches of 50 to keep each transaction lightweight.
+            // ── Step 5: Bind parameters in small batches ──
+            // PERFORMANCE CRITICAL:
+            //   - Create ONE InstanceBinding and REUSE it for all params.
+            //     NewInstanceBinding copies the CategorySet internally — creating
+            //     it once avoids 1,527 × N-category copy operations.
+            //   - Small batches (25) to keep Revit responsive.
+            //   - No ReInsert fallback — Insert handles fresh bindings;
+            //     ReInsert is only for expanding categories on existing bindings.
+            //   - Suppress failure warnings to avoid memory buildup.
             int bound = 0;
             int skipped = 0;
             var errors = new List<string>();
             var boundByGroup = new Dictionary<string, int>();
             int totalBatches = (toBind.Count + BatchSize - 1) / BatchSize;
 
-            StingLog.Info($"Binding {toBind.Count} parameters to {allCats.Size} categories in {totalBatches} batches of {BatchSize}");
+            // Create the binding ONCE — reuse for every Insert call
+            InstanceBinding sharedBinding = app.Create.NewInstanceBinding(allCats);
+
+            StingLog.Info($"Binding {toBind.Count} params to {allCats.Size} categories " +
+                $"in {totalBatches} batches of {BatchSize}");
 
             for (int batchIdx = 0; batchIdx < totalBatches; batchIdx++)
             {
-                var batch = toBind.Skip(batchIdx * BatchSize).Take(BatchSize).ToList();
+                int startIdx = batchIdx * BatchSize;
+                int endIdx = Math.Min(startIdx + BatchSize, toBind.Count);
                 int batchNum = batchIdx + 1;
 
-                StingLog.Info($"Batch {batchNum}/{totalBatches}: binding {batch.Count} parameters");
-
-                using (Transaction tx = new Transaction(doc, $"STING Load Params Batch {batchNum}/{totalBatches}"))
+                using (Transaction tx = new Transaction(doc,
+                    $"STING Load Params {batchNum}/{totalBatches}"))
                 {
+                    // Suppress failure warnings to prevent memory buildup
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new BindingWarningSwallower());
+                    tx.SetFailureHandlingOptions(failOpts);
+
                     tx.Start();
                     try
                     {
-                        foreach (ExternalDefinition extDef in batch)
+                        for (int i = startIdx; i < endIdx; i++)
                         {
+                            ExternalDefinition extDef = toBind[i];
                             try
                             {
-                                InstanceBinding binding = app.Create.NewInstanceBinding(allCats);
                                 bool result = doc.ParameterBindings.Insert(
-                                    extDef, binding, GroupTypeId.General);
-                                if (!result)
-                                    result = doc.ParameterBindings.ReInsert(
-                                        extDef, binding, GroupTypeId.General);
+                                    extDef, sharedBinding, GroupTypeId.General);
 
                                 if (result)
                                 {
@@ -229,35 +231,36 @@ namespace StingTools.Tags
                                 else
                                 {
                                     skipped++;
-                                    if (skipped <= 20)
-                                        StingLog.Warn($"Parameter binding failed (Insert+ReInsert): {extDef.Name}");
+                                    if (skipped <= 10)
+                                        StingLog.Warn($"Insert failed: {extDef.Name}");
                                 }
                             }
                             catch (Exception ex)
                             {
                                 skipped++;
-                                if (errors.Count < 20)
+                                if (errors.Count < 10)
                                     errors.Add($"{extDef.Name}: {ex.Message}");
                             }
                         }
 
                         tx.Commit();
-                        StingLog.Info($"Batch {batchNum} committed: {batch.Count} processed, running total {bound} bound");
                     }
                     catch (Exception ex)
                     {
-                        StingLog.Error($"Batch {batchNum} transaction failed", ex);
+                        StingLog.Error($"Batch {batchNum} failed", ex);
                         if (tx.HasStarted() && !tx.HasEnded())
                             tx.RollBack();
 
-                        // Continue with remaining batches — don't abort entire operation
-                        int batchSkipped = batch.Count;
+                        int batchSkipped = endIdx - startIdx;
                         skipped += batchSkipped;
-                        if (errors.Count < 20)
-                            errors.Add($"Batch {batchNum} failed ({batchSkipped} params): {ex.Message}");
-                        StingLog.Warn($"Continuing after batch {batchNum} failure — {totalBatches - batchNum} batches remain");
+                        if (errors.Count < 10)
+                            errors.Add($"Batch {batchNum} ({batchSkipped} params): {ex.Message}");
                     }
                 }
+
+                // Log progress every 5 batches
+                if (batchNum % 5 == 0 || batchNum == totalBatches)
+                    StingLog.Info($"Progress: batch {batchNum}/{totalBatches}, {bound} bound so far");
             }
 
             // ── Report ──
@@ -268,14 +271,15 @@ namespace StingTools.Tags
             report.AppendLine($"Total in file: {allDefs.Count}");
             report.AppendLine($"Categories: {allCats.Size}");
             report.AppendLine($"Groups: {groupCounts.Count}");
-            report.AppendLine($"Batches: {totalBatches} (size {BatchSize})");
             report.AppendLine();
 
             if (boundByGroup.Count > 0)
             {
                 report.AppendLine("Bound by group:");
-                foreach (var kvp in boundByGroup.OrderByDescending(kv => kv.Value))
+                foreach (var kvp in boundByGroup.OrderByDescending(kv => kv.Value).Take(15))
                     report.AppendLine($"  {kvp.Key}: {kvp.Value}");
+                if (boundByGroup.Count > 15)
+                    report.AppendLine($"  ... and {boundByGroup.Count - 15} more groups");
             }
 
             report.AppendLine($"\nSource: {spFile}");
@@ -283,7 +287,7 @@ namespace StingTools.Tags
             if (errors.Count > 0)
             {
                 report.AppendLine($"\nErrors ({errors.Count}):");
-                foreach (string err in errors.Take(10))
+                foreach (string err in errors.Take(5))
                     report.AppendLine($"  {err}");
             }
 
@@ -300,8 +304,6 @@ namespace StingTools.Tags
 
         /// <summary>
         /// Search multiple locations for MR_PARAMETERS.txt.
-        /// The standard FindDataFile may miss it if the data directory path
-        /// doesn't match the deployment layout on the user's machine.
         /// </summary>
         private static string FindMrParametersFile(string currentSpFile)
         {
@@ -312,8 +314,7 @@ namespace StingTools.Tags
             if (!string.IsNullOrEmpty(found) && File.Exists(found))
                 return found;
 
-            // 2. Search relative to the currently set shared parameter file
-            //    (the user may have MR_PARAMETERS.txt in the same folder as their current .txt)
+            // 2. Search next to the currently set shared parameter file
             if (!string.IsNullOrEmpty(currentSpFile) && File.Exists(currentSpFile))
             {
                 string spDir = Path.GetDirectoryName(currentSpFile);
@@ -328,7 +329,7 @@ namespace StingTools.Tags
                 }
             }
 
-            // 3. Search additional common paths
+            // 3. Search common deployment paths
             foreach (string path in GetSearchPaths())
             {
                 try
@@ -339,10 +340,10 @@ namespace StingTools.Tags
                         return path;
                     }
                 }
-                catch { /* path resolution failed */ }
+                catch { }
             }
 
-            // 4. Recursive search from DLL directory (up to 2 levels deep)
+            // 4. Recursive search from DLL directory
             string dllDir = !string.IsNullOrEmpty(StingToolsApp.AssemblyPath)
                 ? Path.GetDirectoryName(StingToolsApp.AssemblyPath) : null;
             if (!string.IsNullOrEmpty(dllDir))
@@ -356,7 +357,6 @@ namespace StingTools.Tags
                         return files[0];
                     }
 
-                    // Also search parent directory
                     string parentDir = Path.GetDirectoryName(dllDir);
                     if (!string.IsNullOrEmpty(parentDir))
                     {
@@ -404,6 +404,26 @@ namespace StingTools.Tags
             }
 
             return paths.ToArray();
+        }
+    }
+
+    /// <summary>
+    /// Dismisses all warnings during parameter binding transactions.
+    /// Without this, Revit accumulates FailureMessage objects in memory
+    /// for each binding operation, causing slowdown and eventual crash.
+    /// </summary>
+    internal class BindingWarningSwallower : IFailuresPreprocessor
+    {
+        public FailureProcessingResult PreprocessFailures(FailuresAccessor failuresAccessor)
+        {
+            var failures = failuresAccessor.GetFailureMessages();
+            foreach (FailureMessageAccessor failure in failures)
+            {
+                // Delete warnings (not errors) — binding warnings are non-critical
+                if (failure.GetSeverity() == FailureSeverity.Warning)
+                    failuresAccessor.DeleteWarning(failure);
+            }
+            return FailureProcessingResult.Continue;
         }
     }
 }
