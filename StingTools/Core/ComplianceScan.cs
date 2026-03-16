@@ -35,8 +35,17 @@ namespace StingTools.Core
             public int RevisionMissing { get; set; }
             /// <summary>GAP-006 fix: Distribution of REV values across elements.</summary>
             public Dictionary<string, int> RevisionDistribution { get; set; } = new Dictionary<string, int>();
+            /// <summary>A5: Elements with empty STATUS parameter.</summary>
+            public int StatusMissing { get; set; }
+            /// <summary>A5: Elements with at least one empty discipline container.</summary>
+            public int ContainersMissing { get; set; }
             public Dictionary<string, int> IssuesByType { get; set; } = new Dictionary<string, int>();
             public DateTime ScanTime { get; set; }
+
+            /// <summary>A5: Data completeness across tags, STATUS, and containers (0-100%).</summary>
+            public double DataCompletenessPercent => TotalElements == 0 ? 0 :
+                100.0 * (TaggedComplete + (TotalElements - StatusMissing) + (TotalElements - ContainersMissing))
+                / (TotalElements * 3.0);
 
             public double CompliancePercent =>
                 TotalElements > 0 ? TaggedComplete * 100.0 / TotalElements : 0;
@@ -63,9 +72,9 @@ namespace StingTools.Core
                 }
             }
 
-            /// <summary>Short summary for status bar display — includes revision status.</summary>
+            /// <summary>Short summary for status bar display — includes revision and STATUS counts.</summary>
             public string StatusBarText =>
-                $"{RAGStatus} {CompliancePercent:F0}% tagged | {RevisionPercent:F0}% REV | {Untagged} untagged";
+                $"{RAGStatus} {CompliancePercent:F0}% tagged | {RevisionPercent:F0}% REV | {(StatusMissing > 0 ? $"{StatusMissing} no-STATUS | " : "")}{Untagged} untagged";
 
             /// <summary>Top 5 issues for dashboard display.</summary>
             public string TopIssues
@@ -162,6 +171,32 @@ namespace StingTools.Core
                         result.RevisionMissing++;
                         AddIssue(result, "Missing REV");
                     }
+
+                    // A5: STATUS completeness
+                    string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
+                    if (string.IsNullOrEmpty(status))
+                    {
+                        result.StatusMissing++;
+                        AddIssue(result, "Missing STATUS");
+                    }
+
+                    // A5: Container spot-check (first 3 applicable containers)
+                    try
+                    {
+                        var containers = ParamRegistry.ContainersForCategory(cat);
+                        if (containers != null && containers.Length > 0)
+                        {
+                            int emptyCount = 0;
+                            int checkCount = Math.Min(3, containers.Length);
+                            for (int ci = 0; ci < checkCount; ci++)
+                            {
+                                if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, containers[ci].ParamName)))
+                                    emptyCount++;
+                            }
+                            if (emptyCount > 0) result.ContainersMissing++;
+                        }
+                    }
+                    catch { }
                 }
             }
             catch (Exception ex)

@@ -59,6 +59,13 @@ namespace StingTools.Core
             _contextInvalid = true;
             _tag7HashCache.Clear();
             _elementVersionHash.Clear();
+            // A3: Clear processed cache on context invalidation to prevent stale-skip on document reload
+            lock (_recentlyProcessed)
+            {
+                _recentlyProcessed.Clear();
+                _recentlyProcessedQueue.Clear();
+                _processedCount = 0;
+            }
         }
 
         private readonly AddInId _addinId;
