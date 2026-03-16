@@ -884,7 +884,7 @@ namespace StingTools.Core
 
                 // FIX-N07: Build roomIndex ONCE before the loop to avoid NullReferenceException
                 // and prevent per-element room collector rebuilds inside an IUpdater
-                Dictionary<long, Autodesk.Revit.DB.Architecture.Room> roomIndex = null;
+                Dictionary<ElementId, Autodesk.Revit.DB.Architecture.Room> roomIndex = null;
                 string projectLoc = null;
                 try
                 {

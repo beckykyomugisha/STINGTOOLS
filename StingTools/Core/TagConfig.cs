@@ -1173,7 +1173,7 @@ namespace StingTools.Core
                 var result = ComplianceScan.Scan(doc, forceRefresh: true);
                 if (result != null && result.CompliancePercent < ComplianceGatePct)
                 {
-                    TaskDialog.Show($"STING Compliance Gate",
+                    Autodesk.Revit.UI.TaskDialog.Show($"STING Compliance Gate",
                         $"{commandName} complete but compliance ({result.CompliancePercent:F0}%) " +
                         $"is below the configured gate ({ComplianceGatePct}%).\n\n" +
                         $"Untagged: {result.Untagged} elements\n" +

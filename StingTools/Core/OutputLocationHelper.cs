@@ -84,7 +84,7 @@ namespace StingTools.Core
                 {
                     string json = File.ReadAllText(configPath);
                     var config = Newtonsoft.Json.Linq.JObject.Parse(json);
-                    bool failOnMissing = config["failOnOutputPathMissing"]?.Value<bool>() == true;
+                    bool failOnMissing = config["failOnOutputPathMissing"]?.ToObject<bool>() == true;
                     if (failOnMissing)
                         throw new InvalidOperationException(
                             "Output path could not be resolved and failOnOutputPathMissing is set. " +

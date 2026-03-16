@@ -1557,7 +1557,7 @@ namespace StingTools.Core
                         Phase phase = doc.GetElement(phaseId) as Phase;
                         if (phase != null && !string.IsNullOrEmpty(phase.Name))
                         {
-                            SetIfEmpty(el, "ASS_INSTALLATION_DATE_TXT", DateTime.Now.ToString("yyyy-MM-dd"));
+                            ParameterHelpers.SetIfEmpty(el, "ASS_INSTALLATION_DATE_TXT", DateTime.Now.ToString("yyyy-MM-dd"));
                             written++;
                         }
                     }
@@ -1623,7 +1623,7 @@ namespace StingTools.Core
 
             // BLE_RAIL_HEIGHT_MM — Railing height
             if (catUpperW.Contains("RAILING"))
-                written += MapDimension(el, BuiltInParameter.INSTANCE_TOP_OFFSET_VALUE_PARAM, "BLE_RAIL_HEIGHT_MM", ftToMmW);
+                written += MapLookup(el, "Top Rail Height", "BLE_RAIL_HEIGHT_MM", ftToMmW);
 
             // STR_FDN_DEPTH_MM — Foundation depth
             if (catUpperW.Contains("FOUNDATION"))
@@ -2147,14 +2147,14 @@ namespace StingTools.Core
             written += MapBuiltIn(el, BuiltInParameter.RBS_CALCULATED_SIZE, ParamRegistry.SIZE);
 
             // ── SYN-01: Cross-write ASS_FLOW_RATE_TXT from PLM_PIPE_FLOW or HVC_AIRFLOW ──
-            string flowRate = GetString(el, ParamRegistry.PLM_PIPE_FLOW);
+            string flowRate = ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_FLOW);
             if (string.IsNullOrEmpty(flowRate))
-                flowRate = GetString(el, ParamRegistry.HVC_AIRFLOW);
+                flowRate = ParameterHelpers.GetString(el, ParamRegistry.HVC_AIRFLOW);
             if (!string.IsNullOrEmpty(flowRate))
                 written += SetIfEmptyInt(el, "ASS_FLOW_RATE_TXT", flowRate);
 
             // ── SYN-02: Cross-write ASS_POWER_RATING_TXT from ELC_POWER ──
-            string powerRating = GetString(el, ParamRegistry.ELC_POWER);
+            string powerRating = ParameterHelpers.GetString(el, ParamRegistry.ELC_POWER);
             if (!string.IsNullOrEmpty(powerRating))
                 written += SetIfEmptyInt(el, "ASS_POWER_RATING_TXT", powerRating);
 
@@ -2162,7 +2162,7 @@ namespace StingTools.Core
             // HVC_EFF_RATIO_NR — HVAC COP from Mechanical Equipment
             if (catName == "Mechanical Equipment")
             {
-                written += MapBuiltIn(el, BuiltInParameter.RBS_ENERGY_ANALYSIS_PARAM, "HVC_EFF_RATIO_NR");
+                written += MapLookup(el, "COP", "HVC_EFF_RATIO_NR", 1.0);
             }
 
             return written;

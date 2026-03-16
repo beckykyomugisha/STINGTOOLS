@@ -485,8 +485,9 @@ namespace StingTools.Tags
                 int groupBound = 0;
                 int groupUnbound = 0;
 
-                foreach (string paramName in group.Params)
+                foreach (var cpd in group.Params)
                 {
+                    string paramName = cpd.ParamName;
                     totalParams++;
                     if (sample != null)
                     {
@@ -518,7 +519,7 @@ namespace StingTools.Tags
                 }
 
                 string status = groupUnbound == 0 ? "OK" : $"{groupUnbound} missing";
-                report.AppendLine($"  {group.Name,-25} {group.Params.Length,3} params — {status}");
+                report.AppendLine($"  {group.Group,-25} {group.Params.Length,3} params — {status}");
             }
 
             report.AppendLine();

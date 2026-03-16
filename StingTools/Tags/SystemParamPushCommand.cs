@@ -777,16 +777,15 @@ namespace StingTools.Tags
 
             int totalPushed = 0;
             int totalSkipped = 0;
+            Dictionary<string, int> seqCounters = null;
+            HashSet<string> existingTags = null;
+            // FIX-R05: Load formulas and grid lines for FullAutoTag pipeline
+            List<Temp.FormulaEngine.FormulaDefinition> spFormulas = null;
+            List<Grid> spGridLines = null;
 
             using (Transaction tx = new Transaction(doc, "STING Batch System Push"))
             {
                 tx.Start();
-
-                Dictionary<string, int> seqCounters = null;
-                HashSet<string> existingTags = null;
-                // FIX-R05: Load formulas and grid lines for FullAutoTag pipeline
-                List<Temp.FormulaEngine.FormulaDefinition> spFormulas = null;
-                List<Grid> spGridLines = null;
                 if (mode == SystemParamPush.PushMode.FullAutoTag)
                 {
                     (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);

@@ -113,7 +113,7 @@ namespace StingTools.Tags
 
                         // Place 3D tag family instance
                         FamilyInstance fi = doc.Create.NewFamilyInstance(
-                            center, tagFamily, StructuralType.NonStructural);
+                            center, tagFamily, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
 
                         if (fi != null)
                         {
