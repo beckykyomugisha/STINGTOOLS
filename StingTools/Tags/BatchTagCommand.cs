@@ -197,6 +197,7 @@ namespace StingTools.Tags
 
             progress.Close();
             ComplianceScan.InvalidateCache();
+            TagConfig.CheckComplianceGate(doc, "BatchTag");
 
             // BIM integration: auto-raise compliance issues after batch tagging
             try { StingTools.BIMManager.BIMManagerEngine.AutoRaiseComplianceIssues(doc); }
