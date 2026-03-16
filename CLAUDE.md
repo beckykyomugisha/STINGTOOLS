@@ -1516,6 +1516,14 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 235. **Phase 2 verification: BulkRetag gaps** — Added `NativeParamMapper.MapAll` + `SaveSeqSidecar` + `ComplianceScan.InvalidateCache` + `StingAutoTagger.InvalidateContext` to `BulkRetag` in `StateSelectCommands.cs`.
 236. **Phase 2 verification: ResolveAllIssues SEQ** — Added `SaveSeqSidecar` after all batch commits in `ResolveAllIssuesCommand`.
 
+#### Completed (Phase 25 — Pipeline Unification & Deep Review)
+
+237. **Build error fixes** — Removed 4 duplicate member definitions (CS0111/CS0102) from incomplete merge conflict resolution: `TypeTokenInherit` in ParameterHelpers.cs, `ConvertToInternalUnits` in FormulaEvaluatorCommand.cs, `SeparatorHistory` in TagConfig.cs, `BuildDisplayTag` in TagConfig.cs.
+238. **GAP-01: CombineParametersCommand cache invalidation** — Added `ComplianceScan.InvalidateCache()` + `StingAutoTagger.InvalidateContext()` after `tx.Commit()` to ensure compliance dashboard and auto-tagger reflect container changes.
+239. **GAP-02: ValidateTagsCommand STATUS/REV check** — Added STATUS and REV population as required criteria for `fullyValid` count. Elements missing STATUS or REV are no longer counted as 100% compliant.
+240. **GAP-03: ResolveAllIssuesCommand pipeline unification** — Replaced manual 7-step pipeline (TypeTokenInherit → PopulateAll → ISO validation → NativeMapper → BuildAndWriteTag → WriteTag7All → WriteContainers) with `TagPipelineHelper.RunFullPipeline()`. Now executes all 11 canonical steps including TokenLock (FE-01), CategoryForceSys, CategoryTokenOverrides (FE-06), FormulaEngine, GridRef, and AuditTrail (AL-06). Retained post-pipeline ISO cross-validation fix as a secondary cleanup pass.
+241. **GAP-04: BulkRetag pipeline unification** — Replaced manual 4-step pipeline (NativeMapper → BuildAndWriteTag → WriteTag7All → WriteContainers) with `TagPipelineHelper.RunFullPipeline()`. Now executes all 11 canonical steps including TypeTokenInherit, PopulateAll, TokenLock, FormulaEngine, GridRef, and AuditTrail — previously missing entirely from BulkRetag.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance

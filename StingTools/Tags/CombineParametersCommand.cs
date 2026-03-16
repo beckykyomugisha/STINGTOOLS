@@ -241,6 +241,9 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            // GAP-01: Invalidate caches after container writes
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             // Build report
             var report = new StringBuilder();
             report.AppendLine("Combine Parameters Complete");

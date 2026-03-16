@@ -616,6 +616,10 @@ namespace StingTools.Select
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             if (tagIndex == null) tagIndex = new HashSet<string>();
             if (seqCounters == null) seqCounters = new Dictionary<string, int>();
+            // GAP-04: Load pipeline context once for RunFullPipeline
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
             int retagged = 0;
             int failed = 0;
 
@@ -628,32 +632,16 @@ namespace StingTools.Select
                     if (elem == null) continue;
                     try
                     {
-                        // Phase2: Bridge native params before tag rebuild
-                        try { NativeParamMapper.MapAll(doc, elem); }
-                        catch (Exception nmEx) { StingLog.Warn($"BulkRetag NativeMapper for {id}: {nmEx.Message}"); }
-
-                        if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                        // GAP-04: Use unified RunFullPipeline for all 11 canonical steps
+                        bool ok = TagPipelineHelper.RunFullPipeline(
+                            doc, elem, popCtx, tagIndex, seqCounters,
+                            formulas, gridLines,
+                            overwrite: true,
                             skipComplete: false,
-                            existingTags: tagIndex,
-                            collisionMode: TagCollisionMode.Overwrite))
-                        {
-                            retagged++;
-                            // NP6: Write TAG7 + containers after bulk retag
-                            try
-                            {
-                                string bulkCat = ParameterHelpers.GetCategoryName(elem);
-                                string[] bulkToks = ParamRegistry.ReadTokenValues(elem);
-                                TagConfig.WriteTag7All(doc, elem, bulkCat, bulkToks, overwrite: true);
-                                ParamRegistry.WriteContainers(elem, bulkToks, bulkCat, overwrite: true,
-                                    skipParam: ParamRegistry.TAG1);
-                            }
-                            catch (Exception bulkEx)
-                            {
-                                StingLog.Warn($"BulkRetag TAG7+containers for {id}: {bulkEx.Message}");
-                            }
-                        }
-                        else
-                            failed++;
+                            collisionMode: TagCollisionMode.Overwrite);
+
+                        if (ok) retagged++;
+                        else failed++;
                     }
                     catch (Exception ex)
                     {
@@ -664,7 +652,7 @@ namespace StingTools.Select
                 tx.Commit();
             }
 
-            // Phase2: Save SEQ sidecar + invalidate caches after bulk retag
+            // Save SEQ sidecar + invalidate caches after bulk retag
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"BulkRetag SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();

@@ -205,9 +205,12 @@ namespace StingTools.Tags
                 // Check if this element's tag is fully resolved (no XX/ZZ/0000 placeholders)
                 bool elementResolved = !string.IsNullOrEmpty(tag1) && TagConfig.TagIsFullyResolved(tag1);
 
-                // Fully valid = TAG_1 complete + fully resolved + all tokens filled + containers populated + ISO valid
+                // GAP-02: Fully valid = TAG_1 complete + fully resolved + all tokens filled
+                // + containers populated + ISO valid + STATUS populated + REV populated
+                bool hasStatus = !string.IsNullOrEmpty(statusVal);
+                bool hasRev = !string.IsNullOrEmpty(revVal);
                 if (tag1Status == "VALID" && elementResolved && emptyTokenCount == 0 &&
-                    emptyContainers == 0 && elementIsoErrors == 0)
+                    emptyContainers == 0 && elementIsoErrors == 0 && hasStatus && hasRev)
                     fullyValid++;
 
                 // CSV row (includes FullyResolved and CrossValErrors columns)

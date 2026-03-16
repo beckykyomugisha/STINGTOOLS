@@ -114,6 +114,9 @@ namespace StingTools.Tags
             var sequenceCounters = new Dictionary<string, int>(); // Fresh counters — rebuild all SEQ from scratch
             var tagIndex = new HashSet<string>(); // Fresh index — no pre-existing tags (we're overwriting all)
             var stats = new TaggingStats();
+            // GAP-03: Load pipeline context once (formulas + grid lines) for RunFullPipeline
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
             var sw = Stopwatch.StartNew();
             int populated = 0, statusFixed = 0, revFixed = 0;
             int tagsRebuilt = 0, containersWritten = 0;
@@ -152,82 +155,63 @@ namespace StingTools.Tags
 
                         try
                         {
-                            string catName = ParameterHelpers.GetCategoryName(el);
+                            // GAP-03: Use unified RunFullPipeline for all 11 canonical steps
+                            // (TypeTokenInherit → PopulateAll → TokenLock → CategoryForceSys →
+                            //  CategoryTokenOverrides → NativeMapper → FormulaEngine →
+                            //  BuildAndWriteTag → WriteContainers → WriteTag7All → GetGridRef)
+                            bool pipelineOk = TagPipelineHelper.RunFullPipeline(
+                                doc, el, popCtx, tagIndex, sequenceCounters,
+                                formulas, gridLines,
+                                overwrite: true,
+                                skipComplete: false,
+                                collisionMode: TagCollisionMode.Overwrite,
+                                stats: stats);
 
-                            // NG8: TypeTokenInherit before PopulateAll for consistent token inheritance
-                            TokenAutoPopulator.TypeTokenInherit(doc, el);
-
-                            // Step 1: Force-populate all 9 tokens with guaranteed defaults
-                            var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: true);
-                            populated += popResult.TokensSet;
-                            if (popResult.StatusDetected) statusFixed++;
-                            if (popResult.RevSet) revFixed++;
-
-                            // Step 1b: Validate and fix ISO code violations
-                            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-                            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
-                            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
-
-                            // Cross-validate DISC/SYS — fix SYS if invalid for discipline
-                            if (!string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(sys))
+                            if (pipelineOk)
                             {
-                                string sysErr = ISO19650Validator.ValidateToken(ParamRegistry.SYS, sys);
-                                if (sysErr != null)
+                                tagsRebuilt++;
+
+                                // Post-pipeline: ISO cross-validation fix for invalid codes
+                                string catName = ParameterHelpers.GetCategoryName(el);
+                                string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                                string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                                string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+
+                                bool isoFixed = false;
+                                if (ISO19650Validator.ValidateToken(ParamRegistry.SYS, sys) != null)
                                 {
                                     string expectedSys = TagConfig.GetSysCode(catName);
                                     if (!string.IsNullOrEmpty(expectedSys))
-                                        ParameterHelpers.SetString(el, ParamRegistry.SYS, expectedSys, overwrite: true);
+                                    { ParameterHelpers.SetString(el, ParamRegistry.SYS, expectedSys, overwrite: true); isoFixed = true; }
+                                }
+                                if (ISO19650Validator.ValidateToken(ParamRegistry.FUNC, func) != null)
+                                {
+                                    string fixedFunc = TagConfig.GetFuncCode(ParameterHelpers.GetString(el, ParamRegistry.SYS));
+                                    if (!string.IsNullOrEmpty(fixedFunc))
+                                    { ParameterHelpers.SetString(el, ParamRegistry.FUNC, fixedFunc, overwrite: true); isoFixed = true; }
+                                }
+                                if (ISO19650Validator.ValidateToken(ParamRegistry.PROD, prod) != null)
+                                {
+                                    string fixedProd = TagConfig.GetFamilyAwareProdCode(el, catName);
+                                    if (!string.IsNullOrEmpty(fixedProd))
+                                    { ParameterHelpers.SetString(el, ParamRegistry.PROD, fixedProd, overwrite: true); isoFixed = true; }
+                                }
+
+                                // If ISO codes were fixed, rebuild tag to incorporate corrections
+                                if (isoFixed)
+                                {
+                                    TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
+                                        skipComplete: false, existingTags: tagIndex,
+                                        collisionMode: TagCollisionMode.Overwrite, stats: stats,
+                                        cachedRev: popCtx.ProjectRev);
+                                    string[] fixedToks = ParamRegistry.ReadTokenValues(el);
+                                    ParamRegistry.WriteContainers(el, fixedToks, catName, overwrite: true, skipParam: ParamRegistry.TAG7);
                                 }
                             }
-                            // Fix FUNC if invalid
-                            if (ISO19650Validator.ValidateToken(ParamRegistry.FUNC, func) != null)
-                            {
-                                string fixedFunc = TagConfig.GetFuncCode(
-                                    ParameterHelpers.GetString(el, ParamRegistry.SYS));
-                                if (!string.IsNullOrEmpty(fixedFunc))
-                                    ParameterHelpers.SetString(el, ParamRegistry.FUNC, fixedFunc, overwrite: true);
-                            }
-                            // Fix PROD if invalid
-                            if (ISO19650Validator.ValidateToken(ParamRegistry.PROD, prod) != null)
-                            {
-                                string fixedProd = TagConfig.GetFamilyAwareProdCode(el, catName);
-                                if (!string.IsNullOrEmpty(fixedProd))
-                                    ParameterHelpers.SetString(el, ParamRegistry.PROD, fixedProd, overwrite: true);
-                            }
 
-                            // NG8: Bridge Revit native params to STING shared params
-                            try { NativeParamMapper.MapAll(doc, el); }
-                            catch (Exception nmEx) { StingLog.Warn($"ResolveAllIssues NativeMapper for {el.Id}: {nmEx.Message}"); }
-
-                            // Step 2: Rebuild tag from scratch with fresh SEQ (overwrite mode)
-                            TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                                skipComplete: false,
-                                existingTags: tagIndex,
-                                collisionMode: TagCollisionMode.Overwrite,
-                                stats: stats,
-                                cachedRev: popCtx.ProjectRev);
-                            tagsRebuilt++;
-
-                            // Step 3: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                            try
-                            {
-                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
-                            }
-                            catch (Exception tag7Ex)
-                            {
-                                StingLog.Warn($"ResolveAllIssues TAG7 for {el.Id}: {tag7Ex.Message}");
-                            }
-
-                            // Step 4: Write ALL containers (universal + discipline-specific)
-                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                            if (!string.IsNullOrEmpty(tag1))
-                            {
-                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                                containersWritten += ParamRegistry.WriteContainers(el, tokenVals, catName,
-                                    overwrite: true, skipParam: ParamRegistry.TAG7);
-                            }
+                            // Track STATUS/REV stats from current element state
+                            if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.STATUS))) statusFixed++;
+                            if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.REV))) revFixed++;
                         }
                         catch (Exception ex)
                         {
