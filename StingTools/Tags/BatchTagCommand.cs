@@ -408,16 +408,18 @@ namespace StingTools.Tags
                             collisionMode: TagCollisionMode.Overwrite,
                             stats: stats);
 
-                        // Write TAG7 + sub-sections with migrated tag
+                        // Write TAG7 + containers with migrated tag
                         try
                         {
                             string catName = ParameterHelpers.GetCategoryName(el);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                             TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            ParamRegistry.WriteContainers(el, tokenVals, catName,
+                                overwrite: true, skipParam: ParamRegistry.TAG1);
                         }
                         catch (Exception tag7Ex)
                         {
-                            StingLog.Warn($"Migration TAG7 for {el.Id}: {tag7Ex.Message}");
+                            StingLog.Warn($"Migration TAG7+containers for {el.Id}: {tag7Ex.Message}");
                         }
 
                         migrated++;
@@ -613,16 +615,18 @@ namespace StingTools.Tags
                                 collisionMode: TagCollisionMode.Overwrite,
                                 stats: null);
 
-                            // Write TAG7 + sub-sections with updated spatial tokens
+                            // Write TAG7 + containers with updated spatial tokens
                             try
                             {
                                 string catName = ParameterHelpers.GetCategoryName(el);
                                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                                ParamRegistry.WriteContainers(el, tokenVals, catName,
+                                    overwrite: true, skipParam: ParamRegistry.TAG1);
                             }
                             catch (Exception tag7Ex)
                             {
-                                StingLog.Warn($"TagChanged TAG7 for {el.Id}: {tag7Ex.Message}");
+                                StingLog.Warn($"TagChanged TAG7+containers for {el.Id}: {tag7Ex.Message}");
                             }
 
                             updated++;

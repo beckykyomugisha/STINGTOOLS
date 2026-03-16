@@ -625,16 +625,18 @@ namespace StingTools.Tags
                             skipComplete: true, existingTags,
                             TagCollisionMode.AutoIncrement, stats);
 
-                        // Write TAG7 + sub-sections
+                        // Write TAG7 + containers
                         try
                         {
                             string catName = ParameterHelpers.GetCategoryName(el);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                             TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
+                            ParamRegistry.WriteContainers(el, tokenVals, catName,
+                                skipParam: ParamRegistry.TAG1);
                         }
                         catch (Exception tag7Ex)
                         {
-                            StingLog.Warn($"SystemParamPush TAG7 for {el.Id}: {tag7Ex.Message}");
+                            StingLog.Warn($"SystemParamPush TAG7+containers for {el.Id}: {tag7Ex.Message}");
                         }
                     }
                 }
@@ -805,16 +807,18 @@ namespace StingTools.Tags
                                 skipComplete: true, existingTags,
                                 TagCollisionMode.AutoIncrement, stats);
 
-                            // Write TAG7 + sub-sections
+                            // Write TAG7 + containers
                             try
                             {
                                 string catName = ParameterHelpers.GetCategoryName(el);
                                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
+                                ParamRegistry.WriteContainers(el, tokenVals, catName,
+                                    skipParam: ParamRegistry.TAG1);
                             }
                             catch (Exception tag7Ex)
                             {
-                                StingLog.Warn($"BatchSystemPush TAG7 for {el.Id}: {tag7Ex.Message}");
+                                StingLog.Warn($"BatchSystemPush TAG7+containers for {el.Id}: {tag7Ex.Message}");
                             }
                         }
                     }
