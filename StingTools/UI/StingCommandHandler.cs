@@ -551,6 +551,8 @@ namespace StingTools.UI
                     case "SetProj": WriteTokenToSelected(app, ParamRegistry.PROJECT, "Project Code (PROJ)"); break;
                     case "SetRev": WriteTokenToSelected(app, ParamRegistry.REV, "Revision Code (REV)"); break;
                     case "SetVol": WriteTokenToSelected(app, ParamRegistry.VOLUME, "Volume Code (VOL)"); break;
+                    case "SetSeqScheme": RunCommand<Tags.SetSeqSchemeCommand>(app); break;
+                    case "MapSheets": RunCommand<Tags.MapSheetsCommand>(app); break;
 
                     // ── Scope / toggles (inline) ──
                     case "ScopeView": ToggleScopeMode(app); break;
@@ -772,6 +774,8 @@ namespace StingTools.UI
                     case "HealthReport": RunCommand<Organise.TagStatsCommand>(app); break;
                     case "HealthFixAll": RunCommand<Organise.FixDuplicateTagsCommand>(app); break;
 
+                    case "RetagStale": RunCommand<Organise.RetagStaleCommand>(app); break;
+                    case "ComplianceScan": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
                     case "AnomalyRefresh": AnomalyRefreshScan(app); break;
                     case "AnomalyScan": RunCommand<Tags.ValidateTagsCommand>(app); break;
                     case "AnomalyExport": RunCommand<Organise.AuditTagsCSVCommand>(app); break;

@@ -377,6 +377,11 @@ namespace StingTools.Organise
                             }
                             newSeq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
                             newTag = string.Join(ParamRegistry.Separator, disc, loc, zone, lvl, sys, func, prod, newSeq);
+                            // FIX-WR11: Apply TAG_PREFIX/TAG_SUFFIX for consistency
+                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                newTag = TagConfig.TagPrefix + ParamRegistry.Separator + newTag;
+                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                newTag = newTag + ParamRegistry.Separator + TagConfig.TagSuffix;
                         } while (tagIndex.Contains(newTag) && safety-- > 0);
 
                         tagIndex.Add(newTag);
@@ -431,6 +436,8 @@ namespace StingTools.Organise
             if (remainingDupes > 0)
                 StingLog.Warn($"FixDuplicates: post-fix scan found {remainingDupes} remaining duplicate tag values");
 
+            // FIX-WR10: Save SEQ sidecar after duplicate fix
+            TagConfig.SaveSeqSidecar(doc, seqCounters);
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Fix Duplicates",
@@ -594,6 +601,11 @@ namespace StingTools.Organise
 
                         string tag = string.Join(ParamRegistry.Separator,
                             disc, loc, zone, lvl, sys, func, prod, seqStr);
+                        // FIX-WR11: Apply TAG_PREFIX/TAG_SUFFIX for consistency
+                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                            tag = TagConfig.TagPrefix + ParamRegistry.Separator + tag;
+                        if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                            tag = tag + ParamRegistry.Separator + TagConfig.TagSuffix;
 
                         // BUG-008: Check for collision with existing tags or within this batch
                         if (existingTagIndex.Contains(tag) || newTags.Contains(tag))
@@ -608,6 +620,11 @@ namespace StingTools.Organise
                             {
                                 string incSeqStr = incSeq.ToString().PadLeft(ParamRegistry.NumPad, '0');
                                 incTag = groupKey + ParamRegistry.Separator + incSeqStr;
+                                // FIX-WR11: Include PREFIX/SUFFIX in collision check
+                                if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                    incTag = TagConfig.TagPrefix + ParamRegistry.Separator + incTag;
+                                if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                    incTag = incTag + ParamRegistry.Separator + TagConfig.TagSuffix;
                                 incSeq++;
                                 if (incSeq > maxSeqVal)
                                 {
@@ -621,6 +638,11 @@ namespace StingTools.Organise
                             int resolvedSeq = incSeq - 1;
                             seqStr = resolvedSeq.ToString().PadLeft(ParamRegistry.NumPad, '0');
                             tag = groupKey + ParamRegistry.Separator + seqStr;
+                            // FIX-WR11: Reapply PREFIX/SUFFIX after collision rebuild
+                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                tag = TagConfig.TagPrefix + ParamRegistry.Separator + tag;
+                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                tag = tag + ParamRegistry.Separator + TagConfig.TagSuffix;
                             ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seqStr, overwrite: true);
                             collisions++;
                             StingLog.Warn($"Renumber collision: element {elem.Id} SEQ auto-incremented to {seqStr}");
@@ -650,6 +672,12 @@ namespace StingTools.Organise
                 }
                 tx.Commit();
             }
+
+            // FIX-WR09: Save SEQ sidecar + invalidate caches after renumbering
+            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            TagConfig.SaveSeqSidecar(doc, seqCounters);
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             string collisionNote = collisions > 0
                 ? $"\n{collisions} collision(s) auto-resolved by incrementing SEQ."
@@ -1072,6 +1100,11 @@ namespace StingTools.Organise
                         {
                             // Rebuild TAG1 from the copied token values
                             string rebuiltTag = string.Join(ParamRegistry.Separator, tokenVals);
+                            // FIX-WR13: Apply TAG_PREFIX/TAG_SUFFIX for consistency
+                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                rebuiltTag = TagConfig.TagPrefix + ParamRegistry.Separator + rebuiltTag;
+                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                rebuiltTag = rebuiltTag + ParamRegistry.Separator + TagConfig.TagSuffix;
                             ParameterHelpers.SetString(target, ParamRegistry.TAG1, rebuiltTag, overwrite: true);
                             ParamRegistry.WriteContainers(target, tokenVals, catName, overwrite: true);
                         }

@@ -140,6 +140,10 @@ namespace StingTools.Tags
                 tx.Commit();
             }
 
+            // FIX-WR08: Invalidate caches after token writes so dashboard/auto-tagger reflect changes
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
             TaskDialog.Show(label, $"Set '{value}' on {written} elements.");
             return Result.Succeeded;
         }
@@ -257,6 +261,11 @@ namespace StingTools.Tags
                 }
                 tx.Commit();
             }
+
+            // FIX-WR07: Save SEQ sidecar + invalidate caches after sequence assignment
+            TagConfig.SaveSeqSidecar(doc, maxSeq);
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             TaskDialog.Show("Assign Numbers", $"Assigned sequence numbers to {assigned} elements.");
             return Result.Succeeded;
@@ -466,6 +475,11 @@ namespace StingTools.Tags
                 }
                 tx.Commit();
             }
+
+            // FIX-WR04: Save SEQ sidecar + invalidate caches after tag building
+            TagConfig.SaveSeqSidecar(doc, seqCounters);
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             var report = new StringBuilder();
             report.AppendLine($"Built tags for {built} elements.");
