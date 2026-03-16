@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **76 source files** (74 C# + 2 XAML, ~89,013 lines of code) across 10 directories
-- **379 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **78 source files** (76 C# + 2 XAML, ~89,500 lines of code) across 10 directories
+- **381 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **27 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (8 tabs) + 1 WPF project setup wizard
 
@@ -434,7 +434,7 @@ STINGTOOLS/
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
 | `UI/StingDockPanel.xaml` | — (WPF markup, 8-tab panel with ~610 buttons) | 2,163 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
-| **Total** | **379 commands** | **~89,013** |
+| **Total** | **381 commands** | **~89,500** |
 
 ## Core Classes
 
@@ -1336,7 +1336,7 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 
 #### Completed (Phase 15 — Deep Gap Analysis Fix)
 
-164. **Unified tagging pipeline** — `TagPipelineHelper.RunFullPipeline()` centralises per-element pipeline (TypeTokenInherit → PopulateAll → CategoryForceSys → NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers → WriteTag7All → GetGridRef). All 6 tagging callers (AutoTag, TagNewOnly, BatchTag, TagAndCombine, RetagStale, StingAutoTagger) use the same pipeline.
+164. **Unified tagging pipeline** — `TagPipelineHelper.RunFullPipeline()` centralises per-element pipeline (TagHistory → TypeTokenInherit → PopulateAll → CategoryForceSys → NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers → WriteTag7All → GetGridRef). All 7 tagging callers (AutoTag, TagNewOnly, BatchTag, TagAndCombine, RetagStale, StingAutoTagger, FullAutoPopulate) use the same pipeline.
 165. **SEQ sidecar persistence** — `TagConfig.SaveSeqSidecar()` / `LoadSeqSidecar()` / `MergeSeqSidecar()` persist sequence counters to `.sting_seq.json` alongside the `.rvt` file. Merged via max-per-key strategy in `BuildTagIndexAndCounters()`.
 166. **Tag config extensions** — TAG_PREFIX, TAG_SUFFIX, CATEGORY_SKIP, CATEGORY_FORCE_SYS loaded from `project_config.json`. Prefix/suffix applied in both `BuildAndWriteTag` and `BuildTagsCommand`.
 167. **Project-adjacent config loading** — `OnDocumentOpened` prefers `project_config.json` next to the `.rvt` file over the plugin data directory, preventing config bleed between projects.
@@ -1347,6 +1347,21 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 172. **Type token inheritance** — `TokenAutoPopulator.TypeTokenInherit()` copies DISC/SYS/FUNC/PROD from family type to instance elements.
 173. **Grid reference auto-detect** — `SpatialAutoDetect.GetGridRef()` finds nearest X/Y grid intersection and writes to ASS_GRID_REF_TXT.
 174. **Auto-tagger stability** — `StingAutoTagger.InvalidateContext()` clears `_recentlyProcessed` cache to prevent stale skip bugs.
+
+#### Completed (Phase 16 — Gap Analysis v3 Fixes)
+
+175. **Tag3DCommand created** — `Tag3DCommand.cs` (244 lines): Places 3D annotation tags with WriteContainers + WriteTag7All after placement; FindTagFamily reads `tag3DFamilyPath` from `project_config.json`.
+176. **StingAutoTagger enhanced logging** — Context rebuild now logs formula and grid line counts for diagnostics.
+177. **Stale debounce timer** — 500ms time-based throttle in `OnDocumentChanged` prevents thundering-herd stale-mark transactions during bulk operations.
+178. **SheetRemovePrefix/Suffix** — `SheetRemovePrefixOrSuffix` method operates on multi-sheet selection; XAML buttons added to DOCS tab.
+179. **WriteContainers pipeline consistency** — Added `ParamRegistry.WriteContainers()` after `WriteTag7All` in TagSelected, ReTag, TagFormatMigration, TagChanged, BulkParamWrite retag, and SystemParamPush (both locations).
+180. **RepairDuplicateSeqCommand created** — `RepairDuplicateSeqCommand.cs` (119 lines): Scans for duplicate tags, auto-increments SEQ, writes TAG7 + containers after repair.
+181. **LoadDefaults SEQ resets** — `CurrentSeqScheme`, `SeqIncludeZone`, `SeqLevelReset`, `_seqSchemeChanged`, `_seqSchemeWarned`, `_activePresetName` reset in `LoadDefaults()` to prevent cross-project bleed.
+182. **FullAutoPopulate pipeline refactor** — Delegates to `TagPipelineHelper.RunFullPipeline()` with `LoadFormulas()`/`LoadGridLines()` for canonical pipeline consistency.
+183. **Post-tag compliance gate** — `ComplianceGatePct` loaded from `COMPLIANCE_GATE_PCT` config key; `CheckComplianceGate()` called after AutoTag, TagNewOnly, BatchTag, TagAndCombine.
+184. **Tag history audit trail** — `ASS_TAG_PREV_TXT` + `ASS_TAG_MODIFIED_DT` written at start of `RunFullPipeline`; parameters added to `MR_PARAMETERS.csv`.
+185. **SeparatorHistory persistence** — `SEPARATOR_HISTORY` key in `project_config.json`; loaded/saved/reset. Old separator tracked before override in `ApplyTagFormatOverrides()`.
+186. **AUTO_RUN_WORKFLOW_ON_OPEN** — Config key logged on `DocumentOpened` for workflow automation awareness.
 
 ### External Tool References
 
