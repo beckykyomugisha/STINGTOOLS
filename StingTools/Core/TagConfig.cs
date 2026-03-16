@@ -606,9 +606,6 @@ namespace StingTools.Core
         /// <summary>AL-05: Minimum compliance % gate after batch tag operations. 0 = disabled. Loaded from project_config.json COMPLIANCE_GATE_PCT.</summary>
         public static int ComplianceGatePct { get; internal set; } = 0;
 
-        /// <summary>FL-03: History of previously used tag separators for cross-session tag validation compatibility.</summary>
-        public static List<string> SeparatorHistory { get; internal set; } = new List<string>();
-
         /// <summary>AL-07: Workflow preset name to auto-run on DocumentOpened. Empty = disabled.</summary>
         public static string AutoRunWorkflowOnOpen { get; internal set; } = string.Empty;
 
@@ -731,56 +728,6 @@ namespace StingTools.Core
                     visible.Add(parts[i]);
             }
             return visible.Count > 0 ? string.Join(ParamRegistry.Separator, visible) : fullTag;
-        }
-
-        /// <summary>
-        /// Build a display tag based on STING_DISPLAY_MODE parameter.
-        /// Mode 0/5: full 8-segment, 1: SEQ only, 2: PROD-SEQ, 3: DISC-SYS-SEQ, 4: DISC-PROD-SEQ.
-        /// Also applies TAG_SEG_MASK_TXT if set.
-        /// </summary>
-        public static string BuildDisplayTag(Element el)
-        {
-            if (el == null) return "";
-
-            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-            if (string.IsNullOrEmpty(tag1)) return "";
-
-            // Read display mode (default 0 = full tag)
-            int mode = 0;
-            try
-            {
-                string modeStr = ParameterHelpers.GetString(el, ParamRegistry.DISPLAY_MODE);
-                if (!string.IsNullOrEmpty(modeStr))
-                    int.TryParse(modeStr, out mode);
-            }
-            catch { }
-
-            string[] parts = tag1.Split(ParamRegistry.Separator[0]);
-            string result;
-
-            if (parts.Length >= 8)
-            {
-                string disc = parts[0], prod = parts[6], seq = parts[7], sys = parts[4];
-                result = mode switch
-                {
-                    1 => seq,
-                    2 => prod + ParamRegistry.Separator + seq,
-                    3 => disc + ParamRegistry.Separator + sys + ParamRegistry.Separator + seq,
-                    4 => disc + ParamRegistry.Separator + prod + ParamRegistry.Separator + seq,
-                    _ => tag1
-                };
-            }
-            else
-            {
-                result = tag1;
-            }
-
-            // Apply segment mask if present
-            string mask = ParameterHelpers.GetString(el, ParamRegistry.TAG_SEG_MASK);
-            if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mode == 0)
-                result = ApplySegmentMask(tag1, mask);
-
-            return result;
         }
 
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>

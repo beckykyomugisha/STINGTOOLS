@@ -791,29 +791,6 @@ namespace StingTools.Temp
             return false;
         }
 
-        /// <summary>DATA-03: Convert a value from the given unit to Revit internal units (feet-based).</summary>
-        private static double ConvertToInternalUnits(double value, string unit)
-        {
-            if (string.IsNullOrEmpty(unit)) return value;
-            switch (unit.ToUpperInvariant())
-            {
-                case "MM":     return value / 304.8;                    // mm → feet
-                case "CM":     return value / 30.48;                    // cm → feet
-                case "M":      return value / 0.3048;                   // m → feet
-                case "M2":
-                case "SQM":    return value / (0.3048 * 0.3048);        // m² → sq feet
-                case "M3":
-                case "CUM":    return value / (0.3048 * 0.3048 * 0.3048); // m³ → cu feet
-                case "KG":     return value;                            // mass — no conversion
-                case "KW":     return value;                            // power — no conversion
-                case "L/S":    return value;                            // flow — no conversion
-                case "PA":     return value;                            // pressure — no conversion
-                case "DEG":
-                case "DEGREES": return value * Math.PI / 180.0;         // degrees → radians
-                default:       return value;                            // unknown unit — pass through
-            }
-        }
-
         /// <summary>
         /// Recursive descent expression parser for Revit-style formulas.
         /// Grammar:

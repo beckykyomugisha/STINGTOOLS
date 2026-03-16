@@ -1101,27 +1101,6 @@ namespace StingTools.Core
         /// overwrite is true.
         /// </summary>
         /// <summary>
-        /// Copy non-empty token values from element TYPE to instance.
-        /// Runs before PopulateAll so inherited values are not overwritten.
-        /// </summary>
-        public static void TypeTokenInherit(Document doc, Element el)
-        {
-            if (el == null) return;
-            ElementId typeId = el.GetTypeId();
-            if (typeId == null || typeId == ElementId.InvalidElementId) return;
-            Element typeEl = doc.GetElement(typeId);
-            if (typeEl == null) return;
-
-            string[] tokenParams = { ParamRegistry.DISC, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD };
-            foreach (string param in tokenParams)
-            {
-                string typeVal = ParameterHelpers.GetString(typeEl, param);
-                if (!string.IsNullOrEmpty(typeVal))
-                    ParameterHelpers.SetIfEmpty(el, param, typeVal);
-            }
-        }
-
-        /// <summary>
         /// ENH-01: Inherit token values from connected MEP elements via connectors.
         /// Walks the connector graph one hop to find already-tagged connected elements
         /// and copies SYS, FUNC, and DISC tokens to this element if empty.
