@@ -341,6 +341,23 @@ namespace StingTools.UI
         }
 
         /// <summary>
+        /// UI-03: Static method to update the Tags tab status strip from any thread.
+        /// </summary>
+        public static void UpdateTagsStatus(string text, string rag)
+        {
+            _instance?.Dispatcher.InvokeAsync(() =>
+            {
+                if (_instance?.txtTagsStatus == null) return;
+                _instance.txtTagsStatus.Text = text;
+                _instance.txtTagsStatus.Foreground = new SolidColorBrush(
+                    rag == "GREEN" ? Color.FromRgb(46, 105, 55) :
+                    rag == "AMBER" ? Color.FromRgb(183, 149, 11) :
+                    rag == "RED" ? Color.FromRgb(169, 50, 38) :
+                    Color.FromRgb(102, 102, 102));
+            });
+        }
+
+        /// <summary>
         /// ENH-003: Static method to update compliance status bar from command handler.
         /// </summary>
         public static void UpdateComplianceStatus(string statusText, string ragStatus)

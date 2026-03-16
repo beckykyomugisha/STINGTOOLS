@@ -111,8 +111,9 @@
                 <Button x:Name="btnPin" Grid.Column="2" Content="Pin" Width="30" Height="20"
                         FontSize="9" Background="#7B1FA2" Foreground="White" BorderThickness="0"
                         ToolTip="Pin panel" Click="BtnPin_Click" Margin="0,0,2,0"/>
-                <Button Grid.Column="3" Content="Pin" Width="30" Height="20"
-                        FontSize="9" Background="#7B1FA2" Foreground="White" BorderThickness="0"/>
+                <Button Grid.Column="3" Content="&#x263E;" Width="26" Height="20"
+                        FontSize="11" Background="#7B1FA2" Foreground="White" BorderThickness="0"
+                        ToolTip="Toggle theme (Dark/Light/Grey/Corporate)" Tag="CycleTheme" Click="Cmd_Click"/>
             </Grid>
         </Border>
 
@@ -2129,6 +2130,10 @@
 
             <!-- ═══════════════════════ TAGS TAB (Tag Studio) ═══════════════════════ -->
             <TabItem Header="TAGS">
+                <DockPanel>
+                <Border DockPanel.Dock="Bottom" Background="Transparent" Padding="4,2">
+                    <TextBlock x:Name="txtTagsStatus" Text="Ready" FontSize="9" Foreground="#666"/>
+                </Border>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="6">
 
@@ -2137,6 +2142,13 @@
 
                             <!-- ─── Placement Tab ─── -->
                             <TabItem Header="Placement">
+                                <DockPanel>
+                                    <!-- TW-01: Action buttons pinned at bottom, outside ScrollViewer -->
+                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
+                                        <Button Style="{StaticResource GreenBtn}" Content="Smart place" Tag="TagStudio_SmartPlace" Click="Cmd_Click" Width="80" Height="30"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Arrange" Tag="TagStudio_Arrange" Click="Cmd_Click" Width="80" Height="30"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Align bands" Tag="TagStudio_AlignBands" Click="Cmd_Click" Width="80" Height="30"/>
+                                    </WrapPanel>
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="4">
 
@@ -2285,15 +2297,9 @@
                                             </StackPanel>
                                         </Border>
 
-                                        <!-- ACTION BUTTONS -->
-                                        <WrapPanel Margin="0,6,0,0">
-                                            <Button Style="{StaticResource GreenBtn}" Content="Smart place" Tag="TagStudio_SmartPlace" Click="Cmd_Click" Width="80" Height="30"/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="Arrange" Tag="TagStudio_Arrange" Click="Cmd_Click" Width="80" Height="30"/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="Align bands" Tag="TagStudio_AlignBands" Click="Cmd_Click" Width="80" Height="30"/>
-                                        </WrapPanel>
-
                                     </StackPanel>
                                 </ScrollViewer>
+                                </DockPanel>
                             </TabItem>
 
                             <!-- ─── Leader & Elbow Tab ─── -->
@@ -2709,6 +2715,8 @@
                                                 <Button Style="{StaticResource ActionBtn}" Content="Align bands" Tag="TagStudio_AlignBands" Click="Cmd_Click" Width="72" Height="26"/>
                                                 <Button Style="{StaticResource ActionBtn}" Content="Overlap audit" Tag="TagOverlapAnalysis" Click="Cmd_Click" Width="80" Height="26"/>
                                                 <Button Style="{StaticResource ActionBtn}" Content="Remove tags" Tag="RemoveAnnotationTags" Click="Cmd_Click" Width="80" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Place 3D tags" Tag="Tag3D" Click="Cmd_Click" Width="80" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Repair dupes" Tag="RepairDuplicateSeq" Click="Cmd_Click" Width="80" Height="26"/>
                                             </WrapPanel>
                                         </Border>
 
@@ -2904,6 +2912,7 @@
                         </TabControl>
                     </StackPanel>
                 </ScrollViewer>
+                </DockPanel>
             </TabItem>
 
         </TabControl>

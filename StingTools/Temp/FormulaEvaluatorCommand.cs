@@ -143,8 +143,11 @@ namespace StingTools.Temp
                                 if (result.HasValue && !double.IsNaN(result.Value)
                                     && !double.IsInfinity(result.Value))
                                 {
+                                    // DATA-03: Apply unit conversion before writing
+                                    double converted = FormulaEngine.ConvertToInternalUnits(
+                                        result.Value, formula.Unit);
                                     bool written = FormulaEngine.WriteNumericResult(
-                                        targetParam, result.Value);
+                                        targetParam, converted);
                                     if (written)
                                     {
                                         totalWritten++;
@@ -281,6 +284,24 @@ namespace StingTools.Temp
     /// </summary>
     internal static class FormulaEngine
     {
+        // LOG-02: Cache parsed formulas keyed by file path to avoid re-reading CSV
+        // on every call. Invalidated when file path changes (document switch) or
+        // when file modification time changes (manual edit).
+        private static string _cachedCsvPath;
+        private static DateTime _cachedCsvWriteTime;
+        private static List<FormulaDefinition> _cachedFormulas;
+        private static readonly object _formulaCacheLock = new object();
+
+        /// <summary>Invalidate cached formulas (call on document switch).</summary>
+        public static void InvalidateFormulaCache()
+        {
+            lock (_formulaCacheLock)
+            {
+                _cachedFormulas = null;
+                _cachedCsvPath = null;
+            }
+        }
+
         /// <summary>Parsed formula definition from CSV.</summary>
         internal class FormulaDefinition
         {
@@ -296,9 +317,24 @@ namespace StingTools.Temp
             public string[] BuiltinInputs;
         }
 
-        /// <summary>Load formula definitions from CSV file.</summary>
+        /// <summary>Load formula definitions from CSV file (cached; re-reads on path or file change).</summary>
         public static List<FormulaDefinition> LoadFormulas(string csvPath)
         {
+            // LOG-02: Return cached formulas if path and file modification time match
+            lock (_formulaCacheLock)
+            {
+                if (_cachedFormulas != null && _cachedCsvPath == csvPath)
+                {
+                    try
+                    {
+                        var writeTime = File.GetLastWriteTimeUtc(csvPath);
+                        if (writeTime == _cachedCsvWriteTime)
+                            return _cachedFormulas;
+                    }
+                    catch { /* file access error — reload */ }
+                }
+            }
+
             var formulas = new List<FormulaDefinition>();
 
             try
@@ -405,6 +441,15 @@ namespace StingTools.Temp
                 sorted.AddRange(cycleNodes);
             }
             formulas = sorted;
+
+            // LOG-02: Cache parsed formulas for subsequent calls
+            lock (_formulaCacheLock)
+            {
+                _cachedFormulas = formulas;
+                _cachedCsvPath = csvPath;
+                try { _cachedCsvWriteTime = File.GetLastWriteTimeUtc(csvPath); }
+                catch { _cachedCsvWriteTime = DateTime.MinValue; }
+            }
 
             return formulas;
         }
@@ -606,6 +651,101 @@ namespace StingTools.Temp
             catch
             {
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// DATA-03: Convert a value from a named display unit to Revit internal units (feet/ft2/ft3).
+        /// Call this before writing numeric results so formulas expressed in metric units are
+        /// stored correctly in the Revit model.
+        /// </summary>
+        public static double ConvertToInternalUnits(double value, string unit)
+        {
+            if (string.IsNullOrWhiteSpace(unit)) return value;
+
+            switch (unit.Trim().ToUpperInvariant())
+            {
+                // Length → feet
+                case "M":
+                case "METERS":
+                case "METRES":
+                    return value * 3.28084;
+                case "MM":
+                case "MILLIMETERS":
+                case "MILLIMETRES":
+                    return value * 0.00328084;
+                case "CM":
+                case "CENTIMETERS":
+                case "CENTIMETRES":
+                    return value * 0.0328084;
+                case "IN":
+                case "INCHES":
+                    return value / 12.0;
+
+                // Area → ft2
+                case "M2":
+                case "SQ_M":
+                case "SQUARE_METERS":
+                    return value * 10.7639;
+                case "MM2":
+                case "SQ_MM":
+                case "SQUARE_MILLIMETERS":
+                    return value * 0.00001076391;
+
+                // Volume → ft3
+                case "M3":
+                case "CU_M":
+                case "CUBIC_METERS":
+                    return value * 35.3147;
+                case "L":
+                case "LITERS":
+                case "LITRES":
+                    return value * 0.0353147;
+
+                // Temperature → Rankine (Revit internal for some parameters)
+                case "C":
+                case "CELSIUS":
+                    return (value * 9.0 / 5.0) + 491.67;
+
+                // Mass → (Revit uses kg internally for mass params)
+                case "KG":
+                case "KILOGRAMS":
+                    return value; // no conversion needed
+                case "LB":
+                case "POUNDS":
+                    return value * 0.453592;
+
+                // Pressure → Pa (Revit internal)
+                case "KPA":
+                case "KILOPASCALS":
+                    return value * 1000.0;
+                case "PA":
+                case "PASCALS":
+                    return value;
+                case "PSI":
+                    return value * 6894.76;
+
+                // Flow → ft3/s (Revit internal)
+                case "L/S":
+                case "LPS":
+                    return value * 0.0353147;
+                case "CFM":
+                    return value / 60.0;
+
+                // Already in internal units or dimensionless
+                case "FT":
+                case "FEET":
+                case "FT2":
+                case "FT3":
+                case "":
+                case "NONE":
+                case "RATIO":
+                case "PERCENT":
+                case "%":
+                    return value;
+
+                default:
+                    return value; // Unknown unit — pass through unchanged
             }
         }
 

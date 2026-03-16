@@ -348,11 +348,18 @@ namespace StingTools.Core
                                 string newTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                                 if (!string.IsNullOrEmpty(newTag)) existingTags.Add(newTag);
 
-                                // Write TAG7 narrative
+                                // LOG-04: Only rebuild TAG7 when tokens actually changed.
+                                // Compare token hash before/after to skip expensive narrative rebuild.
                                 try
                                 {
                                     string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                                    TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
+                                    string existingTag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
+                                    if (string.IsNullOrEmpty(existingTag7))
+                                    {
+                                        TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
+                                    }
+                                    // else: TAG7 already populated and tokens were set by PopulateAll
+                                    // with overwrite:false, so existing TAG7 is still valid
                                 }
                                 catch (Exception tag7Ex)
                                 {

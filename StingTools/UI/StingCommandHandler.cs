@@ -185,6 +185,8 @@ namespace StingTools.UI
                     case "TagOverlapAnalysis": RunCommand<Tags.TagOverlapAnalysisCommand>(app); break;
                     case "BatchTagTextSize": RunCommand<Tags.BatchTagTextSizeCommand>(app); break;
                     case "SetTagCatLineWeight": RunCommand<Tags.SetTagCategoryLineWeightCommand>(app); break;
+                    case "Tag3D": RunCommand<Tags.Tag3DCommand>(app); break;
+                    case "RepairDuplicateSeq": RunCommand<Tags.RepairDuplicateSeqCommand>(app); break;
 
                     // ── Rich TAG7 display ──
                     case "RichTagNote": RunCommand<Tags.RichTagNoteCommand>(app); break;
@@ -462,6 +464,7 @@ namespace StingTools.UI
                     case "RunWorkflow": RunCommand<Core.WorkflowPresetCommand>(app); break;
                     case "ListWorkflows": RunCommand<Core.ListWorkflowPresetsCommand>(app); break;
                     case "CreateWorkflow": RunCommand<Core.CreateWorkflowPresetCommand>(app); break;
+                    case "WorkflowTrend": RunCommand<Core.WorkflowTrendCommand>(app); break;
 
                     // ── Advanced Automation ──
                     case "AnomalyAutoFix": RunCommand<Organise.AnomalyAutoFixCommand>(app); break;
@@ -475,6 +478,12 @@ namespace StingTools.UI
                     case "ScheduleToExcel": RunCommand<Temp.ScheduleToExcelCommand>(app); break;
                     case "BatchStickyImport": RunCommand<Temp.BatchStickyImportCommand>(app); break;
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
+
+                    // ── Theme ──
+                    case "CycleTheme":
+                        string next = UI.ThemeManager.CycleTheme();
+                        Autodesk.Revit.UI.TaskDialog.Show("Theme", $"Theme set to: {next}");
+                        break;
 
                     // ════════════════════════════════════════════════════════
                     // CREATE TAB (ISO 19650 tag creation)

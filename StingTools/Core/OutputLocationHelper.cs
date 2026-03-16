@@ -19,6 +19,7 @@ namespace StingTools.Core
     {
         private static string _preferredDirectory;
         private static readonly object _lock = new object();
+        private static volatile bool _tempFallbackWarned;
 
         /// <summary>
         /// Get or set the user's preferred output directory.
@@ -71,8 +72,22 @@ namespace StingTools.Core
                     return stingDocsDir;
             }
 
-            // 4. Temp directory
-            return Path.GetTempPath();
+            // 4. Temp directory (last resort — warn so user knows exports are not in a project folder)
+            string tempDir = Path.GetTempPath();
+            StingLog.Warn($"OutputLocationHelper: All preferred directories failed. Falling back to system temp: {tempDir}");
+            if (!_tempFallbackWarned)
+            {
+                _tempFallbackWarned = true;
+                try
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show("STING Export Location",
+                        "Could not write to the project directory or Documents folder.\n\n" +
+                        $"Exports will be saved to the system temp folder:\n{tempDir}\n\n" +
+                        "Use 'Set Output Directory' (BIM tab) to choose a permanent location.");
+                }
+                catch { /* TaskDialog may not be available outside Revit thread */ }
+            }
+            return tempDir;
         }
 
         /// <summary>

@@ -95,8 +95,9 @@ namespace StingTools.Core
             {
                 ParameterHelpers.ClearParamCache();
                 ComplianceScan.InvalidateCache();
+                Temp.FormulaEngine.InvalidateFormulaCache();
                 UI.StingCommandHandler.ClearStaticState();
-                StingLog.Info("DocumentClosing: cleared parameter, compliance, and selection caches");
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, and selection caches");
             }
             catch (Exception ex)
             {
@@ -113,7 +114,8 @@ namespace StingTools.Core
                 ParameterHelpers.ClearParamCache();
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
-                StingLog.Info("DocumentOpened: cleared parameter cache for new document");
+                Temp.FormulaEngine.InvalidateFormulaCache();
+                StingLog.Info("DocumentOpened: cleared parameter and formula caches for new document");
             }
             catch (Exception ex)
             {
@@ -347,6 +349,27 @@ namespace StingTools.Core
                 catch { /* path resolution failed, skip */ }
             }
 
+            return null;
+        }
+
+        /// <summary>
+        /// DATA-01: Parse the schema version from a CSV file's first line.
+        /// Expects `#!SCHEMA_VERSION=X.Y` as the first line.
+        /// Returns null if not present or unreadable.
+        /// </summary>
+        public static string GetCsvSchemaVersion(string filePath)
+        {
+            try
+            {
+                if (!File.Exists(filePath)) return null;
+                using (var reader = new StreamReader(filePath))
+                {
+                    string firstLine = reader.ReadLine();
+                    if (firstLine != null && firstLine.StartsWith("#!SCHEMA_VERSION="))
+                        return firstLine.Substring("#!SCHEMA_VERSION=".Length).Trim();
+                }
+            }
+            catch { }
             return null;
         }
 

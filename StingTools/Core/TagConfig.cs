@@ -348,8 +348,9 @@ namespace StingTools.Core
                     return $"SEQ '{value}' is not a valid number";
                 if (seqVal < 0)
                     return $"SEQ '{value}' must be a positive number";
-                if (value.Length > TagConfig.NumPad + 1)
-                    return $"SEQ '{value}' exceeds {TagConfig.NumPad}-digit format";
+                int seqWidth = TagConfig.SeqPadWidth > 0 ? TagConfig.SeqPadWidth : TagConfig.NumPad;
+                if (value.Length > seqWidth + 1)
+                    return $"SEQ '{value}' exceeds {seqWidth}-digit format";
             }
             return null; // valid
         }
@@ -569,6 +570,32 @@ namespace StingTools.Core
         public static string[] SegmentOrder => ParamRegistry.SegmentOrder;
         public const int MaxCollisionDepth = 10000;
 
+        /// <summary>
+        /// TW-02: Configurable SEQ zero-pad width. Defaults to NumPad (4) but can be
+        /// overridden independently (e.g., 2 for small projects, 6 for large estates).
+        /// </summary>
+        public static int SeqPadWidth { get; internal set; } = 4;
+
+        /// <summary>
+        /// TW-03: Optional tag prefix prepended before the first segment.
+        /// Example: "PRJ" produces "PRJ-M-BLD1-Z01-L01-HVAC-SUP-AHU-0001".
+        /// </summary>
+        public static string TagPrefix { get; internal set; } = "";
+
+        /// <summary>
+        /// TW-03: Optional tag suffix appended after the last segment.
+        /// Example: "R01" produces "M-BLD1-Z01-L01-HVAC-SUP-AHU-0001-R01".
+        /// </summary>
+        public static string TagSuffix { get; internal set; } = "";
+
+        /// <summary>
+        /// Historical separators that have been used in this project.
+        /// TagIsComplete will try these if the current separator doesn't produce
+        /// the expected number of tokens, allowing tags created with old separators
+        /// to still be recognised as complete.
+        /// </summary>
+        public static List<string> SeparatorHistory { get; internal set; } = new List<string>();
+
         /// <summary>Current sequence numbering scheme (loaded from project_config.json).</summary>
         internal static SeqScheme CurrentSeqScheme { get; set; } = SeqScheme.Numeric;
         /// <summary>Whether SEQ resets per zone.</summary>
@@ -615,6 +642,7 @@ namespace StingTools.Core
         /// </summary>
         public static string BuildSeqString(int n, SeqScheme scheme, string zoneOrDisc = "")
         {
+            int pad = SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad;
             switch (scheme)
             {
                 case SeqScheme.Alpha:
@@ -623,13 +651,13 @@ namespace StingTools.Core
                     string zPrefix = !string.IsNullOrEmpty(zoneOrDisc) && zoneOrDisc.Length >= 2
                         ? zoneOrDisc.Substring(0, 2)
                         : "Z1";
-                    return $"{zPrefix}-{n.ToString().PadLeft(ParamRegistry.NumPad, '0')}";
+                    return $"{zPrefix}-{n.ToString().PadLeft(pad, '0')}";
                 case SeqScheme.DiscPrefix:
                     string dPrefix = !string.IsNullOrEmpty(zoneOrDisc) ? zoneOrDisc : "X";
-                    return $"{dPrefix}-{n.ToString().PadLeft(ParamRegistry.NumPad, '0')}";
+                    return $"{dPrefix}-{n.ToString().PadLeft(pad, '0')}";
                 case SeqScheme.Numeric:
                 default:
-                    return n.ToString().PadLeft(ParamRegistry.NumPad, '0');
+                    return n.ToString().PadLeft(pad, '0');
             }
         }
 
@@ -701,6 +729,12 @@ namespace StingTools.Core
 
         /// <summary>Available zone codes.</summary>
         public static List<string> ZoneCodes { get; internal set; }
+
+        /// <summary>Phase 19: LOC pattern configuration — maps LOC codes to room name/number patterns for auto-detection.</summary>
+        public static Dictionary<string, List<string>> LocPatterns { get; internal set; } = new();
+
+        /// <summary>Phase 19: ZONE pattern configuration — maps ZONE codes to department/room name patterns for auto-detection.</summary>
+        public static Dictionary<string, List<string>> ZonePatterns { get; internal set; } = new();
 
         public static string ConfigSource { get; private set; }
 
@@ -834,6 +868,14 @@ namespace StingTools.Core
                         ss.Equals("true", StringComparison.OrdinalIgnoreCase);
                 }
 
+                // Phase 19: Load LOC/ZONE pattern overrides from config (optional — fall back to LoadDefaults)
+                var locPat = TryDeserialize<Dictionary<string, List<string>>>(data, "LOC_PATTERNS");
+                if (locPat != null && locPat.Count > 0)
+                    LocPatterns = new Dictionary<string, List<string>>(locPat, StringComparer.OrdinalIgnoreCase);
+                var zonePat = TryDeserialize<Dictionary<string, List<string>>>(data, "ZONE_PATTERNS");
+                if (zonePat != null && zonePat.Count > 0)
+                    ZonePatterns = new Dictionary<string, List<string>>(zonePat, StringComparer.OrdinalIgnoreCase);
+
                 // A1: Track previous SEQ scheme settings for change warning
                 SeqScheme prevScheme = CurrentSeqScheme;
                 bool prevIncludeZone = SeqIncludeZone;
@@ -890,6 +932,20 @@ namespace StingTools.Core
             ParamRegistry.ClearTagFormatOverrides();
             StatusDefault = null;
             RevDefault = null;
+            LocPatterns = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "BLD1", new List<string> { "building 1", "main building", "block a", "primary" } },
+                { "BLD2", new List<string> { "building 2", "annex", "block b", "secondary" } },
+                { "BLD3", new List<string> { "building 3", "block c", "tertiary" } },
+                { "EXT", new List<string> { "external", "exterior", "outside", "site", "landscape", "car park" } },
+            };
+            ZonePatterns = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Z01", new List<string> { "zone 1", "zone a", "north", "front" } },
+                { "Z02", new List<string> { "zone 2", "zone b", "south", "rear" } },
+                { "Z03", new List<string> { "zone 3", "zone c", "east", "left" } },
+                { "Z04", new List<string> { "zone 4", "zone d", "west", "right" } },
+            };
             ConfigSource = "built-in defaults";
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
@@ -1271,11 +1327,30 @@ namespace StingTools.Core
             char sepChar = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
             string[] parts = tagValue.Split(new[] { sepChar });
             if (parts.Length != expectedTokens)
-                return false;
-            for (int i = 0; i < parts.Length; i++)
             {
-                if (string.IsNullOrWhiteSpace(parts[i]))
+                // Try historical separators — tags created before a separator change
+                // should still be recognised as complete.
+                bool foundViaHistory = false;
+                foreach (var histSep in SeparatorHistory)
+                {
+                    if (histSep == Separator) continue;
+                    var histParts = tagValue.Split(new[] { histSep }, StringSplitOptions.None);
+                    if (histParts.Length == expectedTokens && histParts.All(p => !string.IsNullOrWhiteSpace(p)))
+                    {
+                        foundViaHistory = true;
+                        break;
+                    }
+                }
+                if (!foundViaHistory)
                     return false;
+            }
+            else
+            {
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    if (string.IsNullOrWhiteSpace(parts[i]))
+                        return false;
+                }
             }
             // Reject tags containing placeholder tokens
             if (TagHasPlaceholders(tagValue))
@@ -1499,7 +1574,8 @@ namespace StingTools.Core
             sequenceCounters[seqKey]++;
 
             // SEQ overflow detection: cap at format capacity to prevent invalid tag widths
-            int maxSeq = (int)Math.Pow(10, NumPad) - 1; // 9999 for NumPad=4
+            int seqPad = SeqPadWidth > 0 ? SeqPadWidth : NumPad;
+            int maxSeq = (int)Math.Pow(10, seqPad) - 1; // 9999 for SeqPadWidth=4, 99 for SeqPadWidth=2
             if (sequenceCounters[seqKey] > maxSeq)
             {
                 string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — capping at {maxSeq}";
@@ -1515,6 +1591,10 @@ namespace StingTools.Core
             string seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
 
             string tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
+
+            // TW-03: Apply optional tag prefix and suffix
+            if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
+            if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
 
             // Collision detection: if this exact tag already exists, increment SEQ
             if (existingTags != null)
@@ -1535,6 +1615,9 @@ namespace StingTools.Core
                     }
                     seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
                     tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
+                    // TW-03: Re-apply prefix/suffix after collision rebuild
+                    if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
+                    if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
@@ -1721,9 +1804,9 @@ namespace StingTools.Core
         public static string BuildDisplayTag(Element el)
         {
             if (el == null) return "";
-            int mode = ParameterHelpers.GetInt(el, "STING_DISPLAY_MODE", 5);
-            // Mode 0 is treated as full (same as 5/default)
-            if (mode == 0) mode = 5;
+            int mode = ParameterHelpers.GetInt(el, "STING_DISPLAY_MODE", 0);
+            // Mode 0 means unset — use the configurable default from ParamRegistry
+            if (mode == 0) mode = ParamRegistry.DisplayModeDefault;
             string display = BuildDisplayTag(el, mode);
             if (!string.IsNullOrEmpty(display))
             {
@@ -1751,28 +1834,38 @@ namespace StingTools.Core
         /// </summary>
         public static string GetMepSystemAwareSysCode(Element el, string categoryName)
         {
+            return GetMepSystemAwareSysCodeWithLayer(el, categoryName).Item1;
+        }
+
+        /// <summary>
+        /// LOG-01: Returns (sysCode, detectionLayer) where layer indicates which
+        /// detection method succeeded: 1=Connector, 2=SystemType, 3=Circuit,
+        /// 4=FamilyName, 5=RoomType, 6=CategoryFallback.
+        /// </summary>
+        public static (string, int) GetMepSystemAwareSysCodeWithLayer(Element el, string categoryName)
+        {
             // Layer 1: Connected MEP system name (most reliable for piping and ductwork)
             string fromConnector = GetSysFromConnector(el, categoryName);
-            if (!string.IsNullOrEmpty(fromConnector)) return fromConnector;
+            if (!string.IsNullOrEmpty(fromConnector)) return (fromConnector, 1);
 
             // Layer 2: Duct/Pipe system type built-in parameter
             string fromSysType = GetSysFromSystemTypeParam(el, categoryName);
-            if (!string.IsNullOrEmpty(fromSysType)) return fromSysType;
+            if (!string.IsNullOrEmpty(fromSysType)) return (fromSysType, 2);
 
             // Layer 3: Electrical circuit panel name
             string fromCircuit = GetSysFromElectricalCircuit(el);
-            if (!string.IsNullOrEmpty(fromCircuit)) return fromCircuit;
+            if (!string.IsNullOrEmpty(fromCircuit)) return (fromCircuit, 3);
 
             // Layer 4: Family name pattern matching
             string fromFamily = GetSysFromFamilyName(el, categoryName);
-            if (!string.IsNullOrEmpty(fromFamily)) return fromFamily;
+            if (!string.IsNullOrEmpty(fromFamily)) return (fromFamily, 4);
 
             // Layer 5: Room-type inference
             string fromRoom = GetSysFromRoomType(el);
-            if (!string.IsNullOrEmpty(fromRoom)) return fromRoom;
+            if (!string.IsNullOrEmpty(fromRoom)) return (fromRoom, 5);
 
             // Layer 6: Category-based fallback
-            return GetSysCode(categoryName);
+            return (GetSysCode(categoryName), 6);
         }
 
         /// <summary>Layer 1: Read connected MEP system name via connectors.</summary>
@@ -2457,6 +2550,81 @@ namespace StingTools.Core
 
             StingLog.Info($"Tag index built: {index.Count} existing tags, {maxSeq.Count} SEQ groups");
             return (index, maxSeq);
+        }
+
+        // ── ENH-02: SEQ Sidecar JSON Persistence ────────────────────────────
+
+        /// <summary>
+        /// ENH-02: Save SEQ counters to a sidecar JSON file alongside the Revit project.
+        /// File name: {ProjectFileName}_STING_SEQ.json. This provides crash-safe
+        /// sequence continuity — if Revit crashes during tagging, the last known
+        /// counters are preserved on disk.
+        /// </summary>
+        public static void SaveSeqSidecar(Document doc, Dictionary<string, int> seqCounters)
+        {
+            try
+            {
+                string sidecarPath = GetSeqSidecarPath(doc);
+                if (sidecarPath == null) return;
+
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(seqCounters,
+                    Newtonsoft.Json.Formatting.Indented);
+                System.IO.File.WriteAllText(sidecarPath, json);
+                StingLog.Info($"SEQ sidecar saved: {seqCounters.Count} groups to {sidecarPath}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SaveSeqSidecar: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// ENH-02: Load SEQ counters from sidecar JSON. Returns null if file doesn't exist.
+        /// Merges with document-scanned counters by taking the MAX of each key.
+        /// </summary>
+        public static Dictionary<string, int> LoadSeqSidecar(Document doc)
+        {
+            try
+            {
+                string sidecarPath = GetSeqSidecarPath(doc);
+                if (sidecarPath == null || !System.IO.File.Exists(sidecarPath)) return null;
+
+                string json = System.IO.File.ReadAllText(sidecarPath);
+                var loaded = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, int>>(json);
+                if (loaded != null && loaded.Count > 0)
+                    StingLog.Info($"SEQ sidecar loaded: {loaded.Count} groups from {sidecarPath}");
+                return loaded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadSeqSidecar: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// ENH-02: Merge sidecar counters with document-scanned counters.
+        /// Takes the MAX of each key to ensure continuity after crashes.
+        /// </summary>
+        public static void MergeSeqCounters(Dictionary<string, int> target, Dictionary<string, int> sidecar)
+        {
+            if (sidecar == null) return;
+            foreach (var kvp in sidecar)
+            {
+                if (!target.ContainsKey(kvp.Key) || kvp.Value > target[kvp.Key])
+                    target[kvp.Key] = kvp.Value;
+            }
+        }
+
+        private static string GetSeqSidecarPath(Document doc)
+        {
+            if (doc == null || !doc.IsValidObject) return null;
+            string projectPath = doc.PathName;
+            if (string.IsNullOrEmpty(projectPath)) return null;
+            string dir = System.IO.Path.GetDirectoryName(projectPath);
+            string fileName = System.IO.Path.GetFileNameWithoutExtension(projectPath);
+            if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(fileName)) return null;
+            return System.IO.Path.Combine(dir, $"{fileName}_STING_SEQ.json");
         }
 
         private static T TryDeserialize<T>(Dictionary<string, object> data, string key)
