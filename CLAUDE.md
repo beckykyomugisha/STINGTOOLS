@@ -1348,6 +1348,13 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 173. **Grid reference auto-detect** — `SpatialAutoDetect.GetGridRef()` finds nearest X/Y grid intersection and writes to ASS_GRID_REF_TXT.
 174. **Auto-tagger stability** — `StingAutoTagger.InvalidateContext()` clears `_recentlyProcessed` cache to prevent stale skip bugs.
 
+#### Completed (Phase 15b — Workflow Efficiency Review)
+
+175. **SEQ sidecar completeness** — Added `SaveSeqSidecar` after `tx.Commit()` in `TagFormatMigrationCommand` and `TagChangedCommand`, preventing SEQ counter loss on session reload.
+176. **Dead counter cleanup** — Removed unincremented `populated`, `statusDetected`, `revSet`, `locDetected`, `zoneDetected`, `combined` variables from AutoTag, TagNewOnly, BatchTag, and TagAndCombine commands that always reported zeros. Replaced with `TaggingStats.BuildReport()` for accurate stats.
+177. **Null-safe population context** — Added `PopulationContext.Build(doc)` null checks in all 5 tagging commands (AutoTag, TagNewOnly, BatchTag, TagAndCombine, RetagStale) preventing null reference crashes on corrupt documents.
+178. **MSB3277 suppression** — Suppressed benign ClosedXML transitive dependency assembly version warnings in `StingTools.csproj`.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance
