@@ -575,6 +575,13 @@ namespace StingTools.Core
         /// <summary>G1.1: Per-category SYS code overrides. Loaded from project_config.json CATEGORY_FORCE_SYS dict.</summary>
         public static Dictionary<string, string> CategoryForceSys { get; internal set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>AL-07/NG11: Workflow preset name to auto-run on document open. Loaded from project_config.json.</summary>
+        public static string AutoRunWorkflowOnOpen { get; internal set; } = string.Empty;
+
+        /// <summary>FE-06: Full per-category token overrides. Key=category name, Value=dict of token->value.</summary>
+        public static Dictionary<string, Dictionary<string, string>> CategoryTokenOverrides { get; internal set; }
+            = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>Current sequence numbering scheme (loaded from project_config.json).</summary>
         internal static SeqScheme CurrentSeqScheme { get; set; } = SeqScheme.Numeric;
         /// <summary>Whether SEQ resets per zone.</summary>
@@ -936,6 +943,18 @@ namespace StingTools.Core
                 if (forceSys != null)
                     foreach (var kvp in forceSys) CategoryForceSys[kvp.Key] = kvp.Value;
 
+                // AL-07/NG11: Load auto-run workflow on open
+                AutoRunWorkflowOnOpen = string.Empty;
+                if (data.TryGetValue("AUTO_RUN_WORKFLOW_ON_OPEN", out object arwObj) && arwObj is string arwStr
+                    && !string.IsNullOrWhiteSpace(arwStr))
+                    AutoRunWorkflowOnOpen = arwStr.Trim();
+
+                // FE-06: Load full per-category token overrides
+                CategoryTokenOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+                var catOverrides = TryDeserialize<Dictionary<string, Dictionary<string, string>>>(data, "CATEGORY_TOKEN_OVERRIDES");
+                if (catOverrides != null)
+                    foreach (var kvp in catOverrides) CategoryTokenOverrides[kvp.Key] = kvp.Value;
+
                 ConfigSource = "project_config.json";
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
@@ -972,6 +991,8 @@ namespace StingTools.Core
             TagSuffix = string.Empty;
             CategorySkipList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             CategoryForceSys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            AutoRunWorkflowOnOpen = string.Empty;
+            CategoryTokenOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
             ConfigSource = "built-in defaults";
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
@@ -1065,7 +1086,9 @@ namespace StingTools.Core
                     ["TAG_PREFIX"] = TagPrefix,
                     ["TAG_SUFFIX"] = TagSuffix,
                     ["CATEGORY_SKIP"] = CategorySkipList.ToList(),
-                    ["CATEGORY_FORCE_SYS"] = CategoryForceSys
+                    ["CATEGORY_FORCE_SYS"] = CategoryForceSys,
+                    ["AUTO_RUN_WORKFLOW_ON_OPEN"] = AutoRunWorkflowOnOpen ?? "",
+                    ["CATEGORY_TOKEN_OVERRIDES"] = CategoryTokenOverrides
                 };
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);

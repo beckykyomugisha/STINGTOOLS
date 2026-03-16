@@ -152,6 +152,34 @@ namespace StingTools.Core
                 }
 
                 StingLog.Info("DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig");
+
+                // AL-07/NG11: Notify user of auto-run workflow on open
+                try
+                {
+                    string autoWorkflow = TagConfig.AutoRunWorkflowOnOpen;
+                    if (!string.IsNullOrEmpty(autoWorkflow))
+                    {
+                        var preset = WorkflowEngine.GetBuiltInPreset(autoWorkflow)
+                            ?? WorkflowEngine.GetAvailablePresets()
+                                .FirstOrDefault(p => p.Name.Equals(autoWorkflow, StringComparison.OrdinalIgnoreCase));
+                        if (preset != null)
+                        {
+                            StingLog.Info($"OnDocumentOpened: AUTO_RUN_WORKFLOW_ON_OPEN='{autoWorkflow}' — notifying user");
+                            TaskDialog.Show("STING — Auto Workflow Configured",
+                                $"This project is configured to auto-run workflow '{autoWorkflow}' on open.\n\n" +
+                                $"Use the 'Workflow Preset' button in the STING panel to execute it.\n" +
+                                $"(Full auto-execution requires ExternalCommandData — manual trigger needed.)");
+                        }
+                        else
+                        {
+                            StingLog.Warn($"OnDocumentOpened: AUTO_RUN_WORKFLOW_ON_OPEN preset '{autoWorkflow}' not found");
+                        }
+                    }
+                }
+                catch (Exception arwEx)
+                {
+                    StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN on open: {arwEx.Message}");
+                }
             }
             catch (Exception ex)
             {

@@ -435,6 +435,11 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// NG11/AL-07: Public accessor for ResolveCommand — used by auto-run workflow on open.
+        /// </summary>
+        public static IExternalCommand GetCommandInstance(string tag) => ResolveCommand(tag);
+
+        /// <summary>
         /// Run a command by its StingCommandHandler dispatch tag, mapped to IExternalCommand classes.
         /// </summary>
         private static Result RunCommandByTag(string tag, ExternalCommandData data, ElementSet elems)
