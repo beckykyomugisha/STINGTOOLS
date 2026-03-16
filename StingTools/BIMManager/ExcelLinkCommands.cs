@@ -1092,6 +1092,9 @@ namespace StingTools.BIMManager
                                 try
                                 {
                                     string catName = ParameterHelpers.GetCategoryName(el);
+                                    // FIX-10: Bridge native params before tag rebuild
+                                    try { NativeParamMapper.MapAll(doc, el); }
+                                    catch (Exception nmEx) { StingLog.Warn($"ExcelLink NativeMapper for {el.Id}: {nmEx.Message}"); }
                                     TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                         skipComplete: false, tagIndex, TagCollisionMode.Overwrite, null,
                                         cachedRev: cachedRev);
@@ -1354,6 +1357,9 @@ namespace StingTools.BIMManager
                                 try
                                 {
                                     string catName = ParameterHelpers.GetCategoryName(el);
+                                    // Phase2: Bridge native params before tag rebuild
+                                    try { NativeParamMapper.MapAll(doc, el); }
+                                    catch (Exception nmEx) { StingLog.Warn($"ExcelLink RoundTrip NativeMapper for {el.Id}: {nmEx.Message}"); }
                                     TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                         skipComplete: false, tagIndex, TagCollisionMode.Overwrite, null,
                                         cachedRev: cachedRev);

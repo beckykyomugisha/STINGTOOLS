@@ -191,6 +191,7 @@ namespace StingTools.Tags
                 TagConfig.SaveSeqSidecar(doc, sequenceCounters);
             }
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TagConfig.CheckComplianceGate(doc, "AutoTag");
             var report = new StringBuilder();
             report.AppendLine($"Auto Tag — '{activeView.Name}'");
@@ -235,10 +236,31 @@ namespace StingTools.Tags
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
+            // FIX-08: Scope selection — active view or entire project
+            var scopeDlg = new TaskDialog("Tag New Only — Scope");
+            scopeDlg.MainInstruction = "Select scope for tagging new elements";
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Active view only",
+                "Tag untagged elements visible in the current view");
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Entire project",
+                "Tag all untagged elements across the entire model");
+            scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            scopeDlg.DefaultButton = TaskDialogResult.CommandLink1;
+            var scopeResult = scopeDlg.Show();
+            if (scopeResult == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+            bool viewScopeOnly = (scopeResult == TaskDialogResult.CommandLink1);
+            string scopeLabel = viewScopeOnly ? "Active View" : "Entire Project";
+
             // Pre-filter: only elements with empty ASS_TAG_1_TXT
             // Performance: use ElementMulticategoryFilter to skip non-taggable elements at API level
             var catEnums = SharedParamGuids.AllCategoryEnums;
-            var tagNewCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            FilteredElementCollector tagNewCollector;
+            if (viewScopeOnly && doc.ActiveView != null)
+                tagNewCollector = new FilteredElementCollector(doc, doc.ActiveView.Id).WhereElementIsNotElementType();
+            else
+                tagNewCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
             if (catEnums != null && catEnums.Length > 0)
                 tagNewCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
             var untagged = new List<Element>();
@@ -267,6 +289,7 @@ namespace StingTools.Tags
             TaskDialog confirm = new TaskDialog("Tag New Only");
             confirm.MainInstruction = $"Tag {untagged.Count} new elements?";
             confirm.MainContent =
+                $"Scope: {scopeLabel}\n" +
                 $"Found {untagged.Count} taggable elements without tags.\n" +
                 "This will auto-populate tokens and assign tags to only these elements.\n" +
                 "Existing tags will not be modified.";
@@ -333,6 +356,7 @@ namespace StingTools.Tags
             }
             sw.Stop();
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TagConfig.CheckComplianceGate(doc, "TagNewOnly");
 
             var report = new StringBuilder();

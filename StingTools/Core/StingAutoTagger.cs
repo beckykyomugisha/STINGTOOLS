@@ -225,6 +225,8 @@ namespace StingTools.Core
                 Document doc = data.GetDocument();
                 if (doc == null || !doc.IsValidObject) return;
 
+                // FIX-02: Declare enqueued counter (was missing — caused CS0103)
+                int enqueued = 0;
                 var addedIds = data.GetAddedElementIds();
                 if (addedIds == null || addedIds.Count == 0) return;
 
@@ -292,11 +294,11 @@ namespace StingTools.Core
                     }
 
                     _pendingQueue.Enqueue(id);
-                    enqueued++;
+                    enqueued++; // FIX-02: variable declared below
                 }
 
-                // Raise ExternalEvent to process queue on Revit API thread with proper Transaction
-                if (enqueued > 0 && _autoTagEvent != null)
+                // FIX-02: Raise ExternalEvent to process queue on Revit API thread with proper Transaction
+                if (!_pendingQueue.IsEmpty && _autoTagEvent != null)
                 {
                     _autoTagEvent.Raise();
                 }
@@ -333,8 +335,11 @@ namespace StingTools.Core
                         var built = TagConfig.BuildTagIndexAndCounters(doc);
                         _cachedExistingTags = built.Item1;
                         _cachedSeqCounters = built.Item2;
+                        // FIX-02: Also reload formulas and grid lines on context rebuild
+                        _formulas = TagPipelineHelper.LoadFormulas();
+                        _gridLines = TagPipelineHelper.LoadGridLines(doc);
                         _contextInvalid = false;
-                        StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags)");
+                        StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags, {_formulas.Count} formulas)");
                     }
                     var ctx = _cachedCtx;
                     var existingTags = _cachedExistingTags;
@@ -398,6 +403,39 @@ namespace StingTools.Core
                                 catch (Exception tag7Ex)
                                 {
                                     StingLog.Warn($"AutoTagger TAG7 for {id}: {tag7Ex.Message}");
+                                }
+
+                                // FIX-02: Bridge native Revit params to STING shared params
+                                try { NativeParamMapper.MapAll(doc, el); }
+                                catch (Exception nmEx) { StingLog.Warn($"AutoTagger NativeMapper for {id.Value}: {nmEx.Message}"); }
+
+                                // FIX-02: Evaluate formulas after token population and native mapping
+                                if (_formulas != null && _formulas.Count > 0)
+                                {
+                                    try
+                                    {
+                                        foreach (var formula in _formulas)
+                                        {
+                                            Parameter fp = el.LookupParameter(formula.ParameterName);
+                                            if (fp == null || fp.IsReadOnly) continue;
+                                            var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                                            if (fCtx == null) continue;
+                                            if (formula.DataType == "TEXT")
+                                            {
+                                                string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                                if (fResult != null && fp.StorageType == StorageType.String
+                                                    && string.IsNullOrEmpty(fp.AsString()))
+                                                    fp.Set(fResult);
+                                            }
+                                            else
+                                            {
+                                                double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                                if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                                    Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                            }
+                                        }
+                                    }
+                                    catch (Exception fEx) { StingLog.Warn($"AutoTagger formula eval for {id.Value}: {fEx.Message}"); }
                                 }
 
                                 // Write containers
@@ -468,6 +506,10 @@ namespace StingTools.Core
                             }
                         }
                         trans.Commit();
+
+                        // FIX-02: Save SEQ sidecar after commit for session continuity
+                        try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                        catch (Exception ssEx) { StingLog.Warn($"AutoTagger SaveSeqSidecar: {ssEx.Message}"); }
                     }
 
                     ComplianceScan.InvalidateCache();
@@ -841,11 +883,43 @@ namespace StingTools.Core
                         string tag1 = ParameterHelpers.GetString(el, ParamRegistry.AllTokenParams[0]);
                         if (string.IsNullOrEmpty(tag1)) continue;
 
-                        // Check if spatial context changed
+                        // Check if spatial context changed (LVL, LOC, ZONE)
+                        bool isStale = false;
+
                         string currentLvl = ParameterHelpers.GetLevelCode(doc, el);
                         string storedLvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
-
                         if (!string.IsNullOrEmpty(storedLvl) && currentLvl != storedLvl)
+                            isStale = true;
+
+                        // FIX-07: Also detect LOC/ZONE changes from spatial context
+                        if (!isStale)
+                        {
+                            try
+                            {
+                                string storedLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                                if (!string.IsNullOrEmpty(storedLoc) && storedLoc != "XX")
+                                {
+                                    string currentLoc = SpatialAutoDetect.DetectLoc(doc, el, null, null);
+                                    if (!string.IsNullOrEmpty(currentLoc) && currentLoc != "XX" && currentLoc != storedLoc)
+                                        isStale = true;
+                                }
+
+                                if (!isStale)
+                                {
+                                    string storedZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                                    if (!string.IsNullOrEmpty(storedZone) && storedZone != "XX" && storedZone != "ZZ")
+                                    {
+                                        string currentZone = SpatialAutoDetect.DetectZone(doc, el, null);
+                                        if (!string.IsNullOrEmpty(currentZone) && currentZone != "XX"
+                                            && currentZone != "ZZ" && currentZone != storedZone)
+                                            isStale = true;
+                                    }
+                                }
+                            }
+                            catch { /* spatial detection is best-effort */ }
+                        }
+
+                        if (isStale)
                         {
                             Parameter p = el.LookupParameter(ParamRegistry.STALE);
                             if (p != null && !p.IsReadOnly)

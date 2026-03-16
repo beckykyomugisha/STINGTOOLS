@@ -39,6 +39,8 @@ namespace StingTools.Core
             public int StatusMissing { get; set; }
             /// <summary>A5: Elements with at least one empty discipline container.</summary>
             public int ContainersMissing { get; set; }
+            /// <summary>FIX-12: Elements marked as stale (spatial context may have changed).</summary>
+            public int StaleCount { get; set; }
             /// <summary>AE-05: Per-token empty count for granular compliance reporting.</summary>
             public Dictionary<string, int> EmptyTokenCounts { get; } = new Dictionary<string, int>
             {
@@ -78,9 +80,12 @@ namespace StingTools.Core
                 }
             }
 
-            /// <summary>Short summary for status bar display — includes revision and STATUS counts.</summary>
+            /// <summary>Short summary for status bar display — includes revision, STATUS, and stale counts.</summary>
             public string StatusBarText =>
-                $"{RAGStatus} {CompliancePercent:F0}% tagged | {RevisionPercent:F0}% REV | {(StatusMissing > 0 ? $"{StatusMissing} no-STATUS | " : "")}{Untagged} untagged";
+                $"{RAGStatus} {CompliancePercent:F0}% tagged | {RevisionPercent:F0}% REV | " +
+                $"{(StatusMissing > 0 ? $"{StatusMissing} no-STATUS | " : "")}" +
+                $"{(StaleCount > 0 ? $"{StaleCount} stale | " : "")}" +
+                $"{Untagged} untagged";
 
             /// <summary>Per-discipline compliance breakdown.</summary>
             public Dictionary<string, DiscComplianceData> ByDisc { get; set; } = new Dictionary<string, DiscComplianceData>();
@@ -227,6 +232,18 @@ namespace StingTools.Core
                                     emptyCount++;
                             }
                             if (emptyCount > 0) result.ContainersMissing++;
+                        }
+                    }
+                    catch { }
+
+                    // FIX-12: Count elements marked as stale
+                    try
+                    {
+                        Parameter stalePar = elem.LookupParameter(ParamRegistry.STALE);
+                        if (stalePar != null && stalePar.StorageType == StorageType.Integer && stalePar.AsInteger() == 1)
+                        {
+                            result.StaleCount++;
+                            AddIssue(result, "Stale element");
                         }
                     }
                     catch { }

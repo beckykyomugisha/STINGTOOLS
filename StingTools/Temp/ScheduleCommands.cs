@@ -919,6 +919,7 @@ namespace StingTools.Temp
             catch (Exception ssEx) { StingLog.Warn($"FullAutoPopulate SaveSeqSidecar: {ssEx.Message}"); }
             sw.Stop();
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             var report = new StringBuilder();
             report.AppendLine("Full Schedule Auto-Populate Complete");

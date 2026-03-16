@@ -341,6 +341,10 @@ namespace StingTools.Tags
                             break;
                     }
 
+                    // FIX-03B: Bridge native Revit params after token writes
+                    try { NativeParamMapper.MapAll(doc, el); }
+                    catch (Exception nmEx) { StingLog.Warn($"SystemParamPush NativeMapper for {el.Id}: {nmEx.Message}"); }
+
                     result.Pushed++;
                     if (!result.PushedByCategory.ContainsKey(catName))
                         result.PushedByCategory[catName] = 0;
@@ -831,6 +835,15 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+
+            // FIX-03A: Save SEQ sidecar + invalidate caches after batch system push
+            if (mode == SystemParamPush.PushMode.FullAutoTag)
+            {
+                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                catch (Exception ssEx) { StingLog.Warn($"BatchSystemPush SaveSeqSidecar: {ssEx.Message}"); }
+            }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             TaskDialog.Show("Batch System Push",
                 $"Batch System Push Complete\n\n" +

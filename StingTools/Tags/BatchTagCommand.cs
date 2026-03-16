@@ -200,6 +200,8 @@ namespace StingTools.Tags
 
             progress.Close();
             ComplianceScan.InvalidateCache();
+            // FIX-13: Invalidate auto-tagger cached context after batch tagging
+            StingAutoTagger.InvalidateContext();
             TagConfig.CheckComplianceGate(doc, "BatchTag");
 
             // BIM integration: auto-raise compliance issues after batch tagging
@@ -397,6 +399,10 @@ namespace StingTools.Tags
                 {
                     try
                     {
+                        // Phase2: Bridge native params before tag format migration
+                        try { NativeParamMapper.MapAll(doc, el); }
+                        catch (Exception nmEx) { StingLog.Warn($"Migration NativeMapper for {el.Id}: {nmEx.Message}"); }
+
                         TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                             skipComplete: false,
                             existingTags: tagIndex,
@@ -429,6 +435,10 @@ namespace StingTools.Tags
                 tx.Commit();
                 TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
+            // FIX-14: Invalidate caches after format migration
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
             TaskDialog.Show("Tag Format Migration",
                 $"Migration complete.\n\n  Migrated: {migrated}\n  Total: {tagged.Count}");
             StingLog.Info($"Tag format migration: {migrated}/{tagged.Count} tags reformatted");
@@ -611,6 +621,10 @@ namespace StingTools.Tags
                                 existingTags: tagIndex,
                                 collisionMode: TagCollisionMode.Overwrite,
                                 stats: null);
+
+                            // FIX-04: Bridge native params after delta token update
+                            try { NativeParamMapper.MapAll(doc, el); }
+                            catch (Exception nmEx) { StingLog.Warn($"TagChanged NativeMapper for {el.Id}: {nmEx.Message}"); }
 
                             // Write TAG7 + containers with updated spatial tokens
                             try

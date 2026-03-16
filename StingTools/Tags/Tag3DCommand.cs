@@ -120,15 +120,16 @@ namespace StingTools.Tags
                             // Write tag value to label parameter
                             ParameterHelpers.SetString(fi, TAG_3D_LABEL, tag1, overwrite: true);
 
-                            // NG1/A6: Write full container pipeline for the placed 3D tag instance
+                            // FIX-11: Write containers/TAG7/NativeMap for SOURCE element (el),
+                            // not the placed 3D tag instance (fi). The source element
+                            // holds the actual tag tokens; fi is just a visual marker.
                             try
                             {
-                                string cat3D = ParameterHelpers.GetCategoryName(fi);
-                                string[] toks3D = ParamRegistry.ReadTokenValues(fi);
-                                ParamRegistry.WriteContainers(fi, toks3D, cat3D);
-                                TagConfig.WriteTag7All(doc, fi, cat3D, toks3D, overwrite: false);
-                                // NG5: Bridge native params for the placed instance
-                                NativeParamMapper.MapAll(doc, fi);
+                                string cat3D = ParameterHelpers.GetCategoryName(el);
+                                string[] toks3D = ParamRegistry.ReadTokenValues(el);
+                                ParamRegistry.WriteContainers(el, toks3D, cat3D);
+                                TagConfig.WriteTag7All(doc, el, cat3D, toks3D, overwrite: false);
+                                NativeParamMapper.MapAll(doc, el);
                             }
                             catch (Exception pEx)
                             {
@@ -153,6 +154,7 @@ namespace StingTools.Tags
             catch (Exception ssEx) { StingLog.Warn($"Tag3D SaveSeqSidecar: {ssEx.Message}"); }
 
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             TaskDialog.Show("Tag 3D",
                 $"3D tags placed: {placed}\n" +

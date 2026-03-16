@@ -148,7 +148,14 @@ namespace StingTools.Organise
                 }
                 tx.Commit();
             }
+
+            // FIX-01: Save SEQ sidecar after commit to prevent counter drift between sessions
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"TagSelected SaveSeqSidecar: {ssEx.Message}"); }
+
             ComplianceScan.InvalidateCache();
+            // FIX-01: Invalidate auto-tagger cached context so next trigger picks up new tags/SEQs
+            StingAutoTagger.InvalidateContext();
 
             string report = $"Tagged {stats.TotalTagged} of {selected.Count} selected elements.\n" +
                 $"Visual annotations placed: {visualTagsPlaced}";
@@ -274,6 +281,7 @@ namespace StingTools.Organise
                 tx.Commit();
             }
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             TaskDialog.Show("Re-Tag", $"Re-tagged {retagged} of {selected.Count} elements.");
             return Result.Succeeded;
@@ -449,6 +457,7 @@ namespace StingTools.Organise
                 StingLog.Warn($"FixDuplicates: post-fix scan found {remainingDupes} remaining duplicate tag values");
 
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Fix Duplicates",
                 $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.{dupeNote}");
             return Result.Succeeded;
@@ -524,6 +533,7 @@ namespace StingTools.Organise
                 tx.Commit();
             }
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             TaskDialog.Show("Delete Tags", $"Cleared tags and containers from {cleared} elements.");
             return Result.Succeeded;
@@ -1105,6 +1115,7 @@ namespace StingTools.Organise
             }
 
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Copy Tags", $"Copied tag values to {copied} elements.");
             return Result.Succeeded;
         }
@@ -1204,6 +1215,7 @@ namespace StingTools.Organise
             }
 
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Swap Tags", "Tags swapped successfully.");
             return Result.Succeeded;
         }
@@ -5295,6 +5307,7 @@ namespace StingTools.Organise
             }
 
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("STING — Retag Stale",
                 $"{retagged} stale elements retagged, {failed} failed.");
             return Result.Succeeded;

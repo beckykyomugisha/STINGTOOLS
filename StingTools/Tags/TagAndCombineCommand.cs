@@ -192,6 +192,8 @@ namespace StingTools.Tags
             }
             sw.Stop();
             ComplianceScan.InvalidateCache();
+            // FIX-13: Invalidate auto-tagger cached context after batch tagging
+            StingAutoTagger.InvalidateContext();
             TagConfig.CheckComplianceGate(doc, "TagAndCombine");
 
             var report = new StringBuilder();

@@ -628,6 +628,10 @@ namespace StingTools.Select
                     if (elem == null) continue;
                     try
                     {
+                        // Phase2: Bridge native params before tag rebuild
+                        try { NativeParamMapper.MapAll(doc, elem); }
+                        catch (Exception nmEx) { StingLog.Warn($"BulkRetag NativeMapper for {id}: {nmEx.Message}"); }
+
                         if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
                             skipComplete: false,
                             existingTags: tagIndex,
@@ -659,6 +663,12 @@ namespace StingTools.Select
                 }
                 tx.Commit();
             }
+
+            // Phase2: Save SEQ sidecar + invalidate caches after bulk retag
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"BulkRetag SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             string report = $"Re-tagged {retagged} of {selected.Count} elements.";
             if (failed > 0) report += $"\nFailed: {failed} elements (check log for details).";

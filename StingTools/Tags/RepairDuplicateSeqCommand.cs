@@ -68,6 +68,8 @@ namespace StingTools.Tags
                 return Result.Cancelled;
 
             int retagged = 0;
+            // FIX-05: Build population context for pre-enrichment before SEQ repair
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             using (Transaction tx = new Transaction(doc, "STING Repair Duplicate SEQ"))
             {
                 tx.Start();
@@ -79,6 +81,14 @@ namespace StingTools.Tags
                         Element el = kvp.Value[i];
                         try
                         {
+                            // FIX-05: Pre-enrich tokens before rebuild to ensure
+                            // spatial/system data is current before SEQ reassignment
+                            TokenAutoPopulator.TypeTokenInherit(doc, el);
+                            if (popCtx != null)
+                                TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: false);
+                            try { NativeParamMapper.MapAll(doc, el); }
+                            catch (Exception nmEx) { StingLog.Warn($"RepairDuplicateSeq NativeMapper for {el.Id}: {nmEx.Message}"); }
+
                             TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                 skipComplete: false, existingTags,
                                 TagCollisionMode.AutoIncrement, null);
@@ -106,7 +116,12 @@ namespace StingTools.Tags
                 }
                 tx.Commit();
             }
+
+            // FIX-05: Save SEQ sidecar + invalidate caches after repair
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"RepairDuplicateSeq SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             TaskDialog.Show("Repair Duplicate SEQ",
                 $"Repaired {retagged} elements across {duplicates.Count} duplicate groups.");

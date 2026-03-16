@@ -141,6 +141,9 @@ namespace StingTools.Tags
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             var sw = Stopwatch.StartNew();
 
+            // FIX-09: Load formulas for evaluation after token population
+            var fsFormulas = TagPipelineHelper.LoadFormulas();
+
             int processed = 0;
             int totalTokensSet = 0;
             int locDetected = 0, zoneDetected = 0, statusDetected = 0, revSet = 0;
@@ -183,6 +186,34 @@ namespace StingTools.Tags
                         // NG7: Bridge Revit native params to STING shared params after token population
                         try { NativeParamMapper.MapAll(doc, el); }
                         catch (Exception nmEx7) { StingLog.Warn($"FamilyStagePopulate NativeMapper for {el?.Id}: {nmEx7.Message}"); }
+                        // FIX-09: Evaluate formulas after NativeMapper so derived params are populated
+                        if (fsFormulas != null && fsFormulas.Count > 0)
+                        {
+                            try
+                            {
+                                foreach (var formula in fsFormulas)
+                                {
+                                    Parameter fp = el.LookupParameter(formula.ParameterName);
+                                    if (fp == null || fp.IsReadOnly) continue;
+                                    var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                                    if (fCtx == null) continue;
+                                    if (formula.DataType == "TEXT")
+                                    {
+                                        string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                        if (fResult != null && fp.StorageType == StorageType.String
+                                            && string.IsNullOrEmpty(fp.AsString()))
+                                            fp.Set(fResult);
+                                    }
+                                    else
+                                    {
+                                        double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                        if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                            Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                    }
+                                }
+                            }
+                            catch (Exception fEx) { StingLog.Warn($"FamilyStagePopulate formula eval for {el?.Id}: {fEx.Message}"); }
+                        }
                         if (result.LocDetected) locDetected++;
                         if (result.ZoneDetected) zoneDetected++;
                         if (result.StatusDetected) statusDetected++;

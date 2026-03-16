@@ -70,10 +70,10 @@ namespace StingTools.Core
                 // BUG-05: Also clear param cache on document open to prevent cross-document
                 // cache collisions when switching between documents.
                 application.ControlledApplication.DocumentOpened += OnDocumentOpened;
+                // FIX-15: Removed duplicate DocumentOpened subscription (was ENH-06)
 
-                // ENH-06: Subscribe to DocumentOpened to clear stale static caches
-                // and reload document-specific data (formulas, BEP, compliance).
-                application.ControlledApplication.DocumentOpened += OnDocumentOpened;
+                // FIX-06: Invalidate auto-tagger cache when switching between open documents
+                application.ViewActivated += OnViewActivated;
 
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
@@ -173,6 +173,32 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"DocumentOpened cleanup: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// FIX-06: Invalidate auto-tagger cache when switching between documents.
+        /// ViewActivated fires when user switches active view or document — clear cached
+        /// context so the auto-tagger picks up the correct document's data.
+        /// </summary>
+        private static Document _lastActiveDoc;
+        private static void OnViewActivated(object sender,
+            Autodesk.Revit.UI.Events.ViewActivatedEventArgs e)
+        {
+            try
+            {
+                Document currentDoc = e.CurrentActiveView?.Document;
+                if (currentDoc != null && currentDoc != _lastActiveDoc)
+                {
+                    _lastActiveDoc = currentDoc;
+                    StingAutoTagger.InvalidateContext();
+                    ComplianceScan.InvalidateCache();
+                    StingLog.Info("ViewActivated: document switch detected — caches invalidated");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ViewActivated handler: {ex.Message}");
             }
         }
 

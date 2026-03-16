@@ -1496,6 +1496,26 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 218. **FamilyStagePopulate + BulkAutoPopulate NativeMapper** — Added NativeParamMapper.MapAll after token population in both commands.
 219. **FullAutoPopulate SEQ sidecar** — SaveSeqSidecar after tx.Commit for sequence continuity across sessions.
 
+#### Completed (Phase 24 — Tagging Workflow Gap Fix & Cross-Check)
+
+220. **FIX-01: TagSelectedCommand SEQ sidecar** — Added `SaveSeqSidecar` + `StingAutoTagger.InvalidateContext()` after `tx.Commit()` to prevent counter drift between sessions.
+221. **FIX-02: AutoTagQueueHandler pipeline gaps** — Added `NativeParamMapper.MapAll` + inline formula evaluation (matching `TagPipelineHelper.RunFullPipeline` pattern) + `SaveSeqSidecar` after commit. Fixed undeclared `enqueued` variable (CS0103). Context rebuild now also reloads `_formulas` and `_gridLines`.
+222. **FIX-03: SystemParamPush completeness** — (A) Added `SaveSeqSidecar` + `ComplianceScan.InvalidateCache` + `StingAutoTagger.InvalidateContext` after `BatchSystemPushCommand` commit. (B) Added `NativeParamMapper.MapAll` after token writes in `ExecutePush`.
+223. **FIX-04: TagChangedCommand NativeMapper** — Added `NativeParamMapper.MapAll` after delta token update in the stale element loop.
+224. **FIX-05: RepairDuplicateSeq pre-enrichment** — Added `TypeTokenInherit` + `PopulateAll` + `NativeParamMapper.MapAll` before `BuildAndWriteTag` to ensure spatial/system data is current before SEQ reassignment. Added `SaveSeqSidecar` + `InvalidateContext` after commit.
+225. **FIX-06: ViewActivated handler** — Added `application.ViewActivated += OnViewActivated` to detect document switches and invalidate auto-tagger cache + compliance scan. Prevents stale context when users switch between open documents.
+226. **FIX-07: StingStaleMarker LOC/ZONE** — Extended stale detection from LVL-only to LVL + LOC + ZONE. Uses `SpatialAutoDetect.DetectLoc` / `DetectZone` to compare stored vs current spatial values.
+227. **FIX-08: TagNewOnlyCommand scope** — Added scope selection dialog (Active view only / Entire project). Uses `FilteredElementCollector(doc, doc.ActiveView.Id)` for view-scoped collection.
+228. **FIX-09: FamilyStagePopulate formulas** — Added formula evaluation after `NativeParamMapper.MapAll` using the same inline pattern as `TagPipelineHelper.RunFullPipeline`.
+229. **FIX-10: ExcelLinkImport NativeMapper** — Added `NativeParamMapper.MapAll` in both `ImportFromExcel` and `ExcelRoundTrip` tag rebuild loops before `BuildAndWriteTag`.
+230. **FIX-11: Tag3DCommand target fix** — Changed `WriteContainers` / `WriteTag7All` / `NativeParamMapper.MapAll` to target source element (`el`) instead of placed 3D tag instance (`fi`). The source element holds actual tag tokens; `fi` is just a visual marker.
+231. **FIX-12: ComplianceScan StaleCount** — Added `StaleCount` property to `ComplianceResult`, scanning for `STING_STALE_BOOL = 1`. Included in `StatusBarText` when > 0.
+232. **FIX-13: InvalidateContext coverage** — Added `StingAutoTagger.InvalidateContext()` after `ComplianceScan.InvalidateCache()` in: `TagAndCombineCommand`, `BatchTagCommand`, `ResolveAllIssuesCommand` (both cancelled and normal paths), `AutoTagCommand`, `TagNewOnlyCommand`, `ReTagCommand`, `FixDuplicateTagsCommand`, `DeleteTagsCommand`, `CopyTagsCommand`, `SwapTagsCommand`, `RetagStaleCommand`, `FullAutoPopulateCommand`.
+233. **FIX-14: TagFormatMigration caches** — Added `ComplianceScan.InvalidateCache()` + `StingAutoTagger.InvalidateContext()` after commit. Added `NativeParamMapper.MapAll` before tag rebuild.
+234. **FIX-15: Duplicate subscription** — Removed duplicate `application.ControlledApplication.DocumentOpened += OnDocumentOpened` (was subscribed twice: BUG-05 and ENH-06).
+235. **Phase 2 verification: BulkRetag gaps** — Added `NativeParamMapper.MapAll` + `SaveSeqSidecar` + `ComplianceScan.InvalidateCache` + `StingAutoTagger.InvalidateContext` to `BulkRetag` in `StateSelectCommands.cs`.
+236. **Phase 2 verification: ResolveAllIssues SEQ** — Added `SaveSeqSidecar` after all batch commits in `ResolveAllIssuesCommand`.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance
