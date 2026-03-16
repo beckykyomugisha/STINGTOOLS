@@ -883,6 +883,8 @@
                                     <Button Style="{StaticResource CatBtn}" Content="-1" Tag="SheetNumMinus" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource CatBtn}" Content="Prefix" Tag="SheetPrefix" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource CatBtn}" Content="Suffix" Tag="SheetSuffix" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Rem Pre" Tag="SheetRemovePrefix" Click="Cmd_Click" ToolTip="Remove prefix token from selected sheet names"/>
+                                    <Button Style="{StaticResource CatBtn}" Content="Rem Suf" Tag="SheetRemoveSuffix" Click="Cmd_Click" ToolTip="Remove suffix token from selected sheet names"/>
                                     <Button Style="{StaticResource CatBtn}" Content="Find&amp;Replace" Tag="SheetFindReplace" Click="Cmd_Click"/>
                                 </WrapPanel>
                             </StackPanel>

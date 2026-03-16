@@ -695,6 +695,8 @@ namespace StingTools.UI
                     case "SheetNumMinus": SheetRenumber(app, -1); break;
                     case "SheetPrefix": SheetAddPrefix(app); break;
                     case "SheetSuffix": SheetAddSuffix(app); break;
+                    case "SheetRemovePrefix": SheetRemovePrefixOrSuffix(app, true); break;
+                    case "SheetRemoveSuffix": SheetRemovePrefixOrSuffix(app, false); break;
                     case "SheetFindReplace": RunCommand<Docs.BatchRenameViewsCommand>(app); break;
 
                     case "SchedSyncPos": ScheduleSyncPosition(app); break;
@@ -3415,6 +3417,81 @@ namespace StingTools.UI
                 catch (Exception ex) { StingLog.Warn($"SheetSuffix: {ex.Message}"); }
                 tx.Commit();
             }
+        }
+
+        /// <summary>
+        /// F3: Remove first token (prefix) or last token (suffix) from selected sheets' names.
+        /// Operates on all selected ViewSheets; falls back to active sheet if none selected.
+        /// Token boundary is the first/last occurrence of " - " or "-" separator.
+        /// </summary>
+        private static void SheetRemovePrefixOrSuffix(UIApplication app, bool isPrefix)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            // Collect target sheets: selected ViewSheets, or active sheet fallback
+            var targetSheets = new List<ViewSheet>();
+            foreach (ElementId id in uidoc.Selection.GetElementIds())
+            {
+                if (doc.GetElement(id) is ViewSheet vs) targetSheets.Add(vs);
+            }
+            if (targetSheets.Count == 0 && doc.ActiveView is ViewSheet activeSheet)
+                targetSheets.Add(activeSheet);
+
+            if (targetSheets.Count == 0)
+            {
+                TaskDialog.Show("Sheet " + (isPrefix ? "Remove Prefix" : "Remove Suffix"),
+                    "Select one or more sheets first, or open a sheet as the active view.");
+                return;
+            }
+
+            // Separators to try (longest first to prefer " - " over "-")
+            var seps = new[] { " - ", "-", "_" };
+
+            int changed = 0;
+            using (Transaction tx = new Transaction(doc,
+                "STING Sheet " + (isPrefix ? "Remove Prefix" : "Remove Suffix")))
+            {
+                tx.Start();
+                foreach (ViewSheet sheet in targetSheets)
+                {
+                    string name = sheet.Name;
+                    string newName = name;
+
+                    foreach (string sep in seps)
+                    {
+                        int idx = isPrefix
+                            ? name.IndexOf(sep, StringComparison.Ordinal)
+                            : name.LastIndexOf(sep, StringComparison.Ordinal);
+
+                        if (idx >= 0)
+                        {
+                            newName = isPrefix
+                                ? name.Substring(idx + sep.Length).TrimStart()
+                                : name.Substring(0, idx).TrimEnd();
+                            break;
+                        }
+                    }
+
+                    if (newName != name && !string.IsNullOrWhiteSpace(newName))
+                    {
+                        try
+                        {
+                            sheet.Name = newName;
+                            changed++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Sheet remove {(isPrefix ? "prefix" : "suffix")}: {sheet.SheetNumber}: {ex.Message}");
+                        }
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Sheet " + (isPrefix ? "Remove Prefix" : "Remove Suffix"),
+                $"Updated {changed} of {targetSheets.Count} sheet(s).");
         }
 
         // ── Nudge helper ──────────────────────────────────────────
