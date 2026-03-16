@@ -1064,6 +1064,11 @@ namespace StingTools.BIMManager
                     }
                 }
 
+                // LOG-12 FIX: Invalidate AutoTagger cached seqCounters and compliance cache
+                // after import to prevent SEQ collisions on next auto-tag operation
+                StingAutoTagger.InvalidateContext();
+                ComplianceScan.InvalidateCache();
+
                 // ── Write change log CSV ──
                 string userName = "";
                 try { userName = doc.Application.Username ?? ""; } catch { }
@@ -1266,6 +1271,10 @@ namespace StingTools.BIMManager
                         throw new InvalidOperationException($"Transaction failed: {ex.Message}", ex);
                     }
                 }
+
+                // LOG-12 FIX: Invalidate AutoTagger cached seqCounters and compliance cache
+                StingAutoTagger.InvalidateContext();
+                ComplianceScan.InvalidateCache();
 
                 // ── Write change log ──
                 string userName = "";

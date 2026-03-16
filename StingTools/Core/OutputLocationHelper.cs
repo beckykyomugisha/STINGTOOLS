@@ -71,8 +71,38 @@ namespace StingTools.Core
                     return stingDocsDir;
             }
 
-            // 4. Temp directory
-            return Path.GetTempPath();
+            // 4. Temp directory — LOG-11 FIX: warn user about auto-deletion risk
+            string tempPath = Path.GetTempPath();
+            StingLog.Warn("OutputLocationHelper: falling back to %TEMP% — files may be auto-deleted");
+
+            // Check project_config.json for failOnOutputPathMissing flag
+            try
+            {
+                string configPath = TagConfig.ConfigSource;
+                if (!string.IsNullOrEmpty(configPath) && File.Exists(configPath))
+                {
+                    string json = File.ReadAllText(configPath);
+                    var config = Newtonsoft.Json.Linq.JObject.Parse(json);
+                    bool failOnMissing = config["failOnOutputPathMissing"]?.Value<bool>() == true;
+                    if (failOnMissing)
+                        throw new InvalidOperationException(
+                            "Output path could not be resolved and failOnOutputPathMissing is set. " +
+                            "Configure OUTPUT_DIRECTORY in project_config.json.");
+                }
+            }
+            catch (InvalidOperationException) { throw; }
+            catch { /* config read failure is non-fatal */ }
+
+            try
+            {
+                Autodesk.Revit.UI.TaskDialog.Show("STING Output Warning",
+                    "Output path could not be resolved. Files will be exported to:\n" +
+                    tempPath + "\n\nThese files may be automatically deleted by Windows Disk Cleanup.\n" +
+                    "Please configure an output path in project_config.json.");
+            }
+            catch { /* TaskDialog may not be available outside Revit context */ }
+
+            return tempPath;
         }
 
         /// <summary>

@@ -25,6 +25,30 @@ namespace StingTools.UI
         private string _param1 = "";
         private string _param2 = "";
 
+        // ── Named extra-param store (thread-safe) ─────────────────────────────
+        // Allows WPF UI controls to pass named values to commands without
+        // changing the SetCommand signature.  Usage:
+        //   StingCommandHandler.SetExtraParam("WarnMode", "NONE");
+        //   string mode = StingCommandHandler.GetExtraParam("WarnMode");
+        //   StingCommandHandler.ClearExtraParam("WarnMode");  // cleanup after use
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary
+            <string, string> _extraParams =
+            new System.Collections.Concurrent.ConcurrentDictionary
+            <string, string>(StringComparer.OrdinalIgnoreCase);
+
+        public static void SetExtraParam(string key, string value)
+            => _extraParams[key] = value ?? "";
+
+        public static string GetExtraParam(string key)
+            => _extraParams.TryGetValue(key, out string v) ? v : "";
+
+        public static void ClearExtraParam(string key)
+            => _extraParams.TryRemove(key, out _);
+
+        public static void ClearAllExtraParams()
+            => _extraParams.Clear();
+        // ──────────────────────────────────────────────────────────────────────
+
         public void SetCommand(string tag, string param1 = "", string param2 = "")
         {
             lock (_lock)
@@ -185,6 +209,8 @@ namespace StingTools.UI
                     case "TagOverlapAnalysis": RunCommand<Tags.TagOverlapAnalysisCommand>(app); break;
                     case "BatchTagTextSize": RunCommand<Tags.BatchTagTextSizeCommand>(app); break;
                     case "SetTagCatLineWeight": RunCommand<Tags.SetTagCategoryLineWeightCommand>(app); break;
+                    case "Tag3D": RunCommand<Tags.Tag3DCommand>(app); break;
+                    case "RepairDuplicateSeq": RunCommand<Tags.RepairDuplicateSeqCommand>(app); break;
 
                     // ── Rich TAG7 display ──
                     case "RichTagNote": RunCommand<Tags.RichTagNoteCommand>(app); break;
@@ -462,6 +488,7 @@ namespace StingTools.UI
                     case "RunWorkflow": RunCommand<Core.WorkflowPresetCommand>(app); break;
                     case "ListWorkflows": RunCommand<Core.ListWorkflowPresetsCommand>(app); break;
                     case "CreateWorkflow": RunCommand<Core.CreateWorkflowPresetCommand>(app); break;
+                    case "WorkflowTrend": RunCommand<Core.WorkflowTrendCommand>(app); break;
 
                     // ── Advanced Automation ──
                     case "AnomalyAutoFix": RunCommand<Organise.AnomalyAutoFixCommand>(app); break;
@@ -475,6 +502,12 @@ namespace StingTools.UI
                     case "ScheduleToExcel": RunCommand<Temp.ScheduleToExcelCommand>(app); break;
                     case "BatchStickyImport": RunCommand<Temp.BatchStickyImportCommand>(app); break;
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
+
+                    // ── Theme ──
+                    case "CycleTheme":
+                        string next = UI.ThemeManager.CycleTheme();
+                        Autodesk.Revit.UI.TaskDialog.Show("Theme", $"Theme set to: {next}");
+                        break;
 
                     // ════════════════════════════════════════════════════════
                     // CREATE TAB (ISO 19650 tag creation)
@@ -884,12 +917,14 @@ namespace StingTools.UI
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
                     case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
                     case "SharePointExport": RunCommand<BIMManager.SharePointExportCommand>(app); break;
-                    case "ProcorePackage": RunCommand<BIMManager.ProcorePackageCommand>(app); break;
-                    case "TrimbleExport": RunCommand<BIMManager.TrimbleConnectExportCommand>(app); break;
-                    case "AconexPackage": RunCommand<BIMManager.AconexPackageCommand>(app); break;
-                    case "ProjectWiseExport": RunCommand<BIMManager.ProjectWiseExportCommand>(app); break;
-                    case "PlatformDashboard": RunCommand<BIMManager.PlatformDashboardCommand>(app); break;
-                    case "WebhookPayload": RunCommand<BIMManager.WebhookPayloadCommand>(app); break;
+                    case "ProcorePackage":
+                    case "TrimbleExport":
+                    case "AconexPackage":
+                    case "ProjectWiseExport":
+                    case "PlatformDashboard":
+                    case "WebhookPayload":
+                        TaskDialog.Show("StingTools", $"'{tag}' platform integration is planned for a future release.");
+                        break;
 
                     // Revision Management (12 commands)
                     case "CreateRevision": RunCommand<BIMManager.CreateRevisionCommand>(app); break;
@@ -904,6 +939,56 @@ namespace StingTools.UI
                     case "RevisionExport": RunCommand<BIMManager.RevisionExportCommand>(app); break;
                     case "BulkRevisionStamp": RunCommand<BIMManager.BulkRevisionStampCommand>(app); break;
                     case "AutoRevisionOnTagChange": RunCommand<BIMManager.AutoRevisionOnTagChangeCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // TAG STUDIO — Smart Placement Wire-ups (UI-01)
+                    // ════════════════════════════════════════════════════════
+                    case "TagStudio_SmartPlace": RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
+                    case "TagStudio_Arrange": RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "TagStudio_AlignBands": RunCommand<Tags.AlignTagBandsCommand>(app); break;
+
+                    // UI-02: Elbow and arrow adjustments
+                    case "TagStudio_AdjustElbows": RunCommand<Tags.AdjustElbowsCommand>(app); break;
+                    case "TagStudio_SetArrows": RunCommand<Tags.SetArrowheadStyleCommand>(app); break;
+
+                    // UI-03: Tag position switching
+                    case "SwitchTagPos1": SwitchTagPositionInline(app, 1); break;
+                    case "SwitchTagPos2": SwitchTagPositionInline(app, 2); break;
+                    case "SwitchTagPos3": SwitchTagPositionInline(app, 3); break;
+                    case "SwitchTagPos4": SwitchTagPositionInline(app, 4); break;
+                    case "SwitchTagPos": RunCommand<Tags.SwitchTagPositionCommand>(app); break;
+                    case "ExportTagPositions": RunCommand<Tags.ExportTagPositionsCommand>(app); break;
+
+                    // TI-02: Tie-In status commands
+                    case "SetTieInOpen": SetTieInStatus(app, "OPEN", 0); break;
+                    case "SetTieInConnected": SetTieInStatus(app, "CONNECTED", 1); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // TAG STUDIO — Color Scheme Wire-ups (UI-04)
+                    // ════════════════════════════════════════════════════════
+                    case "TagStudio_SchemeDiscipline": ApplyTagColorScheme(app, "Discipline"); break;
+                    case "TagStudio_SchemeWarm": ApplyTagColorScheme(app, "Warm"); break;
+                    case "TagStudio_SchemeCool": ApplyTagColorScheme(app, "Cool"); break;
+                    case "TagStudio_SchemeRed": ApplyTagColorScheme(app, "Red"); break;
+                    case "TagStudio_SchemeYellow": ApplyTagColorScheme(app, "Yellow"); break;
+                    case "TagStudio_SchemeBlue": ApplyTagColorScheme(app, "Blue"); break;
+                    case "TagStudio_SchemeMono": ApplyTagColorScheme(app, "Monochrome"); break;
+                    case "TagStudio_SchemeDark": ApplyTagColorScheme(app, "Dark"); break;
+                    case "TagStudio_SchemeZone": ApplyTagColorScheme(app, "Zone"); break;
+                    case "TagStudio_SchemeStatus": ApplyTagColorScheme(app, "Status"); break;
+                    case "TagStudio_SchemeLevel": ApplyTagColorScheme(app, "Level"); break;
+                    case "TagStudio_SchemeFunction": ApplyTagColorScheme(app, "Function"); break;
+                    case "TagStudio_ApplyStyle": RunCommand<Tags.ApplyTagStyleCommand>(app); break;
+                    case "TagStudio_ApplyScheme": RunCommand<Tags.ApplyColorSchemeCommand>(app); break;
+                    case "TagStudio_ClearOverrides": RunCommand<Tags.ClearColorSchemeCommand>(app); break;
+
+                    // ════════════════════════════════════════════════════════
+                    // TIE-IN POINT COMMANDS (TI-01, TI-03)
+                    // ════════════════════════════════════════════════════════
+                    case "PlaceTieInTagPipe": PlaceTieInTag(app, "Pipe"); break;
+                    case "PlaceTieInTagDuct": PlaceTieInTag(app, "Duct"); break;
+                    case "PlaceTieInTagElec": PlaceTieInTag(app, "Elec"); break;
+                    case "ExportTieInRegister": ExportTieInRegister(app); break;
 
                     // ── Unmapped / placeholder ──
                     default:
@@ -4810,6 +4895,229 @@ namespace StingTools.UI
                 $"Link Types: {linkTypes.Count}\n" +
                 $"  Loaded: {loaded}\n" +
                 $"  Unloaded: {unloaded}");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  UI-03: Switch tag position inline helper
+        // ════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Move selected IndependentTag heads to a compass position relative to their host.
+        /// Positions: 1=Above(N), 2=Right(E), 3=Below(S), 4=Left(W).
+        /// </summary>
+        private void SwitchTagPositionInline(UIApplication app, int position)
+        {
+            var uidoc = app.ActiveUIDocument;
+            var doc = uidoc.Document;
+            var view = doc.ActiveView;
+            double offset = 3.0 / 304.8; // 3mm in feet
+
+            XYZ delta;
+            switch (position)
+            {
+                case 1: delta = new XYZ(0, offset, 0); break;   // N = above
+                case 2: delta = new XYZ(offset, 0, 0); break;   // E = right
+                case 3: delta = new XYZ(0, -offset, 0); break;  // S = below
+                case 4: delta = new XYZ(-offset, 0, 0); break;  // W = left
+                default: delta = new XYZ(0, offset, 0); break;
+            }
+
+            var selection = uidoc.Selection.GetElementIds();
+            int moved = 0;
+
+            using (Transaction tx = new Transaction(doc, $"STING Switch Tag Position {position}"))
+            {
+                tx.Start();
+                foreach (ElementId id in selection)
+                {
+                    if (doc.GetElement(id) is IndependentTag tagEl)
+                    {
+                        try
+                        {
+                            BoundingBoxXYZ hostBb = null;
+                            var hostRefs = tagEl.GetTaggedReferences();
+                            if (hostRefs.Count > 0)
+                            {
+                                Element host = doc.GetElement(hostRefs.First());
+                                if (host != null)
+                                    hostBb = host.get_BoundingBox(view);
+                            }
+
+                            if (hostBb != null)
+                            {
+                                XYZ center = (hostBb.Min + hostBb.Max) / 2.0;
+                                tagEl.TagHeadPosition = center + delta;
+                                moved++;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                tx.Commit();
+            }
+
+            if (moved == 0)
+                TaskDialog.Show("STING", "No annotation tags selected.\nSelect tags first, then switch position.");
+            else
+                StingLog.Info($"SwitchTagPosition: moved {moved} tags to position {position}");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  TI-02: Tie-In status helper
+        // ════════════════════════════════════════════════════════════════════
+
+        private void SetTieInStatus(UIApplication app, string status, int connectedBool)
+        {
+            var uidoc = app.ActiveUIDocument;
+            var doc = uidoc.Document;
+            var selection = uidoc.Selection.GetElementIds();
+            if (selection.Count == 0)
+            {
+                TaskDialog.Show("STING", "No elements selected.\nSelect elements to set tie-in status.");
+                return;
+            }
+
+            int count = 0;
+            using (Transaction tx = new Transaction(doc, $"STING Set Tie-In {status}"))
+            {
+                tx.Start();
+                foreach (ElementId id in selection)
+                {
+                    Element el = doc.GetElement(id);
+                    if (el == null) continue;
+                    ParameterHelpers.SetString(el, "ASS_TIEIN_STATUS_TXT", status, overwrite: true);
+                    ParameterHelpers.SetString(el, "ASS_TIEIN_CONNECTED_BOOL", connectedBool.ToString(), overwrite: true);
+                    count++;
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("STING Tie-In", $"Set {count} element(s) to Tie-In status: {status}");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  UI-04: Tag color scheme helper
+        // ════════════════════════════════════════════════════════════════════
+
+        private void ApplyTagColorScheme(UIApplication app, string schemeName)
+        {
+            try
+            {
+                // Use the ApplyColorSchemeCommand by setting the scheme name as extra param
+                SetExtraParam("ColorSchemeName", schemeName);
+                RunCommand<Tags.ApplyColorSchemeCommand>(app);
+            }
+            finally
+            {
+                ClearExtraParam("ColorSchemeName");
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  TI-01: Place Tie-In Tag helper
+        // ════════════════════════════════════════════════════════════════════
+
+        private void PlaceTieInTag(UIApplication app, string discipline)
+        {
+            var uidoc = app.ActiveUIDocument;
+            var doc = uidoc.Document;
+            var selection = uidoc.Selection.GetElementIds();
+            if (selection.Count == 0)
+            {
+                TaskDialog.Show("STING", $"No elements selected.\nSelect {discipline.ToLower()} elements to place tie-in tags.");
+                return;
+            }
+
+            int count = 0;
+            int seqNum = 0;
+
+            // Find highest existing tie-in SEQ for this discipline
+            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string existing = ParameterHelpers.GetString(elem, "ASS_TIEIN_REF_TXT");
+                if (!string.IsNullOrEmpty(existing) && existing.StartsWith("TI-"))
+                {
+                    string[] parts = existing.Split('-');
+                    if (parts.Length >= 4 && int.TryParse(parts[3], out int num) && num > seqNum)
+                        seqNum = num;
+                }
+            }
+
+            string discCode = discipline == "Pipe" ? "P" : discipline == "Duct" ? "M" : "E";
+            string sysCode = discipline == "Pipe" ? "PLM" : discipline == "Duct" ? "HVC" : "ELC";
+
+            using (Transaction tx = new Transaction(doc, $"STING Place Tie-In Tag - {discipline}"))
+            {
+                tx.Start();
+                foreach (ElementId id in selection)
+                {
+                    Element el = doc.GetElement(id);
+                    if (el == null) continue;
+
+                    seqNum++;
+                    string tieInRef = $"TI-{discCode}-{sysCode}-{seqNum:D3}";
+
+                    ParameterHelpers.SetString(el, "ASS_TIEIN_REF_TXT", tieInRef, overwrite: false);
+                    ParameterHelpers.SetString(el, "ASS_TIEIN_TAG_1_TXT", tieInRef, overwrite: false);
+                    ParameterHelpers.SetIfEmpty(el, "ASS_TIEIN_STATUS_TXT", "OPEN");
+
+                    // Cross-read size parameter
+                    string size = "";
+                    if (discipline == "Pipe")
+                        size = ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_SIZE);
+                    else if (discipline == "Duct")
+                        size = ParameterHelpers.GetString(el, "HVC_DCT_SZ_TXT");
+                    else
+                        size = ParameterHelpers.GetString(el, "ELC_CDT_SZ_MM");
+                    if (!string.IsNullOrEmpty(size))
+                        ParameterHelpers.SetIfEmpty(el, "ASS_TIEIN_SIZE_TXT", size);
+
+                    count++;
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("STING Tie-In", $"Placed {count} tie-in tag(s) for {discipline}.\nSequence: TI-{discCode}-{sysCode}-001 to TI-{discCode}-{sysCode}-{seqNum:D3}");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  TI-03: Export Tie-In Register
+        // ════════════════════════════════════════════════════════════════════
+
+        private void ExportTieInRegister(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument.Document;
+            var rows = new List<string>();
+            rows.Add("Ref,System,Size,Status,Phase,Connected,ElementId,Category,Level");
+
+            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string tieRef = ParameterHelpers.GetString(elem, "ASS_TIEIN_REF_TXT");
+                if (string.IsNullOrEmpty(tieRef)) continue;
+
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string size = ParameterHelpers.GetString(elem, "ASS_TIEIN_SIZE_TXT");
+                string status = ParameterHelpers.GetString(elem, "ASS_TIEIN_STATUS_TXT");
+                string phase = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
+                string connected = ParameterHelpers.GetString(elem, "ASS_TIEIN_CONNECTED_BOOL");
+                string catName = elem.Category?.Name ?? "";
+                string level = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+
+                rows.Add($"\"{tieRef}\",\"{sys}\",\"{size}\",\"{status}\",\"{phase}\",\"{connected}\",{elem.Id.Value},\"{catName}\",\"{level}\"");
+            }
+
+            if (rows.Count <= 1)
+            {
+                TaskDialog.Show("STING Tie-In Register", "No tie-in points found in the model.");
+                return;
+            }
+
+            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string path = Path.Combine(outDir, $"TieIn_Register_{DateTime.Now:yyyyMMdd}.csv");
+            File.WriteAllLines(path, rows);
+            TaskDialog.Show("STING Tie-In Register",
+                $"Exported {rows.Count - 1} tie-in point(s) to:\n{path}");
+            StingLog.Info($"ExportTieInRegister: {rows.Count - 1} records → {path}");
         }
     }
 }

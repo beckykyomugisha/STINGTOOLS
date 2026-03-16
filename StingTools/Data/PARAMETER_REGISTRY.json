@@ -22,7 +22,8 @@
       "param_name": "ASS_DISCIPLINE_COD_TXT",
       "guid": "8c7dcfd7-f922-52d0-b859-81cae8d17dc0",
       "description": "Discipline code (M, E, P, A, S, FP, LV, G)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": true
     },
     {
       "slot": 1,
@@ -30,7 +31,8 @@
       "param_name": "ASS_LOC_TXT",
       "guid": "b7469c27-c80e-5b59-b999-1a99ba620cd1",
       "description": "Location/building code",
-      "binding": "universal"
+      "binding": "universal",
+      "required": true
     },
     {
       "slot": 2,
@@ -38,7 +40,8 @@
       "param_name": "ASS_ZONE_TXT",
       "guid": "dc0d940f-e4ce-5e73-a0a7-fc7094148c84",
       "description": "Zone code (Z01-Z04, ZZ, XX)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": true
     },
     {
       "slot": 3,
@@ -46,7 +49,8 @@
       "param_name": "ASS_LVL_COD_TXT",
       "guid": "b1e51fab-fa88-50df-8b2f-bcdbe48e7c78",
       "description": "Level code (L01, GF, B1, RF, XX)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": true
     },
     {
       "slot": 4,
@@ -54,7 +58,8 @@
       "param_name": "ASS_SYSTEM_TYPE_TXT",
       "guid": "2b3658d9-bfc6-56db-9df5-901337fde0f5",
       "description": "System type (CIBSE/Uniclass)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": true
     },
     {
       "slot": 5,
@@ -62,7 +67,8 @@
       "param_name": "ASS_FUNC_TXT",
       "guid": "1ddff9a8-6e66-4a93-88fe-f3b94fbd5710",
       "description": "Function code (CIBSE/Uniclass)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": true
     },
     {
       "slot": 6,
@@ -70,7 +76,8 @@
       "param_name": "ASS_PRODCT_COD_TXT",
       "guid": "082a2a05-3387-5501-b355-51dd45e23e9f",
       "description": "Product code",
-      "binding": "universal"
+      "binding": "universal",
+      "required": true
     },
     {
       "slot": 7,
@@ -78,7 +85,8 @@
       "param_name": "ASS_SEQ_NUM_TXT",
       "guid": "bbe1cd55-247b-48bd-94ba-a08031f06d5b",
       "description": "4-digit sequence number",
-      "binding": "universal"
+      "binding": "universal",
+      "required": true
     }
   ],
   "support_params": [
@@ -86,1320 +94,1712 @@
       "param_name": "ASS_STATUS_TXT",
       "guid": "b97665a8-5e34-585b-9674-fbdd83d7637f",
       "description": "Status (EXISTING, NEW, DEMOLISHED, TEMPORARY)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_INST_DETAIL_NUM_TXT",
       "guid": "73f74429-76da-4ae8-ae90-66884bad8a06",
       "description": "Installation detail number",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "MNT_TYPE_TXT",
       "guid": "9358b203-900a-52c5-9e80-3a4d67dc5c51",
       "description": "Maintenance type",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_1_BOOL",
       "guid": "e26e01ef-33d8-5a57-9ab7-fa30faa4ceff",
       "description": "Paragraph depth: compact (State 1 only)",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_2_BOOL",
       "guid": "b1080057-9890-5a0c-959a-46fb8847c766",
       "description": "Paragraph depth: standard (States 1+2)",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_3_BOOL",
       "guid": "825a73c0-4b3b-5474-8db5-f54072ff40b8",
       "description": "Paragraph depth: comprehensive (States 1+2+3)",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_WARN_VISIBLE_BOOL",
       "guid": "11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f",
       "description": "Enable/disable warning text in tags",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_WARN_SEVERITY_FILTER_TXT",
       "guid": "ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b",
       "description": "Warning filter: CRITICAL, HIGH, MEDIUM, ALL",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_A_BOOL",
       "guid": "a1b2c3d4-0001-5a01-b001-000000000001",
       "description": "Show/hide TAG7 Section A (Identity Header)",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_B_BOOL",
       "guid": "a1b2c3d4-0001-5a01-b001-000000000002",
       "description": "Show/hide TAG7 Section B (System & Function)",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_C_BOOL",
       "guid": "a1b2c3d4-0001-5a01-b001-000000000003",
       "description": "Show/hide TAG7 Section C (Spatial Context)",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_D_BOOL",
       "guid": "a1b2c3d4-0001-5a01-b001-000000000004",
       "description": "Show/hide TAG7 Section D (Lifecycle & Status)",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_E_BOOL",
       "guid": "a1b2c3d4-0001-5a01-b001-000000000005",
       "description": "Show/hide TAG7 Section E (Technical Specs)",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_7_SECTION_VISIBLE_F_BOOL",
       "guid": "a1b2c3d4-0001-5a01-b001-000000000006",
       "description": "Show/hide TAG7 Section F (Classification)",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_4_BOOL",
       "guid": "9e147e43-a5f9-477f-90c1-000000000004",
       "description": "State visibility control tier 4",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_5_BOOL",
       "guid": "024d0b10-01cb-49a0-8c01-000000000005",
       "description": "State visibility control tier 5",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_6_BOOL",
       "guid": "b9539988-c956-4ece-b301-000000000006",
       "description": "State visibility control tier 6",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_7_BOOL",
       "guid": "9d2e4ebb-ce16-4ab4-8801-000000000007",
       "description": "State visibility control tier 7",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_8_BOOL",
       "guid": "8ce0a11b-db32-4430-b101-000000000008",
       "description": "State visibility control tier 8",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_9_BOOL",
       "guid": "386fc88f-fda4-411e-b9e1-000000000009",
       "description": "State visibility control tier 9",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_PARA_STATE_10_BOOL",
       "guid": "bf5b929f-f74a-45d9-a2c1-000000000010",
       "description": "State visibility control tier 10",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_TEXT_COLOUR_TEXT",
       "guid": "867fb0db-88ea-4a3d-9c01-000000000001",
       "description": "Tag text colour (Integer code)",
       "binding": "universal",
-      "param_type": "INTEGER"
+      "param_type": "INTEGER",
+      "required": false
     },
     {
       "param_name": "TAG_2NOM_BLACK_BOOL",
       "guid": "71eaf35e-4f69-417c-90c1-200000000001",
       "description": "Tag text visibility: size 2, normal, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2NOM_BLUE_BOOL",
       "guid": "e749764b-f2e7-4892-87c1-200000000002",
       "description": "Tag text visibility: size 2, normal, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2NOM_GREEN_BOOL",
       "guid": "3442cc7f-3299-4be8-87c1-200000000003",
       "description": "Tag text visibility: size 2, normal, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2NOM_RED_BOOL",
       "guid": "287b72c2-7315-4cd5-82c1-200000000004",
       "description": "Tag text visibility: size 2, normal, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLD_BLACK_BOOL",
       "guid": "784a1790-6fca-4d73-acc1-200000000005",
       "description": "Tag text visibility: size 2, bold, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLD_BLUE_BOOL",
       "guid": "a64c0b1d-b40b-4f6a-b1c1-200000000006",
       "description": "Tag text visibility: size 2, bold, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLD_GREEN_BOOL",
       "guid": "c34be0e6-3e38-4293-a1c1-200000000007",
       "description": "Tag text visibility: size 2, bold, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLD_RED_BOOL",
       "guid": "9b53e6c5-9a96-4883-81c1-200000000008",
       "description": "Tag text visibility: size 2, bold, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2ITALIC_BLACK_BOOL",
       "guid": "d5a1b2c3-1001-4e01-a1c1-200000000009",
       "description": "Tag text visibility: size 2, italic, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2ITALIC_BLUE_BOOL",
       "guid": "d5a1b2c3-1002-4e01-a1c1-200000000010",
       "description": "Tag text visibility: size 2, italic, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2ITALIC_GREEN_BOOL",
       "guid": "d5a1b2c3-1003-4e01-a1c1-200000000011",
       "description": "Tag text visibility: size 2, italic, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2ITALIC_RED_BOOL",
       "guid": "d5a1b2c3-1004-4e01-a1c1-200000000012",
       "description": "Tag text visibility: size 2, italic, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5NOM_BLACK_BOOL",
       "guid": "f0b8fa91-eea9-4d7c-a3c1-250000000001",
       "description": "Tag text visibility: size 2.5, normal, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5NOM_BLUE_BOOL",
       "guid": "d7e853cb-be05-4297-9cc1-250000000002",
       "description": "Tag text visibility: size 2.5, normal, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5NOM_GREEN_BOOL",
       "guid": "84f3a73d-6432-479a-bcc1-250000000003",
       "description": "Tag text visibility: size 2.5, normal, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5NOM_RED_BOOL",
       "guid": "0f518bf8-00b9-4884-b4c1-250000000004",
       "description": "Tag text visibility: size 2.5, normal, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLD_BLACK_BOOL",
       "guid": "bbc94dd6-592e-4a71-8cc1-250000000005",
       "description": "Tag text visibility: size 2.5, bold, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLD_BLUE_BOOL",
       "guid": "6e9e2d50-47b2-4e50-8cc1-250000000006",
       "description": "Tag text visibility: size 2.5, bold, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLD_GREEN_BOOL",
       "guid": "4c3c0bea-ec9d-41a8-9cc1-250000000007",
       "description": "Tag text visibility: size 2.5, bold, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLD_RED_BOOL",
       "guid": "3ed66197-7fc2-43cd-93c1-250000000008",
       "description": "Tag text visibility: size 2.5, bold, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5ITALIC_BLACK_BOOL",
       "guid": "d5a1b2c3-2501-4e01-a1c1-250000000009",
       "description": "Tag text visibility: size 2.5, italic, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5ITALIC_BLUE_BOOL",
       "guid": "d5a1b2c3-2502-4e01-a1c1-250000000010",
       "description": "Tag text visibility: size 2.5, italic, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5ITALIC_GREEN_BOOL",
       "guid": "d5a1b2c3-2503-4e01-a1c1-250000000011",
       "description": "Tag text visibility: size 2.5, italic, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5ITALIC_RED_BOOL",
       "guid": "d5a1b2c3-2504-4e01-a1c1-250000000012",
       "description": "Tag text visibility: size 2.5, italic, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3NOM_BLACK_BOOL",
       "guid": "d5a1b2c3-3001-4e01-a1c1-300000000001",
       "description": "Tag text visibility: size 3, normal, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3NOM_BLUE_BOOL",
       "guid": "d5a1b2c3-3002-4e01-a1c1-300000000002",
       "description": "Tag text visibility: size 3, normal, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3NOM_GREEN_BOOL",
       "guid": "d5a1b2c3-3003-4e01-a1c1-300000000003",
       "description": "Tag text visibility: size 3, normal, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3NOM_RED_BOOL",
       "guid": "d5a1b2c3-3004-4e01-a1c1-300000000004",
       "description": "Tag text visibility: size 3, normal, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLD_BLACK_BOOL",
       "guid": "d5a1b2c3-3005-4e01-a1c1-300000000005",
       "description": "Tag text visibility: size 3, bold, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLD_BLUE_BOOL",
       "guid": "d5a1b2c3-3006-4e01-a1c1-300000000006",
       "description": "Tag text visibility: size 3, bold, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLD_GREEN_BOOL",
       "guid": "d5a1b2c3-3007-4e01-a1c1-300000000007",
       "description": "Tag text visibility: size 3, bold, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLD_RED_BOOL",
       "guid": "d5a1b2c3-3008-4e01-a1c1-300000000008",
       "description": "Tag text visibility: size 3, bold, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3ITALIC_BLACK_BOOL",
       "guid": "d5a1b2c3-3009-4e01-a1c1-300000000009",
       "description": "Tag text visibility: size 3, italic, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3ITALIC_BLUE_BOOL",
       "guid": "d5a1b2c3-3010-4e01-a1c1-300000000010",
       "description": "Tag text visibility: size 3, italic, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3ITALIC_GREEN_BOOL",
       "guid": "d5a1b2c3-3011-4e01-a1c1-300000000011",
       "description": "Tag text visibility: size 3, italic, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3ITALIC_RED_BOOL",
       "guid": "d5a1b2c3-3012-4e01-a1c1-300000000012",
       "description": "Tag text visibility: size 3, italic, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5NOM_BLACK_BOOL",
       "guid": "d5a1b2c3-3501-4e01-a1c1-350000000001",
       "description": "Tag text visibility: size 3.5, normal, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5NOM_BLUE_BOOL",
       "guid": "d5a1b2c3-3502-4e01-a1c1-350000000002",
       "description": "Tag text visibility: size 3.5, normal, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5NOM_GREEN_BOOL",
       "guid": "d5a1b2c3-3503-4e01-a1c1-350000000003",
       "description": "Tag text visibility: size 3.5, normal, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5NOM_RED_BOOL",
       "guid": "d5a1b2c3-3504-4e01-a1c1-350000000004",
       "description": "Tag text visibility: size 3.5, normal, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLD_BLACK_BOOL",
       "guid": "d5a1b2c3-3505-4e01-a1c1-350000000005",
       "description": "Tag text visibility: size 3.5, bold, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLD_BLUE_BOOL",
       "guid": "d5a1b2c3-3506-4e01-a1c1-350000000006",
       "description": "Tag text visibility: size 3.5, bold, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLD_GREEN_BOOL",
       "guid": "d5a1b2c3-3507-4e01-a1c1-350000000007",
       "description": "Tag text visibility: size 3.5, bold, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLD_RED_BOOL",
       "guid": "d5a1b2c3-3508-4e01-a1c1-350000000008",
       "description": "Tag text visibility: size 3.5, bold, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5ITALIC_BLACK_BOOL",
       "guid": "d5a1b2c3-3509-4e01-a1c1-350000000009",
       "description": "Tag text visibility: size 3.5, italic, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5ITALIC_BLUE_BOOL",
       "guid": "d5a1b2c3-3510-4e01-a1c1-350000000010",
       "description": "Tag text visibility: size 3.5, italic, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5ITALIC_GREEN_BOOL",
       "guid": "d5a1b2c3-3511-4e01-a1c1-350000000011",
       "description": "Tag text visibility: size 3.5, italic, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5ITALIC_RED_BOOL",
       "guid": "d5a1b2c3-3512-4e01-a1c1-350000000012",
       "description": "Tag text visibility: size 3.5, italic, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLDITALIC_BLACK_BOOL",
       "guid": "d5a1b2c3-2013-4e01-a1c1-200000000013",
       "description": "Tag text visibility: size 2, bold-italic, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLDITALIC_BLUE_BOOL",
       "guid": "d5a1b2c3-2014-4e01-a1c1-200000000014",
       "description": "Tag text visibility: size 2, bold-italic, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLDITALIC_GREEN_BOOL",
       "guid": "d5a1b2c3-2015-4e01-a1c1-200000000015",
       "description": "Tag text visibility: size 2, bold-italic, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLDITALIC_RED_BOOL",
       "guid": "d5a1b2c3-2016-4e01-a1c1-200000000016",
       "description": "Tag text visibility: size 2, bold-italic, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLDITALIC_ORANGE_BOOL",
       "guid": "d5a1b2c3-2017-4e01-a1c1-200000000017",
       "description": "Tag text visibility: size 2, bold-italic, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLDITALIC_PURPLE_BOOL",
       "guid": "d5a1b2c3-2018-4e01-a1c1-200000000018",
       "description": "Tag text visibility: size 2, bold-italic, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLDITALIC_GREY_BOOL",
       "guid": "d5a1b2c3-2019-4e01-a1c1-200000000019",
       "description": "Tag text visibility: size 2, bold-italic, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLDITALIC_WHITE_BOOL",
       "guid": "d5a1b2c3-2020-4e01-a1c1-200000000020",
       "description": "Tag text visibility: size 2, bold-italic, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLDITALIC_BLACK_BOOL",
       "guid": "d5a1b2c3-2513-4e01-a1c1-250000000013",
       "description": "Tag text visibility: size 2.5, bold-italic, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLDITALIC_BLUE_BOOL",
       "guid": "d5a1b2c3-2514-4e01-a1c1-250000000014",
       "description": "Tag text visibility: size 2.5, bold-italic, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLDITALIC_GREEN_BOOL",
       "guid": "d5a1b2c3-2515-4e01-a1c1-250000000015",
       "description": "Tag text visibility: size 2.5, bold-italic, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLDITALIC_RED_BOOL",
       "guid": "d5a1b2c3-2516-4e01-a1c1-250000000016",
       "description": "Tag text visibility: size 2.5, bold-italic, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLDITALIC_ORANGE_BOOL",
       "guid": "d5a1b2c3-2517-4e01-a1c1-250000000017",
       "description": "Tag text visibility: size 2.5, bold-italic, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLDITALIC_PURPLE_BOOL",
       "guid": "d5a1b2c3-2518-4e01-a1c1-250000000018",
       "description": "Tag text visibility: size 2.5, bold-italic, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLDITALIC_GREY_BOOL",
       "guid": "d5a1b2c3-2519-4e01-a1c1-250000000019",
       "description": "Tag text visibility: size 2.5, bold-italic, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLDITALIC_WHITE_BOOL",
       "guid": "d5a1b2c3-2520-4e01-a1c1-250000000020",
       "description": "Tag text visibility: size 2.5, bold-italic, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLDITALIC_BLACK_BOOL",
       "guid": "d5a1b2c3-3013-4e01-a1c1-300000000013",
       "description": "Tag text visibility: size 3, bold-italic, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLDITALIC_BLUE_BOOL",
       "guid": "d5a1b2c3-3014-4e01-a1c1-300000000014",
       "description": "Tag text visibility: size 3, bold-italic, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLDITALIC_GREEN_BOOL",
       "guid": "d5a1b2c3-3015-4e01-a1c1-300000000015",
       "description": "Tag text visibility: size 3, bold-italic, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLDITALIC_RED_BOOL",
       "guid": "d5a1b2c3-3016-4e01-a1c1-300000000016",
       "description": "Tag text visibility: size 3, bold-italic, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLDITALIC_ORANGE_BOOL",
       "guid": "d5a1b2c3-3017-4e01-a1c1-300000000017",
       "description": "Tag text visibility: size 3, bold-italic, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLDITALIC_PURPLE_BOOL",
       "guid": "d5a1b2c3-3018-4e01-a1c1-300000000018",
       "description": "Tag text visibility: size 3, bold-italic, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLDITALIC_GREY_BOOL",
       "guid": "d5a1b2c3-3019-4e01-a1c1-300000000019",
       "description": "Tag text visibility: size 3, bold-italic, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLDITALIC_WHITE_BOOL",
       "guid": "d5a1b2c3-3020-4e01-a1c1-300000000020",
       "description": "Tag text visibility: size 3, bold-italic, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLDITALIC_BLACK_BOOL",
       "guid": "d5a1b2c3-3513-4e01-a1c1-350000000013",
       "description": "Tag text visibility: size 3.5, bold-italic, black",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLDITALIC_BLUE_BOOL",
       "guid": "d5a1b2c3-3514-4e01-a1c1-350000000014",
       "description": "Tag text visibility: size 3.5, bold-italic, blue",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLDITALIC_GREEN_BOOL",
       "guid": "d5a1b2c3-3515-4e01-a1c1-350000000015",
       "description": "Tag text visibility: size 3.5, bold-italic, green",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLDITALIC_RED_BOOL",
       "guid": "d5a1b2c3-3516-4e01-a1c1-350000000016",
       "description": "Tag text visibility: size 3.5, bold-italic, red",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLDITALIC_ORANGE_BOOL",
       "guid": "d5a1b2c3-3517-4e01-a1c1-350000000017",
       "description": "Tag text visibility: size 3.5, bold-italic, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLDITALIC_PURPLE_BOOL",
       "guid": "d5a1b2c3-3518-4e01-a1c1-350000000018",
       "description": "Tag text visibility: size 3.5, bold-italic, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLDITALIC_GREY_BOOL",
       "guid": "d5a1b2c3-3519-4e01-a1c1-350000000019",
       "description": "Tag text visibility: size 3.5, bold-italic, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLDITALIC_WHITE_BOOL",
       "guid": "d5a1b2c3-3520-4e01-a1c1-350000000020",
       "description": "Tag text visibility: size 3.5, bold-italic, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2NOM_ORANGE_BOOL",
       "guid": "d5a1b2c3-2021-4e01-a1c1-200000000021",
       "description": "Tag text visibility: size 2, normal, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2NOM_PURPLE_BOOL",
       "guid": "d5a1b2c3-2022-4e01-a1c1-200000000022",
       "description": "Tag text visibility: size 2, normal, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2NOM_GREY_BOOL",
       "guid": "d5a1b2c3-2023-4e01-a1c1-200000000023",
       "description": "Tag text visibility: size 2, normal, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2NOM_WHITE_BOOL",
       "guid": "d5a1b2c3-2024-4e01-a1c1-200000000024",
       "description": "Tag text visibility: size 2, normal, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLD_ORANGE_BOOL",
       "guid": "d5a1b2c3-2025-4e01-a1c1-200000000025",
       "description": "Tag text visibility: size 2, bold, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLD_PURPLE_BOOL",
       "guid": "d5a1b2c3-2026-4e01-a1c1-200000000026",
       "description": "Tag text visibility: size 2, bold, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLD_GREY_BOOL",
       "guid": "d5a1b2c3-2027-4e01-a1c1-200000000027",
       "description": "Tag text visibility: size 2, bold, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2BOLD_WHITE_BOOL",
       "guid": "d5a1b2c3-2028-4e01-a1c1-200000000028",
       "description": "Tag text visibility: size 2, bold, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2ITALIC_ORANGE_BOOL",
       "guid": "d5a1b2c3-2029-4e01-a1c1-200000000029",
       "description": "Tag text visibility: size 2, italic, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2ITALIC_PURPLE_BOOL",
       "guid": "d5a1b2c3-2030-4e01-a1c1-200000000030",
       "description": "Tag text visibility: size 2, italic, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2ITALIC_GREY_BOOL",
       "guid": "d5a1b2c3-2031-4e01-a1c1-200000000031",
       "description": "Tag text visibility: size 2, italic, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2ITALIC_WHITE_BOOL",
       "guid": "d5a1b2c3-2032-4e01-a1c1-200000000032",
       "description": "Tag text visibility: size 2, italic, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5NOM_ORANGE_BOOL",
       "guid": "d5a1b2c3-2533-4e01-a1c1-250000000033",
       "description": "Tag text visibility: size 2.5, normal, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5NOM_PURPLE_BOOL",
       "guid": "d5a1b2c3-2534-4e01-a1c1-250000000034",
       "description": "Tag text visibility: size 2.5, normal, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5NOM_GREY_BOOL",
       "guid": "d5a1b2c3-2535-4e01-a1c1-250000000035",
       "description": "Tag text visibility: size 2.5, normal, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5NOM_WHITE_BOOL",
       "guid": "d5a1b2c3-2536-4e01-a1c1-250000000036",
       "description": "Tag text visibility: size 2.5, normal, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLD_ORANGE_BOOL",
       "guid": "d5a1b2c3-2537-4e01-a1c1-250000000037",
       "description": "Tag text visibility: size 2.5, bold, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLD_PURPLE_BOOL",
       "guid": "d5a1b2c3-2538-4e01-a1c1-250000000038",
       "description": "Tag text visibility: size 2.5, bold, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLD_GREY_BOOL",
       "guid": "d5a1b2c3-2539-4e01-a1c1-250000000039",
       "description": "Tag text visibility: size 2.5, bold, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5BOLD_WHITE_BOOL",
       "guid": "d5a1b2c3-2540-4e01-a1c1-250000000040",
       "description": "Tag text visibility: size 2.5, bold, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5ITALIC_ORANGE_BOOL",
       "guid": "d5a1b2c3-2541-4e01-a1c1-250000000041",
       "description": "Tag text visibility: size 2.5, italic, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5ITALIC_PURPLE_BOOL",
       "guid": "d5a1b2c3-2542-4e01-a1c1-250000000042",
       "description": "Tag text visibility: size 2.5, italic, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5ITALIC_GREY_BOOL",
       "guid": "d5a1b2c3-2543-4e01-a1c1-250000000043",
       "description": "Tag text visibility: size 2.5, italic, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_2.5ITALIC_WHITE_BOOL",
       "guid": "d5a1b2c3-2544-4e01-a1c1-250000000044",
       "description": "Tag text visibility: size 2.5, italic, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3NOM_ORANGE_BOOL",
       "guid": "d5a1b2c3-3033-4e01-a1c1-300000000033",
       "description": "Tag text visibility: size 3, normal, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3NOM_PURPLE_BOOL",
       "guid": "d5a1b2c3-3034-4e01-a1c1-300000000034",
       "description": "Tag text visibility: size 3, normal, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3NOM_GREY_BOOL",
       "guid": "d5a1b2c3-3035-4e01-a1c1-300000000035",
       "description": "Tag text visibility: size 3, normal, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3NOM_WHITE_BOOL",
       "guid": "d5a1b2c3-3036-4e01-a1c1-300000000036",
       "description": "Tag text visibility: size 3, normal, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLD_ORANGE_BOOL",
       "guid": "d5a1b2c3-3037-4e01-a1c1-300000000037",
       "description": "Tag text visibility: size 3, bold, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLD_PURPLE_BOOL",
       "guid": "d5a1b2c3-3038-4e01-a1c1-300000000038",
       "description": "Tag text visibility: size 3, bold, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLD_GREY_BOOL",
       "guid": "d5a1b2c3-3039-4e01-a1c1-300000000039",
       "description": "Tag text visibility: size 3, bold, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3BOLD_WHITE_BOOL",
       "guid": "d5a1b2c3-3040-4e01-a1c1-300000000040",
       "description": "Tag text visibility: size 3, bold, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3ITALIC_ORANGE_BOOL",
       "guid": "d5a1b2c3-3041-4e01-a1c1-300000000041",
       "description": "Tag text visibility: size 3, italic, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3ITALIC_PURPLE_BOOL",
       "guid": "d5a1b2c3-3042-4e01-a1c1-300000000042",
       "description": "Tag text visibility: size 3, italic, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3ITALIC_GREY_BOOL",
       "guid": "d5a1b2c3-3043-4e01-a1c1-300000000043",
       "description": "Tag text visibility: size 3, italic, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3ITALIC_WHITE_BOOL",
       "guid": "d5a1b2c3-3044-4e01-a1c1-300000000044",
       "description": "Tag text visibility: size 3, italic, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5NOM_ORANGE_BOOL",
       "guid": "d5a1b2c3-3533-4e01-a1c1-350000000033",
       "description": "Tag text visibility: size 3.5, normal, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5NOM_PURPLE_BOOL",
       "guid": "d5a1b2c3-3534-4e01-a1c1-350000000034",
       "description": "Tag text visibility: size 3.5, normal, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5NOM_GREY_BOOL",
       "guid": "d5a1b2c3-3535-4e01-a1c1-350000000035",
       "description": "Tag text visibility: size 3.5, normal, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5NOM_WHITE_BOOL",
       "guid": "d5a1b2c3-3536-4e01-a1c1-350000000036",
       "description": "Tag text visibility: size 3.5, normal, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLD_ORANGE_BOOL",
       "guid": "d5a1b2c3-3537-4e01-a1c1-350000000037",
       "description": "Tag text visibility: size 3.5, bold, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLD_PURPLE_BOOL",
       "guid": "d5a1b2c3-3538-4e01-a1c1-350000000038",
       "description": "Tag text visibility: size 3.5, bold, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLD_GREY_BOOL",
       "guid": "d5a1b2c3-3539-4e01-a1c1-350000000039",
       "description": "Tag text visibility: size 3.5, bold, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5BOLD_WHITE_BOOL",
       "guid": "d5a1b2c3-3540-4e01-a1c1-350000000040",
       "description": "Tag text visibility: size 3.5, bold, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5ITALIC_ORANGE_BOOL",
       "guid": "d5a1b2c3-3541-4e01-a1c1-350000000041",
       "description": "Tag text visibility: size 3.5, italic, orange",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5ITALIC_PURPLE_BOOL",
       "guid": "d5a1b2c3-3542-4e01-a1c1-350000000042",
       "description": "Tag text visibility: size 3.5, italic, purple",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5ITALIC_GREY_BOOL",
       "guid": "d5a1b2c3-3543-4e01-a1c1-350000000043",
       "description": "Tag text visibility: size 3.5, italic, grey",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_3.5ITALIC_WHITE_BOOL",
       "guid": "d5a1b2c3-3544-4e01-a1c1-350000000044",
       "description": "Tag text visibility: size 3.5, italic, white",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_BOX_COLOR_R_INT",
       "guid": "d5a1b2c3-5001-4e05-a1c1-500000000001",
       "description": "Tag bounding box fill color — Red channel (0-255)",
       "binding": "universal",
-      "param_type": "INTEGER"
+      "param_type": "INTEGER",
+      "required": false
     },
     {
       "param_name": "TAG_BOX_COLOR_G_INT",
       "guid": "d5a1b2c3-5002-4e05-a1c1-500000000002",
       "description": "Tag bounding box fill color — Green channel (0-255)",
       "binding": "universal",
-      "param_type": "INTEGER"
+      "param_type": "INTEGER",
+      "required": false
     },
     {
       "param_name": "TAG_BOX_COLOR_B_INT",
       "guid": "d5a1b2c3-5003-4e05-a1c1-500000000003",
       "description": "Tag bounding box fill color — Blue channel (0-255)",
       "binding": "universal",
-      "param_type": "INTEGER"
+      "param_type": "INTEGER",
+      "required": false
     },
     {
       "param_name": "TAG_BOX_VISIBLE_BOOL",
       "guid": "d5a1b2c3-5004-4e05-a1c1-500000000004",
       "description": "Tag bounding box visibility control",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "TAG_BOX_STYLE_TXT",
       "guid": "d5a1b2c3-5005-4e05-a1c1-500000000005",
       "description": "Tag bounding box style (SOLID/DASHED/NONE/ROUND)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "TAG_LEADER_COLOR_R_INT",
       "guid": "d5a1b2c3-5006-4e05-a1c1-500000000006",
       "description": "Tag leader line color — Red channel (0-255)",
       "binding": "universal",
-      "param_type": "INTEGER"
+      "param_type": "INTEGER",
+      "required": false
     },
     {
       "param_name": "TAG_LEADER_COLOR_G_INT",
       "guid": "d5a1b2c3-5007-4e05-a1c1-500000000007",
       "description": "Tag leader line color — Green channel (0-255)",
       "binding": "universal",
-      "param_type": "INTEGER"
+      "param_type": "INTEGER",
+      "required": false
     },
     {
       "param_name": "TAG_LEADER_COLOR_B_INT",
       "guid": "d5a1b2c3-5008-4e05-a1c1-500000000008",
       "description": "Tag leader line color — Blue channel (0-255)",
       "binding": "universal",
-      "param_type": "INTEGER"
+      "param_type": "INTEGER",
+      "required": false
     },
     {
       "param_name": "VGPS_VISIBLE_BOOL",
       "guid": "4942d19f-ff13-19c6-8c31-000000000001",
       "description": "VG Projection/Surface visibility control",
       "binding": "universal",
-      "param_type": "YESNO"
+      "param_type": "YESNO",
+      "required": false
     },
     {
       "param_name": "VIEW_COLOR_SCHEME_TXT",
       "guid": "d5a1b2c3-4001-4e04-a1c1-400000000001",
       "description": "Active view color scheme (Discipline/Warm/Cool/Red/Yellow/Blue/Mono/Dark)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "VIEW_DISC_FILTER_TXT",
       "guid": "d5a1b2c3-4002-4e04-a1c1-400000000002",
       "description": "Discipline filter for view isolation (M/E/P/A/S/FP/LV/G/ALL)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_WORKSET_TXT",
       "guid": "6fbd8be9-0d78-0463-b131-485ef1508ce4",
       "description": "Workset name (from Revit worksharing)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_PHASE_CREATED_TXT",
       "guid": "4292589a-d067-0d73-8b64-571397a9de43",
       "description": "Phase created name (element birth phase)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_PHASE_DEMOLISHED_TXT",
       "guid": "20879a6b-e2aa-e6fd-dc27-e867dffb64ec",
       "description": "Phase demolished name (element demolition phase)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_DESIGN_OPTION_TXT",
       "guid": "1608a11c-56a8-5f2b-f6db-9bf61aa9f4ef",
       "description": "Design option set and option name",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_ASSEMBLY_CODE_TXT",
       "guid": "a07bab7a-beaa-045e-8a57-c378aef86907",
       "description": "Assembly/Uniformat classification code from family type",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_ASSEMBLY_DESC_TXT",
       "guid": "b1a64d69-30db-8207-a7f0-7d53c8453c0a",
       "description": "Assembly code description text",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_BOUNDING_VOL_CU_M",
       "guid": "be94fac1-2ab5-6023-7c4c-9a1db090e62d",
       "description": "Element bounding box volume (m3)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_ELEVATION_M",
       "guid": "01db5e9b-c9ee-a564-8e35-be35c089f1ec",
       "description": "Element elevation from project base point (m)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_HOST_ELEMENT_TXT",
       "guid": "95ff9a10-a148-bdad-2c29-7175adcb107b",
       "description": "Host element type and ID (for hosted families)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "ASS_CONNECTED_ELEMENTS_TXT",
       "guid": "38fad041-d027-1c32-5541-d890921725a7",
       "description": "Connected/joined element summary (count and types)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "STR_ANALYTICAL_MODEL_TXT",
       "guid": "b7a84859-b5b1-10b2-7306-3c220ecd8ae7",
       "description": "Analytical model status and type",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "STR_STRUCTURAL_USAGE_TXT",
       "guid": "1cb89cd0-62f0-5fd8-0099-eeff65ad1621",
       "description": "Structural usage (beam, column, brace, other)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "STR_MATERIAL_GRADE_TXT",
       "guid": "abbbeabb-8952-d7a4-0cc6-e783100a4f24",
       "description": "Structural material grade (C30/37, S355, etc.)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "MEP_SYSTEM_NAME_TXT",
       "guid": "3bcf2b8b-642f-e555-3ec5-63f673479b3b",
       "description": "Connected MEP system name(s)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "MEP_SYSTEM_ABBREVIATION_TXT",
       "guid": "611ded5d-9a8a-5c9e-037b-d904e4e9c082",
       "description": "MEP system abbreviation code",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "MEP_CONNECTOR_COUNT_NR",
       "guid": "aa37f8cd-757f-655b-6557-33ac70e4d01c",
       "description": "Number of active connectors on element",
       "binding": "universal",
-      "param_type": "INTEGER"
+      "param_type": "INTEGER",
+      "required": false
     },
     {
       "param_name": "MEP_UPSTREAM_ELEMENT_TXT",
       "guid": "895da2e2-1bf2-c45c-e8ee-221af3666d58",
       "description": "Upstream connected element (supply source)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "MEP_DOWNSTREAM_ELEMENT_TXT",
       "guid": "da914397-556f-7f68-fa85-96c4b5f6d47e",
       "description": "Downstream connected element (served element)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "PER_EMBODIED_ENERGY_MJ",
       "guid": "4661e87a-f647-876d-d0b2-5af3a05fefd8",
       "description": "Embodied energy (MJ/unit) from material data",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "PER_RECYCLABILITY_PCT",
       "guid": "6cfbec62-d60b-a0ef-4954-0e5cc4789aa5",
       "description": "Material recyclability percentage",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "PER_EXPECTED_LIFE_YEARS",
       "guid": "9502f071-2b22-50ef-11d6-daddba4cc3f1",
       "description": "Expected service life in years (for lifecycle costing)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "PER_REPLACEMENT_COST_UGX",
       "guid": "b89f39a7-54ec-e344-a786-445af1f3b3d0",
       "description": "Replacement cost (UGX) for lifecycle analysis",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "RGL_BUILDING_CODE_REF_TXT",
       "guid": "a79dad8a-dc36-e227-e96a-2f26fc162ca3",
       "description": "Applicable building code clause reference",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "RGL_ACCESSIBILITY_STATUS_TXT",
       "guid": "13649513-c638-a34c-d650-786ca388102a",
       "description": "Accessibility compliance status (COMPLIANT/NON-COMPLIANT/N-A)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "RGL_ENVIRONMENTAL_CERT_TXT",
       "guid": "414f9c89-42c8-03f7-99be-67f56230de0a",
       "description": "Environmental certification reference (EDGE/LEED/BREEAM)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "MNT_FREQUENCY_TXT",
       "guid": "6b13cb44-d7fa-418d-27c4-ccc16bd05188",
       "description": "Maintenance frequency (DAILY/WEEKLY/MONTHLY/QUARTERLY/ANNUAL)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "MNT_LAST_SERVICE_DATE_TXT",
       "guid": "340e26d1-c299-2940-ee8e-3322267c0a97",
       "description": "Last service/inspection date",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "MNT_WARRANTY_EXPIRY_TXT",
       "guid": "b003b862-05ad-2f60-e9f0-56b7f482f0ee",
       "description": "Warranty expiry date or period",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "MNT_SPARE_PARTS_TXT",
       "guid": "90b280e2-b414-545a-2db9-f011a3130677",
       "description": "Required spare parts for maintenance",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "MNT_ACCESS_REQUIREMENTS_TXT",
       "guid": "88ccb178-34ab-ede3-1279-b3eb7e0545c1",
       "description": "Maintenance access requirements (height, clearance, tools)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "COM_COMMISSIONING_STATUS_TXT",
       "guid": "c01c5ff4-c401-9d93-c7b8-dd83a8bc15b6",
       "description": "Commissioning status (NOT_STARTED/IN_PROGRESS/PASSED/FAILED)",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "COM_TEST_CERT_REF_TXT",
       "guid": "a380bb76-6058-906b-bf3c-0c82930bfc32",
       "description": "Test certificate reference number",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
     },
     {
       "param_name": "COM_HANDOVER_STATUS_TXT",
       "guid": "c7283cb7-804f-6024-edfc-bd3f2085facc",
       "description": "Handover/practical completion status",
-      "binding": "universal"
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_TIEIN_REF_TXT",
+      "guid": "ti000001-tie0-0001-t001-000000000001",
+      "description": "Tie-in point reference code (e.g. TI-M-HWS-001). Assembled by STING from DISC+SYS+SEQ.",
+      "binding": "universal",
+      "required": false,
+      "group": "TieInPoint"
+    },
+    {
+      "param_name": "ASS_TIEIN_STATUS_TXT",
+      "guid": "ti000001-tie0-0001-t001-000000000002",
+      "description": "Tie-in point status: OPEN / CONNECTED / CAPPED / DEFERRED. OPEN = live unresolved termination.",
+      "binding": "universal",
+      "required": false,
+      "group": "TieInPoint"
+    },
+    {
+      "param_name": "ASS_TIEIN_PHASE_TXT",
+      "guid": "ti000001-tie0-0001-t001-000000000003",
+      "description": "Construction phase at which tie-in is made: PH1 / PH2 / PH3 / FUTURE.",
+      "binding": "universal",
+      "required": false,
+      "group": "TieInPoint"
+    },
+    {
+      "param_name": "ASS_TIEIN_BY_TXT",
+      "guid": "ti000001-tie0-0001-t001-000000000004",
+      "description": "Responsible party for making the tie-in connection: MAIN / SUB / SPECIALIST / FUTURE.",
+      "binding": "universal",
+      "required": false,
+      "group": "TieInPoint"
+    },
+    {
+      "param_name": "ASS_TIEIN_SIZE_TXT",
+      "guid": "ti000001-tie0-0001-t001-000000000005",
+      "description": "Size of pipe/duct/conduit at the tie-in point (e.g. DN50, 400x250, 32mm EMT). Auto-read from PLM_PPE_SZ_MM or HVC_DCT_SZ_TXT.",
+      "binding": "universal",
+      "required": false,
+      "group": "TieInPoint"
+    },
+    {
+      "param_name": "ASS_TIEIN_ELEV_TXT",
+      "guid": "ti000001-tie0-0001-t001-000000000006",
+      "description": "Invert or centreline elevation at tie-in point (e.g. 3450 AFFL). Populate from survey or design data.",
+      "binding": "universal",
+      "required": false,
+      "group": "TieInPoint"
+    },
+    {
+      "param_name": "ASS_TIEIN_FLOW_DIR_TXT",
+      "guid": "ti000001-tie0-0001-t001-000000000007",
+      "description": "Flow direction at tie-in end: SUP (supply), RET (return), BIDIR (bidirectional), UNKWN (unknown).",
+      "binding": "universal",
+      "required": false,
+      "group": "TieInPoint"
+    },
+    {
+      "param_name": "ASS_TIEIN_IFC_REF_TXT",
+      "guid": "ti000001-tie0-0001-t001-000000000008",
+      "description": "Interface Control Document reference linking to the Interface Register (IFC/ICD number). ISO 19650-2.",
+      "binding": "universal",
+      "required": false,
+      "group": "TieInPoint"
+    },
+    {
+      "param_name": "ASS_TIEIN_CONNECTED_BOOL",
+      "guid": "ti000001-tie0-0001-t001-000000000009",
+      "description": "Tie-in resolved flag: No/0 = open live termination, Yes/1 = tie-in completed and connected.",
+      "binding": "universal",
+      "required": false,
+      "param_type": "YESNO",
+      "group": "TieInPoint"
+    },
+    {
+      "param_name": "ASS_TIEIN_TAG_1_TXT",
+      "guid": "ti000001-tie0-0001-t001-000000000010",
+      "description": "Assembled tie-in display tag (e.g. TI-M-HWS-001). Auto-populated from DISC+SYS+SEQ by STING.",
+      "binding": "universal",
+      "required": false,
+      "group": "TieInPoint"
+    },
+    {
+      "param_name": "ASS_DISPLAY_TXT",
+      "guid": "d1sp1ay0-d1s0-4a01-d001-000000000001",
+      "description": "Display mode tag string (e.g. AHU-0042). Written by BuildDisplayTag() based on STING_DISPLAY_MODE setting.",
+      "binding": "universal",
+      "required": false,
+      "group": "DisplayTag"
+    },
+    {
+      "param_name": "ASS_SERIAL_NR_TXT",
+      "guid": "s3r1al00-s3r0-4a01-s001-000000000001",
+      "description": "Asset serial number. Maps from Revit ALL_MODEL_SERIAL_NUMBER. Used in COBie Component Section 7F.",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_FLOW_RATE_TXT",
+      "guid": "f10wr8t0-f1r0-4a01-f001-000000000001",
+      "description": "Unified flow rate. Cross-written from PLM_PIPE_FLOW or HVC_AIRFLOW for legend generation.",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_POWER_RATING_TXT",
+      "guid": "p0w3rr8t-p0r0-4a01-p001-000000000001",
+      "description": "Unified power rating. Cross-written from ELC_POWER for legend generation.",
+      "binding": "universal",
+      "required": false
+    },
+    {
+      "param_name": "ASS_ROOM_HEIGHT_MM",
+      "guid": "warn0001-w001-4001-w001-000000000001",
+      "description": "Room upper offset height in mm. Maps from ROOM_UPPER_OFFSET.",
+      "binding": "Rooms",
+      "required": false,
+      "group": "Warning"
+    },
+    {
+      "param_name": "BLE_STAIR_HEADROOM_MM",
+      "guid": "warn0002-w002-4002-w002-000000000002",
+      "description": "Stair actual headroom height in mm. Maps from STAIRS_ACTUAL_HEADROOM_HEIGHT.",
+      "binding": "Stairs",
+      "required": false,
+      "group": "Warning"
+    },
+    {
+      "param_name": "BLE_RAIL_HEIGHT_MM",
+      "guid": "warn0003-w003-4003-w003-000000000003",
+      "description": "Railing height in mm. Maps from RAILING_HEIGHT.",
+      "binding": "Railings",
+      "required": false,
+      "group": "Warning"
+    },
+    {
+      "param_name": "BLE_PARKING_WIDTH_MM",
+      "guid": "warn0004-w004-4004-w004-000000000004",
+      "description": "Parking bay width in mm. Maps from FAMILY_WIDTH_PARAM for parking elements.",
+      "binding": "Parking",
+      "required": false,
+      "group": "Warning"
+    },
+    {
+      "param_name": "HVC_EFF_RATIO_NR",
+      "guid": "warn0005-w005-4005-w005-000000000005",
+      "description": "HVAC equipment COP/efficiency ratio. Maps from RBS_MECH_COP_PARAM.",
+      "binding": "MechanicalEquipment",
+      "required": false,
+      "group": "Warning"
+    },
+    {
+      "param_name": "PER_ACOUSTIC_WALL_STC",
+      "guid": "warn0006-w006-4006-w006-000000000006",
+      "description": "Wall acoustic STC rating. Derived from wall width or RBS_ACOUSTICS param.",
+      "binding": "Walls",
+      "required": false,
+      "group": "Warning"
+    },
+    {
+      "param_name": "STR_RBR_COVER_MM",
+      "guid": "warn0007-w007-4007-w007-000000000007",
+      "description": "Structural rebar cover in mm. Maps from COVER_TOP_PARAM.",
+      "binding": "StructuralFraming",
+      "required": false,
+      "group": "Warning"
+    },
+    {
+      "param_name": "STR_FDN_DEPTH_MM",
+      "guid": "warn0008-w008-4008-w008-000000000008",
+      "description": "Foundation depth in mm. Maps from INSTANCE_ELEVATION_PARAM.",
+      "binding": "StructuralFoundation",
+      "required": false,
+      "group": "Warning"
+    },
+    {
+      "param_name": "BLE_CEILING_HEIGHT_MM",
+      "guid": "warn0009-w009-4009-w009-000000000009",
+      "description": "Ceiling height offset in mm. Maps from dimensional params.",
+      "binding": "Ceilings",
+      "required": false,
+      "group": "Warning"
+    },
+    {
+      "param_name": "ASS_INSTALLATION_DATE_TXT",
+      "guid": "warn0010-w010-4010-w010-000000000010",
+      "description": "Installation date formatted as YYYY-MM-DD. Derived from Phase Created.",
+      "binding": "universal",
+      "required": false,
+      "group": "Warning"
+    },
+    {
+      "param_name": "ASS_NOTES_TXT",
+      "guid": "warn0011-w011-4011-w011-000000000011",
+      "description": "User notes field. Writable by BulkNoteCommand and general data entry.",
+      "binding": "universal",
+      "required": false,
+      "group": "Warning"
     }
   ],
   "token_presets": {

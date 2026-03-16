@@ -1309,6 +1309,16 @@ namespace StingTools.Tags
                         string catName = elem.Category?.Name ?? "";
                         int preferred = TagPlacementEngine.GetPreferredSide(catName);
 
+                        // UI-08: Override preferred position from dockable panel compass
+                        string prefPosStr = UI.StingCommandHandler.GetExtraParam("PreferredTagPos");
+                        if (int.TryParse(prefPosStr, out int prefPos) && prefPos >= 1 && prefPos <= offsets.Length)
+                            preferred = prefPos - 1;
+
+                        // UI-06: Override direction from DirOverride radio
+                        string dirStr = UI.StingCommandHandler.GetExtraParam("DirOverride");
+                        if (int.TryParse(dirStr, out int dirIdx) && dirIdx >= 0 && dirIdx < offsets.Length)
+                            preferred = dirIdx;
+
                         XYZ bestPos = center + new XYZ(0, offset, 0);
                         double bestScore = double.MinValue;
                         double tagW = offset * 3.0, tagH = offset * 1.0;

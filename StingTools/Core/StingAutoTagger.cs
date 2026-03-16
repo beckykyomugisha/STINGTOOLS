@@ -45,9 +45,28 @@ namespace StingTools.Core
         private static HashSet<string> _cachedExistingTags;
         private static Dictionary<string, int> _cachedSeqCounters;
         private static bool _contextInvalid = true;
+        // G2.3: Cached formulas and grid lines for pipeline helper
+        private static List<Temp.FormulaEngine.FormulaDefinition> _formulas;
+        private static List<Grid> _gridLines;
+
+        // LOG-04: Token hash cache to skip redundant TAG7 rebuilds
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, string>
+            _tag7HashCache = new System.Collections.Concurrent.ConcurrentDictionary<long, string>();
 
         /// <summary>Invalidate cached context (call after external tagging operations).</summary>
-        public static void InvalidateContext() { _contextInvalid = true; }
+        public static void InvalidateContext()
+        {
+            _contextInvalid = true;
+            _tag7HashCache.Clear();
+            _elementVersionHash.Clear();
+            // A3: Clear processed cache on context invalidation to prevent stale-skip on document reload
+            lock (_recentlyProcessed)
+            {
+                _recentlyProcessed.Clear();
+                _recentlyProcessedQueue.Clear();
+                _processedCount = 0;
+            }
+        }
 
         private readonly AddInId _addinId;
 
@@ -210,6 +229,8 @@ namespace StingTools.Core
                     var built = TagConfig.BuildTagIndexAndCounters(doc);
                     _cachedExistingTags = built.Item1;
                     _cachedSeqCounters = built.Item2;
+                    _formulas = TagPipelineHelper.LoadFormulas();
+                    _gridLines = TagPipelineHelper.LoadGridLines(doc);
                     _contextInvalid = false;
                     StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags)");
                 }
@@ -259,43 +280,16 @@ namespace StingTools.Core
                         catch { /* workset check is advisory — never block tagging */ }
                     }
 
-                    // Item 1: Inherit tokens from family type before auto-detection
-                    TokenAutoPopulator.TypeTokenInherit(doc, el);
-
-                    // Populate all tokens
-                    TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: false);
-
-                    // Build and write the tag
-                    TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                        skipComplete: true, existingTags: existingTags,
-                        collisionMode: TagCollisionMode.AutoIncrement,
-                        cachedRev: ctx.ProjectRev);
+                    // G2.3: Full pipeline via TagPipelineHelper (TypeTokenInherit → PopulateAll →
+                    // NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers → TAG7 → GridRef)
+                    TagPipelineHelper.RunFullPipeline(doc, el, ctx,
+                        existingTags, seqCounters, _formulas, _gridLines,
+                        overwrite: false, skipComplete: true,
+                        collisionMode: TagCollisionMode.AutoIncrement);
 
                     // D1: Incrementally track newly created tags to avoid rebuilding the full index
                     string newTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                     if (!string.IsNullOrEmpty(newTag)) existingTags.Add(newTag);
-
-                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    try
-                    {
-                        string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                        TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
-                    }
-                    catch (Exception tag7Ex)
-                    {
-                        StingLog.Warn($"AutoTagger TAG7 for {id}: {tag7Ex.Message}");
-                    }
-
-                    // Auto-combine: propagate tag to discipline-specific containers
-                    try
-                    {
-                        string[] combineTokens = ParamRegistry.ReadTokenValues(el);
-                        ParamRegistry.WriteContainers(el, combineTokens, catName);
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"AutoTagger combine failed for {el.Id.Value}: {ex.Message}");
-                    }
 
                     // Item 4: Visual tag placement — only if user has enabled visual auto-tagging
                     if (_visualTaggingEnabled && doc.ActiveView != null
@@ -387,9 +381,9 @@ namespace StingTools.Core
 
         // ── DocumentChanged stale-marking ──────────────────────────────────────
 
-        /// <summary>Throttle: track recently stale-marked element IDs to avoid redundant writes.</summary>
-        private static readonly Dictionary<long, DateTime> _recentStaleMarks = new Dictionary<long, DateTime>();
-        private static readonly TimeSpan StaleThrottle = TimeSpan.FromSeconds(5);
+        /// <summary>LOG-09: Track element version hashes to avoid redundant stale-marks.
+        /// Key = element ID, Value = hash of tag + location tokens. Only re-mark when hash changes.</summary>
+        private static readonly Dictionary<long, string> _elementVersionHash = new Dictionary<long, string>();
 
         /// <summary>
         /// DocumentChanged event handler that marks modified tagged elements as stale.
@@ -414,22 +408,24 @@ namespace StingTools.Core
                 // Limit batch size to prevent performance issues
                 if (modifiedIds.Count > 100) return;
 
-                var now = DateTime.Now;
                 var idsToMark = new List<ElementId>();
 
                 foreach (ElementId id in modifiedIds)
                 {
-                    // Throttle: skip if recently marked
-                    if (_recentStaleMarks.TryGetValue(id.Value, out DateTime lastMarked) &&
-                        (now - lastMarked) < StaleThrottle)
-                        continue;
-
                     Element el = doc.GetElement(id);
                     if (el == null || !el.IsValidObject) continue;
 
                     // Only mark elements that already have a tag
                     string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag1)) continue;
+
+                    // LOG-09: Compute version hash from tag + spatial tokens; skip if unchanged
+                    string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                    string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                    string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                    string hash = $"{tag1}|{loc}|{zone}|{lvl}";
+                    if (_elementVersionHash.TryGetValue(id.Value, out string prevHash) && prevHash == hash)
+                        continue;
 
                     idsToMark.Add(id);
                 }
@@ -449,7 +445,12 @@ namespace StingTools.Core
                             if (p != null && !p.IsReadOnly)
                             {
                                 p.Set(1);
-                                _recentStaleMarks[id.Value] = now;
+                                // LOG-09: Store current version hash so we don't re-mark unchanged elements
+                                string curLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                                string curZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                                string curLvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                                string curTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                _elementVersionHash[id.Value] = $"{curTag}|{curLoc}|{curZone}|{curLvl}";
                             }
                         }
                         catch (Exception ex)
@@ -460,15 +461,9 @@ namespace StingTools.Core
                     tx.Commit();
                 }
 
-                // Prune throttle cache when it grows too large
-                if (_recentStaleMarks.Count > 5000)
-                {
-                    var expired = _recentStaleMarks
-                        .Where(kvp => (now - kvp.Value) > TimeSpan.FromMinutes(1))
-                        .Select(kvp => kvp.Key).ToList();
-                    foreach (var key in expired)
-                        _recentStaleMarks.Remove(key);
-                }
+                // LOG-09: Prune version hash cache when it grows too large
+                if (_elementVersionHash.Count > 10000)
+                    _elementVersionHash.Clear();
 
                 StingLog.Info($"OnDocumentChanged: marked {idsToMark.Count} elements stale");
             }

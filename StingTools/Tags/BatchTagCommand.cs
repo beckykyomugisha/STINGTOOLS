@@ -120,6 +120,8 @@ namespace StingTools.Tags
             int statusDetected = 0, revSet = 0;
             var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
             var stats = new TaggingStats();
             var sw = Stopwatch.StartNew();
             int populated = 0;
@@ -159,33 +161,12 @@ namespace StingTools.Tags
 
                         try
                         {
-                            // Full 9-token auto-population via shared helper
                             bool overwriteMode = (collisionMode == TagCollisionMode.Overwrite);
-                            var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx,
-                                overwrite: overwriteMode);
-                            populated += popResult.TokensSet;
-                            if (popResult.StatusDetected) statusDetected++;
-                            if (popResult.RevSet) revSet++;
-
                             bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                            TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                                skipComplete: skipComplete,
-                                existingTags: tagIndex,
-                                collisionMode: collisionMode,
-                                stats: stats,
-                                cachedRev: popCtx.ProjectRev);
-
-                            // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                            try
-                            {
-                                string catName = ParameterHelpers.GetCategoryName(el);
-                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
-                            }
-                            catch (Exception tag7Ex)
-                            {
-                                StingLog.Error($"BatchTag TAG7 write failed on element {el?.Id}: {tag7Ex.Message}", tag7Ex);
-                            }
+                            TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                                tagIndex, sequenceCounters, formulas, gridLines,
+                                overwrite: overwriteMode, skipComplete: skipComplete,
+                                collisionMode: collisionMode, stats: stats);
                         }
                         catch (Exception ex)
                         {
@@ -207,6 +188,8 @@ namespace StingTools.Tags
                     else
                     {
                         tx.Commit();
+                        // P6: Save SEQ sidecar after each committed batch
+                        TagConfig.SaveSeqSidecar(doc, sequenceCounters);
                         StingLog.Info($"Batch Tag: batch {batchNum} committed");
                     }
                 }
@@ -480,7 +463,8 @@ namespace StingTools.Tags
             int scanned = 0, stale = 0, updated = 0;
             var staleSummary = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
             {
-                ["LVL"] = 0, ["LOC"] = 0, ["ZONE"] = 0
+                ["LVL"] = 0, ["LOC"] = 0, ["ZONE"] = 0,
+                ["SYS"] = 0, ["FUNC"] = 0, ["PROD"] = 0
             };
 
             var staleElements = new List<(Element el, string token, string stored, string current)>();
@@ -526,6 +510,40 @@ namespace StingTools.Tags
                     staleElements.Add((el, "ZONE", storedZone, currentZone));
                     staleSummary["ZONE"]++;
                 }
+
+                // P7 / G4.1: Check SYS
+                string catName = cat;
+                string storedSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string currentSys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                if (!string.IsNullOrEmpty(storedSys) && !string.IsNullOrEmpty(currentSys)
+                    && currentSys != "GEN"
+                    && !storedSys.Equals(currentSys, StringComparison.OrdinalIgnoreCase))
+                {
+                    staleElements.Add((el, "SYS", storedSys, currentSys));
+                    staleSummary["SYS"]++;
+                }
+
+                // P7 / G4.1: Check FUNC
+                string storedFunc = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                string currentFunc = TagConfig.GetSmartFuncCode(el, currentSys ?? storedSys);
+                if (!string.IsNullOrEmpty(storedFunc) && !string.IsNullOrEmpty(currentFunc)
+                    && currentFunc != "GEN"
+                    && !storedFunc.Equals(currentFunc, StringComparison.OrdinalIgnoreCase))
+                {
+                    staleElements.Add((el, "FUNC", storedFunc, currentFunc));
+                    staleSummary["FUNC"]++;
+                }
+
+                // P7 / G4.1: Check PROD (family type change)
+                string storedProd = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                string currentProd = TagConfig.GetFamilyAwareProdCode(el, catName);
+                if (!string.IsNullOrEmpty(storedProd) && !string.IsNullOrEmpty(currentProd)
+                    && currentProd != "GEN"
+                    && !storedProd.Equals(currentProd, StringComparison.OrdinalIgnoreCase))
+                {
+                    staleElements.Add((el, "PROD", storedProd, currentProd));
+                    staleSummary["PROD"]++;
+                }
             }
 
             stale = staleElements.Count;
@@ -545,6 +563,9 @@ namespace StingTools.Tags
             if (staleSummary["LVL"] > 0) preview.AppendLine($"  LVL changes:  {staleSummary["LVL"]}");
             if (staleSummary["LOC"] > 0) preview.AppendLine($"  LOC changes:  {staleSummary["LOC"]}");
             if (staleSummary["ZONE"] > 0) preview.AppendLine($"  ZONE changes: {staleSummary["ZONE"]}");
+            if (staleSummary["SYS"] > 0) preview.AppendLine($"  SYS changes:  {staleSummary["SYS"]}");
+            if (staleSummary["FUNC"] > 0) preview.AppendLine($"  FUNC changes: {staleSummary["FUNC"]}");
+            if (staleSummary["PROD"] > 0) preview.AppendLine($"  PROD changes: {staleSummary["PROD"]}");
 
             TaskDialog td = new TaskDialog("Tag Changed — Delta Update");
             td.MainInstruction = $"{stale} stale spatial tokens found";
@@ -575,6 +596,9 @@ namespace StingTools.Tags
                             "LVL" => ParamRegistry.LVL,
                             "LOC" => ParamRegistry.LOC,
                             "ZONE" => ParamRegistry.ZONE,
+                            "SYS" => ParamRegistry.SYS,
+                            "FUNC" => ParamRegistry.FUNC,
+                            "PROD" => ParamRegistry.PROD,
                             _ => null
                         };
                         if (paramName != null)

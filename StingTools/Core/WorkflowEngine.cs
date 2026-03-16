@@ -212,6 +212,10 @@ namespace StingTools.Core
         [JsonProperty("steps")]
         public List<WorkflowStep> Steps { get; set; } = new List<WorkflowStep>();
 
+        /// <summary>LOG-06: If true, wrap entire workflow in TransactionGroup and rollback on failure.</summary>
+        [JsonProperty("rollback_on_failure")]
+        public bool RollbackOnFailure { get; set; }
+
         [JsonIgnore]
         public bool IsBuiltIn { get; set; }
     }
@@ -229,6 +233,18 @@ namespace StingTools.Core
 
         [JsonProperty("condition")]
         public string Condition { get; set; }
+
+        /// <summary>F2: Skip step if current compliance % exceeds this threshold.</summary>
+        [JsonProperty("maxCompliancePct")]
+        public int? MaxCompliancePct { get; set; }
+
+        /// <summary>F2: Skip step if current compliance % is below this threshold.</summary>
+        [JsonProperty("minCompliancePct")]
+        public int? MinCompliancePct { get; set; }
+
+        /// <summary>F2: Skip step if no elements have the STALE flag set.</summary>
+        [JsonProperty("requiresStaleElements")]
+        public bool RequiresStaleElements { get; set; }
     }
 
     internal static class WorkflowEngine
@@ -246,7 +262,8 @@ namespace StingTools.Core
                 return Result.Failed;
             }
             Document doc = ctx.Doc;
-            StingLog.Info($"Workflow '{preset.Name}': starting {preset.Steps.Count} steps");
+            StingLog.Info($"Workflow '{preset.Name}': starting {preset.Steps.Count} steps" +
+                (preset.RollbackOnFailure ? " (rollback_on_failure=true)" : ""));
 
             var report = new StringBuilder();
             report.AppendLine($"Workflow: {preset.Name}");
@@ -258,58 +275,144 @@ namespace StingTools.Core
             int skipped = 0;
             var totalSw = Stopwatch.StartNew();
 
-            foreach (var step in preset.Steps)
+            // LOG-06: Optionally wrap entire workflow in TransactionGroup for atomic rollback
+            TransactionGroup tg = null;
+            if (preset.RollbackOnFailure)
             {
-                stepNum++;
+                tg = new TransactionGroup(doc, $"STING Workflow: {preset.Name}");
+                tg.Start();
+            }
 
-                // Check cancellation between steps
-                if (EscapeChecker.IsEscapePressed())
+            try
+            {
+                foreach (var step in preset.Steps)
                 {
-                    report.AppendLine($"  {stepNum,2}. {step.Label} — CANCELLED (Escape)");
-                    StingLog.Info($"Workflow step {stepNum}: cancelled by user");
-                    break;
-                }
+                    stepNum++;
 
-                // Evaluate condition (workshared check etc.)
-                if (!string.IsNullOrEmpty(step.Condition))
-                {
-                    if (step.Condition == "workshared" && !doc.IsWorkshared)
+                    // Check cancellation between steps
+                    if (EscapeChecker.IsEscapePressed())
                     {
-                        skipped++;
-                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)");
-                        continue;
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — CANCELLED (Escape)");
+                        StingLog.Info($"Workflow step {stepNum}: cancelled by user");
+                        break;
+                    }
+
+                    // Evaluate condition (workshared check etc.)
+                    if (!string.IsNullOrEmpty(step.Condition))
+                    {
+                        if (step.Condition == "workshared" && !doc.IsWorkshared)
+                        {
+                            skipped++;
+                            report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)");
+                            continue;
+                        }
+                    }
+
+                    // F2 / G5.2: Evaluate compliance threshold conditions
+                    if (step.MaxCompliancePct.HasValue || step.MinCompliancePct.HasValue
+                        || step.RequiresStaleElements)
+                    {
+                        try
+                        {
+                            var scan = ComplianceScan.Scan(doc);
+                            if (scan != null)
+                            {
+                                double pct = scan.CompliancePercent;
+                                if (step.MaxCompliancePct.HasValue && pct > step.MaxCompliancePct.Value)
+                                {
+                                    StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — compliance {pct:F0}% > max {step.MaxCompliancePct.Value}%");
+                                    report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% above {step.MaxCompliancePct.Value}%)");
+                                    skipped++;
+                                    continue;
+                                }
+                                if (step.MinCompliancePct.HasValue && pct < step.MinCompliancePct.Value)
+                                {
+                                    StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — compliance {pct:F0}% < min {step.MinCompliancePct.Value}%");
+                                    report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% below {step.MinCompliancePct.Value}%)");
+                                    skipped++;
+                                    continue;
+                                }
+                            }
+                            if (step.RequiresStaleElements)
+                            {
+                                bool hasStale = new FilteredElementCollector(doc)
+                                    .WhereElementIsNotElementType()
+                                    .Any(e =>
+                                    {
+                                        try { var p = e.LookupParameter(ParamRegistry.STALE); return p != null && p.AsInteger() == 1; }
+                                        catch { return false; }
+                                    });
+                                if (!hasStale)
+                                {
+                                    StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — no stale elements found");
+                                    report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)");
+                                    skipped++;
+                                    continue;
+                                }
+                            }
+                        }
+                        catch (Exception condEx)
+                        {
+                            StingLog.Warn($"WorkflowEngine condition eval for '{step.Label}': {condEx.Message}");
+                        }
+                    }
+
+                    // Execute via command dispatch
+                    var sw = Stopwatch.StartNew();
+                    try
+                    {
+                        Result stepResult = RunCommandByTag(step.CommandTag, commandData, elements);
+                        sw.Stop();
+                        string status = stepResult == Result.Succeeded ? "OK" :
+                                         stepResult == Result.Cancelled ? "SKIP" : "WARN";
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
+
+                        if (stepResult == Result.Succeeded)
+                            passed++;
+                        else if (step.Optional)
+                            skipped++;
+                        else
+                            failed++;
+
+                        StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
+                    }
+                    catch (Exception ex)
+                    {
+                        sw.Stop();
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — FAILED: {ex.Message}");
+                        StingLog.Error($"Workflow step {stepNum}: {step.Label}", ex);
+
+                        if (step.Optional)
+                            skipped++;
+                        else
+                            failed++;
                     }
                 }
-
-                // Execute via command dispatch
-                var sw = Stopwatch.StartNew();
-                try
+            }
+            finally
+            {
+                // LOG-06: Commit or rollback the TransactionGroup
+                if (tg != null)
                 {
-                    Result stepResult = RunCommandByTag(step.CommandTag, commandData, elements);
-                    sw.Stop();
-                    string status = stepResult == Result.Succeeded ? "OK" :
-                                     stepResult == Result.Cancelled ? "SKIP" : "WARN";
-                    report.AppendLine($"  {stepNum,2}. {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
-
-                    if (stepResult == Result.Succeeded)
-                        passed++;
-                    else if (step.Optional)
-                        skipped++;
-                    else
-                        failed++;
-
-                    StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
-                }
-                catch (Exception ex)
-                {
-                    sw.Stop();
-                    report.AppendLine($"  {stepNum,2}. {step.Label} — FAILED: {ex.Message}");
-                    StingLog.Error($"Workflow step {stepNum}: {step.Label}", ex);
-
-                    if (step.Optional)
-                        skipped++;
-                    else
-                        failed++;
+                    try
+                    {
+                        if (failed > 0 && preset.RollbackOnFailure)
+                        {
+                            tg.RollBack();
+                            report.AppendLine("  ⚠ ALL CHANGES ROLLED BACK (rollback_on_failure)");
+                            StingLog.Warn($"Workflow '{preset.Name}': rolled back due to {failed} failure(s)");
+                        }
+                        else
+                        {
+                            tg.Assimilate();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Workflow TransactionGroup finalize: {ex.Message}");
+                        try { tg.RollBack(); } catch { /* swallow */ }
+                    }
+                    tg.Dispose();
                 }
             }
 
@@ -438,6 +541,16 @@ namespace StingTools.Core
                 case "RevisionTagIntegration": return new BIMManager.RevisionTagIntegrationCommand();
                 case "RevisionExport": return new BIMManager.RevisionExportCommand();
 
+                // Additional tagging pipeline (G5)
+                case "AutoPopulate": return new Temp.AutoPopulateCommand();
+                case "CombineParameters": return new Tags.CombineParametersCommand();
+                case "RetagStale": return new Organise.RetagStaleCommand();
+                case "AnomalyAutoFix": return new Organise.AnomalyAutoFixCommand();
+                case "ResolveAllIssues": return new Tags.ResolveAllIssuesCommand();
+                case "SmartPlaceTags": return new Tags.SmartPlaceTagsCommand();
+                case "ArrangeTags": return new Tags.ArrangeTagsCommand();
+                case "DiscComplianceReport": return new Tags.CompletenessDashboardCommand();
+
                 default: return null;
             }
         }
@@ -528,17 +641,21 @@ namespace StingTools.Core
                     return new WorkflowPreset
                     {
                         Name = "Daily QA Sync",
-                        Description = "Incremental sync — tag new elements, validate, audit",
+                        Description = "Adaptive daily sync — skips steps already meeting compliance thresholds. Full pipeline: tag new, delta-sync changed, retag stale, sync native params, evaluate formulas, update containers, validate, fix templates.",
                         IsBuiltIn = true,
                         Steps = new List<WorkflowStep>
                         {
-                            new WorkflowStep { CommandTag = "TagNewOnly", Label = "Tag New Elements Only" },
-                            new WorkflowStep { CommandTag = "TagChanged", Label = "Update Changed Elements" },
-                            new WorkflowStep { CommandTag = "ValidateTags", Label = "Validate ISO 19650 Compliance" },
-                            new WorkflowStep { CommandTag = "ValidateTemplate", Label = "Validate Data Integrity (45 checks)" },
-                            new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Re-Assign Templates (new views)" },
-                            new WorkflowStep { CommandTag = "AutoFixTemplate", Label = "Auto-Fix Template Issues" },
-                            new WorkflowStep { CommandTag = "AutoRevisionOnTagChange", Label = "Auto-Revision Check (score-based)" },
+                            new WorkflowStep { CommandTag = "TagNewOnly", Label = "Tag new elements only" },
+                            new WorkflowStep { CommandTag = "TagChanged", Label = "Update changed element tokens (delta sync)" },
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "Retag stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "AutoPopulate", Label = "Sync Revit native params → STING shared" },
+                            new WorkflowStep { CommandTag = "EvaluateFormulas", Label = "Evaluate 199 dependency formulas" },
+                            new WorkflowStep { CommandTag = "CombineParameters", Label = "Update all tag containers" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "Validate ISO 19650 compliance" },
+                            new WorkflowStep { CommandTag = "ValidateTemplate", Label = "Validate data integrity (45 checks)" },
+                            new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Re-assign templates to new views" },
+                            new WorkflowStep { CommandTag = "AutoFixTemplate", Label = "Auto-fix template issues" },
+                            new WorkflowStep { CommandTag = "AutoRevisionOnTagChange", Label = "Auto-revision check (score-based)" },
                         }
                     };
 

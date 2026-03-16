@@ -633,7 +633,8 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `TagPlacementEngine` | `Tags/SmartTagPlacementCommand.cs` | 8-position candidate offset generation, scale-aware placement, 2D AABB collision detection, leader auto-generation |
 | `TagPlacementPresets` | `Tags/SmartTagPlacementCommand.cs` | Per-category placement rules (`CategoryRule`), named presets (`PlacementPreset`), `LearnFromView` analysis |
 | `WorkflowEngine` | `Core/WorkflowEngine.cs` | Workflow preset orchestration: command tag resolution, step execution, cancellation, TransactionGroup rollback |
-| `ComplianceScan` | `Core/ComplianceScan.cs` | Cached compliance scan: RAG status, issue tracking, status bar text generation |
+| `ComplianceScan` | `Core/ComplianceScan.cs` | Cached compliance scan: RAG status, issue tracking, STATUS/container completeness, status bar text generation |
+| `TagPipelineHelper` | `Core/ParameterHelpers.cs` | Unified per-element tagging pipeline: TypeTokenInherit → PopulateAll → CategoryForceSys → NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers → WriteTag7All → GetGridRef |
 | `StingAutoTagger` | `Core/StingAutoTagger.cs` | IUpdater-based real-time auto-tagging on element addition with processed ID deduplication |
 | `StingProgressDialog` | `UI/StingProgressDialog.cs` | Modeless WPF progress window: progress bar, ETA, cancel button, Escape key detection |
 | `EscapeChecker` | `Core/StingLog.cs` | Win32 `GetAsyncKeyState` wrapper for Escape key cancellation detection |
@@ -694,6 +695,47 @@ The recommended tagging workflow is a multi-layered pipeline:
 6. **Combine** (`CombineParametersCommand`) — Write assembled tag to all 36 discipline-specific containers
 
 Alternatively, use **Tag & Combine** or **Full Auto-Populate** for one-click automation that executes the entire pipeline.
+
+### Unified Tagging Pipeline (`TagPipelineHelper`)
+
+All tagging commands (AutoTag, BatchTag, TagAndCombine, RetagStale, StingAutoTagger) execute the same per-element pipeline via `TagPipelineHelper.RunFullPipeline()` in `Core/ParameterHelpers.cs`:
+
+1. **TypeTokenInherit** — Copy DISC/SYS/FUNC/PROD from family type to instance (if empty)
+2. **TokenAutoPopulator.PopulateAll** — Auto-populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
+3. **CategoryForceSys** — Apply per-category SYS overrides from `project_config.json`
+4. **NativeParamMapper.MapAll** — Map 30+ Revit built-in parameters to STING shared parameters
+5. **FormulaEngine.Evaluate** — Evaluate 199 dependency formulas
+6. **TagConfig.BuildAndWriteTag** — Assemble tag with collision detection, apply TAG_PREFIX/TAG_SUFFIX
+7. **ParamRegistry.WriteContainers** — Write tag to all 36 discipline-specific containers
+8. **TagConfig.WriteTag7All** — Build TAG7 rich narrative (sections A-F)
+9. **SpatialAutoDetect.GetGridRef** — Write nearest grid intersection reference
+
+After transaction commit, `TagConfig.SaveSeqSidecar()` persists SEQ counters to a `.sting_seq.json` sidecar file alongside the `.rvt`, ensuring sequence continuity between sessions.
+
+### Tag Configuration Extensions
+
+The following settings in `project_config.json` control tag behaviour:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `TAG_PREFIX` | string | Prepended to assembled tags (e.g., `"PRJ-"`) |
+| `TAG_SUFFIX` | string | Appended to assembled tags |
+| `CATEGORY_SKIP` | string[] | Categories excluded from tagging |
+| `CATEGORY_FORCE_SYS` | dict | Per-category SYS code overrides (e.g., `{"Fire Alarm Devices": "FP"}`) |
+| `TAG_FORMAT.separator` | string | Token separator (default `"-"`) |
+| `TAG_FORMAT.num_pad` | int | SEQ zero-padding width (default `4`) |
+| `TAG_FORMAT.segment_order` | string[] | Token order in assembled tag |
+
+### Delta Sync (`TagChangedCommand`)
+
+Detects 6 token types that have become stale: LVL, LOC, ZONE, SYS, FUNC, PROD. Re-derives current values from element context and reports mismatches for selective re-tagging.
+
+### Adaptive Workflows
+
+`WorkflowEngine` supports conditional step execution via JSON workflow presets (e.g., `WORKFLOW_DailyQA_Enhanced.json`):
+- `maxCompliancePct` — Skip step if compliance already exceeds threshold
+- `minCompliancePct` — Skip step if compliance is below threshold
+- `requiresStaleElements` — Skip step if no stale elements detected
 
 ## WPF Dockable Panel (Primary UI)
 
@@ -1291,6 +1333,20 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 161. **BEP enrichment enhanced** — ComplianceScan-based BEP auto-enrichment with per-discipline breakdown, stage-gated compliance, and BEP allowed code cross-validation.
 162. **COBie Component enriched** — AssetType mapping from discipline codes, phase-derived installation dates, expanded fields (Category, Discipline, Location, Zone, Level, System, Function, ProductCode, SequenceNumber, Status).
 163. **LoadSharedParams crash-proofed** — Group-per-transaction binding, targeted category filtering, crash recovery with parameter file restoration, 6 additional crash vector fixes.
+
+#### Completed (Phase 15 — Deep Gap Analysis Fix)
+
+164. **Unified tagging pipeline** — `TagPipelineHelper.RunFullPipeline()` centralises per-element pipeline (TypeTokenInherit → PopulateAll → CategoryForceSys → NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers → WriteTag7All → GetGridRef). All 6 tagging callers (AutoTag, TagNewOnly, BatchTag, TagAndCombine, RetagStale, StingAutoTagger) use the same pipeline.
+165. **SEQ sidecar persistence** — `TagConfig.SaveSeqSidecar()` / `LoadSeqSidecar()` / `MergeSeqSidecar()` persist sequence counters to `.sting_seq.json` alongside the `.rvt` file. Merged via max-per-key strategy in `BuildTagIndexAndCounters()`.
+166. **Tag config extensions** — TAG_PREFIX, TAG_SUFFIX, CATEGORY_SKIP, CATEGORY_FORCE_SYS loaded from `project_config.json`. Prefix/suffix applied in both `BuildAndWriteTag` and `BuildTagsCommand`.
+167. **Project-adjacent config loading** — `OnDocumentOpened` prefers `project_config.json` next to the `.rvt` file over the plugin data directory, preventing config bleed between projects.
+168. **Delta sync expansion** — `TagChangedCommand` now detects 6 token types (LVL/LOC/ZONE + SYS/FUNC/PROD) for comprehensive staleness detection.
+169. **Adaptive workflow conditions** — `WorkflowEngine` supports `maxCompliancePct`, `minCompliancePct`, and `requiresStaleElements` for conditional step execution. 8 new command tag mappings added to `ResolveCommand()`.
+170. **Enhanced DailyQA workflow** — `WORKFLOW_DailyQA_Enhanced.json` expanded to 11 steps with conditional fields for adaptive execution.
+171. **Compliance scan expansion** — `ComplianceScan.ComplianceResult` tracks `StatusMissing`, `ContainersMissing`, and `DataCompletenessPercent` (weighted across tags/STATUS/containers).
+172. **Type token inheritance** — `TokenAutoPopulator.TypeTokenInherit()` copies DISC/SYS/FUNC/PROD from family type to instance elements.
+173. **Grid reference auto-detect** — `SpatialAutoDetect.GetGridRef()` finds nearest X/Y grid intersection and writes to ASS_GRID_REF_TXT.
+174. **Auto-tagger stability** — `StingAutoTagger.InvalidateContext()` clears `_recentlyProcessed` cache to prevent stale skip bugs.
 
 ### External Tool References
 

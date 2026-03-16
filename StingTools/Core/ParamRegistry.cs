@@ -136,6 +136,15 @@ namespace StingTools.Core
         // Loaded from extended_params section. Keys map to param_name values.
         private static Dictionary<string, string> _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
 
+        /// <summary>DATA-02: Set of parameter names marked as required in PARAMETER_REGISTRY.json.</summary>
+        private static readonly HashSet<string> _requiredParams = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>DATA-02: Check if a parameter is marked as required in the registry.</summary>
+        public static bool IsRequired(string paramName)
+        {
+            return !string.IsNullOrEmpty(paramName) && _requiredParams.Contains(paramName);
+        }
+
         /// <summary>Get an extended parameter name by its key (e.g. "DESC", "WALL_HEIGHT").</summary>
         public static string Ext(string key)
         {
@@ -955,6 +964,33 @@ namespace StingTools.Core
                         else if (name == "TAG_PARA_STATE_3_BOOL") PARA_STATE_3 = name;
                         else if (name == "TAG_WARN_VISIBLE_BOOL") WARN_VISIBLE = name;
                         else if (name == "TAG_WARN_SEVERITY_FILTER_TXT") WARN_SEVERITY_FILTER = name;
+
+                        // DATA-02: Track required/optional status
+                        bool isReq = s["required"]?.Value<bool>() ?? false;
+                        if (isReq) _requiredParams.Add(name);
+                    }
+                }
+
+                // DATA-02: Also track required flag on source_tokens
+                if (tokArr != null)
+                {
+                    foreach (JObject t in tokArr)
+                    {
+                        bool isReq = t["required"]?.Value<bool>() ?? false;
+                        string pn = t["param_name"]?.ToString() ?? "";
+                        if (isReq && !string.IsNullOrEmpty(pn)) _requiredParams.Add(pn);
+                    }
+                }
+
+                // DATA-02: Also track required flag on containers
+                var contArr = root["containers"] as JArray;
+                if (contArr != null)
+                {
+                    foreach (JObject c in contArr)
+                    {
+                        bool isReq = c["required"]?.Value<bool>() ?? false;
+                        string pn = c["param_name"]?.ToString() ?? "";
+                        if (isReq && !string.IsNullOrEmpty(pn)) _requiredParams.Add(pn);
                     }
                 }
 

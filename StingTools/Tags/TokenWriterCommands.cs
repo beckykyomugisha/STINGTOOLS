@@ -407,6 +407,11 @@ namespace StingTools.Tags
 
                     // Build the full 8-segment tag
                     string tag = string.Join(ParamRegistry.Separator, tokenValues);
+                    // TW-03e: Apply global tag prefix and suffix
+                    if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                        tag = TagConfig.TagPrefix + ParamRegistry.Separator + tag;
+                    if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                        tag = tag + ParamRegistry.Separator + TagConfig.TagSuffix;
 
                     // Collision detection: if tag exists, auto-increment SEQ
                     string oldTag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
@@ -430,6 +435,11 @@ namespace StingTools.Tags
                             seq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
                             tokenValues[7] = seq;
                             tag = string.Join(ParamRegistry.Separator, tokenValues);
+                            // TW-03e: Reapply prefix/suffix after collision rebuild
+                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                tag = TagConfig.TagPrefix + ParamRegistry.Separator + tag;
+                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                tag = tag + ParamRegistry.Separator + TagConfig.TagSuffix;
                         }
 
                         // Write the new SEQ back to the element

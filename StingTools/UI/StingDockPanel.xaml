@@ -111,8 +111,9 @@
                 <Button x:Name="btnPin" Grid.Column="2" Content="Pin" Width="30" Height="20"
                         FontSize="9" Background="#7B1FA2" Foreground="White" BorderThickness="0"
                         ToolTip="Pin panel" Click="BtnPin_Click" Margin="0,0,2,0"/>
-                <Button Grid.Column="3" Content="Pin" Width="30" Height="20"
-                        FontSize="9" Background="#7B1FA2" Foreground="White" BorderThickness="0"/>
+                <Button Grid.Column="3" Content="&#x263E;" Width="26" Height="20"
+                        FontSize="11" Background="#7B1FA2" Foreground="White" BorderThickness="0"
+                        ToolTip="Toggle theme (Dark/Light/Grey/Corporate)" Tag="CycleTheme" Click="Cmd_Click"/>
             </Grid>
         </Border>
 
@@ -426,6 +427,18 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Copy Tags" Tag="CopyTags" Click="Cmd_Click" ToolTip="Copy tags from first to all selected"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Swap Tags" Tag="SwapTags" Click="Cmd_Click" ToolTip="Swap tag values between 2 elements"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Fix Dupes" Tag="FixDuplicates" Click="Cmd_Click" ToolTip="Auto-resolve duplicate tags"/>
+                                </WrapPanel>
+                                <!-- TIE-IN POINT TAGS -->
+                                <TextBlock Style="{StaticResource SubLabel}" Text="TIE-IN POINT TAGS" Margin="0,6,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource TealBtn}" Content="⊕ Tie-In: Pipe" Tag="PlaceTieInTagPipe" Click="Cmd_Click" ToolTip="Place tie-in point tag on selected Pipe (reads ASS_TIEIN_* params — Families #46 Plumbing / #50 Fire / #51 Gas)"/>
+                                    <Button Style="{StaticResource TealBtn}" Content="⊕ Tie-In: Duct" Tag="PlaceTieInTagDuct" Click="Cmd_Click" ToolTip="Place tie-in point tag on selected Duct (Family #47 HVAC — reads ASS_TIEIN_* params)"/>
+                                    <Button Style="{StaticResource TealBtn}" Content="⊕ Tie-In: Elec" Tag="PlaceTieInTagElec" Click="Cmd_Click" ToolTip="Place tie-in point tag on selected Conduit or Cable Tray (Families #48 / #49)"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,2,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="TI Status: OPEN" Tag="SetTieInOpen" Click="Cmd_Click" ToolTip="Set ASS_TIEIN_STATUS_TXT = OPEN on selection (live unresolved tie-in)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="TI Status: CONNECTED" Tag="SetTieInConnected" Click="Cmd_Click" ToolTip="Set ASS_TIEIN_STATUS_TXT = CONNECTED + ASS_TIEIN_CONNECTED_BOOL = Yes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="TI Register" Tag="ExportTieInRegister" Click="Cmd_Click" ToolTip="Export all tie-in points to CSV register (ref, system, size, elev, status, IFC ref)"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -2129,16 +2142,44 @@
 
             <!-- ═══════════════════════ TAGS TAB (Tag Studio) ═══════════════════════ -->
             <TabItem Header="TAGS">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Margin="6">
+                <!-- TAG TAB: DockPanel so sub-tab headers are ALWAYS visible at top.
+                     Outer ScrollViewer removed — each sub-tab owns its ScrollViewer.
+                     Tab strip no longer scrolls off-screen when user scrolls content. -->
+                <DockPanel LastChildFill="True">
+                <Border DockPanel.Dock="Bottom" Background="Transparent" Padding="4,2">
+                    <TextBlock x:Name="txtTagsStatus" Text="Ready" FontSize="9" Foreground="#666"/>
+                </Border>
 
-                        <!-- Inner TabControl for Tag Studio sub-tabs -->
-                        <TabControl x:Name="tagStudioTabs" FontSize="10" Padding="2">
+                        <!-- tagStudioTabs docks directly — no StackPanel/ScrollViewer wrapper -->
+                        <TabControl x:Name="tagStudioTabs" FontSize="10" Padding="2"
+                                    SelectionChanged="TagStudioTabs_SelectionChanged">
 
                             <!-- ─── Placement Tab ─── -->
                             <TabItem Header="Placement">
+                                <DockPanel>
+                                    <!-- TW-01: Action buttons pinned at bottom, outside ScrollViewer -->
+                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
+                                        <Button Style="{StaticResource GreenBtn}" Content="Smart place" Tag="TagStudio_SmartPlace" Click="Cmd_Click" Width="80" Height="30"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Arrange" Tag="TagStudio_Arrange" Click="Cmd_Click" Width="80" Height="30"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Align bands" Tag="TagStudio_AlignBands" Click="Cmd_Click" Width="80" Height="30"/>
+                                    </WrapPanel>
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="4">
+
+                                        <!-- PLACEMENT SCOPE -->
+                                        <TextBlock Text="PLACEMENT SCOPE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <TextBlock Text="Apply to" FontSize="9" Margin="0,0,0,2"/>
+                                                <WrapPanel>
+                                                    <RadioButton Content="Selection" GroupName="PlaceScope" x:Name="rbScopeSelection" IsChecked="True" Margin="2" FontSize="9" ToolTip="Place/arrange tags on currently selected elements only"/>
+                                                    <RadioButton Content="View" GroupName="PlaceScope" x:Name="rbScopeView" Margin="2" FontSize="9" ToolTip="All untagged taggable elements in the active view"/>
+                                                    <RadioButton Content="All Views" GroupName="PlaceScope" x:Name="rbScopeAllViews" Margin="2" FontSize="9" ToolTip="All plan/section views in the project"/>
+                                                </WrapPanel>
+                                                <CheckBox Content="Skip already-placed tags" x:Name="chkSkipPlaced" IsChecked="True" Margin="0,4,0,0" FontSize="9" ToolTip="Do not move tags that already have a user-set position"/>
+                                                <CheckBox Content="Include linked model elements" x:Name="chkIncludeLinks" IsChecked="False" Margin="0,2,0,0" FontSize="9"/>
+                                            </StackPanel>
+                                        </Border>
 
                                         <!-- 16-POSITION COMPASS -->
                                         <TextBlock Text="16-POSITION COMPASS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
@@ -2169,16 +2210,31 @@
                                         <!-- DIRECTIONAL OFFSET OVERRIDE -->
                                         <TextBlock Text="DIRECTIONAL OFFSET OVERRIDE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
-                                            <UniformGrid Rows="2" Columns="4" Margin="2">
-                                                <RadioButton Content="NW" GroupName="DirOverride" Margin="1" FontSize="9"/>
-                                                <RadioButton Content="N" GroupName="DirOverride" IsChecked="True" Margin="1" FontSize="9" FontWeight="Bold"/>
-                                                <RadioButton Content="NE" GroupName="DirOverride" Margin="1" FontSize="9"/>
-                                                <RadioButton Content="W" GroupName="DirOverride" Margin="1" FontSize="9"/>
-                                                <RadioButton Content="E" GroupName="DirOverride" Margin="1" FontSize="9"/>
-                                                <RadioButton Content="SW" GroupName="DirOverride" Margin="1" FontSize="9"/>
-                                                <RadioButton Content="S" GroupName="DirOverride" Margin="1" FontSize="9"/>
-                                                <RadioButton Content="SE" GroupName="DirOverride" Margin="1" FontSize="9"/>
-                                            </UniformGrid>
+                                            <StackPanel>
+                                                <TextBlock Text="Ring 1 — cardinal &amp; diagonal (1x)" FontSize="8" Foreground="#888" Margin="2,0,0,2"/>
+                                                <UniformGrid Rows="2" Columns="4" Margin="2,0,2,2">
+                                                    <RadioButton Content="NW" GroupName="DirOverride" x:Name="rbDirNW" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="N"  GroupName="DirOverride" x:Name="rbDirN"  IsChecked="True" Margin="1" FontSize="9" FontWeight="Bold"/>
+                                                    <RadioButton Content="NE" GroupName="DirOverride" x:Name="rbDirNE" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="W"  GroupName="DirOverride" x:Name="rbDirW"  Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="E"  GroupName="DirOverride" x:Name="rbDirE"  Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="SW" GroupName="DirOverride" x:Name="rbDirSW" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="S"  GroupName="DirOverride" x:Name="rbDirS"  Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="SE" GroupName="DirOverride" x:Name="rbDirSE" Margin="1" FontSize="9"/>
+                                                </UniformGrid>
+                                                <TextBlock Text="Ring 2 — far positions (1.5x offset)" FontSize="8" Foreground="#888" Margin="2,4,0,2"/>
+                                                <UniformGrid Rows="2" Columns="4" Margin="2,0,2,2">
+                                                    <RadioButton Content="NW+" GroupName="DirOverride" x:Name="rbDirNWfar" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="N+"  GroupName="DirOverride" x:Name="rbDirNfar"  Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="NE+" GroupName="DirOverride" x:Name="rbDirNEfar" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="W+"  GroupName="DirOverride" x:Name="rbDirWfar"  Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="E+"  GroupName="DirOverride" x:Name="rbDirEfar"  Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="SW+" GroupName="DirOverride" x:Name="rbDirSWfar" Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="S+"  GroupName="DirOverride" x:Name="rbDirSfar"  Margin="1" FontSize="9"/>
+                                                    <RadioButton Content="SE+" GroupName="DirOverride" x:Name="rbDirSEfar" Margin="1" FontSize="9"/>
+                                                </UniformGrid>
+                                                <TextBlock Text="Matches 16-position compass · Ring 2 = P9–P16" FontSize="8" Foreground="#999" Margin="2,2,0,0"/>
+                                            </StackPanel>
                                         </Border>
 
                                         <!-- OFFSET CONTROLS -->
@@ -2285,15 +2341,9 @@
                                             </StackPanel>
                                         </Border>
 
-                                        <!-- ACTION BUTTONS -->
-                                        <WrapPanel Margin="0,6,0,0">
-                                            <Button Style="{StaticResource GreenBtn}" Content="Smart place" Tag="TagStudio_SmartPlace" Click="Cmd_Click" Width="80" Height="30"/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="Arrange" Tag="TagStudio_Arrange" Click="Cmd_Click" Width="80" Height="30"/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="Align bands" Tag="TagStudio_AlignBands" Click="Cmd_Click" Width="80" Height="30"/>
-                                        </WrapPanel>
-
                                     </StackPanel>
                                 </ScrollViewer>
+                                </DockPanel>
                             </TabItem>
 
                             <!-- ─── Leader & Elbow Tab ─── -->
@@ -2480,12 +2530,14 @@
                                             <StackPanel>
                                                 <TextBlock Text="Show warnings" FontSize="9" Margin="0,0,0,2"/>
                                                 <WrapPanel>
-                                                    <RadioButton Content="Critical" GroupName="WarnLevel" Margin="2" FontSize="9"/>
-                                                    <RadioButton Content="High" GroupName="WarnLevel" Margin="2" FontSize="9"/>
-                                                    <RadioButton Content="Medium" GroupName="WarnLevel" Margin="2" FontSize="9"/>
-                                                    <RadioButton Content="All" GroupName="WarnLevel" IsChecked="True" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="None" GroupName="WarnLevel" x:Name="rbWarnNone" Margin="2" FontSize="9" FontWeight="Bold" ToolTip="Suppress all tag warnings — no ⚠ shown on any tags" Checked="WarnLevel_Changed"/>
+                                                    <RadioButton Content="Critical" GroupName="WarnLevel" x:Name="rbWarnCritical" Margin="2" FontSize="9" Checked="WarnLevel_Changed"/>
+                                                    <RadioButton Content="High" GroupName="WarnLevel" x:Name="rbWarnHigh" Margin="2" FontSize="9" Checked="WarnLevel_Changed"/>
+                                                    <RadioButton Content="Medium" GroupName="WarnLevel" x:Name="rbWarnMedium" Margin="2" FontSize="9" Checked="WarnLevel_Changed"/>
+                                                    <RadioButton Content="All" GroupName="WarnLevel" x:Name="rbWarnAll" IsChecked="True" Margin="2" FontSize="9" Checked="WarnLevel_Changed"/>
                                                 </WrapPanel>
-                                                <TextBlock Text="Controls TAG_WARN_VISIBLE_BOOL + TAG_WARN_SEVERITY_FILTER_TXT" FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                <CheckBox Content="Suppress warnings during batch operations" x:Name="chkSuppressBatchWarnings" IsChecked="True" Margin="0,4,0,0" FontSize="9" ToolTip="Temporarily hide ⚠ during Auto-Tag / Batch-Tag runs to avoid visual noise; restored after run completes"/>
+                                                <TextBlock Text="'None' writes TAG_WARN_VISIBLE_BOOL=No · others set severity filter" FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                             </StackPanel>
                                         </Border>
 
@@ -2709,6 +2761,8 @@
                                                 <Button Style="{StaticResource ActionBtn}" Content="Align bands" Tag="TagStudio_AlignBands" Click="Cmd_Click" Width="72" Height="26"/>
                                                 <Button Style="{StaticResource ActionBtn}" Content="Overlap audit" Tag="TagOverlapAnalysis" Click="Cmd_Click" Width="80" Height="26"/>
                                                 <Button Style="{StaticResource ActionBtn}" Content="Remove tags" Tag="RemoveAnnotationTags" Click="Cmd_Click" Width="80" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Place 3D tags" Tag="Tag3D" Click="Cmd_Click" Width="80" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Repair dupes" Tag="RepairDuplicateSeq" Click="Cmd_Click" Width="80" Height="26"/>
                                             </WrapPanel>
                                         </Border>
 
@@ -2902,8 +2956,7 @@
                             </TabItem>
 
                         </TabControl>
-                    </StackPanel>
-                </ScrollViewer>
+                </DockPanel>
             </TabItem>
 
         </TabControl>
