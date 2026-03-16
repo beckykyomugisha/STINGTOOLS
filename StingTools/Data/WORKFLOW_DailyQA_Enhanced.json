@@ -1,11 +1,16 @@
 {
   "name": "Daily QA Enhanced",
-  "description": "Adaptive daily sync — skips steps already meeting thresholds",
+  "description": "Adaptive daily sync — skips steps already meeting compliance thresholds. Full pipeline: tag new, delta-sync changed, retag stale, sync native params, evaluate formulas, update containers, validate, fix templates.",
+  "rollback_on_failure": false,
   "steps": [
     { "commandTag": "TagNewOnly", "label": "Tag new elements" },
+    { "commandTag": "TagChanged", "label": "Delta-sync changed tokens (LVL/LOC/ZONE/SYS/FUNC/PROD)" },
     { "commandTag": "RetagStale", "label": "Retag stale elements", "optional": true, "requiresStaleElements": true },
+    { "commandTag": "AutoPopulate", "label": "Sync native Revit params → STING shared" },
+    { "commandTag": "EvaluateFormulas", "label": "Evaluate 199 dependency formulas" },
+    { "commandTag": "CombineParameters", "label": "Update all tag containers" },
     { "commandTag": "AnomalyAutoFix", "label": "Fix anomalies", "optional": true, "maxCompliancePct": 90 },
-    { "commandTag": "ResolveAllIssues", "label": "Resolve all issues (if low compliance)", "optional": true, "maxCompliancePct": 70 },
+    { "commandTag": "ResolveAllIssues", "label": "Resolve all issues (low compliance only)", "optional": true, "maxCompliancePct": 70 },
     { "commandTag": "ValidateTags", "label": "Validate ISO 19650 compliance" },
     { "commandTag": "SmartPlaceTags", "label": "Smart place tags (active view)", "optional": true },
     { "commandTag": "ArrangeTags", "label": "Arrange tags", "optional": true },
