@@ -147,14 +147,13 @@ namespace StingTools.Organise
                     }
                 }
                 tx.Commit();
+
+                // FIX-R01: Save SEQ sidecar inside using block after commit
+                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                catch (Exception ssEx) { StingLog.Warn($"TagSelected SaveSeqSidecar: {ssEx.Message}"); }
             }
 
-            // FIX-01: Save SEQ sidecar after commit to prevent counter drift between sessions
-            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
-            catch (Exception ssEx) { StingLog.Warn($"TagSelected SaveSeqSidecar: {ssEx.Message}"); }
-
             ComplianceScan.InvalidateCache();
-            // FIX-01: Invalidate auto-tagger cached context so next trigger picks up new tags/SEQs
             StingAutoTagger.InvalidateContext();
 
             string report = $"Tagged {stats.TotalTagged} of {selected.Count} selected elements.\n" +
@@ -279,6 +278,10 @@ namespace StingTools.Organise
                     }
                 }
                 tx.Commit();
+
+                // FIX-R01b: Save SEQ sidecar inside using block after commit
+                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                catch (Exception ssEx) { StingLog.Warn($"ReTag SaveSeqSidecar: {ssEx.Message}"); }
             }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();

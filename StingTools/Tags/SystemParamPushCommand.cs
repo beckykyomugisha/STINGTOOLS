@@ -784,9 +784,14 @@ namespace StingTools.Tags
 
                 Dictionary<string, int> seqCounters = null;
                 HashSet<string> existingTags = null;
+                // FIX-R05: Load formulas and grid lines for FullAutoTag pipeline
+                List<Temp.FormulaEngine.FormulaDefinition> spFormulas = null;
+                List<Grid> spGridLines = null;
                 if (mode == SystemParamPush.PushMode.FullAutoTag)
                 {
                     (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                    spFormulas = TagPipelineHelper.LoadFormulas();
+                    spGridLines = TagPipelineHelper.LoadGridLines(doc);
                 }
 
                 foreach (var sys in allSystems)
@@ -808,6 +813,34 @@ namespace StingTools.Tags
                             if (!string.IsNullOrEmpty(tag) && TagConfig.TagIsComplete(tag))
                                 continue;
 
+                            // FIX-R05: Evaluate formulas before tag build
+                            if (spFormulas != null && spFormulas.Count > 0)
+                            {
+                                try
+                                {
+                                    foreach (var formula in spFormulas)
+                                    {
+                                        Parameter fp = el.LookupParameter(formula.ParameterName);
+                                        if (fp == null || fp.IsReadOnly) continue;
+                                        var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                                        if (fCtx == null) continue;
+                                        if (formula.DataType == "TEXT")
+                                        {
+                                            string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                            if (fResult != null && fp.StorageType == StorageType.String)
+                                                fp.Set(fResult);
+                                        }
+                                        else
+                                        {
+                                            double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                            if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                                Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                        }
+                                    }
+                                }
+                                catch (Exception fEx) { StingLog.Warn($"BatchSystemPush formula eval for {el.Id}: {fEx.Message}"); }
+                            }
+
                             TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                 skipComplete: true, existingTags,
                                 TagCollisionMode.AutoIncrement, stats);
@@ -825,6 +858,13 @@ namespace StingTools.Tags
                             catch (Exception tag7Ex)
                             {
                                 StingLog.Warn($"BatchSystemPush TAG7+containers for {el.Id}: {tag7Ex.Message}");
+                            }
+
+                            // FIX-R05: Write GridRef per element
+                            if (spGridLines != null && spGridLines.Count > 0)
+                            {
+                                try { SpatialAutoDetect.GetGridRef(el, spGridLines); }
+                                catch (Exception grEx) { StingLog.Warn($"BatchSystemPush GridRef for {el.Id}: {grEx.Message}"); }
                             }
                         }
                     }

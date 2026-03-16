@@ -389,6 +389,8 @@ namespace StingTools.Tags
             // Execute migration
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var stats = new TaggingStats();
+            // FIX-R06: Load grid lines for GridRef pipeline step
+            var mfGridLines = TagPipelineHelper.LoadGridLines(doc);
             int migrated = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Tag Format Migration"))
@@ -422,6 +424,13 @@ namespace StingTools.Tags
                         catch (Exception tag7Ex)
                         {
                             StingLog.Warn($"Migration TAG7+containers for {el.Id}: {tag7Ex.Message}");
+                        }
+
+                        // FIX-R06: Write GridRef per element
+                        if (mfGridLines != null && mfGridLines.Count > 0)
+                        {
+                            try { SpatialAutoDetect.GetGridRef(el, mfGridLines); }
+                            catch (Exception grEx) { StingLog.Warn($"Migration GridRef for {el.Id}: {grEx.Message}"); }
                         }
 
                         migrated++;
@@ -464,10 +473,46 @@ namespace StingTools.Tags
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
             Document doc = ctx.Doc;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+
+            // FIX-N02: Scope selection dialog — scan view, selection, or entire project
+            var selected = uidoc.Selection.GetElementIds();
+            IEnumerable<Element> scanScope;
+            string scopeLabel;
+            if (selected.Count > 0)
+            {
+                TaskDialog scopeTd = new TaskDialog("Delta Scan Scope");
+                scopeTd.MainInstruction = "Scan scope for stale tokens";
+                scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    $"Selected elements ({selected.Count})",
+                    "Only scan currently selected elements");
+                scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Entire project",
+                    "Scan all tagged elements in the project");
+                scopeTd.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var scopeResult = scopeTd.Show();
+                if (scopeResult == TaskDialogResult.Cancel)
+                    return Result.Cancelled;
+                if (scopeResult == TaskDialogResult.CommandLink1)
+                {
+                    scanScope = selected.Select(id => doc.GetElement(id)).Where(e => e != null);
+                    scopeLabel = $"selection ({selected.Count})";
+                }
+                else
+                {
+                    scanScope = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                    scopeLabel = "project";
+                }
+            }
+            else
+            {
+                scanScope = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                scopeLabel = "project";
+            }
 
             int scanned = 0, stale = 0, updated = 0;
             var staleSummary = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
@@ -479,7 +524,7 @@ namespace StingTools.Tags
             var staleElements = new List<(Element el, string token, string stored, string current)>();
 
             // Phase 1: Scan for stale tokens
-            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            foreach (Element el in scanScope)
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
@@ -590,6 +635,9 @@ namespace StingTools.Tags
             // Phase 2: Update stale tokens and rebuild tags
             var processedElements = new HashSet<ElementId>();
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            // FIX-R03: Load formulas and grid lines for delta pipeline
+            var tcFormulas = TagPipelineHelper.LoadFormulas();
+            var tcGridLines = TagPipelineHelper.LoadGridLines(doc);
 
             using (Transaction tx = new Transaction(doc, "STING Delta Tag Update"))
             {
@@ -626,6 +674,34 @@ namespace StingTools.Tags
                             try { NativeParamMapper.MapAll(doc, el); }
                             catch (Exception nmEx) { StingLog.Warn($"TagChanged NativeMapper for {el.Id}: {nmEx.Message}"); }
 
+                            // FIX-R03: Evaluate formulas after native mapper
+                            if (tcFormulas != null && tcFormulas.Count > 0)
+                            {
+                                try
+                                {
+                                    foreach (var formula in tcFormulas)
+                                    {
+                                        Parameter fp = el.LookupParameter(formula.ParameterName);
+                                        if (fp == null || fp.IsReadOnly) continue;
+                                        var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                                        if (fCtx == null) continue;
+                                        if (formula.DataType == "TEXT")
+                                        {
+                                            string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                            if (fResult != null && fp.StorageType == StorageType.String)
+                                                fp.Set(fResult);
+                                        }
+                                        else
+                                        {
+                                            double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                            if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                                Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                        }
+                                    }
+                                }
+                                catch (Exception fEx) { StingLog.Warn($"TagChanged formula eval for {el.Id}: {fEx.Message}"); }
+                            }
+
                             // Write TAG7 + containers with updated spatial tokens
                             try
                             {
@@ -641,6 +717,13 @@ namespace StingTools.Tags
                                 StingLog.Warn($"TagChanged TAG7+containers for {el.Id}: {tag7Ex.Message}");
                             }
 
+                            // FIX-R03: Write GridRef per element
+                            if (tcGridLines != null && tcGridLines.Count > 0)
+                            {
+                                try { SpatialAutoDetect.GetGridRef(el, tcGridLines); }
+                                catch (Exception grEx) { StingLog.Warn($"TagChanged GridRef for {el.Id}: {grEx.Message}"); }
+                            }
+
                             updated++;
                         }
                     }
@@ -653,6 +736,9 @@ namespace StingTools.Tags
                 tx.Commit();
                 TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
+            // FIX-R03: Invalidate caches after delta update
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Tag Changed",
                 $"Delta update complete.\n\n  Stale tokens: {stale}\n  Elements updated: {updated}\n  Tags rebuilt: {processedElements.Count}");
             StingLog.Info($"Delta tagging: {stale} stale tokens, {updated} elements updated");

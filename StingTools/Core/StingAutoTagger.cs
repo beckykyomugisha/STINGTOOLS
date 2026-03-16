@@ -65,6 +65,9 @@ namespace StingTools.Core
             _contextInvalid = true;
             _tag7HashCache.Clear();
             _elementVersionHash.Clear();
+            // FIX-N04: Reset failure counter so auto-tagger can recover after external fixes
+            _consecutiveFailures = 0;
+            WasAutoDisabled = false;
             // A3: Clear processed cache on context invalidation to prevent stale-skip on document reload
             lock (_recentlyProcessed)
             {
@@ -447,6 +450,13 @@ namespace StingTools.Core
                                 catch (Exception ex)
                                 {
                                     StingLog.Warn($"AutoTagger combine failed for {id.Value}: {ex.Message}");
+                                }
+
+                                // FIX-R02: Write GridRef per element using cached grid lines
+                                if (_gridLines != null && _gridLines.Count > 0)
+                                {
+                                    try { SpatialAutoDetect.GetGridRef(el, _gridLines); }
+                                    catch (Exception grEx) { StingLog.Warn($"AutoTagger GridRef for {id.Value}: {grEx.Message}"); }
                                 }
 
                                 // Visual tag placement
@@ -872,6 +882,20 @@ namespace StingTools.Core
                 if (modifiedIds == null || modifiedIds.Count == 0) return;
                 if (modifiedIds.Count > MaxElementsPerTrigger) return;
 
+                // FIX-N07: Build roomIndex ONCE before the loop to avoid NullReferenceException
+                // and prevent per-element room collector rebuilds inside an IUpdater
+                Dictionary<long, Autodesk.Revit.DB.Architecture.Room> roomIndex = null;
+                string projectLoc = null;
+                try
+                {
+                    roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+                    projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+                }
+                catch (Exception riEx)
+                {
+                    StingLog.Warn($"StingStaleMarker room index build: {riEx.Message}");
+                }
+
                 foreach (ElementId id in modifiedIds)
                 {
                     try
@@ -891,15 +915,15 @@ namespace StingTools.Core
                         if (!string.IsNullOrEmpty(storedLvl) && currentLvl != storedLvl)
                             isStale = true;
 
-                        // FIX-07: Also detect LOC/ZONE changes from spatial context
-                        if (!isStale)
+                        // FIX-07/FIX-N07: Detect LOC/ZONE changes using pre-built roomIndex
+                        if (!isStale && roomIndex != null)
                         {
                             try
                             {
                                 string storedLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                                 if (!string.IsNullOrEmpty(storedLoc) && storedLoc != "XX")
                                 {
-                                    string currentLoc = SpatialAutoDetect.DetectLoc(doc, el, null, null);
+                                    string currentLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
                                     if (!string.IsNullOrEmpty(currentLoc) && currentLoc != "XX" && currentLoc != storedLoc)
                                         isStale = true;
                                 }
@@ -909,7 +933,7 @@ namespace StingTools.Core
                                     string storedZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
                                     if (!string.IsNullOrEmpty(storedZone) && storedZone != "XX" && storedZone != "ZZ")
                                     {
-                                        string currentZone = SpatialAutoDetect.DetectZone(doc, el, null);
+                                        string currentZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
                                         if (!string.IsNullOrEmpty(currentZone) && currentZone != "XX"
                                             && currentZone != "ZZ" && currentZone != storedZone)
                                             isStale = true;

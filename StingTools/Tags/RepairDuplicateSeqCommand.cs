@@ -70,6 +70,9 @@ namespace StingTools.Tags
             int retagged = 0;
             // FIX-05: Build population context for pre-enrichment before SEQ repair
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            // FIX-R04: Load formulas and grid lines for pipeline completeness
+            var rdFormulas = TagPipelineHelper.LoadFormulas();
+            var rdGridLines = TagPipelineHelper.LoadGridLines(doc);
             using (Transaction tx = new Transaction(doc, "STING Repair Duplicate SEQ"))
             {
                 tx.Start();
@@ -89,6 +92,34 @@ namespace StingTools.Tags
                             try { NativeParamMapper.MapAll(doc, el); }
                             catch (Exception nmEx) { StingLog.Warn($"RepairDuplicateSeq NativeMapper for {el.Id}: {nmEx.Message}"); }
 
+                            // FIX-R04: Evaluate formulas after native mapper
+                            if (rdFormulas != null && rdFormulas.Count > 0)
+                            {
+                                try
+                                {
+                                    foreach (var formula in rdFormulas)
+                                    {
+                                        Parameter fp = el.LookupParameter(formula.ParameterName);
+                                        if (fp == null || fp.IsReadOnly) continue;
+                                        var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                                        if (fCtx == null) continue;
+                                        if (formula.DataType == "TEXT")
+                                        {
+                                            string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                            if (fResult != null && fp.StorageType == StorageType.String)
+                                                fp.Set(fResult);
+                                        }
+                                        else
+                                        {
+                                            double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                            if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                                Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                        }
+                                    }
+                                }
+                                catch (Exception fEx) { StingLog.Warn($"RepairDuplicateSeq formula eval for {el.Id}: {fEx.Message}"); }
+                            }
+
                             TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                 skipComplete: false, existingTags,
                                 TagCollisionMode.AutoIncrement, null);
@@ -105,6 +136,13 @@ namespace StingTools.Tags
                             catch (Exception repEx)
                             {
                                 StingLog.Warn($"RepairDuplicateSeq TAG7+containers for {el.Id}: {repEx.Message}");
+                            }
+
+                            // FIX-R04: Write GridRef per element
+                            if (rdGridLines != null && rdGridLines.Count > 0)
+                            {
+                                try { SpatialAutoDetect.GetGridRef(el, rdGridLines); }
+                                catch (Exception grEx) { StingLog.Warn($"RepairDuplicateSeq GridRef for {el.Id}: {grEx.Message}"); }
                             }
                             retagged++;
                         }

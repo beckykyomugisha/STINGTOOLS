@@ -208,45 +208,45 @@ namespace StingTools.Core
                             result.RevisionMissing++;
                             AddIssue(result, "Missing REV");
                         }
-                    }
 
-                    // A5: STATUS completeness
-                    string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
-                    if (string.IsNullOrEmpty(status))
-                    {
-                        result.StatusMissing++;
-                        AddIssue(result, "Missing STATUS");
-                    }
-
-                    // A5: Container spot-check (first 3 applicable containers)
-                    try
-                    {
-                        var containers = ParamRegistry.ContainersForCategory(cat);
-                        if (containers != null && containers.Length > 0)
+                        // A5: STATUS completeness (FIX-N01: moved inside foreach loop)
+                        string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
+                        if (string.IsNullOrEmpty(status))
                         {
-                            int emptyCount = 0;
-                            int checkCount = Math.Min(3, containers.Length);
-                            for (int ci = 0; ci < checkCount; ci++)
+                            result.StatusMissing++;
+                            AddIssue(result, "Missing STATUS");
+                        }
+
+                        // A5: Container spot-check (first 3 applicable containers) (FIX-N01: moved inside foreach loop)
+                        try
+                        {
+                            var containers = ParamRegistry.ContainersForCategory(cat);
+                            if (containers != null && containers.Length > 0)
                             {
-                                if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, containers[ci].ParamName)))
-                                    emptyCount++;
+                                int emptyCount = 0;
+                                int checkCount = Math.Min(3, containers.Length);
+                                for (int ci = 0; ci < checkCount; ci++)
+                                {
+                                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, containers[ci].ParamName)))
+                                        emptyCount++;
+                                }
+                                if (emptyCount > 0) result.ContainersMissing++;
                             }
-                            if (emptyCount > 0) result.ContainersMissing++;
                         }
-                    }
-                    catch { }
+                        catch { }
 
-                    // FIX-12: Count elements marked as stale
-                    try
-                    {
-                        Parameter stalePar = elem.LookupParameter(ParamRegistry.STALE);
-                        if (stalePar != null && stalePar.StorageType == StorageType.Integer && stalePar.AsInteger() == 1)
+                        // FIX-12: Count elements marked as stale (FIX-N01: moved inside foreach loop)
+                        try
                         {
-                            result.StaleCount++;
-                            AddIssue(result, "Stale element");
+                            Parameter stalePar = elem.LookupParameter(ParamRegistry.STALE);
+                            if (stalePar != null && stalePar.StorageType == StorageType.Integer && stalePar.AsInteger() == 1)
+                            {
+                                result.StaleCount++;
+                                AddIssue(result, "Stale element");
+                            }
                         }
+                        catch { }
                     }
-                    catch { }
                 }
                 catch (Exception ex)
                 {

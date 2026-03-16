@@ -1085,6 +1085,9 @@ namespace StingTools.BIMManager
                         {
                             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                             string cachedRev = PhaseAutoDetect.DetectProjectRevision(doc);
+                            // FIX-R07: Load formulas and grid lines for import rebuild
+                            var elFormulas = TagPipelineHelper.LoadFormulas();
+                            var elGridLines = TagPipelineHelper.LoadGridLines(doc);
                             foreach (var eid in affectedIds)
                             {
                                 Element el = doc.GetElement(eid);
@@ -1095,12 +1098,45 @@ namespace StingTools.BIMManager
                                     // FIX-10: Bridge native params before tag rebuild
                                     try { NativeParamMapper.MapAll(doc, el); }
                                     catch (Exception nmEx) { StingLog.Warn($"ExcelLink NativeMapper for {el.Id}: {nmEx.Message}"); }
+                                    // FIX-R07: Evaluate formulas after native mapper
+                                    if (elFormulas != null && elFormulas.Count > 0)
+                                    {
+                                        try
+                                        {
+                                            foreach (var formula in elFormulas)
+                                            {
+                                                Parameter fp = el.LookupParameter(formula.ParameterName);
+                                                if (fp == null || fp.IsReadOnly) continue;
+                                                var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                                                if (fCtx == null) continue;
+                                                if (formula.DataType == "TEXT")
+                                                {
+                                                    string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                                    if (fResult != null && fp.StorageType == StorageType.String)
+                                                        fp.Set(fResult);
+                                                }
+                                                else
+                                                {
+                                                    double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                                    if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                                        Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                                }
+                                            }
+                                        }
+                                        catch (Exception fEx) { StingLog.Warn($"ExcelLink formula eval for {el.Id}: {fEx.Message}"); }
+                                    }
                                     TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                         skipComplete: false, tagIndex, TagCollisionMode.Overwrite, null,
                                         cachedRev: cachedRev);
                                     string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                                     ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
                                     TagConfig.WriteTag7All(doc, el, catName, tokenVals);
+                                    // FIX-R07: Write GridRef per element
+                                    if (elGridLines != null && elGridLines.Count > 0)
+                                    {
+                                        try { SpatialAutoDetect.GetGridRef(el, elGridLines); }
+                                        catch (Exception grEx) { StingLog.Warn($"ExcelLink GridRef for {el.Id}: {grEx.Message}"); }
+                                    }
                                     rebuilt++;
                                 }
                                 catch (Exception ex)
@@ -1109,6 +1145,9 @@ namespace StingTools.BIMManager
                                 }
                             }
                             rebuildTrans.Commit();
+                            // FIX-R07: Save SEQ sidecar after commit
+                            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                            catch (Exception ssEx) { StingLog.Warn($"ExcelLink Import SaveSeqSidecar: {ssEx.Message}"); }
                         }
                         catch (Exception ex)
                         {
@@ -1350,6 +1389,9 @@ namespace StingTools.BIMManager
                         {
                             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                             string cachedRev = PhaseAutoDetect.DetectProjectRevision(doc);
+                            // FIX-R07: Load formulas and grid lines for round-trip rebuild
+                            var rtFormulas = TagPipelineHelper.LoadFormulas();
+                            var rtGridLines = TagPipelineHelper.LoadGridLines(doc);
                             foreach (var eid in affectedIds)
                             {
                                 Element el = doc.GetElement(eid);
@@ -1360,12 +1402,45 @@ namespace StingTools.BIMManager
                                     // Phase2: Bridge native params before tag rebuild
                                     try { NativeParamMapper.MapAll(doc, el); }
                                     catch (Exception nmEx) { StingLog.Warn($"ExcelLink RoundTrip NativeMapper for {el.Id}: {nmEx.Message}"); }
+                                    // FIX-R07: Evaluate formulas after native mapper
+                                    if (rtFormulas != null && rtFormulas.Count > 0)
+                                    {
+                                        try
+                                        {
+                                            foreach (var formula in rtFormulas)
+                                            {
+                                                Parameter fp = el.LookupParameter(formula.ParameterName);
+                                                if (fp == null || fp.IsReadOnly) continue;
+                                                var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                                                if (fCtx == null) continue;
+                                                if (formula.DataType == "TEXT")
+                                                {
+                                                    string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                                    if (fResult != null && fp.StorageType == StorageType.String)
+                                                        fp.Set(fResult);
+                                                }
+                                                else
+                                                {
+                                                    double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                                    if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                                        Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                                }
+                                            }
+                                        }
+                                        catch (Exception fEx) { StingLog.Warn($"ExcelLink RoundTrip formula eval for {el.Id}: {fEx.Message}"); }
+                                    }
                                     TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                         skipComplete: false, tagIndex, TagCollisionMode.Overwrite, null,
                                         cachedRev: cachedRev);
                                     string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                                     ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
                                     TagConfig.WriteTag7All(doc, el, catName, tokenVals);
+                                    // FIX-R07: Write GridRef per element
+                                    if (rtGridLines != null && rtGridLines.Count > 0)
+                                    {
+                                        try { SpatialAutoDetect.GetGridRef(el, rtGridLines); }
+                                        catch (Exception grEx) { StingLog.Warn($"ExcelLink RoundTrip GridRef for {el.Id}: {grEx.Message}"); }
+                                    }
                                     rebuilt++;
                                 }
                                 catch (Exception ex)
@@ -1374,6 +1449,9 @@ namespace StingTools.BIMManager
                                 }
                             }
                             rebuildTrans.Commit();
+                            // FIX-R07: Save SEQ sidecar after commit
+                            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                            catch (Exception ssEx) { StingLog.Warn($"ExcelLink RoundTrip SaveSeqSidecar: {ssEx.Message}"); }
                         }
                         catch (Exception ex)
                         {

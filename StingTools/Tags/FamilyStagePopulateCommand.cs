@@ -236,6 +236,9 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            // FIX-N09: Invalidate caches after successful token population
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             sw.Stop();
             int totalPopulated = totalTokensSet;
 
