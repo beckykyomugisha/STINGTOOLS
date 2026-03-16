@@ -1496,3 +1496,6 @@ Generic Models,WARN_PARK_W,1e946af6-7d7f-5afb-bd80-8b755898f313,NUMBER,STINGTags
 Generic Models,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,88990dc2-2aca-5179-8407-6511d3e36248,TEXT,STINGTags_ISO19650,Type,Warn Per Sust Carbon Footprint Kg Walls  Floors   [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,424a78f9-d809-58c6-8c08-9687418c5233,TEXT,STINGTags_ISO19650,Type,Warn Rgl Access Clear Width Mm Doors  Ramps  C [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,WARN_STAIR_W,4a86d0a1-ed99-52a3-9b30-c0322a07ab60,NUMBER,STINGTags_ISO19650,Type,Warn Stair [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_TAG_PREV_TXT,a7c3e1f2-b4d5-4e6a-9f8b-1c2d3e4f5a6b,TEXT,STINGTags_ISO19650,Instance,Ass Tag Prev Txt [ISO 19650 Audit],False,,,MULTI,1,0
+Generic Models,ASS_TAG_MODIFIED_DT,b8d4f2a3-c5e6-4f7b-a09c-2d3e4f5a6b7c,TEXT,STINGTags_ISO19650,Instance,Ass Tag Modified Dt [ISO 19650 Audit],False,,,MULTI,1,0
+Generic Models,ASS_TOKEN_LOCK_TXT,c9e5a3b4-d6f7-4a8c-b10d-3e4f5a6b7c8d,TEXT,STINGTags_ISO19650,Instance,Ass Token Lock Txt [Token Lock],False,,,MULTI,1,0
