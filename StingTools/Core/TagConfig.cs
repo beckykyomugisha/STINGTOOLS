@@ -2601,7 +2601,63 @@ namespace StingTools.Core
             }
 
             StingLog.Info($"Tag index built: {index.Count} existing tags, {maxSeq.Count} SEQ groups");
+
+            // P6 / G3.1: Merge sidecar counters — take max(doc_count, sidecar_count) per key
+            try
+            {
+                var sidecar = LoadSeqSidecar(doc);
+                if (sidecar != null) MergeSeqSidecar(maxSeq, sidecar);
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildTagIndexAndCounters sidecar merge: {ex.Message}"); }
+
             return (index, maxSeq);
+        }
+
+        /// <summary>P6: Save SEQ counters to a JSON sidecar file alongside the .rvt project file.</summary>
+        public static void SaveSeqSidecar(Document doc, Dictionary<string, int> counters)
+        {
+            try
+            {
+                string rvtPath = doc?.PathName;
+                if (string.IsNullOrEmpty(rvtPath) || counters == null || counters.Count == 0) return;
+                string sidecarPath = Path.ChangeExtension(rvtPath, ".sting_seq.json");
+                string json = JsonConvert.SerializeObject(counters, Formatting.Indented);
+                File.WriteAllText(sidecarPath, json);
+                StingLog.Info($"SEQ sidecar saved: {counters.Count} groups → {sidecarPath}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SaveSeqSidecar: {ex.Message}");
+            }
+        }
+
+        /// <summary>P6: Load SEQ counters from the JSON sidecar file alongside the .rvt project file.</summary>
+        public static Dictionary<string, int> LoadSeqSidecar(Document doc)
+        {
+            try
+            {
+                string rvtPath = doc?.PathName;
+                if (string.IsNullOrEmpty(rvtPath)) return null;
+                string sidecarPath = Path.ChangeExtension(rvtPath, ".sting_seq.json");
+                if (!File.Exists(sidecarPath)) return null;
+                string json = File.ReadAllText(sidecarPath);
+                return JsonConvert.DeserializeObject<Dictionary<string, int>>(json);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadSeqSidecar: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>P6: Merge sidecar counters into document-scanned counters — take max per key.</summary>
+        public static void MergeSeqSidecar(Dictionary<string, int> counters, Dictionary<string, int> sidecar)
+        {
+            foreach (var kvp in sidecar)
+            {
+                if (!counters.TryGetValue(kvp.Key, out int existing) || kvp.Value > existing)
+                    counters[kvp.Key] = kvp.Value;
+            }
         }
 
         private static T TryDeserialize<T>(Dictionary<string, object> data, string key)

@@ -625,6 +625,43 @@ namespace StingTools.Core
             }
             return null;
         }
+
+        /// <summary>P5: Return grid reference string ("A/3") for nearest X/Y grids to element location.</summary>
+        public static string GetGridRef(Element el, List<Grid> grids)
+        {
+            try
+            {
+                XYZ point = null;
+                if (el.Location is LocationPoint lp) point = lp.Point;
+                else if (el.Location is LocationCurve lc)
+                    point = (lc.Curve.GetEndPoint(0) + lc.Curve.GetEndPoint(1)) / 2.0;
+                if (point == null)
+                {
+                    BoundingBoxXYZ bb = el.get_BoundingBox(null);
+                    if (bb != null) point = (bb.Min + bb.Max) / 2.0;
+                }
+                if (point == null) return null;
+
+                string nearX = null, nearY = null;
+                double minX = double.MaxValue, minY = double.MaxValue;
+                foreach (Grid g in grids)
+                {
+                    try
+                    {
+                        Curve c = g.Curve;
+                        XYZ dir = (c.GetEndPoint(1) - c.GetEndPoint(0)).Normalize();
+                        bool isHoriz = Math.Abs(dir.X) > Math.Abs(dir.Y);
+                        double dist = c.Distance(point);
+                        if (isHoriz && dist < minY) { minY = dist; nearY = g.Name; }
+                        else if (!isHoriz && dist < minX) { minX = dist; nearX = g.Name; }
+                    }
+                    catch { }
+                }
+                if (nearX != null && nearY != null) return $"{nearX}/{nearY}";
+                return nearX ?? nearY;
+            }
+            catch { return null; }
+        }
     }
 
     /// <summary>
@@ -1007,6 +1044,38 @@ namespace StingTools.Core
             public bool StatusDetected { get; set; }
             public bool RevSet { get; set; }
             public bool FamilyProdUsed { get; set; }
+        }
+
+        /// <summary>
+        /// P4: Inherit token values from the element's family type (ElementType) to
+        /// the instance. If the type already has DISC/SYS/FUNC/PROD set (e.g. via
+        /// family editor or BatchAddFamilyParams), copy those values to the instance
+        /// only when the instance parameter is empty.
+        /// </summary>
+        public static void TypeTokenInherit(Document doc, Element el)
+        {
+            try
+            {
+                if (el is ElementType) return;
+                ElementId typeId = el.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return;
+                Element elType = doc.GetElement(typeId);
+                if (elType == null) return;
+
+                // Copy type-level tokens to instance (non-destructive)
+                string[] tokenParams = { ParamRegistry.DISC, ParamRegistry.SYS,
+                    ParamRegistry.FUNC, ParamRegistry.PROD };
+                foreach (string paramName in tokenParams)
+                {
+                    string typeVal = ParameterHelpers.GetString(elType, paramName);
+                    if (!string.IsNullOrEmpty(typeVal))
+                        ParameterHelpers.SetIfEmpty(el, paramName, typeVal);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TypeTokenInherit: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -2019,6 +2088,157 @@ namespace StingTools.Core
                 .OfClass(typeof(FillPatternElement))
                 .Cast<FillPatternElement>()
                 .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+        }
+    }
+
+    /// <summary>
+    /// G2.1 / GAP-P1-P4: Centralised per-element tagging pipeline.
+    /// Executes the full sequence: TypeTokenInherit → PopulateAll → NativeParamMapper
+    /// → FormulaEngine → BuildAndWriteTag → WriteContainers → WriteTag7All → GridRef.
+    /// All tag commands delegate to this helper to guarantee pipeline consistency.
+    /// </summary>
+    internal static class TagPipelineHelper
+    {
+        /// <summary>
+        /// Run the complete tagging pipeline for a single element.
+        /// All parameters are pre-built outside the loop for performance.
+        /// </summary>
+        public static bool RunFullPipeline(
+            Document doc,
+            Element el,
+            TokenAutoPopulator.PopulationContext ctx,
+            HashSet<string> tagIndex,
+            Dictionary<string, int> seqCounters,
+            List<Temp.FormulaEngine.FormulaDefinition> formulas,
+            List<Grid> gridLines,
+            bool overwrite,
+            bool skipComplete,
+            TagCollisionMode collisionMode,
+            TaggingStats stats = null)
+        {
+            try
+            {
+                string catName = ParameterHelpers.GetCategoryName(el);
+                if (string.IsNullOrEmpty(catName)) return false;
+
+                // G1.1: Category skip list
+                if (TagConfig.CategorySkipList.Contains(catName)) return false;
+
+                // P4: Inherit token values from family type before populating
+                TokenAutoPopulator.TypeTokenInherit(doc, el);
+
+                // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
+                TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
+
+                // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
+                if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
+                    && !string.IsNullOrEmpty(forcedSys))
+                    ParameterHelpers.SetString(el, ParamRegistry.SYS, forcedSys, overwrite: true);
+
+                // P2: Bridge Revit native params → STING shared params
+                NativeParamMapper.MapAll(doc, el);
+
+                // P3: Evaluate formulas in dependency order
+                if (formulas != null && formulas.Count > 0)
+                {
+                    foreach (var formula in formulas)
+                    {
+                        try
+                        {
+                            Parameter targetParam = el.LookupParameter(formula.ParameterName);
+                            if (targetParam == null || targetParam.IsReadOnly) continue;
+
+                            var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                            if (fCtx == null) continue;
+
+                            if (formula.DataType == "TEXT")
+                            {
+                                string result = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                if (result != null && targetParam.StorageType == StorageType.String
+                                    && string.IsNullOrEmpty(targetParam.AsString()))
+                                    targetParam.Set(result);
+                            }
+                            else
+                            {
+                                double? result = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                if (result.HasValue && !double.IsNaN(result.Value) && !double.IsInfinity(result.Value))
+                                    Temp.FormulaEngine.WriteNumericResult(targetParam, result.Value);
+                            }
+                        }
+                        catch (Exception fEx)
+                        {
+                            StingLog.Warn($"TagPipeline formula '{formula.ParameterName}' on {el.Id}: {fEx.Message}");
+                        }
+                    }
+                }
+
+                // Core: Build and write TAG1 (with collision detection)
+                TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                    skipComplete: skipComplete,
+                    existingTags: tagIndex,
+                    collisionMode: collisionMode,
+                    stats: stats,
+                    cachedRev: ctx?.ProjectRev);
+
+                // P1: Write all container parameters
+                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                ParamRegistry.WriteContainers(el, tokenVals, catName,
+                    overwrite: overwrite, skipParam: ParamRegistry.TAG1);
+
+                // Core: Write TAG7 rich narrative (A-F sub-sections)
+                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
+
+                // P5: Auto-populate GRID_REF if empty and grids are available
+                if (gridLines != null && gridLines.Count > 0
+                    && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.GRID_REF)))
+                {
+                    string gridRef = SpatialAutoDetect.GetGridRef(el, gridLines);
+                    if (!string.IsNullOrEmpty(gridRef))
+                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TagPipelineHelper.RunFullPipeline: element {el?.Id}: {ex.Message}");
+                stats?.RecordWarning($"Pipeline error on {el?.Id}: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Build context objects required by RunFullPipeline. Call once before the element loop.
+        /// Returns formulas sorted by DependencyLevel (empty list if no formula file found).
+        /// </summary>
+        public static List<Temp.FormulaEngine.FormulaDefinition> LoadFormulas()
+        {
+            try
+            {
+                string csvPath = StingToolsApp.FindDataFile("FORMULAS_WITH_DEPENDENCIES.csv");
+                if (csvPath == null) return new List<Temp.FormulaEngine.FormulaDefinition>();
+                var formulas = Temp.FormulaEngine.LoadFormulas(csvPath);
+                formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
+                return formulas;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TagPipelineHelper.LoadFormulas: {ex.Message}");
+                return new List<Temp.FormulaEngine.FormulaDefinition>();
+            }
+        }
+
+        /// <summary>P5: Load all Grid elements once before the element loop.</summary>
+        public static List<Grid> LoadGridLines(Document doc)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(Grid))
+                    .Cast<Grid>()
+                    .ToList();
+            }
+            catch { return new List<Grid>(); }
         }
     }
 }
