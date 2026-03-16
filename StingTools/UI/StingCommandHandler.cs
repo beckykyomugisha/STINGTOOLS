@@ -128,6 +128,8 @@ namespace StingTools.UI
                     // ── Spatial selectors ──
                     case "SelectByLevel": RunCommand<Select.SelectByLevelCommand>(app); break;
                     case "SelectByRoom": RunCommand<Select.SelectByRoomCommand>(app); break;
+                    case "SelectStale": RunCommand<Select.SelectStaleElementsCommand>(app); break;
+                    case "QuickTagPreview": RunCommand<Select.QuickTagPreviewCommand>(app); break;
 
                     // ── Bulk param write ──
                     case "BulkParamWrite": RunCommand<Select.BulkParamWriteCommand>(app); break;
@@ -533,6 +535,7 @@ namespace StingTools.UI
                     case "BuildTags": RunCommand<Tags.BuildTagsCommand>(app); break;
                     case "CombineParameters": RunCommand<Tags.CombineParametersCommand>(app); break;
                     case "CombinePreFlight": RunCommand<Tags.CombinePreFlightCommand>(app); break;
+                    case "ContainerPreCheck": RunCommand<Tags.ContainerPreCheckCommand>(app); break;
 
                     // ── Manual tokens ──
                     case "SetDisc": RunCommand<Tags.SetDiscCommand>(app); break;

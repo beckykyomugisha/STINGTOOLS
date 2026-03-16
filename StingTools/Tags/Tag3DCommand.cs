@@ -140,27 +140,9 @@ namespace StingTools.Tags
 
             foreach (var fs in candidates)
             {
-                // Check if family has the tag label parameter
                 try
                 {
-                    if (!fs.IsActive)
-                    {
-                        using (Transaction act = new Transaction(doc, "STING Activate"))
-                        {
-                            act.Start();
-                            fs.Activate();
-                            act.Commit();
-                        }
-                    }
-                    var tempInst = doc.Create?.NewFamilyInstance(
-                        XYZ.Zero, fs, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
-                    if (tempInst != null)
-                    {
-                        Parameter p = tempInst.LookupParameter(TAG_3D_LABEL);
-                        // Clean up temp instance — we can't delete mid-search easily,
-                        // just check if the parameter exists on the symbol directly
-                    }
-                    // Simplified: check if family name contains "tag" or "3d"
+                    // Check family name for tag/3D indicators — no temp instance needed
                     string famName = fs.Family?.Name?.ToUpperInvariant() ?? "";
                     if (famName.Contains("TAG") || famName.Contains("3D"))
                     {

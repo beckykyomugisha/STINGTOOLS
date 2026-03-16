@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **78 source files** (76 C# + 2 XAML, ~89,500 lines of code) across 10 directories
-- **381 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **78 source files** (76 C# + 2 XAML, ~89,800 lines of code) across 10 directories
+- **384 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **27 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (8 tabs) + 1 WPF project setup wizard
 
@@ -55,7 +55,7 @@ STINGTOOLS/
     │
     ├── Select/                         # Element selection + color commands (3 files, 29 commands)
     │   ├── CategorySelectCommands.cs   # 14 category selectors + SelectAllTaggable + CategorySelector helper
-    │   ├── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite
+    │   ├── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite + SelectStale + QuickTagPreview
     │   └── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │
     ├── UI/                             # WPF dockable panel UI + project wizard (6 C# files + 2 XAML, ~9,570 lines)
@@ -173,7 +173,7 @@ STINGTOOLS/
 | Group | Commands | Description |
 |-------|----------|-------------|
 | Category | 16 selectors (Lighting, Electrical, Mechanical, Plumbing, Air Terminals, Furniture, Doors, Windows, Rooms, Sprinklers, Pipes, Ducts, Conduits, Cable Trays, ALL Taggable, Custom Category) | Select elements by Revit category in active view |
-| State | Untagged, Tagged, Empty Mark, Pinned, Unpinned | Select by tag/pin/mark state |
+| State | Untagged, Tagged, Empty Mark, Pinned, Unpinned, **Stale**, **Quick Tag Preview** | Select by tag/pin/mark state + stale detection + tag preview |
 | Spatial | By Level, By Room | Select by spatial criteria |
 | Bulk Param | `Select.BulkParamWriteCommand` | Multi-page bulk operations: set LOC/ZONE/STATUS, auto-populate all tokens, clear tags, or re-tag with overwrite |
 
@@ -372,7 +372,7 @@ STINGTOOLS/
 | `Core/WorkflowEngine.cs` | 3 (WorkflowPreset, ListPresets, CreatePreset) + WorkflowEngine | 549 |
 | `Core/ComplianceScan.cs` | 0 (cached compliance scan helper) | 160 |
 | `Select/CategorySelectCommands.cs` | 16 (14 category selectors + SelectAllTaggable + SelectCustomCategory) | 322 |
-| `Select/StateSelectCommands.cs` | 8 (5 state + 2 spatial + BulkParamWrite) | 625 |
+| `Select/StateSelectCommands.cs` | 10 (5 state + 2 spatial + BulkParamWrite + SelectStale + QuickTagPreview) | 835 |
 | `Select/ColorCommands.cs` | 5 (ColorByParameter, ClearOverrides, SavePreset, LoadPreset, CreateFilters) + ColorHelper | 922 |
 | `Docs/SheetOrganizerCommand.cs` | 1 | 103 |
 | `Docs/ViewOrganizerCommand.cs` | 1 | 93 |
@@ -387,7 +387,7 @@ STINGTOOLS/
 | `Tags/TagAndCombineCommand.cs` | 1 | 235 |
 | `Tags/PreTagAuditCommand.cs` | 1 | 442 |
 | `Tags/FamilyStagePopulateCommand.cs` | 1 | 379 |
-| `Tags/CombineParametersCommand.cs` | 2 (CombineParameters, CombinePreFlight) | 426 |
+| `Tags/CombineParametersCommand.cs` | 3 (CombineParameters, CombinePreFlight, ContainerPreCheck) | 536 |
 | `Tags/ConfigEditorCommand.cs` | 1 | 211 |
 | `Tags/TagConfigCommand.cs` | 1 | 63 |
 | `Tags/LoadSharedParamsCommand.cs` | 1 | 344 |
@@ -434,7 +434,7 @@ STINGTOOLS/
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
 | `UI/StingDockPanel.xaml` | — (WPF markup, 8-tab panel with ~610 buttons) | 2,163 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
-| **Total** | **381 commands** | **~89,500** |
+| **Total** | **384 commands** | **~89,800** |
 
 ## Core Classes
 
@@ -1362,6 +1362,16 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 184. **Tag history audit trail** — `ASS_TAG_PREV_TXT` + `ASS_TAG_MODIFIED_DT` written at start of `RunFullPipeline`; parameters added to `MR_PARAMETERS.csv`.
 185. **SeparatorHistory persistence** — `SEPARATOR_HISTORY` key in `project_config.json`; loaded/saved/reset. Old separator tracked before override in `ApplyTagFormatOverrides()`.
 186. **AUTO_RUN_WORKFLOW_ON_OPEN** — Config key logged on `DocumentOpened` for workflow automation awareness.
+
+#### Completed (Phase 17 — Efficiency & Automation Enhancements)
+
+187. **Tag3DCommand FindTagFamily fix** — Removed memory-leaking temporary `FamilyInstance` creation; now checks family name directly on `FamilySymbol` without instantiation.
+188. **Dead code removal** — Removed unused `GetNearestGridRef()` method from `ScheduleCommands.cs` (superseded by `SpatialAutoDetect.GetGridRef` in unified pipeline).
+189. **TagFormatMigration single-pass** — Eliminated double-read of `ReadTokenValues` in preview; merged sample display and change count into single loop.
+190. **SelectStaleElementsCommand** — New command: selects elements with stale tags where LVL/SYS/PROD no longer match current context. Enables targeted re-tagging of only moved/changed elements.
+191. **QuickTagPreviewCommand** — New command: shows predicted tag for selected elements in read-only mode without making changes. Displays current vs predicted tag, gap count, and format settings.
+192. **ContainerPreCheckCommand** — New command: verifies all container parameters are bound and writable before running Combine Parameters. Reports per-group status, unbound parameters, and read-only fields.
+193. **TAG tab enhanced** — Added Select Stale, Container Check, and Quick Tag Preview buttons to CREATE tab QA and TOKEN INSPECTOR sections.
 
 ### External Tool References
 

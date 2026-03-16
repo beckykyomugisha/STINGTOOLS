@@ -1300,6 +1300,8 @@
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource BlueBtn}" Content="Completeness %" Tag="CompletenessDashboard" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Find Duplicates" Tag="FindDuplicates" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Select Stale" Tag="SelectStale" Click="Cmd_Click" ToolTip="Select elements with stale tags (moved/changed since tagging)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Container Check" Tag="ContainerPreCheck" Click="Cmd_Click" ToolTip="Verify all container parameters are bound and writable"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -1396,6 +1398,8 @@
                             <StackPanel>
                                 <TextBlock Text="Select element then Inspect :" FontSize="9" Foreground="#888"/>
                                 <Button Style="{StaticResource BlueBtn}" Content="[Find] Inspect Selection" Tag="PreTagAudit" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Quick Tag Preview" Tag="QuickTagPreview" Click="Cmd_Click" HorizontalAlignment="Stretch" Margin="0,4,0,0"
+                                        ToolTip="Preview predicted tag for selected elements without making changes"/>
                             </StackPanel>
                         </Border>
 
