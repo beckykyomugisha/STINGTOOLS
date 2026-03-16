@@ -232,7 +232,7 @@ namespace StingTools.Core
                     _formulas = TagPipelineHelper.LoadFormulas();
                     _gridLines = TagPipelineHelper.LoadGridLines(doc);
                     _contextInvalid = false;
-                    StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags)");
+                    StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags, {_formulas.Count} formulas, {_gridLines.Count} grids)");
                 }
                 var ctx = _cachedCtx;
                 var existingTags = _cachedExistingTags;
