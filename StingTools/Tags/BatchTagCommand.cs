@@ -463,7 +463,8 @@ namespace StingTools.Tags
             int scanned = 0, stale = 0, updated = 0;
             var staleSummary = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
             {
-                ["LVL"] = 0, ["LOC"] = 0, ["ZONE"] = 0
+                ["LVL"] = 0, ["LOC"] = 0, ["ZONE"] = 0,
+                ["SYS"] = 0, ["FUNC"] = 0, ["PROD"] = 0
             };
 
             var staleElements = new List<(Element el, string token, string stored, string current)>();
@@ -509,6 +510,40 @@ namespace StingTools.Tags
                     staleElements.Add((el, "ZONE", storedZone, currentZone));
                     staleSummary["ZONE"]++;
                 }
+
+                // P7 / G4.1: Check SYS
+                string catName = cat;
+                string storedSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string currentSys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                if (!string.IsNullOrEmpty(storedSys) && !string.IsNullOrEmpty(currentSys)
+                    && currentSys != "GEN"
+                    && !storedSys.Equals(currentSys, StringComparison.OrdinalIgnoreCase))
+                {
+                    staleElements.Add((el, "SYS", storedSys, currentSys));
+                    staleSummary["SYS"]++;
+                }
+
+                // P7 / G4.1: Check FUNC
+                string storedFunc = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                string currentFunc = TagConfig.GetSmartFuncCode(el, currentSys ?? storedSys);
+                if (!string.IsNullOrEmpty(storedFunc) && !string.IsNullOrEmpty(currentFunc)
+                    && currentFunc != "GEN"
+                    && !storedFunc.Equals(currentFunc, StringComparison.OrdinalIgnoreCase))
+                {
+                    staleElements.Add((el, "FUNC", storedFunc, currentFunc));
+                    staleSummary["FUNC"]++;
+                }
+
+                // P7 / G4.1: Check PROD (family type change)
+                string storedProd = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                string currentProd = TagConfig.GetFamilyAwareProdCode(el, catName);
+                if (!string.IsNullOrEmpty(storedProd) && !string.IsNullOrEmpty(currentProd)
+                    && currentProd != "GEN"
+                    && !storedProd.Equals(currentProd, StringComparison.OrdinalIgnoreCase))
+                {
+                    staleElements.Add((el, "PROD", storedProd, currentProd));
+                    staleSummary["PROD"]++;
+                }
             }
 
             stale = staleElements.Count;
@@ -528,6 +563,9 @@ namespace StingTools.Tags
             if (staleSummary["LVL"] > 0) preview.AppendLine($"  LVL changes:  {staleSummary["LVL"]}");
             if (staleSummary["LOC"] > 0) preview.AppendLine($"  LOC changes:  {staleSummary["LOC"]}");
             if (staleSummary["ZONE"] > 0) preview.AppendLine($"  ZONE changes: {staleSummary["ZONE"]}");
+            if (staleSummary["SYS"] > 0) preview.AppendLine($"  SYS changes:  {staleSummary["SYS"]}");
+            if (staleSummary["FUNC"] > 0) preview.AppendLine($"  FUNC changes: {staleSummary["FUNC"]}");
+            if (staleSummary["PROD"] > 0) preview.AppendLine($"  PROD changes: {staleSummary["PROD"]}");
 
             TaskDialog td = new TaskDialog("Tag Changed — Delta Update");
             td.MainInstruction = $"{stale} stale spatial tokens found";
@@ -558,6 +596,9 @@ namespace StingTools.Tags
                             "LVL" => ParamRegistry.LVL,
                             "LOC" => ParamRegistry.LOC,
                             "ZONE" => ParamRegistry.ZONE,
+                            "SYS" => ParamRegistry.SYS,
+                            "FUNC" => ParamRegistry.FUNC,
+                            "PROD" => ParamRegistry.PROD,
                             _ => null
                         };
                         if (paramName != null)
