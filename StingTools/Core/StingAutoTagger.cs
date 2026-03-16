@@ -236,7 +236,22 @@ namespace StingTools.Core
                     return;
                 }
 
-                int enqueued = 0;
+                // D1: Use cached context; rebuild only when invalidated
+                if (_contextInvalid || _cachedCtx == null)
+                {
+                    _cachedCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                    var built = TagConfig.BuildTagIndexAndCounters(doc);
+                    _cachedExistingTags = built.Item1;
+                    _cachedSeqCounters = built.Item2;
+                    _formulas = TagPipelineHelper.LoadFormulas();
+                    _gridLines = TagPipelineHelper.LoadGridLines(doc);
+                    _contextInvalid = false;
+                    StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags, {_formulas.Count} formulas, {_gridLines.Count} grids)");
+                }
+                var ctx = _cachedCtx;
+                var existingTags = _cachedExistingTags;
+                var seqCounters = _cachedSeqCounters;
+
                 foreach (ElementId id in addedIds)
                 {
                     // Skip recently processed (avoid re-trigger loops)
@@ -494,6 +509,11 @@ namespace StingTools.Core
         /// Key = element ID, Value = hash of tag + location tokens. Only re-mark when hash changes.</summary>
         private static readonly Dictionary<long, string> _elementVersionHash = new Dictionary<long, string>();
 
+        /// <summary>A2: Debounce — minimum interval (ms) between stale-mark transactions.
+        /// Prevents thundering-herd on bulk operations (group moves, workset assigns, filter applies).</summary>
+        private static DateTime _lastStaleMarkTime = DateTime.MinValue;
+        private const int STALE_DEBOUNCE_MS = 500;
+
         /// <summary>
         /// DocumentChanged event handler that marks modified tagged elements as stale.
         /// For each element with a non-empty ASS_TAG_1_TXT, sets STING_STALE_BOOL = 1
@@ -508,6 +528,10 @@ namespace StingTools.Core
 
             try
             {
+                // A2: Debounce — skip if called within 500ms of last stale-mark transaction
+                // Prevents thundering-herd on bulk operations (group moves, workset assigns, filter applies)
+                if ((DateTime.UtcNow - _lastStaleMarkTime).TotalMilliseconds < STALE_DEBOUNCE_MS) return;
+
                 Document doc = args.GetDocument();
                 if (doc == null || !doc.IsValidObject || doc.IsFamilyDocument) return;
 
@@ -569,6 +593,9 @@ namespace StingTools.Core
                     }
                     tx.Commit();
                 }
+
+                // A2: Update last stale-mark timestamp for debounce
+                _lastStaleMarkTime = DateTime.UtcNow;
 
                 // LOG-09: Prune version hash cache when it grows too large
                 if (_elementVersionHash.Count > 10000)

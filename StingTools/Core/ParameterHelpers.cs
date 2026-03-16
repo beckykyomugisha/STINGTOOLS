@@ -2369,6 +2369,21 @@ namespace StingTools.Core
                 // G1.1: Category skip list
                 if (TagConfig.CategorySkipList.Contains(catName)) return false;
 
+                // AL-06: Capture previous tag value and timestamp for audit trail
+                try
+                {
+                    string prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(prevTag))
+                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", prevTag, overwrite: true);
+                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
+                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                }
+                catch (Exception auditEx)
+                {
+                    // Params not bound yet — add ASS_TAG_PREV_TXT + ASS_TAG_MODIFIED_DT to MR_PARAMETERS.csv
+                    StingLog.Warn($"Tag history params not bound on {el?.Id}: {auditEx.Message}");
+                }
+
                 // P4: Inherit token values from family type before populating
                 TokenAutoPopulator.TypeTokenInherit(doc, el);
 

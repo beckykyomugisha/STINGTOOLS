@@ -855,33 +855,18 @@ namespace StingTools.Temp
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
 
-            // Load formula engine
-            string csvPath = StingToolsApp.FindDataFile("FORMULAS_WITH_DEPENDENCIES.csv");
-            var formulas = new List<FormulaEngine.FormulaDefinition>();
-            if (csvPath != null)
-            {
-                formulas = FormulaEngine.LoadFormulas(csvPath);
-                formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
-            }
-
-            // Grid lines for grid reference auto-detection
-            var gridLines = new FilteredElementCollector(doc)
-                .OfClass(typeof(Grid))
-                .Cast<Grid>()
-                .ToList();
+            // NP9/AL-04: Use TagPipelineHelper for consistent formula loading and grid detection
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
 
             // Collect all elements
             var allElements = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
                 .ToList();
 
-            int tokensFilled = 0, nativesMapped = 0, formulasWritten = 0;
-            int tagged = 0, combined = 0, gridRefSet = 0;
-            int statusDetected = 0, revSet = 0;
+            int tagged = 0;
             int totalElements = 0;
             int errors = 0;
-
-            // Container definitions loaded from ParamRegistry.ContainerGroups
 
             bool cancelled = false;
             using (Transaction tx = new Transaction(doc, "STING Full Auto-Populate"))
@@ -904,79 +889,21 @@ namespace StingTools.Temp
 
                     try
                     {
-                    // ── STEP 1: Full 9-token population via TokenAutoPopulator ──
-                    var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx);
-                    tokensFilled += popResult.TokensSet;
-                    if (popResult.StatusDetected) statusDetected++;
-                    if (popResult.RevSet) revSet++;
+                        // NP9/AL-04: Delegate to TagPipelineHelper for pipeline consistency
+                        // CategorySkipList, CategoryForceSys, and all future pipeline additions apply automatically
+                        bool fullPipelineOk = TagPipelineHelper.RunFullPipeline(
+                            doc, el, popCtx, tagIndex, seqCounters,
+                            formulas, gridLines,
+                            overwrite: true,
+                            skipComplete: false,
+                            collisionMode: TagCollisionMode.AutoIncrement);
 
-                    // ── STEP 2: Native parameter mapping ───────────────────────
-                    nativesMapped += NativeParamMapper.MapAll(doc, el);
+                        if (fullPipelineOk)
+                            tagged++;
 
-                    // ── STEP 3: Formula evaluation ─────────────────────────────
-                    foreach (var formula in formulas)
-                    {
-                        try
-                        {
-                            Parameter targetParam = el.LookupParameter(formula.ParameterName);
-                            if (targetParam == null || targetParam.IsReadOnly) continue;
-
-                            var context = FormulaEngine.BuildContext(el, formula);
-                            if (context == null) continue;
-
-                            if (formula.DataType == "TEXT")
-                            {
-                                string result = FormulaEngine.EvaluateText(formula.Expression, context);
-                                if (result != null && targetParam.StorageType == StorageType.String)
-                                {
-                                    if (string.IsNullOrEmpty(targetParam.AsString()))
-                                    {
-                                        targetParam.Set(result);
-                                        formulasWritten++;
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                double? result = FormulaEngine.EvaluateNumeric(formula.Expression, context);
-                                if (result.HasValue && !double.IsNaN(result.Value) && !double.IsInfinity(result.Value))
-                                {
-                                    if (FormulaEngine.WriteNumericResult(targetParam, result.Value))
-                                        formulasWritten++;
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            StingLog.Warn($"Formula '{formula.ParameterName}' el {el.Id}: {ex.Message}");
-                        }
-                    }
-
-                    // ── STEP 4: Build tag (with collision detection) ───────────
-                    if (TagConfig.BuildAndWriteTag(doc, el, seqCounters, existingTags: tagIndex))
-                        tagged++;
-
-                    // ── STEP 5: Combine into all containers via ParamRegistry ───
-                    string[] tokenValues = ParamRegistry.ReadTokenValues(el);
-                    combined += ParamRegistry.WriteContainers(el, tokenValues, catName,
-                        skipParam: ParamRegistry.TAG7);
-
-                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    combined += TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
-
-                    // ── STEP 6: Grid Reference ─────────────────────────────────
-                    if (gridLines.Count > 0 &&
-                        string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.GRID_REF)))
-                    {
-                        string gridRef = GetNearestGridRef(el, gridLines);
-                        if (!string.IsNullOrEmpty(gridRef) &&
-                            ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef))
-                            gridRefSet++;
-                    }
-
-                    // Progress logging
-                    if (totalElements % 500 == 0)
-                        StingLog.Info($"FullAutoPopulate: {totalElements} elements processed...");
+                        // Progress logging
+                        if (totalElements % 500 == 0)
+                            StingLog.Info($"FullAutoPopulate: {totalElements} elements processed...");
                     }
                     catch (Exception ex)
                     {
@@ -994,107 +921,24 @@ namespace StingTools.Temp
             report.AppendLine("Full Schedule Auto-Populate Complete");
             report.AppendLine(new string('═', 50));
             report.AppendLine($"  Elements processed:    {totalElements}");
-            report.AppendLine($"  Tag tokens filled:     {tokensFilled}");
-            if (statusDetected > 0)
-                report.AppendLine($"  STATUS auto-detected:  {statusDetected} (from Revit phases/worksets)");
-            if (revSet > 0)
-                report.AppendLine($"  REV auto-set:          {revSet} (revision '{popCtx.ProjectRev}')");
-            report.AppendLine($"  Native params mapped:  {nativesMapped}");
-            report.AppendLine($"  Formulas evaluated:    {formulasWritten}");
-            report.AppendLine($"  Tags built (SEQ):      {tagged}");
-            report.AppendLine($"  Containers combined:   {combined}");
-            if (gridRefSet > 0)
-                report.AppendLine($"  Grid refs assigned:    {gridRefSet}");
+            report.AppendLine($"  Successfully pipelined: {tagged} (tag built + containers written + TAG7 updated)");
             if (errors > 0)
                 report.AppendLine($"  Errors (skipped):      {errors}");
             report.AppendLine($"  Duration:              {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
             if (cancelled)
                 report.AppendLine("CANCELLED by user (Escape key). Partial results committed.");
-            report.AppendLine("Pipeline: Tokens(9) → Dimensions → MEP → Formulas → Tags → Combine → Grid");
+            report.AppendLine("Pipeline: CategoryFilter → TypeTokenInherit → PopulateAll → NativeMapper → Formulas → Tag → Containers → TAG7 → GridRef");
 
             TaskDialog.Show("Full Auto-Populate", report.ToString());
 
             StingLog.Info($"FullAutoPopulate: {totalElements} elements, " +
-                $"tokens={tokensFilled}, statusDetect={statusDetected}, revSet={revSet}, " +
-                $"natives={nativesMapped}, formulas={formulasWritten}, " +
-                $"tags={tagged}, combined={combined}, grids={gridRefSet}, " +
+                $"pipelined={tagged}, errors={errors}, " +
                 $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;
         }
 
-        /// <summary>
-        /// Find nearest grid intersection reference for an element.
-        /// Returns grid reference like "A/3" (nearest X-grid / nearest Y-grid).
-        /// </summary>
-        private static string GetNearestGridRef(Element el, List<Grid> grids)
-        {
-            try
-            {
-                // Get element location point
-                LocationPoint lp = el.Location as LocationPoint;
-                LocationCurve lc = el.Location as LocationCurve;
-                XYZ point;
-
-                if (lp != null)
-                    point = lp.Point;
-                else if (lc != null)
-                    point = (lc.Curve.GetEndPoint(0) + lc.Curve.GetEndPoint(1)) / 2.0;
-                else
-                    return null;
-
-                string nearestX = null;
-                string nearestY = null;
-                double minDistX = double.MaxValue;
-                double minDistY = double.MaxValue;
-
-                foreach (Grid grid in grids)
-                {
-                    try
-                    {
-                        Curve curve = grid.Curve;
-                        XYZ start = curve.GetEndPoint(0);
-                        XYZ end = curve.GetEndPoint(1);
-                        XYZ dir = (end - start).Normalize();
-
-                        // Classify grid as X-direction or Y-direction
-                        bool isXGrid = Math.Abs(dir.X) > Math.Abs(dir.Y); // runs along X = horizontal
-                        double dist = curve.Distance(point);
-
-                        if (isXGrid)
-                        {
-                            // Horizontal grid → Y reference
-                            if (dist < minDistY)
-                            {
-                                minDistY = dist;
-                                nearestY = grid.Name;
-                            }
-                        }
-                        else
-                        {
-                            // Vertical grid → X reference
-                            if (dist < minDistX)
-                            {
-                                minDistX = dist;
-                                nearestX = grid.Name;
-                            }
-                        }
-                    }
-                    catch { }
-                }
-
-                if (nearestX != null && nearestY != null)
-                    return $"{nearestX}/{nearestY}";
-                if (nearestX != null)
-                    return nearestX;
-                if (nearestY != null)
-                    return nearestY;
-            }
-            catch { }
-
-            return null;
-        }
     }
 
     /// <summary>

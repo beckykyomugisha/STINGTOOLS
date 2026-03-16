@@ -153,7 +153,22 @@ namespace StingTools.Core
                 }
 
                 Temp.FormulaEngine.InvalidateFormulaCache();
-                StingLog.Info("DocumentOpened: cleared caches; reloaded TagConfig");
+                StingLog.Info("DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig");
+
+                // AL-07: Log configured auto-run workflow (actual execution requires ExternalEvent)
+                try
+                {
+                    string autoWorkflow = TagConfig.AutoRunWorkflowOnOpen;
+                    if (!string.IsNullOrEmpty(autoWorkflow))
+                    {
+                        StingLog.Info($"OnDocumentOpened: AUTO_RUN_WORKFLOW_ON_OPEN configured: '{autoWorkflow}'. " +
+                            "Use 'Workflow Preset' command to execute manually.");
+                    }
+                }
+                catch (Exception arwEx)
+                {
+                    StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
+                }
             }
             catch (Exception ex)
             {

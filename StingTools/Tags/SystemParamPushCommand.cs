@@ -631,6 +631,9 @@ namespace StingTools.Tags
                             string catName = ParameterHelpers.GetCategoryName(el);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                             TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
+                            // NP7: Write containers after system param push
+                            ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: false,
+                                skipParam: ParamRegistry.TAG1);
                         }
                         catch (Exception tag7Ex)
                         {
@@ -811,6 +814,9 @@ namespace StingTools.Tags
                                 string catName = ParameterHelpers.GetCategoryName(el);
                                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
+                                // NP7: Write containers after batch system param push
+                                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: false,
+                                    skipParam: ParamRegistry.TAG1);
                             }
                             catch (Exception tag7Ex)
                             {

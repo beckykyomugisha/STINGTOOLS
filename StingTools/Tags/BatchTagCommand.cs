@@ -200,6 +200,7 @@ namespace StingTools.Tags
 
             progress.Close();
             ComplianceScan.InvalidateCache();
+            TagConfig.CheckComplianceGate(doc, "BatchTag");
 
             // BIM integration: auto-raise compliance issues after batch tagging
             try { StingTools.BIMManager.BIMManagerEngine.AutoRaiseComplianceIssues(doc); }
@@ -338,30 +339,28 @@ namespace StingTools.Tags
             int wouldChange = 0;
             int sampleCount = Math.Min(tagged.Count, 10);
             preview.AppendLine("  Sample (first 10):");
-            for (int i = 0; i < sampleCount; i++)
+
+            // Single pass: count changes and build sample preview simultaneously
+            for (int i = 0; i < tagged.Count; i++)
             {
                 var (el, currentTag) = tagged[i];
                 string[] tokens = ParamRegistry.ReadTokenValues(el);
                 string rebuilt = string.Join(ParamRegistry.Separator, tokens);
                 bool changed = !string.Equals(currentTag, rebuilt, StringComparison.Ordinal);
-                if (changed)
-                {
-                    preview.AppendLine($"    {currentTag}");
-                    preview.AppendLine($"  → {rebuilt}");
-                }
-                else
-                {
-                    preview.AppendLine($"    {currentTag} (unchanged)");
-                }
-            }
+                if (changed) wouldChange++;
 
-            // Count total that would change (includes sample elements — single pass)
-            foreach (var (el, currentTag) in tagged)
-            {
-                string[] tokens = ParamRegistry.ReadTokenValues(el);
-                string rebuilt = string.Join(ParamRegistry.Separator, tokens);
-                if (!string.Equals(currentTag, rebuilt, StringComparison.Ordinal))
-                    wouldChange++;
+                if (i < sampleCount)
+                {
+                    if (changed)
+                    {
+                        preview.AppendLine($"    {currentTag}");
+                        preview.AppendLine($"  → {rebuilt}");
+                    }
+                    else
+                    {
+                        preview.AppendLine($"    {currentTag} (unchanged)");
+                    }
+                }
             }
 
             preview.AppendLine();
@@ -410,6 +409,9 @@ namespace StingTools.Tags
                             string catName = ParameterHelpers.GetCategoryName(el);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                             TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            // NP3: Write containers after format migration
+                            ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true,
+                                skipParam: ParamRegistry.TAG1);
                         }
                         catch (Exception tag7Ex)
                         {
@@ -616,6 +618,9 @@ namespace StingTools.Tags
                                 string catName = ParameterHelpers.GetCategoryName(el);
                                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                                // NP4: Write containers after delta token update
+                                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true,
+                                    skipParam: ParamRegistry.TAG1);
                             }
                             catch (Exception tag7Ex)
                             {

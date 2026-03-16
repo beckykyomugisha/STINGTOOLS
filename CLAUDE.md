@@ -9,7 +9,7 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 ### Quick Stats
 
 - **80 source files** (77 C# + 3 XAML, ~95,505 lines of code) across 10 directories
-- **376 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **387 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **27 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard
 
@@ -55,7 +55,7 @@ STINGTOOLS/
     │
     ├── Select/                         # Element selection + color commands (3 files, 29 commands)
     │   ├── CategorySelectCommands.cs   # 14 category selectors + SelectAllTaggable + CategorySelector helper
-    │   ├── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite
+    │   ├── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite + SelectStale + QuickTagPreview
     │   └── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │
     ├── UI/                             # WPF dockable panel UI + project wizard + theme engine (7 C# files + 3 XAML, ~12,770 lines)
@@ -177,7 +177,7 @@ STINGTOOLS/
 | Group | Commands | Description |
 |-------|----------|-------------|
 | Category | 16 selectors (Lighting, Electrical, Mechanical, Plumbing, Air Terminals, Furniture, Doors, Windows, Rooms, Sprinklers, Pipes, Ducts, Conduits, Cable Trays, ALL Taggable, Custom Category) | Select elements by Revit category in active view |
-| State | Untagged, Tagged, Empty Mark, Pinned, Unpinned | Select by tag/pin/mark state |
+| State | Untagged, Tagged, Empty Mark, Pinned, Unpinned, **Stale**, **Quick Tag Preview** | Select by tag/pin/mark state + stale detection + tag preview |
 | Spatial | By Level, By Room | Select by spatial criteria |
 | Bulk Param | `Select.BulkParamWriteCommand` | Multi-page bulk operations: set LOC/ZONE/STATUS, auto-populate all tokens, clear tags, or re-tag with overwrite |
 
@@ -377,7 +377,7 @@ STINGTOOLS/
 | `Core/ComplianceScan.cs` | 0 (cached compliance scan + per-discipline DiscComplianceData + torn-read fix) | 219 |
 | `Core/OutputLocationHelper.cs` | 0 (centralized output directory management with fallback chain) | 222 |
 | `Select/CategorySelectCommands.cs` | 16 (14 category selectors + SelectAllTaggable + SelectCustomCategory) | 322 |
-| `Select/StateSelectCommands.cs` | 8 (5 state + 2 spatial + BulkParamWrite) | 625 |
+| `Select/StateSelectCommands.cs` | 10 (5 state + 2 spatial + BulkParamWrite + SelectStale + QuickTagPreview) | 835 |
 | `Select/ColorCommands.cs` | 5 (ColorByParameter, ClearOverrides, SavePreset, LoadPreset, CreateFilters) + ColorHelper | 922 |
 | `Docs/SheetOrganizerCommand.cs` | 1 | 103 |
 | `Docs/ViewOrganizerCommand.cs` | 1 | 93 |
@@ -392,7 +392,7 @@ STINGTOOLS/
 | `Tags/TagAndCombineCommand.cs` | 1 | 235 |
 | `Tags/PreTagAuditCommand.cs` | 1 (+ auto-fix chain: AnomalyAutoFix → ResolveAllIssues) | 530 |
 | `Tags/FamilyStagePopulateCommand.cs` | 1 | 379 |
-| `Tags/CombineParametersCommand.cs` | 2 (CombineParameters, CombinePreFlight) | 426 |
+| `Tags/CombineParametersCommand.cs` | 3 (CombineParameters, CombinePreFlight, ContainerPreCheck) | 536 |
 | `Tags/ConfigEditorCommand.cs` | 1 | 211 |
 | `Tags/TagConfigCommand.cs` | 1 | 63 |
 | `Tags/LoadSharedParamsCommand.cs` | 1 | 344 |
@@ -444,7 +444,7 @@ STINGTOOLS/
 | `UI/StingDockPanel.xaml` | — (WPF markup, 9-tab panel with ~610 buttons) | 2,949 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
 | `UI/StingDockPanel_TagStudio.xaml` | — (WPF markup, Tag Studio compass/controls) | 1,376 |
-| **Total** | **376 commands** | **~95,505** |
+| **Total** | **387 commands** | **~95,505** |
 
 ## Core Classes
 
@@ -1435,7 +1435,7 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 
 #### Completed (Phase 15 — Deep Gap Analysis Fix)
 
-164. **Unified tagging pipeline** — `TagPipelineHelper.RunFullPipeline()` centralises per-element pipeline (TypeTokenInherit → PopulateAll → CategoryForceSys → NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers → WriteTag7All → GetGridRef). All 6 tagging callers (AutoTag, TagNewOnly, BatchTag, TagAndCombine, RetagStale, StingAutoTagger) use the same pipeline.
+164. **Unified tagging pipeline** — `TagPipelineHelper.RunFullPipeline()` centralises per-element pipeline (TagHistory → TypeTokenInherit → PopulateAll → CategoryForceSys → NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers → WriteTag7All → GetGridRef). All 7 tagging callers (AutoTag, TagNewOnly, BatchTag, TagAndCombine, RetagStale, StingAutoTagger, FullAutoPopulate) use the same pipeline.
 165. **SEQ sidecar persistence** — `TagConfig.SaveSeqSidecar()` / `LoadSeqSidecar()` / `MergeSeqSidecar()` persist sequence counters to `.sting_seq.json` alongside the `.rvt` file. Merged via max-per-key strategy in `BuildTagIndexAndCounters()`.
 166. **Tag config extensions** — TAG_PREFIX, TAG_SUFFIX, CATEGORY_SKIP, CATEGORY_FORCE_SYS loaded from `project_config.json`. Prefix/suffix applied in both `BuildAndWriteTag` and `BuildTagsCommand`.
 167. **Project-adjacent config loading** — `OnDocumentOpened` prefers `project_config.json` next to the `.rvt` file over the plugin data directory, preventing config bleed between projects.
@@ -1454,23 +1454,46 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 177. **Null-safe population context** — Added `PopulationContext.Build(doc)` null checks in all 5 tagging commands (AutoTag, TagNewOnly, BatchTag, TagAndCombine, RetagStale) preventing null reference crashes on corrupt documents.
 178. **MSB3277 suppression** — Suppressed benign ClosedXML transitive dependency assembly version warnings in `StingTools.csproj`.
 
+#### Completed (Phase 16 — Gap Analysis v3 Fixes)
+
+179. **Tag3DCommand created** — `Tag3DCommand.cs`: Places 3D annotation tags with WriteContainers + WriteTag7All after placement; FindTagFamily reads `tag3DFamilyPath` from `project_config.json`.
+180. **StingAutoTagger enhanced logging** — Context rebuild now logs formula and grid line counts for diagnostics.
+181. **Stale debounce timer** — 500ms time-based throttle in `OnDocumentChanged` prevents thundering-herd stale-mark transactions during bulk operations.
+182. **SheetRemovePrefix/Suffix** — `SheetRemovePrefixOrSuffix` method operates on multi-sheet selection; XAML buttons added to DOCS tab.
+183. **WriteContainers pipeline consistency** — Added `ParamRegistry.WriteContainers()` after `WriteTag7All` in TagSelected, ReTag, TagFormatMigration, TagChanged, BulkParamWrite retag, and SystemParamPush (both locations).
+184. **RepairDuplicateSeqCommand created** — `RepairDuplicateSeqCommand.cs`: Scans for duplicate tags, auto-increments SEQ, writes TAG7 + containers after repair.
+185. **LoadDefaults SEQ resets** — `CurrentSeqScheme`, `SeqIncludeZone`, `SeqLevelReset`, `_seqSchemeChanged`, `_seqSchemeWarned`, `_activePresetName` reset in `LoadDefaults()` to prevent cross-project bleed.
+186. **FullAutoPopulate pipeline refactor** — Delegates to `TagPipelineHelper.RunFullPipeline()` with `LoadFormulas()`/`LoadGridLines()` for canonical pipeline consistency.
+187. **Post-tag compliance gate** — `ComplianceGatePct` loaded from `COMPLIANCE_GATE_PCT` config key; `CheckComplianceGate()` called after AutoTag, TagNewOnly, BatchTag, TagAndCombine.
+188. **Tag history audit trail** — `ASS_TAG_PREV_TXT` + `ASS_TAG_MODIFIED_DT` written at start of `RunFullPipeline`; parameters added to `MR_PARAMETERS.csv`.
+189. **SeparatorHistory persistence** — `SEPARATOR_HISTORY` key in `project_config.json`; loaded/saved/reset. Old separator tracked before override in `ApplyTagFormatOverrides()`.
+190. **AUTO_RUN_WORKFLOW_ON_OPEN** — Config key logged on `DocumentOpened` for workflow automation awareness.
+
 #### Completed (Phases 16-20 — Bug Fixes, Logic Fixes, Enhancements, New Features)
 
-179. **Branch consolidation** — Merged PR #32 and PR #33 into unified branch, resolving 5 merge conflicts.
-180. **Duplicate definition fixes** — Removed duplicate constants and methods in `ParamRegistry.cs` and `TagConfig.cs`.
-181. **16 build error resolution** — Fixed missing variables, properties, and method references across core files.
-182. **BUG-01 through BUG-06** — Fixed 6 critical build/runtime bugs across core files.
-183. **LOG-01 through LOG-13** — SYS detection layer tracking, formula cache, ComplianceScan torn-read fix, TAG7 rebuild gating, TransactionGroup rollback, separator history, DisplayModeDefault, temp fallback warning, WorkflowEngine JSONL log rotation.
-184. **TW-01 through TW-03** — Placement tab restructure, configurable SEQ pad width, tag prefix/suffix properties.
-185. **DATA-01/DATA-03** — Schema version headers on CSV files, unit conversion for formula evaluation.
-186. **UI-01/UI-03** — ThemeManager (Dark/Light/Grey/Corporate), Tags status strip.
-187. **BIM-02/BIM-03** — Stage compliance gate, COBie duration normalisation.
-188. **ORF-01 through ORF-06** — 18 new parameter constants with GUIDs for operational readiness.
-189. **Type-level LOC/ZONE overrides** — `PopulateAll` checks type-level LOC/ZONE before spatial auto-detect.
-190. **ConnectorInherit** — MEP token inheritance from connected elements via connector graph traversal.
-191. **NF-01: Tag3DCommand** — Tags elements in 3D views with spatial auto-detect.
-192. **NF-02: RepairDuplicateSeqCommand** — Smart duplicate SEQ repair with spatial proximity analysis.
-193. **ENH-03: Leader elbow path avoidance** — `AdjustLeaderElbow()` shifts leader elbows to avoid overlapping placed tags.
+191. **Branch consolidation** — Merged PR #32 and PR #33 into unified branch, resolving 5 merge conflicts.
+192. **Duplicate definition fixes** — Removed duplicate constants and methods in `ParamRegistry.cs` and `TagConfig.cs`.
+193. **16 build error resolution** — Fixed missing variables, properties, and method references across core files.
+194. **BUG-01 through BUG-06** — Fixed 6 critical build/runtime bugs across core files.
+195. **LOG-01 through LOG-13** — SYS detection layer tracking, formula cache, ComplianceScan torn-read fix, TAG7 rebuild gating, TransactionGroup rollback, separator history, DisplayModeDefault, temp fallback warning, WorkflowEngine JSONL log rotation.
+196. **TW-01 through TW-03** — Placement tab restructure, configurable SEQ pad width, tag prefix/suffix properties.
+197. **DATA-01/DATA-03** — Schema version headers on CSV files, unit conversion for formula evaluation.
+198. **UI-01/UI-03** — ThemeManager (Dark/Light/Grey/Corporate), Tags status strip.
+199. **BIM-02/BIM-03** — Stage compliance gate, COBie duration normalisation.
+200. **ORF-01 through ORF-06** — 18 new parameter constants with GUIDs for operational readiness.
+201. **Type-level LOC/ZONE overrides** — `PopulateAll` checks type-level LOC/ZONE before spatial auto-detect.
+202. **ConnectorInherit** — MEP token inheritance from connected elements via connector graph traversal.
+203. **ENH-03: Leader elbow path avoidance** — `AdjustLeaderElbow()` shifts leader elbows to avoid overlapping placed tags.
+
+#### Completed (Phase 17 — Efficiency & Automation Enhancements)
+
+204. **Tag3DCommand FindTagFamily fix** — Removed memory-leaking temporary `FamilyInstance` creation; now checks family name directly on `FamilySymbol` without instantiation.
+205. **Dead code removal** — Removed unused `GetNearestGridRef()` method from `ScheduleCommands.cs` (superseded by `SpatialAutoDetect.GetGridRef` in unified pipeline).
+206. **TagFormatMigration single-pass** — Eliminated double-read of `ReadTokenValues` in preview; merged sample display and change count into single loop.
+207. **SelectStaleElementsCommand** — New command: selects elements with stale tags where LVL/SYS/PROD no longer match current context.
+208. **QuickTagPreviewCommand** — New command: shows predicted tag for selected elements in read-only mode without making changes.
+209. **ContainerPreCheckCommand** — New command: verifies all container parameters are bound and writable before running Combine Parameters.
+210. **TAG tab enhanced** — Added Select Stale, Container Check, and Quick Tag Preview buttons to CREATE tab QA and TOKEN INSPECTOR sections.
 
 ### External Tool References
 

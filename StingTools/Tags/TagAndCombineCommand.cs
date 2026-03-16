@@ -192,6 +192,7 @@ namespace StingTools.Tags
             }
             sw.Stop();
             ComplianceScan.InvalidateCache();
+            TagConfig.CheckComplianceGate(doc, "TagAndCombine");
 
             var report = new StringBuilder();
             report.AppendLine("Tag & Combine All Complete");

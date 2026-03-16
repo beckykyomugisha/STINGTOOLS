@@ -603,6 +603,15 @@ namespace StingTools.Core
         /// <summary>G1.1: Per-category SYS code overrides. Loaded from project_config.json CATEGORY_FORCE_SYS dict.</summary>
         public static Dictionary<string, string> CategoryForceSys { get; internal set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>AL-05: Minimum compliance % gate after batch tag operations. 0 = disabled. Loaded from project_config.json COMPLIANCE_GATE_PCT.</summary>
+        public static int ComplianceGatePct { get; internal set; } = 0;
+
+        /// <summary>FL-03: History of previously used tag separators for cross-session tag validation compatibility.</summary>
+        public static List<string> SeparatorHistory { get; internal set; } = new List<string>();
+
+        /// <summary>AL-07: Workflow preset name to auto-run on DocumentOpened. Empty = disabled.</summary>
+        public static string AutoRunWorkflowOnOpen { get; internal set; } = string.Empty;
+
         /// <summary>Current sequence numbering scheme (loaded from project_config.json).</summary>
         internal static SeqScheme CurrentSeqScheme { get; set; } = SeqScheme.Numeric;
         /// <summary>Whether SEQ resets per zone.</summary>
@@ -979,6 +988,27 @@ namespace StingTools.Core
                 if (forceSys != null)
                     foreach (var kvp in forceSys) CategoryForceSys[kvp.Key] = kvp.Value;
 
+                // AL-05: Compliance gate threshold
+                ComplianceGatePct = 0;
+                if (data.TryGetValue("COMPLIANCE_GATE_PCT", out object gateObj))
+                {
+                    if (gateObj is long gl) ComplianceGatePct = (int)gl;
+                    else if (int.TryParse(gateObj?.ToString(), out int gi)) ComplianceGatePct = gi;
+                }
+
+                // FL-03: Load separator history for cross-session tag validation compatibility
+                var sepHistory = TryDeserialize<List<string>>(data, "SEPARATOR_HISTORY");
+                if (sepHistory != null && sepHistory.Count > 0)
+                    SeparatorHistory = sepHistory;
+                else
+                    SeparatorHistory = new List<string>();
+
+                // AL-07: Auto-run workflow on document open
+                AutoRunWorkflowOnOpen = string.Empty;
+                if (data.TryGetValue("AUTO_RUN_WORKFLOW_ON_OPEN", out object arwObj) && arwObj is string arwStr
+                    && !string.IsNullOrWhiteSpace(arwStr))
+                    AutoRunWorkflowOnOpen = arwStr.Trim();
+
                 ConfigSource = "project_config.json";
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
@@ -1030,6 +1060,16 @@ namespace StingTools.Core
                 { "Z04", new List<string> { "zone 4", "zone d", "west", "right" } },
             };
             ConfigSource = "built-in defaults";
+            ComplianceGatePct = 0;
+            SeparatorHistory = new List<string>();
+            AutoRunWorkflowOnOpen = string.Empty;
+            // NP11: Reset SEQ scheme state on LoadDefaults to prevent cross-project bleed
+            CurrentSeqScheme = SeqScheme.Numeric;
+            SeqIncludeZone = false;
+            SeqLevelReset = false;
+            _seqSchemeChanged = false;
+            _seqSchemeWarned = false;
+            _activePresetName = null;
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
         }
@@ -1122,7 +1162,10 @@ namespace StingTools.Core
                     ["TAG_PREFIX"] = TagPrefix,
                     ["TAG_SUFFIX"] = TagSuffix,
                     ["CATEGORY_SKIP"] = CategorySkipList.ToList(),
-                    ["CATEGORY_FORCE_SYS"] = CategoryForceSys
+                    ["CATEGORY_FORCE_SYS"] = CategoryForceSys,
+                    ["COMPLIANCE_GATE_PCT"] = ComplianceGatePct,
+                    ["SEPARATOR_HISTORY"] = SeparatorHistory,
+                    ["AUTO_RUN_WORKFLOW_ON_OPEN"] = AutoRunWorkflowOnOpen
                 };
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);
@@ -1137,6 +1180,29 @@ namespace StingTools.Core
             {
                 StingLog.Error($"TagConfig save failed to {path}: {ex.Message}", ex);
                 return false;
+            }
+        }
+
+        /// <summary>AL-05: Check compliance gate after a batch tag operation. Shows warning dialog if below threshold.</summary>
+        public static void CheckComplianceGate(Document doc, string commandName)
+        {
+            if (ComplianceGatePct <= 0) return;
+            try
+            {
+                var result = ComplianceScan.Scan(doc, forceRefresh: true);
+                if (result != null && result.CompliancePercent < ComplianceGatePct)
+                {
+                    TaskDialog.Show($"STING Compliance Gate",
+                        $"{commandName} complete but compliance ({result.CompliancePercent:F0}%) " +
+                        $"is below the configured gate ({ComplianceGatePct}%).\n\n" +
+                        $"Untagged: {result.Untagged} elements\n" +
+                        $"Run 'Pre-Tag Audit' or 'Resolve All Issues' to investigate.");
+                    StingLog.Warn($"ComplianceGate: {commandName} result {result.CompliancePercent:F0}% < gate {ComplianceGatePct}%");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ComplianceGate check failed: {ex.Message}");
             }
         }
 

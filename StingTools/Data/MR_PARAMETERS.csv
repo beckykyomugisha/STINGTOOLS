@@ -1496,3 +1496,5 @@ Generic Models,WARN_PARK_W,1e946af6-7d7f-5afb-bd80-8b755898f313,NUMBER,STINGTags
 Generic Models,WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,88990dc2-2aca-5179-8407-6511d3e36248,TEXT,STINGTags_ISO19650,Type,Warn Per Sust Carbon Footprint Kg Walls  Floors   [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,424a78f9-d809-58c6-8c08-9687418c5233,TEXT,STINGTags_ISO19650,Type,Warn Rgl Access Clear Width Mm Doors  Ramps  C [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,WARN_STAIR_W,4a86d0a1-ed99-52a3-9b30-c0322a07ab60,NUMBER,STINGTags_ISO19650,Type,Warn Stair [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_TAG_PREV_TXT,c7b3e1a4-9d2f-4b8e-a1c5-d6e7f0a2b3c4,TEXT,ASS_MNG,Type,Previous tag value before re-tagging (audit trail) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_TAG_MODIFIED_DT,d8c4f2b5-0e3a-5c9f-b2d6-e7f8a1b3c4d5,TEXT,ASS_MNG,Type,Timestamp of last tag modification (audit trail) [ISO 19650-3:2020],False,,,MULTI,1,0

@@ -1,124 +1,116 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Autodesk.Revit.Attributes;
 using StingTools.Core;
 
 namespace StingTools.Tags
 {
     /// <summary>
-    /// NF-02: Scans for duplicate TAG1 values and re-tags duplicates with
-    /// next available SEQ numbers. Keeps the element with the lowest ElementId
-    /// as the original; all others get new unique SEQ values.
+    /// Repairs duplicate SEQ numbers across the project by scanning all tagged elements,
+    /// identifying duplicates, and auto-incrementing SEQ to resolve collisions.
+    /// Writes TAG7 + containers after repair to maintain pipeline consistency.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class RepairDuplicateSeqCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData commandData,
-            ref string message, ElementSet elements)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            try
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // Build tag index and sequence counters
+            var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+
+            // Collect all tagged elements and find duplicates
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> allElements;
+            if (catEnums != null && catEnums.Length > 0)
+                allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            else
+                allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType();
+
+            // Group elements by their TAG1 value to find duplicates
+            var tagMap = new Dictionary<string, List<Element>>();
+            foreach (Element el in allElements)
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag) || !TagConfig.TagIsComplete(tag)) continue;
 
-                // Collect all tagged elements grouped by TAG1
-                var tagGroups = new Dictionary<string, List<Element>>();
-                var cats = SharedParamGuids.AllCategoryEnums;
-                var catSet = new List<BuiltInCategory>(cats);
-
-                foreach (var bic in catSet)
+                if (!tagMap.TryGetValue(tag, out var list))
                 {
-                    try
-                    {
-                        var collector = new FilteredElementCollector(doc)
-                            .OfCategory(bic)
-                            .WhereElementIsNotElementType();
-
-                        foreach (Element el in collector)
-                        {
-                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                            if (string.IsNullOrEmpty(tag1)) continue;
-
-                            if (!tagGroups.ContainsKey(tag1))
-                                tagGroups[tag1] = new List<Element>();
-                            tagGroups[tag1].Add(el);
-                        }
-                    }
-                    catch { }
+                    list = new List<Element>();
+                    tagMap[tag] = list;
                 }
+                list.Add(el);
+            }
 
-                // Find duplicates
-                var duplicates = tagGroups.Where(g => g.Value.Count > 1).ToList();
-                if (duplicates.Count == 0)
+            var duplicates = tagMap.Where(kvp => kvp.Value.Count > 1).ToList();
+            if (duplicates.Count == 0)
+            {
+                TaskDialog.Show("Repair Duplicate SEQ", "No duplicate tags found.");
+                return Result.Succeeded;
+            }
+
+            int totalDupes = duplicates.Sum(d => d.Value.Count - 1);
+            TaskDialog confirm = new TaskDialog("Repair Duplicate SEQ");
+            confirm.MainInstruction = $"Found {duplicates.Count} duplicate tag groups ({totalDupes} elements to repair).";
+            confirm.MainContent = "The first occurrence of each duplicate will be kept; subsequent elements will receive new SEQ numbers.";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            int retagged = 0;
+            using (Transaction tx = new Transaction(doc, "STING Repair Duplicate SEQ"))
+            {
+                tx.Start();
+                foreach (var kvp in duplicates)
                 {
-                    TaskDialog.Show("Repair Duplicates", "No duplicate tags found.");
-                    return Result.Succeeded;
-                }
-
-                int totalDupes = duplicates.Sum(g => g.Value.Count - 1);
-                var td = new TaskDialog("Repair Duplicates");
-                td.MainContent = $"Found {duplicates.Count} duplicate tag value(s) " +
-                    $"affecting {totalDupes} element(s).\n\n" +
-                    "Elements with the lowest ElementId will keep their tag.\n" +
-                    "All others will receive new unique SEQ numbers.";
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Repair All Duplicates");
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel");
-                td.CommonButtons = TaskDialogCommonButtons.None;
-
-                var result = td.Show();
-                if (result != TaskDialogResult.CommandLink1)
-                    return Result.Cancelled;
-
-                // Get existing tag index and SEQ counters
-                var existingTags = TagConfig.BuildExistingTagIndex(doc);
-                var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
-                int retagged = 0;
-
-                using (var t = new Transaction(doc, "STING Repair Duplicate SEQ"))
-                {
-                    t.Start();
-
-                    foreach (var group in duplicates)
+                    // Keep first, retag the rest
+                    for (int i = 1; i < kvp.Value.Count; i++)
                     {
-                        // Sort by ElementId -- keep lowest
-                        var sorted = group.Value
-                            .OrderBy(e => e.Id.Value)
-                            .ToList();
-
-                        // Skip first (original), retag rest
-                        for (int i = 1; i < sorted.Count; i++)
+                        Element el = kvp.Value[i];
+                        try
                         {
-                            Element el = sorted[i];
-
-                            // Re-derive tag with auto-increment
                             TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                 skipComplete: false, existingTags,
                                 TagCollisionMode.AutoIncrement, null);
+
+                            // NP5: Write TAG7 + containers after SEQ repair
+                            try
+                            {
+                                string repairCat = ParameterHelpers.GetCategoryName(el);
+                                string[] repairToks = ParamRegistry.ReadTokenValues(el);
+                                TagConfig.WriteTag7All(doc, el, repairCat, repairToks, overwrite: true);
+                                ParamRegistry.WriteContainers(el, repairToks, repairCat, overwrite: true,
+                                    skipParam: ParamRegistry.TAG1);
+                            }
+                            catch (Exception repEx)
+                            {
+                                StingLog.Warn($"RepairDuplicateSeq TAG7+containers for {el.Id}: {repEx.Message}");
+                            }
                             retagged++;
                         }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"RepairDuplicateSeq failed for {el.Id}: {ex.Message}");
+                        }
                     }
-
-                    t.Commit();
                 }
-
-                TaskDialog.Show("Repair Duplicates",
-                    $"Repaired {retagged} duplicate tag(s) across {duplicates.Count} group(s).");
-                StingLog.Info($"RepairDuplicateSeq: repaired {retagged} duplicates in {duplicates.Count} groups");
-
-                // Invalidate compliance cache
-                ComplianceScan.InvalidateCache();
-
-                return Result.Succeeded;
+                tx.Commit();
             }
-            catch (Exception ex)
-            {
-                StingLog.Error("RepairDuplicateSeqCommand failed", ex);
-                message = ex.Message;
-                return Result.Failed;
-            }
+            ComplianceScan.InvalidateCache();
+
+            TaskDialog.Show("Repair Duplicate SEQ",
+                $"Repaired {retagged} elements across {duplicates.Count} duplicate groups.");
+            return Result.Succeeded;
         }
     }
 }

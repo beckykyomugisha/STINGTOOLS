@@ -54,6 +54,13 @@ namespace StingTools.Core
         /// </summary>
         public static void ApplyTagFormatOverrides(string separator, int? numPad, string[] segmentOrder)
         {
+            // FL-03: Track old separator in history before overriding
+            if (!string.IsNullOrEmpty(separator) && separator != Separator
+                && !string.IsNullOrEmpty(Separator))
+            {
+                if (!TagConfig.SeparatorHistory.Contains(Separator))
+                    TagConfig.SeparatorHistory.Add(Separator);
+            }
             _overrideSeparator = separator;
             _overrideNumPad = numPad;
             if (segmentOrder != null)

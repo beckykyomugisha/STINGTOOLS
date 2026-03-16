@@ -191,6 +191,7 @@ namespace StingTools.Tags
                 TagConfig.SaveSeqSidecar(doc, sequenceCounters);
             }
             ComplianceScan.InvalidateCache();
+            TagConfig.CheckComplianceGate(doc, "AutoTag");
             var report = new StringBuilder();
             report.AppendLine($"Auto Tag — '{activeView.Name}'");
             report.AppendLine(new string('=', 50));
@@ -332,6 +333,7 @@ namespace StingTools.Tags
             }
             sw.Stop();
             ComplianceScan.InvalidateCache();
+            TagConfig.CheckComplianceGate(doc, "TagNewOnly");
 
             var report = new StringBuilder();
             report.AppendLine($"Tag New Only — {untagged.Count} elements");
