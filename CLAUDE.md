@@ -1534,6 +1534,16 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 247. **Double-write elimination** — Removed redundant TAG7 + WriteContainers calls after RunFullPipeline in TagSelectedCommand and ReTagCommand (RunFullPipeline already handles both steps).
 248. **Thread safety: StingStaleMarker** — Changed `_elementVersionHash` from `Dictionary<long, string>` to `ConcurrentDictionary<long, string>` to prevent race conditions in `OnDocumentChanged` event handler.
 
+#### Completed (Phase 27 — SEQ Sidecar, Cache Invalidation & TAG_PREFIX/SUFFIX Consistency)
+
+249. **BuildTagsCommand SEQ sidecar + cache** — Added `TagConfig.SaveSeqSidecar()` + `ComplianceScan.InvalidateCache()` + `StingAutoTagger.InvalidateContext()` after tx.Commit() so sequence counters persist between sessions and dashboards reflect changes.
+250. **AssignNumbersCommand SEQ sidecar + cache** — Added sidecar save and cache invalidation after sequence assignment.
+251. **TokenWriter.WriteToken cache invalidation** — Added `ComplianceScan.InvalidateCache()` + `StingAutoTagger.InvalidateContext()` after all manual token writes (SetDisc, SetLoc, SetZone, SetStatus, etc.) so live dashboard/auto-tagger reflect changes immediately.
+252. **RenumberTagsCommand SEQ sidecar + PREFIX/SUFFIX** — Added SEQ sidecar save, cache invalidation, and TAG_PREFIX/TAG_SUFFIX to both initial tag assembly and collision resolution loop.
+253. **FixDuplicateTagsCommand SEQ sidecar + PREFIX/SUFFIX** — Added SEQ sidecar save after duplicate fix and TAG_PREFIX/TAG_SUFFIX to new tag assembly in collision loop.
+254. **CopyTagsCommand PREFIX/SUFFIX** — Added TAG_PREFIX/TAG_SUFFIX to rebuilt TAG1 so copied tags match project tag format.
+255. **StingCommandHandler dispatch wiring** — Added missing button dispatch cases: SetSeqScheme → `SetSeqSchemeCommand`, MapSheets → `MapSheetsCommand`, RetagStale → `RetagStaleCommand`, ComplianceScan → `CompletenessDashboardCommand`.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance
