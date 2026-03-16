@@ -629,7 +629,22 @@ namespace StingTools.Select
                             skipComplete: false,
                             existingTags: tagIndex,
                             collisionMode: TagCollisionMode.Overwrite))
+                        {
                             retagged++;
+                            // NP6/NG2: Write TAG7 + containers after bulk retag
+                            try
+                            {
+                                string bulkCat = ParameterHelpers.GetCategoryName(elem);
+                                string[] bulkToks = ParamRegistry.ReadTokenValues(elem);
+                                TagConfig.WriteTag7All(doc, elem, bulkCat, bulkToks, overwrite: true);
+                                ParamRegistry.WriteContainers(elem, bulkToks, bulkCat, overwrite: true,
+                                    skipParam: ParamRegistry.TAG1);
+                            }
+                            catch (Exception bulkEx)
+                            {
+                                StingLog.Warn($"BulkRetag TAG7+containers for {id}: {bulkEx.Message}");
+                            }
+                        }
                         else
                             failed++;
                     }
