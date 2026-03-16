@@ -135,10 +135,13 @@ namespace StingTools.Tags
             // Smart sort for contiguous SEQ assignment
             var sorted = BatchTagCommand.SmartSortElements(doc, taggableElements);
 
-            int populated = 0;
-            int statusDetected = 0, revSet = 0;
             var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            if (popCtx == null)
+            {
+                TaskDialog.Show("Auto Tag", "Failed to build population context.");
+                return Result.Failed;
+            }
             var formulas = TagPipelineHelper.LoadFormulas();
             var gridLines = TagPipelineHelper.LoadGridLines(doc);
             var stats = new TaggingStats();
@@ -195,11 +198,6 @@ namespace StingTools.Tags
             report.AppendLine($"  Disciplines: {discFilterLabel}");
             if (filteredOut > 0)
                 report.AppendLine($"  Filtered:   {filteredOut} (wrong discipline for view)");
-            report.AppendLine($"  Tokens:     {populated} auto-populated");
-            if (statusDetected > 0)
-                report.AppendLine($"  STATUS:     {statusDetected} (from Revit phases/worksets)");
-            if (revSet > 0)
-                report.AppendLine($"  REV:        {revSet} (revision '{popCtx.ProjectRev}')");
             report.AppendLine();
             report.Append(stats.BuildReport());
 
@@ -210,7 +208,6 @@ namespace StingTools.Tags
 
             StingLog.Info($"AutoTag: view='{activeView.Name}', tagged={stats.TotalTagged}, " +
                 $"skipped={stats.TotalSkipped}, collisions={stats.TotalCollisions}, " +
-                $"populated={populated}, statusDetect={statusDetected}, revSet={revSet}, " +
                 $"mode={collisionMode}");
 
             return Result.Succeeded;
@@ -281,12 +278,15 @@ namespace StingTools.Tags
 
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            if (popCtx == null)
+            {
+                TaskDialog.Show("Tag New Only", "Failed to build population context.");
+                return Result.Failed;
+            }
             var formulas = TagPipelineHelper.LoadFormulas();
             var gridLines = TagPipelineHelper.LoadGridLines(doc);
             var stats = new TaggingStats();
             var sw = Stopwatch.StartNew();
-            int populated = 0;
-            int statusDetected = 0, revSet = 0;
 
             bool cancelled = false;
 
@@ -336,11 +336,6 @@ namespace StingTools.Tags
             var report = new StringBuilder();
             report.AppendLine($"Tag New Only — {untagged.Count} elements");
             report.AppendLine(new string('=', 50));
-            report.AppendLine($"  Tokens:    {populated} auto-populated");
-            if (statusDetected > 0)
-                report.AppendLine($"  STATUS:    {statusDetected} (from Revit phases/worksets)");
-            if (revSet > 0)
-                report.AppendLine($"  REV:       {revSet} (revision '{popCtx.ProjectRev}')");
             report.AppendLine($"  Duration:  {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
             report.Append(stats.BuildReport());
@@ -350,8 +345,7 @@ namespace StingTools.Tags
             td.MainContent = report.ToString();
             td.Show();
 
-            StingLog.Info($"TagNewOnly: tagged={stats.TotalTagged}, populated={populated}, " +
-                $"statusDetect={statusDetected}, revSet={revSet}, " +
+            StingLog.Info($"TagNewOnly: tagged={stats.TotalTagged}, " +
                 $"collisions={stats.TotalCollisions}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;

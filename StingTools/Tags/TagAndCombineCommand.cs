@@ -126,17 +126,15 @@ namespace StingTools.Tags
 
             // Build PopulationContext ONCE — caches room index, LOC, REV, phases
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            if (popCtx == null)
+            {
+                TaskDialog.Show("Tag & Combine", "Failed to build population context. Check the document is valid.");
+                return Result.Failed;
+            }
             var formulas = TagPipelineHelper.LoadFormulas();
             var gridLines = TagPipelineHelper.LoadGridLines(doc);
 
-            int populated = 0;
-            int tagged = 0;
-            int combined = 0;
             int totalProcessed = 0;
-            int locDetected = 0;
-            int zoneDetected = 0;
-            int statusDetected = 0;
-            int revSet = 0;
             int errors = 0;
             var stats = new TaggingStats();
 
@@ -173,7 +171,6 @@ namespace StingTools.Tags
                             tagIndex, seqCounters, formulas, gridLines,
                             overwrite: true, skipComplete: false,
                             collisionMode: TagCollisionMode.AutoIncrement, stats: stats);
-                        tagged++;
                     }
                     catch (Exception ex)
                     {
@@ -201,17 +198,11 @@ namespace StingTools.Tags
             report.AppendLine(new string('═', 50));
             report.AppendLine($"  Scope:            {scopeLabel}");
             report.AppendLine($"  Processed:        {totalProcessed} elements");
-            report.AppendLine($"  Populated:        {populated} token values");
-            report.AppendLine($"  Tagged:           {tagged} new tags");
-            report.AppendLine($"  Combined:         {combined} container values");
-            if (locDetected > 0)
-                report.AppendLine($"  LOC auto-detect:  {locDetected} (rooms/project/workset)");
-            if (zoneDetected > 0)
-                report.AppendLine($"  ZONE auto-detect: {zoneDetected} (rooms/workset)");
-            if (statusDetected > 0)
-                report.AppendLine($"  STATUS detect:    {statusDetected} (from Revit phases/worksets)");
-            if (revSet > 0)
-                report.AppendLine($"  REV auto-set:     {revSet} (revision '{popCtx.ProjectRev}')");
+            report.AppendLine($"  Tagged:           {stats.TotalTagged:N0} new tags");
+            if (stats.TotalSkipped > 0)
+                report.AppendLine($"  Skipped:          {stats.TotalSkipped:N0} (already complete)");
+            if (stats.TotalOverwritten > 0)
+                report.AppendLine($"  Overwritten:      {stats.TotalOverwritten:N0}");
             if (errors > 0)
                 report.AppendLine($"  Errors:           {errors} (see log for details)");
             report.AppendLine($"  Duration:         {sw.Elapsed.TotalSeconds:F1}s");
@@ -221,7 +212,7 @@ namespace StingTools.Tags
             report.Append(stats.BuildReport());
 
             TaskDialog td = new TaskDialog("Tag & Combine All");
-            td.MainInstruction = $"Processed {totalProcessed} elements ({combined} containers)";
+            td.MainInstruction = $"Processed {totalProcessed} elements ({stats.TotalTagged:N0} tagged)";
             td.MainContent = report.ToString();
             td.Show();
 
@@ -234,9 +225,8 @@ namespace StingTools.Tags
             }
 
             StingLog.Info($"TagAndCombine: scope={scopeLabel}, processed={totalProcessed}, " +
-                $"populated={populated}, tagged={tagged}, combined={combined}, " +
-                $"locDetect={locDetected}, zoneDetect={zoneDetected}, " +
-                $"statusDetect={statusDetected}, revSet={revSet}, " +
+                $"tagged={stats.TotalTagged}, skipped={stats.TotalSkipped}, " +
+                $"collisions={stats.TotalCollisions}, errors={errors}, " +
                 $"compliance={postScan?.StatusBarText ?? "N/A"}, " +
                 $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
