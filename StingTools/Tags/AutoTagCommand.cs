@@ -184,6 +184,8 @@ namespace StingTools.Tags
                 }
 
                 tx.Commit();
+                // P6: Save SEQ sidecar after commit
+                TagConfig.SaveSeqSidecar(doc, sequenceCounters);
             }
             ComplianceScan.InvalidateCache();
             var report = new StringBuilder();
@@ -325,6 +327,8 @@ namespace StingTools.Tags
                 }
 
                 tx.Commit();
+                // P6: Save SEQ sidecar after commit
+                TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
             sw.Stop();
             ComplianceScan.InvalidateCache();
