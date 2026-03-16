@@ -800,7 +800,7 @@ namespace StingTools.Tags
                     {
                         // ENH-03: Adjust leader elbow to avoid overlapping placed tags
                         if (tag.HasLeader)
-                            AdjustLeaderElbow(doc, view, tag, elemRef, grid);
+                            TagPlacementPresets.AdjustLeaderElbow(doc, view, tag, elemRef, grid);
 
                         BoundingBoxXYZ tagBB = tag.get_BoundingBox(view);
                         Box2D regBox = tagBB != null ? Box2D.FromBoundingBox(tagBB) : finalBox;
@@ -1207,7 +1207,7 @@ namespace StingTools.Tags
 
         /// <summary>ENH-03: Adjust leader elbow to avoid overlapping other tags.</summary>
         internal static void AdjustLeaderElbow(Document doc, View view, IndependentTag tag,
-            Reference tagRef, SpatialGrid grid, double clearanceMargin = 0.5)
+            Reference tagRef, TagPlacementEngine.SpatialGrid grid, double clearanceMargin = 0.5)
         {
             try
             {
@@ -1230,7 +1230,7 @@ namespace StingTools.Tags
                 XYZ midPoint = (headPos + leaderEnd) / 2.0;
 
                 // Check if leader midpoint overlaps any placed tag boxes in the grid
-                var midBox = Box2D.EstimateTag(midPoint, clearanceMargin, clearanceMargin);
+                var midBox = TagPlacementEngine.Box2D.EstimateTag(midPoint, clearanceMargin, clearanceMargin);
                 if (!grid.HasOverlap(midBox)) return;
 
                 // Try shifting elbow perpendicular to leader direction
@@ -1239,7 +1239,7 @@ namespace StingTools.Tags
                 foreach (double shift in shifts)
                 {
                     XYZ elbowCandidate = midPoint + perpDir * shift;
-                    var elbowBox = Box2D.EstimateTag(elbowCandidate,
+                    var elbowBox = TagPlacementEngine.Box2D.EstimateTag(elbowCandidate,
                         clearanceMargin * 0.5, clearanceMargin * 0.5);
                     if (!grid.HasOverlap(elbowBox))
                     {
