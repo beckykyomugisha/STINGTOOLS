@@ -973,6 +973,13 @@ namespace StingTools.Core
             CategorySkipList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             CategoryForceSys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             ConfigSource = "built-in defaults";
+            // NP11: Reset SEQ scheme state on LoadDefaults to prevent cross-project bleed
+            CurrentSeqScheme = SeqScheme.Numeric;
+            SeqIncludeZone = false;
+            SeqLevelReset = false;
+            _seqSchemeChanged = false;
+            _seqSchemeWarned = false;
+            _activePresetName = null;
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
         }
