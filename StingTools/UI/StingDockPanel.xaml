@@ -1259,6 +1259,7 @@
                                     <Button Style="{StaticResource GreenBtn}" Content="▶ Auto Populate" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="One-click full pipeline"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Assign Numbers" Tag="AssignNumbers" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource PurpleBtn}" Content="[Brain] Smart Tokens" Tag="FamilyStagePopulate" Click="Cmd_Click" ToolTip="Pre-populate all 7 tokens"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Preview Tag" Tag="PreviewTag" Click="Cmd_Click" ToolTip="Dry-run: show predicted tag for selected element without writing"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource TealBtn}" Content="⚡ Build Tags" Tag="BuildTags" Click="Cmd_Click"/>

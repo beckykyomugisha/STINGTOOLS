@@ -2130,10 +2130,48 @@ namespace StingTools.Core
                 // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
                 TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
 
+                // FE-01: Read token lock list — skip auto-derivation for locked tokens
+                HashSet<string> lockedTokens = null;
+                try
+                {
+                    string lockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                    if (!string.IsNullOrWhiteSpace(lockStr))
+                    {
+                        lockedTokens = new HashSet<string>(
+                            lockStr.Split(',').Select(s => s.Trim().ToUpperInvariant()),
+                            StringComparer.OrdinalIgnoreCase);
+                        StingLog.Info($"TagPipeline: element {el.Id} has locked tokens: {string.Join(",", lockedTokens)}");
+                    }
+                }
+                catch { /* Param not bound yet — safe to skip */ }
+
                 // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
                 if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
                     && !string.IsNullOrEmpty(forcedSys))
                     ParameterHelpers.SetString(el, ParamRegistry.SYS, forcedSys, overwrite: true);
+
+                // FE-06: Apply full per-category token overrides
+                if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var tokenOverrides))
+                {
+                    foreach (var kv in tokenOverrides)
+                    {
+                        if (kv.Key.Equals("SKIP", StringComparison.OrdinalIgnoreCase)) continue;
+                        string paramName = kv.Key.ToUpperInvariant() switch
+                        {
+                            "DISC" => ParamRegistry.DISC, "LOC" => ParamRegistry.LOC,
+                            "ZONE" => ParamRegistry.ZONE, "LVL" => ParamRegistry.LVL,
+                            "SYS" => ParamRegistry.SYS, "FUNC" => ParamRegistry.FUNC,
+                            "PROD" => ParamRegistry.PROD, "STATUS" => ParamRegistry.STATUS,
+                            _ => null
+                        };
+                        if (!string.IsNullOrEmpty(paramName))
+                            ParameterHelpers.SetString(el, paramName, kv.Value, overwrite: true);
+                    }
+                    // Handle SKIP flag
+                    if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
+                        && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
+                        return false;
+                }
 
                 // P2: Bridge Revit native params → STING shared params
                 NativeParamMapper.MapAll(doc, el);

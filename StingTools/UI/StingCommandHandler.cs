@@ -533,6 +533,7 @@ namespace StingTools.UI
                     case "BuildTags": RunCommand<Tags.BuildTagsCommand>(app); break;
                     case "CombineParameters": RunCommand<Tags.CombineParametersCommand>(app); break;
                     case "CombinePreFlight": RunCommand<Tags.CombinePreFlightCommand>(app); break;
+                    case "PreviewTag": PreviewTagInline(app); break;
 
                     // ── Manual tokens ──
                     case "SetDisc": RunCommand<Tags.SetDiscCommand>(app); break;
@@ -1430,6 +1431,61 @@ namespace StingTools.UI
                 .Select(e => e.Id).ToList();
             uidoc.Selection.SetElementIds(matching);
             StingLog.Info($"QuickParam '{paramName}'='{val}': {matching.Count} elements");
+        }
+
+        /// <summary>FE-03: Dry-run tag preview — runs full pipeline in a rolled-back transaction.</summary>
+        private static void PreviewTagInline(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var selIds = uidoc.Selection.GetElementIds().ToList();
+            if (selIds.Count != 1)
+            {
+                TaskDialog.Show("Preview Tag", "Select exactly 1 element to preview its predicted tag.");
+                return;
+            }
+            Element el = doc.GetElement(selIds[0]);
+            if (el == null) return;
+            string catName = Core.ParameterHelpers.GetCategoryName(el);
+            if (!Core.TagConfig.DiscMap.ContainsKey(catName))
+            {
+                TaskDialog.Show("Preview Tag", $"'{catName}' is not a taggable category.");
+                return;
+            }
+            // Dry-run: start a transaction, run pipeline, read result, rollback
+            string predictedTag = "(could not derive)";
+            string tokenDetail = "";
+            using (Transaction tx = new Transaction(doc, "STING Preview Tag (Dry-Run)"))
+            {
+                tx.Start();
+                try
+                {
+                    var ctx = Core.TokenAutoPopulator.PopulationContext.Build(doc);
+                    var (tagIdx, seqCtrs) = Core.TagConfig.BuildTagIndexAndCounters(doc);
+                    var formulas = Core.TagPipelineHelper.LoadFormulas();
+                    var grids = Core.TagPipelineHelper.LoadGridLines(doc);
+                    Core.TagPipelineHelper.RunFullPipeline(doc, el, ctx, tagIdx, seqCtrs,
+                        formulas, grids, overwrite: true, skipComplete: false,
+                        collisionMode: Core.TagCollisionMode.AutoIncrement);
+                    predictedTag = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.TAG1) ?? "(empty)";
+                    string disc  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.DISC);
+                    string loc   = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.LOC);
+                    string zone  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.ZONE);
+                    string lvl   = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.LVL);
+                    string sys   = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.SYS);
+                    string func  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.FUNC);
+                    string prod  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.PROD);
+                    tokenDetail = $"DISC={disc}  LOC={loc}  ZONE={zone}  LVL={lvl}\nSYS={sys}  FUNC={func}  PROD={prod}";
+                }
+                catch (Exception ex) { Core.StingLog.Warn($"PreviewTag: {ex.Message}"); }
+                tx.RollBack(); // Always rollback — this is read-only preview
+            }
+            TaskDialog.Show("STING — Preview Tag",
+                $"Predicted tag for selected element:\n\n" +
+                $"  {predictedTag}\n\n" +
+                $"Tokens:\n  {tokenDetail}\n\n" +
+                $"(No changes were written — this is a dry-run preview.)");
         }
 
         private static void BulkParamWriteInline(UIApplication app, string paramName, string value, bool clear)
