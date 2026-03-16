@@ -224,7 +224,8 @@ namespace StingTools.Core
         /// RWD = Rainwater Drainage (Uniclass Ss_50_30_02, CAWS R10)
         /// CSV element type codes (P-WSP, P-DRN) map to these system codes.
         /// </summary>
-        public static readonly HashSet<string> ValidSysCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        /// <summary>ISO 19650 fallback SYS codes used when no project-specific config is loaded.</summary>
+        private static readonly HashSet<string> _fallbackSysCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "FP", "LV",
             "FLS", "COM", "ICT", "NCL", "SEC",
@@ -232,18 +233,33 @@ namespace StingTools.Core
         };
 
         /// <summary>
-        /// Valid function codes per CIBSE / Uniclass 2015.
-        /// DCW = Cold Water Supply (CAWS S10), SAN = Sanitary (CAWS R11),
-        /// GAS = Gas Supply (CAWS S63), RWD = Rainwater Drainage (CAWS R10).
+        /// BUG-06: Valid SYS codes derived from TagConfig.SysMap keys when available,
+        /// so project-specific codes added via project_config.json are accepted.
+        /// Falls back to ISO 19650 standard codes when SysMap is empty.
         /// </summary>
-        public static readonly HashSet<string> ValidFuncCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        public static HashSet<string> ValidSysCodes =>
+            TagConfig.SysMap != null && TagConfig.SysMap.Count > 0
+                ? new HashSet<string>(TagConfig.SysMap.Keys, StringComparer.OrdinalIgnoreCase)
+                : _fallbackSysCodes;
+
+        /// <summary>ISO 19650 fallback FUNC codes used when no project-specific config is loaded.</summary>
+        private static readonly HashSet<string> _fallbackFuncCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "SUP", "HTG", "DCW", "SAN", "RWD", "GAS", "FP", "PWR", "FLS",
             "COM", "ICT", "NCL", "SEC",
             "FIT", "STR", "GEN",
-            // Subsystem FUNC codes from GetSmartFuncCode HVAC/HWS differentiation
             "EXH", "RTN", "FRA", "DHW"
         };
+
+        /// <summary>
+        /// BUG-06: Valid FUNC codes derived from TagConfig.FuncMap keys when available,
+        /// so project-specific codes added via project_config.json are accepted.
+        /// Falls back to ISO 19650 standard codes when FuncMap is empty.
+        /// </summary>
+        public static HashSet<string> ValidFuncCodes =>
+            TagConfig.FuncMap != null && TagConfig.FuncMap.Count > 0
+                ? new HashSet<string>(TagConfig.FuncMap.Keys, StringComparer.OrdinalIgnoreCase)
+                : _fallbackFuncCodes;
 
         /// <summary>
         /// Validate a single token value against its allowed code list.
@@ -1558,17 +1574,11 @@ namespace StingTools.Core
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod);
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.SEQ, seq);
 
-                // Re-read actual token values (some may have been preserved by SetIfEmpty)
-                // to ensure TAG1 reflects what's actually on the element
+                // BUG-02: Re-read actual stored token values to ensure TAG1 reflects
+                // what's on the element. Do NOT fill empty slots with derived defaults —
+                // that would overwrite manually-set values that SetIfEmpty preserved.
+                // The malformed-tag guard below blocks incomplete tags correctly.
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
-                // Validate token array: replace any null/empty segments with defaults
-                // to prevent malformed tags like "M--Z01-L02-..."
-                string[] defaults = { disc, loc, zone, lvl, sys, func, prod, seq };
-                for (int i = 0; i < actualTokens.Length && i < defaults.Length; i++)
-                {
-                    if (string.IsNullOrEmpty(actualTokens[i]))
-                        actualTokens[i] = defaults[i];
-                }
                 tag = string.Join(Separator, actualTokens);
             }
 
@@ -2342,7 +2352,19 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(lvl) || lvl == "XX")
                     lvl = "L00";
 
-                string key = $"{disc}_{sys}_{lvl}";
+                // BUG-01: Match SeqIncludeZone key format used by BuildAndWriteTag/BuildSeqKey
+                string key;
+                if (SeqIncludeZone)
+                {
+                    string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                    if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
+                    key = $"{disc}_{zone}_{sys}_{lvl}";
+                }
+                else
+                {
+                    key = $"{disc}_{sys}_{lvl}";
+                }
+
                 if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {
                     if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
@@ -2407,7 +2429,19 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(lvl) || lvl == "XX")
                     lvl = "L00";
 
-                string key = $"{disc}_{sys}_{lvl}";
+                // BUG-01: Match SeqIncludeZone key format used by BuildAndWriteTag/BuildSeqKey
+                string key;
+                if (SeqIncludeZone)
+                {
+                    string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                    if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
+                    key = $"{disc}_{zone}_{sys}_{lvl}";
+                }
+                else
+                {
+                    key = $"{disc}_{sys}_{lvl}";
+                }
+
                 if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {
                     if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])

@@ -67,6 +67,9 @@ namespace StingTools.Core
                 // ElementId-based caches and Definition caches become invalid when a
                 // document closes. Using them against a new document causes native crashes.
                 application.ControlledApplication.DocumentClosing += OnDocumentClosing;
+                // BUG-05: Also clear param cache on document open to prevent cross-document
+                // cache collisions when switching between documents.
+                application.ControlledApplication.DocumentOpened += OnDocumentOpened;
 
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
@@ -98,6 +101,23 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"DocumentClosing cleanup: {ex.Message}");
+            }
+        }
+
+        /// <summary>BUG-05: Clear param cache on document open to prevent cross-document collisions.</summary>
+        private static void OnDocumentOpened(object sender,
+            Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
+        {
+            try
+            {
+                ParameterHelpers.ClearParamCache();
+                StingAutoTagger.InvalidateContext();
+                ComplianceScan.InvalidateCache();
+                StingLog.Info("DocumentOpened: cleared parameter cache for new document");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DocumentOpened cleanup: {ex.Message}");
             }
         }
 

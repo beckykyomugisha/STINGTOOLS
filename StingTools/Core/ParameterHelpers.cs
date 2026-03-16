@@ -77,10 +77,11 @@ namespace StingTools.Core
         }
 
         // Parameter lookup cache: avoids O(n) LookupParameter on every call.
-        // Keyed by (ElementId typeId, string paramName) → Definition.
+        // BUG-05: Keyed by (int docHash, ElementId typeId, string paramName) → Definition.
+        // docHash prevents cross-document cache collisions since ElementIds are document-relative.
         // Null values are cached to avoid repeated miss lookups.
-        private static readonly ConcurrentDictionary<(ElementId, string), Definition> _paramCache
-            = new ConcurrentDictionary<(ElementId, string), Definition>();
+        private static readonly ConcurrentDictionary<(int, ElementId, string), Definition> _paramCache
+            = new ConcurrentDictionary<(int, ElementId, string), Definition>();
 
         /// <summary>Clear the parameter lookup cache. Call on document close or when
         /// shared parameters change (e.g., after LoadSharedParams).</summary>
@@ -89,12 +90,13 @@ namespace StingTools.Core
             _paramCache.Clear();
         }
 
-        /// <summary>Cached parameter lookup. Uses element's TypeId + paramName as cache key.
+        /// <summary>Cached parameter lookup. Uses document hash + element's TypeId + paramName as cache key.
         /// Falls back to LookupParameter on first access per type, then O(1) thereafter.</summary>
         private static Parameter CachedLookup(Element el, string paramName)
         {
             ElementId typeId = el.GetTypeId();
-            var key = (typeId, paramName);
+            int docHash = el.Document.GetHashCode();
+            var key = (docHash, typeId, paramName);
 
             if (!_paramCache.TryGetValue(key, out Definition cachedDef))
             {
