@@ -1094,10 +1094,10 @@ namespace StingTools.BIMManager
                                     string catName = ParameterHelpers.GetCategoryName(el);
                                     TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                         skipComplete: false, tagIndex, TagCollisionMode.Overwrite, null,
-                                        overwriteTokens: false, cachedRev: cachedRev);
+                                        cachedRev: cachedRev);
                                     string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                                     ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
-                                    TagConfig.WriteTag7All(doc, el);
+                                    TagConfig.WriteTag7All(doc, el, catName, tokenVals);
                                     rebuilt++;
                                 }
                                 catch (Exception ex)
@@ -1352,10 +1352,10 @@ namespace StingTools.BIMManager
                                     string catName = ParameterHelpers.GetCategoryName(el);
                                     TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                         skipComplete: false, tagIndex, TagCollisionMode.Overwrite, null,
-                                        overwriteTokens: false, cachedRev: cachedRev);
+                                        cachedRev: cachedRev);
                                     string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                                     ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
-                                    TagConfig.WriteTag7All(doc, el);
+                                    TagConfig.WriteTag7All(doc, el, catName, tokenVals);
                                     rebuilt++;
                                 }
                                 catch (Exception ex)
