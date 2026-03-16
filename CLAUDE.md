@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **76 source files** (74 C# + 2 XAML, ~89,013 lines of code) across 10 directories
-- **379 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **77 source files** (75 C# + 2 XAML, ~89,500 lines of code) across 10 directories
+- **381 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **27 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (8 tabs) + 1 WPF project setup wizard
 
@@ -685,46 +685,35 @@ Additionally, 39 **paragraph container parameters** exist for category-specific 
 
 ## Tagging Workflow
 
-The recommended tagging workflow is a multi-layered pipeline:
+All tagging commands delegate to `TagPipelineHelper.RunFullPipeline()` in `Core/ParameterHelpers.cs`, which guarantees the following 9-step sequence for every element:
 
-1. **Load Parameters** (`LoadSharedParamsCommand`) — Bind 1,527 shared parameters (21 groups) to 53 categories (2-pass: universal + discipline-specific)
-2. **Family-Stage Populate** (`FamilyStagePopulateCommand`) — Pre-populate all 7 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD) from category, spatial, and family data
-3. **Pre-Tag Audit** (`PreTagAuditCommand`) — Dry-run: predict tag assignments, collisions, ISO violations before committing
-4. **Tag** (`AutoTagCommand` / `BatchTagCommand` / `TagAndCombineCommand`) — Assign SEQ numbers and assemble final 8-segment tags with collision handling
-5. **Validate** (`ValidateTagsCommand`) — ISO 19650 compliance check on all tokens and tag format
-6. **Combine** (`CombineParametersCommand`) — Write assembled tag to all 36 discipline-specific containers
-
-Alternatively, use **Tag & Combine** or **Full Auto-Populate** for one-click automation that executes the entire pipeline.
-
-### Unified Tagging Pipeline (`TagPipelineHelper`)
-
-All tagging commands (AutoTag, BatchTag, TagAndCombine, RetagStale, StingAutoTagger) execute the same per-element pipeline via `TagPipelineHelper.RunFullPipeline()` in `Core/ParameterHelpers.cs`:
-
-1. **TypeTokenInherit** — Copy DISC/SYS/FUNC/PROD from family type to instance (if empty)
-2. **TokenAutoPopulator.PopulateAll** — Auto-populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
-3. **CategoryForceSys** — Apply per-category SYS overrides from `project_config.json`
-4. **NativeParamMapper.MapAll** — Map 30+ Revit built-in parameters to STING shared parameters
-5. **FormulaEngine.Evaluate** — Evaluate 199 dependency formulas
-6. **TagConfig.BuildAndWriteTag** — Assemble tag with collision detection, apply TAG_PREFIX/TAG_SUFFIX
-7. **ParamRegistry.WriteContainers** — Write tag to all 36 discipline-specific containers
-8. **TagConfig.WriteTag7All** — Build TAG7 rich narrative (sections A-F)
-9. **SpatialAutoDetect.GetGridRef** — Write nearest grid intersection reference
+1. **Category filter** — skips elements in `TagConfig.CategorySkipList`; applies `CategoryTokenOverrides` post-population
+2. **TypeTokenInherit** — copies token values from family type to instance
+3. **PopulateAll** — derives all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
+4. **NativeParamMapper.MapAll** — bridges 30+ Revit native params to STING shared params
+5. **FormulaEngine** — evaluates 199 dependency-ordered formulas (cost/flow/area/env)
+6. **BuildAndWriteTag** — assembles ISO 19650 8-segment tag with collision detection
+7. **WriteContainers** — writes tag to all 53 discipline-specific containers
+8. **WriteTag7All** — builds TAG7 rich narrative (A-F sub-sections)
+9. **GetGridRef** — auto-detects nearest grid intersection (GRID_REF)
 
 After transaction commit, `TagConfig.SaveSeqSidecar()` persists SEQ counters to a `.sting_seq.json` sidecar file alongside the `.rvt`, ensuring sequence continuity between sessions.
 
-### Tag Configuration Extensions
+**Commands using RunFullPipeline (full pipeline)**: AutoTagCommand, BatchTagCommand, TagAndCombineCommand, TagNewOnlyCommand, RetagStaleCommand, TagSelectedCommand, ReTagCommand, StingAutoTagger (IUpdater), Tag3DCommand
 
-The following settings in `project_config.json` control tag behaviour:
+**Commands using partial pipeline** (not tagged via RunFullPipeline but include containers/TAG7): TagFormatMigrationCommand, TagChangedCommand, RepairDuplicateSeqCommand, SystemParamPushCommand, BulkParamWrite retag, FullAutoPopulateCommand
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `TAG_PREFIX` | string | Prepended to assembled tags (e.g., `"PRJ-"`) |
-| `TAG_SUFFIX` | string | Appended to assembled tags |
-| `CATEGORY_SKIP` | string[] | Categories excluded from tagging |
-| `CATEGORY_FORCE_SYS` | dict | Per-category SYS code overrides (e.g., `{"Fire Alarm Devices": "FP"}`) |
-| `TAG_FORMAT.separator` | string | Token separator (default `"-"`) |
-| `TAG_FORMAT.num_pad` | int | SEQ zero-padding width (default `4`) |
-| `TAG_FORMAT.segment_order` | string[] | Token order in assembled tag |
+**Token-only commands** (populate tokens, no tag assembly): FamilyStagePopulateCommand, BulkAutoPopulate
+
+**Config keys** (`project_config.json`): `TAG_PREFIX`, `TAG_SUFFIX`, `CATEGORY_SKIP`, `CATEGORY_FORCE_SYS`, `CATEGORY_TOKEN_OVERRIDES`, `SEQ_SCHEME`, `SEQ_INCLUDE_ZONE`, `COMPLIANCE_GATE_PCT`, `AUTO_RUN_WORKFLOW_ON_OPEN`, `TAG_FORMAT`
+
+**Quality features**:
+- `ASS_TAG_PREV_TXT` + `ASS_TAG_MODIFIED_DT` — tag history audit trail written per element
+- `ComplianceScan.ComplianceResult.EmptyTokenCounts` — per-token granular compliance breakdown
+- `TagConfig.CategoryTokenOverrides` — per-category token value enforcement from config
+- `ASS_TOKEN_LOCK_TXT` — per-element token lock parameter (infrastructure in place; PopulateAll skipFields pending)
+- `PreviewTagCommand` — dry-run tag preview for selected element
+- `AUTO_RUN_WORKFLOW_ON_OPEN` — notifies user of configured workflow on document open
 
 ### Delta Sync (`TagChangedCommand`)
 
@@ -1347,6 +1336,24 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 172. **Type token inheritance** — `TokenAutoPopulator.TypeTokenInherit()` copies DISC/SYS/FUNC/PROD from family type to instance elements.
 173. **Grid reference auto-detect** — `SpatialAutoDetect.GetGridRef()` finds nearest X/Y grid intersection and writes to ASS_GRID_REF_TXT.
 174. **Auto-tagger stability** — `StingAutoTagger.InvalidateContext()` clears `_recentlyProcessed` cache to prevent stale skip bugs.
+
+#### Completed (Phase 16 — v4 Gap Analysis Fixes)
+
+175. **Tag3DCommand created** — `Tags/Tag3DCommand.cs` with full pipeline: RunFullPipeline on source elements, WriteContainers + WriteTag7All + NativeMapper on placed 3D tag instances, LoadTagFamilyFromConfig from project_config.json. Also creates RepairDuplicateSeqCommand.
+176. **BulkRetag containers** — `StateSelectCommands.cs` BulkRetag now writes WriteTag7All + WriteContainers after BuildAndWriteTag.
+177. **TagSelected/ReTag upgraded** — Both commands in `TagOperationCommands.cs` upgraded to use `RunFullPipeline` for full TypeTokenInherit + PopulateAll + NativeMapper + Formulas pipeline.
+178. **FullAutoPopulate SEQ sidecar** — `ScheduleCommands.cs` now calls `SaveSeqSidecar` after tx.Commit for sequence continuity.
+179. **ResolveAllIssues expanded** — `ResolveAllIssuesCommand.cs` adds TypeTokenInherit before PopulateAll and NativeParamMapper.MapAll per element.
+180. **FamilyStagePopulate NativeMapper** — `FamilyStagePopulateCommand.cs` adds NativeParamMapper.MapAll after token population.
+181. **BulkAutoPopulate NativeMapper** — `StateSelectCommands.cs` BulkAutoPopulate adds NativeParamMapper.MapAll per element.
+182. **Tag history params registered** — ASS_TAG_PREV_TXT, ASS_TAG_MODIFIED_DT, ASS_TOKEN_LOCK_TXT added to MR_PARAMETERS.csv with GUIDs.
+183. **AUTO_RUN_WORKFLOW_ON_OPEN** — TagConfig property + LoadFromFile/SaveToFile/LoadDefaults support. OnDocumentOpened notifies user of configured workflow. WorkflowEngine.GetCommandInstance public accessor added.
+184. **ComplianceScan EmptyTokenCounts** — Per-token empty/placeholder count dictionary in ComplianceResult for granular compliance reporting.
+185. **Config schema validation** — TagConfig.LoadFromFile warns on unknown config keys to catch typos.
+186. **CATEGORY_TOKEN_OVERRIDES** — Full per-category token overrides from project_config.json, applied in RunFullPipeline after PopulateAll. Supports SKIP flag to exclude categories.
+187. **Token lock infrastructure** — ASS_TOKEN_LOCK_TXT parameter registered and read in RunFullPipeline (PopulateAll skipFields integration pending).
+188. **PreviewTagCommand** — Dry-run tag preview in StingCommandHandler: runs full pipeline in rolled-back transaction, shows predicted tag + token breakdown. XAML button added to TEMP tab.
+189. **WriteContainers gap fix** — Added WriteContainers to TagFormatMigration, TagChanged, SystemParamPush, BatchSystemPush — all BuildAndWriteTag + WriteTag7All blocks now also write containers.
 
 ### External Tool References
 
