@@ -578,6 +578,12 @@ namespace StingTools.Core
         /// <summary>AL-05: Minimum compliance % gate after batch tag operations. 0 = disabled. Loaded from project_config.json COMPLIANCE_GATE_PCT.</summary>
         public static int ComplianceGatePct { get; internal set; } = 0;
 
+        /// <summary>FL-03: History of previously used tag separators for cross-session tag validation compatibility.</summary>
+        public static List<string> SeparatorHistory { get; internal set; } = new List<string>();
+
+        /// <summary>AL-07: Workflow preset name to auto-run on DocumentOpened. Empty = disabled.</summary>
+        public static string AutoRunWorkflowOnOpen { get; internal set; } = string.Empty;
+
         /// <summary>Current sequence numbering scheme (loaded from project_config.json).</summary>
         internal static SeqScheme CurrentSeqScheme { get; set; } = SeqScheme.Numeric;
         /// <summary>Whether SEQ resets per zone.</summary>
@@ -947,6 +953,19 @@ namespace StingTools.Core
                     else if (int.TryParse(gateObj?.ToString(), out int gi)) ComplianceGatePct = gi;
                 }
 
+                // FL-03: Load separator history for cross-session tag validation compatibility
+                var sepHistory = TryDeserialize<List<string>>(data, "SEPARATOR_HISTORY");
+                if (sepHistory != null && sepHistory.Count > 0)
+                    SeparatorHistory = sepHistory;
+                else
+                    SeparatorHistory = new List<string>();
+
+                // AL-07: Auto-run workflow on document open
+                AutoRunWorkflowOnOpen = string.Empty;
+                if (data.TryGetValue("AUTO_RUN_WORKFLOW_ON_OPEN", out object arwObj) && arwObj is string arwStr
+                    && !string.IsNullOrWhiteSpace(arwStr))
+                    AutoRunWorkflowOnOpen = arwStr.Trim();
+
                 ConfigSource = "project_config.json";
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
@@ -985,6 +1004,8 @@ namespace StingTools.Core
             CategoryForceSys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             ConfigSource = "built-in defaults";
             ComplianceGatePct = 0;
+            SeparatorHistory = new List<string>();
+            AutoRunWorkflowOnOpen = string.Empty;
             // NP11: Reset SEQ scheme state on LoadDefaults to prevent cross-project bleed
             CurrentSeqScheme = SeqScheme.Numeric;
             SeqIncludeZone = false;
@@ -1085,7 +1106,9 @@ namespace StingTools.Core
                     ["TAG_SUFFIX"] = TagSuffix,
                     ["CATEGORY_SKIP"] = CategorySkipList.ToList(),
                     ["CATEGORY_FORCE_SYS"] = CategoryForceSys,
-                    ["COMPLIANCE_GATE_PCT"] = ComplianceGatePct
+                    ["COMPLIANCE_GATE_PCT"] = ComplianceGatePct,
+                    ["SEPARATOR_HISTORY"] = SeparatorHistory,
+                    ["AUTO_RUN_WORKFLOW_ON_OPEN"] = AutoRunWorkflowOnOpen
                 };
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);
