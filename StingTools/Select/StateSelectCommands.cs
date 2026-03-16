@@ -557,6 +557,9 @@ namespace StingTools.Select
                     // Full 9-token auto-population via shared helper
                     var result = TokenAutoPopulator.PopulateAll(doc, elem, popCtx);
                     populated += result.TokensSet;
+                    // NG9: Bridge native params after token population
+                    try { NativeParamMapper.MapAll(doc, elem); }
+                    catch (Exception nmEx9) { StingLog.Warn($"BulkAutoPopulate NativeMapper for {id}: {nmEx9.Message}"); }
                     if (result.StatusDetected) statusDetected++;
                     if (result.RevSet) revSet++;
                 }

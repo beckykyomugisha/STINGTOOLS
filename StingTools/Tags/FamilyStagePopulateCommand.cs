@@ -180,6 +180,9 @@ namespace StingTools.Tags
                         // Uses cached phases/rooms/project data — no per-element collectors.
                         var result = TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite);
                         totalTokensSet += result.TokensSet;
+                        // NG7: Bridge Revit native params to STING shared params after token population
+                        try { NativeParamMapper.MapAll(doc, el); }
+                        catch (Exception nmEx7) { StingLog.Warn($"FamilyStagePopulate NativeMapper for {el?.Id}: {nmEx7.Message}"); }
                         if (result.LocDetected) locDetected++;
                         if (result.ZoneDetected) zoneDetected++;
                         if (result.StatusDetected) statusDetected++;

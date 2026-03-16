@@ -154,6 +154,9 @@ namespace StingTools.Tags
                         {
                             string catName = ParameterHelpers.GetCategoryName(el);
 
+                            // NG8: TypeTokenInherit before PopulateAll for consistent token inheritance
+                            TokenAutoPopulator.TypeTokenInherit(doc, el);
+
                             // Step 1: Force-populate all 9 tokens with guaranteed defaults
                             var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: true);
                             populated += popResult.TokensSet;
@@ -192,6 +195,10 @@ namespace StingTools.Tags
                                 if (!string.IsNullOrEmpty(fixedProd))
                                     ParameterHelpers.SetString(el, ParamRegistry.PROD, fixedProd, overwrite: true);
                             }
+
+                            // NG8: Bridge Revit native params to STING shared params
+                            try { NativeParamMapper.MapAll(doc, el); }
+                            catch (Exception nmEx) { StingLog.Warn($"ResolveAllIssues NativeMapper for {el.Id}: {nmEx.Message}"); }
 
                             // Step 2: Rebuild tag from scratch with fresh SEQ (overwrite mode)
                             TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,

@@ -987,6 +987,9 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
+            // NG6: Save SEQ sidecar for consistency with all other RunFullPipeline callers
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"FullAutoPopulate SaveSeqSidecar: {ssEx.Message}"); }
             sw.Stop();
             ComplianceScan.InvalidateCache();
 
