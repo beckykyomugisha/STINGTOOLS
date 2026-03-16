@@ -1064,10 +1064,63 @@ namespace StingTools.BIMManager
                     }
                 }
 
+                // ── BUG-03: Rebuild tags for elements whose tokens were changed ──
+                var tokenParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                    ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD
+                };
+                var affectedIds = changes
+                    .Where(c => c.Status == ExcelLinkEngine.ChangeStatus.Applied && tokenParams.Contains(c.ParamName))
+                    .Select(c => new ElementId(c.ElementId))
+                    .Distinct()
+                    .ToList();
+                int rebuilt = 0;
+                if (affectedIds.Count > 0)
+                {
+                    using (var rebuildTrans = new Transaction(doc, "STING Import Tag Rebuild"))
+                    {
+                        rebuildTrans.Start();
+                        try
+                        {
+                            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                            string cachedRev = PhaseAutoDetect.DetectProjectRevision(doc);
+                            foreach (var eid in affectedIds)
+                            {
+                                Element el = doc.GetElement(eid);
+                                if (el == null) continue;
+                                try
+                                {
+                                    string catName = ParameterHelpers.GetCategoryName(el);
+                                    TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                                        skipComplete: false, tagIndex, TagCollisionMode.Overwrite, null,
+                                        cachedRev: cachedRev);
+                                    string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                    ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
+                                    TagConfig.WriteTag7All(doc, el, catName, tokenVals);
+                                    rebuilt++;
+                                }
+                                catch (Exception ex)
+                                {
+                                    StingLog.Warn($"ExcelLink tag rebuild failed for {eid}: {ex.Message}");
+                                }
+                            }
+                            rebuildTrans.Commit();
+                        }
+                        catch (Exception ex)
+                        {
+                            if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
+                            StingLog.Error("ExcelLink tag rebuild transaction failed", ex);
+                        }
+                    }
+                }
+
                 // LOG-12 FIX: Invalidate AutoTagger cached seqCounters and compliance cache
                 // after import to prevent SEQ collisions on next auto-tag operation
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+                if (rebuilt > 0)
+                    StingLog.Info($"ExcelLink: Rebuilt tags for {rebuilt}/{affectedIds.Count} elements");
 
                 // ── Write change log CSV ──
                 string userName = "";
@@ -1076,10 +1129,11 @@ namespace StingTools.BIMManager
 
                 // ── Report results ──
                 int valSkipped = changes.Count(c => c.Status == ExcelLinkEngine.ChangeStatus.ValidationSkipped);
-                StingLog.Info($"ExcelLink Import: applied={applied}, skipped={skipped}, valSkipped={valSkipped}, failed={failed}");
+                StingLog.Info($"ExcelLink Import: applied={applied}, skipped={skipped}, valSkipped={valSkipped}, failed={failed}, rebuilt={rebuilt}");
 
                 var resultMsg = $"Import Complete\n\n" +
                                 $"Parameters updated: {applied}\n" +
+                                $"Tags rebuilt: {rebuilt}\n" +
                                 $"Elements not found: {skipped}\n" +
                                 $"Validation skipped: {valSkipped}\n" +
                                 $"Failures: {failed}\n\n" +
@@ -1272,9 +1326,62 @@ namespace StingTools.BIMManager
                     }
                 }
 
+                // ── BUG-03: Rebuild tags for elements whose tokens were changed ──
+                var tokenParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                    ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD
+                };
+                var affectedIds = changes
+                    .Where(c => c.Status == ExcelLinkEngine.ChangeStatus.Applied && tokenParams.Contains(c.ParamName))
+                    .Select(c => new ElementId(c.ElementId))
+                    .Distinct()
+                    .ToList();
+                int rebuilt = 0;
+                if (affectedIds.Count > 0)
+                {
+                    using (var rebuildTrans = new Transaction(doc, "STING RoundTrip Tag Rebuild"))
+                    {
+                        rebuildTrans.Start();
+                        try
+                        {
+                            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                            string cachedRev = PhaseAutoDetect.DetectProjectRevision(doc);
+                            foreach (var eid in affectedIds)
+                            {
+                                Element el = doc.GetElement(eid);
+                                if (el == null) continue;
+                                try
+                                {
+                                    string catName = ParameterHelpers.GetCategoryName(el);
+                                    TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                                        skipComplete: false, tagIndex, TagCollisionMode.Overwrite, null,
+                                        cachedRev: cachedRev);
+                                    string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                    ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
+                                    TagConfig.WriteTag7All(doc, el, catName, tokenVals);
+                                    rebuilt++;
+                                }
+                                catch (Exception ex)
+                                {
+                                    StingLog.Warn($"ExcelLink RoundTrip tag rebuild failed for {eid}: {ex.Message}");
+                                }
+                            }
+                            rebuildTrans.Commit();
+                        }
+                        catch (Exception ex)
+                        {
+                            if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
+                            StingLog.Error("ExcelLink RoundTrip tag rebuild failed", ex);
+                        }
+                    }
+                }
+
                 // LOG-12 FIX: Invalidate AutoTagger cached seqCounters and compliance cache
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+                if (rebuilt > 0)
+                    StingLog.Info($"ExcelLink RoundTrip: Rebuilt tags for {rebuilt}/{affectedIds.Count} elements");
 
                 // ── Write change log ──
                 string userName = "";
@@ -1282,11 +1389,12 @@ namespace StingTools.BIMManager
                 ExcelLinkEngine.WriteChangeLog(outputPath, changes, userName);
 
                 int valSkipped = changes.Count(c => c.Status == ExcelLinkEngine.ChangeStatus.ValidationSkipped);
-                StingLog.Info($"ExcelLink RoundTrip Import: applied={applied}, skipped={skipped}, valSkipped={valSkipped}, failed={failed}");
+                StingLog.Info($"ExcelLink RoundTrip Import: applied={applied}, skipped={skipped}, valSkipped={valSkipped}, failed={failed}, rebuilt={rebuilt}");
 
                 TaskDialog.Show("STING Excel Round-Trip",
                     $"Round-trip complete!\n\n" +
                     $"Parameters updated: {applied}\n" +
+                    $"Tags rebuilt: {rebuilt}\n" +
                     $"Elements not found: {skipped}\n" +
                     $"Validation skipped: {valSkipped}\n" +
                     $"Failures: {failed}\n\n" +

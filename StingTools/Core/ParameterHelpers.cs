@@ -77,8 +77,8 @@ namespace StingTools.Core
         }
 
         // Parameter lookup cache: avoids O(n) LookupParameter on every call.
-        // Keyed by (int docHash, ElementId typeId, string paramName) → Definition.
-        // LOG-05 FIX: docHash prevents cross-document cache collisions (ElementIds are doc-relative).
+        // BUG-05: Keyed by (int docHash, ElementId typeId, string paramName) → Definition.
+        // docHash prevents cross-document cache collisions since ElementIds are document-relative.
         // Null values are cached to avoid repeated miss lookups.
         private static readonly ConcurrentDictionary<(int, ElementId, string), Definition> _paramCache
             = new ConcurrentDictionary<(int, ElementId, string), Definition>();
@@ -90,7 +90,7 @@ namespace StingTools.Core
             _paramCache.Clear();
         }
 
-        /// <summary>Cached parameter lookup. Uses docHash + TypeId + paramName as cache key.
+        /// <summary>Cached parameter lookup. Uses document hash + element's TypeId + paramName as cache key.
         /// Falls back to LookupParameter on first access per type, then O(1) thereafter.</summary>
         private static Parameter CachedLookup(Element el, string paramName)
         {
@@ -121,6 +121,23 @@ namespace StingTools.Core
                 return v ?? string.Empty;
             }
             return string.Empty;
+        }
+
+        /// <summary>Read an integer parameter with fallback. Handles Integer, Double, String storage.</summary>
+        public static int GetInt(Element el, string paramName, int defaultValue = 0)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return defaultValue;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null) return defaultValue;
+            switch (p.StorageType)
+            {
+                case StorageType.Integer: return p.AsInteger();
+                case StorageType.Double: return (int)p.AsDouble();
+                case StorageType.String:
+                    string s = p.AsString();
+                    return int.TryParse(s, out int v) ? v : defaultValue;
+                default: return defaultValue;
+            }
         }
 
         /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
@@ -1083,6 +1100,82 @@ namespace StingTools.Core
         /// detection available. Only fills empty values (non-destructive) unless
         /// overwrite is true.
         /// </summary>
+        /// <summary>
+        /// Copy non-empty token values from element TYPE to instance.
+        /// Runs before PopulateAll so inherited values are not overwritten.
+        /// </summary>
+        public static void TypeTokenInherit(Document doc, Element el)
+        {
+            if (el == null) return;
+            ElementId typeId = el.GetTypeId();
+            if (typeId == null || typeId == ElementId.InvalidElementId) return;
+            Element typeEl = doc.GetElement(typeId);
+            if (typeEl == null) return;
+
+            string[] tokenParams = { ParamRegistry.DISC, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD };
+            foreach (string param in tokenParams)
+            {
+                string typeVal = ParameterHelpers.GetString(typeEl, param);
+                if (!string.IsNullOrEmpty(typeVal))
+                    ParameterHelpers.SetIfEmpty(el, param, typeVal);
+            }
+        }
+
+        /// <summary>
+        /// ENH-01: Inherit token values from connected MEP elements via connectors.
+        /// Walks the connector graph one hop to find already-tagged connected elements
+        /// and copies SYS, FUNC, and DISC tokens to this element if empty.
+        /// Only operates on FamilyInstance elements with MEP connectors.
+        /// </summary>
+        public static void ConnectorInherit(Document doc, Element el)
+        {
+            if (el == null) return;
+            try
+            {
+                FamilyInstance fi = el as FamilyInstance;
+                if (fi?.MEPModel?.ConnectorManager == null) return;
+
+                string[] tokensToCopy = { ParamRegistry.DISC, ParamRegistry.SYS,
+                    ParamRegistry.FUNC, ParamRegistry.LOC, ParamRegistry.ZONE };
+
+                // Check if element already has all tokens populated
+                bool allPopulated = true;
+                foreach (string t in tokensToCopy)
+                {
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, t)))
+                    { allPopulated = false; break; }
+                }
+                if (allPopulated) return;
+
+                // Walk connectors to find tagged connected elements
+                foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
+                {
+                    if (conn == null || !conn.IsConnected) continue;
+                    foreach (Connector otherConn in conn.AllRefs)
+                    {
+                        if (otherConn?.Owner == null || otherConn.Owner.Id == el.Id) continue;
+                        Element connected = otherConn.Owner;
+
+                        string connTag = ParameterHelpers.GetString(connected, ParamRegistry.TAG1);
+                        if (string.IsNullOrEmpty(connTag)) continue;
+
+                        // Found a tagged connected element — copy empty tokens
+                        foreach (string param in tokensToCopy)
+                        {
+                            string val = ParameterHelpers.GetString(connected, param);
+                            if (!string.IsNullOrEmpty(val))
+                                ParameterHelpers.SetIfEmpty(el, param, val);
+                        }
+                        return; // Use first tagged connected element
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ConnectorInherit: {ex.Message}");
+            }
+        }
+
         public static PopulationResult PopulateAll(Document doc, Element el,
             PopulationContext ctx, bool overwrite = false)
         {
@@ -1096,14 +1189,22 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
                 return result;
 
+            // ENH-01: Inherit tokens from connected MEP elements before population
+            // so that PopulateAll's SetIfEmpty calls won't overwrite inherited values
+            ConnectorInherit(doc, el);
+
             // DISC — deterministic from category (default "A" for unmapped categories)
             string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
 
             // SYS — 6-layer MEP system-aware detection (must come before DISC correction)
-            string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+            // LOG-01: Track which detection layer produced the SYS code
+            var (sys, sysLayer) = TagConfig.GetMepSystemAwareSysCodeWithLayer(el, catName);
             // Guaranteed SYS default: derive from discipline when MEP detection returns empty
             if (string.IsNullOrEmpty(sys))
+            {
                 sys = TagConfig.GetDiscDefaultSysCode(disc);
+                sysLayer = 7; // layer 7 = discipline default fallback
+            }
 
             // DISC correction — system-aware override for pipes
             disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
@@ -1117,42 +1218,91 @@ namespace StingTools.Core
                 if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) result.TokensSet++;
             }
 
-            // LOC — from spatial context (room → project info → workset)
+            // Phase 19: Type-level LOC/ZONE overrides — check before spatial detection
+            string typeLocOverride = null;
+            string typeZoneOverride = null;
+            ElementId popTypeId = el.GetTypeId();
+            if (popTypeId != null && popTypeId != ElementId.InvalidElementId)
+            {
+                Element popTypeEl = doc.GetElement(popTypeId);
+                if (popTypeEl != null)
+                {
+                    typeLocOverride = ParameterHelpers.GetString(popTypeEl, ParamRegistry.TYPE_LOC_OVERRIDE);
+                    typeZoneOverride = ParameterHelpers.GetString(popTypeEl, ParamRegistry.TYPE_ZONE_OVERRIDE);
+                }
+            }
+
+            // LOC — from type override → spatial context (room → project info → workset)
             // Guaranteed default: "BLD1" when detection returns empty
             string existingLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
             if (string.IsNullOrEmpty(existingLoc) || overwrite)
             {
-                string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
-                bool locFromSpatial = !string.IsNullOrEmpty(loc) && loc != "BLD1";
-                if (string.IsNullOrEmpty(loc)) loc = "BLD1";
-                if (overwrite)
+                if (!string.IsNullOrEmpty(typeLocOverride))
                 {
-                    if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true)) result.TokensSet++;
+                    if (overwrite)
+                        ParameterHelpers.SetString(el, ParamRegistry.LOC, typeLocOverride, overwrite: true);
+                    else
+                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, typeLocOverride);
+                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC_SOURCE, "TYPE_OVERRIDE");
+                    result.LocDetected = true;
+                    result.TokensSet++;
                 }
                 else
                 {
-                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) result.TokensSet++;
+                    string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
+                    bool locFromSpatial = !string.IsNullOrEmpty(loc) && loc != "BLD1";
+                    if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                    if (overwrite)
+                    {
+                        if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true)) result.TokensSet++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) result.TokensSet++;
+                    }
+                    result.LocDetected = locFromSpatial;
+
+                    // LOG-01: Track LOC detection source
+                    string locSource = locFromSpatial ? "Room" :
+                        (!string.IsNullOrEmpty(ctx.ProjectLoc) ? "ProjectInfo" : "Default");
+                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC_SOURCE, locSource);
                 }
-                result.LocDetected = locFromSpatial;
             }
 
-            // ZONE — from room data (department → name → workset)
+            // ZONE — from type override → room data (department → name → workset)
             // Guaranteed default: "Z01" when detection returns empty
             string existingZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
             if (string.IsNullOrEmpty(existingZone) || overwrite)
             {
-                string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
-                bool zoneFromSpatial = !string.IsNullOrEmpty(zone) && zone != "Z01";
-                if (string.IsNullOrEmpty(zone)) zone = "Z01";
-                if (overwrite)
+                if (!string.IsNullOrEmpty(typeZoneOverride))
                 {
-                    if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true)) result.TokensSet++;
+                    if (overwrite)
+                        ParameterHelpers.SetString(el, ParamRegistry.ZONE, typeZoneOverride, overwrite: true);
+                    else
+                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, typeZoneOverride);
+                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE_SOURCE, "TYPE_OVERRIDE");
+                    result.ZoneDetected = true;
+                    result.TokensSet++;
                 }
                 else
                 {
-                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) result.TokensSet++;
+                    string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
+                    bool zoneFromSpatial = !string.IsNullOrEmpty(zone) && zone != "Z01";
+                    if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                    if (overwrite)
+                    {
+                        if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true)) result.TokensSet++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) result.TokensSet++;
+                    }
+                    result.ZoneDetected = zoneFromSpatial;
+
+                    // LOG-01: Track ZONE detection source
+                    string zoneSource = zoneFromSpatial ? "Room" : "Default";
+                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE_SOURCE, zoneSource);
                 }
-                result.ZoneDetected = zoneFromSpatial;
             }
 
             // LVL — deterministic from element level
@@ -1177,6 +1327,15 @@ namespace StingTools.Core
             {
                 if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) result.TokensSet++;
             }
+
+            // LOG-01: Write SYS detection layer (1-7) for confidence tracking
+            try
+            {
+                Parameter sysLayerParam = el.LookupParameter(ParamRegistry.SYS_DETECT_LAYER);
+                if (sysLayerParam != null && !sysLayerParam.IsReadOnly)
+                    sysLayerParam.Set(sysLayer);
+            }
+            catch { /* advisory — parameter may not be bound yet */ }
 
             // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
             // Guaranteed default: derive from SYS via FuncMap when smart detection is empty
@@ -1254,7 +1413,77 @@ namespace StingTools.Core
                 }
             }
 
+            // Phase 19: Track level ElementId for stale detection on level changes
+            try
+            {
+                ElementId levelId = el.LevelId;
+                if (levelId != null && levelId != ElementId.InvalidElementId)
+                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL_ELEM_ID, levelId.Value.ToString());
+            }
+            catch { }
+
+            // Phase 19: Write nearest grid intersection reference
+            WriteGridReference(doc, el);
+
             return result;
+        }
+
+        /// <summary>Phase 19: Write nearest grid intersection reference for element.</summary>
+        private static void WriteGridReference(Document doc, Element el)
+        {
+            try
+            {
+                var loc = el.Location;
+                XYZ point = null;
+                if (loc is LocationPoint lp) point = lp.Point;
+                else if (loc is LocationCurve lc) point = lc.Curve.Evaluate(0.5, true);
+                if (point == null) return;
+
+                var grids = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Grid))
+                    .Cast<Grid>()
+                    .ToList();
+                if (grids.Count == 0) return;
+
+                // Find nearest X-direction and Y-direction grids
+                Grid nearestX = null, nearestY = null;
+                double minDistX = double.MaxValue, minDistY = double.MaxValue;
+                foreach (var grid in grids)
+                {
+                    try
+                    {
+                        var curve = grid.Curve;
+                        var dir = (curve.GetEndPoint(1) - curve.GetEndPoint(0)).Normalize();
+                        double dist = curve.Distance(point);
+                        // Roughly vertical grids (X-grids)
+                        if (Math.Abs(dir.Y) > Math.Abs(dir.X))
+                        {
+                            if (dist < minDistX) { minDistX = dist; nearestX = grid; }
+                        }
+                        else // Roughly horizontal grids (Y-grids)
+                        {
+                            if (dist < minDistY) { minDistY = dist; nearestY = grid; }
+                        }
+                    }
+                    catch { }
+                }
+
+                if (nearestX != null)
+                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_X_ID, nearestX.Name);
+                if (nearestY != null)
+                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_Y_ID, nearestY.Name);
+
+                double minDist = Math.Min(
+                    nearestX != null ? minDistX : double.MaxValue,
+                    nearestY != null ? minDistY : double.MaxValue);
+                if (minDist < double.MaxValue)
+                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_DIST,
+                        (minDist * 304.8).ToString("F0")); // Convert ft to mm
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"WriteGridReference: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -1623,6 +1852,22 @@ namespace StingTools.Core
                 return SetIfEmptyInt(el, targetParam, val);
             }
             catch { return 0; }
+        }
+
+        /// <summary>Map native sheet parameters to STING shared parameters for all sheets.</summary>
+        public static int MapSheets(Document doc)
+        {
+            int written = 0;
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .ToList();
+            foreach (var sheet in sheets)
+            {
+                written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NUMBER, "SHT_NUMBER_TXT");
+                written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NAME, "SHT_NAME_TXT");
+            }
+            return written;
         }
 
         /// <summary>Map a built-in string parameter directly (e.g., room finishes).</summary>
