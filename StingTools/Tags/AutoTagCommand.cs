@@ -139,6 +139,8 @@ namespace StingTools.Tags
             int statusDetected = 0, revSet = 0;
             var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
             var stats = new TaggingStats();
 
             bool cancelled = false;
@@ -160,33 +162,12 @@ namespace StingTools.Tags
 
                     try
                     {
-                        // Full 9-token auto-population via shared helper
-                        var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx,
-                            overwrite: collisionMode == TagCollisionMode.Overwrite);
-                        populated += popResult.TokensSet;
-                        if (popResult.StatusDetected) statusDetected++;
-                        if (popResult.RevSet) revSet++;
-
                         bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                        TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                            skipComplete: skipComplete,
-                            existingTags: tagIndex,
-                            collisionMode: collisionMode,
-                            stats: stats,
-                            cachedRev: popCtx.ProjectRev);
-
-                        // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                        try
-                        {
-                            string catNameTag7 = ParameterHelpers.GetCategoryName(el);
-                            string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
-                            TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7,
-                                overwrite: collisionMode == TagCollisionMode.Overwrite);
-                        }
-                        catch (Exception tag7Ex)
-                        {
-                            StingLog.Error($"AutoTag TAG7 write failed on element {el?.Id}: {tag7Ex.Message}", tag7Ex);
-                        }
+                        bool ow = (collisionMode == TagCollisionMode.Overwrite);
+                        TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                            tagIndex, sequenceCounters, formulas, gridLines,
+                            overwrite: ow, skipComplete: skipComplete,
+                            collisionMode: collisionMode, stats: stats);
                     }
                     catch (Exception ex)
                     {
@@ -298,6 +279,8 @@ namespace StingTools.Tags
 
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
             var stats = new TaggingStats();
             var sw = Stopwatch.StartNew();
             int populated = 0;
@@ -322,28 +305,10 @@ namespace StingTools.Tags
 
                     try
                     {
-                        // Full 9-token auto-population via shared helper
-                        var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx);
-                        populated += popResult.TokensSet;
-                        if (popResult.StatusDetected) statusDetected++;
-                        if (popResult.RevSet) revSet++;
-
-                        // Tag with collision detection and stats tracking
-                        TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                            existingTags: tagIndex, stats: stats,
-                            cachedRev: popCtx.ProjectRev);
-
-                        // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                        try
-                        {
-                            string catNameTag7 = ParameterHelpers.GetCategoryName(el);
-                            string[] tokenValsTag7 = ParamRegistry.ReadTokenValues(el);
-                            TagConfig.WriteTag7All(doc, el, catNameTag7, tokenValsTag7, overwrite: false);
-                        }
-                        catch (Exception tag7Ex)
-                        {
-                            StingLog.Error($"TagNewOnly TAG7 write failed on element {el?.Id}: {tag7Ex.Message}", tag7Ex);
-                        }
+                        TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                            tagIndex, seqCounters, formulas, gridLines,
+                            overwrite: false, skipComplete: true,
+                            collisionMode: TagCollisionMode.Skip, stats: stats);
                     }
                     catch (Exception ex)
                     {

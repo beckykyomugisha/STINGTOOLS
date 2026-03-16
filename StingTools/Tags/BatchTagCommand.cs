@@ -120,6 +120,8 @@ namespace StingTools.Tags
             int statusDetected = 0, revSet = 0;
             var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
             var stats = new TaggingStats();
             var sw = Stopwatch.StartNew();
             int populated = 0;
@@ -159,33 +161,12 @@ namespace StingTools.Tags
 
                         try
                         {
-                            // Full 9-token auto-population via shared helper
                             bool overwriteMode = (collisionMode == TagCollisionMode.Overwrite);
-                            var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx,
-                                overwrite: overwriteMode);
-                            populated += popResult.TokensSet;
-                            if (popResult.StatusDetected) statusDetected++;
-                            if (popResult.RevSet) revSet++;
-
                             bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                            TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                                skipComplete: skipComplete,
-                                existingTags: tagIndex,
-                                collisionMode: collisionMode,
-                                stats: stats,
-                                cachedRev: popCtx.ProjectRev);
-
-                            // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                            try
-                            {
-                                string catName = ParameterHelpers.GetCategoryName(el);
-                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwriteMode);
-                            }
-                            catch (Exception tag7Ex)
-                            {
-                                StingLog.Error($"BatchTag TAG7 write failed on element {el?.Id}: {tag7Ex.Message}", tag7Ex);
-                            }
+                            TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                                tagIndex, sequenceCounters, formulas, gridLines,
+                                overwrite: overwriteMode, skipComplete: skipComplete,
+                                collisionMode: collisionMode, stats: stats);
                         }
                         catch (Exception ex)
                         {
@@ -207,6 +188,8 @@ namespace StingTools.Tags
                     else
                     {
                         tx.Commit();
+                        // P6: Save SEQ sidecar after each committed batch
+                        TagConfig.SaveSeqSidecar(doc, sequenceCounters);
                         StingLog.Info($"Batch Tag: batch {batchNum} committed");
                     }
                 }

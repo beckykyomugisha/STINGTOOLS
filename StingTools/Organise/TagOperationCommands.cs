@@ -5256,6 +5256,8 @@ namespace StingTools.Organise
                 tx.Start();
                 var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
                 var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                var formulas = TagPipelineHelper.LoadFormulas();
+                var gridLines = TagPipelineHelper.LoadGridLines(doc);
 
                 foreach (Element el in scope)
                 {
@@ -5268,11 +5270,10 @@ namespace StingTools.Organise
                             return Result.Cancelled;
                         }
 
-                        TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: true);
-                        TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                            skipComplete: false, existingTags: existingTags,
-                            collisionMode: TagCollisionMode.AutoIncrement,
-                            cachedRev: popCtx.ProjectRev);
+                        TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                            existingTags, seqCounters, formulas, gridLines,
+                            overwrite: true, skipComplete: false,
+                            collisionMode: TagCollisionMode.AutoIncrement);
 
                         // Clear stale flag
                         Parameter staleP = el.LookupParameter(ParamRegistry.STALE);
@@ -5287,6 +5288,8 @@ namespace StingTools.Organise
                     }
                 }
                 tx.Commit();
+                // P6: Save SEQ sidecar after commit
+                TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
 
             ComplianceScan.InvalidateCache();

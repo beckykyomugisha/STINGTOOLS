@@ -45,6 +45,9 @@ namespace StingTools.Core
         private static HashSet<string> _cachedExistingTags;
         private static Dictionary<string, int> _cachedSeqCounters;
         private static bool _contextInvalid = true;
+        // G2.3: Cached formulas and grid lines for pipeline helper
+        private static List<Temp.FormulaEngine.FormulaDefinition> _formulas;
+        private static List<Grid> _gridLines;
 
         // LOG-04: Token hash cache to skip redundant TAG7 rebuilds
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, string>
@@ -219,6 +222,8 @@ namespace StingTools.Core
                     var built = TagConfig.BuildTagIndexAndCounters(doc);
                     _cachedExistingTags = built.Item1;
                     _cachedSeqCounters = built.Item2;
+                    _formulas = TagPipelineHelper.LoadFormulas();
+                    _gridLines = TagPipelineHelper.LoadGridLines(doc);
                     _contextInvalid = false;
                     StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags)");
                 }
@@ -268,54 +273,16 @@ namespace StingTools.Core
                         catch { /* workset check is advisory — never block tagging */ }
                     }
 
-                    // Item 1: Inherit tokens from family type before auto-detection
-                    TokenAutoPopulator.TypeTokenInherit(doc, el);
-
-                    // Populate all tokens
-                    TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: false);
-
-                    // Build and write the tag
-                    TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                        skipComplete: true, existingTags: existingTags,
-                        collisionMode: TagCollisionMode.AutoIncrement,
-                        cachedRev: ctx.ProjectRev);
+                    // G2.3: Full pipeline via TagPipelineHelper (TypeTokenInherit → PopulateAll →
+                    // NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers → TAG7 → GridRef)
+                    TagPipelineHelper.RunFullPipeline(doc, el, ctx,
+                        existingTags, seqCounters, _formulas, _gridLines,
+                        overwrite: false, skipComplete: true,
+                        collisionMode: TagCollisionMode.AutoIncrement);
 
                     // D1: Incrementally track newly created tags to avoid rebuilding the full index
                     string newTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                     if (!string.IsNullOrEmpty(newTag)) existingTags.Add(newTag);
-
-                    // LOG-04: Gate TAG7 rebuild behind token-change hash to avoid
-                    // expensive LABEL_DEFINITIONS parse on every element placement
-                    try
-                    {
-                        string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                        string tokenHash = string.Concat(
-                            tokenVals[0], tokenVals[4], tokenVals[5], tokenVals[6], tokenVals[3]);
-                        bool needsTag7 = true;
-                        if (_tag7HashCache.TryGetValue(id.Value, out string lastHash) && lastHash == tokenHash)
-                            needsTag7 = false;
-
-                        if (needsTag7)
-                        {
-                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
-                            _tag7HashCache[id.Value] = tokenHash;
-                        }
-                    }
-                    catch (Exception tag7Ex)
-                    {
-                        StingLog.Warn($"AutoTagger TAG7 for {id}: {tag7Ex.Message}");
-                    }
-
-                    // Auto-combine: propagate tag to discipline-specific containers
-                    try
-                    {
-                        string[] combineTokens = ParamRegistry.ReadTokenValues(el);
-                        ParamRegistry.WriteContainers(el, combineTokens, catName);
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"AutoTagger combine failed for {el.Id.Value}: {ex.Message}");
-                    }
 
                     // Item 4: Visual tag placement — only if user has enabled visual auto-tagging
                     if (_visualTaggingEnabled && doc.ActiveView != null

@@ -126,6 +126,8 @@ namespace StingTools.Tags
 
             // Build PopulationContext ONCE — caches room index, LOC, REV, phases
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
 
             int populated = 0;
             int tagged = 0;
@@ -166,53 +168,12 @@ namespace StingTools.Tags
                     {
                         totalProcessed++;
 
-                        // Steps 1-5: Auto-populate all 9 tokens via shared TokenAutoPopulator
-                        // Uses cached phases/rooms/project data — no per-element collectors
-                        var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx);
-                        populated += popResult.TokensSet;
-                        if (popResult.LocDetected) locDetected++;
-                        if (popResult.ZoneDetected) zoneDetected++;
-                        if (popResult.StatusDetected) statusDetected++;
-                        if (popResult.RevSet) revSet++;
-
-                        // Step 6: Tag if not already complete (with collision detection)
-                        // BuildAndWriteTag already writes containers internally, so we only
-                        // need an explicit combine for elements that were SKIPPED by BuildAndWriteTag
-                        // (already-tagged elements that still need container refresh).
-                        bool tagWritten = TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                            existingTags: tagIndex, stats: stats,
-                            cachedRev: popCtx.ProjectRev);
-                        if (tagWritten) tagged++;
-
-                        // Step 7: For elements NOT freshly tagged (skipped by BuildAndWriteTag),
-                        // ensure containers and TAG7 are still populated/refreshed.
-                        // BuildAndWriteTag already handles containers for newly-tagged elements.
-                        string tag1Check = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                        if (!tagWritten && !string.IsNullOrEmpty(tag1Check))
-                        {
-                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                            combined += ParamRegistry.WriteContainers(el, tokenVals, catName,
-                                overwrite: true, skipParam: ParamRegistry.TAG7);
-                            // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                            try
-                            {
-                                combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
-                            }
-                            catch (Exception tag7Ex)
-                            {
-                                StingLog.Error($"TagAndCombine TAG7 write failed on element {id}: {tag7Ex.Message}", tag7Ex);
-                            }
-                        }
-                        else if (tagWritten)
-                        {
-                            // TAG7 still needs explicit write (BuildAndWriteTag doesn't call WriteTag7All)
-                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                            combined += TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
-                            // BuildAndWriteTag writes TAG1 + all applicable containers internally
-                            // Estimate ~10 containers per element (TAG1-6 + discipline-specific)
-                            var applicableContainers = ParamRegistry.ContainersForCategory(catName);
-                            combined += applicableContainers != null ? applicableContainers.Length : 6;
-                        }
+                        // Full pipeline: populate → map → formulas → tag → containers → TAG7 → grid
+                        TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                            tagIndex, seqCounters, formulas, gridLines,
+                            overwrite: true, skipComplete: false,
+                            collisionMode: TagCollisionMode.AutoIncrement, stats: stats);
+                        tagged++;
                     }
                     catch (Exception ex)
                     {
@@ -229,6 +190,8 @@ namespace StingTools.Tags
                 }
 
                 tx.Commit();
+                // P6: Save SEQ sidecar after commit
+                TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
             sw.Stop();
             ComplianceScan.InvalidateCache();
