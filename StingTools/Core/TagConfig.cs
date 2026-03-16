@@ -563,6 +563,18 @@ namespace StingTools.Core
         public static string[] SegmentOrder => ParamRegistry.SegmentOrder;
         public const int MaxCollisionDepth = 10000;
 
+        /// <summary>TW-03c: Optional global tag prefix prepended before DISC segment.</summary>
+        public static string TagPrefix { get; internal set; } = string.Empty;
+
+        /// <summary>TW-03c: Optional global tag suffix appended after SEQ segment.</summary>
+        public static string TagSuffix { get; internal set; } = string.Empty;
+
+        /// <summary>G1.1: Categories to skip entirely during batch tag operations. Loaded from project_config.json CATEGORY_SKIP array.</summary>
+        public static HashSet<string> CategorySkipList { get; internal set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>G1.1: Per-category SYS code overrides. Loaded from project_config.json CATEGORY_FORCE_SYS dict.</summary>
+        public static Dictionary<string, string> CategoryForceSys { get; internal set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>Current sequence numbering scheme (loaded from project_config.json).</summary>
         internal static SeqScheme CurrentSeqScheme { get; set; } = SeqScheme.Numeric;
         /// <summary>Whether SEQ resets per zone.</summary>
@@ -902,6 +914,28 @@ namespace StingTools.Core
                     _seqSchemeWarned = false;
                 }
 
+                // TW-03c / G1.1: Load optional global tag prefix and suffix
+                TagPrefix = string.Empty;
+                TagSuffix = string.Empty;
+                if (data.TryGetValue("TAG_PREFIX", out object pfxObj) && pfxObj is string pfxStr
+                    && !string.IsNullOrWhiteSpace(pfxStr))
+                    TagPrefix = pfxStr.Trim();
+                if (data.TryGetValue("TAG_SUFFIX", out object sfxObj) && sfxObj is string sfxStr
+                    && !string.IsNullOrWhiteSpace(sfxStr))
+                    TagSuffix = sfxStr.Trim();
+
+                // G1.1: Load category-level skip list
+                CategorySkipList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var skipList = TryDeserialize<List<string>>(data, "CATEGORY_SKIP");
+                if (skipList != null)
+                    foreach (var cat in skipList) CategorySkipList.Add(cat);
+
+                // G1.1: Load category-level SYS force overrides
+                CategoryForceSys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var forceSys = TryDeserialize<Dictionary<string, string>>(data, "CATEGORY_FORCE_SYS");
+                if (forceSys != null)
+                    foreach (var kvp in forceSys) CategoryForceSys[kvp.Key] = kvp.Value;
+
                 ConfigSource = "project_config.json";
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
@@ -934,6 +968,10 @@ namespace StingTools.Core
             ParamRegistry.ClearTagFormatOverrides();
             StatusDefault = null;
             RevDefault = null;
+            TagPrefix = string.Empty;
+            TagSuffix = string.Empty;
+            CategorySkipList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            CategoryForceSys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             ConfigSource = "built-in defaults";
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
@@ -1023,7 +1061,11 @@ namespace StingTools.Core
                         ["separator"] = Separator,
                         ["num_pad"] = NumPad,
                         ["segment_order"] = SegmentOrder
-                    }
+                    },
+                    ["TAG_PREFIX"] = TagPrefix,
+                    ["TAG_SUFFIX"] = TagSuffix,
+                    ["CATEGORY_SKIP"] = CategorySkipList.ToList(),
+                    ["CATEGORY_FORCE_SYS"] = CategoryForceSys
                 };
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);
@@ -1315,18 +1357,22 @@ namespace StingTools.Core
         {
             if (string.IsNullOrEmpty(tagValue))
                 return false;
+            // TW-03g: Adjust expected count for global tag prefix/suffix
+            int adjusted = expectedTokens
+                + (!string.IsNullOrEmpty(TagPrefix) ? 1 : 0)
+                + (!string.IsNullOrEmpty(TagSuffix) ? 1 : 0);
             char sepChar = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
             string[] parts = tagValue.Split(new[] { sepChar });
 
             // LOG-07: If current separator doesn't yield expected tokens, try historical separators
-            if (parts.Length != expectedTokens)
+            if (parts.Length != adjusted)
             {
                 bool foundMatch = false;
                 foreach (char hist in _separatorHistory)
                 {
                     if (hist == sepChar) continue;
                     string[] altParts = tagValue.Split(new[] { hist });
-                    if (altParts.Length == expectedTokens)
+                    if (altParts.Length == adjusted)
                     {
                         parts = altParts;
                         foundMatch = true;

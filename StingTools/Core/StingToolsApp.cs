@@ -119,11 +119,27 @@ namespace StingTools.Core
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
 
-                // LOG-10: Reload TagConfig from project_config.json for new document
-                // This ensures BEP allowed codes and project-specific tag settings are refreshed
+                // C4 / G1.3: Reload TagConfig on document open — prefer project-adjacent config
+                // to prevent config bleed between projects
                 try
                 {
-                    string configPath = FindDataFile("project_config.json");
+                    string configPath = null;
+                    // First: look alongside the .rvt file for project-specific config
+                    string docPath = e.Document?.PathName;
+                    if (!string.IsNullOrEmpty(docPath))
+                    {
+                        string projectDir = System.IO.Path.GetDirectoryName(docPath);
+                        if (!string.IsNullOrEmpty(projectDir))
+                        {
+                            string adjacent = System.IO.Path.Combine(projectDir, "project_config.json");
+                            if (System.IO.File.Exists(adjacent))
+                                configPath = adjacent;
+                        }
+                    }
+                    // Fallback: look in plugin data directory
+                    if (configPath == null)
+                        configPath = FindDataFile("project_config.json");
+
                     if (configPath != null)
                         TagConfig.LoadFromFile(configPath);
                     else
@@ -132,6 +148,7 @@ namespace StingTools.Core
                 catch (Exception cfgEx)
                 {
                     StingLog.Warn($"DocumentOpened TagConfig reload: {cfgEx.Message}");
+                    TagConfig.LoadDefaults();
                 }
 
                 StingLog.Info("DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig");
