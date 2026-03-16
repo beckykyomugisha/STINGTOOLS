@@ -140,74 +140,132 @@ namespace StingTools.Tags
     }
 
     /// <summary>
-    /// Toggles TAG_WARN_VISIBLE_BOOL on element types to show/hide
-    /// warning threshold text in tag paragraphs.
+    /// Enhanced warning visibility command — supports five modes:
+    ///   None     → suppress ALL warnings (TAG_WARN_VISIBLE_BOOL = No/0)
+    ///   Critical → show only critical-severity warnings
+    ///   High     → show Critical + High
+    ///   Medium   → show Critical + High + Medium
+    ///   All      → show all warnings (default)
+    ///
+    /// Mode is passed via StingCommandHandler.GetExtraParam("WarnMode") from
+    /// the Tag Studio → Tokens & Depth radio buttons (rbWarnNone / rbWarnCritical
+    /// / rbWarnHigh / rbWarnMedium / rbWarnAll).  When no mode is supplied
+    /// (legacy "Toggle Warnings" button call) a TaskDialog is shown instead.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class ToggleWarningVisibilityCommand : IExternalCommand
     {
+        public const string FILTER_NONE     = "NONE";
+        public const string FILTER_CRITICAL = "CRITICAL";
+        public const string FILTER_HIGH     = "HIGH";
+        public const string FILTER_MEDIUM   = "MEDIUM";
+        public const string FILTER_ALL      = "ALL";
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
-            UIDocument uidoc = ctx.UIDoc;
             Document doc = ctx.Doc;
 
-            TaskDialog td = new TaskDialog("Warning Visibility");
-            td.MainInstruction = "Show or hide threshold warnings in tags?";
-            td.MainContent =
-                "Warning text (e.g. [!U > 0.70], [!VD > 4%]) is appended to paragraph tags\n" +
-                "when parameter values exceed standards-based thresholds.\n\n" +
-                "34 warning checks: U-values, voltage drop, conduit fill, pipe velocity,\n" +
-                "fire rating, stair dimensions, ramp slopes, acoustic levels.";
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Show warnings", "Enable threshold warning text in tags");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Hide warnings", "Disable warning text (clean tags for presentation)");
-            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // Read mode from UI radio buttons passed via command handler
+            string mode = StingCommandHandler.GetExtraParam("WarnMode");
 
-            TaskDialogResult result = td.Show();
-
-            bool showWarnings;
-            switch (result)
+            if (string.IsNullOrEmpty(mode))
             {
-                case TaskDialogResult.CommandLink1: showWarnings = true; break;
-                case TaskDialogResult.CommandLink2: showWarnings = false; break;
-                default: return Result.Cancelled;
+                // Legacy path: no radio selection — show dialog
+                mode = ShowLegacyDialog();
+                if (mode == null) return Result.Cancelled;
             }
+
+            bool showWarnings = !mode.Equals(FILTER_NONE, StringComparison.OrdinalIgnoreCase);
+            string severityFilter = mode.ToUpperInvariant();
 
             var allTypes = new FilteredElementCollector(doc)
                 .WhereElementIsElementType()
                 .ToList();
 
-            int updated = 0;
-            using (Transaction tx = new Transaction(doc, "STING Toggle Warning Visibility"))
+            int updatedVis = 0, updatedSev = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Set Warning Visibility"))
             {
                 tx.Start();
 
                 foreach (Element typeEl in allTypes)
                 {
-                    Parameter p = typeEl.LookupParameter(ParamRegistry.WARN_VISIBLE);
-                    if (p == null || p.IsReadOnly) continue;
-                    if (p.StorageType == StorageType.Integer)
+                    // --- TAG_WARN_VISIBLE_BOOL ---
+                    Parameter pVis = typeEl.LookupParameter(ParamRegistry.WARN_VISIBLE);
+                    if (pVis != null && !pVis.IsReadOnly)
                     {
-                        p.Set(showWarnings ? 1 : 0);
-                        updated++;
+                        if (pVis.StorageType == StorageType.Integer)
+                        {
+                            int target = showWarnings ? 1 : 0;
+                            if (pVis.AsInteger() != target) { pVis.Set(target); updatedVis++; }
+                        }
+                        else if (pVis.StorageType == StorageType.String)
+                        {
+                            string target = showWarnings ? "Yes" : "No";
+                            if (!string.Equals(pVis.AsString(), target,
+                                StringComparison.OrdinalIgnoreCase))
+                            { pVis.Set(target); updatedVis++; }
+                        }
+                    }
+
+                    // --- TAG_WARN_SEVERITY_FILTER_TXT ---
+                    Parameter pSev = typeEl.LookupParameter("TAG_WARN_SEVERITY_FILTER_TXT");
+                    if (pSev != null && !pSev.IsReadOnly &&
+                        pSev.StorageType == StorageType.String)
+                    {
+                        if (!string.Equals(pSev.AsString(), severityFilter,
+                            StringComparison.OrdinalIgnoreCase))
+                        { pSev.Set(severityFilter); updatedSev++; }
                     }
                 }
 
                 tx.Commit();
             }
 
-            string state = showWarnings ? "ENABLED" : "DISABLED";
-            TaskDialog.Show("Warning Visibility",
-                $"Warning visibility: {state}\n" +
-                $"Element types updated: {updated}");
+            string stateLabel = showWarnings
+                ? $"ENABLED (filter: {severityFilter})"
+                : "DISABLED (None — all warnings suppressed)";
 
-            StingLog.Info($"Warning visibility {state} on {updated} types");
+            StingLog.Info($"Warning visibility {stateLabel}: " +
+                          $"vis={updatedVis} types, sev={updatedSev} types");
+
+            // Show result dialog only for manual/legacy calls
+            if (string.IsNullOrEmpty(StingCommandHandler.GetExtraParam("WarnMode")))
+            {
+                TaskDialog.Show("Warning Visibility",
+                    $"Warning visibility: {stateLabel}\n" +
+                    $"Types updated (visibility):       {updatedVis}\n" +
+                    $"Types updated (severity filter): {updatedSev}");
+            }
+
             return Result.Succeeded;
+        }
+
+        private static string ShowLegacyDialog()
+        {
+            TaskDialog td = new TaskDialog("Warning Visibility");
+            td.MainInstruction = "Show or hide threshold warnings in tags?";
+            td.MainContent =
+                "Warning text (e.g. [!U > 0.70], [!VD > 4%]) is appended to tags\n" +
+                "when parameter values exceed standards-based thresholds.\n\n" +
+                "Use Tag Studio → Tokens & Depth to set severity level\n" +
+                "(None / Critical / High / Medium / All).";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Show all warnings", "Enable all threshold warning text");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Hide all warnings", "Suppress all warnings (presentation / clean mode)");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            return td.Show() switch
+            {
+                TaskDialogResult.CommandLink1 => FILTER_ALL,
+                TaskDialogResult.CommandLink2 => FILTER_NONE,
+                _                             => null
+            };
         }
     }
 }

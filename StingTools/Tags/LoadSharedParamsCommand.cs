@@ -315,11 +315,36 @@ namespace StingTools.Tags
                     report.AppendLine($"  {err}");
             }
 
+            // DATA-02: Validate required parameters are bound after binding pass
+            var allBound = new HashSet<string>(StringComparer.Ordinal);
+            var iter = doc.ParameterBindings.ForwardIterator();
+            while (iter.MoveNext())
+            {
+                if (iter.Key is InternalDefinition def && !string.IsNullOrEmpty(def.Name))
+                    allBound.Add(def.Name);
+            }
+
+            int requiredMissing = 0;
+            foreach (string pn in ParamRegistry.AllTokenParams ?? Array.Empty<string>())
+            {
+                if (ParamRegistry.IsRequired(pn) && !allBound.Contains(pn))
+                {
+                    StingLog.Error($"DATA-02: REQUIRED parameter '{pn}' is NOT bound — tagging will fail");
+                    requiredMissing++;
+                }
+            }
+            if (requiredMissing > 0)
+            {
+                report.AppendLine($"\n⚠ {requiredMissing} REQUIRED parameter(s) failed to bind (see log).");
+            }
+
             // Clear parameter lookup cache so newly bound parameters are found immediately
             ParameterHelpers.ClearParamCache();
 
             var td = new TaskDialog("STING Tools - Load Shared Params");
-            td.MainInstruction = $"Shared parameter binding complete — {bound} bound.";
+            td.MainInstruction = requiredMissing > 0
+                ? $"Binding complete — {bound} bound, {requiredMissing} REQUIRED missing!"
+                : $"Shared parameter binding complete — {bound} bound.";
             td.MainContent = report.ToString();
             td.CommonButtons = TaskDialogCommonButtons.Ok;
             td.DefaultButton = TaskDialogResult.Ok;

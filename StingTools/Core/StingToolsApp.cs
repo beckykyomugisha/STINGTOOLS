@@ -68,6 +68,10 @@ namespace StingTools.Core
                 // document closes. Using them against a new document causes native crashes.
                 application.ControlledApplication.DocumentClosing += OnDocumentClosing;
 
+                // ENH-06: Subscribe to DocumentOpened to clear stale static caches
+                // and reload document-specific data (formulas, BEP, compliance).
+                application.ControlledApplication.DocumentOpened += OnDocumentOpened;
+
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
             }
@@ -98,6 +102,43 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"DocumentClosing cleanup: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// ENH-06: Clear 4 stale static caches on DocumentOpened to prevent
+        /// cross-document data contamination.
+        /// </summary>
+        private static void OnDocumentOpened(object sender,
+            Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
+        {
+            try
+            {
+                Temp.FormulaEngine.ClearCache();
+                ParameterHelpers.ClearParamCache();
+                StingAutoTagger.InvalidateContext();
+                ComplianceScan.InvalidateCache();
+
+                // LOG-10: Reload TagConfig from project_config.json for new document
+                // This ensures BEP allowed codes and project-specific tag settings are refreshed
+                try
+                {
+                    string configPath = FindDataFile("project_config.json");
+                    if (configPath != null)
+                        TagConfig.LoadFromFile(configPath);
+                    else
+                        TagConfig.LoadDefaults();
+                }
+                catch (Exception cfgEx)
+                {
+                    StingLog.Warn($"DocumentOpened TagConfig reload: {cfgEx.Message}");
+                }
+
+                StingLog.Info("DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DocumentOpened cleanup: {ex.Message}");
             }
         }
 
@@ -223,6 +264,21 @@ namespace StingTools.Core
             {
                 StingLog.Info($"Data validation passed: all {criticalFiles.Length} critical files found in {DataPath}");
             }
+
+            // DATA-01: Validate schema version headers on TAG_CONFIG CSVs
+            string[] versionedCsvs = new[]
+            {
+                "STING_TAG_CONFIG_v5_0_GEN.csv",
+                "STING_TAG_CONFIG_v5_0_ARCH.csv",
+                "STING_TAG_CONFIG_v5_0_STR.csv",
+                "STING_TAG_CONFIG_v5_0_MEP.csv",
+            };
+            foreach (string csv in versionedCsvs)
+            {
+                string path = FindDataFile(csv);
+                if (path != null)
+                    ValidateCsvSchemaVersion(path, "5.0");
+            }
         }
 
         // ── Dockable Panel Registration ──────────────────────────────
@@ -327,6 +383,42 @@ namespace StingTools.Core
                 catch { /* path resolution failed, skip */ }
             }
 
+            return null;
+        }
+
+        /// <summary>
+        /// DATA-01: Validate that a CSV data file starts with a #SCHEMA_VERSION header.
+        /// Returns the parsed version string (e.g. "5.0") or null if no header found.
+        /// Logs a warning if the header is missing or version mismatches expected.
+        /// </summary>
+        public static string ValidateCsvSchemaVersion(string filePath, string expectedVersion = null)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return null;
+                using (var reader = new StreamReader(filePath))
+                {
+                    string firstLine = reader.ReadLine();
+                    if (firstLine != null && firstLine.StartsWith("#SCHEMA_VERSION="))
+                    {
+                        // Parse "#SCHEMA_VERSION=5.0,CREATED=2026-03-16"
+                        string versionPart = firstLine.Substring("#SCHEMA_VERSION=".Length);
+                        int comma = versionPart.IndexOf(',');
+                        string version = comma >= 0 ? versionPart.Substring(0, comma) : versionPart;
+                        if (expectedVersion != null && version != expectedVersion)
+                        {
+                            StingLog.Warn($"CSV schema version mismatch in {Path.GetFileName(filePath)}: " +
+                                $"expected {expectedVersion}, got {version}");
+                        }
+                        return version;
+                    }
+                    StingLog.Warn($"No #SCHEMA_VERSION header in {Path.GetFileName(filePath)}");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ValidateCsvSchemaVersion: {ex.Message}");
+            }
             return null;
         }
 

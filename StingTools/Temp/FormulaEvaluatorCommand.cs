@@ -144,7 +144,7 @@ namespace StingTools.Temp
                                     && !double.IsInfinity(result.Value))
                                 {
                                     bool written = FormulaEngine.WriteNumericResult(
-                                        targetParam, result.Value);
+                                        targetParam, result.Value, formula.Unit);
                                     if (written)
                                     {
                                         totalWritten++;
@@ -281,6 +281,18 @@ namespace StingTools.Temp
     /// </summary>
     internal static class FormulaEngine
     {
+        // LOG-02 FIX: Track which data path formulas were loaded from
+        // to detect document switches that require a reload.
+        private static string _loadedForDataPath;
+        private static List<FormulaDefinition> _cachedFormulas;
+
+        /// <summary>Clear cached formulas (call on document switch).</summary>
+        public static void ClearCache()
+        {
+            _cachedFormulas = null;
+            _loadedForDataPath = null;
+        }
+
         /// <summary>Parsed formula definition from CSV.</summary>
         internal class FormulaDefinition
         {
@@ -609,11 +621,15 @@ namespace StingTools.Temp
             }
         }
 
-        /// <summary>Write numeric result to parameter, handling type conversion.</summary>
-        public static bool WriteNumericResult(Parameter param, double value)
+        /// <summary>Write numeric result to parameter, handling type conversion.
+        /// DATA-03: Optionally converts from formula unit to Revit internal units (feet-based).</summary>
+        public static bool WriteNumericResult(Parameter param, double value, string unit = null)
         {
             try
             {
+                // DATA-03: Convert from formula unit to Revit internal units
+                value = ConvertToInternalUnits(value, unit);
+
                 // Only write if currently empty/zero
                 if (param.StorageType == StorageType.Double)
                 {
@@ -644,6 +660,29 @@ namespace StingTools.Temp
             catch { }
 
             return false;
+        }
+
+        /// <summary>DATA-03: Convert a value from the given unit to Revit internal units (feet-based).</summary>
+        private static double ConvertToInternalUnits(double value, string unit)
+        {
+            if (string.IsNullOrEmpty(unit)) return value;
+            switch (unit.ToUpperInvariant())
+            {
+                case "MM":     return value / 304.8;                    // mm → feet
+                case "CM":     return value / 30.48;                    // cm → feet
+                case "M":      return value / 0.3048;                   // m → feet
+                case "M2":
+                case "SQM":    return value / (0.3048 * 0.3048);        // m² → sq feet
+                case "M3":
+                case "CUM":    return value / (0.3048 * 0.3048 * 0.3048); // m³ → cu feet
+                case "KG":     return value;                            // mass — no conversion
+                case "KW":     return value;                            // power — no conversion
+                case "L/S":    return value;                            // flow — no conversion
+                case "PA":     return value;                            // pressure — no conversion
+                case "DEG":
+                case "DEGREES": return value * Math.PI / 180.0;         // degrees → radians
+                default:       return value;                            // unknown unit — pass through
+            }
         }
 
         /// <summary>

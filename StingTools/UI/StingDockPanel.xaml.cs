@@ -103,24 +103,149 @@ namespace StingTools.UI
 
         // ── Unified button click dispatcher ──────────────────────────────
 
+        /// <summary>
+        /// Tag Studio commands that trigger long-running batch operations —
+        /// these freeze the sub-tab ribbon while running.
+        /// </summary>
+        private static readonly HashSet<string> _freezingTagCommands = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase)
+        {
+            "TagStudio_SmartPlace", "TagStudio_Arrange", "TagStudio_AlignBands",
+            "SmartPlaceTags", "BatchTagAll", "BatchTagView", "AutoTagSelected",
+            "TagStudio_ApplyStyle", "TagStudio_ApplyScheme",
+            "TagStudio_AdjustElbows", "TagStudio_SetArrows",
+            "ResolveAllIssues", "PreTagAudit", "ValidateTags",
+        };
+
         private void Cmd_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string cmdTag)
             {
+                // UI-05: Pass placement scope radios to SmartPlace commands
+                if (cmdTag.StartsWith("TagStudio_SmartPlace") || cmdTag == "SmartPlaceTags" ||
+                    cmdTag == "BatchPlaceTags")
+                {
+                    SetPlacementScopeParams();
+                }
+
+                // UI-06: Pass DirOverride radio state to placement commands
+                if (cmdTag.Contains("Place") || cmdTag.Contains("Arrange") ||
+                    cmdTag.Contains("SmartPlace"))
+                {
+                    SetDirOverrideParams();
+                }
+
+                // UI-07: Pass batch warning suppression state
+                if (_freezingTagCommands.Contains(cmdTag))
+                {
+                    SetBatchWarningParams();
+                }
+
+                // UI-08: Pass preferred compass position to SmartPlace
+                if (cmdTag.Contains("SmartPlace") || cmdTag.Contains("Place"))
+                {
+                    SetPreferredPositionParam();
+                }
+
                 _handler?.SetCommand(cmdTag);
                 var result = _externalEvent?.Raise() ?? ExternalEventRequest.Denied;
                 if (result == ExternalEventRequest.Accepted)
                 {
                     UpdateStatus($"Running: {cmdTag}...");
+                    // Freeze Tag Studio sub-tabs for batch tag operations
+                    if (_freezingTagCommands.Contains(cmdTag))
+                        FreezeTagSubTabs();
                 }
                 else
                 {
                     // CRASH FIX: If Raise() is denied (previous command still running),
                     // clear the command tag to prevent wrong command execution later.
                     _handler?.SetCommand("");
-                    UpdateStatus($"Busy — try again...");
+                    UpdateStatus("Busy — try again...");
                 }
             }
+        }
+
+        /// <summary>UI-05: Read scope radio state and pass to commands.</summary>
+        private void SetPlacementScopeParams()
+        {
+            try
+            {
+                // Look for scope radio buttons in the XAML tree
+                string scope = "View"; // default
+                var rbScopeView = FindName("rbScopeView") as System.Windows.Controls.RadioButton;
+                var rbScopeAllViews = FindName("rbScopeAllViews") as System.Windows.Controls.RadioButton;
+                var rbScopeSelection = FindName("rbScopeSelection") as System.Windows.Controls.RadioButton;
+                if (rbScopeAllViews?.IsChecked == true) scope = "AllViews";
+                else if (rbScopeSelection?.IsChecked == true) scope = "Selection";
+                StingCommandHandler.SetExtraParam("PlacementScope", scope);
+
+                var chkSkipPlaced = FindName("chkSkipPlaced") as System.Windows.Controls.CheckBox;
+                StingCommandHandler.SetExtraParam("SkipPlaced", chkSkipPlaced?.IsChecked == true ? "1" : "0");
+
+                var chkIncludeLinks = FindName("chkIncludeLinks") as System.Windows.Controls.CheckBox;
+                StingCommandHandler.SetExtraParam("IncludeLinks", chkIncludeLinks?.IsChecked == true ? "1" : "0");
+            }
+            catch { /* Scope controls may not exist in all layouts */ }
+        }
+
+        /// <summary>UI-06: Read direction override radio state.</summary>
+        private void SetDirOverrideParams()
+        {
+            try
+            {
+                // Check 16 direction radio buttons (rbDirN through rbDirNWfar)
+                string[] dirNames = { "rbDirN", "rbDirNE", "rbDirE", "rbDirSE",
+                    "rbDirS", "rbDirSW", "rbDirW", "rbDirNW",
+                    "rbDirNfar", "rbDirNEfar", "rbDirEfar", "rbDirSEfar",
+                    "rbDirSfar", "rbDirSWfar", "rbDirWfar", "rbDirNWfar" };
+                for (int i = 0; i < dirNames.Length; i++)
+                {
+                    var rb = FindName(dirNames[i]) as System.Windows.Controls.RadioButton;
+                    if (rb?.IsChecked == true)
+                    {
+                        StingCommandHandler.SetExtraParam("DirOverride", i.ToString());
+                        return;
+                    }
+                }
+                // No direction override selected — clear
+                StingCommandHandler.ClearExtraParam("DirOverride");
+            }
+            catch { }
+        }
+
+        /// <summary>UI-07: Read batch warning suppression checkbox.</summary>
+        private void SetBatchWarningParams()
+        {
+            try
+            {
+                var chk = FindName("chkSuppressBatchWarnings") as System.Windows.Controls.CheckBox;
+                if (chk?.IsChecked == true)
+                    StingCommandHandler.SetExtraParam("SuppressWarningsDuringBatch", "1");
+                else
+                    StingCommandHandler.ClearExtraParam("SuppressWarningsDuringBatch");
+            }
+            catch { }
+        }
+
+        /// <summary>UI-08: Read 16-position compass preferred position.</summary>
+        private void SetPreferredPositionParam()
+        {
+            try
+            {
+                for (int i = 1; i <= 16; i++)
+                {
+                    var rb = FindName($"rbPos{i}") as System.Windows.Controls.RadioButton;
+                    if (rb?.IsChecked == true)
+                    {
+                        StingCommandHandler.SetExtraParam("PreferredTagPos", i.ToString());
+                        return;
+                    }
+                }
+                // Default to position 1 (above/north)
+                StingCommandHandler.SetExtraParam("PreferredTagPos", "1");
+            }
+            catch { }
         }
 
         private void BtnPin_Click(object sender, RoutedEventArgs e)
@@ -172,6 +297,96 @@ namespace StingTools.UI
                     }));
                 }
             }
+        }
+
+        // ── Tag Studio Sub-Tab Freeze ────────────────────────────────
+
+        /// <summary>
+        /// Tracks whether a tag batch operation is currently running.
+        /// When true, non-active Tag Studio sub-tabs are frozen (IsEnabled=false)
+        /// to prevent mid-operation tab switching that could corrupt UI state.
+        /// </summary>
+        private bool _tagOpRunning = false;
+
+        /// <summary>
+        /// Called when the user switches between Tag Studio sub-tabs (Placement,
+        /// Leader &amp; Elbow, Style &amp; Color, Tokens &amp; Depth, Tools, Scale).
+        /// No freeze logic fires here — this hook is reserved for future sub-tab
+        /// lazy-loading (same pattern as main TabMain_SelectionChanged).
+        /// </summary>
+        private void TagStudioTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Guard: only handle direct child selection changes, not bubbled events
+            // from inner controls (e.g. ComboBox inside a sub-tab).
+            if (!ReferenceEquals(sender, tagStudioTabs)) return;
+            e.Handled = true;
+
+            // If a tag op is running, revert the selection to the locked tab.
+            if (_tagOpRunning && tagStudioTabs != null)
+            {
+                int active = _lockedTagSubTabIndex;
+                // Defer to avoid reentrancy inside SelectionChanged
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal,
+                    new Action(() =>
+                    {
+                        if (_tagOpRunning && tagStudioTabs.SelectedIndex != active)
+                            tagStudioTabs.SelectedIndex = active;
+                    }));
+            }
+        }
+
+        private int _lockedTagSubTabIndex = 0;
+
+        /// <summary>
+        /// Call before starting any long-running tag batch operation.
+        /// Freezes all Tag Studio sub-tabs except the currently active one.
+        /// </summary>
+        internal void FreezeTagSubTabs()
+        {
+            if (tagStudioTabs == null) return;
+            _tagOpRunning = true;
+            _lockedTagSubTabIndex = tagStudioTabs.SelectedIndex;
+
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal,
+                new Action(() =>
+                {
+                    int active = _lockedTagSubTabIndex;
+                    for (int i = 0; i < tagStudioTabs.Items.Count; i++)
+                    {
+                        if (tagStudioTabs.Items[i] is System.Windows.Controls.TabItem ti)
+                        {
+                            bool isActive = (i == active);
+                            ti.IsEnabled = isActive;
+                            // Dim inactive tabs visually
+                            ti.Opacity = isActive ? 1.0 : 0.4;
+                        }
+                    }
+                    Core.StingLog.Info($"TagStudioTabs frozen: active sub-tab={active}");
+                }));
+        }
+
+        /// <summary>
+        /// Call after a tag batch operation completes (success or failure).
+        /// Re-enables all Tag Studio sub-tabs.
+        /// </summary>
+        internal void UnfreezeTagSubTabs()
+        {
+            _tagOpRunning = false;
+
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal,
+                new Action(() =>
+                {
+                    if (tagStudioTabs == null) return;
+                    foreach (var item in tagStudioTabs.Items)
+                    {
+                        if (item is System.Windows.Controls.TabItem ti)
+                        {
+                            ti.IsEnabled = true;
+                            ti.Opacity = 1.0;
+                        }
+                    }
+                    Core.StingLog.Info("TagStudioTabs unfrozen.");
+                }));
         }
 
         // ── Bulk Parameter Write ──────────────────────────────────────
@@ -283,10 +498,18 @@ namespace StingTools.UI
                 // CRASH FIX: Use BeginInvoke (async) instead of Invoke (sync).
                 // Synchronous Invoke can deadlock when the Revit API thread is
                 // waiting for the WPF dispatcher during modal dialog display.
-                txtStatus.Dispatcher.BeginInvoke(new Action(() => txtStatus.Text = message));
+                txtStatus.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    txtStatus.Text = message;
+                    // Auto-unfreeze sub-tabs whenever a command reports it has finished
+                    if (_tagOpRunning && !message.StartsWith("Running:", StringComparison.OrdinalIgnoreCase))
+                        UnfreezeTagSubTabs();
+                }));
                 return;
             }
             txtStatus.Text = message;
+            if (_tagOpRunning && !message.StartsWith("Running:", StringComparison.OrdinalIgnoreCase))
+                UnfreezeTagSubTabs();
         }
 
         public void UpdateBulkStatus(string message)
@@ -341,6 +564,23 @@ namespace StingTools.UI
         }
 
         /// <summary>
+        /// UI-03: Static method to update the Tags tab status strip from any thread.
+        /// </summary>
+        public static void UpdateTagsStatus(string text, string rag)
+        {
+            _instance?.Dispatcher.InvokeAsync(() =>
+            {
+                if (_instance?.txtTagsStatus == null) return;
+                _instance.txtTagsStatus.Text = text;
+                _instance.txtTagsStatus.Foreground = new SolidColorBrush(
+                    rag == "GREEN" ? Color.FromRgb(46, 105, 55) :
+                    rag == "AMBER" ? Color.FromRgb(183, 149, 11) :
+                    rag == "RED" ? Color.FromRgb(169, 50, 38) :
+                    Color.FromRgb(102, 102, 102));
+            });
+        }
+
+        /// <summary>
         /// ENH-003: Static method to update compliance status bar from command handler.
         /// </summary>
         public static void UpdateComplianceStatus(string statusText, string ragStatus)
@@ -352,8 +592,8 @@ namespace StingTools.UI
                 {
                     "GREEN" => new SolidColorBrush(Color.FromRgb(76, 175, 80)),
                     "AMBER" => new SolidColorBrush(Color.FromRgb(255, 152, 0)),
-                    "RED" => new SolidColorBrush(Color.FromRgb(244, 67, 54)),
-                    _ => new SolidColorBrush(Color.FromRgb(206, 147, 216)),
+                    "RED"   => new SolidColorBrush(Color.FromRgb(244, 67, 54)),
+                    _       => new SolidColorBrush(Color.FromRgb(206, 147, 216)),
                 };
 
                 if (!_instance.txtStatus.Dispatcher.CheckAccess())
@@ -372,6 +612,42 @@ namespace StingTools.UI
                 }
             }
             catch { /* Non-critical UI update */ }
+        }
+
+        // ── Warning level radio → ToggleWarningVisibilityCommand ─────────────
+
+        /// <summary>
+        /// Called by the WarnLevel radio buttons (rbWarnNone / rbWarnCritical /
+        /// rbWarnHigh / rbWarnMedium / rbWarnAll) in the Tokens &amp; Depth sub-tab.
+        /// Writes the selected mode to StingCommandHandler.SetExtraParam("WarnMode")
+        /// then raises ToggleWarningVisibility without showing a dialog.
+        /// </summary>
+        private void WarnLevel_Changed(object sender, RoutedEventArgs e)
+        {
+            if (sender is RadioButton rb && rb.IsChecked == true)
+            {
+                string mode = rb.Name switch
+                {
+                    "rbWarnNone"     => Tags.ToggleWarningVisibilityCommand.FILTER_NONE,
+                    "rbWarnCritical" => Tags.ToggleWarningVisibilityCommand.FILTER_CRITICAL,
+                    "rbWarnHigh"     => Tags.ToggleWarningVisibilityCommand.FILTER_HIGH,
+                    "rbWarnMedium"   => Tags.ToggleWarningVisibilityCommand.FILTER_MEDIUM,
+                    "rbWarnAll"      => Tags.ToggleWarningVisibilityCommand.FILTER_ALL,
+                    _                => Tags.ToggleWarningVisibilityCommand.FILTER_ALL
+                };
+
+                StingCommandHandler.SetExtraParam("WarnMode", mode);
+                _handler?.SetCommand("ToggleWarningVisibility");
+                var result = _externalEvent?.Raise() ?? ExternalEventRequest.Denied;
+
+                if (result == ExternalEventRequest.Accepted)
+                    UpdateStatus($"Warnings: {mode}");
+                else
+                {
+                    StingCommandHandler.ClearExtraParam("WarnMode");
+                    UpdateStatus("Busy — warning mode not applied");
+                }
+            }
         }
     }
 }

@@ -177,6 +177,15 @@ namespace StingTools.Core
             return result;
         }
 
+        /// <summary>
+        /// LOG-01 FIX: Thread-safe accessor for cached result without triggering a new scan.
+        /// Returns null if no cached result exists. Uses lock to prevent torn reads.
+        /// </summary>
+        public static ComplianceResult GetCached()
+        {
+            lock (_cacheLock) { return _cached; }
+        }
+
         /// <summary>Invalidate cached results (call after tagging operations).</summary>
         public static void InvalidateCache()
         {

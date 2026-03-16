@@ -1,3 +1,4 @@
+#SCHEMA_VERSION=5.0,CREATED=2026-03-16
 STING Tag Configuration v5.0 - MEP (COMPLETE with Warnings)
 6C — HVAC
 Tag Family #1: STING - Air Terminal Tag
@@ -808,3 +809,185 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_CONTROL_TYPE_ZONES,Zone has no BMS control type assigned,CIBSE Guide H / BS EN ISO 16484,Common,Text,⚠ Warning: Zone Control,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_CONTROL_TYPE_ZONES, """")"
+
+6J — Tie-In Points (Battery Limits / Spool Terminations / P&ID Break Points)
+# ═══════════════════════════════════════════════════════════════════════════════
+# TIE-IN POINT TAGS — RESEARCH BASIS & DESIGN RATIONALE
+#
+# A "tie-in point" (TIP) is an industry-standard annotation on MEP drawings that
+# marks the exact physical location where one system/contract/spool/phase ends and
+# another begins.  They appear on:
+#
+#   PIPING (Plumbing/Fire/HVAC):
+#     • P&ID battery limits — the contractual handover boundary between packages
+#     • Phased construction — end of Phase 1 backbone stub, Phase 2 connects here
+#     • Spool drawings — every spool has two TIP ends (TIP-IN and TIP-OUT)
+#     • Isolation valves — the tie-in is the upstream and downstream face
+#     ISO/IEC 81346, PFD/P&ID standard: open-ended line symbol with TI reference
+#     ISO 10628-2 — P&ID representation of tie-in points as battery limit flags
+#
+#   HVAC DUCTS:
+#     • Phase 1/2 split on air handling systems (duct stub-out with damper)
+#     • Contractor scope split (mechanical contractor vs specialist)
+#     SMACNA / CIBSE Guide B — duct termination annotation practice
+#
+#   ELECTRICAL (Conduit / Cable Tray):
+#     • Conduit stub-up points into future panel boards or equipment bays
+#     • Cable tray dead-end requiring future extension
+#     IEC 60617 — electrical drawing symbols for future/proposed extensions
+#
+#   MULTI-DISCIPLINE (General):
+#     • BIM interface points per ISO 19650-2 information container boundaries
+#     • Interface register tie-in markers (IFC/Interface Management)
+#
+# IN REVIT — why a tag, not a command:
+#   Tie-in points are attributes of existing Revit MEP ELEMENTS (the pipe, duct,
+#   conduit end).  They do NOT need a separate command to generate them.
+#   The correct approach is:
+#     1. A dedicated set of tag families — one per discipline/system — that read
+#        tie-in parameters from the host element and display them.
+#     2. Parameters added to the existing element (not a new element type).
+#     3. Tags placed on the EXISTING pipe/duct/conduit at the open end using
+#        the standard Revit tag workflow (Tag Studio → Smart Place or manual).
+#   This is exactly how the rest of STING tags work — parameters on elements,
+#   displayed via tag families.  No new command is needed.
+#
+# NEW PARAMETERS REQUIRED (to add to PARAMETER_REGISTRY.json):
+#   ASS_TIEIN_REF_TXT         — Reference code  e.g. "TI-M-HWS-001"
+#   ASS_TIEIN_STATUS_TXT      — OPEN / CONNECTED / CAPPED / DEFERRED
+#   ASS_TIEIN_PHASE_TXT       — Construction phase: PH1 / PH2 / PH3
+#   ASS_TIEIN_BY_TXT          — Responsible party: MAIN / SUB / FUTURE
+#   ASS_TIEIN_SIZE_TXT        — Size at point: DN50 / 400×250 / 32mm conduit
+#   ASS_TIEIN_ELEV_TXT        — Elevation AFFL or AFF: "3450 AFFL"
+#   ASS_TIEIN_FLOW_DIR_TXT    — SUP / RET / BIDIR / UNKWN (piping/duct direction)
+#   ASS_TIEIN_IFC_REF_TXT     — Interface Control Document reference
+#   ASS_TIEIN_CONNECTED_BOOL  — 0 = open live tie-in, 1 = resolved/connected
+#   ASS_TIEIN_TAG_1_TXT       — Assembled display tag (auto-populated)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+Tag Family #46: STING - Tie-In Point Tag (Pipe — Plumbing & Hydraulic)
+TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T1,PLM_PPE_SZ_MM,DN,,0,✓,---,---,---,Add directly
+3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")"
+4,T2,ASS_TIEIN_FLOW_DIR_TXT,Dir:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_FLOW_DIR_TXT, """")"
+5,T2,PLM_PPE_FLW_LPS,Flow:,L/s,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_FLW_LPS, """")"
+6,T2,PLM_PSR_KPA,|,kPa,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, PLM_PSR_KPA, """")"
+7,T2,ASS_TIEIN_ELEV_TXT,Elev:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_ELEV_TXT, """")"
+8,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+9,T3,PLM_TAG_7_PARA_TIEIN_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_TIEIN_TXT, """")"
+10,T3,ASS_TIEIN_PHASE_TXT,Phase:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_PHASE_TXT, """")"
+11,T3,ASS_TIEIN_BY_TXT,By:,,0,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_BY_TXT, """")"
+12,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")"
+13,T3,PLM_PPE_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_MAT_TXT, """")"
+14,T3,PLM_PPE_PSR_RATING_BAR,,bar,1,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_PSR_RATING_BAR, """")"
+15,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ASS_TIEIN_OPEN_PIPE,Tie-in point status = OPEN (unresolved live termination),ISO 10628-2 / PAS 1192 Interface Mgmt,Common,Text,⚠ Warning: Open Pipe Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_PIPE, """")"
+2,MEDIUM,WARN_ASS_TIEIN_DEFERRED_PIPE,Tie-in status = DEFERRED (risk: phase milestone impact),ISO 19650-2 / PAS 1192-2,Common,Text,⚠ Warning: Deferred Pipe Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_PIPE, """")"
+
+Tag Family #47: STING - Tie-In Point Tag (Duct — HVAC)
+TAG7: HVC_TAG_7_PARA_TIEIN_TXT  •  Category: Ducts
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T1,HVC_DCT_SZ_TXT,,,0,✓,---,---,---,Add directly
+3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")"
+4,T2,ASS_TIEIN_FLOW_DIR_TXT,Dir:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_FLOW_DIR_TXT, """")"
+5,T2,HVC_DCT_FLW_CFM,Flow:,CFM,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_FLW_CFM, """")"
+6,T2,HVC_VEL_MPS,|,m/s,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, HVC_VEL_MPS, """")"
+7,T2,ASS_TIEIN_ELEV_TXT,Elev:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_ELEV_TXT, """")"
+8,T2,HVC_DCT_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_MAT_TXT, """")"
+9,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+10,T3,HVC_TAG_7_PARA_TIEIN_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_TIEIN_TXT, """")"
+11,T3,ASS_TIEIN_PHASE_TXT,Phase:,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_PHASE_TXT, """")"
+12,T3,ASS_TIEIN_BY_TXT,By:,,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_BY_TXT, """")"
+13,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")"
+14,T3,HVC_DUCT_CLASS_TXT,Class:,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_CLASS_TXT, """")"
+15,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ASS_TIEIN_OPEN_DUCT,Tie-in point status = OPEN (unresolved duct stub),SMACNA / CIBSE Guide B3,Common,Text,⚠ Warning: Open Duct Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_DUCT, """")"
+2,MEDIUM,WARN_ASS_TIEIN_DEFERRED_DUCT,Tie-in status = DEFERRED (duct scope gap risk),CIBSE Guide B / ISO 19650-2,Common,Text,⚠ Warning: Deferred Duct Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_DUCT, """")"
+
+Tag Family #48: STING - Tie-In Point Tag (Conduit — Electrical LV/ELV)
+TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Conduits
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T1,ELC_CDT_SZ_MM,∅,,0,✓,---,---,---,Add directly
+3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")"
+4,T2,ELC_CDT_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CDT_MAT_TXT, """")"
+5,T2,ASS_TIEIN_ELEV_TXT,Elev:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_ELEV_TXT, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ELC_TAG_7_PARA_TIEIN_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_TIEIN_TXT, """")"
+8,T3,ASS_TIEIN_PHASE_TXT,Phase:,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_PHASE_TXT, """")"
+9,T3,ASS_TIEIN_BY_TXT,By:,,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_BY_TXT, """")"
+10,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")"
+11,T3,ELC_CDT_FILL_RATIO,Fill:,%,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ELC_CDT_FILL_RATIO, """")"
+12,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ASS_TIEIN_OPEN_CONDUIT,Tie-in point status = OPEN (unresolved conduit stub),BS 7671 / IEC 60364,Common,Text,⚠ Warning: Open Conduit Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_CONDUIT, """")"
+
+Tag Family #49: STING - Tie-In Point Tag (Cable Tray — Electrical)
+TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Cable Trays
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T1,ELC_CTR_SZ_TXT,,,0,✓,---,---,---,Add directly
+3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")"
+4,T2,ELC_CTR_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_MAT_TXT, """")"
+5,T2,ELC_CTR_FILL_PCT,Fill:,%,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_FILL_PCT, """")"
+6,T2,ASS_TIEIN_ELEV_TXT,Elev:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_ELEV_TXT, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,ELC_TAG_7_PARA_TIEIN_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_TIEIN_TXT, """")"
+9,T3,ASS_TIEIN_PHASE_TXT,Phase:,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_PHASE_TXT, """")"
+10,T3,ASS_TIEIN_BY_TXT,By:,,0,,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_BY_TXT, """")"
+11,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")"
+12,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ASS_TIEIN_OPEN_CABLETRAY,Tie-in status = OPEN (tray dead-end unresolved),IEC 61537 / BS EN 61537,Common,Text,⚠ Warning: Open Cable Tray Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_CABLETRAY, """")"
+
+Tag Family #50: STING - Tie-In Point Tag (Fire Protection — Sprinkler / Suppression)
+TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Fire Protection System)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T1,PLM_PPE_SZ_MM,DN,,0,✓,---,---,---,Add directly
+3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")"
+4,T2,PLM_PPE_FLW_LPS,Flow:,L/s,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_FLW_LPS, """")"
+5,T2,PLM_PSR_KPA,|,kPa,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, PLM_PSR_KPA, """")"
+6,T2,ASS_TIEIN_ELEV_TXT,Elev:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_ELEV_TXT, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,FLS_TAG_7_PARA_TIEIN_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, FLS_TAG_7_PARA_TIEIN_TXT, """")"
+9,T3,ASS_TIEIN_PHASE_TXT,Phase:,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_PHASE_TXT, """")"
+10,T3,ASS_TIEIN_BY_TXT,By:,,0,,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_BY_TXT, """")"
+11,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")"
+12,T3,PLM_PPE_PSR_RATING_BAR,,bar,1,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_PSR_RATING_BAR, """")"
+13,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_ASS_TIEIN_OPEN_FIREPIPE,Tie-in OPEN on fire suppression system — life safety risk,NFPA 13 / FM Global / BS EN 12845,Common,Text,⚠ CRITICAL: Open Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_FIREPIPE, """")"
+2,HIGH,WARN_ASS_TIEIN_DEFERRED_FIREPIPE,Fire suppression tie-in DEFERRED — AHJ notification required,NFPA 13 Cl. 8 / BS EN 12845 Cl. 10,Common,Text,⚠ Warning: Deferred Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_FIREPIPE, """")"
+
+Tag Family #51: STING - Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)
+TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T1,PLM_PPE_SZ_MM,DN,,0,✓,---,---,---,Add directly
+3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")"
+4,T2,PLM_PSR_KPA,Press:,kPa,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, PLM_PSR_KPA, """")"
+5,T2,ASS_TIEIN_FLOW_DIR_TXT,Dir:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_FLOW_DIR_TXT, """")"
+6,T2,ASS_TIEIN_ELEV_TXT,Elev:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_ELEV_TXT, """")"
+7,T2,PLM_PPE_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_MAT_TXT, """")"
+8,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+9,T3,PLM_TAG_7_PARA_TIEIN_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_TIEIN_TXT, """")"
+10,T3,ASS_TIEIN_PHASE_TXT,Phase:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_PHASE_TXT, """")"
+11,T3,ASS_TIEIN_BY_TXT,By:,,0,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_BY_TXT, """")"
+12,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")"
+13,T3,PLM_PPE_PSR_RATING_BAR,,bar,1,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_PSR_RATING_BAR, """")"
+14,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_ASS_TIEIN_OPEN_GAS,Tie-in OPEN on gas system — explosion / asphyxiation risk,BS 6891 / NFPA 54 / ISO 17484,Common,Text,⚠ CRITICAL: Open Gas Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_GAS, """")"
+2,HIGH,WARN_ASS_TIEIN_DEFERRED_GAS,Gas tie-in DEFERRED — gas authority notification required,BS 6891 / Gas Safety Regulations,Common,Text,⚠ Warning: Deferred Gas Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_GAS, """")"

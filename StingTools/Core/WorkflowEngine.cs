@@ -212,6 +212,10 @@ namespace StingTools.Core
         [JsonProperty("steps")]
         public List<WorkflowStep> Steps { get; set; } = new List<WorkflowStep>();
 
+        /// <summary>LOG-06: If true, wrap entire workflow in TransactionGroup and rollback on failure.</summary>
+        [JsonProperty("rollback_on_failure")]
+        public bool RollbackOnFailure { get; set; }
+
         [JsonIgnore]
         public bool IsBuiltIn { get; set; }
     }
@@ -246,7 +250,8 @@ namespace StingTools.Core
                 return Result.Failed;
             }
             Document doc = ctx.Doc;
-            StingLog.Info($"Workflow '{preset.Name}': starting {preset.Steps.Count} steps");
+            StingLog.Info($"Workflow '{preset.Name}': starting {preset.Steps.Count} steps" +
+                (preset.RollbackOnFailure ? " (rollback_on_failure=true)" : ""));
 
             var report = new StringBuilder();
             report.AppendLine($"Workflow: {preset.Name}");
@@ -258,58 +263,95 @@ namespace StingTools.Core
             int skipped = 0;
             var totalSw = Stopwatch.StartNew();
 
-            foreach (var step in preset.Steps)
+            // LOG-06: Optionally wrap entire workflow in TransactionGroup for atomic rollback
+            TransactionGroup tg = null;
+            if (preset.RollbackOnFailure)
             {
-                stepNum++;
+                tg = new TransactionGroup(doc, $"STING Workflow: {preset.Name}");
+                tg.Start();
+            }
 
-                // Check cancellation between steps
-                if (EscapeChecker.IsEscapePressed())
+            try
+            {
+                foreach (var step in preset.Steps)
                 {
-                    report.AppendLine($"  {stepNum,2}. {step.Label} — CANCELLED (Escape)");
-                    StingLog.Info($"Workflow step {stepNum}: cancelled by user");
-                    break;
-                }
+                    stepNum++;
 
-                // Evaluate condition (workshared check etc.)
-                if (!string.IsNullOrEmpty(step.Condition))
-                {
-                    if (step.Condition == "workshared" && !doc.IsWorkshared)
+                    // Check cancellation between steps
+                    if (EscapeChecker.IsEscapePressed())
                     {
-                        skipped++;
-                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)");
-                        continue;
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — CANCELLED (Escape)");
+                        StingLog.Info($"Workflow step {stepNum}: cancelled by user");
+                        break;
+                    }
+
+                    // Evaluate condition (workshared check etc.)
+                    if (!string.IsNullOrEmpty(step.Condition))
+                    {
+                        if (step.Condition == "workshared" && !doc.IsWorkshared)
+                        {
+                            skipped++;
+                            report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)");
+                            continue;
+                        }
+                    }
+
+                    // Execute via command dispatch
+                    var sw = Stopwatch.StartNew();
+                    try
+                    {
+                        Result stepResult = RunCommandByTag(step.CommandTag, commandData, elements);
+                        sw.Stop();
+                        string status = stepResult == Result.Succeeded ? "OK" :
+                                         stepResult == Result.Cancelled ? "SKIP" : "WARN";
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
+
+                        if (stepResult == Result.Succeeded)
+                            passed++;
+                        else if (step.Optional)
+                            skipped++;
+                        else
+                            failed++;
+
+                        StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
+                    }
+                    catch (Exception ex)
+                    {
+                        sw.Stop();
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — FAILED: {ex.Message}");
+                        StingLog.Error($"Workflow step {stepNum}: {step.Label}", ex);
+
+                        if (step.Optional)
+                            skipped++;
+                        else
+                            failed++;
                     }
                 }
-
-                // Execute via command dispatch
-                var sw = Stopwatch.StartNew();
-                try
+            }
+            finally
+            {
+                // LOG-06: Commit or rollback the TransactionGroup
+                if (tg != null)
                 {
-                    Result stepResult = RunCommandByTag(step.CommandTag, commandData, elements);
-                    sw.Stop();
-                    string status = stepResult == Result.Succeeded ? "OK" :
-                                     stepResult == Result.Cancelled ? "SKIP" : "WARN";
-                    report.AppendLine($"  {stepNum,2}. {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
-
-                    if (stepResult == Result.Succeeded)
-                        passed++;
-                    else if (step.Optional)
-                        skipped++;
-                    else
-                        failed++;
-
-                    StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
-                }
-                catch (Exception ex)
-                {
-                    sw.Stop();
-                    report.AppendLine($"  {stepNum,2}. {step.Label} — FAILED: {ex.Message}");
-                    StingLog.Error($"Workflow step {stepNum}: {step.Label}", ex);
-
-                    if (step.Optional)
-                        skipped++;
-                    else
-                        failed++;
+                    try
+                    {
+                        if (failed > 0 && preset.RollbackOnFailure)
+                        {
+                            tg.RollBack();
+                            report.AppendLine("  ⚠ ALL CHANGES ROLLED BACK (rollback_on_failure)");
+                            StingLog.Warn($"Workflow '{preset.Name}': rolled back due to {failed} failure(s)");
+                        }
+                        else
+                        {
+                            tg.Assimilate();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Workflow TransactionGroup finalize: {ex.Message}");
+                        try { tg.RollBack(); } catch { /* swallow */ }
+                    }
+                    tg.Dispose();
                 }
             }
 

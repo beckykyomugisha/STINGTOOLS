@@ -46,8 +46,17 @@ namespace StingTools.Core
         private static Dictionary<string, int> _cachedSeqCounters;
         private static bool _contextInvalid = true;
 
+        // LOG-04: Token hash cache to skip redundant TAG7 rebuilds
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, string>
+            _tag7HashCache = new System.Collections.Concurrent.ConcurrentDictionary<long, string>();
+
         /// <summary>Invalidate cached context (call after external tagging operations).</summary>
-        public static void InvalidateContext() { _contextInvalid = true; }
+        public static void InvalidateContext()
+        {
+            _contextInvalid = true;
+            _tag7HashCache.Clear();
+            _elementVersionHash.Clear();
+        }
 
         private readonly AddInId _addinId;
 
@@ -275,11 +284,22 @@ namespace StingTools.Core
                     string newTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                     if (!string.IsNullOrEmpty(newTag)) existingTags.Add(newTag);
 
-                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                    // LOG-04: Gate TAG7 rebuild behind token-change hash to avoid
+                    // expensive LABEL_DEFINITIONS parse on every element placement
                     try
                     {
                         string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                        TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
+                        string tokenHash = string.Concat(
+                            tokenVals[0], tokenVals[4], tokenVals[5], tokenVals[6], tokenVals[3]);
+                        bool needsTag7 = true;
+                        if (_tag7HashCache.TryGetValue(id.Value, out string lastHash) && lastHash == tokenHash)
+                            needsTag7 = false;
+
+                        if (needsTag7)
+                        {
+                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
+                            _tag7HashCache[id.Value] = tokenHash;
+                        }
                     }
                     catch (Exception tag7Ex)
                     {
@@ -387,9 +407,9 @@ namespace StingTools.Core
 
         // ── DocumentChanged stale-marking ──────────────────────────────────────
 
-        /// <summary>Throttle: track recently stale-marked element IDs to avoid redundant writes.</summary>
-        private static readonly Dictionary<long, DateTime> _recentStaleMarks = new Dictionary<long, DateTime>();
-        private static readonly TimeSpan StaleThrottle = TimeSpan.FromSeconds(5);
+        /// <summary>LOG-09: Track element version hashes to avoid redundant stale-marks.
+        /// Key = element ID, Value = hash of tag + location tokens. Only re-mark when hash changes.</summary>
+        private static readonly Dictionary<long, string> _elementVersionHash = new Dictionary<long, string>();
 
         /// <summary>
         /// DocumentChanged event handler that marks modified tagged elements as stale.
@@ -414,22 +434,24 @@ namespace StingTools.Core
                 // Limit batch size to prevent performance issues
                 if (modifiedIds.Count > 100) return;
 
-                var now = DateTime.Now;
                 var idsToMark = new List<ElementId>();
 
                 foreach (ElementId id in modifiedIds)
                 {
-                    // Throttle: skip if recently marked
-                    if (_recentStaleMarks.TryGetValue(id.Value, out DateTime lastMarked) &&
-                        (now - lastMarked) < StaleThrottle)
-                        continue;
-
                     Element el = doc.GetElement(id);
                     if (el == null || !el.IsValidObject) continue;
 
                     // Only mark elements that already have a tag
                     string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag1)) continue;
+
+                    // LOG-09: Compute version hash from tag + spatial tokens; skip if unchanged
+                    string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                    string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                    string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                    string hash = $"{tag1}|{loc}|{zone}|{lvl}";
+                    if (_elementVersionHash.TryGetValue(id.Value, out string prevHash) && prevHash == hash)
+                        continue;
 
                     idsToMark.Add(id);
                 }
@@ -449,7 +471,12 @@ namespace StingTools.Core
                             if (p != null && !p.IsReadOnly)
                             {
                                 p.Set(1);
-                                _recentStaleMarks[id.Value] = now;
+                                // LOG-09: Store current version hash so we don't re-mark unchanged elements
+                                string curLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                                string curZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                                string curLvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                                string curTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                _elementVersionHash[id.Value] = $"{curTag}|{curLoc}|{curZone}|{curLvl}";
                             }
                         }
                         catch (Exception ex)
@@ -460,15 +487,9 @@ namespace StingTools.Core
                     tx.Commit();
                 }
 
-                // Prune throttle cache when it grows too large
-                if (_recentStaleMarks.Count > 5000)
-                {
-                    var expired = _recentStaleMarks
-                        .Where(kvp => (now - kvp.Value) > TimeSpan.FromMinutes(1))
-                        .Select(kvp => kvp.Key).ToList();
-                    foreach (var key in expired)
-                        _recentStaleMarks.Remove(key);
-                }
+                // LOG-09: Prune version hash cache when it grows too large
+                if (_elementVersionHash.Count > 10000)
+                    _elementVersionHash.Clear();
 
                 StingLog.Info($"OnDocumentChanged: marked {idsToMark.Count} elements stale");
             }

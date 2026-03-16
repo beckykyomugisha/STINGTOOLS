@@ -224,12 +224,22 @@ namespace StingTools.Core
         /// RWD = Rainwater Drainage (Uniclass Ss_50_30_02, CAWS R10)
         /// CSV element type codes (P-WSP, P-DRN) map to these system codes.
         /// </summary>
-        public static readonly HashSet<string> ValidSysCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        // LOG-03 FIX: Fallback codes when SysMap is not yet loaded
+        private static readonly HashSet<string> _fallbackSysCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "FP", "LV",
             "FLS", "COM", "ICT", "NCL", "SEC",
             "ARC", "STR", "GEN"
         };
+
+        /// <summary>
+        /// Valid system codes. Dynamically derived from TagConfig.SysMap keys when available,
+        /// falling back to hardcoded CIBSE/Uniclass codes when SysMap is not loaded.
+        /// This ensures custom project SYS codes in project_config.json are accepted.
+        /// </summary>
+        public static HashSet<string> ValidSysCodes =>
+            TagConfig.SysMap?.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase)
+            ?? _fallbackSysCodes;
 
         /// <summary>
         /// Valid function codes per CIBSE / Uniclass 2015.
@@ -716,19 +726,6 @@ namespace StingTools.Core
                 result = ApplySegmentMask(tag1, mask);
 
             return result;
-        }
-
-        /// <summary>
-        /// Normalised SEQ counter key from element's current token values.
-        /// Used to ensure all SEQ counter lookups use the same key format.
-        /// </summary>
-        public static string BuildSeqKey(Element el)
-        {
-            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
-            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
-            return $"{disc}_{sys}_{func}_{prod}";
         }
 
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
@@ -1311,14 +1308,35 @@ namespace StingTools.Core
         /// A tag is only "complete" when it has exactly expectedTokens segments
         /// and none of them are empty strings.
         /// </summary>
+        /// <summary>LOG-07: Historical separators to handle tags written under previous config.</summary>
+        private static readonly char[] _separatorHistory = new[] { '-', '_', '.' };
+
         public static bool TagIsComplete(string tagValue, int expectedTokens = 8)
         {
             if (string.IsNullOrEmpty(tagValue))
                 return false;
             char sepChar = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
             string[] parts = tagValue.Split(new[] { sepChar });
+
+            // LOG-07: If current separator doesn't yield expected tokens, try historical separators
             if (parts.Length != expectedTokens)
-                return false;
+            {
+                bool foundMatch = false;
+                foreach (char hist in _separatorHistory)
+                {
+                    if (hist == sepChar) continue;
+                    string[] altParts = tagValue.Split(new[] { hist });
+                    if (altParts.Length == expectedTokens)
+                    {
+                        parts = altParts;
+                        foundMatch = true;
+                        break;
+                    }
+                }
+                if (!foundMatch)
+                    return false;
+            }
+
             for (int i = 0; i < parts.Length; i++)
             {
                 if (string.IsNullOrWhiteSpace(parts[i]))
@@ -1621,18 +1639,34 @@ namespace StingTools.Core
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod);
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.SEQ, seq);
 
-                // Re-read actual token values (some may have been preserved by SetIfEmpty)
-                // to ensure TAG1 reflects what's actually on the element
+                // BUG-02 FIX: Re-read actual token values (preserved by SetIfEmpty)
+                // and build TAG1 from what's actually stored on the element.
+                // Only fill empty slots with derived defaults as a last resort to prevent
+                // malformed tags — never overwrite non-empty stored values.
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
-                // Validate token array: replace any null/empty segments with defaults
-                // to prevent malformed tags like "M--Z01-L02-..."
                 string[] defaults = { disc, loc, zone, lvl, sys, func, prod, seq };
                 for (int i = 0; i < actualTokens.Length && i < defaults.Length; i++)
                 {
                     if (string.IsNullOrEmpty(actualTokens[i]))
                         actualTokens[i] = defaults[i];
                 }
+                // Log when stored values differ from derived (for debugging)
+                if (actualTokens[1] != loc)
+                    StingLog.Info($"BuildAndWriteTag: stored LOC={actualTokens[1]} differs from derived={loc}, preserving stored value");
+                if (actualTokens[2] != zone)
+                    StingLog.Info($"BuildAndWriteTag: stored ZONE={actualTokens[2]} differs from derived={zone}, preserving stored value");
+                // Rebuild tag from actual stored tokens (not derived)
                 tag = string.Join(Separator, actualTokens);
+                // Also update the SEQ key variables to reflect actual stored values
+                // so collision detection uses the right tag string
+                disc = actualTokens[0];
+                loc = actualTokens[1];
+                zone = actualTokens[2];
+                lvl = actualTokens[3];
+                sys = actualTokens[4];
+                func = actualTokens[5];
+                prod = actualTokens[6];
+                seq = actualTokens[7];
             }
 
             // Final validation: ensure tag has correct segment count before writing
@@ -1713,6 +1747,10 @@ namespace StingTools.Core
             // paragraph depth or style matrix BOOLs would show blank labels.
             try
             {
+                // LOG-08 FIX: Initialize DISPLAY_MODE so tag families show the correct
+                // display variant immediately (default = PROD-SEQ mode 2)
+                ParameterHelpers.SetIfEmpty(el, "STING_DISPLAY_MODE", DisplayModeDefault.ToString());
+
                 // TAG_PARA_STATE_1_BOOL = Yes (compact mode default — ensures at least
                 // Tier 1 content is visible in tag families after tagging)
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.PARA_STATE_1, "Yes");
@@ -1771,12 +1809,20 @@ namespace StingTools.Core
         /// Modes: 0/5=full 8-segment, 1=SEQ only, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ.
         /// Returns the display string (empty if element is null or has no tokens).
         /// </summary>
+        /// <summary>
+        /// Default display mode for unset STING_DISPLAY_MODE parameter.
+        /// Mode 2 = PROD-SEQ (e.g. "AHU-0042") — matches tag family default visibility BOOLs.
+        /// LOG-08 FIX: Previously mode=0 mapped to mode=5 (full 8-segment) but tag families
+        /// default to mode=2, causing blank tags when the param was unset.
+        /// </summary>
+        public const int DisplayModeDefault = 2;
+
         public static string BuildDisplayTag(Element el)
         {
             if (el == null) return "";
-            int mode = ParameterHelpers.GetInt(el, "STING_DISPLAY_MODE", 5);
-            // Mode 0 is treated as full (same as 5/default)
-            if (mode == 0) mode = 5;
+            int mode = ParameterHelpers.GetInt(el, "STING_DISPLAY_MODE", DisplayModeDefault);
+            // Mode 0 means unset — use default
+            if (mode == 0) mode = DisplayModeDefault;
             string display = BuildDisplayTag(el, mode);
             if (!string.IsNullOrEmpty(display))
             {
@@ -2405,7 +2451,19 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(lvl) || lvl == "XX")
                     lvl = "L00";
 
-                string key = $"{disc}_{sys}_{lvl}";
+                // BUG-01/05 FIX: Use same conditional key as BuildAndWriteTag
+                string key;
+                if (SeqIncludeZone)
+                {
+                    string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                    if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
+                    key = $"{disc}_{zone}_{sys}_{lvl}";
+                }
+                else
+                {
+                    key = $"{disc}_{sys}_{lvl}";
+                }
+
                 if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {
                     if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
@@ -2470,7 +2528,19 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(lvl) || lvl == "XX")
                     lvl = "L00";
 
-                string key = $"{disc}_{sys}_{lvl}";
+                // BUG-01/05 FIX: Use same conditional key as BuildAndWriteTag
+                string key;
+                if (SeqIncludeZone)
+                {
+                    string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                    if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
+                    key = $"{disc}_{zone}_{sys}_{lvl}";
+                }
+                else
+                {
+                    key = $"{disc}_{sys}_{lvl}";
+                }
+
                 if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {
                     if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])

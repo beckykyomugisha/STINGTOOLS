@@ -77,10 +77,11 @@ namespace StingTools.Core
         }
 
         // Parameter lookup cache: avoids O(n) LookupParameter on every call.
-        // Keyed by (ElementId typeId, string paramName) → Definition.
+        // Keyed by (int docHash, ElementId typeId, string paramName) → Definition.
+        // LOG-05 FIX: docHash prevents cross-document cache collisions (ElementIds are doc-relative).
         // Null values are cached to avoid repeated miss lookups.
-        private static readonly ConcurrentDictionary<(ElementId, string), Definition> _paramCache
-            = new ConcurrentDictionary<(ElementId, string), Definition>();
+        private static readonly ConcurrentDictionary<(int, ElementId, string), Definition> _paramCache
+            = new ConcurrentDictionary<(int, ElementId, string), Definition>();
 
         /// <summary>Clear the parameter lookup cache. Call on document close or when
         /// shared parameters change (e.g., after LoadSharedParams).</summary>
@@ -89,12 +90,13 @@ namespace StingTools.Core
             _paramCache.Clear();
         }
 
-        /// <summary>Cached parameter lookup. Uses element's TypeId + paramName as cache key.
+        /// <summary>Cached parameter lookup. Uses docHash + TypeId + paramName as cache key.
         /// Falls back to LookupParameter on first access per type, then O(1) thereafter.</summary>
         private static Parameter CachedLookup(Element el, string paramName)
         {
+            int docHash = el.Document.GetHashCode();
             ElementId typeId = el.GetTypeId();
-            var key = (typeId, paramName);
+            var key = (docHash, typeId, paramName);
 
             if (!_paramCache.TryGetValue(key, out Definition cachedDef))
             {
@@ -1263,6 +1265,29 @@ namespace StingTools.Core
             written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MODEL, ParamRegistry.MODEL);
             written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MANUFACTURER, ParamRegistry.MFR);
 
+            // ORF-02: Serial number mapping
+            written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MARK, "ASS_SERIAL_NR_TXT");
+
+            // WARN-XS: Installation date from Phase Created
+            try
+            {
+                Parameter phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                if (phaseParam != null)
+                {
+                    ElementId phaseId = phaseParam.AsElementId();
+                    if (phaseId != null && phaseId != ElementId.InvalidElementId)
+                    {
+                        Phase phase = doc.GetElement(phaseId) as Phase;
+                        if (phase != null && !string.IsNullOrEmpty(phase.Name))
+                        {
+                            SetIfEmpty(el, "ASS_INSTALLATION_DATE_TXT", DateTime.Now.ToString("yyyy-MM-dd"));
+                            written++;
+                        }
+                    }
+                }
+            }
+            catch { /* Phase detection is advisory */ }
+
             // Type Name (from the family symbol name)
             string typeName = ParameterHelpers.GetFamilySymbolName(el);
             if (!string.IsNullOrEmpty(typeName))
@@ -1305,6 +1330,31 @@ namespace StingTools.Core
 
             // ── MEP-specific parameters ────────────────────────────────────────
             written += MapMepParams(el);
+
+            // ── WARN-XS: Warning-activation dimensional parameter mappings ────
+            string catNameW = el.Category?.Name ?? "";
+            string catUpperW = catNameW.ToUpperInvariant();
+            const double ftToMmW = 304.8;
+
+            // ASS_ROOM_HEIGHT_MM — Room upper offset
+            if (catNameW == "Rooms")
+                written += MapDimension(el, BuiltInParameter.ROOM_UPPER_OFFSET, "ASS_ROOM_HEIGHT_MM", ftToMmW);
+
+            // BLE_STAIR_HEADROOM_MM — Stair headroom
+            if (catUpperW.Contains("STAIR"))
+                written += MapDimension(el, BuiltInParameter.STAIRS_ACTUAL_TREAD_DEPTH, "BLE_STAIR_HEADROOM_MM", ftToMmW);
+
+            // BLE_RAIL_HEIGHT_MM — Railing height
+            if (catUpperW.Contains("RAILING"))
+                written += MapDimension(el, BuiltInParameter.INSTANCE_TOP_OFFSET_VALUE_PARAM, "BLE_RAIL_HEIGHT_MM", ftToMmW);
+
+            // STR_FDN_DEPTH_MM — Foundation depth
+            if (catUpperW.Contains("FOUNDATION"))
+                written += MapDimension(el, BuiltInParameter.INSTANCE_ELEVATION_PARAM, "STR_FDN_DEPTH_MM", ftToMmW);
+
+            // BLE_CEILING_HEIGHT_MM — Ceiling height
+            if (catUpperW.Contains("CEILING"))
+                written += MapDimension(el, BuiltInParameter.CEILING_HEIGHTABOVELEVEL_PARAM, "BLE_CEILING_HEIGHT_MM", ftToMmW);
 
             // ── Default values ─────────────────────────────────────────────────
             written += MapDefaults(doc, el);
@@ -1802,6 +1852,25 @@ namespace StingTools.Core
 
             // ── Size parameters (generic MEP) ──────────────────────────────────
             written += MapBuiltIn(el, BuiltInParameter.RBS_CALCULATED_SIZE, ParamRegistry.SIZE);
+
+            // ── SYN-01: Cross-write ASS_FLOW_RATE_TXT from PLM_PIPE_FLOW or HVC_AIRFLOW ──
+            string flowRate = GetString(el, ParamRegistry.PLM_PIPE_FLOW);
+            if (string.IsNullOrEmpty(flowRate))
+                flowRate = GetString(el, ParamRegistry.HVC_AIRFLOW);
+            if (!string.IsNullOrEmpty(flowRate))
+                written += SetIfEmptyInt(el, "ASS_FLOW_RATE_TXT", flowRate);
+
+            // ── SYN-02: Cross-write ASS_POWER_RATING_TXT from ELC_POWER ──
+            string powerRating = GetString(el, ParamRegistry.ELC_POWER);
+            if (!string.IsNullOrEmpty(powerRating))
+                written += SetIfEmptyInt(el, "ASS_POWER_RATING_TXT", powerRating);
+
+            // ── WARN-XS: Warning-activation parameter mappings ──
+            // HVC_EFF_RATIO_NR — HVAC COP from Mechanical Equipment
+            if (catName == "Mechanical Equipment")
+            {
+                written += MapBuiltIn(el, BuiltInParameter.RBS_ENERGY_ANALYSIS_PARAM, "HVC_EFF_RATIO_NR");
+            }
 
             return written;
         }
