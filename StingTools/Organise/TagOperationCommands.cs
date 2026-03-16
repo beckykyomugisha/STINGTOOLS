@@ -74,8 +74,9 @@ namespace StingTools.Organise
 
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var stats = new TaggingStats();
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var tsFormulas = TagPipelineHelper.LoadFormulas();
+            var tsGridLines = TagPipelineHelper.LoadGridLines(doc);
+            var tsPopCtx = TokenAutoPopulator.PopulationContext.Build(doc);
 
             // Collect existing visual tags in view to avoid double-annotating
             View activeView = doc.ActiveView;
@@ -105,36 +106,16 @@ namespace StingTools.Organise
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
-                    // Pre-populate LOC/ZONE from spatial data before tagging
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.LOC)))
-                    {
-                        string loc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LOC, loc);
-                    }
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.ZONE)))
-                    {
-                        string zone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.ZONE, zone);
-                    }
-
+                    // NG4: Full pipeline — TypeTokenInherit → PopulateAll → NativeMapper
+                    // → Formulas → BuildTag → Containers → TAG7 → GridRef
                     bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                    TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                    TagPipelineHelper.RunFullPipeline(
+                        doc, elem, tsPopCtx, tagIndex, seqCounters,
+                        tsFormulas, tsGridLines,
+                        overwrite: collisionMode == TagCollisionMode.Overwrite,
                         skipComplete: skipComplete,
-                        existingTags: tagIndex,
                         collisionMode: collisionMode,
                         stats: stats);
-
-                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    try
-                    {
-                        string catTag7 = ParameterHelpers.GetCategoryName(elem);
-                        string[] tVals = ParamRegistry.ReadTokenValues(elem);
-                        TagConfig.WriteTag7All(doc, elem, catTag7, tVals, overwrite: true);
-                    }
-                    catch (Exception exTag7)
-                    {
-                        StingLog.Warn($"TAG7 write failed for {id}: {exTag7.Message}");
-                    }
 
                     // Place visual IndependentTag annotation if not already present
                     if (activeView != null && !existingVisualTags.Contains(id))
@@ -237,8 +218,9 @@ namespace StingTools.Organise
                 return Result.Cancelled;
 
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var rtFormulas = TagPipelineHelper.LoadFormulas();
+            var rtGridLines = TagPipelineHelper.LoadGridLines(doc);
+            var rtPopCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             int retagged = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Re-Tag"))
@@ -249,31 +231,15 @@ namespace StingTools.Organise
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
-                    // Update LOC/ZONE from spatial data before re-tagging
-                    string detectedLoc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
-                    if (!string.IsNullOrEmpty(detectedLoc))
-                        ParameterHelpers.SetString(elem, ParamRegistry.LOC, detectedLoc, overwrite: true);
-                    string detectedZone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
-                    if (!string.IsNullOrEmpty(detectedZone))
-                        ParameterHelpers.SetString(elem, ParamRegistry.ZONE, detectedZone, overwrite: true);
-
-                    if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                    // NG4: Full pipeline for ReTag — ensures TypeTokenInherit + PopulateAll run
+                    TagPipelineHelper.RunFullPipeline(
+                        doc, elem, rtPopCtx, tagIndex, seqCounters,
+                        rtFormulas, rtGridLines,
+                        overwrite: true,
                         skipComplete: false,
-                        existingTags: tagIndex,
-                        collisionMode: TagCollisionMode.Overwrite))
+                        collisionMode: TagCollisionMode.Overwrite);
+                    if (TagConfig.TagIsComplete(ParameterHelpers.GetString(elem, ParamRegistry.TAG1)))
                         retagged++;
-
-                    // Rebuild TAG7 + sub-sections with updated tokens
-                    try
-                    {
-                        string catRT = ParameterHelpers.GetCategoryName(elem);
-                        string[] tvRT = ParamRegistry.ReadTokenValues(elem);
-                        TagConfig.WriteTag7All(doc, elem, catRT, tvRT, overwrite: true);
-                    }
-                    catch (Exception exTag7)
-                    {
-                        StingLog.Warn($"ReTag TAG7 write failed for {id}: {exTag7.Message}");
-                    }
                 }
                 tx.Commit();
             }
