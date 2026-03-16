@@ -414,6 +414,9 @@ namespace StingTools.Tags
                             string catName = ParameterHelpers.GetCategoryName(el);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                             TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            // NP3: Write containers after format migration
+                            ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true,
+                                skipParam: ParamRegistry.TAG1);
                         }
                         catch (Exception tag7Ex)
                         {
@@ -619,6 +622,9 @@ namespace StingTools.Tags
                                 string catName = ParameterHelpers.GetCategoryName(el);
                                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                                // NP4: Write containers after delta token update
+                                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true,
+                                    skipParam: ParamRegistry.TAG1);
                             }
                             catch (Exception tag7Ex)
                             {

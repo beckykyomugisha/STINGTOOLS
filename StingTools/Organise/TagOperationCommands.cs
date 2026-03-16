@@ -130,6 +130,9 @@ namespace StingTools.Organise
                         string catTag7 = ParameterHelpers.GetCategoryName(elem);
                         string[] tVals = ParamRegistry.ReadTokenValues(elem);
                         TagConfig.WriteTag7All(doc, elem, catTag7, tVals, overwrite: true);
+                        // NP1: Write containers after TAG7 update
+                        ParamRegistry.WriteContainers(elem, tVals, catTag7, overwrite: true,
+                            skipParam: ParamRegistry.TAG1);
                     }
                     catch (Exception exTag7)
                     {
@@ -269,6 +272,9 @@ namespace StingTools.Organise
                         string catRT = ParameterHelpers.GetCategoryName(elem);
                         string[] tvRT = ParamRegistry.ReadTokenValues(elem);
                         TagConfig.WriteTag7All(doc, elem, catRT, tvRT, overwrite: true);
+                        // NP2: Write containers after TAG7 update
+                        ParamRegistry.WriteContainers(elem, tvRT, catRT, overwrite: true,
+                            skipParam: ParamRegistry.TAG1);
                     }
                     catch (Exception exTag7)
                     {
