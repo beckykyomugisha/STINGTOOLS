@@ -5261,6 +5261,12 @@ namespace StingTools.Organise
             {
                 tx.Start();
                 var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                if (popCtx == null)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("STING", "Failed to build population context.");
+                    return Result.Failed;
+                }
                 var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                 var formulas = TagPipelineHelper.LoadFormulas();
                 var gridLines = TagPipelineHelper.LoadGridLines(doc);

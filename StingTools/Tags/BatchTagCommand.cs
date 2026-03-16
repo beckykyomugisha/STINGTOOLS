@@ -117,14 +117,17 @@ namespace StingTools.Tags
             // This ensures contiguous SEQ numbers per group (all HVAC on L01 together)
             var sorted = SmartSortElements(doc, taggableElements);
 
-            int statusDetected = 0, revSet = 0;
             var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            if (popCtx == null)
+            {
+                TaskDialog.Show("Batch Tag", "Failed to build population context.");
+                return Result.Failed;
+            }
             var formulas = TagPipelineHelper.LoadFormulas();
             var gridLines = TagPipelineHelper.LoadGridLines(doc);
             var stats = new TaggingStats();
             var sw = Stopwatch.StartNew();
-            int populated = 0;
 
             StingLog.Info($"Batch Tag: starting — {totalTaggable} taggable, {alreadyTagged} tagged, mode={collisionMode}");
 
@@ -215,19 +218,12 @@ namespace StingTools.Tags
             report.AppendLine("Batch Tagging Complete");
             report.AppendLine(new string('=', 50));
             report.AppendLine($"  Mode:         {collisionMode}");
-            report.AppendLine($"  Tokens:       {populated} auto-populated");
-            if (statusDetected > 0)
-                report.AppendLine($"  STATUS:       {statusDetected} (from Revit phases/worksets)");
-            if (revSet > 0)
-                report.AppendLine($"  REV:          {revSet} (revision '{popCtx.ProjectRev}')");
             report.AppendLine($"  Duration:     {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
             report.Append(stats.BuildReport());
 
             StingLog.Info($"Batch Tag: tagged={stats.TotalTagged}, skipped={stats.TotalSkipped}, " +
-                $"collisions={stats.TotalCollisions}, populated={populated}, " +
-                $"statusDetect={statusDetected}, revSet={revSet}, " +
-                $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
+                $"collisions={stats.TotalCollisions}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             // GAP-017: Post-batch compliance summary for workflow chain visibility
             var postScan = ComplianceScan.Scan(doc);
@@ -431,6 +427,7 @@ namespace StingTools.Tags
                 }
 
                 tx.Commit();
+                TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
             TaskDialog.Show("Tag Format Migration",
                 $"Migration complete.\n\n  Migrated: {migrated}\n  Total: {tagged.Count}");
@@ -640,6 +637,7 @@ namespace StingTools.Tags
                 }
 
                 tx.Commit();
+                TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
             TaskDialog.Show("Tag Changed",
                 $"Delta update complete.\n\n  Stale tokens: {stale}\n  Elements updated: {updated}\n  Tags rebuilt: {processedElements.Count}");

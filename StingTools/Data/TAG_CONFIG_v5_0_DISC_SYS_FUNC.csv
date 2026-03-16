@@ -1,6 +1,7 @@
+#!SCHEMA_VERSION=5.0
 # TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv
 # ISO 19650 Discipline, System, and Function code mappings
-# Version: 5.0 | Updated: 2026-03-13
+# Version: 5.0 | Updated: 2026-03-15
 # Used by: TagConfig.DiscMap, TagConfig.SysMap, TagConfig.FuncMap, TagConfig.ProdMap
 # Changes from v4: Added system-aware DISC correction, smart FUNC detection,
 #   expanded PROD codes (70+ family-aware), BIMManager integration parameters,
