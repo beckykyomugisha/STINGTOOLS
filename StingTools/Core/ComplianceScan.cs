@@ -39,6 +39,12 @@ namespace StingTools.Core
             public int StatusMissing { get; set; }
             /// <summary>A5: Elements with at least one empty discipline container.</summary>
             public int ContainersMissing { get; set; }
+            /// <summary>AE-05: Per-token empty count for granular compliance reporting.</summary>
+            public Dictionary<string, int> EmptyTokenCounts { get; } = new Dictionary<string, int>
+            {
+                ["DISC"]=0, ["LOC"]=0, ["ZONE"]=0, ["LVL"]=0,
+                ["SYS"]=0, ["FUNC"]=0, ["PROD"]=0, ["SEQ"]=0
+            };
             public Dictionary<string, int> IssuesByType { get; set; } = new Dictionary<string, int>();
             public DateTime ScanTime { get; set; }
 
@@ -140,6 +146,9 @@ namespace StingTools.Core
                         result.TaggedComplete++;
                         // Has placeholders — check which tokens are default/placeholder
                         string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
+                        // AE-05: Adjust for prefix offset
+                        int offset = (!string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0);
+                        string[] tokenKeys = new[] {"DISC","LOC","ZONE","LVL","SYS","FUNC","PROD","SEQ"};
                         if (parts.Length >= 8)
                         {
                             if (parts[1] == "XX") AddIssue(result, "Missing LOC");
@@ -149,6 +158,17 @@ namespace StingTools.Core
                             if (parts[5] == "GEN") AddIssue(result, "Generic FUNC");
                             if (parts[6] == "GEN") AddIssue(result, "Generic PROD");
                             if (parts[7] == "0000") AddIssue(result, "SEQ=0000");
+                        }
+                        // AE-05: Per-token empty/placeholder counting
+                        for (int ti = 0; ti < tokenKeys.Length && (ti + offset) < parts.Length; ti++)
+                        {
+                            string part = parts[ti + offset];
+                            if (string.IsNullOrWhiteSpace(part) || part == "XX" || part == "ZZ"
+                                || part == "GEN" || part == "0000")
+                            {
+                                if (result.EmptyTokenCounts.ContainsKey(tokenKeys[ti]))
+                                    result.EmptyTokenCounts[tokenKeys[ti]]++;
+                            }
                         }
                     }
                     else

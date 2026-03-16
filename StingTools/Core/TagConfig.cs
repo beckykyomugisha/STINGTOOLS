@@ -832,6 +832,25 @@ namespace StingTools.Core
                     return;
                 }
 
+                // AE-07: Validate config keys — warn on unknown keys to catch typos
+                var knownKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "DISC_MAP","SYS_MAP","PROD_MAP","FUNC_MAP","LOC_CODES","ZONE_CODES","TAG_FORMAT",
+                    "TAG_PREFIX","TAG_SUFFIX","CATEGORY_SKIP","CATEGORY_FORCE_SYS","SEQ_SCHEME",
+                    "SEQ_INCLUDE_ZONE","SEQ_LEVEL_RESET","STATUS_DEFAULT","REV_DEFAULT",
+                    "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT",
+                    "SEPARATOR_HISTORY","AUTO_RUN_WORKFLOW_ON_OPEN","ACTIVE_PRESET",
+                    "CATEGORY_TOKEN_OVERRIDES","tag3DFamilyPath"
+                };
+                var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
+                if (unknownKeys.Count > 0)
+                {
+                    string unknownList = string.Join(", ", unknownKeys.Take(5));
+                    StingLog.Warn($"TagConfig: unknown config key(s) in project_config.json: {unknownList}" +
+                        (unknownKeys.Count > 5 ? $" (+{unknownKeys.Count - 5} more)" : "") +
+                        " — check for typos");
+                }
+
                 DiscMap = TryDeserialize<Dictionary<string, string>>(data, "DISC_MAP") ?? DefaultDiscMap();
                 SysMap = TryDeserialize<Dictionary<string, List<string>>>(data, "SYS_MAP") ?? DefaultSysMap();
                 ProdMap = TryDeserialize<Dictionary<string, string>>(data, "PROD_MAP") ?? DefaultProdMap();
