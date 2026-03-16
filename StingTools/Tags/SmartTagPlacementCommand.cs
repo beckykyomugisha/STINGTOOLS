@@ -1207,7 +1207,7 @@ namespace StingTools.Tags
 
         /// <summary>ENH-03: Adjust leader elbow to avoid overlapping other tags.</summary>
         internal static void AdjustLeaderElbow(Document doc, View view, IndependentTag tag,
-            Reference tagRef, SpatialGrid grid, double clearanceMargin = LeaderClearanceMargin)
+            Reference tagRef, SpatialGrid grid, double clearanceMargin = 0.5)
         {
             try
             {
