@@ -543,6 +543,8 @@ namespace StingTools.Select
         private static Result BulkAutoPopulate(Document doc, ICollection<ElementId> selected)
         {
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            // GAP-BA: Load formulas for evaluation after token population
+            var baFormulas = TagPipelineHelper.LoadFormulas();
             int populated = 0;
             int statusDetected = 0, revSet = 0;
 
@@ -554,17 +556,54 @@ namespace StingTools.Select
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
+                    // GAP-BA: TypeTokenInherit before PopulateAll
+                    TokenAutoPopulator.TypeTokenInherit(doc, elem);
+
                     // Full 9-token auto-population via shared helper
                     var result = TokenAutoPopulator.PopulateAll(doc, elem, popCtx);
                     populated += result.TokensSet;
-                    // NG9: Bridge native params after token population
+                    // Bridge native params after token population
                     try { NativeParamMapper.MapAll(doc, elem); }
                     catch (Exception nmEx9) { StingLog.Warn($"BulkAutoPopulate NativeMapper for {id}: {nmEx9.Message}"); }
+
+                    // GAP-BA: Evaluate formulas after NativeMapper
+                    if (baFormulas != null && baFormulas.Count > 0)
+                    {
+                        try
+                        {
+                            foreach (var formula in baFormulas)
+                            {
+                                Parameter fp = elem.LookupParameter(formula.ParameterName);
+                                if (fp == null || fp.IsReadOnly) continue;
+                                var fCtx = Temp.FormulaEngine.BuildContext(elem, formula);
+                                if (fCtx == null) continue;
+                                if (formula.DataType == "TEXT")
+                                {
+                                    string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                    if (fResult != null && fp.StorageType == StorageType.String
+                                        && string.IsNullOrEmpty(fp.AsString()))
+                                        fp.Set(fResult);
+                                }
+                                else
+                                {
+                                    double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                    if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                        Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                }
+                            }
+                        }
+                        catch (Exception fEx) { StingLog.Warn($"BulkAutoPopulate formula eval for {id}: {fEx.Message}"); }
+                    }
+
                     if (result.StatusDetected) statusDetected++;
                     if (result.RevSet) revSet++;
                 }
                 tx.Commit();
             }
+
+            // GAP-BA: Invalidate caches after bulk populate
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             var msg = new System.Text.StringBuilder();
             msg.AppendLine($"Auto-populated {populated} token values on {selected.Count} elements.");

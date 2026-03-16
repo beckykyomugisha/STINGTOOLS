@@ -178,6 +178,9 @@ namespace StingTools.Tags
 
                     try
                     {
+                        // GAP-FS: TypeTokenInherit before PopulateAll for type-level token inheritance
+                        TokenAutoPopulator.TypeTokenInherit(doc, el);
+
                         // Delegate to shared TokenAutoPopulator — single source of truth for
                         // all 9 token derivation logic (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV).
                         // Uses cached phases/rooms/project data — no per-element collectors.

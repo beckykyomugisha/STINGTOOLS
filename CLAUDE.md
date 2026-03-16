@@ -1524,6 +1524,16 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 240. **GAP-03: ResolveAllIssuesCommand pipeline unification** — Replaced manual 7-step pipeline (TypeTokenInherit → PopulateAll → ISO validation → NativeMapper → BuildAndWriteTag → WriteTag7All → WriteContainers) with `TagPipelineHelper.RunFullPipeline()`. Now executes all 11 canonical steps including TokenLock (FE-01), CategoryForceSys, CategoryTokenOverrides (FE-06), FormulaEngine, GridRef, and AuditTrail (AL-06). Retained post-pipeline ISO cross-validation fix as a secondary cleanup pass.
 241. **GAP-04: BulkRetag pipeline unification** — Replaced manual 4-step pipeline (NativeMapper → BuildAndWriteTag → WriteTag7All → WriteContainers) with `TagPipelineHelper.RunFullPipeline()`. Now executes all 11 canonical steps including TypeTokenInherit, PopulateAll, TokenLock, FormulaEngine, GridRef, and AuditTrail — previously missing entirely from BulkRetag.
 
+#### Completed (Phase 26 — Build Error Fixes & Pipeline Convergence)
+
+242. **18 build errors fixed** — CS7036 (OutputLocationHelper JToken.Value), CS0030+CS1061 (CombineParametersCommand ContainerParamDef/GroupDef types), CS0103 (TagConfig TaskDialog, ParagraphDepthCommand StingCommandHandler namespace), CS0117 (ParameterHelpers invalid BuiltInParameter constants), CS0029+CS1503 (StingAutoTagger Dictionary type mismatch), CS0128 (LoadSharedParamsCommand duplicate iter), CS0122 (Tag3DCommand StructuralType accessibility), CS0103 (SystemParamPushCommand seqCounters scope), CS0103 (ParameterHelpers SetIfEmpty/GetString unqualified calls in NativeParamMapper).
+243. **MR_PARAMETERS.txt structure fix** — Moved GROUP 18 (Warning Thresholds) from mid-file `*GROUP` header syntax inside PARAM section to proper GROUP section before `*PARAM` header. Validated against reference file (StingD85/transfer).
+244. **GAP-AQ: AutoTagQueueHandler pipeline unification** — Replaced 80-line inline pipeline (missing CategorySkipList, CategoryForceSys, CategoryTokenOverrides, TokenLock, AuditTrail; NativeMapper in wrong order; GridRef result discarded) with single `TagPipelineHelper.RunFullPipeline()` call. Now executes all 11 canonical steps in correct order.
+245. **GAP-BA: BulkAutoPopulate enhancement** — Added TypeTokenInherit before PopulateAll, formula evaluation after NativeMapper, and ComplianceScan.InvalidateCache + StingAutoTagger.InvalidateContext after commit.
+246. **GAP-FS: FamilyStagePopulate TypeTokenInherit** — Added `TokenAutoPopulator.TypeTokenInherit()` before `PopulateAll()` so type-level DISC/SYS/FUNC/PROD values are inherited to instances.
+247. **Double-write elimination** — Removed redundant TAG7 + WriteContainers calls after RunFullPipeline in TagSelectedCommand and ReTagCommand (RunFullPipeline already handles both steps).
+248. **Thread safety: StingStaleMarker** — Changed `_elementVersionHash` from `Dictionary<long, string>` to `ConcurrentDictionary<long, string>` to prevent race conditions in `OnDocumentChanged` event handler.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance

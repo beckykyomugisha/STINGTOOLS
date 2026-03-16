@@ -116,21 +116,7 @@ namespace StingTools.Organise
                         skipComplete: skipComplete,
                         collisionMode: collisionMode,
                         stats: stats);
-
-                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    try
-                    {
-                        string catTag7 = ParameterHelpers.GetCategoryName(elem);
-                        string[] tVals = ParamRegistry.ReadTokenValues(elem);
-                        TagConfig.WriteTag7All(doc, elem, catTag7, tVals, overwrite: true);
-                        // NP1: Write containers after TAG7 update
-                        ParamRegistry.WriteContainers(elem, tVals, catTag7, overwrite: true,
-                            skipParam: ParamRegistry.TAG1);
-                    }
-                    catch (Exception exTag7)
-                    {
-                        StingLog.Warn($"TAG7 write failed for {id}: {exTag7.Message}");
-                    }
+                    // RunFullPipeline already handles TAG7 + containers — no double-write needed
 
                     // Place visual IndependentTag annotation if not already present
                     if (activeView != null && !existingVisualTags.Contains(id))
@@ -261,21 +247,7 @@ namespace StingTools.Organise
                         collisionMode: TagCollisionMode.Overwrite);
                     if (TagConfig.TagIsComplete(ParameterHelpers.GetString(elem, ParamRegistry.TAG1)))
                         retagged++;
-
-                    // Rebuild TAG7 + sub-sections with updated tokens
-                    try
-                    {
-                        string catRT = ParameterHelpers.GetCategoryName(elem);
-                        string[] tvRT = ParamRegistry.ReadTokenValues(elem);
-                        TagConfig.WriteTag7All(doc, elem, catRT, tvRT, overwrite: true);
-                        // NP2: Write containers after TAG7 update
-                        ParamRegistry.WriteContainers(elem, tvRT, catRT, overwrite: true,
-                            skipParam: ParamRegistry.TAG1);
-                    }
-                    catch (Exception exTag7)
-                    {
-                        StingLog.Warn($"ReTag TAG7 write failed for {id}: {exTag7.Message}");
-                    }
+                    // RunFullPipeline already handles TAG7 + containers — no double-write needed
                 }
                 tx.Commit();
 

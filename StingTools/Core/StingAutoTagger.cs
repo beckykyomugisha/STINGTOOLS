@@ -374,90 +374,18 @@ namespace StingTools.Core
 
                             try
                             {
-                                // Inherit tokens from family type
-                                TokenAutoPopulator.TypeTokenInherit(doc, el);
+                                // GAP-AQ: Use unified RunFullPipeline for all 11 canonical steps
+                                // (replaces inline pipeline that was missing CategorySkipList,
+                                //  CategoryForceSys, CategoryTokenOverrides, TokenLock, AuditTrail,
+                                //  and had NativeMapper in wrong order)
+                                bool pipelineOk = TagPipelineHelper.RunFullPipeline(
+                                    doc, el, ctx, existingTags, seqCounters,
+                                    _formulas, _gridLines,
+                                    overwrite: false,
+                                    skipComplete: true,
+                                    collisionMode: TagCollisionMode.AutoIncrement);
 
-                                // Populate all tokens
-                                TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: false);
-
-                                // Build and write the tag
-                                TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                                    skipComplete: true, existingTags: existingTags,
-                                    collisionMode: TagCollisionMode.AutoIncrement,
-                                    cachedRev: ctx.ProjectRev);
-
-                                // Track newly created tag
-                                string newTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                                if (!string.IsNullOrEmpty(newTag)) existingTags.Add(newTag);
-
-                                // LOG-04: Only rebuild TAG7 when tokens actually changed.
-                                // Compare token hash before/after to skip expensive narrative rebuild.
-                                try
-                                {
-                                    string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                                    string existingTag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
-                                    if (string.IsNullOrEmpty(existingTag7))
-                                    {
-                                        TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
-                                    }
-                                    // else: TAG7 already populated and tokens were set by PopulateAll
-                                    // with overwrite:false, so existing TAG7 is still valid
-                                }
-                                catch (Exception tag7Ex)
-                                {
-                                    StingLog.Warn($"AutoTagger TAG7 for {id}: {tag7Ex.Message}");
-                                }
-
-                                // FIX-02: Bridge native Revit params to STING shared params
-                                try { NativeParamMapper.MapAll(doc, el); }
-                                catch (Exception nmEx) { StingLog.Warn($"AutoTagger NativeMapper for {id.Value}: {nmEx.Message}"); }
-
-                                // FIX-02: Evaluate formulas after token population and native mapping
-                                if (_formulas != null && _formulas.Count > 0)
-                                {
-                                    try
-                                    {
-                                        foreach (var formula in _formulas)
-                                        {
-                                            Parameter fp = el.LookupParameter(formula.ParameterName);
-                                            if (fp == null || fp.IsReadOnly) continue;
-                                            var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
-                                            if (fCtx == null) continue;
-                                            if (formula.DataType == "TEXT")
-                                            {
-                                                string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
-                                                if (fResult != null && fp.StorageType == StorageType.String
-                                                    && string.IsNullOrEmpty(fp.AsString()))
-                                                    fp.Set(fResult);
-                                            }
-                                            else
-                                            {
-                                                double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
-                                                if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
-                                                    Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
-                                            }
-                                        }
-                                    }
-                                    catch (Exception fEx) { StingLog.Warn($"AutoTagger formula eval for {id.Value}: {fEx.Message}"); }
-                                }
-
-                                // Write containers
-                                try
-                                {
-                                    string[] combineTokens = ParamRegistry.ReadTokenValues(el);
-                                    ParamRegistry.WriteContainers(el, combineTokens, catName);
-                                }
-                                catch (Exception ex)
-                                {
-                                    StingLog.Warn($"AutoTagger combine failed for {id.Value}: {ex.Message}");
-                                }
-
-                                // FIX-R02: Write GridRef per element using cached grid lines
-                                if (_gridLines != null && _gridLines.Count > 0)
-                                {
-                                    try { SpatialAutoDetect.GetGridRef(el, _gridLines); }
-                                    catch (Exception grEx) { StingLog.Warn($"AutoTagger GridRef for {id.Value}: {grEx.Message}"); }
-                                }
+                                if (!pipelineOk) continue;
 
                                 // Visual tag placement
                                 if (_visualTaggingEnabled && doc.ActiveView != null
@@ -559,7 +487,7 @@ namespace StingTools.Core
 
         /// <summary>LOG-09: Track element version hashes to avoid redundant stale-marks.
         /// Key = element ID, Value = hash of tag + location tokens. Only re-mark when hash changes.</summary>
-        private static readonly Dictionary<long, string> _elementVersionHash = new Dictionary<long, string>();
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, string> _elementVersionHash = new System.Collections.Concurrent.ConcurrentDictionary<long, string>();
 
         /// <summary>A2: Debounce — minimum interval (ms) between stale-mark transactions.
         /// Prevents thundering-herd on bulk operations (group moves, workset assigns, filter applies).</summary>
