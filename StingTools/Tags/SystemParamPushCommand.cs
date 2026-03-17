@@ -974,6 +974,7 @@ namespace StingTools.Tags
             foreach (var id in allSystemElements)
             {
                 Element el = doc.GetElement(id);
+                if (el == null) continue;
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(tag) && TagConfig.TagIsComplete(tag))
                     tagged++;
