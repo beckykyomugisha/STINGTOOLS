@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -9,223 +10,216 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Place 3D tag family instances at element locations in a 3D view.
-    /// Unlike IndependentTag annotations (2D only), this places FamilyInstance
-    /// objects from a tag family that renders in 3D space.
-    /// Runs the full tagging pipeline on each placed instance.
+    /// Places 3D annotation tags (FamilyInstance-based) on elements in the active 3D view.
+    /// Writes the assembled ISO 19650 tag to a label parameter on each placed tag family instance.
+    /// Also writes the full container pipeline (WriteContainers + WriteTag7All) to each tagged element.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class Tag3DCommand : IExternalCommand
     {
-        private const string TAG_3D_LABEL = "ASS_TAG_1_TXT";
+        private const string TAG_3D_LABEL = "ASS_TAG_3D_TXT";
 
-        public Result Execute(ExternalCommandData commandData,
-            ref string message, ElementSet elements)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             UIDocument uidoc = ctx.UIDoc;
             Document doc = ctx.Doc;
 
-            View activeView = doc.ActiveView;
-            if (activeView == null || !(activeView is View3D))
+            View view = doc.ActiveView;
+            if (view == null || !(view is View3D))
             {
-                TaskDialog.Show("Tag 3D", "Switch to a 3D view first.\n3D tags require a 3D view.");
+                TaskDialog.Show("Tag 3D", "Active view must be a 3D view.");
                 return Result.Succeeded;
             }
 
-            // Find tag family
-            FamilySymbol tagFamily = FindTagFamily(doc);
-            if (tagFamily == null)
+            // Find or load 3D tag family
+            FamilySymbol tagSymbol = FindTagFamily(doc);
+            if (tagSymbol == null)
             {
                 TaskDialog.Show("Tag 3D",
-                    "No 3D tag family found.\n\n" +
-                    "Load a Generic Model family named '3D_Tag' or 'STING_3D_Tag',\n" +
-                    "or set 'tag3DFamilyPath' in project_config.json.");
+                    "No 3D tag family found.\n\nLoad a Generic Model family with a '" +
+                    TAG_3D_LABEL + "' label parameter, or set 'tag3DFamilyPath' in project_config.json.");
                 return Result.Succeeded;
             }
 
-            // Get selected elements or all taggable in view
-            var selectedIds = uidoc.Selection.GetElementIds();
-            List<Element> targets;
-            if (selectedIds.Count > 0)
-            {
-                targets = selectedIds
-                    .Select(id => doc.GetElement(id))
-                    .Where(e => e != null && TagConfig.DiscMap.ContainsKey(
-                        ParameterHelpers.GetCategoryName(e)))
-                    .ToList();
-            }
-            else
-            {
-                targets = new FilteredElementCollector(doc, activeView.Id)
+            // Collect taggable elements in view
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> viewElements;
+            if (catEnums != null && catEnums.Length > 0)
+                viewElements = new FilteredElementCollector(doc, view.Id)
                     .WhereElementIsNotElementType()
-                    .Where(e => TagConfig.DiscMap.ContainsKey(
-                        ParameterHelpers.GetCategoryName(e)))
-                    .ToList();
-            }
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            else
+                viewElements = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType();
 
-            if (targets.Count == 0)
+            var elList = viewElements.ToList();
+            if (elList.Count == 0)
             {
-                TaskDialog.Show("Tag 3D", "No taggable elements found in view/selection.");
+                TaskDialog.Show("Tag 3D", "No taggable elements found in the active 3D view.");
                 return Result.Succeeded;
             }
 
-            // Build pipeline context
-            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
-            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
-            var formulas = TagPipelineHelper.LoadFormulas();
-            var gridLines = TagPipelineHelper.LoadGridLines(doc);
             int placed = 0;
-            int skipped = 0;
+            int errors = 0;
 
-            using (Transaction tx = new Transaction(doc, "STING Place 3D Tags"))
+            using (Transaction tx = new Transaction(doc, "STING Tag 3D"))
             {
                 tx.Start();
 
-                if (!tagFamily.IsActive)
-                    tagFamily.Activate();
+                if (!tagSymbol.IsActive) tagSymbol.Activate();
 
-                foreach (Element el in targets)
+                foreach (Element el in elList)
                 {
                     try
                     {
-                        // Run full pipeline on the source element first
-                        TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
-                            tagIndex, seqCounters, formulas, gridLines,
-                            overwrite: false, skipComplete: true,
-                            collisionMode: TagCollisionMode.AutoIncrement);
-
                         string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                        if (string.IsNullOrEmpty(tag1))
-                        {
-                            skipped++;
-                            continue;
-                        }
+                        if (string.IsNullOrEmpty(tag1)) continue;
 
-                        // Track new tag
-                        tagIndex.Add(tag1);
+                        // Get element location for placement
+                        XYZ point = GetElementCenter(el);
+                        if (point == null) continue;
 
-                        // Get element center point
-                        XYZ center = GetElementCenter(el);
-                        if (center == null) { skipped++; continue; }
+                        // Offset tag slightly above element
+                        XYZ tagPoint = new XYZ(point.X, point.Y, point.Z + 1.0);
 
                         // Place 3D tag family instance
                         FamilyInstance fi = doc.Create.NewFamilyInstance(
-                            center, tagFamily, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                            tagPoint, tagSymbol, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                        if (fi == null) continue;
 
-                        if (fi != null)
+                        // Write tag value to label parameter
+                        ParameterHelpers.SetString(fi, TAG_3D_LABEL, tag1, overwrite: true);
+
+                        // A6: Write full container pipeline for 3D-tagged instances
+                        try
                         {
-                            // Write tag value to label parameter
-                            ParameterHelpers.SetString(fi, TAG_3D_LABEL, tag1, overwrite: true);
-
-                            // FIX-11: Write containers/TAG7/NativeMap for SOURCE element (el),
-                            // not the placed 3D tag instance (fi). The source element
-                            // holds the actual tag tokens; fi is just a visual marker.
-                            try
-                            {
-                                string cat3D = ParameterHelpers.GetCategoryName(el);
-                                string[] toks3D = ParamRegistry.ReadTokenValues(el);
-                                ParamRegistry.WriteContainers(el, toks3D, cat3D);
-                                TagConfig.WriteTag7All(doc, el, cat3D, toks3D, overwrite: false);
-                                NativeParamMapper.MapAll(doc, el);
-                            }
-                            catch (Exception pEx)
-                            {
-                                StingLog.Warn($"Tag3D pipeline for placed instance {fi.Id}: {pEx.Message}");
-                            }
-
-                            placed++;
+                            string catName3D = ParameterHelpers.GetCategoryName(fi);
+                            string[] tokens3D = ParamRegistry.ReadTokenValues(fi);
+                            ParamRegistry.WriteContainers(fi, tokens3D, catName3D);
+                            TagConfig.WriteTag7All(doc, fi, catName3D, tokens3D, overwrite: false);
                         }
+                        catch (Exception pEx3D)
+                        {
+                            StingLog.Warn($"Tag3D container write for {fi.Id}: {pEx3D.Message}");
+                        }
+
+                        placed++;
                     }
                     catch (Exception ex)
                     {
+                        errors++;
                         StingLog.Warn($"Tag3D placement for {el.Id}: {ex.Message}");
-                        skipped++;
                     }
                 }
 
                 tx.Commit();
             }
 
-            // Save SEQ sidecar
-            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
-            catch (Exception ssEx) { StingLog.Warn($"Tag3D SaveSeqSidecar: {ssEx.Message}"); }
-
-            ComplianceScan.InvalidateCache();
-            StingAutoTagger.InvalidateContext();
-
-            TaskDialog.Show("Tag 3D",
-                $"3D tags placed: {placed}\n" +
-                $"Skipped: {skipped}\n\n" +
-                $"Family: {tagFamily.FamilyName}");
+            string report = $"3D tags placed: {placed}";
+            if (errors > 0) report += $"\nErrors: {errors}";
+            TaskDialog.Show("Tag 3D", report);
             return Result.Succeeded;
         }
 
-        /// <summary>Get element center point from location.</summary>
-        private static XYZ GetElementCenter(Element el)
-        {
-            try
-            {
-                if (el.Location is LocationPoint lp) return lp.Point;
-                if (el.Location is LocationCurve lc)
-                    return (lc.Curve.GetEndPoint(0) + lc.Curve.GetEndPoint(1)) / 2.0;
-                BoundingBoxXYZ bb = el.get_BoundingBox(null);
-                if (bb != null)
-                    return (bb.Min + bb.Max) / 2.0;
-            }
-            catch { }
-            return null;
-        }
-
-        /// <summary>Find a 3D tag family in the document.</summary>
+        /// <summary>
+        /// Find a suitable 3D tag family already loaded in the document,
+        /// or attempt to load from project_config.json tag3DFamilyPath.
+        /// </summary>
         private static FamilySymbol FindTagFamily(Document doc)
         {
-            // Search by exact name first
-            var allTypes = new FilteredElementCollector(doc)
+            // First try: find a loaded Generic Model family with the tag label parameter
+            var candidates = new FilteredElementCollector(doc)
                 .OfClass(typeof(FamilySymbol))
                 .Cast<FamilySymbol>()
+                .Where(fs => fs.Family?.FamilyCategory?.Id.Value ==
+                    (long)BuiltInCategory.OST_GenericModel)
                 .ToList();
 
-            var exact = allTypes.FirstOrDefault(fs =>
-                fs.FamilyName.Equals("STING_3D_Tag", StringComparison.OrdinalIgnoreCase));
-            if (exact != null) return exact;
+            foreach (var fs in candidates)
+            {
+                try
+                {
+                    // Check family name for tag/3D indicators — no temp instance needed
+                    string famName = fs.Family?.Name?.ToUpperInvariant() ?? "";
+                    if (famName.Contains("TAG") || famName.Contains("3D"))
+                    {
+                        StingLog.Info($"Tag3D: found family '{fs.Family?.Name}' type '{fs.Name}'");
+                        return fs;
+                    }
+                }
+                catch { }
+            }
 
-            // Search by partial name
-            var partial = allTypes.FirstOrDefault(fs =>
-                fs.FamilyName.IndexOf("3D_Tag", StringComparison.OrdinalIgnoreCase) >= 0
-                || fs.FamilyName.IndexOf("3DTag", StringComparison.OrdinalIgnoreCase) >= 0);
-            if (partial != null) return partial;
+            // Second try: any Generic Model family
+            var fallback = candidates.FirstOrDefault();
+            if (fallback != null)
+            {
+                StingLog.Info($"Tag3D: using fallback family '{fallback.Family?.Name}'");
+                return fallback;
+            }
 
-            // A6: Load from tag3DFamilyPath in project_config.json if not found in document
-            return LoadTagFamilyFromConfig(doc);
-        }
-
-        /// <summary>A6: Load tag family from path specified in project_config.json.</summary>
-        private static FamilySymbol LoadTagFamilyFromConfig(Document doc)
-        {
+            // A6: Attempt to load family from project_config.json tag3DFamilyPath
             try
             {
                 string docPath = doc.PathName ?? string.Empty;
-                if (string.IsNullOrEmpty(docPath)) return null;
-                string cfgPath = System.IO.Path.Combine(
-                    System.IO.Path.GetDirectoryName(docPath) ?? string.Empty, "project_config.json");
-                if (!System.IO.File.Exists(cfgPath)) return null;
-                var cfg = Newtonsoft.Json.JsonConvert.DeserializeObject<
-                    Dictionary<string, object>>(System.IO.File.ReadAllText(cfgPath));
-                if (cfg == null || !cfg.TryGetValue("tag3DFamilyPath", out object pObj)
-                    || !(pObj is string fp) || !System.IO.File.Exists(fp)) return null;
-                if (doc.LoadFamily(fp, out Family fam) && fam != null)
+                if (!string.IsNullOrEmpty(docPath))
                 {
-                    var sym = fam.GetFamilySymbolIds()
-                        .Select(id => doc.GetElement(id) as FamilySymbol)
-                        .FirstOrDefault(s => s != null);
-                    if (sym != null) StingLog.Info($"Tag3D: loaded family from config: {fp}");
-                    return sym;
+                    string cfgPath = Path.Combine(
+                        Path.GetDirectoryName(docPath) ?? string.Empty,
+                        "project_config.json");
+                    if (File.Exists(cfgPath))
+                    {
+                        string json = File.ReadAllText(cfgPath);
+                        var cfg = Newtonsoft.Json.JsonConvert.DeserializeObject<
+                            Dictionary<string, object>>(json);
+                        if (cfg != null && cfg.TryGetValue("tag3DFamilyPath", out object pathObj)
+                            && pathObj is string familyPath && File.Exists(familyPath))
+                        {
+                            if (doc.LoadFamily(familyPath, out Family fam) && fam != null)
+                            {
+                                var ids = fam.GetFamilySymbolIds();
+                                if (ids.Count > 0)
+                                {
+                                    var sym = doc.GetElement(ids.First()) as FamilySymbol;
+                                    StingLog.Info($"Tag3D: loaded family from config path: {familyPath}");
+                                    return sym;
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Tag3D LoadTagFamilyFromConfig: {ex.Message}"); }
+            catch (Exception cfgEx)
+            {
+                StingLog.Warn($"Tag3D family load from config: {cfgEx.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>Get the center point of an element from its bounding box or location.</summary>
+        private static XYZ GetElementCenter(Element el)
+        {
+            LocationPoint lp = el.Location as LocationPoint;
+            if (lp != null) return lp.Point;
+
+            LocationCurve lc = el.Location as LocationCurve;
+            if (lc != null)
+            {
+                Curve c = lc.Curve;
+                return c.Evaluate(0.5, true);
+            }
+
+            BoundingBoxXYZ bb = el.get_BoundingBox(null);
+            if (bb != null)
+                return new XYZ(
+                    (bb.Min.X + bb.Max.X) / 2,
+                    (bb.Min.Y + bb.Max.Y) / 2,
+                    (bb.Min.Z + bb.Max.Z) / 2);
+
             return null;
         }
     }

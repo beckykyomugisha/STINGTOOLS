@@ -153,7 +153,7 @@ namespace StingTools.Core
                 }
 
                 Temp.FormulaEngine.InvalidateFormulaCache();
-                StingLog.Info("DocumentOpened: cleared caches; reloaded TagConfig");
+                StingLog.Info("DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig");
 
                 // AL-07: Notify user of auto-run workflow on open
                 try
