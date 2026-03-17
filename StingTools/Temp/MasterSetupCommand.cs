@@ -105,8 +105,11 @@ namespace StingTools.Temp
             else
             {
                 TagConfig.LoadDefaults();
-                StingLog.Info("Master Setup: project_config.json not found, using defaults");
-                report.AppendLine($"   0. Load project_config.json — SKIPPED (using defaults)");
+                // TEMP-03: Log as WARNING (not just Info) so users know defaults are active
+                StingLog.Warn("Master Setup: project_config.json not found — using built-in defaults. " +
+                    "Run 'Project Setup Wizard' to create project-specific configuration.");
+                report.AppendLine($"   0. Load project_config.json — WARNING (not found, using defaults)");
+                report.AppendLine($"      Run 'Project Setup Wizard' first for project-specific LOC/ZONE codes");
             }
 
             // Step 1: Load shared parameters (critical — other steps depend on it)
