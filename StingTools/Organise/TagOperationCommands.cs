@@ -670,6 +670,14 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
+            // FIX-DEEP07: Use BuildTagIndexAndCounters for consistent sidecar format
+            // (GetExistingSequenceCounters uses same key format internally but BuildTagIndexAndCounters
+            // is the canonical path and merges sidecar data, preventing counter divergence)
+            var (_, rnSeqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            TagConfig.SaveSeqSidecar(doc, rnSeqCounters);
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
             string collisionNote = collisions > 0
                 ? $"\n{collisions} collision(s) auto-resolved by incrementing SEQ."
                 : "";
@@ -1108,7 +1116,11 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
+            // FIX-DEEP03: Persist SEQ state after tag copy (rebuilt TAG1 affects sidecar)
+            try { TagConfig.SaveSeqSidecar(doc, TagConfig.GetExistingSequenceCounters(doc)); }
+            catch (Exception ssEx) { StingLog.Warn($"CopyTagsCommand SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Copy Tags", $"Copied tag values to {copied} elements.");
             return Result.Succeeded;
         }

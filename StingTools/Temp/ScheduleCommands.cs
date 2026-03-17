@@ -870,10 +870,23 @@ namespace StingTools.Temp
                 .Cast<Grid>()
                 .ToList();
 
-            // Collect all elements
-            var allElements = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .ToList();
+            // FIX-DEEP06: Apply ElementMulticategoryFilter to skip non-taggable elements at API level
+            // (previously iterated all elements and filtered in software — expensive on large models)
+            var allElements = new List<Element>();
+            var fapCatEnums = SharedParamGuids.AllCategoryEnums;
+            if (fapCatEnums != null && fapCatEnums.Length > 0)
+            {
+                allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(fapCatEnums)))
+                    .ToList();
+            }
+            else
+            {
+                allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+            }
 
             int tokensFilled = 0, nativesMapped = 0, formulasWritten = 0;
             int tagged = 0, combined = 0, gridRefSet = 0;
