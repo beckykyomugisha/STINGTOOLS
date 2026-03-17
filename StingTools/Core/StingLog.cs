@@ -9,21 +9,33 @@ namespace StingTools.Core
     /// Uses Win32 GetAsyncKeyState to poll the keyboard without blocking Revit's UI thread.
     /// Call <see cref="IsEscapePressed"/> periodically (e.g., every 100-500 elements) inside
     /// batch processing loops. When it returns true, roll back the transaction and exit.
+    /// Guarded for Windows-only: returns false on non-Windows platforms.
     /// </summary>
     public static class EscapeChecker
     {
         private const int VK_ESCAPE = 0x1B;
+
+        private static readonly bool _isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
         [DllImport("user32.dll")]
         private static extern short GetAsyncKeyState(int vKey);
 
         /// <summary>
         /// Returns true if the Escape key is currently pressed (or was pressed since last check).
-        /// Lightweight — safe to call in tight loops.
+        /// Lightweight — safe to call in tight loops. Returns false on non-Windows platforms.
+        /// Uses bitmask 0x8001: high bit = currently pressed, low bit = pressed since last call.
         /// </summary>
         public static bool IsEscapePressed()
         {
-            return (GetAsyncKeyState(VK_ESCAPE) & 0x8001) != 0;
+            if (!_isWindows) return false;
+            try
+            {
+                return (GetAsyncKeyState(VK_ESCAPE) & 0x8001) != 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 
