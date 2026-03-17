@@ -11,6 +11,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>false</UseWindowsForms>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <!-- Suppress MSB3277: ClosedXML transitive deps pull older Microsoft.VisualBasic / System.Drawing
          versions that conflict with .NET 8 runtime refs. Benign — .NET 8 runtime wins at load time. -->
