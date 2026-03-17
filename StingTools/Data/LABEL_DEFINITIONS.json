@@ -2189,6 +2189,12 @@
           "prefix_override": " (",
           "suffix_override": ")",
           "note": "System abbreviation"
+        },
+        {
+          "param": "BLE_DOOR_TYPE_TXT",
+          "spaces": 1,
+          "break": false,
+          "note": "Door type classification"
         }
       ],
       "tier_3": [
@@ -5130,6 +5136,20 @@
           "prefix_override": " (",
           "suffix_override": ")",
           "note": "System abbreviation"
+        },
+        {
+          "param": "BLE_ROOF_AREA_SQ_M",
+          "spaces": 1,
+          "suffix": "m²",
+          "break": false,
+          "note": "Roof area"
+        },
+        {
+          "param": "BLE_ROOF_THICKNESS_MM",
+          "spaces": 1,
+          "suffix": "mm",
+          "break": false,
+          "note": "Roof build-up thickness"
         }
       ],
       "tier_3": [
@@ -6504,7 +6524,7 @@
           "note": "Number of risers"
         },
         {
-          "param": "BLE_STAIR_HANDRAIL_TXT",
+          "param": "BLE_STAIR_HANDRAIL_MAT_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Handrail: ",
@@ -7224,6 +7244,24 @@
           "prefix_override": " (",
           "suffix_override": ")",
           "note": "System abbreviation"
+        },
+        {
+          "param": "BLE_WALL_CORE_MATERIAL_TXT",
+          "spaces": 1,
+          "break": false,
+          "note": "Wall core material"
+        },
+        {
+          "param": "BLE_WALL_INSULATION_TXT",
+          "spaces": 1,
+          "break": false,
+          "note": "Wall insulation type"
+        },
+        {
+          "param": "BLE_WALL_WATERPROOF_TXT",
+          "spaces": 1,
+          "break": false,
+          "note": "Wall waterproofing system"
         }
       ],
       "tier_3": [
@@ -35668,6 +35706,12 @@
           "prefix_override": " (",
           "suffix_override": ")",
           "note": "System abbreviation"
+        },
+        {
+          "param": "HVC_DCT_SZ_TXT",
+          "spaces": 1,
+          "break": false,
+          "note": "Duct size designation"
         }
       ],
       "tier_3": [
@@ -42294,6 +42338,19 @@
           "prefix_override": " (",
           "suffix_override": ")",
           "note": "System abbreviation"
+        },
+        {
+          "param": "ELC_VOLTAGE_V",
+          "spaces": 1,
+          "suffix": "V",
+          "break": false,
+          "note": "Device voltage"
+        },
+        {
+          "param": "ELC_CONN_TYPE_TXT",
+          "spaces": 1,
+          "break": false,
+          "note": "Connector type"
         }
       ],
       "tier_3": [
@@ -42826,6 +42883,13 @@
           "prefix_override": " (",
           "suffix_override": ")",
           "note": "System abbreviation"
+        },
+        {
+          "param": "ELC_VOLTAGE_V",
+          "spaces": 1,
+          "suffix": "V",
+          "break": false,
+          "note": "Device voltage"
         }
       ],
       "tier_3": [
@@ -47427,6 +47491,12 @@
           "prefix_override": " (",
           "suffix_override": ")",
           "note": "System abbreviation"
+        },
+        {
+          "param": "INS_MATERIAL_TXT",
+          "spaces": 1,
+          "break": false,
+          "note": "Insulation material"
         }
       ],
       "tier_3": [
@@ -48295,6 +48365,12 @@
           "prefix_override": " (",
           "suffix_override": ")",
           "note": "System abbreviation"
+        },
+        {
+          "param": "INS_MATERIAL_TXT",
+          "spaces": 1,
+          "break": false,
+          "note": "Insulation material"
         }
       ],
       "tier_3": [
@@ -52186,6 +52262,19 @@
           "prefix_override": " (",
           "suffix_override": ")",
           "note": "System abbreviation"
+        },
+        {
+          "param": "FAB_HANGER_TYPE_TXT",
+          "spaces": 1,
+          "break": false,
+          "note": "Hanger type"
+        },
+        {
+          "param": "FAB_HANGER_LOAD_KN",
+          "spaces": 1,
+          "suffix": "kN",
+          "break": false,
+          "note": "Design load"
         }
       ],
       "tier_3": [
