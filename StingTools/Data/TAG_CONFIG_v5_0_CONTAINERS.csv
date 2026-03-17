@@ -1,6 +1,7 @@
+#!SCHEMA_VERSION=5.0
 # TAG_CONFIG_v5_0_CONTAINERS.csv
 # ISO 19650 Tag Container definitions — all 53 container parameters
-# Version: 5.0 | Updated: 2026-03-13
+# Version: 5.0 | Updated: 2026-03-15
 # Used by: ParamRegistry.WriteContainers(), CombineParametersCommand
 # Changes from v4: Added MAT_TAG containers, FIN/ENV/STR/COMP/PERF/SUST/EQP groups,
 #   BIMManager integration containers, TAG7 section visibility controls.

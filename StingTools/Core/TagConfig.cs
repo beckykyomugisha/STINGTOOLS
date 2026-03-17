@@ -224,7 +224,7 @@ namespace StingTools.Core
         /// RWD = Rainwater Drainage (Uniclass Ss_50_30_02, CAWS R10)
         /// CSV element type codes (P-WSP, P-DRN) map to these system codes.
         /// </summary>
-        // LOG-03 FIX: Fallback codes when SysMap is not yet loaded
+        /// <summary>ISO 19650 fallback SYS codes used when no project-specific config is loaded.</summary>
         private static readonly HashSet<string> _fallbackSysCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "FP", "LV",
@@ -236,24 +236,31 @@ namespace StingTools.Core
         /// Valid system codes. Dynamically derived from TagConfig.SysMap keys when available,
         /// falling back to hardcoded CIBSE/Uniclass codes when SysMap is not loaded.
         /// This ensures custom project SYS codes in project_config.json are accepted.
+        /// BUG-06: Uses Count > 0 check to handle empty but non-null SysMap.
         /// </summary>
         public static HashSet<string> ValidSysCodes =>
-            TagConfig.SysMap?.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase)
-            ?? _fallbackSysCodes;
+            TagConfig.SysMap != null && TagConfig.SysMap.Count > 0
+                ? new HashSet<string>(TagConfig.SysMap.Keys, StringComparer.OrdinalIgnoreCase)
+                : _fallbackSysCodes;
 
-        /// <summary>
-        /// Valid function codes per CIBSE / Uniclass 2015.
-        /// DCW = Cold Water Supply (CAWS S10), SAN = Sanitary (CAWS R11),
-        /// GAS = Gas Supply (CAWS S63), RWD = Rainwater Drainage (CAWS R10).
-        /// </summary>
-        public static readonly HashSet<string> ValidFuncCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        /// <summary>ISO 19650 fallback FUNC codes used when no project-specific config is loaded.</summary>
+        private static readonly HashSet<string> _fallbackFuncCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "SUP", "HTG", "DCW", "SAN", "RWD", "GAS", "FP", "PWR", "FLS",
             "COM", "ICT", "NCL", "SEC",
             "FIT", "STR", "GEN",
-            // Subsystem FUNC codes from GetSmartFuncCode HVAC/HWS differentiation
             "EXH", "RTN", "FRA", "DHW"
         };
+
+        /// <summary>
+        /// BUG-06: Valid FUNC codes derived from TagConfig.FuncMap keys when available,
+        /// so project-specific codes added via project_config.json are accepted.
+        /// Falls back to ISO 19650 standard codes when FuncMap is empty.
+        /// </summary>
+        public static HashSet<string> ValidFuncCodes =>
+            TagConfig.FuncMap != null && TagConfig.FuncMap.Count > 0
+                ? new HashSet<string>(TagConfig.FuncMap.Keys, StringComparer.OrdinalIgnoreCase)
+                : _fallbackFuncCodes;
 
         /// <summary>
         /// Validate a single token value against its allowed code list.
@@ -342,8 +349,9 @@ namespace StingTools.Core
                     return $"SEQ '{value}' is not a valid number";
                 if (seqVal < 0)
                     return $"SEQ '{value}' must be a positive number";
-                if (value.Length > TagConfig.NumPad + 1)
-                    return $"SEQ '{value}' exceeds {TagConfig.NumPad}-digit format";
+                int seqWidth = TagConfig.SeqPadWidth > 0 ? TagConfig.SeqPadWidth : TagConfig.NumPad;
+                if (value.Length > seqWidth + 1)
+                    return $"SEQ '{value}' exceeds {seqWidth}-digit format";
             }
             return null; // valid
         }
@@ -563,17 +571,48 @@ namespace StingTools.Core
         public static string[] SegmentOrder => ParamRegistry.SegmentOrder;
         public const int MaxCollisionDepth = 10000;
 
-        /// <summary>TW-03c: Optional global tag prefix prepended before DISC segment.</summary>
-        public static string TagPrefix { get; internal set; } = string.Empty;
+        /// <summary>
+        /// TW-02: Configurable SEQ zero-pad width. Defaults to NumPad (4) but can be
+        /// overridden independently (e.g., 2 for small projects, 6 for large estates).
+        /// </summary>
+        public static int SeqPadWidth { get; internal set; } = 4;
 
-        /// <summary>TW-03c: Optional global tag suffix appended after SEQ segment.</summary>
-        public static string TagSuffix { get; internal set; } = string.Empty;
+        /// <summary>
+        /// TW-03: Optional tag prefix prepended before the first segment.
+        /// Example: "PRJ" produces "PRJ-M-BLD1-Z01-L01-HVAC-SUP-AHU-0001".
+        /// </summary>
+        public static string TagPrefix { get; internal set; } = "";
+
+        /// <summary>
+        /// TW-03: Optional tag suffix appended after the last segment.
+        /// Example: "R01" produces "M-BLD1-Z01-L01-HVAC-SUP-AHU-0001-R01".
+        /// </summary>
+        public static string TagSuffix { get; internal set; } = "";
+
+        /// <summary>
+        /// Historical separators that have been used in this project.
+        /// TagIsComplete will try these if the current separator doesn't produce
+        /// the expected number of tokens, allowing tags created with old separators
+        /// to still be recognised as complete.
+        /// </summary>
+        public static List<string> SeparatorHistory { get; internal set; } = new List<string>();
 
         /// <summary>G1.1: Categories to skip entirely during batch tag operations. Loaded from project_config.json CATEGORY_SKIP array.</summary>
         public static HashSet<string> CategorySkipList { get; internal set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>G1.1: Per-category SYS code overrides. Loaded from project_config.json CATEGORY_FORCE_SYS dict.</summary>
         public static Dictionary<string, string> CategoryForceSys { get; internal set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>AL-05: Minimum compliance % gate after batch tag operations. 0 = disabled. Loaded from project_config.json COMPLIANCE_GATE_PCT.</summary>
+        public static int ComplianceGatePct { get; internal set; } = 0;
+
+        /// <summary>AL-07: Workflow preset name to auto-run on DocumentOpened. Empty = disabled.</summary>
+        public static string AutoRunWorkflowOnOpen { get; internal set; } = string.Empty;
+
+        /// <summary>FE-06: Full per-category token overrides. Key=category name, Value=dict of token->value.</summary>
+        public static Dictionary<string, Dictionary<string, string>> CategoryTokenOverrides { get; internal set; }
+            = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+
 
         /// <summary>Current sequence numbering scheme (loaded from project_config.json).</summary>
         internal static SeqScheme CurrentSeqScheme { get; set; } = SeqScheme.Numeric;
@@ -621,6 +660,7 @@ namespace StingTools.Core
         /// </summary>
         public static string BuildSeqString(int n, SeqScheme scheme, string zoneOrDisc = "")
         {
+            int pad = SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad;
             switch (scheme)
             {
                 case SeqScheme.Alpha:
@@ -629,13 +669,13 @@ namespace StingTools.Core
                     string zPrefix = !string.IsNullOrEmpty(zoneOrDisc) && zoneOrDisc.Length >= 2
                         ? zoneOrDisc.Substring(0, 2)
                         : "Z1";
-                    return $"{zPrefix}-{n.ToString().PadLeft(ParamRegistry.NumPad, '0')}";
+                    return $"{zPrefix}-{n.ToString().PadLeft(pad, '0')}";
                 case SeqScheme.DiscPrefix:
                     string dPrefix = !string.IsNullOrEmpty(zoneOrDisc) ? zoneOrDisc : "X";
-                    return $"{dPrefix}-{n.ToString().PadLeft(ParamRegistry.NumPad, '0')}";
+                    return $"{dPrefix}-{n.ToString().PadLeft(pad, '0')}";
                 case SeqScheme.Numeric:
                 default:
-                    return n.ToString().PadLeft(ParamRegistry.NumPad, '0');
+                    return n.ToString().PadLeft(pad, '0');
             }
         }
 
@@ -690,56 +730,6 @@ namespace StingTools.Core
             return visible.Count > 0 ? string.Join(ParamRegistry.Separator, visible) : fullTag;
         }
 
-        /// <summary>
-        /// Build a display tag based on STING_DISPLAY_MODE parameter.
-        /// Mode 0/5: full 8-segment, 1: SEQ only, 2: PROD-SEQ, 3: DISC-SYS-SEQ, 4: DISC-PROD-SEQ.
-        /// Also applies TAG_SEG_MASK_TXT if set.
-        /// </summary>
-        public static string BuildDisplayTag(Element el)
-        {
-            if (el == null) return "";
-
-            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-            if (string.IsNullOrEmpty(tag1)) return "";
-
-            // Read display mode (default 0 = full tag)
-            int mode = 0;
-            try
-            {
-                string modeStr = ParameterHelpers.GetString(el, ParamRegistry.DISPLAY_MODE);
-                if (!string.IsNullOrEmpty(modeStr))
-                    int.TryParse(modeStr, out mode);
-            }
-            catch { }
-
-            string[] parts = tag1.Split(ParamRegistry.Separator[0]);
-            string result;
-
-            if (parts.Length >= 8)
-            {
-                string disc = parts[0], prod = parts[6], seq = parts[7], sys = parts[4];
-                result = mode switch
-                {
-                    1 => seq,
-                    2 => prod + ParamRegistry.Separator + seq,
-                    3 => disc + ParamRegistry.Separator + sys + ParamRegistry.Separator + seq,
-                    4 => disc + ParamRegistry.Separator + prod + ParamRegistry.Separator + seq,
-                    _ => tag1
-                };
-            }
-            else
-            {
-                result = tag1;
-            }
-
-            // Apply segment mask if present
-            string mask = ParameterHelpers.GetString(el, ParamRegistry.TAG_SEG_MASK);
-            if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mode == 0)
-                result = ApplySegmentMask(tag1, mask);
-
-            return result;
-        }
-
         /// <summary>Category name → discipline code (M, E, P, A, S, FP, LV, G).</summary>
         public static Dictionary<string, string> DiscMap { get; private set; }
 
@@ -757,6 +747,12 @@ namespace StingTools.Core
 
         /// <summary>Available zone codes.</summary>
         public static List<string> ZoneCodes { get; internal set; }
+
+        /// <summary>Phase 19: LOC pattern configuration — maps LOC codes to room name/number patterns for auto-detection.</summary>
+        public static Dictionary<string, List<string>> LocPatterns { get; internal set; } = new();
+
+        /// <summary>Phase 19: ZONE pattern configuration — maps ZONE codes to department/room name patterns for auto-detection.</summary>
+        public static Dictionary<string, List<string>> ZonePatterns { get; internal set; } = new();
 
         public static string ConfigSource { get; private set; }
 
@@ -825,6 +821,25 @@ namespace StingTools.Core
                     return;
                 }
 
+                // AE-07: Validate config keys — warn on unknown keys to catch typos
+                var knownKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "DISC_MAP","SYS_MAP","PROD_MAP","FUNC_MAP","LOC_CODES","ZONE_CODES","TAG_FORMAT",
+                    "TAG_PREFIX","TAG_SUFFIX","CATEGORY_SKIP","CATEGORY_FORCE_SYS","SEQ_SCHEME",
+                    "SEQ_INCLUDE_ZONE","SEQ_LEVEL_RESET","STATUS_DEFAULT","REV_DEFAULT",
+                    "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT",
+                    "SEPARATOR_HISTORY","AUTO_RUN_WORKFLOW_ON_OPEN","ACTIVE_PRESET",
+                    "CATEGORY_TOKEN_OVERRIDES","tag3DFamilyPath"
+                };
+                var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
+                if (unknownKeys.Count > 0)
+                {
+                    string unknownList = string.Join(", ", unknownKeys.Take(5));
+                    StingLog.Warn($"TagConfig: unknown config key(s) in project_config.json: {unknownList}" +
+                        (unknownKeys.Count > 5 ? $" (+{unknownKeys.Count - 5} more)" : "") +
+                        " — check for typos");
+                }
+
                 DiscMap = TryDeserialize<Dictionary<string, string>>(data, "DISC_MAP") ?? DefaultDiscMap();
                 SysMap = TryDeserialize<Dictionary<string, List<string>>>(data, "SYS_MAP") ?? DefaultSysMap();
                 ProdMap = TryDeserialize<Dictionary<string, string>>(data, "PROD_MAP") ?? DefaultProdMap();
@@ -890,6 +905,14 @@ namespace StingTools.Core
                         ss.Equals("true", StringComparison.OrdinalIgnoreCase);
                 }
 
+                // Phase 19: Load LOC/ZONE pattern overrides from config (optional — fall back to LoadDefaults)
+                var locPat = TryDeserialize<Dictionary<string, List<string>>>(data, "LOC_PATTERNS");
+                if (locPat != null && locPat.Count > 0)
+                    LocPatterns = new Dictionary<string, List<string>>(locPat, StringComparer.OrdinalIgnoreCase);
+                var zonePat = TryDeserialize<Dictionary<string, List<string>>>(data, "ZONE_PATTERNS");
+                if (zonePat != null && zonePat.Count > 0)
+                    ZonePatterns = new Dictionary<string, List<string>>(zonePat, StringComparer.OrdinalIgnoreCase);
+
                 // A1: Track previous SEQ scheme settings for change warning
                 SeqScheme prevScheme = CurrentSeqScheme;
                 bool prevIncludeZone = SeqIncludeZone;
@@ -936,6 +959,34 @@ namespace StingTools.Core
                 if (forceSys != null)
                     foreach (var kvp in forceSys) CategoryForceSys[kvp.Key] = kvp.Value;
 
+                // AL-05: Compliance gate threshold
+                ComplianceGatePct = 0;
+                if (data.TryGetValue("COMPLIANCE_GATE_PCT", out object gateObj))
+                {
+                    if (gateObj is long gl) ComplianceGatePct = (int)gl;
+                    else if (int.TryParse(gateObj?.ToString(), out int gi)) ComplianceGatePct = gi;
+                }
+
+                // FL-03: Load separator history for cross-session tag validation compatibility
+                var sepHistory = TryDeserialize<List<string>>(data, "SEPARATOR_HISTORY");
+                if (sepHistory != null && sepHistory.Count > 0)
+                    SeparatorHistory = sepHistory;
+                else
+                    SeparatorHistory = new List<string>();
+
+                // AL-07: Auto-run workflow on document open
+                AutoRunWorkflowOnOpen = string.Empty;
+                if (data.TryGetValue("AUTO_RUN_WORKFLOW_ON_OPEN", out object arwObj) && arwObj is string arwStr
+                    && !string.IsNullOrWhiteSpace(arwStr))
+                    AutoRunWorkflowOnOpen = arwStr.Trim();
+
+                // FE-06: Load full per-category token overrides
+                CategoryTokenOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+                var catOverrides = TryDeserialize<Dictionary<string, Dictionary<string, string>>>(data, "CATEGORY_TOKEN_OVERRIDES");
+                if (catOverrides != null)
+                    foreach (var kvp in catOverrides) CategoryTokenOverrides[kvp.Key] = kvp.Value;
+
+
                 ConfigSource = "project_config.json";
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
@@ -972,7 +1023,33 @@ namespace StingTools.Core
             TagSuffix = string.Empty;
             CategorySkipList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             CategoryForceSys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            LocPatterns = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "BLD1", new List<string> { "building 1", "main building", "block a", "primary" } },
+                { "BLD2", new List<string> { "building 2", "annex", "block b", "secondary" } },
+                { "BLD3", new List<string> { "building 3", "block c", "tertiary" } },
+                { "EXT", new List<string> { "external", "exterior", "outside", "site", "landscape", "car park" } },
+            };
+            ZonePatterns = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Z01", new List<string> { "zone 1", "zone a", "north", "front" } },
+                { "Z02", new List<string> { "zone 2", "zone b", "south", "rear" } },
+                { "Z03", new List<string> { "zone 3", "zone c", "east", "left" } },
+                { "Z04", new List<string> { "zone 4", "zone d", "west", "right" } },
+            };
+            AutoRunWorkflowOnOpen = string.Empty;
+            CategoryTokenOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
             ConfigSource = "built-in defaults";
+            ComplianceGatePct = 0;
+            SeparatorHistory = new List<string>();
+            AutoRunWorkflowOnOpen = string.Empty;
+            // NP11: Reset SEQ scheme state on LoadDefaults to prevent cross-project bleed
+            CurrentSeqScheme = SeqScheme.Numeric;
+            SeqIncludeZone = false;
+            SeqLevelReset = false;
+            _seqSchemeChanged = false;
+            _seqSchemeWarned = false;
+            _activePresetName = null;
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
         }
@@ -1038,6 +1115,96 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"TagConfig.LoadCategoryWarningsFromLabels: {ex.Message}");
             }
+
+            // Supplement with warnings from tag config CSVs (ARCH/MEP/STR)
+            LoadCategoryWarningsFromTagConfigCsvs();
+        }
+
+        /// <summary>
+        /// Load category-level warning assignments from STING_TAG_CONFIG_v5_0_*.csv files.
+        /// Supplements LABEL_DEFINITIONS.json warnings with any additional WARN_ params
+        /// defined in the tag family warning sections.
+        /// </summary>
+        private static void LoadCategoryWarningsFromTagConfigCsvs()
+        {
+            string[] csvFiles = new[]
+            {
+                "STING_TAG_CONFIG_v5_0_ARCH.csv",
+                "STING_TAG_CONFIG_v5_0_MEP.csv",
+                "STING_TAG_CONFIG_v5_0_STR.csv"
+            };
+
+            int added = 0;
+            foreach (string fileName in csvFiles)
+            {
+                try
+                {
+                    string path = StingToolsApp.FindDataFile(fileName);
+                    if (path == null || !System.IO.File.Exists(path)) continue;
+
+                    string[] lines = System.IO.File.ReadAllLines(path);
+                    string currentCategory = null;
+                    bool inWarningSection = false;
+
+                    foreach (string rawLine in lines)
+                    {
+                        string line = rawLine.Trim();
+
+                        // Parse category from "Category: Xxx" after tag family header
+                        if (line.Contains("Category:"))
+                        {
+                            int idx = line.IndexOf("Category:");
+                            currentCategory = line.Substring(idx + 9).Trim();
+                            inWarningSection = false;
+                            continue;
+                        }
+
+                        if (line.Contains("WARNING PARAMETERS"))
+                        {
+                            inWarningSection = true;
+                            continue;
+                        }
+
+                        // End of warning section
+                        if (inWarningSection && (line.StartsWith("Tag Family") || string.IsNullOrEmpty(line)))
+                        {
+                            inWarningSection = false;
+                            continue;
+                        }
+
+                        // Skip header row
+                        if (inWarningSection && line.StartsWith("#,"))
+                            continue;
+
+                        if (inWarningSection && currentCategory != null)
+                        {
+                            var fields = StingToolsApp.ParseCsvLine(line);
+                            if (fields != null && fields.Length >= 3)
+                            {
+                                string warnParam = fields[2].Trim();
+                                if (warnParam.StartsWith("WARN_"))
+                                {
+                                    // Merge with existing category warnings
+                                    var existing = ParamRegistry.GetCategoryWarnings(currentCategory);
+                                    if (!existing.Contains(warnParam))
+                                    {
+                                        existing.Add(warnParam);
+                                        ParamRegistry.RegisterCategoryWarnings(currentCategory, existing);
+                                        added++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TagConfig.LoadCategoryWarningsFromTagConfigCsvs({fileName}): {ex.Message}");
+                }
+            }
+
+            if (added > 0)
+                StingLog.Info($"TagConfig: supplemented {added} additional warning refs from tag config CSVs");
         }
 
         /// <summary>
@@ -1065,7 +1232,11 @@ namespace StingTools.Core
                     ["TAG_PREFIX"] = TagPrefix,
                     ["TAG_SUFFIX"] = TagSuffix,
                     ["CATEGORY_SKIP"] = CategorySkipList.ToList(),
-                    ["CATEGORY_FORCE_SYS"] = CategoryForceSys
+                    ["CATEGORY_FORCE_SYS"] = CategoryForceSys,
+                    ["COMPLIANCE_GATE_PCT"] = ComplianceGatePct,
+                    ["SEPARATOR_HISTORY"] = SeparatorHistory,
+                    ["AUTO_RUN_WORKFLOW_ON_OPEN"] = AutoRunWorkflowOnOpen ?? "",
+                    ["CATEGORY_TOKEN_OVERRIDES"] = CategoryTokenOverrides
                 };
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);
@@ -1080,6 +1251,29 @@ namespace StingTools.Core
             {
                 StingLog.Error($"TagConfig save failed to {path}: {ex.Message}", ex);
                 return false;
+            }
+        }
+
+        /// <summary>AL-05: Check compliance gate after a batch tag operation. Shows warning dialog if below threshold.</summary>
+        public static void CheckComplianceGate(Document doc, string commandName)
+        {
+            if (ComplianceGatePct <= 0) return;
+            try
+            {
+                var result = ComplianceScan.Scan(doc, forceRefresh: true);
+                if (result != null && result.CompliancePercent < ComplianceGatePct)
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show($"STING Compliance Gate",
+                        $"{commandName} complete but compliance ({result.CompliancePercent:F0}%) " +
+                        $"is below the configured gate ({ComplianceGatePct}%).\n\n" +
+                        $"Untagged: {result.Untagged} elements\n" +
+                        $"Run 'Pre-Tag Audit' or 'Resolve All Issues' to investigate.");
+                    StingLog.Warn($"ComplianceGate: {commandName} result {result.CompliancePercent:F0}% < gate {ComplianceGatePct}%");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ComplianceGate check failed: {ex.Message}");
             }
         }
 
@@ -1364,29 +1558,31 @@ namespace StingTools.Core
             char sepChar = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
             string[] parts = tagValue.Split(new[] { sepChar });
 
-            // LOG-07: If current separator doesn't yield expected tokens, try historical separators
             if (parts.Length != adjusted)
             {
-                bool foundMatch = false;
-                foreach (char hist in _separatorHistory)
+                // Try historical separators — tags created before a separator change
+                // should still be recognised as complete.
+                bool foundViaHistory = false;
+                foreach (var histSep in SeparatorHistory)
                 {
-                    if (hist == sepChar) continue;
-                    string[] altParts = tagValue.Split(new[] { hist });
-                    if (altParts.Length == adjusted)
+                    if (histSep == Separator) continue;
+                    var histParts = tagValue.Split(new[] { histSep }, StringSplitOptions.None);
+                    if (histParts.Length == adjusted && histParts.All(p => !string.IsNullOrWhiteSpace(p)))
                     {
-                        parts = altParts;
-                        foundMatch = true;
+                        foundViaHistory = true;
                         break;
                     }
                 }
-                if (!foundMatch)
+                if (!foundViaHistory)
                     return false;
             }
-
-            for (int i = 0; i < parts.Length; i++)
+            else
             {
-                if (string.IsNullOrWhiteSpace(parts[i]))
-                    return false;
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    if (string.IsNullOrWhiteSpace(parts[i]))
+                        return false;
+                }
             }
             // Reject tags containing placeholder tokens
             if (TagHasPlaceholders(tagValue))
@@ -1610,7 +1806,8 @@ namespace StingTools.Core
             sequenceCounters[seqKey]++;
 
             // SEQ overflow detection: cap at format capacity to prevent invalid tag widths
-            int maxSeq = (int)Math.Pow(10, NumPad) - 1; // 9999 for NumPad=4
+            int seqPad = SeqPadWidth > 0 ? SeqPadWidth : NumPad;
+            int maxSeq = (int)Math.Pow(10, seqPad) - 1; // 9999 for SeqPadWidth=4, 99 for SeqPadWidth=2
             if (sequenceCounters[seqKey] > maxSeq)
             {
                 string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — capping at {maxSeq}";
@@ -1626,6 +1823,10 @@ namespace StingTools.Core
             string seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
 
             string tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
+
+            // TW-03: Apply optional tag prefix and suffix
+            if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
+            if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
 
             // Collision detection: if this exact tag already exists, increment SEQ
             if (existingTags != null)
@@ -1646,6 +1847,9 @@ namespace StingTools.Core
                     }
                     seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
                     tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
+                    // TW-03: Re-apply prefix/suffix after collision rebuild
+                    if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
+                    if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
@@ -1685,23 +1889,11 @@ namespace StingTools.Core
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod);
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.SEQ, seq);
 
-                // BUG-02 FIX: Re-read actual token values (preserved by SetIfEmpty)
-                // and build TAG1 from what's actually stored on the element.
-                // Only fill empty slots with derived defaults as a last resort to prevent
-                // malformed tags — never overwrite non-empty stored values.
+                // BUG-02: Re-read actual stored token values to ensure TAG1 reflects
+                // what's on the element. Do NOT fill empty slots with derived defaults —
+                // that would overwrite manually-set values that SetIfEmpty preserved.
+                // The malformed-tag guard below blocks incomplete tags correctly.
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
-                string[] defaults = { disc, loc, zone, lvl, sys, func, prod, seq };
-                for (int i = 0; i < actualTokens.Length && i < defaults.Length; i++)
-                {
-                    if (string.IsNullOrEmpty(actualTokens[i]))
-                        actualTokens[i] = defaults[i];
-                }
-                // Log when stored values differ from derived (for debugging)
-                if (actualTokens[1] != loc)
-                    StingLog.Info($"BuildAndWriteTag: stored LOC={actualTokens[1]} differs from derived={loc}, preserving stored value");
-                if (actualTokens[2] != zone)
-                    StingLog.Info($"BuildAndWriteTag: stored ZONE={actualTokens[2]} differs from derived={zone}, preserving stored value");
-                // Rebuild tag from actual stored tokens (not derived)
                 tag = string.Join(Separator, actualTokens);
                 // Also update the SEQ key variables to reflect actual stored values
                 // so collision detection uses the right tag string
@@ -1791,6 +1983,7 @@ namespace StingTools.Core
             // Ensure tag families show content immediately after tagging by setting
             // default visibility parameters. Without this, tag families using
             // paragraph depth or style matrix BOOLs would show blank labels.
+            // Uses SetYesNo to handle YESNO (StorageType.Integer) parameters correctly.
             try
             {
                 // LOG-08 FIX: Initialize DISPLAY_MODE so tag families show the correct
@@ -1799,22 +1992,22 @@ namespace StingTools.Core
 
                 // TAG_PARA_STATE_1_BOOL = Yes (compact mode default — ensures at least
                 // Tier 1 content is visible in tag families after tagging)
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.PARA_STATE_1, "Yes");
+                ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_1, true);
 
                 // TAG_WARN_VISIBLE_BOOL = No (default off — prevents expensive per-element
                 // warning evaluation on every WriteTag7All call for large models)
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.WARN_VISIBLE, "No");
+                ParameterHelpers.SetYesNo(el, ParamRegistry.WARN_VISIBLE, false);
 
                 // TAG_7_SECTION_VISIBLE_A-F = Yes (default all TAG7 sub-sections visible)
-                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_A_BOOL", "Yes");
-                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_B_BOOL", "Yes");
-                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_C_BOOL", "Yes");
-                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_D_BOOL", "Yes");
-                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_E_BOOL", "Yes");
-                ParameterHelpers.SetIfEmpty(el, "TAG_7_SECTION_VISIBLE_F_BOOL", "Yes");
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_A_BOOL", true);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_B_BOOL", true);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_C_BOOL", true);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_D_BOOL", true);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_E_BOOL", true);
+                ParameterHelpers.SetYesNo(el, "TAG_7_SECTION_VISIBLE_F_BOOL", true);
 
                 // Default tag style: 2.5mm Normal Black (most common AEC standard)
-                ParameterHelpers.SetIfEmpty(el, "TAG_2.5NOM_BLACK_BOOL", "Yes");
+                ParameterHelpers.SetYesNo(el, "TAG_2.5NOM_BLACK_BOOL", true);
             }
             catch { /* Display BOOLs are optional — don't block tagging if params not bound */ }
 
@@ -1866,9 +2059,9 @@ namespace StingTools.Core
         public static string BuildDisplayTag(Element el)
         {
             if (el == null) return "";
-            int mode = ParameterHelpers.GetInt(el, "STING_DISPLAY_MODE", DisplayModeDefault);
-            // Mode 0 means unset — use default
-            if (mode == 0) mode = DisplayModeDefault;
+            int mode = ParameterHelpers.GetInt(el, "STING_DISPLAY_MODE", 0);
+            // Mode 0 means unset — use the configurable default from ParamRegistry
+            if (mode == 0) mode = ParamRegistry.DisplayModeDefault;
             string display = BuildDisplayTag(el, mode);
             if (!string.IsNullOrEmpty(display))
             {
@@ -1896,28 +2089,38 @@ namespace StingTools.Core
         /// </summary>
         public static string GetMepSystemAwareSysCode(Element el, string categoryName)
         {
+            return GetMepSystemAwareSysCodeWithLayer(el, categoryName).Item1;
+        }
+
+        /// <summary>
+        /// LOG-01: Returns (sysCode, detectionLayer) where layer indicates which
+        /// detection method succeeded: 1=Connector, 2=SystemType, 3=Circuit,
+        /// 4=FamilyName, 5=RoomType, 6=CategoryFallback.
+        /// </summary>
+        public static (string, int) GetMepSystemAwareSysCodeWithLayer(Element el, string categoryName)
+        {
             // Layer 1: Connected MEP system name (most reliable for piping and ductwork)
             string fromConnector = GetSysFromConnector(el, categoryName);
-            if (!string.IsNullOrEmpty(fromConnector)) return fromConnector;
+            if (!string.IsNullOrEmpty(fromConnector)) return (fromConnector, 1);
 
             // Layer 2: Duct/Pipe system type built-in parameter
             string fromSysType = GetSysFromSystemTypeParam(el, categoryName);
-            if (!string.IsNullOrEmpty(fromSysType)) return fromSysType;
+            if (!string.IsNullOrEmpty(fromSysType)) return (fromSysType, 2);
 
             // Layer 3: Electrical circuit panel name
             string fromCircuit = GetSysFromElectricalCircuit(el);
-            if (!string.IsNullOrEmpty(fromCircuit)) return fromCircuit;
+            if (!string.IsNullOrEmpty(fromCircuit)) return (fromCircuit, 3);
 
             // Layer 4: Family name pattern matching
             string fromFamily = GetSysFromFamilyName(el, categoryName);
-            if (!string.IsNullOrEmpty(fromFamily)) return fromFamily;
+            if (!string.IsNullOrEmpty(fromFamily)) return (fromFamily, 4);
 
             // Layer 5: Room-type inference
             string fromRoom = GetSysFromRoomType(el);
-            if (!string.IsNullOrEmpty(fromRoom)) return fromRoom;
+            if (!string.IsNullOrEmpty(fromRoom)) return (fromRoom, 5);
 
             // Layer 6: Category-based fallback
-            return GetSysCode(categoryName);
+            return (GetSysCode(categoryName), 6);
         }
 
         /// <summary>Layer 1: Read connected MEP system name via connectors.</summary>
@@ -2497,7 +2700,7 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(lvl) || lvl == "XX")
                     lvl = "L00";
 
-                // BUG-01/05 FIX: Use same conditional key as BuildAndWriteTag
+                // BUG-01: Match SeqIncludeZone key format used by BuildAndWriteTag/BuildSeqKey
                 string key;
                 if (SeqIncludeZone)
                 {
@@ -2574,7 +2777,7 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(lvl) || lvl == "XX")
                     lvl = "L00";
 
-                // BUG-01/05 FIX: Use same conditional key as BuildAndWriteTag
+                // BUG-01: Match SeqIncludeZone key format used by BuildAndWriteTag/BuildSeqKey
                 string key;
                 if (SeqIncludeZone)
                 {
@@ -2613,17 +2816,25 @@ namespace StingTools.Core
             return (index, maxSeq);
         }
 
-        /// <summary>P6: Save SEQ counters to a JSON sidecar file alongside the .rvt project file.</summary>
-        public static void SaveSeqSidecar(Document doc, Dictionary<string, int> counters)
+        // ── ENH-02: SEQ Sidecar JSON Persistence ────────────────────────────
+
+        /// <summary>
+        /// ENH-02: Save SEQ counters to a sidecar JSON file alongside the Revit project.
+        /// File name: {ProjectFileName}_STING_SEQ.json. This provides crash-safe
+        /// sequence continuity — if Revit crashes during tagging, the last known
+        /// counters are preserved on disk.
+        /// </summary>
+        public static void SaveSeqSidecar(Document doc, Dictionary<string, int> seqCounters)
         {
             try
             {
-                string rvtPath = doc?.PathName;
-                if (string.IsNullOrEmpty(rvtPath) || counters == null || counters.Count == 0) return;
-                string sidecarPath = Path.ChangeExtension(rvtPath, ".sting_seq.json");
-                string json = JsonConvert.SerializeObject(counters, Formatting.Indented);
-                File.WriteAllText(sidecarPath, json);
-                StingLog.Info($"SEQ sidecar saved: {counters.Count} groups → {sidecarPath}");
+                string sidecarPath = GetSeqSidecarPath(doc);
+                if (sidecarPath == null) return;
+
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(seqCounters,
+                    Newtonsoft.Json.Formatting.Indented);
+                System.IO.File.WriteAllText(sidecarPath, json);
+                StingLog.Info($"SEQ sidecar saved: {seqCounters.Count} groups to {sidecarPath}");
             }
             catch (Exception ex)
             {
@@ -2631,17 +2842,22 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>P6: Load SEQ counters from the JSON sidecar file alongside the .rvt project file.</summary>
+        /// <summary>
+        /// ENH-02: Load SEQ counters from sidecar JSON. Returns null if file doesn't exist.
+        /// Merges with document-scanned counters by taking the MAX of each key.
+        /// </summary>
         public static Dictionary<string, int> LoadSeqSidecar(Document doc)
         {
             try
             {
-                string rvtPath = doc?.PathName;
-                if (string.IsNullOrEmpty(rvtPath)) return null;
-                string sidecarPath = Path.ChangeExtension(rvtPath, ".sting_seq.json");
-                if (!File.Exists(sidecarPath)) return null;
-                string json = File.ReadAllText(sidecarPath);
-                return JsonConvert.DeserializeObject<Dictionary<string, int>>(json);
+                string sidecarPath = GetSeqSidecarPath(doc);
+                if (sidecarPath == null || !System.IO.File.Exists(sidecarPath)) return null;
+
+                string json = System.IO.File.ReadAllText(sidecarPath);
+                var loaded = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, int>>(json);
+                if (loaded != null && loaded.Count > 0)
+                    StingLog.Info($"SEQ sidecar loaded: {loaded.Count} groups from {sidecarPath}");
+                return loaded;
             }
             catch (Exception ex)
             {
@@ -2650,14 +2866,29 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>P6: Merge sidecar counters into document-scanned counters — take max per key.</summary>
-        public static void MergeSeqSidecar(Dictionary<string, int> counters, Dictionary<string, int> sidecar)
+        /// <summary>
+        /// ENH-02: Merge sidecar counters with document-scanned counters.
+        /// Takes the MAX of each key to ensure continuity after crashes.
+        /// </summary>
+        public static void MergeSeqSidecar(Dictionary<string, int> target, Dictionary<string, int> sidecar)
         {
+            if (sidecar == null) return;
             foreach (var kvp in sidecar)
             {
-                if (!counters.TryGetValue(kvp.Key, out int existing) || kvp.Value > existing)
-                    counters[kvp.Key] = kvp.Value;
+                if (!target.ContainsKey(kvp.Key) || kvp.Value > target[kvp.Key])
+                    target[kvp.Key] = kvp.Value;
             }
+        }
+
+        private static string GetSeqSidecarPath(Document doc)
+        {
+            if (doc == null || !doc.IsValidObject) return null;
+            string projectPath = doc.PathName;
+            if (string.IsNullOrEmpty(projectPath)) return null;
+            string dir = System.IO.Path.GetDirectoryName(projectPath);
+            string fileName = System.IO.Path.GetFileNameWithoutExtension(projectPath);
+            if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(fileName)) return null;
+            return System.IO.Path.Combine(dir, $"{fileName}_STING_SEQ.json");
         }
 
         private static T TryDeserialize<T>(Dictionary<string, object> data, string key)
@@ -3567,7 +3798,7 @@ namespace StingTools.Core
         }
 
         /// <summary>Full discipline name for human-readable narrative.</summary>
-        private static readonly Dictionary<string, string> DisciplineDescriptions = new Dictionary<string, string>
+        internal static readonly Dictionary<string, string> DisciplineDescriptions = new Dictionary<string, string>
         {
             { "M", "Mechanical" }, { "E", "Electrical" }, { "P", "Plumbing" },
             { "A", "Architectural" }, { "S", "Structural" }, { "FP", "Fire Protection" },
@@ -3575,7 +3806,7 @@ namespace StingTools.Core
         };
 
         /// <summary>Full system name for human-readable narrative.</summary>
-        private static readonly Dictionary<string, string> SystemDescriptions = new Dictionary<string, string>
+        internal static readonly Dictionary<string, string> SystemDescriptions = new Dictionary<string, string>
         {
             { "HVAC", "Heating Ventilation and Air Conditioning" },
             { "HWS", "Hot Water Supply" }, { "DHW", "Domestic Hot Water" },
@@ -3590,7 +3821,7 @@ namespace StingTools.Core
         };
 
         /// <summary>Full function description for human-readable narrative.</summary>
-        private static readonly Dictionary<string, string> FunctionDescriptions = new Dictionary<string, string>
+        internal static readonly Dictionary<string, string> FunctionDescriptions = new Dictionary<string, string>
         {
             { "SUP", "Supply" }, { "RTN", "Return" }, { "EXH", "Exhaust" },
             { "FRA", "Fresh Air Intake" }, { "HTG", "Heating" },
@@ -3608,7 +3839,7 @@ namespace StingTools.Core
         };
 
         /// <summary>Full product type description for human-readable narrative.</summary>
-        private static readonly Dictionary<string, string> ProductDescriptions = new Dictionary<string, string>
+        internal static readonly Dictionary<string, string> ProductDescriptions = new Dictionary<string, string>
         {
             // Mechanical
             { "AHU", "Air Handling Unit" }, { "FCU", "Fan Coil Unit" },
@@ -3675,6 +3906,7 @@ namespace StingTools.Core
         public static Tag7Result BuildTag7Sections(Document doc, Element el, string categoryName, string[] tokenValues)
         {
             var result = new Tag7Result();
+            if (tokenValues == null) return result;
             var markedSections = new List<string>();
 
             string disc = tokenValues.Length > 0 ? tokenValues[0] : "";
@@ -4272,8 +4504,13 @@ namespace StingTools.Core
                 }
             }
 
-            // ── Warning evaluation (v5.5) ─────────────────────────────────
-            // Check if warnings are enabled and evaluate applicable thresholds
+            // ── Warning parameter population (v5.6) ────────────────────────
+            // Populate each individual WARN_ parameter with its evaluated text
+            // so tag family labels (gated by TAG_WARN_VISIBLE_BOOL) can display them.
+            int warnWritten = PopulateWarningParameters(doc, el, categoryName);
+            written += warnWritten;
+
+            // Also build concatenated warning text for TAG7 narrative append
             string warningText = EvaluateElementWarnings(doc, el, categoryName);
             if (!string.IsNullOrEmpty(warningText))
             {
@@ -4351,6 +4588,60 @@ namespace StingTools.Core
             }
 
             return warnings.Count > 0 ? string.Join(" ", warnings) : null;
+        }
+
+        /// <summary>
+        /// Populate individual WARN_ parameters on an element with their evaluated warning text.
+        /// Each WARN_ parameter gets its own text so tag family labels can display them via
+        /// calculated value formulas: if(TAG_WARN_VISIBLE_BOOL, WARN_xxx, "").
+        /// Returns the number of WARN_ parameters written.
+        /// </summary>
+        public static int PopulateWarningParameters(Document doc, Element el, string categoryName)
+        {
+            if (el == null || string.IsNullOrEmpty(categoryName))
+                return 0;
+
+            var warningParamNames = ParamRegistry.GetCategoryWarnings(categoryName);
+            if (warningParamNames == null || warningParamNames.Count == 0)
+                return 0;
+
+            int written = 0;
+            foreach (string warnParam in warningParamNames)
+            {
+                if (!ParamRegistry.WarningThresholds.TryGetValue(warnParam, out var def))
+                    continue;
+
+                // Get the element's current measured value for this warning check
+                string dataValue = GetWarningDataValue(el, warnParam, categoryName);
+
+                string warningText;
+                if (string.IsNullOrEmpty(dataValue))
+                {
+                    // No data available — write empty (tag label shows nothing)
+                    warningText = "";
+                }
+                else
+                {
+                    string evalResult = ParamRegistry.EvaluateWarning(def, dataValue);
+                    if (!string.IsNullOrEmpty(evalResult))
+                    {
+                        // Threshold violated — write the warning text
+                        warningText = evalResult;
+                    }
+                    else
+                    {
+                        // Compliant — clear any previous warning
+                        warningText = "";
+                    }
+                }
+
+                // Write to the individual WARN_ parameter on the element
+                // Always overwrite so warnings stay current with element data
+                if (ParameterHelpers.SetString(el, warnParam, warningText, overwrite: true))
+                    written++;
+            }
+
+            return written;
         }
 
         /// <summary>Get severity level as numeric (for filtering). Higher = more severe.</summary>

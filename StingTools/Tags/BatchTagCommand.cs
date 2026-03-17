@@ -117,16 +117,20 @@ namespace StingTools.Tags
             // This ensures contiguous SEQ numbers per group (all HVAC on L01 together)
             var sorted = SmartSortElements(doc, taggableElements);
 
-            int statusDetected = 0, revSet = 0;
             var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            if (popCtx == null)
+            {
+                TaskDialog.Show("Batch Tag", "Failed to build population context.");
+                return Result.Failed;
+            }
             var formulas = TagPipelineHelper.LoadFormulas();
             var gridLines = TagPipelineHelper.LoadGridLines(doc);
             var stats = new TaggingStats();
             var sw = Stopwatch.StartNew();
-            int populated = 0;
 
             StingLog.Info($"Batch Tag: starting — {totalTaggable} taggable, {alreadyTagged} tagged, mode={collisionMode}");
+            using var _perfOp = PerformanceTracker.Track("BatchTag");
 
             bool cancelled = false;
             const int TagBatchSize = 500;
@@ -197,6 +201,8 @@ namespace StingTools.Tags
 
             progress.Close();
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "BatchTag");
 
             // BIM integration: auto-raise compliance issues after batch tagging
             try { StingTools.BIMManager.BIMManagerEngine.AutoRaiseComplianceIssues(doc); }
@@ -214,19 +220,12 @@ namespace StingTools.Tags
             report.AppendLine("Batch Tagging Complete");
             report.AppendLine(new string('=', 50));
             report.AppendLine($"  Mode:         {collisionMode}");
-            report.AppendLine($"  Tokens:       {populated} auto-populated");
-            if (statusDetected > 0)
-                report.AppendLine($"  STATUS:       {statusDetected} (from Revit phases/worksets)");
-            if (revSet > 0)
-                report.AppendLine($"  REV:          {revSet} (revision '{popCtx.ProjectRev}')");
             report.AppendLine($"  Duration:     {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
             report.Append(stats.BuildReport());
 
             StingLog.Info($"Batch Tag: tagged={stats.TotalTagged}, skipped={stats.TotalSkipped}, " +
-                $"collisions={stats.TotalCollisions}, populated={populated}, " +
-                $"statusDetect={statusDetected}, revSet={revSet}, " +
-                $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
+                $"collisions={stats.TotalCollisions}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             // GAP-017: Post-batch compliance summary for workflow chain visibility
             var postScan = ComplianceScan.Scan(doc);
@@ -310,11 +309,50 @@ namespace StingTools.Tags
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
+            UIDocument uidoc = ctx.UIDoc;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            // Collect all tagged elements
+            // FIX-V01-A: Scope selection dialog (previously always ran project-wide silently)
+            var mfScopeDlg = new TaskDialog("Tag Format Migration — Scope");
+            mfScopeDlg.MainInstruction = "Choose migration scope";
+            mfScopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Active view only", "Migrate tags in the current view");
+            mfScopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Selected elements", $"{(uidoc?.Selection.GetElementIds().Count ?? 0)} selected");
+            mfScopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Entire project", "Migrate all tagged elements in the model");
+            mfScopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            mfScopeDlg.DefaultButton = TaskDialogResult.CommandLink3;
+
+            IEnumerable<Element> mfScanSource;
+            string mfScopeLabel;
+            switch (mfScopeDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1:
+                    if (ctx.ActiveView == null)
+                    { TaskDialog.Show("Tag Format Migration", "No active view."); return Result.Failed; }
+                    mfScanSource = new FilteredElementCollector(doc, ctx.ActiveView.Id)
+                        .WhereElementIsNotElementType();
+                    mfScopeLabel = $"active view '{ctx.ActiveView.Name}'";
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    var mfSelIds = uidoc?.Selection.GetElementIds();
+                    if (mfSelIds == null || mfSelIds.Count == 0)
+                    { TaskDialog.Show("Tag Format Migration", "No elements selected."); return Result.Cancelled; }
+                    mfScanSource = mfSelIds.Select(id => doc.GetElement(id)).Where(e => e != null);
+                    mfScopeLabel = $"{mfSelIds.Count} selected elements";
+                    break;
+                case TaskDialogResult.CommandLink3:
+                    mfScanSource = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                    mfScopeLabel = "entire project";
+                    break;
+                default:
+                    return Result.Cancelled;
+            }
+
+            // Collect all tagged elements within scope
             var tagged = new List<(Element el, string currentTag)>();
-            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            foreach (Element el in mfScanSource)
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
@@ -337,35 +375,34 @@ namespace StingTools.Tags
             preview.AppendLine($"  Current separator: \"{ParamRegistry.Separator}\"");
             preview.AppendLine($"  Current padding:   {ParamRegistry.NumPad}");
             preview.AppendLine($"  Tagged elements:   {tagged.Count}");
+            preview.AppendLine($"  Scope:             {mfScopeLabel}");
             preview.AppendLine();
 
             int wouldChange = 0;
             int sampleCount = Math.Min(tagged.Count, 10);
             preview.AppendLine("  Sample (first 10):");
-            for (int i = 0; i < sampleCount; i++)
+
+            // Single pass: count changes and build sample preview simultaneously
+            for (int i = 0; i < tagged.Count; i++)
             {
                 var (el, currentTag) = tagged[i];
                 string[] tokens = ParamRegistry.ReadTokenValues(el);
                 string rebuilt = string.Join(ParamRegistry.Separator, tokens);
                 bool changed = !string.Equals(currentTag, rebuilt, StringComparison.Ordinal);
-                if (changed)
-                {
-                    preview.AppendLine($"    {currentTag}");
-                    preview.AppendLine($"  → {rebuilt}");
-                }
-                else
-                {
-                    preview.AppendLine($"    {currentTag} (unchanged)");
-                }
-            }
+                if (changed) wouldChange++;
 
-            // Count total that would change (includes sample elements — single pass)
-            foreach (var (el, currentTag) in tagged)
-            {
-                string[] tokens = ParamRegistry.ReadTokenValues(el);
-                string rebuilt = string.Join(ParamRegistry.Separator, tokens);
-                if (!string.Equals(currentTag, rebuilt, StringComparison.Ordinal))
-                    wouldChange++;
+                if (i < sampleCount)
+                {
+                    if (changed)
+                    {
+                        preview.AppendLine($"    {currentTag}");
+                        preview.AppendLine($"  → {rebuilt}");
+                    }
+                    else
+                    {
+                        preview.AppendLine($"    {currentTag} (unchanged)");
+                    }
+                }
             }
 
             preview.AppendLine();
@@ -389,9 +426,15 @@ namespace StingTools.Tags
             if (td.Show() != TaskDialogResult.CommandLink1)
                 return Result.Cancelled;
 
+            // FIX-V01-B: Build population context and load formulas for token re-derivation
+            var mfPopCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var mfFormulas = TagPipelineHelper.LoadFormulas();
+
             // Execute migration
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var stats = new TaggingStats();
+            // FIX-R06: Load grid lines for GridRef pipeline step
+            var mfGridLines = TagPipelineHelper.LoadGridLines(doc);
             int migrated = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Tag Format Migration"))
@@ -402,22 +445,88 @@ namespace StingTools.Tags
                 {
                     try
                     {
+                        // FIX-V01-C: Re-derive tokens before format rebuild so stale/wrong
+                        // tokens are corrected, not just reformatted
+                        if (mfPopCtx != null)
+                        {
+                            try
+                            {
+                                TokenAutoPopulator.TypeTokenInherit(doc, el);
+                                TokenAutoPopulator.PopulateAll(doc, el, mfPopCtx, overwrite: false);
+                            }
+                            catch (Exception popEx)
+                            {
+                                StingLog.Warn($"TagFormatMigration Populate for {el.Id}: {popEx.Message}");
+                            }
+                        }
+
+                        // FIX-V01-C: Bridge native params before tag format migration
+                        try { NativeParamMapper.MapAll(doc, el); }
+                        catch (Exception nmEx) { StingLog.Warn($"TagFormatMigration NativeMapper for {el.Id}: {nmEx.Message}"); }
+
+                        // FIX-V01-C: Evaluate formulas after populate + native mapping
+                        if (mfFormulas != null && mfFormulas.Count > 0)
+                        {
+                            try
+                            {
+                                foreach (var formula in mfFormulas)
+                                {
+                                    try
+                                    {
+                                        Parameter fp = el.LookupParameter(formula.ParameterName);
+                                        if (fp == null || fp.IsReadOnly) continue;
+                                        var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                                        if (fCtx == null) continue;
+                                        if (formula.DataType == "TEXT")
+                                        {
+                                            string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                            if (fResult != null && fp.StorageType == StorageType.String
+                                                && string.IsNullOrEmpty(fp.AsString()))
+                                                fp.Set(fResult);
+                                        }
+                                        else
+                                        {
+                                            double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                            if (fResult.HasValue && !double.IsNaN(fResult.Value)
+                                                && !double.IsInfinity(fResult.Value))
+                                                Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                        }
+                                    }
+                                    catch { }
+                                }
+                            }
+                            catch (Exception fExMf)
+                            {
+                                StingLog.Warn($"TagFormatMigration formula eval for {el.Id}: {fExMf.Message}");
+                            }
+                        }
+
                         TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                             skipComplete: false,
                             existingTags: tagIndex,
                             collisionMode: TagCollisionMode.Overwrite,
                             stats: stats);
 
-                        // Write TAG7 + sub-sections with migrated tag
+                        // Write TAG7 + containers with migrated tag
                         try
                         {
                             string catName = ParameterHelpers.GetCategoryName(el);
                             string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                             TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                            // NP3: Write containers after format migration
+                            ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true,
+                                skipParam: ParamRegistry.TAG1);
                         }
                         catch (Exception tag7Ex)
                         {
-                            StingLog.Warn($"Migration TAG7 for {el.Id}: {tag7Ex.Message}");
+                            StingLog.Warn($"Migration TAG7+containers for {el.Id}: {tag7Ex.Message}");
+                        }
+
+                        // FIX-R06: Write GridRef per element
+                        if (mfGridLines != null && mfGridLines.Count > 0)
+                        {
+                            try { SpatialAutoDetect.GetGridRef(el, mfGridLines); }
+                            catch (Exception grEx) { StingLog.Warn($"Migration GridRef for {el.Id}: {grEx.Message}"); }
                         }
 
                         migrated++;
@@ -429,9 +538,15 @@ namespace StingTools.Tags
                 }
 
                 tx.Commit();
+                TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
+            // Save SEQ sidecar + invalidate caches after migration
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"TagFormatMigration SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Tag Format Migration",
-                $"Migration complete.\n\n  Migrated: {migrated}\n  Total: {tagged.Count}");
+                $"Migration complete.\n\n  Scope:    {mfScopeLabel}\n  Migrated: {migrated}\n  Total:    {tagged.Count}");
             StingLog.Info($"Tag format migration: {migrated}/{tagged.Count} tags reformatted");
             return Result.Succeeded;
         }
@@ -455,10 +570,46 @@ namespace StingTools.Tags
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
             Document doc = ctx.Doc;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
             string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+
+            // FIX-N02: Scope selection dialog — scan view, selection, or entire project
+            var selected = uidoc.Selection.GetElementIds();
+            IEnumerable<Element> scanScope;
+            string scopeLabel;
+            if (selected.Count > 0)
+            {
+                TaskDialog scopeTd = new TaskDialog("Delta Scan Scope");
+                scopeTd.MainInstruction = "Scan scope for stale tokens";
+                scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    $"Selected elements ({selected.Count})",
+                    "Only scan currently selected elements");
+                scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Entire project",
+                    "Scan all tagged elements in the project");
+                scopeTd.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var scopeResult = scopeTd.Show();
+                if (scopeResult == TaskDialogResult.Cancel)
+                    return Result.Cancelled;
+                if (scopeResult == TaskDialogResult.CommandLink1)
+                {
+                    scanScope = selected.Select(id => doc.GetElement(id)).Where(e => e != null);
+                    scopeLabel = $"selection ({selected.Count})";
+                }
+                else
+                {
+                    scanScope = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                    scopeLabel = "project";
+                }
+            }
+            else
+            {
+                scanScope = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                scopeLabel = "project";
+            }
 
             int scanned = 0, stale = 0, updated = 0;
             var staleSummary = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
@@ -470,7 +621,7 @@ namespace StingTools.Tags
             var staleElements = new List<(Element el, string token, string stored, string current)>();
 
             // Phase 1: Scan for stale tokens
-            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            foreach (Element el in scanScope)
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
@@ -581,6 +732,9 @@ namespace StingTools.Tags
             // Phase 2: Update stale tokens and rebuild tags
             var processedElements = new HashSet<ElementId>();
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            // FIX-R03: Load formulas and grid lines for delta pipeline
+            var tcFormulas = TagPipelineHelper.LoadFormulas();
+            var tcGridLines = TagPipelineHelper.LoadGridLines(doc);
 
             using (Transaction tx = new Transaction(doc, "STING Delta Tag Update"))
             {
@@ -613,16 +767,58 @@ namespace StingTools.Tags
                                 collisionMode: TagCollisionMode.Overwrite,
                                 stats: null);
 
-                            // Write TAG7 + sub-sections with updated spatial tokens
+                            // FIX-04: Bridge native params after delta token update
+                            try { NativeParamMapper.MapAll(doc, el); }
+                            catch (Exception nmEx) { StingLog.Warn($"TagChanged NativeMapper for {el.Id}: {nmEx.Message}"); }
+
+                            // FIX-R03: Evaluate formulas after native mapper
+                            if (tcFormulas != null && tcFormulas.Count > 0)
+                            {
+                                try
+                                {
+                                    foreach (var formula in tcFormulas)
+                                    {
+                                        Parameter fp = el.LookupParameter(formula.ParameterName);
+                                        if (fp == null || fp.IsReadOnly) continue;
+                                        var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                                        if (fCtx == null) continue;
+                                        if (formula.DataType == "TEXT")
+                                        {
+                                            string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                            if (fResult != null && fp.StorageType == StorageType.String)
+                                                fp.Set(fResult);
+                                        }
+                                        else
+                                        {
+                                            double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                            if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                                Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                        }
+                                    }
+                                }
+                                catch (Exception fEx) { StingLog.Warn($"TagChanged formula eval for {el.Id}: {fEx.Message}"); }
+                            }
+
+                            // Write TAG7 + containers with updated spatial tokens
                             try
                             {
                                 string catName = ParameterHelpers.GetCategoryName(el);
                                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
                                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                                // NP4: Write containers after delta token update
+                                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true,
+                                    skipParam: ParamRegistry.TAG1);
                             }
                             catch (Exception tag7Ex)
                             {
-                                StingLog.Warn($"TagChanged TAG7 for {el.Id}: {tag7Ex.Message}");
+                                StingLog.Warn($"TagChanged TAG7+containers for {el.Id}: {tag7Ex.Message}");
+                            }
+
+                            // FIX-R03: Write GridRef per element
+                            if (tcGridLines != null && tcGridLines.Count > 0)
+                            {
+                                try { SpatialAutoDetect.GetGridRef(el, tcGridLines); }
+                                catch (Exception grEx) { StingLog.Warn($"TagChanged GridRef for {el.Id}: {grEx.Message}"); }
                             }
 
                             updated++;
@@ -635,7 +831,13 @@ namespace StingTools.Tags
                 }
 
                 tx.Commit();
+                TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
+            // Save SEQ sidecar + invalidate caches after delta update
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"TagChanged SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Tag Changed",
                 $"Delta update complete.\n\n  Stale tokens: {stale}\n  Elements updated: {updated}\n  Tags rebuilt: {processedElements.Count}");
             StingLog.Info($"Delta tagging: {stale} stale tokens, {updated} elements updated");

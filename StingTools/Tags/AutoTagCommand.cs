@@ -135,10 +135,13 @@ namespace StingTools.Tags
             // Smart sort for contiguous SEQ assignment
             var sorted = BatchTagCommand.SmartSortElements(doc, taggableElements);
 
-            int populated = 0;
-            int statusDetected = 0, revSet = 0;
             var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            if (popCtx == null)
+            {
+                TaskDialog.Show("Auto Tag", "Failed to build population context.");
+                return Result.Failed;
+            }
             var formulas = TagPipelineHelper.LoadFormulas();
             var gridLines = TagPipelineHelper.LoadGridLines(doc);
             var stats = new TaggingStats();
@@ -188,6 +191,8 @@ namespace StingTools.Tags
                 TagConfig.SaveSeqSidecar(doc, sequenceCounters);
             }
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "AutoTag");
             var report = new StringBuilder();
             report.AppendLine($"Auto Tag — '{activeView.Name}'");
             report.AppendLine(new string('=', 50));
@@ -195,12 +200,27 @@ namespace StingTools.Tags
             report.AppendLine($"  Disciplines: {discFilterLabel}");
             if (filteredOut > 0)
                 report.AppendLine($"  Filtered:   {filteredOut} (wrong discipline for view)");
-            report.AppendLine($"  Tokens:     {populated} auto-populated");
-            if (statusDetected > 0)
-                report.AppendLine($"  STATUS:     {statusDetected} (from Revit phases/worksets)");
-            if (revSet > 0)
-                report.AppendLine($"  REV:        {revSet} (revision '{popCtx.ProjectRev}')");
             report.AppendLine();
+
+            // TAG-07: Warn when >10% of FUNC or PROD tokens are empty after tagging
+            if (stats.TotalTagged > 0)
+            {
+                int emptyFunc = 0, emptyProd = 0;
+                foreach (Element el in viewElements)
+                {
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (!known.Contains(cat)) continue;
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.FUNC))) emptyFunc++;
+                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.PROD))) emptyProd++;
+                }
+                int pctFunc = emptyFunc * 100 / taggable;
+                int pctProd = emptyProd * 100 / taggable;
+                if (pctFunc > 10)
+                    report.AppendLine($"  WARNING: {emptyFunc} elements ({pctFunc}%) missing FUNC codes — run FamilyStagePopulate");
+                if (pctProd > 10)
+                    report.AppendLine($"  WARNING: {emptyProd} elements ({pctProd}%) missing PROD codes — run FamilyStagePopulate");
+            }
+
             report.Append(stats.BuildReport());
 
             TaskDialog td = new TaskDialog("Auto Tag");
@@ -210,7 +230,6 @@ namespace StingTools.Tags
 
             StingLog.Info($"AutoTag: view='{activeView.Name}', tagged={stats.TotalTagged}, " +
                 $"skipped={stats.TotalSkipped}, collisions={stats.TotalCollisions}, " +
-                $"populated={populated}, statusDetect={statusDetected}, revSet={revSet}, " +
                 $"mode={collisionMode}");
 
             return Result.Succeeded;
@@ -237,10 +256,31 @@ namespace StingTools.Tags
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
+            // FIX-08: Scope selection — active view or entire project
+            var scopeDlg = new TaskDialog("Tag New Only — Scope");
+            scopeDlg.MainInstruction = "Select scope for tagging new elements";
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Active view only",
+                "Tag untagged elements visible in the current view");
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Entire project",
+                "Tag all untagged elements across the entire model");
+            scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            scopeDlg.DefaultButton = TaskDialogResult.CommandLink1;
+            var scopeResult = scopeDlg.Show();
+            if (scopeResult == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+            bool viewScopeOnly = (scopeResult == TaskDialogResult.CommandLink1);
+            string scopeLabel = viewScopeOnly ? "Active View" : "Entire Project";
+
             // Pre-filter: only elements with empty ASS_TAG_1_TXT
             // Performance: use ElementMulticategoryFilter to skip non-taggable elements at API level
             var catEnums = SharedParamGuids.AllCategoryEnums;
-            var tagNewCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            FilteredElementCollector tagNewCollector;
+            if (viewScopeOnly && doc.ActiveView != null)
+                tagNewCollector = new FilteredElementCollector(doc, doc.ActiveView.Id).WhereElementIsNotElementType();
+            else
+                tagNewCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
             if (catEnums != null && catEnums.Length > 0)
                 tagNewCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
             var untagged = new List<Element>();
@@ -269,6 +309,7 @@ namespace StingTools.Tags
             TaskDialog confirm = new TaskDialog("Tag New Only");
             confirm.MainInstruction = $"Tag {untagged.Count} new elements?";
             confirm.MainContent =
+                $"Scope: {scopeLabel}\n" +
                 $"Found {untagged.Count} taggable elements without tags.\n" +
                 "This will auto-populate tokens and assign tags to only these elements.\n" +
                 "Existing tags will not be modified.";
@@ -281,12 +322,15 @@ namespace StingTools.Tags
 
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            if (popCtx == null)
+            {
+                TaskDialog.Show("Tag New Only", "Failed to build population context.");
+                return Result.Failed;
+            }
             var formulas = TagPipelineHelper.LoadFormulas();
             var gridLines = TagPipelineHelper.LoadGridLines(doc);
             var stats = new TaggingStats();
             var sw = Stopwatch.StartNew();
-            int populated = 0;
-            int statusDetected = 0, revSet = 0;
 
             bool cancelled = false;
 
@@ -332,15 +376,12 @@ namespace StingTools.Tags
             }
             sw.Stop();
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "TagNewOnly");
 
             var report = new StringBuilder();
             report.AppendLine($"Tag New Only — {untagged.Count} elements");
             report.AppendLine(new string('=', 50));
-            report.AppendLine($"  Tokens:    {populated} auto-populated");
-            if (statusDetected > 0)
-                report.AppendLine($"  STATUS:    {statusDetected} (from Revit phases/worksets)");
-            if (revSet > 0)
-                report.AppendLine($"  REV:       {revSet} (revision '{popCtx.ProjectRev}')");
             report.AppendLine($"  Duration:  {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
             report.Append(stats.BuildReport());
@@ -350,8 +391,7 @@ namespace StingTools.Tags
             td.MainContent = report.ToString();
             td.Show();
 
-            StingLog.Info($"TagNewOnly: tagged={stats.TotalTagged}, populated={populated}, " +
-                $"statusDetect={statusDetected}, revSet={revSet}, " +
+            StingLog.Info($"TagNewOnly: tagged={stats.TotalTagged}, " +
                 $"collisions={stats.TotalCollisions}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;

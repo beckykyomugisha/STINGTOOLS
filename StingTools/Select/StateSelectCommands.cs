@@ -543,6 +543,8 @@ namespace StingTools.Select
         private static Result BulkAutoPopulate(Document doc, ICollection<ElementId> selected)
         {
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            // GAP-BA: Load formulas for evaluation after token population
+            var baFormulas = TagPipelineHelper.LoadFormulas();
             int populated = 0;
             int statusDetected = 0, revSet = 0;
 
@@ -554,14 +556,54 @@ namespace StingTools.Select
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
+                    // GAP-BA: TypeTokenInherit before PopulateAll
+                    TokenAutoPopulator.TypeTokenInherit(doc, elem);
+
                     // Full 9-token auto-population via shared helper
                     var result = TokenAutoPopulator.PopulateAll(doc, elem, popCtx);
                     populated += result.TokensSet;
+                    // Bridge native params after token population
+                    try { NativeParamMapper.MapAll(doc, elem); }
+                    catch (Exception nmEx9) { StingLog.Warn($"BulkAutoPopulate NativeMapper for {id}: {nmEx9.Message}"); }
+
+                    // GAP-BA: Evaluate formulas after NativeMapper
+                    if (baFormulas != null && baFormulas.Count > 0)
+                    {
+                        try
+                        {
+                            foreach (var formula in baFormulas)
+                            {
+                                Parameter fp = elem.LookupParameter(formula.ParameterName);
+                                if (fp == null || fp.IsReadOnly) continue;
+                                var fCtx = Temp.FormulaEngine.BuildContext(elem, formula);
+                                if (fCtx == null) continue;
+                                if (formula.DataType == "TEXT")
+                                {
+                                    string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                    if (fResult != null && fp.StorageType == StorageType.String
+                                        && string.IsNullOrEmpty(fp.AsString()))
+                                        fp.Set(fResult);
+                                }
+                                else
+                                {
+                                    double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                    if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                        Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                }
+                            }
+                        }
+                        catch (Exception fEx) { StingLog.Warn($"BulkAutoPopulate formula eval for {id}: {fEx.Message}"); }
+                    }
+
                     if (result.StatusDetected) statusDetected++;
                     if (result.RevSet) revSet++;
                 }
                 tx.Commit();
             }
+
+            // GAP-BA: Invalidate caches after bulk populate
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             var msg = new System.Text.StringBuilder();
             msg.AppendLine($"Auto-populated {populated} token values on {selected.Count} elements.");
@@ -613,6 +655,10 @@ namespace StingTools.Select
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             if (tagIndex == null) tagIndex = new HashSet<string>();
             if (seqCounters == null) seqCounters = new Dictionary<string, int>();
+            // GAP-04: Load pipeline context once for RunFullPipeline
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
             int retagged = 0;
             int failed = 0;
 
@@ -625,13 +671,16 @@ namespace StingTools.Select
                     if (elem == null) continue;
                     try
                     {
-                        if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                        // GAP-04: Use unified RunFullPipeline for all 11 canonical steps
+                        bool ok = TagPipelineHelper.RunFullPipeline(
+                            doc, elem, popCtx, tagIndex, seqCounters,
+                            formulas, gridLines,
+                            overwrite: true,
                             skipComplete: false,
-                            existingTags: tagIndex,
-                            collisionMode: TagCollisionMode.Overwrite))
-                            retagged++;
-                        else
-                            failed++;
+                            collisionMode: TagCollisionMode.Overwrite);
+
+                        if (ok) retagged++;
+                        else failed++;
                     }
                     catch (Exception ex)
                     {
@@ -641,6 +690,17 @@ namespace StingTools.Select
                 }
                 tx.Commit();
             }
+            // Save SEQ sidecar + invalidate caches after bulk re-tag
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"BulkReTagCommand SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            // Save SEQ sidecar + invalidate caches after bulk retag
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"BulkRetag SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             string report = $"Re-tagged {retagged} of {selected.Count} elements.";
             if (failed > 0) report += $"\nFailed: {failed} elements (check log for details).";
@@ -690,6 +750,155 @@ namespace StingTools.Select
             bool newScope = SelectionScopeHelper.Toggle();
             string label = newScope ? "WHOLE PROJECT" : "ACTIVE VIEW ONLY";
             TaskDialog.Show("Selection Scope", $"Selection scope set to: {label}\n\nAll selection commands will now operate on the {label.ToLower()}.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Select elements with stale tags — where current spatial/category context
+    /// no longer matches the stored token values. Enables targeted re-tagging
+    /// of only the elements that have moved, changed level, or been recategorised.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public class SelectStaleElementsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var collector = SelectionScopeHelper.GetCollector(doc, ctx.ActiveView)
+                .WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+
+            var staleIds = new List<ElementId>();
+            var staleDetails = new Dictionary<string, int>(); // token → count
+
+            foreach (Element elem in collector)
+            {
+                string tag1 = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag1)) continue;
+
+                string catName = ParameterHelpers.GetCategoryName(elem);
+                if (string.IsNullOrEmpty(catName)) continue;
+
+                bool stale = false;
+
+                // Check LVL
+                string storedLvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string currentLvl = ParameterHelpers.GetLevelCode(doc, elem);
+                if (!string.IsNullOrEmpty(currentLvl) && !string.IsNullOrEmpty(storedLvl)
+                    && !string.Equals(storedLvl, currentLvl, StringComparison.OrdinalIgnoreCase))
+                {
+                    stale = true;
+                    staleDetails["LVL"] = staleDetails.TryGetValue("LVL", out int c) ? c + 1 : 1;
+                }
+
+                // Check SYS
+                string storedSys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string currentSys = TagConfig.GetMepSystemAwareSysCode(elem, catName);
+                if (!string.IsNullOrEmpty(currentSys) && !string.IsNullOrEmpty(storedSys)
+                    && !string.Equals(storedSys, currentSys, StringComparison.OrdinalIgnoreCase))
+                {
+                    stale = true;
+                    staleDetails["SYS"] = staleDetails.TryGetValue("SYS", out int c) ? c + 1 : 1;
+                }
+
+                // Check PROD
+                string storedProd = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                string currentProd = TagConfig.GetFamilyAwareProdCode(elem, catName);
+                if (!string.IsNullOrEmpty(currentProd) && !string.IsNullOrEmpty(storedProd)
+                    && !string.Equals(storedProd, currentProd, StringComparison.OrdinalIgnoreCase))
+                {
+                    stale = true;
+                    staleDetails["PROD"] = staleDetails.TryGetValue("PROD", out int c) ? c + 1 : 1;
+                }
+
+                if (stale) staleIds.Add(elem.Id);
+            }
+
+            if (staleIds.Count == 0)
+            {
+                TaskDialog.Show("Select Stale", "No stale elements found. All tags are current.");
+                return Result.Succeeded;
+            }
+
+            ctx.UIDoc.Selection.SetElementIds(staleIds);
+
+            var detail = string.Join(", ", staleDetails.Select(kv => $"{kv.Key}: {kv.Value}"));
+            TaskDialog.Show("Select Stale",
+                $"Selected {staleIds.Count} elements with stale tags.\n\nStale tokens: {detail}\n\n" +
+                "Use Re-Tag or Auto Tag (overwrite) to update these elements.");
+            StingLog.Info($"SelectStale: {staleIds.Count} stale elements ({detail})");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Quick tag preview — shows the predicted tag value for selected element(s)
+    /// without making any changes. Useful for verifying tag format before tagging.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public class QuickTagPreviewCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            UIDocument uidoc = ctx.UIDoc;
+
+            var selected = uidoc.Selection.GetElementIds();
+            if (selected.Count == 0)
+            {
+                TaskDialog.Show("Quick Tag Preview", "Select one or more elements to preview their tags.");
+                return Result.Succeeded;
+            }
+
+            var preview = new StringBuilder();
+            preview.AppendLine("Tag Preview (read-only — no changes made)");
+            preview.AppendLine(new string('═', 55));
+            preview.AppendLine($"  Format: sep=\"{ParamRegistry.Separator}\", pad={ParamRegistry.NumPad}");
+            preview.AppendLine();
+
+            int count = 0;
+            int maxShow = Math.Min(selected.Count, 20);
+
+            foreach (ElementId id in selected)
+            {
+                if (count >= maxShow) break;
+                Element elem = doc.GetElement(id);
+                if (elem == null) continue;
+
+                string catName = ParameterHelpers.GetCategoryName(elem);
+                string famName = ParameterHelpers.GetFamilyName(elem);
+                string[] tokens = ParamRegistry.ReadTokenValues(elem);
+                string currentTag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                string predictedTag = string.Join(ParamRegistry.Separator, tokens);
+
+                // Check for empty tokens
+                int emptyCount = tokens.Count(t => string.IsNullOrEmpty(t) || t == "XX" || t == "0000");
+
+                preview.AppendLine($"  [{catName}] {famName ?? ""}");
+                if (!string.IsNullOrEmpty(currentTag))
+                    preview.AppendLine($"    Current:   {currentTag}");
+                preview.AppendLine($"    Predicted: {predictedTag}");
+                if (emptyCount > 0)
+                    preview.AppendLine($"    Gaps:      {emptyCount} token(s) empty/default");
+                preview.AppendLine();
+                count++;
+            }
+
+            if (selected.Count > maxShow)
+                preview.AppendLine($"  ... and {selected.Count - maxShow} more elements");
+
+            TaskDialog td = new TaskDialog("Quick Tag Preview");
+            td.MainInstruction = $"Preview of {Math.Min(selected.Count, maxShow)} element(s)";
+            td.MainContent = preview.ToString();
+            td.Show();
             return Result.Succeeded;
         }
     }

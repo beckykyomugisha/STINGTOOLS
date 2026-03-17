@@ -44,9 +44,6 @@ namespace StingTools.Tags
             UIDocument uidoc = ctx.UIDoc;
             Document doc = ctx.Doc;
 
-            // Load presentation modes from LABEL_DEFINITIONS.json
-            var modes = LabelDefinitionHelper.LoadPresentationModes();
-
             TaskDialog td = new TaskDialog("Presentation Mode");
             td.MainInstruction = "Select tag presentation mode";
             td.MainContent =

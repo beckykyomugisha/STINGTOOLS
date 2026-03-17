@@ -1,6 +1,7 @@
+#!SCHEMA_VERSION=5.0
 # TAG_CONFIG_v5_0_VALIDATION.csv
 # ISO 19650 Tag Validation Rules — token validation, cross-checks, warnings
-# Version: 5.0 | Updated: 2026-03-13
+# Version: 5.0 | Updated: 2026-03-15
 # Used by: ISO19650Validator, ValidateTagsCommand, PreTagAuditCommand, FormulaEvaluatorCommand
 # Changes from v4: Added warning severity filtering, formula skip tracking,
 #   cross-validation rules, BIMManager compliance checks, cached phase detection.

@@ -19,6 +19,7 @@ namespace StingTools.Core
     {
         private static string _preferredDirectory;
         private static readonly object _lock = new object();
+        private static volatile bool _tempFallbackWarned;
 
         /// <summary>
         /// Get or set the user's preferred output directory.
@@ -71,9 +72,9 @@ namespace StingTools.Core
                     return stingDocsDir;
             }
 
-            // 4. Temp directory — LOG-11 FIX: warn user about auto-deletion risk
-            string tempPath = Path.GetTempPath();
-            StingLog.Warn("OutputLocationHelper: falling back to %TEMP% — files may be auto-deleted");
+            // 4. Temp directory (last resort — warn so user knows exports are not in a project folder)
+            string tempDir = Path.GetTempPath();
+            StingLog.Warn($"OutputLocationHelper: All preferred directories failed. Falling back to system temp: {tempDir}");
 
             // Check project_config.json for failOnOutputPathMissing flag
             try
@@ -83,7 +84,7 @@ namespace StingTools.Core
                 {
                     string json = File.ReadAllText(configPath);
                     var config = Newtonsoft.Json.Linq.JObject.Parse(json);
-                    bool failOnMissing = config["failOnOutputPathMissing"]?.Value<bool>() == true;
+                    bool failOnMissing = config["failOnOutputPathMissing"]?.ToObject<bool>() == true;
                     if (failOnMissing)
                         throw new InvalidOperationException(
                             "Output path could not be resolved and failOnOutputPathMissing is set. " +
@@ -93,16 +94,19 @@ namespace StingTools.Core
             catch (InvalidOperationException) { throw; }
             catch { /* config read failure is non-fatal */ }
 
-            try
+            if (!_tempFallbackWarned)
             {
-                Autodesk.Revit.UI.TaskDialog.Show("STING Output Warning",
-                    "Output path could not be resolved. Files will be exported to:\n" +
-                    tempPath + "\n\nThese files may be automatically deleted by Windows Disk Cleanup.\n" +
-                    "Please configure an output path in project_config.json.");
+                _tempFallbackWarned = true;
+                try
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show("STING Export Location",
+                        "Could not write to the project directory or Documents folder.\n\n" +
+                        $"Exports will be saved to the system temp folder:\n{tempDir}\n\n" +
+                        "Use 'Set Output Directory' (BIM tab) to choose a permanent location.");
+                }
+                catch { /* TaskDialog may not be available outside Revit thread */ }
             }
-            catch { /* TaskDialog may not be available outside Revit context */ }
-
-            return tempPath;
+            return tempDir;
         }
 
         /// <summary>

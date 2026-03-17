@@ -564,6 +564,33 @@ namespace StingTools.UI
         }
 
         /// <summary>
+        /// FIX-UI03: Called by StingCommandHandler.Execute() after every command
+        /// completes. Triggers UnfreezeTagSubTabs() via UpdateStatus() so the
+        /// Leader &amp; Elbow sub-tab (and all others) are re-enabled automatically.
+        /// Must be called on any thread — uses BeginInvoke for safety.
+        /// </summary>
+        public static void NotifyCommandComplete(string statusText = "Ready")
+        {
+            if (_instance == null) return;
+            try
+            {
+                if (!_instance.Dispatcher.CheckAccess())
+                {
+                    _instance.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        try { _instance.UpdateStatus(statusText); }
+                        catch { }
+                    }));
+                }
+                else
+                {
+                    _instance.UpdateStatus(statusText);
+                }
+            }
+            catch { /* Non-critical UI update */ }
+        }
+
+        /// <summary>
         /// UI-03: Static method to update the Tags tab status strip from any thread.
         /// </summary>
         public static void UpdateTagsStatus(string text, string rag)

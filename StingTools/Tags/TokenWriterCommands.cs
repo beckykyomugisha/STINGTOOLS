@@ -140,6 +140,10 @@ namespace StingTools.Tags
                 tx.Commit();
             }
 
+            // FIX-WR08: Invalidate caches after token writes so dashboard/auto-tagger reflect changes
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
             TaskDialog.Show(label, $"Set '{value}' on {written} elements.");
             return Result.Succeeded;
         }
@@ -248,7 +252,10 @@ namespace StingTools.Tags
                         ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
                     }
 
-                    string key = $"{disc}_{sys}_{lvl}";
+                    // LOGIC-04: Include ZONE in group key for distinct sequences per zone
+                    string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                    if (string.IsNullOrEmpty(zone)) zone = "ZZ";
+                    string key = $"{disc}_{sys}_{lvl}_{zone}";
                     if (!maxSeq.ContainsKey(key)) maxSeq[key] = 0;
                     maxSeq[key]++;
                     string seq = maxSeq[key].ToString().PadLeft(ParamRegistry.NumPad, '0');
@@ -257,6 +264,11 @@ namespace StingTools.Tags
                 }
                 tx.Commit();
             }
+
+            // FIX-WR07: Save SEQ sidecar + invalidate caches after sequence assignment
+            TagConfig.SaveSeqSidecar(doc, maxSeq);
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             TaskDialog.Show("Assign Numbers", $"Assigned sequence numbers to {assigned} elements.");
             return Result.Succeeded;
@@ -466,6 +478,11 @@ namespace StingTools.Tags
                 }
                 tx.Commit();
             }
+
+            // FIX-WR04: Save SEQ sidecar + invalidate caches after tag building
+            TagConfig.SaveSeqSidecar(doc, seqCounters);
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             var report = new StringBuilder();
             report.AppendLine($"Built tags for {built} elements.");

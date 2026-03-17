@@ -317,10 +317,10 @@ namespace StingTools.Tags
 
             // DATA-02: Validate required parameters are bound after binding pass
             var allBound = new HashSet<string>(StringComparer.Ordinal);
-            var iter = doc.ParameterBindings.ForwardIterator();
-            while (iter.MoveNext())
+            var iter2 = doc.ParameterBindings.ForwardIterator();
+            while (iter2.MoveNext())
             {
-                if (iter.Key is InternalDefinition def && !string.IsNullOrEmpty(def.Name))
+                if (iter2.Key is InternalDefinition def && !string.IsNullOrEmpty(def.Name))
                     allBound.Add(def.Name);
             }
 

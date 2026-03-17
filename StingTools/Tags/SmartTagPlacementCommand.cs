@@ -27,6 +27,9 @@ namespace StingTools.Tags
     /// </summary>
     internal static class TagPlacementEngine
     {
+        /// <summary>ENH-03: Default clearance margin (in feet) for leader elbow avoidance.</summary>
+        private const double LeaderClearanceMargin = 0.5;
+
         // ── Grid-based spatial index ─────────────────────────────────────
 
         /// <summary>
@@ -256,7 +259,7 @@ namespace StingTools.Tags
         // ── Collision detection (AABB 2D) ──────────────────────────────
 
         /// <summary>2D bounding box for collision detection in plan view.</summary>
-        public struct Box2D
+        public struct Box2D : IEquatable<Box2D>
         {
             public double MinX, MinY, MaxX, MaxY;
 
@@ -269,6 +272,27 @@ namespace StingTools.Tags
             {
                 return MinX < other.MaxX && MaxX > other.MinX
                     && MinY < other.MaxY && MaxY > other.MinY;
+            }
+
+            public bool Equals(Box2D other)
+            {
+                return MinX == other.MinX && MinY == other.MinY
+                    && MaxX == other.MaxX && MaxY == other.MaxY;
+            }
+
+            public override bool Equals(object obj) => obj is Box2D b && Equals(b);
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = 17;
+                    hash = hash * 31 + MinX.GetHashCode();
+                    hash = hash * 31 + MinY.GetHashCode();
+                    hash = hash * 31 + MaxX.GetHashCode();
+                    hash = hash * 31 + MaxY.GetHashCode();
+                    return hash;
+                }
             }
 
             public static Box2D FromBoundingBox(BoundingBoxXYZ bb)
@@ -788,12 +812,17 @@ namespace StingTools.Tags
                 try
                 {
                     bool useLeader = addLeaders || needsLeader;
+                    var elemRef = new Reference(elem);
                     IndependentTag tag = IndependentTag.Create(
-                        doc, tagTypeId, view.Id, new Reference(elem), useLeader,
+                        doc, tagTypeId, view.Id, elemRef, useLeader,
                         TagOrientation.Horizontal, bestPos);
 
                     if (tag != null)
                     {
+                        // ENH-03: Adjust leader elbow to avoid overlapping placed tags
+                        if (tag.HasLeader)
+                            TagPlacementPresets.AdjustLeaderElbow(doc, view, tag, elemRef, grid);
+
                         BoundingBoxXYZ tagBB = tag.get_BoundingBox(view);
                         Box2D regBox = tagBB != null ? Box2D.FromBoundingBox(tagBB) : finalBox;
                         grid.Insert(regBox);
@@ -1193,6 +1222,62 @@ namespace StingTools.Tags
                 }
             }
             return moved;
+        }
+
+        // ── ENH-03: Leader elbow path avoidance ─────────────────────────
+
+        /// <summary>ENH-03: Adjust leader elbow to avoid overlapping other tags.</summary>
+        internal static void AdjustLeaderElbow(Document doc, View view, IndependentTag tag,
+            Reference tagRef, TagPlacementEngine.SpatialGrid grid, double clearanceMargin = 0.5)
+        {
+            try
+            {
+                if (!tag.HasLeader) return;
+
+                XYZ headPos = tag.TagHeadPosition;
+                XYZ leaderEnd;
+                try { leaderEnd = tag.GetLeaderEnd(tagRef); }
+                catch { return; }
+                if (headPos == null || leaderEnd == null) return;
+
+                XYZ leaderVec = headPos - leaderEnd;
+                double leaderLen = leaderVec.GetLength();
+                if (leaderLen < 0.01) return;
+
+                XYZ leaderDir = leaderVec.Normalize();
+                // Perpendicular direction in XY plane
+                XYZ perpDir = new XYZ(-leaderDir.Y, leaderDir.X, 0);
+
+                XYZ midPoint = (headPos + leaderEnd) / 2.0;
+
+                // Check if leader midpoint overlaps any placed tag boxes in the grid
+                var midBox = TagPlacementEngine.Box2D.EstimateTag(midPoint, clearanceMargin, clearanceMargin);
+                if (!grid.HasOverlap(midBox)) return;
+
+                // Try shifting elbow perpendicular to leader direction
+                double[] shifts = { clearanceMargin, -clearanceMargin,
+                                    clearanceMargin * 2, -clearanceMargin * 2 };
+                foreach (double shift in shifts)
+                {
+                    XYZ elbowCandidate = midPoint + perpDir * shift;
+                    var elbowBox = TagPlacementEngine.Box2D.EstimateTag(elbowCandidate,
+                        clearanceMargin * 0.5, clearanceMargin * 0.5);
+                    if (!grid.HasOverlap(elbowBox))
+                    {
+                        try
+                        {
+                            tag.LeaderEndCondition = LeaderEndCondition.Free;
+                            tag.SetLeaderElbow(tagRef, elbowCandidate);
+                        }
+                        catch { }
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AdjustLeaderElbow: {ex.Message}");
+            }
         }
     }
 

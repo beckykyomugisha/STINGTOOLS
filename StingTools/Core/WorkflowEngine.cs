@@ -212,7 +212,8 @@ namespace StingTools.Core
         [JsonProperty("steps")]
         public List<WorkflowStep> Steps { get; set; } = new List<WorkflowStep>();
 
-        /// <summary>LOG-06: If true, wrap entire workflow in TransactionGroup and rollback on failure.</summary>
+        /// <summary>LOG-06: When true, wraps all steps in a TransactionGroup and
+        /// rolls back all changes if any non-optional step fails.</summary>
         [JsonProperty("rollback_on_failure")]
         public bool RollbackOnFailure { get; set; }
 
@@ -263,7 +264,7 @@ namespace StingTools.Core
             }
             Document doc = ctx.Doc;
             StingLog.Info($"Workflow '{preset.Name}': starting {preset.Steps.Count} steps" +
-                (preset.RollbackOnFailure ? " (rollback_on_failure=true)" : ""));
+                (preset.RollbackOnFailure ? " (rollback on failure)" : ""));
 
             var report = new StringBuilder();
             report.AppendLine($"Workflow: {preset.Name}");
@@ -273,9 +274,13 @@ namespace StingTools.Core
             int passed = 0;
             int failed = 0;
             int skipped = 0;
+            bool cancelled = false;
+            double complianceBefore = 0;
+            try { var scan = ComplianceScan.Scan(doc); complianceBefore = scan.CompliancePercent; }
+            catch { }
             var totalSw = Stopwatch.StartNew();
 
-            // LOG-06: Optionally wrap entire workflow in TransactionGroup for atomic rollback
+            // LOG-06: Wrap in TransactionGroup when rollback_on_failure is enabled
             TransactionGroup tg = null;
             if (preset.RollbackOnFailure)
             {
@@ -289,15 +294,15 @@ namespace StingTools.Core
                 {
                     stepNum++;
 
-                    // Check cancellation between steps
                     if (EscapeChecker.IsEscapePressed())
                     {
                         report.AppendLine($"  {stepNum,2}. {step.Label} — CANCELLED (Escape)");
                         StingLog.Info($"Workflow step {stepNum}: cancelled by user");
+                        cancelled = true;
                         break;
                     }
 
-                    // Evaluate condition (workshared check etc.)
+
                     if (!string.IsNullOrEmpty(step.Condition))
                     {
                         if (step.Condition == "workshared" && !doc.IsWorkshared)
@@ -357,7 +362,6 @@ namespace StingTools.Core
                         }
                     }
 
-                    // Execute via command dispatch
                     var sw = Stopwatch.StartNew();
                     try
                     {
@@ -375,6 +379,13 @@ namespace StingTools.Core
                             failed++;
 
                         StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
+
+                        // LOG-06: If rollback enabled and a non-optional step failed, stop
+                        if (preset.RollbackOnFailure && stepResult == Result.Failed && !step.Optional)
+                        {
+                            report.AppendLine($"\n  *** Non-optional step failed — rolling back all changes ***");
+                            break;
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -385,7 +396,14 @@ namespace StingTools.Core
                         if (step.Optional)
                             skipped++;
                         else
+                        {
                             failed++;
+                            if (preset.RollbackOnFailure)
+                            {
+                                report.AppendLine($"\n  *** Non-optional step threw exception — rolling back all changes ***");
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -396,21 +414,22 @@ namespace StingTools.Core
                 {
                     try
                     {
-                        if (failed > 0 && preset.RollbackOnFailure)
+                        if (failed > 0 || cancelled)
                         {
                             tg.RollBack();
-                            report.AppendLine("  ⚠ ALL CHANGES ROLLED BACK (rollback_on_failure)");
-                            StingLog.Warn($"Workflow '{preset.Name}': rolled back due to {failed} failure(s)");
+                            report.AppendLine("  TransactionGroup: ROLLED BACK");
+                            StingLog.Warn($"Workflow '{preset.Name}': rolled back due to {failed} failure(s){(cancelled ? ", cancelled by user" : "")}");
                         }
                         else
                         {
                             tg.Assimilate();
+                            report.AppendLine("  TransactionGroup: COMMITTED");
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception tgEx)
                     {
-                        StingLog.Warn($"Workflow TransactionGroup finalize: {ex.Message}");
-                        try { tg.RollBack(); } catch { /* swallow */ }
+                        StingLog.Warn($"Workflow TransactionGroup cleanup: {tgEx.Message}");
+                        try { tg.RollBack(); } catch { }
                     }
                     tg.Dispose();
                 }
@@ -418,9 +437,20 @@ namespace StingTools.Core
 
             totalSw.Stop();
 
+            // FIX-DEEP02: Invalidate caches after workflow chain completes.
+            // Chained tag commands (BatchTag, TagAndCombine) update SEQ counters;
+            // the auto-tagger cache must reflect the post-chain state.
+            try
+            {
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
+            }
+            catch { }
+
             report.AppendLine(new string('─', 50));
             report.AppendLine($"  Complete: {passed}/{preset.Steps.Count} steps OK");
             report.AppendLine($"  Skipped: {skipped}, Failed: {failed}");
+            if (cancelled) report.AppendLine("  ⚠ Cancelled by user (Escape)");
             report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
 
             TaskDialog td = new TaskDialog($"Workflow: {preset.Name}");
@@ -431,8 +461,40 @@ namespace StingTools.Core
             StingLog.Info($"Workflow '{preset.Name}' complete: {passed}/{preset.Steps.Count} OK, " +
                 $"{failed} failed, elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
 
+            // LOG-13: Persist run record as JSONL (one JSON object per line)
+            try
+            {
+                double complianceAfter = 0;
+                try { ComplianceScan.InvalidateCache(); var scan = ComplianceScan.Scan(doc); complianceAfter = scan.CompliancePercent; }
+                catch { }
+
+                var record = new WorkflowRunRecord
+                {
+                    Timestamp = DateTime.UtcNow.ToString("o"),
+                    PresetName = preset.Name,
+                    TotalSteps = preset.Steps.Count,
+                    Passed = passed,
+                    Failed = failed,
+                    Skipped = skipped,
+                    DurationSeconds = Math.Round(totalSw.Elapsed.TotalSeconds, 1),
+                    Cancelled = cancelled,
+                    ComplianceBefore = Math.Round(complianceBefore, 1),
+                    ComplianceAfter = Math.Round(complianceAfter, 1)
+                };
+                SaveRunRecord(record, doc);
+            }
+            catch (Exception logEx)
+            {
+                StingLog.Warn($"Workflow log save failed: {logEx.Message}");
+            }
+
             return passed > 0 ? Result.Succeeded : Result.Failed;
         }
+
+        /// <summary>
+        /// NG11/AL-07: Public accessor for ResolveCommand — used by auto-run workflow on open.
+        /// </summary>
+        public static IExternalCommand GetCommandInstance(string tag) => ResolveCommand(tag);
 
         /// <summary>
         /// Run a command by its StingCommandHandler dispatch tag, mapped to IExternalCommand classes.
@@ -532,6 +594,9 @@ namespace StingTools.Core
                 case "ExportBEP": return new BIMManager.ExportBEPCommand();
                 case "COBieExport": return new BIMManager.COBieExportCommand();
                 case "DocumentBriefcase": return new BIMManager.DocumentBriefcaseCommand();
+
+                // Workflow
+                case "WorkflowTrend": return new WorkflowTrendCommand();
 
                 // Revision Management (GAP-009)
                 case "CreateRevision": return new BIMManager.CreateRevisionCommand();
@@ -695,6 +760,214 @@ namespace StingTools.Core
                 default:
                     return new WorkflowPreset { Name = name, Description = "Unknown preset" };
             }
+        }
+
+        // ── LOG-13: JSONL run record persistence with rotation ────────────
+
+        private const string LogFileName = "STING_WORKFLOW_LOG.jsonl";
+        private const long MaxLogSizeBytes = 500 * 1024; // 500 KB
+
+        /// <summary>
+        /// LOG-13: Get the log file path alongside the project file (or data dir fallback).
+        /// </summary>
+        private static string GetLogPath(Document doc)
+        {
+            string dir = null;
+            try
+            {
+                if (doc != null && !string.IsNullOrEmpty(doc.PathName))
+                    dir = Path.GetDirectoryName(doc.PathName);
+            }
+            catch { }
+            if (string.IsNullOrEmpty(dir))
+                dir = StingToolsApp.DataPath ?? Path.GetTempPath();
+            return Path.Combine(dir, LogFileName);
+        }
+
+        /// <summary>
+        /// LOG-13: Append a single run record as one JSON line. Rotates file when > 500 KB.
+        /// </summary>
+        private static void SaveRunRecord(WorkflowRunRecord record, Document doc)
+        {
+            string path = GetLogPath(doc);
+            string dir = Path.GetDirectoryName(path);
+            if (!Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+
+            // Rotate if file exceeds size limit
+            try
+            {
+                if (File.Exists(path))
+                {
+                    var fi = new FileInfo(path);
+                    if (fi.Length > MaxLogSizeBytes)
+                    {
+                        string archiveName = $"STING_WORKFLOW_LOG_{DateTime.UtcNow:yyyy-MM}.jsonl";
+                        string archivePath = Path.Combine(dir, archiveName);
+                        // If archive already exists, append old content to it
+                        if (File.Exists(archivePath))
+                            File.AppendAllText(archivePath, File.ReadAllText(path));
+                        else
+                            File.Move(path, archivePath);
+                        StingLog.Info($"WorkflowEngine: rotated log to {archiveName}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"WorkflowEngine: log rotation failed: {ex.Message}");
+            }
+
+            // Append single JSON line
+            string line = JsonConvert.SerializeObject(record, Formatting.None);
+            File.AppendAllText(path, line + Environment.NewLine);
+        }
+
+        /// <summary>
+        /// LOG-13: Load the most recent run records (up to maxRecords) from JSONL file.
+        /// </summary>
+        internal static List<WorkflowRunRecord> LoadRunRecords(Document doc, int maxRecords = 100)
+        {
+            var records = new List<WorkflowRunRecord>();
+            string path = GetLogPath(doc);
+            if (!File.Exists(path)) return records;
+
+            try
+            {
+                string[] lines = File.ReadAllLines(path);
+                // Take last N lines
+                int start = Math.Max(0, lines.Length - maxRecords);
+                for (int i = start; i < lines.Length; i++)
+                {
+                    string line = lines[i]?.Trim();
+                    if (string.IsNullOrEmpty(line)) continue;
+                    try
+                    {
+                        var rec = JsonConvert.DeserializeObject<WorkflowRunRecord>(line);
+                        if (rec != null)
+                            records.Add(rec);
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"WorkflowEngine: failed to load run records: {ex.Message}");
+            }
+            return records;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  WORKFLOW RUN RECORD — JSON-serializable execution log entry (LOG-13)
+    // ════════════════════════════════════════════════════════════════════════════
+
+    public class WorkflowRunRecord
+    {
+        [JsonProperty("timestamp")]
+        public string Timestamp { get; set; }
+
+        [JsonProperty("preset")]
+        public string PresetName { get; set; }
+
+        [JsonProperty("total_steps")]
+        public int TotalSteps { get; set; }
+
+        [JsonProperty("passed")]
+        public int Passed { get; set; }
+
+        [JsonProperty("failed")]
+        public int Failed { get; set; }
+
+        [JsonProperty("skipped")]
+        public int Skipped { get; set; }
+
+        [JsonProperty("duration_s")]
+        public double DurationSeconds { get; set; }
+
+        [JsonProperty("cancelled")]
+        public bool Cancelled { get; set; }
+
+        [JsonProperty("compliance_before")]
+        public double ComplianceBefore { get; set; }
+
+        [JsonProperty("compliance_after")]
+        public double ComplianceAfter { get; set; }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  WORKFLOW TREND COMMAND — compliance history analysis (LOG-13)
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// LOG-13: Display workflow compliance trend from JSONL run log.
+    /// Shows recent run history with pass rates and duration trends.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class WorkflowTrendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            Document doc = ctx?.Doc;
+
+            var records = WorkflowEngine.LoadRunRecords(doc, 100);
+            if (records.Count == 0)
+            {
+                TaskDialog.Show("Workflow Trend",
+                    "No workflow run records found.\n\n" +
+                    "Run a workflow preset to start collecting history.");
+                return Result.Cancelled;
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine("Workflow Run History");
+            report.AppendLine(new string('═', 60));
+            report.AppendLine($"  Total runs: {records.Count}");
+            report.AppendLine();
+
+            // Summary by preset
+            var byPreset = new Dictionary<string, (int runs, int totalPassed, int totalSteps, double totalDur)>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var r in records)
+            {
+                if (!byPreset.TryGetValue(r.PresetName, out var agg))
+                    agg = (0, 0, 0, 0);
+                byPreset[r.PresetName] = (agg.runs + 1, agg.totalPassed + r.Passed,
+                    agg.totalSteps + r.TotalSteps, agg.totalDur + r.DurationSeconds);
+            }
+
+            report.AppendLine("  By Preset:");
+            foreach (var kvp in byPreset)
+            {
+                var (runs, tp, ts, td) = kvp.Value;
+                double passRate = ts > 0 ? (double)tp / ts * 100.0 : 0;
+                report.AppendLine($"    {kvp.Key}: {runs} runs, " +
+                    $"{passRate:F0}% pass rate, avg {td / runs:F1}s");
+            }
+
+            // Last 10 runs detail
+            report.AppendLine();
+            report.AppendLine("  Recent Runs (newest first):");
+            report.AppendLine($"  {"Date",-20} {"Preset",-20} {"Result",-12} {"Duration",8}");
+            report.AppendLine($"  {new string('-', 20)} {new string('-', 20)} {new string('-', 12)} {new string('-', 8)}");
+
+            int showCount = Math.Min(records.Count, 10);
+            for (int i = records.Count - 1; i >= records.Count - showCount; i--)
+            {
+                var r = records[i];
+                string date = r.Timestamp;
+                try { date = DateTime.Parse(r.Timestamp).ToString("yyyy-MM-dd HH:mm"); } catch { }
+                string result = r.Cancelled ? "CANCELLED" :
+                    r.Failed > 0 ? $"WARN ({r.Failed})" : "OK";
+                report.AppendLine($"  {date,-20} {r.PresetName,-20} {result,-12} {r.DurationSeconds,7:F1}s");
+            }
+
+            TaskDialog.Show("Workflow Trend", report.ToString());
+            StingLog.Info($"WorkflowTrend: displayed {records.Count} run records");
+            return Result.Succeeded;
         }
     }
 }

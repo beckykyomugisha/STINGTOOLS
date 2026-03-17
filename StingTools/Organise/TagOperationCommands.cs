@@ -74,8 +74,9 @@ namespace StingTools.Organise
 
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var stats = new TaggingStats();
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var tsFormulas = TagPipelineHelper.LoadFormulas();
+            var tsGridLines = TagPipelineHelper.LoadGridLines(doc);
+            var tsPopCtx = TokenAutoPopulator.PopulationContext.Build(doc);
 
             // Collect existing visual tags in view to avoid double-annotating
             View activeView = doc.ActiveView;
@@ -105,36 +106,17 @@ namespace StingTools.Organise
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
-                    // Pre-populate LOC/ZONE from spatial data before tagging
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.LOC)))
-                    {
-                        string loc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LOC, loc);
-                    }
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.ZONE)))
-                    {
-                        string zone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.ZONE, zone);
-                    }
-
+                    // NG4: Full pipeline — TypeTokenInherit → PopulateAll → NativeMapper
+                    // → Formulas → BuildTag → Containers → TAG7 → GridRef
                     bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                    TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                    TagPipelineHelper.RunFullPipeline(
+                        doc, elem, tsPopCtx, tagIndex, seqCounters,
+                        tsFormulas, tsGridLines,
+                        overwrite: collisionMode == TagCollisionMode.Overwrite,
                         skipComplete: skipComplete,
-                        existingTags: tagIndex,
                         collisionMode: collisionMode,
                         stats: stats);
-
-                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    try
-                    {
-                        string catTag7 = ParameterHelpers.GetCategoryName(elem);
-                        string[] tVals = ParamRegistry.ReadTokenValues(elem);
-                        TagConfig.WriteTag7All(doc, elem, catTag7, tVals, overwrite: true);
-                    }
-                    catch (Exception exTag7)
-                    {
-                        StingLog.Warn($"TAG7 write failed for {id}: {exTag7.Message}");
-                    }
+                    // RunFullPipeline already handles TAG7 + containers — no double-write needed
 
                     // Place visual IndependentTag annotation if not already present
                     if (activeView != null && !existingVisualTags.Contains(id))
@@ -151,8 +133,14 @@ namespace StingTools.Organise
                     }
                 }
                 tx.Commit();
+
+                // FIX-R01: Save SEQ sidecar inside using block after commit
+                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                catch (Exception ssEx) { StingLog.Warn($"TagSelected SaveSeqSidecar: {ssEx.Message}"); }
             }
+
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             string report = $"Tagged {stats.TotalTagged} of {selected.Count} selected elements.\n" +
                 $"Visual annotations placed: {visualTagsPlaced}";
@@ -237,8 +225,9 @@ namespace StingTools.Organise
                 return Result.Cancelled;
 
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var rtFormulas = TagPipelineHelper.LoadFormulas();
+            var rtGridLines = TagPipelineHelper.LoadGridLines(doc);
+            var rtPopCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             int retagged = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Re-Tag"))
@@ -249,35 +238,28 @@ namespace StingTools.Organise
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
-                    // Update LOC/ZONE from spatial data before re-tagging
-                    string detectedLoc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex, projectLoc);
-                    if (!string.IsNullOrEmpty(detectedLoc))
-                        ParameterHelpers.SetString(elem, ParamRegistry.LOC, detectedLoc, overwrite: true);
-                    string detectedZone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
-                    if (!string.IsNullOrEmpty(detectedZone))
-                        ParameterHelpers.SetString(elem, ParamRegistry.ZONE, detectedZone, overwrite: true);
-
-                    if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                    // NG4: Full pipeline for ReTag — ensures TypeTokenInherit + PopulateAll run
+                    TagPipelineHelper.RunFullPipeline(
+                        doc, elem, rtPopCtx, tagIndex, seqCounters,
+                        rtFormulas, rtGridLines,
+                        overwrite: true,
                         skipComplete: false,
-                        existingTags: tagIndex,
-                        collisionMode: TagCollisionMode.Overwrite))
+                        collisionMode: TagCollisionMode.Overwrite);
+                    if (TagConfig.TagIsComplete(ParameterHelpers.GetString(elem, ParamRegistry.TAG1)))
                         retagged++;
-
-                    // Rebuild TAG7 + sub-sections with updated tokens
-                    try
-                    {
-                        string catRT = ParameterHelpers.GetCategoryName(elem);
-                        string[] tvRT = ParamRegistry.ReadTokenValues(elem);
-                        TagConfig.WriteTag7All(doc, elem, catRT, tvRT, overwrite: true);
-                    }
-                    catch (Exception exTag7)
-                    {
-                        StingLog.Warn($"ReTag TAG7 write failed for {id}: {exTag7.Message}");
-                    }
+                    // RunFullPipeline already handles TAG7 + containers — no double-write needed
                 }
                 tx.Commit();
+
+                // FIX-R01b: Save SEQ sidecar inside using block after commit
+                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                catch (Exception ssEx) { StingLog.Warn($"ReTag SaveSeqSidecar: {ssEx.Message}"); }
             }
+            // Save SEQ sidecar + invalidate caches after re-tagging
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"ReTagCommand SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             TaskDialog.Show("Re-Tag", $"Re-tagged {retagged} of {selected.Count} elements.");
             return Result.Succeeded;
@@ -398,6 +380,11 @@ namespace StingTools.Organise
                             }
                             newSeq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
                             newTag = string.Join(ParamRegistry.Separator, disc, loc, zone, lvl, sys, func, prod, newSeq);
+                            // FIX-WR11: Apply TAG_PREFIX/TAG_SUFFIX for consistency
+                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                newTag = TagConfig.TagPrefix + ParamRegistry.Separator + newTag;
+                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                newTag = newTag + ParamRegistry.Separator + TagConfig.TagSuffix;
                         } while (tagIndex.Contains(newTag) && safety-- > 0);
 
                         tagIndex.Add(newTag);
@@ -452,7 +439,11 @@ namespace StingTools.Organise
             if (remainingDupes > 0)
                 StingLog.Warn($"FixDuplicates: post-fix scan found {remainingDupes} remaining duplicate tag values");
 
+            // Persist SEQ + invalidate caches after duplicate fix
+            try { var (_, fdSeq) = TagConfig.BuildTagIndexAndCounters(doc); TagConfig.SaveSeqSidecar(doc, fdSeq); }
+            catch (Exception ssEx) { StingLog.Warn($"FixDuplicates SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Fix Duplicates",
                 $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.{dupeNote}");
             return Result.Succeeded;
@@ -528,6 +519,7 @@ namespace StingTools.Organise
                 tx.Commit();
             }
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             TaskDialog.Show("Delete Tags", $"Cleared tags and containers from {cleared} elements.");
             return Result.Succeeded;
@@ -613,6 +605,11 @@ namespace StingTools.Organise
 
                         string tag = string.Join(ParamRegistry.Separator,
                             disc, loc, zone, lvl, sys, func, prod, seqStr);
+                        // FIX-WR11: Apply TAG_PREFIX/TAG_SUFFIX for consistency
+                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                            tag = TagConfig.TagPrefix + ParamRegistry.Separator + tag;
+                        if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                            tag = tag + ParamRegistry.Separator + TagConfig.TagSuffix;
 
                         // BUG-008: Check for collision with existing tags or within this batch
                         if (existingTagIndex.Contains(tag) || newTags.Contains(tag))
@@ -627,6 +624,11 @@ namespace StingTools.Organise
                             {
                                 string incSeqStr = incSeq.ToString().PadLeft(ParamRegistry.NumPad, '0');
                                 incTag = groupKey + ParamRegistry.Separator + incSeqStr;
+                                // FIX-WR11: Include PREFIX/SUFFIX in collision check
+                                if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                    incTag = TagConfig.TagPrefix + ParamRegistry.Separator + incTag;
+                                if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                    incTag = incTag + ParamRegistry.Separator + TagConfig.TagSuffix;
                                 incSeq++;
                                 if (incSeq > maxSeqVal)
                                 {
@@ -640,6 +642,11 @@ namespace StingTools.Organise
                             int resolvedSeq = incSeq - 1;
                             seqStr = resolvedSeq.ToString().PadLeft(ParamRegistry.NumPad, '0');
                             tag = groupKey + ParamRegistry.Separator + seqStr;
+                            // FIX-WR11: Reapply PREFIX/SUFFIX after collision rebuild
+                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                tag = TagConfig.TagPrefix + ParamRegistry.Separator + tag;
+                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                tag = tag + ParamRegistry.Separator + TagConfig.TagSuffix;
                             ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seqStr, overwrite: true);
                             collisions++;
                             StingLog.Warn($"Renumber collision: element {elem.Id} SEQ auto-incremented to {seqStr}");
@@ -669,6 +676,14 @@ namespace StingTools.Organise
                 }
                 tx.Commit();
             }
+
+            // FIX-DEEP07: Use BuildTagIndexAndCounters for consistent sidecar format
+            // (GetExistingSequenceCounters uses same key format internally but BuildTagIndexAndCounters
+            // is the canonical path and merges sidecar data, preventing counter divergence)
+            var (_, rnSeqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            TagConfig.SaveSeqSidecar(doc, rnSeqCounters);
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             string collisionNote = collisions > 0
                 ? $"\n{collisions} collision(s) auto-resolved by incrementing SEQ."
@@ -1091,6 +1106,11 @@ namespace StingTools.Organise
                         {
                             // Rebuild TAG1 from the copied token values
                             string rebuiltTag = string.Join(ParamRegistry.Separator, tokenVals);
+                            // FIX-WR13: Apply TAG_PREFIX/TAG_SUFFIX for consistency
+                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                rebuiltTag = TagConfig.TagPrefix + ParamRegistry.Separator + rebuiltTag;
+                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                rebuiltTag = rebuiltTag + ParamRegistry.Separator + TagConfig.TagSuffix;
                             ParameterHelpers.SetString(target, ParamRegistry.TAG1, rebuiltTag, overwrite: true);
                             ParamRegistry.WriteContainers(target, tokenVals, catName, overwrite: true);
                         }
@@ -1108,7 +1128,11 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
+            // FIX-DEEP03: Persist SEQ state after tag copy (rebuilt TAG1 affects sidecar)
+            try { TagConfig.SaveSeqSidecar(doc, TagConfig.GetExistingSequenceCounters(doc)); }
+            catch (Exception ssEx) { StingLog.Warn($"CopyTagsCommand SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Copy Tags", $"Copied tag values to {copied} elements.");
             return Result.Succeeded;
         }
@@ -1208,6 +1232,7 @@ namespace StingTools.Organise
             }
 
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Swap Tags", "Tags swapped successfully.");
             return Result.Succeeded;
         }
@@ -5255,6 +5280,12 @@ namespace StingTools.Organise
             {
                 tx.Start();
                 var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                if (popCtx == null)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("STING", "Failed to build population context.");
+                    return Result.Failed;
+                }
                 var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                 var formulas = TagPipelineHelper.LoadFormulas();
                 var gridLines = TagPipelineHelper.LoadGridLines(doc);
@@ -5293,6 +5324,7 @@ namespace StingTools.Organise
             }
 
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("STING — Retag Stale",
                 $"{retagged} stale elements retagged, {failed} failed.");
             return Result.Succeeded;

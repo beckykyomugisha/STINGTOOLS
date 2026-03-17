@@ -128,6 +128,8 @@ namespace StingTools.UI
                     // ── Spatial selectors ──
                     case "SelectByLevel": RunCommand<Select.SelectByLevelCommand>(app); break;
                     case "SelectByRoom": RunCommand<Select.SelectByRoomCommand>(app); break;
+                    case "SelectStale": RunCommand<Select.SelectStaleElementsCommand>(app); break;
+                    case "QuickTagPreview": RunCommand<Select.QuickTagPreviewCommand>(app); break;
 
                     // ── Bulk param write ──
                     case "BulkParamWrite": RunCommand<Select.BulkParamWriteCommand>(app); break;
@@ -342,6 +344,19 @@ namespace StingTools.UI
                     case "ExportLabelGuide": RunCommand<Tags.ExportLabelGuideCommand>(app); break;
                     case "SetTag7HeadingStyle": RunCommand<Tags.SetTag7HeadingStyleCommand>(app); break;
 
+                    // ── Tag Style Engine commands ──
+                    case "ApplyTagStyles": RunCommand<Tags.ApplyTagStylesCommand>(app); break;
+                    case "PreviewTagStyles": RunCommand<Tags.PreviewTagStylesCommand>(app); break;
+                    case "SetTagStyleRule": RunCommand<Tags.SetTagStyleRuleCommand>(app); break;
+                    case "SaveTagStylePreset": RunCommand<Tags.SaveTagStylePresetCommand>(app); break;
+                    case "LoadTagStylePreset": RunCommand<Tags.LoadTagStylePresetCommand>(app); break;
+
+                    // ── Parameter-driven styles (no type switching) ──
+                    case "ApplyParamStyles": RunCommand<Tags.ApplyParamDrivenStylesCommand>(app); break;
+                    case "PreviewParamStyles": RunCommand<Tags.PreviewParamDrivenStylesCommand>(app); break;
+                    case "ClearParamStyles": RunCommand<Tags.ClearParamDrivenStylesCommand>(app); break;
+                    case "BatchParamStyles": RunCommand<Tags.BatchApplyParamDrivenStylesCommand>(app); break;
+
                     // ── Color By Parameter commands ──
                     case "ColorByParameter": RunCommand<Select.ColorByParameterCommand>(app); break;
                     case "ClearColorOverrides": RunCommand<Select.ClearColorOverridesCommand>(app); break;
@@ -432,7 +447,7 @@ namespace StingTools.UI
 
                     // ── Corporate Schedules ──
                     case "CorporateTitleBlock": RunCommand<Temp.CorporateTitleBlockScheduleCommand>(app); break;
-                    case "DrawingRegister": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
+                    case "DrawingRegisterSchedule": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
 
                     // ── Schedule Enhancements ──
                     case "ScheduleAudit": RunCommand<Temp.ScheduleAuditCommand>(app); break;
@@ -501,6 +516,7 @@ namespace StingTools.UI
                     case "ExcelToDraftingView": RunCommand<Temp.ExcelToDraftingViewCommand>(app); break;
                     case "ScheduleToExcel": RunCommand<Temp.ScheduleToExcelCommand>(app); break;
                     case "BatchStickyImport": RunCommand<Temp.BatchStickyImportCommand>(app); break;
+                    case "ExcelLinkExport": RunCommand<Temp.ExcelLinkExportCommand>(app); break;
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
 
                     // ── Theme ──
@@ -533,6 +549,8 @@ namespace StingTools.UI
                     case "BuildTags": RunCommand<Tags.BuildTagsCommand>(app); break;
                     case "CombineParameters": RunCommand<Tags.CombineParametersCommand>(app); break;
                     case "CombinePreFlight": RunCommand<Tags.CombinePreFlightCommand>(app); break;
+                    case "PreviewTag": PreviewTagInline(app); break;
+                    case "ContainerPreCheck": RunCommand<Tags.ContainerPreCheckCommand>(app); break;
 
                     // ── Manual tokens ──
                     case "SetDisc": RunCommand<Tags.SetDiscCommand>(app); break;
@@ -547,6 +565,8 @@ namespace StingTools.UI
                     case "SetProj": WriteTokenToSelected(app, ParamRegistry.PROJECT, "Project Code (PROJ)"); break;
                     case "SetRev": WriteTokenToSelected(app, ParamRegistry.REV, "Revision Code (REV)"); break;
                     case "SetVol": WriteTokenToSelected(app, ParamRegistry.VOLUME, "Volume Code (VOL)"); break;
+                    case "SetSeqScheme": RunCommand<Tags.SetSeqSchemeCommand>(app); break;
+                    case "MapSheets": RunCommand<Tags.MapSheetsCommand>(app); break;
 
                     // ── Scope / toggles (inline) ──
                     case "ScopeView": ToggleScopeMode(app); break;
@@ -670,7 +690,7 @@ namespace StingTools.UI
                         break;
 
                     case "GenSheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
-                    case "ExportSheetCSV": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
+                    case "ExportSheetCSV": ExportSheetCSV(app); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — DOCS TAB (StingDocs organizer features)
@@ -695,6 +715,8 @@ namespace StingTools.UI
                     case "SheetNumMinus": SheetRenumber(app, -1); break;
                     case "SheetPrefix": SheetAddPrefix(app); break;
                     case "SheetSuffix": SheetAddSuffix(app); break;
+                    case "SheetRemovePrefix": SheetRemovePrefixOrSuffix(app, true); break;
+                    case "SheetRemoveSuffix": SheetRemovePrefixOrSuffix(app, false); break;
                     case "SheetFindReplace": RunCommand<Docs.BatchRenameViewsCommand>(app); break;
 
                     case "SchedSyncPos": ScheduleSyncPosition(app); break;
@@ -766,6 +788,8 @@ namespace StingTools.UI
                     case "HealthReport": RunCommand<Organise.TagStatsCommand>(app); break;
                     case "HealthFixAll": RunCommand<Organise.FixDuplicateTagsCommand>(app); break;
 
+                    case "RetagStale": RunCommand<Organise.RetagStaleCommand>(app); break;
+                    case "ComplianceScan": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
                     case "AnomalyRefresh": AnomalyRefreshScan(app); break;
                     case "AnomalyScan": RunCommand<Tags.ValidateTagsCommand>(app); break;
                     case "AnomalyExport": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
@@ -951,6 +975,64 @@ namespace StingTools.UI
                     case "TagStudio_AdjustElbows": RunCommand<Tags.AdjustElbowsCommand>(app); break;
                     case "TagStudio_SetArrows": RunCommand<Tags.SetArrowheadStyleCommand>(app); break;
 
+                    // FIX-UI02: TagStudio AI / analysis stubs — commands not yet implemented,
+                    // show descriptive message instead of generic "not available" error
+                    case "TagStudio_APIGaps":
+                        TaskDialog.Show("STING — API Notes",
+                            "Tag Studio API Notes\n\n" +
+                            "This panel documents known Revit API limitations affecting tag placement:\n" +
+                            "  • IndependentTag.ArrowheadType is not writable via API\n" +
+                            "  • Tag leader endpoint positions have limited programmatic control\n" +
+                            "  • Multi-category tag families require manual leader attachment\n\n" +
+                            "Use the Leader & Elbow controls to work around these limitations.");
+                        break;
+                    case "TagStudio_Explain":
+                        TaskDialog.Show("STING — Pipeline Explain",
+                            "Tag Pipeline Step Explanation\n\n" +
+                            "The full tagging pipeline for each element:\n" +
+                            "  1. TypeTokenInherit — inherit family type defaults\n" +
+                            "  2. PopulateAll — auto-derive 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)\n" +
+                            "  3. NativeParamMapper — bridge Revit built-ins → STING shared params\n" +
+                            "  4. FormulaEngine — evaluate computed fields (areas, volumes, costs)\n" +
+                            "  5. BuildAndWriteTag — assemble ISO 19650 tag + assign SEQ\n" +
+                            "  6. WriteContainers — populate all 53 discipline containers\n" +
+                            "  7. WriteTag7All — write TAG7 rich narrative (A–F sub-sections)\n" +
+                            "  8. GetGridRef — assign nearest grid intersection reference\n" +
+                            "  9. SaveSeqSidecar — persist sequence counters to disk");
+                        break;
+                    case "TagStudio_Pipeline":
+                        TaskDialog.Show("STING — Pipeline Status",
+                            "Tag Pipeline Coverage\n\n" +
+                            "Commands that run the full 9-step pipeline:\n" +
+                            "  Auto Tag, Batch Tag, Tag & Combine\n" +
+                            "  Tag Selected, Re-Tag, Tag New Only\n" +
+                            "  Retag Stale, Full Auto-Populate\n" +
+                            "  Resolve All Issues, Repair Duplicate SEQ\n" +
+                            "  Tag 3D, System Param Push, Excel Import\n\n" +
+                            "Run 'Pre-Tag Audit' for a full prediction before committing.");
+                        break;
+                    case "TagStudio_Generate":
+                        TaskDialog.Show("STING — Generate",
+                            "Tag Code Generation\n\n" +
+                            "Use 'Family Stage Populate' to pre-populate all 9 token fields\n" +
+                            "on selected elements before running the tagging pipeline.\n\n" +
+                            "Use 'Full Auto-Populate' for zero-manual-input population\n" +
+                            "across the entire project.\n\n" +
+                            "This Generate panel is reserved for future AI-assisted\n" +
+                            "token derivation features.");
+                        break;
+                    case "TagStudio_GapReview":
+                        TaskDialog.Show("STING — Gap Review",
+                            "Tag Gap Analysis\n\n" +
+                            "Use these commands to identify and fix gaps:\n" +
+                            "  • 'Pre-Tag Audit' — dry-run prediction before tagging\n" +
+                            "  • 'Validate Tags' — ISO 19650 code validation\n" +
+                            "  • 'Completeness Dashboard' — per-discipline token coverage\n" +
+                            "  • 'Resolve All Issues' — one-click 100% compliance fix\n\n" +
+                            "The compliance status bar shows live RAG status.\n" +
+                            "GREEN = >=80% tagged, AMBER = 50-80%, RED = <50%.");
+                        break;
+
                     // UI-03: Tag position switching
                     case "SwitchTagPos1": SwitchTagPositionInline(app, 1); break;
                     case "SwitchTagPos2": SwitchTagPositionInline(app, 2); break;
@@ -990,6 +1072,47 @@ namespace StingTools.UI
                     case "PlaceTieInTagElec": PlaceTieInTag(app, "Elec"); break;
                     case "ExportTieInRegister": ExportTieInRegister(app); break;
 
+                    // ── FIX-UI01: Missing dispatch entries (buttons were wired to
+                    //    command classes that were never added to this switch) ──
+
+                    // Tag clustering (TagOperationCommands.cs, StingTools.Organise)
+                    case "ClusterTags": RunCommand<Organise.ClusterTagsCommand>(app); break;
+                    case "DeclusterTags": RunCommand<Organise.DeclusterTagsCommand>(app); break;
+
+                    // Display / style controls (TagOperationCommands.cs, StingTools.Organise)
+                    case "SetDisplayMode": RunCommand<Organise.SetDisplayModeCommand>(app); break;
+
+                    // Style (TagStyleCommands.cs, StingTools.Tags)
+                    case "SetViewTagStyle": RunCommand<Tags.SetViewTagStyleCommand>(app); break;
+
+                    // Linked model tags (SmartTagPlacementCommand.cs, StingTools.Tags)
+                    case "AlignTagBands": RunCommand<Tags.AlignTagBandsCommand>(app); break;
+                    case "BatchPlaceLinkedTags": RunCommand<Tags.BatchPlaceLinkedTagsCommand>(app); break;
+                    case "ExportLinkedManifest": RunCommand<Tags.ExportLinkedModelManifestCommand>(app); break;
+
+                    // Family tooling (FamilyParamCreatorCommand.cs, StingTools.Tags)
+                    case "FamilyParamCreator": RunCommand<Tags.FamilyParamCreatorCommand>(app); break;
+
+                    // Compliance reporting (TokenWriterCommands.cs, StingTools.Tags)
+                    case "DiscComplianceReport": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
+
+                    // Auto-tagger controls (StingAutoTagger.cs, StingTools.Core)
+                    case "AutoTagVisual": RunCommand<Core.AutoTaggerToggleVisualCommand>(app); break;
+                    case "AutoTaggerConfig": RunCommand<Core.AutoTaggerConfigCommand>(app); break;
+
+                    // Workflow presets — XAML button uses "ListWorkflowPresets", dispatch
+                    // already has "ListWorkflows". Add alias so both tags work.
+                    case "ListWorkflowPresets": RunCommand<Core.ListWorkflowPresetsCommand>(app); break;
+
+                    // Retag stale elements (TagOperationCommands.cs, StingTools.Organise)
+                    case "RetagStale": RunCommand<Organise.RetagStaleCommand>(app); break;
+
+                    // Sequence numbering scheme (TokenWriterCommands.cs, StingTools.Tags)
+                    case "SetSeqScheme": RunCommand<Tags.SetSeqSchemeCommand>(app); break;
+
+                    // Compliance scan — no dedicated command class; route to FullComplianceDashboard
+                    case "ComplianceScan": RunCommand<BIMManager.FullComplianceDashboardCommand>(app); break;
+
                     // ── Unmapped / placeholder ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
@@ -1017,6 +1140,13 @@ namespace StingTools.UI
                     _param1 = "";
                     _param2 = "";
                 }
+
+                // FIX-UI03: Notify panel that command completed so Tag Studio
+                // sub-tabs are unfrozen. AdjustElbows / SetArrows were permanently
+                // freezing the Leader & Elbow sub-tab because UnfreezeTagSubTabs()
+                // was never called after execution.
+                try { StingDockPanel.NotifyCommandComplete(); }
+                catch { /* Non-critical — panel may not be open */ }
             }
 
             // ENH-003: Compliance status bar update REMOVED from post-command hook.
@@ -1430,6 +1560,61 @@ namespace StingTools.UI
                 .Select(e => e.Id).ToList();
             uidoc.Selection.SetElementIds(matching);
             StingLog.Info($"QuickParam '{paramName}'='{val}': {matching.Count} elements");
+        }
+
+        /// <summary>FE-03: Dry-run tag preview — runs full pipeline in a rolled-back transaction.</summary>
+        private static void PreviewTagInline(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var selIds = uidoc.Selection.GetElementIds().ToList();
+            if (selIds.Count != 1)
+            {
+                TaskDialog.Show("Preview Tag", "Select exactly 1 element to preview its predicted tag.");
+                return;
+            }
+            Element el = doc.GetElement(selIds[0]);
+            if (el == null) return;
+            string catName = Core.ParameterHelpers.GetCategoryName(el);
+            if (!Core.TagConfig.DiscMap.ContainsKey(catName))
+            {
+                TaskDialog.Show("Preview Tag", $"'{catName}' is not a taggable category.");
+                return;
+            }
+            // Dry-run: start a transaction, run pipeline, read result, rollback
+            string predictedTag = "(could not derive)";
+            string tokenDetail = "";
+            using (Transaction tx = new Transaction(doc, "STING Preview Tag (Dry-Run)"))
+            {
+                tx.Start();
+                try
+                {
+                    var ctx = Core.TokenAutoPopulator.PopulationContext.Build(doc);
+                    var (tagIdx, seqCtrs) = Core.TagConfig.BuildTagIndexAndCounters(doc);
+                    var formulas = Core.TagPipelineHelper.LoadFormulas();
+                    var grids = Core.TagPipelineHelper.LoadGridLines(doc);
+                    Core.TagPipelineHelper.RunFullPipeline(doc, el, ctx, tagIdx, seqCtrs,
+                        formulas, grids, overwrite: true, skipComplete: false,
+                        collisionMode: Core.TagCollisionMode.AutoIncrement);
+                    predictedTag = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.TAG1) ?? "(empty)";
+                    string disc  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.DISC);
+                    string loc   = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.LOC);
+                    string zone  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.ZONE);
+                    string lvl   = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.LVL);
+                    string sys   = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.SYS);
+                    string func  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.FUNC);
+                    string prod  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.PROD);
+                    tokenDetail = $"DISC={disc}  LOC={loc}  ZONE={zone}  LVL={lvl}\nSYS={sys}  FUNC={func}  PROD={prod}";
+                }
+                catch (Exception ex) { Core.StingLog.Warn($"PreviewTag: {ex.Message}"); }
+                tx.RollBack(); // Always rollback — this is read-only preview
+            }
+            TaskDialog.Show("STING — Preview Tag",
+                $"Predicted tag for selected element:\n\n" +
+                $"  {predictedTag}\n\n" +
+                $"Tokens:\n  {tokenDetail}\n\n" +
+                $"(No changes were written — this is a dry-run preview.)");
         }
 
         private static void BulkParamWriteInline(UIApplication app, string paramName, string value, bool clear)
@@ -2069,44 +2254,8 @@ namespace StingTools.UI
 
         private static void ScheduleEqualiseColumns(UIApplication app)
         {
-            var doc = app.ActiveUIDocument?.Document;
-            if (doc == null) return;
-            if (!(doc.ActiveView is ViewSchedule sched))
-            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
-
-            var def = sched.Definition;
-            int fieldCount = def.GetFieldCount();
-            if (fieldCount == 0) return;
-
-            // Find max width
-            double maxWidth = 0;
-            for (int i = 0; i < fieldCount; i++)
-            {
-                try
-                {
-                    double w = def.GetField(i).GridColumnWidth;
-                    if (w > maxWidth) maxWidth = w;
-                }
-                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
-            }
-
-            int updated = 0;
-            using (Transaction tx = new Transaction(doc, "STING Equalise Columns"))
-            {
-                tx.Start();
-                for (int i = 0; i < fieldCount; i++)
-                {
-                    try
-                    {
-                        def.GetField(i).GridColumnWidth = maxWidth;
-                        updated++;
-                    }
-                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
-                }
-                tx.Commit();
-            }
-            TaskDialog.Show("Equalise Columns",
-                $"Set {updated} columns to width {maxWidth * 304.8:F1}mm.");
+            // Delegates to ScheduleMatchWidest — identical operation
+            ScheduleMatchWidest(app);
         }
 
         private static void ScheduleAutoFit(UIApplication app)
@@ -2152,7 +2301,7 @@ namespace StingTools.UI
                                 if (val != null && val.Length > maxLen)
                                     maxLen = val.Length;
                             }
-                            catch { break; }
+                            catch (Exception ex) { StingLog.Warn($"AutoFit cell read: {ex.Message}"); break; }
                         }
 
                         // Convert character count to approximate width
@@ -2594,10 +2743,13 @@ namespace StingTools.UI
             foreach (string zone in Core.TagConfig.ZoneCodes)
                 report.AppendLine($"  {zone}");
 
-            // Export to text file alongside data
-            string exportPath = System.IO.Path.Combine(
-                StingToolsApp.DataPath ?? System.IO.Path.GetTempPath(),
-                "TAG_DICTIONARY.txt");
+            // Export to project file location (fallback to data path)
+            string exportDir = !string.IsNullOrEmpty(app.ActiveUIDocument?.Document?.PathName)
+                ? System.IO.Path.GetDirectoryName(app.ActiveUIDocument.Document.PathName)
+                : null;
+            if (string.IsNullOrEmpty(exportDir))
+                exportDir = StingToolsApp.DataPath ?? System.IO.Path.GetTempPath();
+            string exportPath = System.IO.Path.Combine(exportDir, "TAG_DICTIONARY.txt");
             try
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());
@@ -2739,21 +2891,75 @@ namespace StingTools.UI
                 report.AppendLine($"[{kvp.Key}]  {paramValue,-20} {kvp.Value.elems.Count,-8} {string.Join(", ", catCounts.Take(3))}");
             }
 
-            // Export
-            string exportPath = System.IO.Path.Combine(
-                StingToolsApp.DataPath ?? System.IO.Path.GetTempPath(),
-                "COLOR_LEGEND.txt");
+            // Export to project file location (fallback to data path)
+            string clExportDir = !string.IsNullOrEmpty(app.ActiveUIDocument?.Document?.PathName)
+                ? System.IO.Path.GetDirectoryName(app.ActiveUIDocument.Document.PathName)
+                : null;
+            if (string.IsNullOrEmpty(clExportDir))
+                clExportDir = StingToolsApp.DataPath ?? System.IO.Path.GetTempPath();
+            string exportPath = System.IO.Path.Combine(clExportDir, "COLOR_LEGEND.txt");
             try
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());
             }
-            catch { exportPath = null; }
+            catch (Exception ex) { StingLog.Warn($"Color legend export: {ex.Message}"); exportPath = null; }
 
             var msg = report.ToString();
             if (exportPath != null)
                 msg += $"\n\nExported to: {exportPath}";
 
             TaskDialog.Show("Color Legend", msg);
+        }
+
+        // ── Sheet CSV export ─────────────────────────────────────────
+
+        private static void ExportSheetCSV(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .OrderBy(s => s.SheetNumber)
+                .ToList();
+
+            if (sheets.Count == 0)
+            { TaskDialog.Show("Export Sheets", "No sheets in project."); return; }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Sheet_Number,Sheet_Name,Revision,Issue_Date,Discipline,Drawn_By,Checked_By,Approved_By,Views_Placed");
+            foreach (var sheet in sheets)
+            {
+                try
+                {
+                    string num = (sheet.SheetNumber ?? "").Replace(",", ";");
+                    string name = (sheet.Name ?? "").Replace(",", ";");
+                    string rev = (sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString() ?? "").Replace(",", ";");
+                    string issueDate = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION_DATE)?.AsString() ?? "";
+                    string disc = ParameterHelpers.GetString(sheet, "SHEET_DISCIPLINE") ?? "";
+                    string drawn = sheet.get_Parameter(BuiltInParameter.SHEET_DRAWN_BY)?.AsString() ?? "";
+                    string check = sheet.get_Parameter(BuiltInParameter.SHEET_CHECKED_BY)?.AsString() ?? "";
+                    string approved = sheet.get_Parameter(BuiltInParameter.SHEET_APPROVED_BY)?.AsString() ?? "";
+                    int viewCount = sheet.GetAllPlacedViews()?.Count ?? 0;
+                    sb.AppendLine($"{num},{name},{rev},{issueDate},{disc},{drawn},{check},{approved},{viewCount}");
+                }
+                catch (Exception ex) { StingLog.Warn($"Sheet CSV row {sheet.Id}: {ex.Message}"); }
+            }
+
+            string exportPath = Path.Combine(
+                StingToolsApp.DataPath ?? Path.GetTempPath(),
+                $"SHEET_REGISTER_{DateTime.Now:yyyyMMdd_HHmm}.csv");
+            try
+            {
+                System.IO.File.WriteAllText(exportPath, sb.ToString());
+                TaskDialog.Show("Export Sheets", $"Exported {sheets.Count} sheets to:\n{exportPath}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"Sheet CSV export: {ex.Message}", ex);
+                TaskDialog.Show("Export Sheets", $"Export failed: {ex.Message}\n\n{sb}");
+            }
         }
 
         // ── TitleBlock operations ───────────────────────────────────
@@ -3118,7 +3324,7 @@ namespace StingTools.UI
                     }
                     if (!anyValid) orphaned.Add(tag.Id);
                 }
-                catch { orphaned.Add(tag.Id); }
+                catch (Exception ex) { StingLog.Warn($"Orphan check {tag.Id}: {ex.Message}"); orphaned.Add(tag.Id); }
             }
 
             if (orphaned.Count == 0)
@@ -3152,12 +3358,37 @@ namespace StingTools.UI
             }
         }
 
+        // Persisted tag layout for clone/apply across views
+        private static Dictionary<ElementId, (XYZ headPos, bool hasLeader, TagOrientation orient)> _clonedTagLayout;
+        private static string _clonedSourceViewName;
+
         private static void CloneTagLayout(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             var doc = uidoc.Document;
             var sourceView = doc.ActiveView;
+
+            // If layout already cloned, offer to apply it
+            if (_clonedTagLayout != null && _clonedTagLayout.Count > 0)
+            {
+                TaskDialog dlg = new TaskDialog("Clone Tag Layout");
+                dlg.MainInstruction = $"Layout from '{_clonedSourceViewName}' ({_clonedTagLayout.Count} tags) is stored.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Apply to Current View", "Move existing tags to cloned positions");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Capture New Layout", "Replace stored layout with current view's tags");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var result = dlg.Show();
+                if (result == TaskDialogResult.CommandLink1)
+                {
+                    ApplyClonedLayout(app);
+                    return;
+                }
+                else if (result != TaskDialogResult.CommandLink2)
+                    return;
+            }
 
             // Get tag positions from source view
             var sourceTags = new FilteredElementCollector(doc, sourceView.Id)
@@ -3172,7 +3403,8 @@ namespace StingTools.UI
             }
 
             // Build mapping: host element ID → tag head position + orientation
-            var tagLayout = new Dictionary<ElementId, (XYZ headPos, bool hasLeader, TagOrientation orient)>();
+            _clonedTagLayout = new Dictionary<ElementId, (XYZ headPos, bool hasLeader, TagOrientation orient)>();
+            _clonedSourceViewName = sourceView.Name;
             foreach (var tag in sourceTags)
             {
                 try
@@ -3180,19 +3412,63 @@ namespace StingTools.UI
                     var hostIds = tag.GetTaggedLocalElementIds();
                     if (hostIds.Count > 0)
                     {
-                        tagLayout[hostIds.First()] = (tag.TagHeadPosition, tag.HasLeader, tag.TagOrientation);
+                        _clonedTagLayout[hostIds.First()] = (tag.TagHeadPosition, tag.HasLeader, tag.TagOrientation);
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"CloneTagLayout: {ex.Message}"); }
             }
 
             TaskDialog.Show("Clone Tag Layout",
-                $"Captured layout for {tagLayout.Count} tags in '{sourceView.Name}'.\n" +
-                "Navigate to target view and use 'Apply Cloned Layout' to apply.\n\n" +
-                "(Tag positions are stored relative to host elements. " +
-                "Matching is by element ID — same elements must exist in target view.)");
+                $"Captured layout for {_clonedTagLayout.Count} tags in '{sourceView.Name}'.\n" +
+                "Navigate to target view and click Clone again to apply.");
 
-            StingLog.Info($"CloneTagLayout: captured {tagLayout.Count} positions from '{sourceView.Name}'");
+            StingLog.Info($"CloneTagLayout: captured {_clonedTagLayout.Count} positions from '{sourceView.Name}'");
+        }
+
+        private static void ApplyClonedLayout(UIApplication app)
+        {
+            if (_clonedTagLayout == null || _clonedTagLayout.Count == 0)
+            {
+                TaskDialog.Show("Apply Layout", "No cloned layout stored. Clone a view first.");
+                return;
+            }
+
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var targetView = doc.ActiveView;
+
+            var targetTags = new FilteredElementCollector(doc, targetView.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            int applied = 0;
+            using (Transaction tx = new Transaction(doc, "STING Apply Cloned Tag Layout"))
+            {
+                tx.Start();
+                foreach (var tag in targetTags)
+                {
+                    try
+                    {
+                        var hostIds = tag.GetTaggedLocalElementIds();
+                        if (hostIds.Count == 0) continue;
+                        ElementId hostId = hostIds.First();
+                        if (!_clonedTagLayout.ContainsKey(hostId)) continue;
+
+                        var layout = _clonedTagLayout[hostId];
+                        tag.TagHeadPosition = layout.headPos;
+                        tag.TagOrientation = layout.orient;
+                        applied++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"ApplyLayout {tag.Id}: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Apply Layout",
+                $"Applied cloned positions to {applied}/{targetTags.Count} tags in '{targetView.Name}'.");
+            StingLog.Info($"ApplyClonedLayout: {applied} tags repositioned in '{targetView.Name}'");
         }
 
         // ── Room tag placement ──────────────────────────────────────
@@ -3415,6 +3691,81 @@ namespace StingTools.UI
                 catch (Exception ex) { StingLog.Warn($"SheetSuffix: {ex.Message}"); }
                 tx.Commit();
             }
+        }
+
+        /// <summary>
+        /// F3: Remove first token (prefix) or last token (suffix) from selected sheets' names.
+        /// Operates on all selected ViewSheets; falls back to active sheet if none selected.
+        /// Token boundary is the first/last occurrence of " - " or "-" separator.
+        /// </summary>
+        private static void SheetRemovePrefixOrSuffix(UIApplication app, bool isPrefix)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+
+            // Collect target sheets: selected ViewSheets, or active sheet fallback
+            var targetSheets = new List<ViewSheet>();
+            foreach (ElementId id in uidoc.Selection.GetElementIds())
+            {
+                if (doc.GetElement(id) is ViewSheet vs) targetSheets.Add(vs);
+            }
+            if (targetSheets.Count == 0 && doc.ActiveView is ViewSheet activeSheet)
+                targetSheets.Add(activeSheet);
+
+            if (targetSheets.Count == 0)
+            {
+                TaskDialog.Show("Sheet " + (isPrefix ? "Remove Prefix" : "Remove Suffix"),
+                    "Select one or more sheets first, or open a sheet as the active view.");
+                return;
+            }
+
+            // Separators to try (longest first to prefer " - " over "-")
+            var seps = new[] { " - ", "-", "_" };
+
+            int changed = 0;
+            using (Transaction tx = new Transaction(doc,
+                "STING Sheet " + (isPrefix ? "Remove Prefix" : "Remove Suffix")))
+            {
+                tx.Start();
+                foreach (ViewSheet sheet in targetSheets)
+                {
+                    string name = sheet.Name;
+                    string newName = name;
+
+                    foreach (string sep in seps)
+                    {
+                        int idx = isPrefix
+                            ? name.IndexOf(sep, StringComparison.Ordinal)
+                            : name.LastIndexOf(sep, StringComparison.Ordinal);
+
+                        if (idx >= 0)
+                        {
+                            newName = isPrefix
+                                ? name.Substring(idx + sep.Length).TrimStart()
+                                : name.Substring(0, idx).TrimEnd();
+                            break;
+                        }
+                    }
+
+                    if (newName != name && !string.IsNullOrWhiteSpace(newName))
+                    {
+                        try
+                        {
+                            sheet.Name = newName;
+                            changed++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Sheet remove {(isPrefix ? "prefix" : "suffix")}: {sheet.SheetNumber}: {ex.Message}");
+                        }
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Sheet " + (isPrefix ? "Remove Prefix" : "Remove Suffix"),
+                $"Updated {changed} of {targetSheets.Count} sheet(s).");
         }
 
         // ── Nudge helper ──────────────────────────────────────────
@@ -4123,7 +4474,7 @@ namespace StingTools.UI
                 .Where(fs =>
                 {
                     try { return fs.Family?.FamilyCategory?.Name?.Contains("Tag") == true; }
-                    catch { return false; }
+                    catch (Exception ex) { StingLog.Warn($"Tag family filter: {ex.Message}"); return false; }
                 })
                 .ToList();
 
@@ -4287,8 +4638,9 @@ namespace StingTools.UI
                 // Otherwise assume 45° or unknown → cycle to 0 (straight)
                 return "0"; // Cycle: 45 → 0
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"ElbowAngle detect: {ex.Message}");
                 return "90";
             }
         }
@@ -4850,8 +5202,9 @@ namespace StingTools.UI
                     string status = linkDoc != null ? "Loaded" : "Unloaded";
                     report.AppendLine($"  [{status}] {name}");
                 }
-                catch
+                catch (Exception ex)
                 {
+                    StingLog.Warn($"Link read {link.Id}: {ex.Message}");
                     report.AppendLine($"  [Error] {link.Id}");
                 }
             }
@@ -4887,7 +5240,7 @@ namespace StingTools.UI
                     else
                         unloaded++;
                 }
-                catch { unloaded++; }
+                catch (Exception ex) { StingLog.Warn($"Link type check: {ex.Message}"); unloaded++; }
             }
 
             TaskDialog.Show("Audit Links",

@@ -67,10 +67,13 @@ namespace StingTools.Core
                 // ElementId-based caches and Definition caches become invalid when a
                 // document closes. Using them against a new document causes native crashes.
                 application.ControlledApplication.DocumentClosing += OnDocumentClosing;
-
-                // ENH-06: Subscribe to DocumentOpened to clear stale static caches
-                // and reload document-specific data (formulas, BEP, compliance).
+                // BUG-05: Also clear param cache on document open to prevent cross-document
+                // cache collisions when switching between documents.
                 application.ControlledApplication.DocumentOpened += OnDocumentOpened;
+                // FIX-15: Removed duplicate DocumentOpened subscription (was ENH-06)
+
+                // FIX-06: Invalidate auto-tagger cache when switching between open documents
+                application.ViewActivated += OnViewActivated;
 
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
@@ -96,8 +99,9 @@ namespace StingTools.Core
             {
                 ParameterHelpers.ClearParamCache();
                 ComplianceScan.InvalidateCache();
+                Temp.FormulaEngine.InvalidateFormulaCache();
                 UI.StingCommandHandler.ClearStaticState();
-                StingLog.Info("DocumentClosing: cleared parameter, compliance, and selection caches");
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, and selection caches");
             }
             catch (Exception ex)
             {
@@ -105,10 +109,7 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>
-        /// ENH-06: Clear 4 stale static caches on DocumentOpened to prevent
-        /// cross-document data contamination.
-        /// </summary>
+        /// <summary>BUG-05: Clear param cache on document open to prevent cross-document collisions.</summary>
         private static void OnDocumentOpened(object sender,
             Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
         {
@@ -151,11 +152,53 @@ namespace StingTools.Core
                     TagConfig.LoadDefaults();
                 }
 
+                Temp.FormulaEngine.InvalidateFormulaCache();
                 StingLog.Info("DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig");
+
+                // AL-07: Notify user of auto-run workflow on open
+                try
+                {
+                    string autoWorkflow = TagConfig.AutoRunWorkflowOnOpen;
+                    if (!string.IsNullOrEmpty(autoWorkflow))
+                    {
+                        StingLog.Info($"OnDocumentOpened: AUTO_RUN_WORKFLOW_ON_OPEN configured: '{autoWorkflow}'. " +
+                            "Use 'Workflow Preset' command to execute manually.");
+                    }
+                }
+                catch (Exception arwEx)
+                {
+                    StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
+                }
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"DocumentOpened cleanup: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// FIX-06: Invalidate auto-tagger cache when switching between documents.
+        /// ViewActivated fires when user switches active view or document — clear cached
+        /// context so the auto-tagger picks up the correct document's data.
+        /// </summary>
+        private static Document _lastActiveDoc;
+        private static void OnViewActivated(object sender,
+            Autodesk.Revit.UI.Events.ViewActivatedEventArgs e)
+        {
+            try
+            {
+                Document currentDoc = e.CurrentActiveView?.Document;
+                if (currentDoc != null && currentDoc != _lastActiveDoc)
+                {
+                    _lastActiveDoc = currentDoc;
+                    StingAutoTagger.InvalidateContext();
+                    ComplianceScan.InvalidateCache();
+                    StingLog.Info("ViewActivated: document switch detected — caches invalidated");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ViewActivated handler: {ex.Message}");
             }
         }
 
@@ -294,7 +337,7 @@ namespace StingTools.Core
             {
                 string path = FindDataFile(csv);
                 if (path != null)
-                    ValidateCsvSchemaVersion(path, "5.0");
+                    GetCsvSchemaVersion(path);
             }
         }
 
@@ -404,11 +447,11 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// DATA-01: Validate that a CSV data file starts with a #SCHEMA_VERSION header.
-        /// Returns the parsed version string (e.g. "5.0") or null if no header found.
-        /// Logs a warning if the header is missing or version mismatches expected.
+        /// DATA-01: Parse the schema version from a CSV file's first line.
+        /// Supports both `#SCHEMA_VERSION=X.Y` and `#!SCHEMA_VERSION=X.Y` formats.
+        /// Returns null if not present or unreadable.
         /// </summary>
-        public static string ValidateCsvSchemaVersion(string filePath, string expectedVersion = null)
+        public static string GetCsvSchemaVersion(string filePath)
         {
             try
             {
@@ -416,26 +459,18 @@ namespace StingTools.Core
                 using (var reader = new StreamReader(filePath))
                 {
                     string firstLine = reader.ReadLine();
-                    if (firstLine != null && firstLine.StartsWith("#SCHEMA_VERSION="))
+                    if (firstLine == null) return null;
+                    if (firstLine.StartsWith("#!SCHEMA_VERSION="))
+                        return firstLine.Substring("#!SCHEMA_VERSION=".Length).Trim();
+                    if (firstLine.StartsWith("#SCHEMA_VERSION="))
                     {
-                        // Parse "#SCHEMA_VERSION=5.0,CREATED=2026-03-16"
                         string versionPart = firstLine.Substring("#SCHEMA_VERSION=".Length);
                         int comma = versionPart.IndexOf(',');
-                        string version = comma >= 0 ? versionPart.Substring(0, comma) : versionPart;
-                        if (expectedVersion != null && version != expectedVersion)
-                        {
-                            StingLog.Warn($"CSV schema version mismatch in {Path.GetFileName(filePath)}: " +
-                                $"expected {expectedVersion}, got {version}");
-                        }
-                        return version;
+                        return (comma >= 0 ? versionPart.Substring(0, comma) : versionPart).Trim();
                     }
-                    StingLog.Warn($"No #SCHEMA_VERSION header in {Path.GetFileName(filePath)}");
                 }
             }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ValidateCsvSchemaVersion: {ex.Message}");
-            }
+            catch { }
             return null;
         }
 

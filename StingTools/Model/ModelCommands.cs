@@ -34,7 +34,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -89,7 +89,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -171,7 +171,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -264,7 +264,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -310,7 +310,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -356,7 +356,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -415,7 +415,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -473,7 +473,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -518,7 +518,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -588,7 +588,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -636,7 +636,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -684,7 +684,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -732,7 +732,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -796,7 +796,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -875,7 +875,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -1035,7 +1035,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 

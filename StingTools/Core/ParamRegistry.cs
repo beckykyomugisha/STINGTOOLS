@@ -54,6 +54,13 @@ namespace StingTools.Core
         /// </summary>
         public static void ApplyTagFormatOverrides(string separator, int? numPad, string[] segmentOrder)
         {
+            // FL-03: Track old separator in history before overriding
+            if (!string.IsNullOrEmpty(separator) && separator != Separator
+                && !string.IsNullOrEmpty(Separator))
+            {
+                if (!TagConfig.SeparatorHistory.Contains(Separator))
+                    TagConfig.SeparatorHistory.Add(Separator);
+            }
             _overrideSeparator = separator;
             _overrideNumPad = numPad;
             if (segmentOrder != null)
@@ -112,6 +119,18 @@ namespace StingTools.Core
         public static string DETAIL_NUM { get; private set; } = "ASS_INST_DETAIL_NUM_TXT";
         public static string MNT_TYPE { get; private set; } = "MNT_TYPE_TXT";
 
+        // ── Required/Optional parameter flags ────────────────────────────
+        /// <summary>
+        /// DATA-02: Parameter names flagged as required in PARAMETER_REGISTRY.json.
+        /// Defaults to the 8 source tokens + TAG1 if not specified in JSON.
+        /// </summary>
+        public static HashSet<string> RequiredParams { get; private set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
+            "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+            "ASS_TAG_1_TXT"
+        };
+
         // ── Stale detection + display mode + tag position ───────────────
         public const string STALE = "STING_STALE_BOOL";
         public const string STALE_GUID = "C9D0E1F2-A3B4-4C5D-8E6F-7A8B9C0D1E2F";
@@ -121,6 +140,11 @@ namespace StingTools.Core
         public const string CLUSTER_LABEL_GUID = "D2E3F4A5-B6C7-4D8E-9F0A-1B2C3D4E5F6B";
         public const string DISPLAY_MODE = "STING_DISPLAY_MODE";
         public const string DISPLAY_MODE_GUID = "D0E1F2A3-B4C5-4D6E-8F7A-8B9C0D1E2F3A";
+        /// <summary>
+        /// Default display mode when STING_DISPLAY_MODE is 0 (unset).
+        /// 1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment.
+        /// </summary>
+        public static int DisplayModeDefault = 2;
         public const string DISPLAY_TXT = "ASS_DISPLAY_TXT";
         public const string DISPLAY_TXT_GUID = "D3E4F5A6-B7C8-4D9E-0F1A-2B3C4D5E6F7C";
         public const string TAG_POS = "STING_TAG_POS";
@@ -129,8 +153,70 @@ namespace StingTools.Core
         public const string VIEW_TAG_STYLE_GUID = "E2F3A4B5-C6D7-4E8F-9A0B-1C2D3E4F5A6C";
         public const string TAG_SEG_MASK = "TAG_SEG_MASK_TXT";
         public const string TAG_SEG_MASK_GUID = "F3A4B5C6-D7E8-4F9A-0B1C-2D3E4F5A6B7D";
-        public const string DISPLAY_MODE = "STING_DISPLAY_MODE";
-        public const string DISPLAY_MODE_GUID = "A4B5C6D7-E8F9-4A0B-1C2D-3E4F5A6B7C8E";
+
+        // LOG-01: Detection source tracking parameters
+        public const string LOC_SOURCE = "ASS_LOC_SOURCE_TXT";
+        public const string LOC_SOURCE_GUID = "A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D";
+        public const string ZONE_SOURCE = "ASS_ZONE_SOURCE_TXT";
+        public const string ZONE_SOURCE_GUID = "A2B3C4D5-E6F7-4A8B-9C0D-1E2F3A4B5C6E";
+        public const string SYS_DETECT_LAYER = "ASS_SYS_DETECT_LAYER_INT";
+        public const string SYS_DETECT_LAYER_GUID = "A3B4C5D6-E7F8-4A9B-0C1D-2E3F4A5B6C7F";
+
+        // ORF-02: COBie Serial Number
+        public const string SERIAL_NR = "ASS_SERIAL_NR_TXT";
+        public const string SERIAL_NR_GUID = "B1C2D3E4-F5A6-4B7C-8D9E-0F1A2B3C4D5E";
+
+        // ORF-03: COBie Installation Date and Warranty
+        public const string INSTALL_DATE = "ASS_INSTALLATION_DATE_TXT";
+        public const string INSTALL_DATE_GUID = "B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6F";
+        public const string WARRANTY = "ASS_WARRANTY_TXT";
+        public const string WARRANTY_GUID = "B3C4D5E6-F7A8-4B9C-0D1E-2F3A4B5C6D7A";
+
+        // ORF-04: Notes
+        public const string NOTES = "ASS_NOTES_TXT";
+        public const string NOTES_GUID = "B4C5D6E7-F8A9-4BAC-1D2E-3F4A5B6C7D8B";
+
+        // ORF-05: Flow Rate and Power Rating
+        public const string FLOW_RATE = "ASS_FLOW_RATE_TXT";
+        public const string FLOW_RATE_GUID = "B5C6D7E8-F9AA-4BBC-2D3E-4F5A6B7C8D9C";
+        public const string POWER_RATING = "ASS_POWER_RATING_TXT";
+        public const string POWER_RATING_GUID = "B6C7D8E9-FAAB-4BCC-3D4E-5F6A7B8C9DAD";
+
+        // ORF-06: Room Height
+        public const string ROOM_HEIGHT = "ASS_ROOM_HEIGHT_MM";
+        public const string ROOM_HEIGHT_GUID = "B7C8D9EA-FBAC-4BDC-4D5E-6F7A8B9CADBE";
+
+        // Phase 19: PROD detection source tracking
+        public const string PROD_DETECT = "ASS_PROD_DETECT_TXT";
+        public const string PROD_DETECT_GUID = "C1D2E3F4-A5B6-4C7D-8E9F-0A1B2C3D4E5F";
+        public const string PROD_PATTERN_SRC = "ASS_PROD_PATTERN_SRC_TXT";
+        public const string PROD_PATTERN_SRC_GUID = "C2D3E4F5-A6B7-4C8D-9E0F-1A2B3C4D5E6A";
+
+        // Phase 19: Type-level LOC/ZONE overrides
+        public const string TYPE_LOC_OVERRIDE = "ASS_TYPE_LOC_OVERRIDE_TXT";
+        public const string TYPE_LOC_OVERRIDE_GUID = "C3D4E5F6-A7B8-4C9D-0E1F-2A3B4C5D6E7B";
+        public const string TYPE_ZONE_OVERRIDE = "ASS_TYPE_ZONE_OVERRIDE_TXT";
+        public const string TYPE_ZONE_OVERRIDE_GUID = "C4D5E6F7-A8B9-4CAD-1E2F-3A4B5C6D7E8C";
+
+        // Phase 19: Level ID tracking
+        public const string LVL_ELEM_ID = "ASS_LVL_ELEM_ID_INT";
+        public const string LVL_ELEM_ID_GUID = "C5D6E7F8-A9BA-4CBD-2E3F-4A5B6C7D8E9D";
+
+        // Phase 19: Grid reference tracking
+        public const string GRID_X_ID = "ASS_GRID_X_ID_INT";
+        public const string GRID_X_ID_GUID = "C6D7E8F9-AABB-4CCD-3E4F-5A6B7C8D9EAE";
+        public const string GRID_Y_ID = "ASS_GRID_Y_ID_INT";
+        public const string GRID_Y_ID_GUID = "C7D8E9FA-ABBC-4CDE-4E5F-6A7B8C9DAEBF";
+        public const string GRID_DIST = "ASS_GRID_DIST_NR";
+        public const string GRID_DIST_GUID = "C8D9EAFB-ACBD-4CEF-5E6F-7A8B9CADBECF";
+
+        // Phase 19: MEP System Name
+        public const string MEP_SYS_NAME = "ASS_MEP_SYS_NAME_TXT";
+        public const string MEP_SYS_NAME_GUID = "C9DAEBFC-ADBE-4CFA-6E7F-8A9BACBDCED0";
+
+        // Phase 19: Host Type
+        public const string HOST_TYPE = "ASS_HOST_TYPE_TXT";
+        public const string HOST_TYPE_GUID = "CADBECFD-AECF-4D0B-7E8F-9AABBBCCDDEE";
 
         // ── Extended parameter names (identity, spatial, dimensional, MEP) ──
         // Loaded from extended_params section. Keys map to param_name values.
@@ -776,6 +862,17 @@ namespace StingTools.Core
             return bindings;
         }
 
+        /// <summary>
+        /// Override tag format settings from project_config.json.
+        /// Called by TagConfig.LoadFromFile when the config has TAG_FORMAT section.
+        /// </summary>
+        internal static void OverrideTagFormat(string separator, int numPad, string[] segmentOrder)
+        {
+            if (!string.IsNullOrEmpty(separator)) Separator = separator;
+            if (numPad > 0) NumPad = numPad;
+            if (segmentOrder != null && segmentOrder.Length > 0) SegmentOrder = segmentOrder;
+        }
+
         /// <summary>Force reload from disk. Call after editing PARAMETER_REGISTRY.json.</summary>
         public static void Reload()
         {
@@ -1103,6 +1200,10 @@ namespace StingTools.Core
                 LoadExtendedParams(root);
                 StingLog.Info($"ParamRegistry.LoadFromFile: {_extendedParams?.Count ?? 0} extended params loaded");
 
+                // DATA-02: Load required/optional flags from all param sections
+                LoadRequiredFlags(root);
+                StingLog.Info($"ParamRegistry.LoadFromFile: {RequiredParams.Count} required params loaded");
+
                 // Load warning thresholds (v5.5)
                 LoadWarningThresholds(root);
                 StingLog.Info($"ParamRegistry.LoadFromFile: {WarningThresholds.Count} warning thresholds loaded");
@@ -1154,6 +1255,78 @@ namespace StingTools.Core
                         _extendedParams[key] = paramName;
                 }
             }
+        }
+
+        /// <summary>
+        /// DATA-02: Scan all param sections in PARAMETER_REGISTRY.json for a "required" field.
+        /// Params flagged as required are added to RequiredParams. If no "required" flags are
+        /// found at all, the default set (8 source tokens + TAG1) is retained.
+        /// </summary>
+        private static void LoadRequiredFlags(JObject root)
+        {
+            var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Scan source_tokens
+            var tokArr = root["source_tokens"] as JArray;
+            if (tokArr != null)
+            {
+                foreach (JObject t in tokArr)
+                {
+                    string paramName = t["param_name"]?.ToString() ?? "";
+                    bool? req = t["required"]?.Value<bool>();
+                    if (req == true && !string.IsNullOrEmpty(paramName))
+                        found.Add(paramName);
+                }
+            }
+
+            // Scan support_params
+            var supArr = root["support_params"] as JArray;
+            if (supArr != null)
+            {
+                foreach (JObject s in supArr)
+                {
+                    string paramName = s["param_name"]?.ToString() ?? "";
+                    bool? req = s["required"]?.Value<bool>();
+                    if (req == true && !string.IsNullOrEmpty(paramName))
+                        found.Add(paramName);
+                }
+            }
+
+            // Scan container_groups params
+            var groupArr = root["container_groups"] as JArray;
+            if (groupArr != null)
+            {
+                foreach (JObject g in groupArr)
+                {
+                    var paramArr = g["params"] as JArray;
+                    if (paramArr == null) continue;
+                    foreach (JObject p in paramArr)
+                    {
+                        string paramName = p["param_name"]?.ToString() ?? "";
+                        bool? req = p["required"]?.Value<bool>();
+                        if (req == true && !string.IsNullOrEmpty(paramName))
+                            found.Add(paramName);
+                    }
+                }
+            }
+
+            // Scan extended_params
+            var extArr = root["extended_params"] as JArray;
+            if (extArr != null)
+            {
+                foreach (JObject e in extArr)
+                {
+                    string paramName = e["param_name"]?.ToString() ?? "";
+                    bool? req = e["required"]?.Value<bool>();
+                    if (req == true && !string.IsNullOrEmpty(paramName))
+                        found.Add(paramName);
+                }
+            }
+
+            // Only replace defaults if we actually found required flags in JSON
+            if (found.Count > 0)
+                RequiredParams = found;
+            // else keep the default set (8 source tokens + TAG1)
         }
 
         /// <summary>Load warning threshold definitions from PARAMETER_REGISTRY.json.</summary>
