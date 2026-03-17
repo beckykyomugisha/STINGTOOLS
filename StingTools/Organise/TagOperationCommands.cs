@@ -5331,6 +5331,7 @@ namespace StingTools.Organise
             }
 
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("STING — Retag Stale",
                 $"{retagged} stale elements retagged, {failed} failed.");
             return Result.Succeeded;
