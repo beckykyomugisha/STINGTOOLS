@@ -2515,6 +2515,8 @@ namespace StingTools.Core
                     if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
                         && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
                         return false;
+                }
+
                 // FIX-DEEP01: Restore locked token values (overrides above may have changed them)
                 if (lockedSnapshot.Count > 0)
                 {
