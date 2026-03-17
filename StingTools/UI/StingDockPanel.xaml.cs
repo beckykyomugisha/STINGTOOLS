@@ -168,6 +168,55 @@ namespace StingTools.UI
             }
         }
 
+        /// <summary>FIX-4.1: Read Leader &amp; Elbow sliders and pass as ExtraParams.</summary>
+        private void SetLeaderElbowParams()
+        {
+            try
+            {
+                string em = "0";
+                if (rbElbow90?.IsChecked == true)    em = "1";
+                else if (rbElbow45?.IsChecked == true)   em = "2";
+                else if (rbElbowFree?.IsChecked == true)  em = "3";
+                StingCommandHandler.SetExtraParam("ElbowMode", em);
+                StingCommandHandler.SetExtraParam("ElbowX",    (sldElbowX?.Value    ?? 0   ).ToString("F1"));
+                StingCommandHandler.SetExtraParam("ElbowY",    (sldElbowY?.Value    ?? -16 ).ToString("F1"));
+                StingCommandHandler.SetExtraParam("ElbowDist", (sldElbowDist?.Value ?? 8   ).ToString("F1"));
+                string lm = "Auto";
+                if (rbLeaderAlways?.IsChecked == true) lm = "Always";
+                else if (rbLeaderNever?.IsChecked == true) lm = "Never";
+                else if (rbLeaderSmart?.IsChecked == true) lm = "Smart";
+                StingCommandHandler.SetExtraParam("LeaderMode", lm);
+                StingCommandHandler.SetExtraParam("LeaderLen",       (sldLeaderLen?.Value       ?? 14).ToString("F0"));
+                StingCommandHandler.SetExtraParam("LeaderMin",       (sldLeaderMin?.Value       ?? 5 ).ToString("F0"));
+                StingCommandHandler.SetExtraParam("LeaderMax",       (sldLeaderMax?.Value       ?? 43).ToString("F0"));
+                StingCommandHandler.SetExtraParam("LeaderThreshold", (sldLeaderThreshold?.Value ?? 20).ToString("F0"));
+                StingCommandHandler.SetExtraParam("ArrowStyle",
+                    (cmbArrowStyle?.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "None");
+                StingCommandHandler.SetExtraParam("ArrowSize",  (sldArrowSize?.Value ?? 4).ToString("F0"));
+            }
+            catch { }
+        }
+
+        /// <summary>FIX-4.1: Read Style &amp; Color sliders for style commands.</summary>
+        private void SetTagStyleParams()
+        {
+            try
+            {
+                StingCommandHandler.SetExtraParam("TagTextSize",     (sldTextSize?.Value     ?? 2.5).ToString("F2"));
+                StingCommandHandler.SetExtraParam("TagLetterSpacing",(sldLetterSpacing?.Value ?? 0  ).ToString("F0"));
+                string w = "Normal";
+                if (rbWeightBold?.IsChecked == true)   w = "Bold";
+                else if (rbWeightItalic?.IsChecked == true) w = "Italic";
+                StingCommandHandler.SetExtraParam("TagTextWeight", w);
+                string c = "Black";
+                if (rbColorRed?.IsChecked == true)   c = "Red";
+                else if (rbColorBlue?.IsChecked == true)  c = "Blue";
+                else if (rbColorWhite?.IsChecked == true) c = "White";
+                StingCommandHandler.SetExtraParam("TagTextColor", c);
+            }
+            catch { }
+        }
+
         /// <summary>UI-05: Read scope radio state and pass to commands.</summary>
         private void SetPlacementScopeParams()
         {
