@@ -601,4 +601,139 @@ namespace StingTools.Tags
             return FailureProcessingResult.Continue;
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  StingParamManagerCommand — Unified parameter management UI
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Unified parameter management: browse bound parameters, add missing
+    /// parameters, and view parameter statistics for the current project.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StingParamManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                var dlg = new TaskDialog("STING Parameter Manager");
+                dlg.MainInstruction = "Parameter Management";
+                dlg.MainContent = "Choose an action for shared parameter management.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Browse All Bound Parameters",
+                    "View all parameters currently bound in this project.");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Add Missing Parameters",
+                    "Bind any STING parameters not yet present in this project.");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Parameter Statistics",
+                    "Show counts of bound, STING-prefixed, and orphaned parameters.");
+                dlg.CommonButtons = TaskDialogCommonButtons.Close;
+
+                var result = dlg.Show();
+
+                if (result == TaskDialogResult.CommandLink1)
+                {
+                    // Browse all bound parameters
+                    var bindings = doc.ParameterBindings;
+                    var iter = bindings.ForwardIterator();
+                    var paramNames = new List<string>();
+                    while (iter.MoveNext())
+                    {
+                        if (iter.Key is InternalDefinition def)
+                            paramNames.Add(def.Name);
+                    }
+                    paramNames.Sort(StringComparer.OrdinalIgnoreCase);
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine($"Total bound parameters: {paramNames.Count}\n");
+                    foreach (string name in paramNames)
+                        sb.AppendLine($"  {name}");
+
+                    TaskDialog.Show("Bound Parameters", sb.ToString());
+                    StingLog.Info($"ParamManager: browsed {paramNames.Count} bound parameters");
+                }
+                else if (result == TaskDialogResult.CommandLink2)
+                {
+                    // Delegate to LoadSharedParamsCommand
+                    string msg = "";
+                    var cmd = new LoadSharedParamsCommand();
+                    cmd.Execute(commandData, ref msg, elements);
+                }
+                else if (result == TaskDialogResult.CommandLink3)
+                {
+                    // Parameter statistics
+                    var bindings = doc.ParameterBindings;
+                    var iter = bindings.ForwardIterator();
+                    int total = 0, stingPrefixed = 0, orphaned = 0;
+                    var stingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                    // Collect all known STING parameter names from registry
+                    try
+                    {
+                        foreach (var kvp in ParamRegistry.AllParamGuids)
+                            stingNames.Add(kvp.Key);
+                    }
+                    catch { }
+
+                    while (iter.MoveNext())
+                    {
+                        total++;
+                        if (iter.Key is InternalDefinition def)
+                        {
+                            string name = def.Name ?? "";
+                            if (name.StartsWith("ASS_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("HVC_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("ELC_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("PLM_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("FLS_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("LTG_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("MAT_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("COM_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("SEC_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("NCL_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("ICT_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("ELE_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("TAG_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("STING_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("ARCH_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("BLE_", StringComparison.OrdinalIgnoreCase))
+                            {
+                                stingPrefixed++;
+                            }
+
+                            if (!stingNames.Contains(name) &&
+                                !name.StartsWith("ASS_", StringComparison.OrdinalIgnoreCase) &&
+                                !name.StartsWith("STING_", StringComparison.OrdinalIgnoreCase))
+                            {
+                                orphaned++;
+                            }
+                        }
+                    }
+
+                    int missing = Math.Max(0, stingNames.Count - stingPrefixed);
+
+                    TaskDialog.Show("Parameter Statistics",
+                        $"Total bound parameters: {total}\n" +
+                        $"STING-prefixed parameters: {stingPrefixed}\n" +
+                        $"Registry parameters: {stingNames.Count}\n" +
+                        $"Estimated missing: {missing}\n" +
+                        $"Non-STING (third-party): {orphaned}");
+                    StingLog.Info($"ParamManager stats: total={total}, sting={stingPrefixed}, missing~{missing}");
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StingParamManagerCommand failed", ex);
+                try { TaskDialog.Show("STING", $"Parameter Manager failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+    }
 }

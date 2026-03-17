@@ -2786,28 +2786,38 @@ namespace StingTools.Tags
             Document doc = ctx.Doc;
             View view = ctx.ActiveView;
 
-            // Choose elbow style
-            TaskDialog dlg = new TaskDialog("STING — Adjust Elbows");
-            dlg.MainInstruction = "Select leader elbow style";
-            dlg.MainContent = "Adjusts elbows on all tags with leaders in the active view.";
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Straight", "Elbow at midpoint of element-to-tag vector");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "90 degrees", "Horizontal-first: elbow at (tagX, elemY)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "45 degrees", "Angled: elbow offset to create 45-degree bend");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Free", "No elbow adjustment — set elbow at leader end");
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            int mode;
-            switch (dlg.Show())
+            // FIX-4.3: Read ElbowMode from ExtraParams (set by Tag Studio sliders)
+            int mode = -1;
+            string epMode = UI.StingCommandHandler.GetExtraParam("ElbowMode");
+            if (!string.IsNullOrEmpty(epMode) && int.TryParse(epMode, out int parsed) && parsed >= 0 && parsed <= 3)
             {
-                case TaskDialogResult.CommandLink1: mode = 0; break;
-                case TaskDialogResult.CommandLink2: mode = 1; break;
-                case TaskDialogResult.CommandLink3: mode = 2; break;
-                case TaskDialogResult.CommandLink4: mode = 3; break;
-                default: return Result.Cancelled;
+                mode = parsed;
+            }
+
+            if (mode < 0)
+            {
+                // Fallback: show dialog if not set by Tag Studio
+                TaskDialog dlg = new TaskDialog("STING — Adjust Elbows");
+                dlg.MainInstruction = "Select leader elbow style";
+                dlg.MainContent = "Adjusts elbows on all tags with leaders in the active view.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Straight", "Elbow at midpoint of element-to-tag vector");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "90 degrees", "Horizontal-first: elbow at (tagX, elemY)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "45 degrees", "Angled: elbow offset to create 45-degree bend");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                    "Free", "No elbow adjustment — set elbow at leader end");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                switch (dlg.Show())
+                {
+                    case TaskDialogResult.CommandLink1: mode = 0; break;
+                    case TaskDialogResult.CommandLink2: mode = 1; break;
+                    case TaskDialogResult.CommandLink3: mode = 2; break;
+                    case TaskDialogResult.CommandLink4: mode = 3; break;
+                    default: return Result.Cancelled;
+                }
             }
 
             var tags = new FilteredElementCollector(doc, view.Id)

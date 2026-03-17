@@ -149,6 +149,20 @@ namespace StingTools.UI
                     SetPreferredPositionParam();
                 }
 
+                // FIX-4.2: Pass Leader & Elbow slider values to elbow/arrow commands
+                if (cmdTag == "TagStudio_AdjustElbows" || cmdTag == "TagStudio_SetArrows"
+                    || cmdTag == "SnapElbow90" || cmdTag == "SnapElbow45"
+                    || cmdTag == "SnapElbowStraight" || cmdTag == "SnapElbowFree")
+                {
+                    SetLeaderElbowParams();
+                }
+                // FIX-4.2: Pass Style & Color slider values to style commands
+                if (cmdTag == "TagStudio_ApplyStyle" || cmdTag == "ApplyTagStyle"
+                    || cmdTag == "BatchTagTextSize")
+                {
+                    SetTagStyleParams();
+                }
+
                 _handler?.SetCommand(cmdTag);
                 var result = _externalEvent?.Raise() ?? ExternalEventRequest.Denied;
                 if (result == ExternalEventRequest.Accepted)
