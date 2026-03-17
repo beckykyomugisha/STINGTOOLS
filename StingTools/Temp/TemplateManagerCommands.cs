@@ -2751,7 +2751,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIApplication uiApp = commandData.Application;
+            UIApplication uiApp = ParameterHelpers.GetApp(commandData);
             Autodesk.Revit.ApplicationServices.Application app = uiApp.Application;
 
             // ── Step 1: Set up shared parameter file ────────────────────────
@@ -2780,8 +2780,9 @@ namespace StingTools.Temp
             var defByGuid = new Dictionary<Guid, ExternalDefinition>();
             foreach (DefinitionGroup group in defFile.Groups)
             {
-                foreach (ExternalDefinition def in group.Definitions)
+                foreach (Definition rawDef in group.Definitions)
                 {
+                    if (rawDef is not ExternalDefinition def) continue;
                     defByName[def.Name] = def;
                     defByGuid[def.GUID] = def;
                 }
@@ -2937,8 +2938,13 @@ namespace StingTools.Temp
                         continue;
                     }
 
+                    // Tag annotation families report category as "Door Tags",
+                    // "Room Tags", "Generic Model Tags" etc. Map back to the
+                    // host element category used in FAMILY_PARAMETER_BINDINGS.csv.
+                    string lookupCategory = MapTagCategoryToHost(categoryName);
+
                     // Find applicable parameter bindings for this category
-                    if (!bindingsByCategory.TryGetValue(categoryName, out var categoryBindings))
+                    if (!bindingsByCategory.TryGetValue(lookupCategory, out var categoryBindings))
                     {
                         perFamilyResults.Add($"[SKIP] {fileName} ({categoryName}) — no bindings defined for this category");
                         skippedNoCategory++;
@@ -3010,9 +3016,9 @@ namespace StingTools.Temp
 
                             try
                             {
-                                // Determine instance vs type
-                                bool isInstance = entry.bindingType.Equals(
-                                    "Instance", StringComparison.OrdinalIgnoreCase);
+                                // Determine instance vs type (default to Instance if not specified)
+                                bool isInstance = string.IsNullOrEmpty(entry.bindingType) ||
+                                    entry.bindingType.Equals("Instance", StringComparison.OrdinalIgnoreCase);
 
                                 fmgr.AddParameter(extDef, GroupTypeId.General, isInstance);
                                 familyAdded++;
@@ -3069,7 +3075,7 @@ namespace StingTools.Temp
                     // ── Backup and save ──────────────────────────────────────
                     if (familyAdded > 0 || familyFormulas > 0)
                     {
-                        // Create backup
+                        // Save modified family to a temp path first, then backup original
                         string backupDir = Path.Combine(
                             Path.GetDirectoryName(familyPath), "_param_backups");
                         try
@@ -3080,16 +3086,33 @@ namespace StingTools.Temp
                             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                             string backupName = $"{Path.GetFileNameWithoutExtension(familyPath)}_{timestamp}.rfa";
                             string backupPath = Path.Combine(backupDir, backupName);
+                            // Save current (modified) to temp, close, copy original to backup, rename temp
+                            string tempPath = familyPath + ".sting_tmp";
+                            var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                            famDoc.SaveAs(tempPath, saveOpts);
+                            famDoc.Close(false);
+                            famDoc = null; // prevent double-close below
                             File.Copy(familyPath, backupPath, true);
+                            File.Copy(tempPath, familyPath, true);
+                            try { File.Delete(tempPath); } catch { }
                         }
                         catch (Exception ex)
                         {
                             StingLog.Warn($"[{fileName}] Backup failed: {ex.Message}");
+                            // If temp save worked but backup/rename failed, try direct save fallback
+                            if (famDoc != null)
+                            {
+                                try
+                                {
+                                    var fallbackOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                                    famDoc.SaveAs(familyPath, fallbackOpts);
+                                }
+                                catch (Exception ex2)
+                                {
+                                    StingLog.Error($"[{fileName}] Fallback save also failed", ex2);
+                                }
+                            }
                         }
-
-                        // Save modified family
-                        var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
-                        famDoc.SaveAs(familyPath, saveOpts);
                         processed++;
 
                         perFamilyResults.Add(
@@ -3105,7 +3128,9 @@ namespace StingTools.Temp
                             $"no changes needed ({familySkipped} params already exist)");
                     }
 
-                    famDoc.Close(false);
+                    // Close if not already closed during backup/save
+                    if (famDoc != null)
+                        famDoc.Close(false);
                 }
                 catch (Exception ex)
                 {
@@ -3141,6 +3166,85 @@ namespace StingTools.Temp
             StingLog.Info($"Family Processor: {processed} families, {paramsAdded} params, {formulasApplied} formulas");
 
             return processed > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>
+        /// Maps Revit tag annotation category names (e.g. "Door Tags", "Generic Model Tags")
+        /// back to host element category names used in FAMILY_PARAMETER_BINDINGS.csv.
+        /// If no mapping is found, returns the original name unchanged.
+        /// </summary>
+        private static string MapTagCategoryToHost(string categoryName)
+        {
+            if (string.IsNullOrEmpty(categoryName)) return categoryName;
+
+            // Direct match — not a tag category, use as-is
+            // (handles host element families like "Doors", "Mechanical Equipment")
+            if (!categoryName.EndsWith(" Tags", StringComparison.OrdinalIgnoreCase))
+                return categoryName;
+
+            // Strip " Tags" suffix and apply known mappings
+            string stem = categoryName.Substring(0, categoryName.Length - 5).Trim();
+
+            // Most tag categories follow the pattern "<PluralHostCategory> Tags"
+            // but some need special mapping:
+            var specialMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Generic Model", "Generic Models" },
+                { "Room", "Rooms" },
+                { "Door", "Doors" },
+                { "Window", "Windows" },
+                { "Wall", "Walls" },
+                { "Floor", "Floors" },
+                { "Ceiling", "Ceilings" },
+                { "Roof", "Roofs" },
+                { "Stair", "Stairs" },
+                { "Ramp", "Ramps" },
+                { "Parking", "Parking" },
+                { "Site", "Site" },
+                { "Curtain Panel", "Curtain Panels" },
+                { "Curtain Wall Mullion", "Curtain Wall Mullions" },
+                { "Structural Column", "Structural Columns" },
+                { "Structural Foundation", "Structural Foundations" },
+                { "Structural Framing", "Structural Framing" },
+                { "Mechanical Equipment", "Mechanical Equipment" },
+                { "Plumbing Equipment", "Plumbing Equipment" },
+                { "Plumbing Fixture", "Plumbing Fixtures" },
+                { "Electrical Equipment", "Electrical Equipment" },
+                { "Electrical Fixture", "Electrical Fixtures" },
+                { "Lighting Fixture", "Lighting Fixtures" },
+                { "Lighting Device", "Lighting Devices" },
+                { "Air Terminal", "Air Terminals" },
+                { "Duct", "Ducts" },
+                { "Duct Fitting", "Duct Fittings" },
+                { "Duct Accessory", "Duct Accessories" },
+                { "Flex Duct", "Flex Ducts" },
+                { "Pipe", "Pipes" },
+                { "Pipe Fitting", "Pipe Fittings" },
+                { "Pipe Accessory", "Pipe Accessories" },
+                { "Flex Pipe", "Flex Pipes" },
+                { "Sprinkler", "Sprinklers" },
+                { "Fire Alarm Device", "Fire Alarm Devices" },
+                { "Communication Device", "Communication Devices" },
+                { "Data Device", "Data Devices" },
+                { "Nurse Call Device", "Nurse Call Devices" },
+                { "Security Device", "Security Devices" },
+                { "Telephone Device", "Telephone Devices" },
+                { "Cable Tray", "Cable Trays" },
+                { "Cable Tray Fitting", "Cable Tray Fittings" },
+                { "Conduit", "Conduits" },
+                { "Conduit Fitting", "Conduit Fittings" },
+                { "Casework", "Casework" },
+                { "Furniture", "Furniture" },
+                { "Specialty Equipment", "Specialty Equipment" },
+                { "Furniture System", "Furniture Systems" },
+            };
+
+            if (specialMappings.TryGetValue(stem, out string hostCategory))
+                return hostCategory;
+
+            // Fallback: try adding 's' for simple pluralization
+            // (e.g., "Widget" → "Widgets")
+            return stem + "s";
         }
     }
 
