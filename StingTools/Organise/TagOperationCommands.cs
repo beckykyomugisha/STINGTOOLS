@@ -130,6 +130,9 @@ namespace StingTools.Organise
                         string catTag7 = ParameterHelpers.GetCategoryName(elem);
                         string[] tVals = ParamRegistry.ReadTokenValues(elem);
                         TagConfig.WriteTag7All(doc, elem, catTag7, tVals, overwrite: true);
+                        // NP1: Write containers after TAG7 update
+                        ParamRegistry.WriteContainers(elem, tVals, catTag7, overwrite: true,
+                            skipParam: ParamRegistry.TAG1);
                     }
                     catch (Exception exTag7)
                     {
@@ -269,6 +272,9 @@ namespace StingTools.Organise
                         string catRT = ParameterHelpers.GetCategoryName(elem);
                         string[] tvRT = ParamRegistry.ReadTokenValues(elem);
                         TagConfig.WriteTag7All(doc, elem, catRT, tvRT, overwrite: true);
+                        // NP2: Write containers after TAG7 update
+                        ParamRegistry.WriteContainers(elem, tvRT, catRT, overwrite: true,
+                            skipParam: ParamRegistry.TAG1);
                     }
                     catch (Exception exTag7)
                     {
@@ -5267,6 +5273,12 @@ namespace StingTools.Organise
             {
                 tx.Start();
                 var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                if (popCtx == null)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("STING", "Failed to build population context.");
+                    return Result.Failed;
+                }
                 var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                 var formulas = TagPipelineHelper.LoadFormulas();
                 var gridLines = TagPipelineHelper.LoadGridLines(doc);

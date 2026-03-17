@@ -434,4 +434,122 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
     }
+
+    /// <summary>
+    /// Container Pre-Check — verifies all container parameters are bound and writable
+    /// before running Combine Parameters. Reports any unbound or read-only parameters
+    /// that would silently fail during combine.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ContainerPreCheckCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var allGroups = ParamRegistry.ContainerGroups;
+            if (allGroups == null || allGroups.Length == 0)
+            {
+                TaskDialog.Show("Container Pre-Check", "No container groups defined in ParamRegistry.");
+                return Result.Failed;
+            }
+
+            // Get a sample tagged element to test parameter writability
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+
+            Element sample = collector.FirstOrDefault(e =>
+                !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
+
+            var report = new StringBuilder();
+            report.AppendLine("Container Parameter Pre-Check");
+            report.AppendLine(new string('═', 55));
+
+            int totalParams = 0;
+            int bound = 0;
+            int unbound = 0;
+            int readOnly = 0;
+            var unboundList = new List<string>();
+
+            foreach (var group in allGroups)
+            {
+                int groupBound = 0;
+                int groupUnbound = 0;
+
+                foreach (string paramName in group.Params)
+                {
+                    totalParams++;
+                    if (sample != null)
+                    {
+                        Parameter p = sample.LookupParameter(paramName);
+                        if (p == null)
+                        {
+                            groupUnbound++;
+                            unbound++;
+                            unboundList.Add(paramName);
+                        }
+                        else if (p.IsReadOnly)
+                        {
+                            readOnly++;
+                            bound++;
+                        }
+                        else
+                        {
+                            bound++;
+                            groupBound++;
+                        }
+                    }
+                    else
+                    {
+                        // No sample element — check definition exists
+                        var def = ParamRegistry.GetGuid(paramName);
+                        if (def != Guid.Empty) bound++;
+                        else { unbound++; unboundList.Add(paramName); }
+                    }
+                }
+
+                string status = groupUnbound == 0 ? "OK" : $"{groupUnbound} missing";
+                report.AppendLine($"  {group.Name,-25} {group.Params.Length,3} params — {status}");
+            }
+
+            report.AppendLine();
+            report.AppendLine($"  Total:    {totalParams} container parameters");
+            report.AppendLine($"  Bound:    {bound}");
+            report.AppendLine($"  Unbound:  {unbound}");
+            if (readOnly > 0)
+                report.AppendLine($"  ReadOnly: {readOnly}");
+
+            if (unboundList.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("  Unbound parameters (run Load Shared Params first):");
+                foreach (string p in unboundList.Take(20))
+                    report.AppendLine($"    - {p}");
+                if (unboundList.Count > 20)
+                    report.AppendLine($"    ... and {unboundList.Count - 20} more");
+            }
+
+            report.AppendLine();
+            if (unbound == 0)
+                report.AppendLine("RESULT: All container parameters are bound and ready.");
+            else
+                report.AppendLine($"RESULT: {unbound} parameters not bound. Run Load Shared Params to fix.");
+
+            TaskDialog td = new TaskDialog("Container Pre-Check");
+            td.MainInstruction = unbound == 0
+                ? $"All {totalParams} container parameters ready"
+                : $"{unbound} of {totalParams} container parameters not bound";
+            td.MainContent = report.ToString();
+            td.Show();
+
+            StingLog.Info($"ContainerPreCheck: total={totalParams}, bound={bound}, unbound={unbound}, readOnly={readOnly}");
+            return Result.Succeeded;
+        }
+    }
 }

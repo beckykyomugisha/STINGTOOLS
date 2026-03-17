@@ -3239,6 +3239,7 @@ namespace StingTools.BIMManager
             {
                 var enrichment = new JObject();
                 var md = updated["model_data"] as JObject;
+                var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
 
                 // Reuse element counts already computed by UpdateBEPFromModel
                 if (md?["element_counts_by_category"] is JObject existingCats)
@@ -3359,8 +3360,8 @@ namespace StingTools.BIMManager
                         string riskText = risk["risk"]?.ToString() ?? "";
                         if (riskText.Contains("asset data") || riskText.Contains("COBie"))
                         {
-                            risk["current_status"] = ragStatus;
-                            risk["current_pct"] = $"{tagPct}%";
+                            risk["current_status"] = compliance.RAGStatus;
+                            risk["current_pct"] = $"{Math.Round(compliance.CompliancePercent, 1)}%";
                         }
                     }
                 }
@@ -6855,6 +6856,17 @@ namespace StingTools.BIMManager
             return 1;
         }
 
+        /// <summary>BIM-03: Normalise any COBie duration value to hours.</summary>
+        internal static double ToHours(double value, string unit) => unit switch
+        {
+            "Year"  => value * 8760,
+            "Month" => value * 730,
+            "Week"  => value * 168,
+            "Day"   => value * 24,
+            "Hour"  => value,
+            _       => value
+        };
+
         private static (double qty, string unit) ExtractQuantity(Element el)
         {
             const double ftToM = 0.3048;
@@ -6961,6 +6973,33 @@ namespace StingTools.BIMManager
     // ════════════════════════════════════════════════════════════════════════════
     //  STAGE-GATED COMPLIANCE — enforces tag completeness per RIBA stage
     // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>BIM-02: Stage compliance thresholds for BEP compliance gate.</summary>
+    internal static class StageComplianceGateHelper
+    {
+        public static readonly Dictionary<string, double> StageThresholds = new()
+        {
+            ["Concept"] = 30,
+            ["Design"] = 50,
+            ["Technical"] = 70,
+            ["Construction"] = 90,
+            ["Handover"] = 95
+        };
+
+        public static (bool passed, Dictionary<string, bool> byDisc)
+            Evaluate(ComplianceScan.ComplianceResult result, string stage)
+        {
+            if (!StageThresholds.TryGetValue(stage, out double threshold))
+                threshold = 50;
+
+            bool overallPassed = result.CompliancePercent >= threshold;
+            var byDisc = new Dictionary<string, bool>();
+            foreach (var kvp in result.ByDisc)
+                byDisc[kvp.Key] = kvp.Value.CompliancePct >= threshold;
+
+            return (overallPassed, byDisc);
+        }
+    }
 
     /// <summary>
     /// Validate that current tag completeness meets the minimum requirements
