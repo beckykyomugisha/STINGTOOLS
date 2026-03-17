@@ -86,6 +86,8 @@ TAG7: HVC_TAG_7_PARA_FLEXDUCT_TXT  •  Category: Flex Ducts
 4,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 5,T3,HVC_TAG_7_PARA_FLEXDUCT_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_FLEXDUCT_TXT, """")"
 6,T3,HVC_DUCT_FLOWRATE_M3H,,m³/h,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_FLOWRATE_M3H, """")"
+7,T2,HVC_DCT_SZ_TXT,Size:,,0,✓,Common,Text,Duct size,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_SZ_TXT, "")"
+8,T2,INS_MATERIAL_TXT,Ins:,,0,✓,Common,Text,Insulation material,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, "")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_VEL_MPS_FLEX_DUCTS,Velocity > 5 m/s,ASHRAE Fundamentals,Common,Text,⚠ Warning: Flex Duct Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_FLEX_DUCTS, """")"
@@ -126,6 +128,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Mechanical Equipment
 32,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 32,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
 33,T3,CST_IMPORT_REQUIRED_BOOL,| Import:,,0,✓,Common,Text,Show Tier 3 - 33,"if(TAG_PARA_STATE_3_BOOL, CST_IMPORT_REQUIRED_BOOL, """")"
 34,T3,CST_ENERGY_ANNUAL_UGX_NUM_NR,Energy:,UGX/yr,0,,Common,Text,Show Tier 3 - 34,"if(TAG_PARA_STATE_3_BOOL, CST_ENERGY_ANNUAL_UGX_NUM_NR, """")"
+35,T2,MEC_SET_CAPACITY_KW,Cap:,kW,0,✓,Common,Text,Set capacity,"if(TAG_PARA_STATE_2_BOOL, MEC_SET_CAPACITY_KW, "")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Efficiency < design minimum,ASHRAE 90.1,Common,Text,⚠ Warning: Efficiency Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, """")"
@@ -199,7 +202,7 @@ TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Pipes
 26,T3,CST_LOCAL_MAT_BOOL,Local:,,0,,Common,Text,Show Tier 3 - 26,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,MEDIUM,WARN_PLM_PPE_FLW_LPS_PIPES,Flow rate exceeded,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Pipe Flow Rate,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PPE_FLW_LPS_PIPES, """")"
+1,MEDIUM,WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE,Flow rate exceeded,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Pipe Flow Rate,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE, """")"
 2,MEDIUM,WARN_PLM_VEL_MPS_PIPES,Velocity > 2.0 m/s (hot) or > 3.0 m/s (cold),CIBSE Guide G / BS EN 806-3,Common,Text,⚠ Warning: Pipe Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_PIPES, """")"
 Tag Family #11: STING - Plumbing Fixture Tag
 TAG7: PLM_TAG_7_PARA_FIXTURE_TXT  •  Category: Plumbing Fixtures
@@ -307,6 +310,7 @@ TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Trays
 12,T3,ELC_CBT_SUPPORT_SPACING_MM,| Supt:,mm,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ELC_CBT_SUPPORT_SPACING_MM, """")"
 13,T3,CST_CALC_LENGTH_M,Length:,m,0,,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_CALC_LENGTH_M, """")"
 14,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
+15,T2,ELC_CTR_SZ_TXT,Size:,,0,✓,Common,Text,Cable tray size,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_SZ_TXT, "")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ELC_CTR_FILL_PCT_CABLE_TRAYS,Cable tray fill > 50%,IEC 61537 / BS EN 61537,Common,Text,⚠ Warning: Cable Tray Fill,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_FILL_PCT_CABLE_TRAYS, """")"
@@ -389,6 +393,8 @@ TAG7: ELC_TAG_7_PARA_PANEL_TXT  •  Category: Electrical Equipment
 34,T3,CST_DELIVERY_LEAD_TIME_DAYS,| Lead:,days,0,✓,Common,Text,Show Tier 3 - 34,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
 35,T3,CST_IMPORT_REQUIRED_BOOL,Import:,,0,,Common,Text,Show Tier 3 - 35,"if(TAG_PARA_STATE_3_BOOL, CST_IMPORT_REQUIRED_BOOL, """")"
 36,T3,CST_ENERGY_ANNUAL_UGX_NUM_NR,| Energy:,UGX/yr,0,✓,Common,Text,Show Tier 3 - 36,"if(TAG_PARA_STATE_3_BOOL, CST_ENERGY_ANNUAL_UGX_NUM_NR, """")"
+37,T2,ELC_VOLTAGE_V,V:,V,0,✓,Common,Text,Device voltage,"if(TAG_PARA_STATE_2_BOOL, ELC_VOLTAGE_V, "")"
+38,T2,ELC_CONN_TYPE_TXT,Conn:,,0,✓,Common,Text,Connector type,"if(TAG_PARA_STATE_2_BOOL, ELC_CONN_TYPE_TXT, "")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 5%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")"
@@ -404,6 +410,7 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Electrical Fixtures
 7,T2,MNT_HGT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")"
 8,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 9,T3,ELC_TAG_7_PARA_CIRCUIT_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_CIRCUIT_TXT, """")"
+10,T2,ELC_VOLTAGE_V,V:,V,0,✓,Common,Text,Device voltage,"if(TAG_PARA_STATE_2_BOOL, ELC_VOLTAGE_V, "")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 5%,IEC 60364 / Uganda ES,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")"
@@ -449,7 +456,7 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Fixtures
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_LTG_EFFICACY_LM_W_LIGHTING,Efficacy < 80 lm/W,CIBSE LG7 / ASHRAE 90.1,Common,Text,⚠ Warning: Lighting Efficacy,"if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_EFFICACY_LM_W_LIGHTING, """")"
-2,HIGH,WARN_LTG_DESIGN_ILLUMINANCE_LUX,Illuminance below task requirement,CIBSE SLL / BS EN 12464-1,Common,Text,⚠ Warning: Illuminance Below Standard,"if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_DESIGN_ILLUMINANCE_LUX, """")"
+2,HIGH,WARN_LTG_ILLUMINANCE,Illuminance below task requirement,CIBSE SLL / BS EN 12464-1,Common,Text,⚠ Warning: Illuminance Below Standard,"if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_ILLUMINANCE, """")"
 6G — LV / ICT
 Tag Family #22: STING - Communication Device Tag
 TAG7: COM_TAG_7_PARA_BMS_TXT  •  Category: Communication Devices
@@ -582,17 +589,17 @@ Tag Family #29: STING - Duct Insulation Tag
 TAG7: HVC_TAG_7_PARA_DUCT_INSULATION_TXT  •  Category: Duct Insulation
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
-2,T1,INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly
+2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,INS_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,MEDIUM,WARN_INS_THICKNESS_MM,Thickness < required minimum,ASHRAE 90.1,Common,Text,⚠ Warning: Insulation Below Minimum,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_MM, """")"
+1,MEDIUM,WARN_INS_THICKNESS_MM,Thickness < required minimum,ASHRAE 90.1,Common,Text,⚠ Warning: Insulation Below Minimum,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_INS_THICKNESS_MM, """")"
 Tag Family #30: STING - Duct Lining Tag
 TAG7: HVC_TAG_7_PARA_DUCT_LINING_TXT  •  Category: Duct Lining
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
-2,T1,INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly
+2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,INS_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, """")"
 5,T3,HVC_TAG_7_PARA_DUCT_LINING_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_DUCT_LINING_TXT, """")"
@@ -603,7 +610,7 @@ Tag Family #31: STING - Pipe Insulation Tag
 TAG7: PLM_TAG_7_PARA_PIPE_INSULATION_TXT  •  Category: Pipe Insulation
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
-2,T1,INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly
+2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,INS_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, """")"
 5,T3,PLM_TAG_7_PARA_PIPE_INSULATION_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_PIPE_INSULATION_TXT, """")"
@@ -663,7 +670,7 @@ TAG7: ELC_TAG_7_PARA_ELC_CONNECTORS_TXT  •  Category: Electrical Connectors
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,ELC_CONN_TYPE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-4,T2,ELC_CONN_RATING_A,,A,1,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CONN_RATING_A, """")"
+4,T2,ELC_CKT_BRK_RATING_A,,A,1,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CKT_BRK_RATING_A, """")"
 5,T3,ELC_TAG_7_PARA_ELC_CONNECTORS_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_ELC_CONNECTORS_TXT, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -710,6 +717,8 @@ TAG7: HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT  •  Category: MEP Fabrication Duct
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,FAB_STIFF_TYPE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+4,T2,FAB_DCT_W_MM,W:,mm,0,✓,Common,Text,Duct width,"if(TAG_PARA_STATE_2_BOOL, FAB_DCT_W_MM, "")"
+5,T2,FAB_DCT_H_MM,H:,mm,0,✓,Common,Text,Duct height,"if(TAG_PARA_STATE_2_BOOL, FAB_DCT_H_MM, "")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_FAB_STIFF_TYPE_STIFFENERS,Stiffener type unassigned,SMACNA HVAC Duct,Common,Text,⚠ Warning: Stiffener Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_STIFF_TYPE_STIFFENERS, """")"
@@ -736,7 +745,7 @@ Tag Family #42: STING - Materials Tag
 TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
-2,T1,MAT_CLASS_TXT,,,0,✓,---,---,---,Add directly
+2,T1,MAT_CATEGORY,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T3,MAT_LAYER_3_MATERIAL,,m,1,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, MAT_LAYER_3_MATERIAL, """")"
 5,T3,MAT_LAYER_4_MATERIAL,,m,1,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, MAT_LAYER_4_MATERIAL, """")"
@@ -782,7 +791,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_ROOM_AREA_SQ_M,Area:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOM_AREA_SQ_M, """")"
+4,T2,ASS_ROOM_AREA_SQ_M,Area:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")"
 5,T2,BLE_ROOM_VENTILATION_RATE_LPS,Vent:,L/s,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOM_VENTILATION_RATE_LPS, """")"
 6,T2,HVC_AIR_CHANGES_PER_HR,ACH:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, HVC_AIR_CHANGES_PER_HR, """")"
 7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
@@ -800,7 +809,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_ROOM_AREA_SQ_M,Zone Area:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOM_AREA_SQ_M, """")"
+4,T2,ASS_ROOM_AREA_SQ_M,Zone Area:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")"
 5,T2,HVC_CONTROL_TYPE_TXT,Ctrl:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, HVC_CONTROL_TYPE_TXT, """")"
 6,T2,HVC_BMS_CONTROL_TYPE_TXT,BMS:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, HVC_BMS_CONTROL_TYPE_TXT, """")"
 7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
@@ -924,7 +933,7 @@ TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Conduits
 8,T3,ASS_TIEIN_PHASE_TXT,Phase:,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_PHASE_TXT, """")"
 9,T3,ASS_TIEIN_BY_TXT,By:,,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_BY_TXT, """")"
 10,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")"
-11,T3,ELC_CDT_FILL_RATIO,Fill:,%,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ELC_CDT_FILL_RATIO, """")"
+11,T3,ELC_CDT_CBL_FILL_PCT,Fill:,%,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ELC_CDT_CBL_FILL_PCT, """")"
 12,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
