@@ -149,9 +149,11 @@ namespace StingTools.Temp
                     return Result.Cancelled;
                 }
 
-                string outputDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"STING_PDF_{DateTime.Now:yyyyMMdd}");
+                string pdfPrompt = OutputLocationHelper.PromptForExportPath(
+                    doc, $"STING_PDF_{DateTime.Now:yyyyMMdd}",
+                    "PDF Files|*.pdf|All Files|*.*", "PDF");
+                if (pdfPrompt == null) return Result.Cancelled;
+                string outputDir = Path.GetDirectoryName(pdfPrompt);
                 Directory.CreateDirectory(outputDir);
 
                 var sheetIds = sheets.Select(s => s.Id).ToList();
@@ -211,9 +213,11 @@ namespace StingTools.Temp
                 var _ctx = ParameterHelpers.GetContext(commandData);
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = _ctx.Doc;
-                string outputDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"STING_IFC_{DateTime.Now:yyyyMMdd}");
+                string ifcPrompt = OutputLocationHelper.PromptForExportPath(
+                    doc, $"STING_IFC_{DateTime.Now:yyyyMMdd}",
+                    "IFC Files|*.ifc|All Files|*.*", "IFC");
+                if (ifcPrompt == null) return Result.Cancelled;
+                string outputDir = Path.GetDirectoryName(ifcPrompt);
                 Directory.CreateDirectory(outputDir);
 
                 string fileName = (doc.Title ?? "STING_Export") + ".ifc";
@@ -286,9 +290,10 @@ namespace StingTools.Temp
                 var _ctx = ParameterHelpers.GetContext(commandData);
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = _ctx.Doc;
-                string outputPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"STING_COBie_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                string outputPath = OutputLocationHelper.PromptForExportPath(
+                    doc, $"STING_COBie_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx",
+                    "Excel Files|*.xlsx|All Files|*.*", "COBie")
+                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_COBie", ".xlsx");
 
                 int levelCount = 0;
                 int roomCount = 0;
