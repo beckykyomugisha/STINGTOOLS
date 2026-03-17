@@ -1543,21 +1543,35 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 253. **FixDuplicateTagsCommand SEQ sidecar + PREFIX/SUFFIX** — Added SEQ sidecar save after duplicate fix and TAG_PREFIX/TAG_SUFFIX to new tag assembly in collision loop.
 254. **CopyTagsCommand PREFIX/SUFFIX** — Added TAG_PREFIX/TAG_SUFFIX to rebuilt TAG1 so copied tags match project tag format.
 255. **StingCommandHandler dispatch wiring** — Added missing button dispatch cases: SetSeqScheme → `SetSeqSchemeCommand`, MapSheets → `MapSheetsCommand`, RetagStale → `RetagStaleCommand`, ComplianceScan → `CompletenessDashboardCommand`.
-#### Completed (Phase 23 — Gap Fix v3: Pipeline Consistency, UI Dispatch & SEQ Persistence)
 
-211. **TagFormatMigration scope selection** — 3-scope dialog (active view / selected elements / entire project) instead of silent project-wide scan. Adds TypeTokenInherit → PopulateAll → NativeMapper → FormulaEngine before tag rebuild so stale tokens are corrected, not just reformatted.
-212. **RunFullPipeline locked token enforcement** — `ASS_TOKEN_LOCK_TXT` values are snapshot before TypeTokenInherit/PopulateAll/CategoryForceSys and restored afterward, preventing pipeline overrides from changing user-locked tokens.
-213. **WorkflowEngine post-chain invalidation** — `ComplianceScan.InvalidateCache()` + `StingAutoTagger.InvalidateContext()` called after workflow chain completes to reflect post-chain SEQ state.
-214. **CopyTagsCommand SEQ persistence** — `SaveSeqSidecar` after tag copy so rebuilt TAG1 values are reflected in sequence counters.
-215. **FullAutoPopulateCommand API-level filtering** — `ElementMulticategoryFilter` applied to `FilteredElementCollector` using `SharedParamGuids.AllCategoryEnums`, reducing element iteration on large models.
-216. **RenumberTagsCommand counter fix** — Uses `BuildTagIndexAndCounters` (canonical, merges sidecar data) instead of `GetExistingSequenceCounters`, preventing counter divergence.
-217. **20 missing UI dispatch entries** — 15 XAML button tags (ClusterTags, DeclusterTags, SetDisplayMode, SetViewTagStyle, AlignTagBands, BatchPlaceLinkedTags, ExportLinkedManifest, FamilyParamCreator, DiscComplianceReport, AutoTagVisual, AutoTaggerConfig, ListWorkflowPresets, RetagStale, SetSeqScheme, ComplianceScan) + 5 TagStudio AI stubs (APIGaps, Explain, Pipeline, Generate, GapReview) wired to command classes or informative messages.
-218. **Tag Studio freeze fix** — `NotifyCommandComplete()` static method on `StingDockPanel` called from `StingCommandHandler.Execute()` finally block, ensuring `UnfreezeTagSubTabs()` runs after every command (was permanently frozen after AdjustElbows/SetArrows).
-219. **ResolveAllIssues progress UX** — `StingProgressDialog.Show()` moved before `SmartSortElements()` with status messages during sort and context build phases, eliminating frozen-looking UI on large models.
-220. **SystemParamPush pipeline enrichment** — FullAutoTag loop now calls TypeTokenInherit → NativeMapper → BuildAndWriteTag → WriteContainers → TAG7 (was missing first 2 and WriteContainers). Both single and batch push now persist SEQ sidecar + invalidate caches.
-221. **SaveSeqSidecar coverage** — Added to TagSelectedCommand, ReTagCommand, BulkReTagCommand, FullAutoPopulateCommand, ResolveAllIssuesCommand (both cancel + success paths), TagFormatMigrationCommand, TagChangedCommand, FixDuplicateTagsCommand.
-222. **StingAutoTagger.InvalidateContext pairing** — All `ComplianceScan.InvalidateCache()` calls now paired with `StingAutoTagger.InvalidateContext()` across TagSelectedCommand, ReTagCommand, DeleteTagsCommand, SwapTagsCommand, FixDuplicateTagsCommand, RetagStaleCommand, BatchTagCommand, BulkReTagCommand.
-223. **TaskDialog deadlock fixes** — Moved `TaskDialog.Show()` outside active transactions in `SetViewTagStyleCommand` (TagStyleCommands.cs) and `ScheduleColorCommand` (ScheduleEnhancementCommands.cs) to prevent Revit UI deadlocks.
+#### Completed (Phase 28 — GAP FIX IMPLEMENTATION v3: 40+ Fixes Across 18 Files)
+
+256. **FIX-CRIT01 A-F: GridRef result capture** — Fixed 6 locations where `SpatialAutoDetect.GetGridRef()` was called without capturing the return value. All now assign to `string gridRef` and write via `SetIfEmpty`. Files: BatchTagCommand.cs (TagFormatMigration, TagChanged), RepairDuplicateSeqCommand.cs, SystemParamPushCommand.cs, ExcelLinkCommands.cs (Import, RoundTrip).
+257. **FIX-V01: TagFormatMigration scope dialog** — Added 3-scope dialog (active view / selected elements / entire project) instead of silent project-wide scan. Adds TypeTokenInherit → PopulateAll → NativeMapper → FormulaEngine before tag rebuild so stale tokens are corrected, not just reformatted.
+258. **FIX-NEW02: ExcelLink TypeTokenInherit** — Added `TypeTokenInherit` before `NativeParamMapper.MapAll` in both `ImportFromExcel` and `ExcelRoundTrip` tag rebuild paths.
+259. **FIX-DEEP01: Locked token enforcement** — `ASS_TOKEN_LOCK_TXT` values snapshot before TypeTokenInherit/PopulateAll/CategoryForceSys/CategoryTokenOverrides and restored afterward in `RunFullPipeline`, preventing pipeline overrides from changing user-locked tokens.
+260. **FIX-DEEP02: WorkflowEngine cache pairing** — `StingAutoTagger.InvalidateContext()` now paired with `ComplianceScan.InvalidateCache()` after workflow chain completes.
+261. **FIX-DEEP03: CopyTagsCommand SEQ persistence** — `SaveSeqSidecar` after tag copy so rebuilt TAG1 values are reflected in sequence counters.
+262. **FIX-DEEP06: FullAutoPopulate API filtering** — `ElementMulticategoryFilter` applied to `FilteredElementCollector` using `SharedParamGuids.AllCategoryEnums`, reducing element iteration on large models.
+263. **FIX-DEEP07: RenumberTags canonical counters** — Uses `BuildTagIndexAndCounters` (canonical, merges sidecar data) instead of `GetExistingSequenceCounters`, preventing counter divergence.
+264. **FIX-UI01: 12 missing dispatch entries** — ClusterTags, DeclusterTags, SetDisplayMode, SetViewTagStyle, AlignTagBands, BatchPlaceLinkedTags, ExportLinkedManifest, FamilyParamCreator, DiscComplianceReport, AutoTagVisual, AutoTaggerConfig, ListWorkflowPresets wired to command classes.
+265. **FIX-UI02: 5 TagStudio AI stubs** — TagStudioAPIGaps, TagStudioExplain, TagStudioPipeline, TagStudioGenerate, TagStudioGapReview dispatch entries with informational messages.
+266. **FIX-UI03: Tag Studio freeze fix** — `NotifyCommandComplete()` static method on `StingDockPanel` called from `StingCommandHandler.Execute()` finally block, ensuring `UnfreezeTagSubTabs()` runs after every command.
+267. **FIX-UI04: ResolveAllIssues progress UX** — `StingProgressDialog.Show()` moved before `SmartSortElements()` with status messages during sort and context build phases.
+268. **FIX-B01: BuildTagsCommand → RunFullPipeline** — Replaced 130+ line inline pipeline with single `TagPipelineHelper.RunFullPipeline()` call for all 11 canonical steps.
+269. **FIX-B02: FixDuplicates BuildSeqKey** — Replaced inline `$"{disc}_{sys}_{lvl}"` with `TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone)` for canonical key format. Added string-parameter overload to TagConfig.
+270. **FIX-B04: ClusterTags member positions** — Added `CLUSTER_MEMBER_POS` constant to ParamRegistry. ClusterTagsCommand now stores member bounding box centers as pipe-delimited string for decluster position restoration.
+271. **FIX-B05: MEP short-circuit in PopulateAll** — Added `_mepConnectorCategories` HashSet (28 MEP categories). Non-MEP elements skip expensive `ConnectorInherit()` and 6-layer `GetMepSystemAwareSysCodeWithLayer()`, using direct category fallback instead.
+272. **FIX-B06: ComplianceScan full container check** — Removed `Math.Min(3, containers.Length)` limit so ALL applicable containers are checked for accurate compliance reporting.
+273. **FIX-B07: AlignDirection skip-dialog** — Split AlignTagsH/V/Stack dispatch to set `ExtraParam("AlignDirection")` before RunCommand. AlignTagsCommand reads ExtraParam and skips TaskDialog when direction is pre-set.
+274. **FIX-B08: ResolveToAnnotationTags bridge** — Added `LeaderHelper.ResolveToAnnotationTags()` method that converts host element selection to `IndependentTag` annotations via reverse lookup in the active view.
+275. **FIX-B09: CheckComplianceGate coverage** — Added `TagConfig.CheckComplianceGate()` calls after ResolveAllIssuesCommand, Tag3DCommand, and WorkflowEngine chain completion (already present in AutoTag, TagNewOnly, BatchTag, TagAndCombine).
+276. **FIX-B10: AutoTagger state persistence** — Auto-tagger enabled/visual/stale-marker state persisted to `project_config.json` via `PersistAutoTaggerConfig()`. State restored on DocumentOpened from TagConfig loaded values.
+277. **FIX-B13: StingListPicker window owner** — Added `WindowInteropHelper` owner assignment using `Process.GetCurrentProcess().MainWindowHandle` for correct modality.
+278. **FIX-C01: SelectionScope reset** — Added `SelectionScopeHelper.SetScope(false)` in `OnDocumentOpened` to prevent stale project-wide scope from carrying over between documents.
+279. **FIX-C02: CopyTags SEQ via BuildAndWriteTag** — Replaced manual tag concatenation with `TagConfig.BuildAndWriteTag()` for proper SEQ collision detection via AutoIncrement mode.
+280. **FIX-C03: RenumberTags spatial sort** — Elements within each `(DISC, SYS, LVL)` group now sorted spatially (by LVL, then X, then Y) before renumbering for deterministic SEQ assignments.
+281. **FIX-C04: BatchRenameViews custom find/replace** — Added mode 5 ("Custom find/replace") with WPF input dialog for find and replace strings.
 
 ### External Tool References
 
