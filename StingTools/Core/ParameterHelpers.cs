@@ -76,6 +76,24 @@ namespace StingTools.Core
                 "Revit ribbon or the STING dockable panel.");
         }
 
+        /// <summary>
+        /// Safe document accessor. Returns the active Document or null if no document is open.
+        /// Use instead of chained dereferences like GetApp(cmd).ActiveUIDocument.Document
+        /// which crash when ActiveUIDocument is null (no document open / family editor).
+        /// </summary>
+        public static Document GetDoc(ExternalCommandData commandData)
+        {
+            return GetApp(commandData)?.ActiveUIDocument?.Document;
+        }
+
+        /// <summary>
+        /// Safe UIDocument accessor. Returns the active UIDocument or null if no document is open.
+        /// </summary>
+        public static UIDocument GetUIDoc(ExternalCommandData commandData)
+        {
+            return GetApp(commandData)?.ActiveUIDocument;
+        }
+
         // Parameter lookup cache: avoids O(n) LookupParameter on every call.
         // BUG-05: Keyed by (int docHash, ElementId typeId, string paramName) → Definition.
         // docHash prevents cross-document cache collisions since ElementIds are document-relative.

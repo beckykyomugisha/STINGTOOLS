@@ -12,8 +12,12 @@ namespace StingTools.UI
     {
         private StingDockPanel _page;
 
-        /// <summary>The GUID used to register this dockable pane with Revit.</summary>
-        public static readonly Guid PaneGuid = new Guid("B3C4D5E6-7890-ABCD-EF01-234567890ABC");
+        /// <summary>
+        /// The GUID used to register this dockable pane with Revit.
+        /// CHANGED from B3C4D5E6-... to force Revit to discard cached floating
+        /// pane state from UIState.dat and use the new Tabbed dock position.
+        /// </summary>
+        public static readonly Guid PaneGuid = new Guid("D4E5F6A7-8901-BCDE-F012-345678901BCD");
 
         /// <summary>The DockablePaneId for registration and retrieval.</summary>
         public static DockablePaneId PaneId => new DockablePaneId(PaneGuid);
@@ -24,11 +28,14 @@ namespace StingTools.UI
             data.FrameworkElement = _page;
             data.InitialState = new DockablePaneState
             {
-                DockPosition = DockPosition.Right,
-                MinimumWidth = 320,
-                MinimumHeight = 400
+                // Tab behind Properties panel — most stable docking configuration.
+                // DockPosition.Right caused "Only floating document is support!" on
+                // every Show(), and floating panes crash Revit on WPF tab switches
+                // (ANTECEDENT: editor ArrowEditor → HIDEWHENNOVALUE → crash).
+                DockPosition = DockPosition.Tabbed,
+                TabBehind = DockablePanes.BuiltInDockablePanes.PropertiesPalette
             };
-            data.VisibleByDefault = true;
+            data.VisibleByDefault = false;
         }
 
         /// <summary>Get the page instance (for updating status, etc.).</summary>
