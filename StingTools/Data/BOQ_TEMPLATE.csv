@@ -149,3 +149,68 @@ PPE,120000,LM,Pipe (per linear metre)
 DCT,185000,LM,Duct (per linear metre)
 CDT,65000,LM,Conduit (per linear metre)
 CTY,125000,LM,Cable tray (per linear metre)
+##
+## SECTION 9: NRM2 DESCRIPTION TEMPLATES (natural language BOQ item descriptions)
+## Used by: BOQExportCommand TAG7 integration — generates QS-grade item descriptions
+## Format: CATEGORY,NRM2_REF,TEMPLATE_PATTERN,DIMENSION_TOKENS,WORKMANSHIP_STD
+## Tokens: {FAMILY} {TYPE} {MFR} {MODEL} {SIZE} {MATERIAL} {FIRE_RATING} {DESC}
+##         {LENGTH} {AREA} {VOLUME} {WIDTH} {HEIGHT} {THICKNESS} {DIAMETER}
+##         {TAG7_IDENTITY} {TAG7_TECH} {TAG7_SPATIAL} {PROD_DESC} {SYS_DESC} {FUNC_DESC}
+SECTION,DESCRIPTION_TEMPLATES
+CATEGORY,NRM2_REF,TEMPLATE_PATTERN,DIMENSION_TOKENS,WORKMANSHIP_STD
+Walls,3.A,{MATERIAL} wall; {THICKNESS} mm thick; {HEIGHT} mm high; {LENGTH} mm long; {FIRE_RATING} fire rated; {DESC},THICKNESS|HEIGHT|LENGTH,BS 8000
+Floors,3.B,{MATERIAL} floor slab; {THICKNESS} mm thick; {AREA} m² area; {FIRE_RATING} fire rated; {DESC},THICKNESS|AREA,BS 8204
+Ceilings,3.C,Suspended ceiling; {MATERIAL}; {HEIGHT} mm above FFL; {AREA} m² area; including grid and fixings; {DESC},HEIGHT|AREA,BS 8290
+Roofs,3.D,{MATERIAL} roof covering; {AREA} m² area; {SLOPE} degree pitch; including membranes and insulation; {DESC},AREA|SLOPE,BS 6229
+Doors,3.E,{FAMILY} door; {TYPE}; {WIDTH} mm wide × {HEIGHT} mm high; {MATERIAL}; {FIRE_RATING} fire rated; including ironmongery; {DESC},WIDTH|HEIGHT,BS 8214
+Windows,3.F,{FAMILY} window; {TYPE}; {WIDTH} mm wide × {HEIGHT} mm high; {SILL_HEIGHT} mm sill height; including glazing and hardware; {DESC},WIDTH|HEIGHT|SILL_HEIGHT,BS 6262
+Stairs,3.G,{MATERIAL} staircase; {TREAD} mm tread × {RISE} mm riser; {WIDTH} mm clear width; including finishes and balustrade; {DESC},TREAD|RISE|WIDTH,BS 5395
+Railings,3.H,{MATERIAL} railing; {LENGTH} m long; including fixings and connections; {DESC},LENGTH,BS 6180
+Curtain Panels,3.J,Curtain wall panel; {MATERIAL}; {AREA} m² area; including fixings and seals; {DESC},AREA,BS EN 13830
+Curtain Wall Mullions,3.K,Curtain wall mullion; {MATERIAL}; {LENGTH} m long; including brackets and thermal breaks; {DESC},LENGTH,BS EN 13830
+Structural Columns,2.A,{MATERIAL} column; {FAMILY} {TYPE}; {HEIGHT} mm high; including base plate and connections; {DESC},HEIGHT,BS EN 1993
+Structural Framing,2.B,{MATERIAL} beam; {FAMILY} {TYPE}; {LENGTH} m long; including end plates and connections; {DESC},LENGTH,BS EN 1993
+Structural Foundations,2.C,{MATERIAL} foundation; {FAMILY} {TYPE}; {VOLUME} m³ volume; including formwork and reinforcement; {DESC},VOLUME,BS EN 1992
+Ducts,5G.A,{MATERIAL} ductwork; {TYPE}; {DIAMETER} mm diameter; {LENGTH} m long; {SYS_DESC}; including supports and hangers; {DESC},DIAMETER|LENGTH,DW/144
+Duct Fittings,5G.B,Duct fitting; {FAMILY} {TYPE}; {SIZE}; {SYS_DESC}; including connections and gaskets; {DESC},SIZE,DW/144
+Duct Accessories,5G.C,Duct accessory; {FAMILY} {TYPE}; {SIZE}; {SYS_DESC}; including fixings; {DESC},SIZE,DW/144
+Duct Insulations,5G.D,Duct insulation; {MATERIAL}; {THICKNESS} mm thick; {AREA} m² area; {SYS_DESC}; to HVCA TR/19; {DESC},THICKNESS|AREA,HVCA TR/19
+Air Terminals,5G.E,Air terminal device; {FAMILY} {TYPE}; {SIZE}; {SYS_DESC}; delivering {AIRFLOW} L/s; including plenum box; {DESC},SIZE,BSRIA BG 2/2006
+Flex Ducts,5G.F,Flexible duct; {DIAMETER} mm diameter; {LENGTH} m long; {SYS_DESC}; including clamps and connections; {DESC},DIAMETER|LENGTH,DW/144
+Pipes,5H.A,{MATERIAL} pipework; {TYPE}; {DIAMETER} mm diameter; {LENGTH} m long; {SYS_DESC}; including supports and brackets at centres; {DESC},DIAMETER|LENGTH,BS EN 806
+Pipe Fittings,5H.B,Pipe fitting; {FAMILY} {TYPE}; {SIZE}; {SYS_DESC}; including jointing; {DESC},SIZE,BS EN 806
+Pipe Accessories,5H.C,Pipe accessory; {FAMILY} {TYPE}; {SIZE}; {SYS_DESC}; including fixings; {DESC},SIZE,BS EN 806
+Pipe Insulations,5H.D,Pipe insulation; {MATERIAL}; {THICKNESS} mm thick; {AREA} m² area; {SYS_DESC}; including vapour barrier; {DESC},THICKNESS|AREA,BS 5422
+Flex Pipes,5H.E,Flexible pipe connection; {DIAMETER} mm diameter; {LENGTH} m long; {SYS_DESC}; including clamps; {DESC},DIAMETER|LENGTH,BS EN 806
+Plumbing Fixtures,5H.F,Sanitary appliance; {FAMILY} {TYPE}; {MFR} {MODEL}; {SYS_DESC}; including waste and water connections and fixings; {DESC},NONE,BS EN 997
+Plumbing Equipment,5H.G,Plumbing equipment; {FAMILY} {TYPE}; {MFR} {MODEL}; {SIZE}; {SYS_DESC}; including connections and commissioning; {DESC},SIZE,BS EN 806
+Mechanical Equipment,5G.H,Mechanical plant; {FAMILY} {TYPE}; {MFR} {MODEL}; {SYS_DESC}; {TAG7_TECH}; including connections and commissioning; {DESC},NONE,BSRIA BG 49
+Electrical Equipment,5E.A,Electrical equipment; {FAMILY} {TYPE}; {MFR} {MODEL}; {TAG7_TECH}; including wiring and terminations; {DESC},NONE,BS 7671
+Lighting Fixtures,5E.B,Luminaire; {FAMILY} {TYPE}; {MFR} {MODEL}; {TAG7_TECH}; including suspension and wiring; {DESC},NONE,BS 5266
+Lighting Devices,5E.C,Lighting control device; {FAMILY} {TYPE}; {MFR} {MODEL}; including wiring and terminations; {DESC},NONE,BS 7671
+Conduits,5E.D,{MATERIAL} conduit; {TYPE}; {DIAMETER} mm diameter; {LENGTH} m long; including fixings at centres; {DESC},DIAMETER|LENGTH,BS 7671
+Conduit Fittings,5E.E,Conduit fitting; {FAMILY} {TYPE}; {SIZE}; including connections; {DESC},SIZE,BS 7671
+Cable Trays,5E.F,Cable tray; {MATERIAL}; {TYPE}; {WIDTH} mm wide; {LENGTH} m long; including supports and covers; {DESC},WIDTH|LENGTH,BS EN 61537
+Cable Tray Fittings,5E.G,Cable tray fitting; {FAMILY} {TYPE}; {SIZE}; including fixings; {DESC},SIZE,BS EN 61537
+Communication Devices,5E.H,Communications device; {FAMILY} {TYPE}; {MFR} {MODEL}; including cabling and terminations; {DESC},NONE,BS EN 50173
+Security Devices,5E.J,Security device; {FAMILY} {TYPE}; {MFR} {MODEL}; including wiring and programming; {DESC},NONE,BS EN 50131
+Fire Alarm Devices,5J.A,Fire alarm device; {FAMILY} {TYPE}; {MFR} {MODEL}; including wiring and loop connection; {DESC},NONE,BS 5839
+Sprinklers,5J.B,Sprinkler head; {FAMILY} {TYPE}; {MFR} {MODEL}; {SYS_DESC}; including drop pipe and concealer plate; {DESC},NONE,BS EN 12845
+Furniture,3.L,Furniture item; {FAMILY} {TYPE}; {MFR} {MODEL}; including delivery and placement; {DESC},NONE,BS EN 527
+Casework,3.M,Casework unit; {FAMILY} {TYPE}; {MFR} {MODEL}; {SIZE}; including fixings and worktops; {DESC},SIZE,BS EN 14749
+Generic Models,1.A,Sundry item; {FAMILY} {TYPE}; {DESC},NONE,N/A
+##
+## SECTION 10: TAG7 INTEGRATION CONFIGURATION
+## Controls how TAG7 narrative sections feed into BOQ descriptions
+SECTION,TAG7_INTEGRATION
+SETTING,VALUE,DESCRIPTION
+USE_TAG7_IDENTITY,TRUE,Use TAG7 Section A (Identity) for asset name in BOQ description
+USE_TAG7_TECH,TRUE,Use TAG7 Section E (Technical) for specifications in BOQ description
+USE_TAG7_SPATIAL,FALSE,Use TAG7 Section C (Spatial) to append location context
+USE_TAG7_LIFECYCLE,FALSE,Use TAG7 Section D (Lifecycle) for status/revision
+FALLBACK_TO_FAMILY_TYPE,TRUE,Fall back to FamilyName - TypeName when TAG7 is empty
+INCLUDE_MATERIAL_NAME,TRUE,Include material name from element type compound structure
+INCLUDE_DIMENSIONS,TRUE,Include measured dimensions in description
+INCLUDE_WORKMANSHIP_STD,TRUE,Include workmanship standard reference (NRM2)
+DESCRIPTION_MAX_LENGTH,250,Maximum description length before truncation
+BOQ_MODE,NRM2,Description style: NRM2 (standard) or NARRATIVE (TAG7 natural language)
