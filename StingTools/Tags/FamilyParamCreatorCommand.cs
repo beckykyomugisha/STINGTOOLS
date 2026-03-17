@@ -47,6 +47,8 @@ namespace StingTools.Tags
             public bool InjectFormulas { get; set; } = true;
             public bool PlaceAnchor { get; set; } = false;
             public bool CreatePositionTypes { get; set; } = true;
+            /// <summary>FIX-9.1: When true, remove all ASS_*/STING_* family params before injecting.</summary>
+            public bool PurgeFirst { get; set; } = false;
             public List<string> ParamNames { get; set; } = new List<string>();
         }
 
@@ -661,6 +663,27 @@ namespace StingTools.Tags
                 using (Transaction tx = new Transaction(famDoc, "STING Family Param Creator"))
                 {
                     tx.Start();
+
+                    // FIX-9.2: Purge existing ASS_*/STING_* params before injection if requested
+                    if (opts.PurgeFirst)
+                    {
+                        try
+                        {
+                            FamilyManager fmPurge = famDoc.FamilyManager;
+                            var toRemove = fmPurge.GetParameters()
+                                .Where(p => p.Definition.Name.StartsWith("ASS_", StringComparison.OrdinalIgnoreCase)
+                                         || p.Definition.Name.StartsWith("STING_", StringComparison.OrdinalIgnoreCase))
+                                .ToList();
+                            foreach (var fp in toRemove)
+                            {
+                                try { fmPurge.RemoveParameter(fp); }
+                                catch (Exception rpEx) { StingLog.Warn($"PurgeFirst '{fp.Definition.Name}': {rpEx.Message}"); }
+                            }
+                            if (toRemove.Count > 0)
+                                StingLog.Info($"PurgeFirst: removed {toRemove.Count} params from '{Path.GetFileName(rfaPath)}'");
+                        }
+                        catch (Exception purgeEx) { StingLog.Warn($"PurgeFirst: {purgeEx.Message}"); }
+                    }
 
                     // Inject shared parameters
                     var paramList = opts.ParamNames.Count > 0
