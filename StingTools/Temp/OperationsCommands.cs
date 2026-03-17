@@ -425,9 +425,10 @@ namespace StingTools.Temp
                 var _ctx = ParameterHelpers.GetContext(commandData);
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = _ctx.Doc;
-                string outputPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"STING_Quantities_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                string outputPath = OutputLocationHelper.PromptForExportPath(
+                    doc, $"STING_Quantities_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx",
+                    "Excel Files|*.xlsx|All Files|*.*", "Quantities")
+                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Quantities", ".xlsx");
 
                 var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
                 var allElements = new FilteredElementCollector(doc)
@@ -575,9 +576,10 @@ namespace StingTools.Temp
                 }
 
                 // Export CSV
-                string csvPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"STING_Clashes_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                string csvPath = OutputLocationHelper.PromptForExportPath(
+                    doc, $"STING_Clashes_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
+                    "CSV Files|*.csv|All Files|*.*", "Clashes")
+                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Clashes", ".csv");
                 var csv = new StringBuilder("MEP_Id,MEP_Cat,Struct_Id,Struct_Cat,X,Y,Z\n");
                 foreach (var (mep, str, pt) in clashes)
                 {
@@ -779,9 +781,10 @@ namespace StingTools.Temp
                     "ASS_ROOM_TXT", "ASS_GRID_TXT", "ASS_STATUS_TXT", "ASS_REV_TXT" };
                 string[] allParams = tokenParams.Concat(extraParams).Distinct().ToArray();
 
-                string csvPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"STING_Params_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                string csvPath = OutputLocationHelper.PromptForExportPath(
+                    doc, $"STING_Params_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
+                    "CSV Files|*.csv|All Files|*.*", "BatchParams")
+                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Params", ".csv");
 
                 var sb = new StringBuilder();
                 sb.Append("ElementId,Category,Family,Type");
