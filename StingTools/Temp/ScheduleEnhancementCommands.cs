@@ -976,8 +976,8 @@ namespace StingTools.Temp
                     }
                     else
                     {
-                        TaskDialog.Show("Schedule Colors", "Active view must be a schedule.");
                         tx.RollBack();
+                        TaskDialog.Show("Schedule Colors", "Active view must be a schedule.");
                         return Result.Succeeded;
                     }
                 }

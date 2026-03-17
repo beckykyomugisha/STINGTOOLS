@@ -529,6 +529,11 @@ namespace StingTools.Tags
                 tx.Commit();
                 TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
+            // Save SEQ sidecar + invalidate caches after migration
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"TagFormatMigration SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Tag Format Migration",
                 $"Migration complete.\n\n  Scope:    {mfScopeLabel}\n  Migrated: {migrated}\n  Total:    {tagged.Count}");
             StingLog.Info($"Tag format migration: {migrated}/{tagged.Count} tags reformatted");
@@ -739,6 +744,11 @@ namespace StingTools.Tags
                 tx.Commit();
                 TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
+            // Save SEQ sidecar + invalidate caches after delta update
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"TagChanged SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Tag Changed",
                 $"Delta update complete.\n\n  Stale tokens: {stale}\n  Elements updated: {updated}\n  Tags rebuilt: {processedElements.Count}");
             StingLog.Info($"Delta tagging: {stale} stale tokens, {updated} elements updated");

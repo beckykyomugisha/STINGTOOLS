@@ -928,7 +928,11 @@ namespace StingTools.Temp
                 tx.Commit();
             }
             sw.Stop();
+            // Save SEQ sidecar + invalidate caches after full auto-populate
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"FullAutoPopulate SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             var report = new StringBuilder();
             report.AppendLine("Full Schedule Auto-Populate Complete");

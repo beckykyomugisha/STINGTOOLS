@@ -786,6 +786,7 @@ namespace StingTools.Tags
                 default: return Result.Cancelled;
             }
 
+            string resultMsg = null;
             using (Transaction tx = new Transaction(doc, "STING Set View Tag Style"))
             {
                 tx.Start();
@@ -795,22 +796,23 @@ namespace StingTools.Tags
                     if (p != null && !p.IsReadOnly)
                     {
                         p.Set(styleName);
-                        TaskDialog.Show("STING", $"View '{view.Name}' tag style set to: {styleName}");
+                        resultMsg = $"View '{view.Name}' tag style set to: {styleName}";
                     }
                     else
                     {
-                        TaskDialog.Show("STING",
-                            "STING_VIEW_TAG_STYLE parameter not found on this view.\n" +
-                            "Run 'Load Parameters' first to bind view parameters.");
+                        resultMsg = "STING_VIEW_TAG_STYLE parameter not found on this view.\n" +
+                            "Run 'Load Parameters' first to bind view parameters.";
                     }
                 }
                 catch (Exception ex)
                 {
                     StingLog.Error("SetViewTagStyle", ex);
-                    TaskDialog.Show("STING", $"Failed: {ex.Message}");
+                    resultMsg = $"Failed: {ex.Message}";
                 }
                 tx.Commit();
             }
+            if (resultMsg != null)
+                TaskDialog.Show("STING", resultMsg);
             return Result.Succeeded;
         }
     }

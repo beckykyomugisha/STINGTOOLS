@@ -257,7 +257,10 @@ namespace StingTools.Tags
 
             if (cancelled)
             {
+                try { TagConfig.SaveSeqSidecar(doc, sequenceCounters); }
+                catch (Exception ssEx) { StingLog.Warn($"ResolveAllIssues SaveSeqSidecar (cancel): {ssEx.Message}"); }
                 ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
                 TaskDialog.Show("Resolve All Issues",
                     $"Cancelled by user at {processed}/{totalTaggable}.\n" +
                     $"Previously committed batches were saved.\n" +
@@ -266,7 +269,11 @@ namespace StingTools.Tags
             }
 
             sw.Stop();
+            // Save SEQ sidecar + invalidate caches after resolving all issues
+            try { TagConfig.SaveSeqSidecar(doc, sequenceCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"ResolveAllIssues SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             duplicatesResolved = stats.TotalCollisions;
 
             // Phase 4: Post-fix verification scan (fresh collector to capture any elements
