@@ -255,6 +255,9 @@ namespace StingTools.Organise
                 try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
                 catch (Exception ssEx) { StingLog.Warn($"ReTag SaveSeqSidecar: {ssEx.Message}"); }
             }
+            // Save SEQ sidecar + invalidate caches after re-tagging
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"ReTagCommand SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
 
@@ -436,8 +439,9 @@ namespace StingTools.Organise
             if (remainingDupes > 0)
                 StingLog.Warn($"FixDuplicates: post-fix scan found {remainingDupes} remaining duplicate tag values");
 
-            // FIX-WR10: Save SEQ sidecar after duplicate fix
-            TagConfig.SaveSeqSidecar(doc, seqCounters);
+            // Persist SEQ + invalidate caches after duplicate fix
+            try { var (_, fdSeq) = TagConfig.BuildTagIndexAndCounters(doc); TagConfig.SaveSeqSidecar(doc, fdSeq); }
+            catch (Exception ssEx) { StingLog.Warn($"FixDuplicates SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Fix Duplicates",
@@ -673,9 +677,11 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
-            // FIX-WR09: Save SEQ sidecar + invalidate caches after renumbering
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
-            TagConfig.SaveSeqSidecar(doc, seqCounters);
+            // FIX-DEEP07: Use BuildTagIndexAndCounters for consistent sidecar format
+            // (GetExistingSequenceCounters uses same key format internally but BuildTagIndexAndCounters
+            // is the canonical path and merges sidecar data, preventing counter divergence)
+            var (_, rnSeqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            TagConfig.SaveSeqSidecar(doc, rnSeqCounters);
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
 
@@ -1122,6 +1128,9 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
+            // FIX-DEEP03: Persist SEQ state after tag copy (rebuilt TAG1 affects sidecar)
+            try { TagConfig.SaveSeqSidecar(doc, TagConfig.GetExistingSequenceCounters(doc)); }
+            catch (Exception ssEx) { StingLog.Warn($"CopyTagsCommand SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Copy Tags", $"Copied tag values to {copied} elements.");

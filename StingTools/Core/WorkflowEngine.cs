@@ -437,6 +437,16 @@ namespace StingTools.Core
 
             totalSw.Stop();
 
+            // FIX-DEEP02: Invalidate caches after workflow chain completes.
+            // Chained tag commands (BatchTag, TagAndCombine) update SEQ counters;
+            // the auto-tagger cache must reflect the post-chain state.
+            try
+            {
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
+            }
+            catch { }
+
             report.AppendLine(new string('─', 50));
             report.AppendLine($"  Complete: {passed}/{preset.Steps.Count} steps OK");
             report.AppendLine($"  Skipped: {skipped}, Failed: {failed}");

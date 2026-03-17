@@ -690,6 +690,11 @@ namespace StingTools.Select
                 }
                 tx.Commit();
             }
+            // Save SEQ sidecar + invalidate caches after bulk re-tag
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"BulkReTagCommand SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             // Save SEQ sidecar + invalidate caches after bulk retag
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }

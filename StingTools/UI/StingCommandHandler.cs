@@ -961,6 +961,64 @@ namespace StingTools.UI
                     case "TagStudio_AdjustElbows": RunCommand<Tags.AdjustElbowsCommand>(app); break;
                     case "TagStudio_SetArrows": RunCommand<Tags.SetArrowheadStyleCommand>(app); break;
 
+                    // FIX-UI02: TagStudio AI / analysis stubs — commands not yet implemented,
+                    // show descriptive message instead of generic "not available" error
+                    case "TagStudio_APIGaps":
+                        TaskDialog.Show("STING — API Notes",
+                            "Tag Studio API Notes\n\n" +
+                            "This panel documents known Revit API limitations affecting tag placement:\n" +
+                            "  • IndependentTag.ArrowheadType is not writable via API\n" +
+                            "  • Tag leader endpoint positions have limited programmatic control\n" +
+                            "  • Multi-category tag families require manual leader attachment\n\n" +
+                            "Use the Leader & Elbow controls to work around these limitations.");
+                        break;
+                    case "TagStudio_Explain":
+                        TaskDialog.Show("STING — Pipeline Explain",
+                            "Tag Pipeline Step Explanation\n\n" +
+                            "The full tagging pipeline for each element:\n" +
+                            "  1. TypeTokenInherit — inherit family type defaults\n" +
+                            "  2. PopulateAll — auto-derive 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)\n" +
+                            "  3. NativeParamMapper — bridge Revit built-ins → STING shared params\n" +
+                            "  4. FormulaEngine — evaluate computed fields (areas, volumes, costs)\n" +
+                            "  5. BuildAndWriteTag — assemble ISO 19650 tag + assign SEQ\n" +
+                            "  6. WriteContainers — populate all 53 discipline containers\n" +
+                            "  7. WriteTag7All — write TAG7 rich narrative (A–F sub-sections)\n" +
+                            "  8. GetGridRef — assign nearest grid intersection reference\n" +
+                            "  9. SaveSeqSidecar — persist sequence counters to disk");
+                        break;
+                    case "TagStudio_Pipeline":
+                        TaskDialog.Show("STING — Pipeline Status",
+                            "Tag Pipeline Coverage\n\n" +
+                            "Commands that run the full 9-step pipeline:\n" +
+                            "  Auto Tag, Batch Tag, Tag & Combine\n" +
+                            "  Tag Selected, Re-Tag, Tag New Only\n" +
+                            "  Retag Stale, Full Auto-Populate\n" +
+                            "  Resolve All Issues, Repair Duplicate SEQ\n" +
+                            "  Tag 3D, System Param Push, Excel Import\n\n" +
+                            "Run 'Pre-Tag Audit' for a full prediction before committing.");
+                        break;
+                    case "TagStudio_Generate":
+                        TaskDialog.Show("STING — Generate",
+                            "Tag Code Generation\n\n" +
+                            "Use 'Family Stage Populate' to pre-populate all 9 token fields\n" +
+                            "on selected elements before running the tagging pipeline.\n\n" +
+                            "Use 'Full Auto-Populate' for zero-manual-input population\n" +
+                            "across the entire project.\n\n" +
+                            "This Generate panel is reserved for future AI-assisted\n" +
+                            "token derivation features.");
+                        break;
+                    case "TagStudio_GapReview":
+                        TaskDialog.Show("STING — Gap Review",
+                            "Tag Gap Analysis\n\n" +
+                            "Use these commands to identify and fix gaps:\n" +
+                            "  • 'Pre-Tag Audit' — dry-run prediction before tagging\n" +
+                            "  • 'Validate Tags' — ISO 19650 code validation\n" +
+                            "  • 'Completeness Dashboard' — per-discipline token coverage\n" +
+                            "  • 'Resolve All Issues' — one-click 100% compliance fix\n\n" +
+                            "The compliance status bar shows live RAG status.\n" +
+                            "GREEN = >=80% tagged, AMBER = 50-80%, RED = <50%.");
+                        break;
+
                     // UI-03: Tag position switching
                     case "SwitchTagPos1": SwitchTagPositionInline(app, 1); break;
                     case "SwitchTagPos2": SwitchTagPositionInline(app, 2); break;
@@ -1000,6 +1058,47 @@ namespace StingTools.UI
                     case "PlaceTieInTagElec": PlaceTieInTag(app, "Elec"); break;
                     case "ExportTieInRegister": ExportTieInRegister(app); break;
 
+                    // ── FIX-UI01: Missing dispatch entries (buttons were wired to
+                    //    command classes that were never added to this switch) ──
+
+                    // Tag clustering (TagOperationCommands.cs, StingTools.Organise)
+                    case "ClusterTags": RunCommand<Organise.ClusterTagsCommand>(app); break;
+                    case "DeclusterTags": RunCommand<Organise.DeclusterTagsCommand>(app); break;
+
+                    // Display / style controls (TagOperationCommands.cs, StingTools.Organise)
+                    case "SetDisplayMode": RunCommand<Organise.SetDisplayModeCommand>(app); break;
+
+                    // Style (TagStyleCommands.cs, StingTools.Tags)
+                    case "SetViewTagStyle": RunCommand<Tags.SetViewTagStyleCommand>(app); break;
+
+                    // Linked model tags (SmartTagPlacementCommand.cs, StingTools.Tags)
+                    case "AlignTagBands": RunCommand<Tags.AlignTagBandsCommand>(app); break;
+                    case "BatchPlaceLinkedTags": RunCommand<Tags.BatchPlaceLinkedTagsCommand>(app); break;
+                    case "ExportLinkedManifest": RunCommand<Tags.ExportLinkedModelManifestCommand>(app); break;
+
+                    // Family tooling (FamilyParamCreatorCommand.cs, StingTools.Tags)
+                    case "FamilyParamCreator": RunCommand<Tags.FamilyParamCreatorCommand>(app); break;
+
+                    // Compliance reporting (TokenWriterCommands.cs, StingTools.Tags)
+                    case "DiscComplianceReport": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
+
+                    // Auto-tagger controls (StingAutoTagger.cs, StingTools.Core)
+                    case "AutoTagVisual": RunCommand<Core.AutoTaggerToggleVisualCommand>(app); break;
+                    case "AutoTaggerConfig": RunCommand<Core.AutoTaggerConfigCommand>(app); break;
+
+                    // Workflow presets — XAML button uses "ListWorkflowPresets", dispatch
+                    // already has "ListWorkflows". Add alias so both tags work.
+                    case "ListWorkflowPresets": RunCommand<Core.ListWorkflowPresetsCommand>(app); break;
+
+                    // Retag stale elements (TagOperationCommands.cs, StingTools.Organise)
+                    case "RetagStale": RunCommand<Organise.RetagStaleCommand>(app); break;
+
+                    // Sequence numbering scheme (TokenWriterCommands.cs, StingTools.Tags)
+                    case "SetSeqScheme": RunCommand<Tags.SetSeqSchemeCommand>(app); break;
+
+                    // Compliance scan — no dedicated command class; route to FullComplianceDashboard
+                    case "ComplianceScan": RunCommand<BIMManager.FullComplianceDashboardCommand>(app); break;
+
                     // ── Unmapped / placeholder ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
@@ -1027,6 +1126,13 @@ namespace StingTools.UI
                     _param1 = "";
                     _param2 = "";
                 }
+
+                // FIX-UI03: Notify panel that command completed so Tag Studio
+                // sub-tabs are unfrozen. AdjustElbows / SetArrows were permanently
+                // freezing the Leader & Elbow sub-tab because UnfreezeTagSubTabs()
+                // was never called after execution.
+                try { StingDockPanel.NotifyCommandComplete(); }
+                catch { /* Non-critical — panel may not be open */ }
             }
 
             // ENH-003: Compliance status bar update REMOVED from post-command hook.

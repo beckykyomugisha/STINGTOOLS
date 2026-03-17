@@ -648,6 +648,11 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            // Save SEQ sidecar + invalidate caches after system push
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"SystemParamPush SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             result.SystemName = string.Join(", ", systemNames);
 
@@ -802,7 +807,7 @@ namespace StingTools.Tags
                     var result = SystemParamPush.ExecutePush(
                         doc, sysElements, mode, parentTokens);
 
-                    // Build tags in FullAutoTag mode
+                    // Build tags in FullAutoTag mode — enriched pipeline
                     if (mode == SystemParamPush.PushMode.FullAutoTag)
                     {
                         var stats = new TaggingStats();
@@ -812,7 +817,15 @@ namespace StingTools.Tags
                             if (!string.IsNullOrEmpty(tag) && TagConfig.TagIsComplete(tag))
                                 continue;
 
-                            // FIX-R05: Evaluate formulas before tag build
+                            // Inherit type-level token defaults before building tag
+                            try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
+                            catch (Exception tiEx) { StingLog.Warn($"BatchSystemPush TypeTokenInherit for {el.Id}: {tiEx.Message}"); }
+
+                            // Bridge Revit native params before tag assembly
+                            try { NativeParamMapper.MapAll(doc, el); }
+                            catch (Exception nmEx) { StingLog.Warn($"BatchSystemPush NativeMapper for {el.Id}: {nmEx.Message}"); }
+
+                            // Evaluate formulas before tag build
                             if (spFormulas != null && spFormulas.Count > 0)
                             {
                                 try
@@ -844,11 +857,13 @@ namespace StingTools.Tags
                                 skipComplete: true, existingTags,
                                 TagCollisionMode.AutoIncrement, stats);
 
-                            // Write TAG7 + containers
+                            // Write containers + TAG7 sub-sections
                             try
                             {
                                 string catName = ParameterHelpers.GetCategoryName(el);
                                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                ParamRegistry.WriteContainers(el, tokenVals, catName,
+                                    overwrite: false, skipParam: ParamRegistry.TAG1);
                                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
                                 // NP7: Write containers after batch system param push
                                 ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: false,
@@ -856,10 +871,10 @@ namespace StingTools.Tags
                             }
                             catch (Exception tag7Ex)
                             {
-                                StingLog.Warn($"BatchSystemPush TAG7+containers for {el.Id}: {tag7Ex.Message}");
+                                StingLog.Warn($"BatchSystemPush TAG7/containers for {el.Id}: {tag7Ex.Message}");
                             }
 
-                            // FIX-R05: Write GridRef per element
+                            // Write GridRef per element
                             if (spGridLines != null && spGridLines.Count > 0)
                             {
                                 try { SpatialAutoDetect.GetGridRef(el, spGridLines); }
@@ -874,6 +889,11 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            // Save SEQ sidecar + invalidate caches after system push
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"BatchSystemPush SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             // FIX-03A: Save SEQ sidecar + invalidate caches after batch system push
             if (mode == SystemParamPush.PushMode.FullAutoTag)

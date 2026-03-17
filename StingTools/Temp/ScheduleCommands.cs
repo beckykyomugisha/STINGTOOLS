@@ -859,10 +859,23 @@ namespace StingTools.Temp
             var formulas = TagPipelineHelper.LoadFormulas();
             var gridLines = TagPipelineHelper.LoadGridLines(doc);
 
-            // Collect all elements
-            var allElements = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .ToList();
+            // FIX-DEEP06: Apply ElementMulticategoryFilter to skip non-taggable elements at API level
+            // (previously iterated all elements and filtered in software — expensive on large models)
+            var allElements = new List<Element>();
+            var fapCatEnums = SharedParamGuids.AllCategoryEnums;
+            if (fapCatEnums != null && fapCatEnums.Length > 0)
+            {
+                allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(fapCatEnums)))
+                    .ToList();
+            }
+            else
+            {
+                allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+            }
 
             int tagged = 0;
             int totalElements = 0;
@@ -918,6 +931,9 @@ namespace StingTools.Temp
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"FullAutoPopulate SaveSeqSidecar: {ssEx.Message}"); }
             sw.Stop();
+            // Save SEQ sidecar + invalidate caches after full auto-populate
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"FullAutoPopulate SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
 

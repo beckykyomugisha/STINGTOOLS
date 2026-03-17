@@ -107,8 +107,19 @@ namespace StingTools.Tags
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
-            // Phase 3: Smart sort for contiguous SEQ
+            // FIX-UI04: Show progress dialog BEFORE SmartSortElements so the user
+            // sees immediate feedback instead of a frozen UI during the sort phase.
+            // SmartSortElements calls GetMepSystemAwareSysCode() per element (MEP
+            // connector traversal) which can take several seconds on large models.
+            bool cancelled = false;
+            const int BatchSize = 500;
+            int processed = 0;
+            var progress = StingProgressDialog.Show("Resolve All Issues", totalTaggable);
+            progress.SetStatus($"Sorting {totalTaggable} elements by level/discipline...");
+
+            // Phase 3: Smart sort for contiguous SEQ (progress visible during sort)
             var sorted = BatchTagCommand.SmartSortElements(doc, taggableElements);
+            progress.SetStatus("Building pipeline context...");
 
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
             var sequenceCounters = new Dictionary<string, int>(); // Fresh counters — rebuild all SEQ from scratch
@@ -125,11 +136,6 @@ namespace StingTools.Tags
             StingLog.Info($"ResolveAllIssues: starting — {totalTaggable} elements, " +
                 $"{totalIssues} issues (noTag={noTag}, incomplete={incompleteTag}, " +
                 $"unresolved={unresolvedTag}, emptyStatus={emptyStatus}, emptyRev={emptyRev})");
-
-            bool cancelled = false;
-            const int BatchSize = 500;
-            int processed = 0;
-            var progress = StingProgressDialog.Show("Resolve All Issues", totalTaggable);
 
             for (int batchStart = 0; batchStart < sorted.Count; batchStart += BatchSize)
             {
@@ -246,8 +252,9 @@ namespace StingTools.Tags
 
             if (cancelled)
             {
+                try { TagConfig.SaveSeqSidecar(doc, sequenceCounters); }
+                catch (Exception ssEx) { StingLog.Warn($"ResolveAllIssues SaveSeqSidecar (cancel): {ssEx.Message}"); }
                 ComplianceScan.InvalidateCache();
-                // FIX-13: Invalidate auto-tagger cached context
                 StingAutoTagger.InvalidateContext();
                 TaskDialog.Show("Resolve All Issues",
                     $"Cancelled by user at {processed}/{totalTaggable}.\n" +
@@ -257,8 +264,14 @@ namespace StingTools.Tags
             }
 
             sw.Stop();
+            // Save SEQ sidecar + invalidate caches after resolving all issues
+            try { TagConfig.SaveSeqSidecar(doc, sequenceCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"ResolveAllIssues SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
+<<<<<<< HEAD
             // FIX-13: Invalidate auto-tagger cached context after batch resolution
+=======
+>>>>>>> origin/claude/stingtools-gap-fix-9yqOR
             StingAutoTagger.InvalidateContext();
             duplicatesResolved = stats.TotalCollisions;
 

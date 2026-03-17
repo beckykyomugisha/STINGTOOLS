@@ -2348,6 +2348,37 @@ namespace StingTools.Core
                 // G1.1: Category skip list
                 if (TagConfig.CategorySkipList.Contains(catName)) return false;
 
+                // FIX-DEEP01: Snapshot locked token values before TypeTokenInherit/PopulateAll/overrides
+                // so they can be restored afterward (lockedTokens checked below)
+                var lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    string preLockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                    if (!string.IsNullOrWhiteSpace(preLockStr))
+                    {
+                        string[] lockKeys = preLockStr.Split(',')
+                            .Select(s => s.Trim().ToUpperInvariant()).ToArray();
+                        var tokenParamMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["DISC"] = ParamRegistry.DISC, ["LOC"]  = ParamRegistry.LOC,
+                            ["ZONE"] = ParamRegistry.ZONE, ["LVL"]  = ParamRegistry.LVL,
+                            ["SYS"]  = ParamRegistry.SYS,  ["FUNC"] = ParamRegistry.FUNC,
+                            ["PROD"] = ParamRegistry.PROD, ["STATUS"] = ParamRegistry.STATUS,
+                            ["REV"]  = ParamRegistry.REV
+                        };
+                        foreach (string lockKey in lockKeys)
+                        {
+                            if (tokenParamMap.TryGetValue(lockKey, out string paramName))
+                            {
+                                string val = ParameterHelpers.GetString(el, paramName);
+                                if (!string.IsNullOrEmpty(val))
+                                    lockedSnapshot[lockKey] = val;
+                            }
+                        }
+                    }
+                }
+                catch { /* ASS_TOKEN_LOCK_TXT not bound — safe to skip */ }
+
                 // AL-06: Capture previous tag value and timestamp for audit trail
                 try
                 {
@@ -2410,6 +2441,29 @@ namespace StingTools.Core
                     if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
                         && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
                         return false;
+                // FIX-DEEP01: Restore locked token values (overrides above may have changed them)
+                if (lockedSnapshot.Count > 0)
+                {
+                    var restoreParamMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["DISC"] = ParamRegistry.DISC, ["LOC"]  = ParamRegistry.LOC,
+                        ["ZONE"] = ParamRegistry.ZONE, ["LVL"]  = ParamRegistry.LVL,
+                        ["SYS"]  = ParamRegistry.SYS,  ["FUNC"] = ParamRegistry.FUNC,
+                        ["PROD"] = ParamRegistry.PROD, ["STATUS"] = ParamRegistry.STATUS,
+                        ["REV"]  = ParamRegistry.REV
+                    };
+                    foreach (var kvp in lockedSnapshot)
+                    {
+                        if (restoreParamMap.TryGetValue(kvp.Key, out string paramName))
+                        {
+                            try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
+                            catch (Exception lockEx)
+                            {
+                                StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx.Message}");
+                            }
+                        }
+                    }
+                    StingLog.Info($"TagPipeline: restored {lockedSnapshot.Count} locked tokens on {el.Id}: {string.Join(",", lockedSnapshot.Keys)}");
                 }
 
                 // P2: Bridge Revit native params → STING shared params
