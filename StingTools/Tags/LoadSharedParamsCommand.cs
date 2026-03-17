@@ -576,6 +576,118 @@ namespace StingTools.Tags
     }
 
     /// <summary>
+    /// FIX-8.1: Purge shared parameters from project.
+    /// Mode 1 — Audit: report bound params vs MR_PARAMETERS.txt.
+    /// Mode 2 — Purge orphaned: remove params NOT in MR file.
+    /// Mode 3 — Purge all STING: remove all ASS_* / STING_* bindings.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PurgeSharedParamsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var td = new TaskDialog("STING — Purge Shared Parameters");
+            td.MainInstruction = "Shared parameter management";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Audit only", "Count bound vs MR file — no changes");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Purge orphaned", "Remove params NOT in MR_PARAMETERS.txt");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Purge ALL STING", "Remove all ASS_* and STING_* bindings");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (td.Show())
+            {
+                case TaskDialogResult.CommandLink1: return Audit(doc);
+                case TaskDialogResult.CommandLink2: return Purge(doc, false);
+                case TaskDialogResult.CommandLink3: return Purge(doc, true);
+                default: return Result.Cancelled;
+            }
+        }
+
+        private static HashSet<string> LoadMR()
+        {
+            var s = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string f = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+            if (string.IsNullOrEmpty(f) || !File.Exists(f)) return s;
+            foreach (string l in File.ReadAllLines(f))
+            {
+                if (!l.StartsWith("PARAM")) continue;
+                var p = l.Split('\t');
+                if (p.Length >= 3) s.Add(p[2]);
+            }
+            return s;
+        }
+
+        private static Result Audit(Document doc)
+        {
+            var known = LoadMR();
+            var iter = doc.ParameterBindings.ForwardIterator();
+            int total = 0, inMR = 0;
+            var orphans = new List<string>();
+            while (iter.MoveNext())
+            {
+                if (iter.Key is InternalDefinition def)
+                {
+                    total++;
+                    if (known.Contains(def.Name)) inMR++;
+                    else orphans.Add(def.Name);
+                }
+            }
+            var sb = new StringBuilder();
+            sb.AppendLine($"MR_PARAMETERS.txt: {known.Count}  |  Bound: {total}  |  Matched: {inMR}  |  Orphaned: {orphans.Count}");
+            if (orphans.Count > 0) { sb.AppendLine("\nOrphaned:"); foreach (string n in orphans.Take(20)) sb.AppendLine($"  {n}"); }
+            TaskDialog.Show("Param Audit", sb.ToString());
+            return Result.Succeeded;
+        }
+
+        private static Result Purge(Document doc, bool allSting)
+        {
+            var known = LoadMR();
+            var iter = doc.ParameterBindings.ForwardIterator();
+            var remove = new List<(string n, Definition d)>();
+            while (iter.MoveNext())
+            {
+                if (iter.Key is InternalDefinition def)
+                {
+                    bool isSting = def.Name.StartsWith("ASS_", StringComparison.OrdinalIgnoreCase)
+                                || def.Name.StartsWith("STING_", StringComparison.OrdinalIgnoreCase);
+                    if (allSting ? isSting : !known.Contains(def.Name))
+                        remove.Add((def.Name, def));
+                }
+            }
+            if (remove.Count == 0)
+            { TaskDialog.Show("Purge", "Nothing to remove."); return Result.Succeeded; }
+
+            var c = new TaskDialog("Confirm Purge");
+            c.MainInstruction = $"Remove {remove.Count} parameter bindings?";
+            c.MainContent = string.Join("\n", remove.Take(15).Select(r => $"  {r.n}"))
+                + (remove.Count > 15 ? $"\n  ... and {remove.Count - 15} more" : "")
+                + "\n\nElements lose stored values. Run 'Load Shared Params' to rebind.";
+            c.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (c.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            int removed = 0;
+            using (var tx = new Transaction(doc, "STING Purge Params"))
+            {
+                tx.Start();
+                foreach (var (n, d) in remove)
+                    try { doc.ParameterBindings.Remove(d); removed++; }
+                    catch (Exception ex) { StingLog.Warn($"PurgeParams '{n}': {ex.Message}"); }
+                tx.Commit();
+            }
+            ParameterHelpers.ClearParamCache();
+            TaskDialog.Show("Purge Done", $"Removed {removed}/{remove.Count} bindings.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
     /// Dismisses all warnings during parameter binding transactions.
     /// Without this, Revit accumulates FailureMessage objects in memory
     /// for each binding operation, causing slowdown and eventual crash.

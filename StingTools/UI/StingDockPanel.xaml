@@ -1342,6 +1342,8 @@
                             <StackPanel>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Load Shared Params" Tag="LoadSharedParams" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource RedBtn}" Content="Purge Params" Tag="PurgeSharedParams"
+                                            Click="Cmd_Click" ToolTip="Audit or remove orphaned/all STING shared param bindings"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Project Config" Tag="ConfigEditor" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Edit Data Files" Tag="GuidedDataEditor"
                                             Click="Cmd_Click" ToolTip="Guided editor for project_config.json, MR_PARAMETERS.txt, materials — with sync"/>
