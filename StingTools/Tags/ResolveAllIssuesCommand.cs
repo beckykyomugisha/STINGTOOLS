@@ -268,10 +268,6 @@ namespace StingTools.Tags
             try { TagConfig.SaveSeqSidecar(doc, sequenceCounters); }
             catch (Exception ssEx) { StingLog.Warn($"ResolveAllIssues SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
-<<<<<<< HEAD
-            // FIX-13: Invalidate auto-tagger cached context after batch resolution
-=======
->>>>>>> origin/claude/stingtools-gap-fix-9yqOR
             StingAutoTagger.InvalidateContext();
             duplicatesResolved = stats.TotalCollisions;
 
