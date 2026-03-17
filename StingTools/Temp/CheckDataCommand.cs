@@ -25,11 +25,14 @@ namespace StingTools.Temp
             string dataDir = StingToolsApp.DataPath;
             if (string.IsNullOrEmpty(dataDir) || !Directory.Exists(dataDir))
             {
+                string dllDir = Path.GetDirectoryName(StingToolsApp.AssemblyPath) ?? "(unknown)";
                 TaskDialog.Show("Check Data",
                     "Data directory not found.\n\n" +
-                    $"Expected: {dataDir ?? "(not set)"}\n\n" +
-                    "Place data files (CSV, XLSX) in a 'data' folder " +
-                    "alongside StingTools.dll.");
+                    $"DLL location: {StingToolsApp.AssemblyPath}\n" +
+                    $"Expected data at: {dataDir ?? "(not set)"}\n\n" +
+                    "Ensure the 'data' folder (containing CSV, JSON, TXT files) " +
+                    "is located alongside StingTools.dll.\n\n" +
+                    "If building from source, verify the .csproj copies Data files to output.");
                 return Result.Succeeded;
             }
 
