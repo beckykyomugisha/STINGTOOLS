@@ -1,5 +1,5 @@
 ## STING BOQ TEMPLATE — Bill of Quantities Export Configuration
-## Version: 1.0 | Date: 2026-03-03 | Standard: NRM2 / Uganda BOQ Practice
+## Version: 1.1 | Date: 2026-03-06 | Standard: NRM2 / Uganda BOQ Practice
 ## Used by: BOQExportCommand in DataPipelineCommands.cs
 ## Format: Multi-sheet Excel XLSX output with discipline-based bills
 ##
@@ -66,6 +66,15 @@ Ramps,SM,Square Metre
 Railings,LM,Linear Metre
 Casework,NO,Number
 Generic Models,NO,Number
+Specialty Equipment,NO,Number
+Plumbing Equipment,NO,Number
+Electrical Fixtures,NO,Number
+Lighting Devices,NO,Number
+Conduit Fittings,NO,Number
+Cable Tray Fittings,NO,Number
+Nurse Call Devices,NO,Number
+Data Devices,NO,Number
+Topography,SM,Square Metre
 ##
 ## SECTION 4: COST PARAMETERS (read from Revit element parameters)
 SECTION,COST_PARAMETERS

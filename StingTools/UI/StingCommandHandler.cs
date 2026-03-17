@@ -344,6 +344,19 @@ namespace StingTools.UI
                     case "ExportLabelGuide": RunCommand<Tags.ExportLabelGuideCommand>(app); break;
                     case "SetTag7HeadingStyle": RunCommand<Tags.SetTag7HeadingStyleCommand>(app); break;
 
+                    // ── Tag Style Engine commands ──
+                    case "ApplyTagStyles": RunCommand<Tags.ApplyTagStylesCommand>(app); break;
+                    case "PreviewTagStyles": RunCommand<Tags.PreviewTagStylesCommand>(app); break;
+                    case "SetTagStyleRule": RunCommand<Tags.SetTagStyleRuleCommand>(app); break;
+                    case "SaveTagStylePreset": RunCommand<Tags.SaveTagStylePresetCommand>(app); break;
+                    case "LoadTagStylePreset": RunCommand<Tags.LoadTagStylePresetCommand>(app); break;
+
+                    // ── Parameter-driven styles (no type switching) ──
+                    case "ApplyParamStyles": RunCommand<Tags.ApplyParamDrivenStylesCommand>(app); break;
+                    case "PreviewParamStyles": RunCommand<Tags.PreviewParamDrivenStylesCommand>(app); break;
+                    case "ClearParamStyles": RunCommand<Tags.ClearParamDrivenStylesCommand>(app); break;
+                    case "BatchParamStyles": RunCommand<Tags.BatchApplyParamDrivenStylesCommand>(app); break;
+
                     // ── Color By Parameter commands ──
                     case "ColorByParameter": RunCommand<Select.ColorByParameterCommand>(app); break;
                     case "ClearColorOverrides": RunCommand<Select.ClearColorOverridesCommand>(app); break;
@@ -434,7 +447,7 @@ namespace StingTools.UI
 
                     // ── Corporate Schedules ──
                     case "CorporateTitleBlock": RunCommand<Temp.CorporateTitleBlockScheduleCommand>(app); break;
-                    case "DrawingRegister": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
+                    case "DrawingRegisterSchedule": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
 
                     // ── Schedule Enhancements ──
                     case "ScheduleAudit": RunCommand<Temp.ScheduleAuditCommand>(app); break;
