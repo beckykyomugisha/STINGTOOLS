@@ -373,7 +373,9 @@ namespace StingTools.Tags
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("═══ SMART COMMAND SUGGESTIONS ═══\n");
                 report.AppendLine("Based on current model state:\n");

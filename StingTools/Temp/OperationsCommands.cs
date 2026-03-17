@@ -45,7 +45,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
 
                 var dlg = new TaskDialog("Workflow Presets")
                 {
@@ -131,7 +133,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
                 var sheets = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet))
                     .Cast<ViewSheet>()
@@ -204,7 +208,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
                 string outputDir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
                     $"STING_IFC_{DateTime.Now:yyyyMMdd}");
@@ -277,7 +283,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
                 string outputPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
                     $"STING_COBie_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
@@ -409,7 +417,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
                 string outputPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
                     $"STING_Quantities_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
@@ -509,7 +519,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
                 var sw = System.Diagnostics.Stopwatch.StartNew();
 
                 var mepElements = CollectWithBB(doc, BuiltInCategory.OST_DuctCurves)
@@ -623,7 +635,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
                 var report = new StringBuilder();
                 report.AppendLine("Model Health Check");
                 report.AppendLine(new string('=', 50));
@@ -724,8 +738,10 @@ namespace StingTools.Temp
         {
             try
             {
-                UIDocument uidoc = commandData.Application.ActiveUIDocument;
-                Document doc = uidoc.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                UIDocument uidoc = _ctx.UIDoc;
+                Document doc = _ctx.Doc;
 
                 var selectedIds = uidoc.Selection.GetElementIds();
                 List<Element> exportElements;
@@ -815,7 +831,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
                 var report = new StringBuilder();
                 report.AppendLine("STING Project Dashboard");
                 report.AppendLine(new string('=', 50));
@@ -904,7 +922,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
 
                 var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
                 var allElements = new FilteredElementCollector(doc)

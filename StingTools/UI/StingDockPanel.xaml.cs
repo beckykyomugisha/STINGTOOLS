@@ -41,6 +41,8 @@ namespace StingTools.UI
         public StingDockPanel()
         {
             InitializeComponent();
+            // FIX-3.2: Seed theme resource keys before DynamicResource bindings resolve
+            ThemeManager.InitialiseResources();
 
             // CRASH FIX: Immediately after XAML parsing, detach content from all
             // non-active tabs BEFORE the first WPF layout pass (Measure/Arrange).

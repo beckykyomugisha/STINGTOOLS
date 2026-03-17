@@ -426,7 +426,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 int nextSeq = RevisionEngine.GetNextRevisionSeq(doc);
 
                 // Prompt for description
@@ -511,7 +513,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var revisions = new FilteredElementCollector(doc)
                     .OfClass(typeof(Revision))
                     .Cast<Revision>()
@@ -600,7 +604,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var view = doc.ActiveView;
 
                 // Load previous snapshot
@@ -711,7 +717,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var revisions = new FilteredElementCollector(doc)
                     .OfClass(typeof(Revision))
                     .Cast<Revision>()
@@ -773,8 +781,10 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var uidoc = _ctx.UIDoc;
+                var doc = _ctx.Doc;
                 string revDir = RevisionEngine.GetRevisionDir(doc);
 
                 var snapshotFiles = Directory.GetFiles(revDir, "snapshot_*.json")
@@ -861,7 +871,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 string revDir = RevisionEngine.GetRevisionDir(doc);
 
                 var snapshotFiles = Directory.GetFiles(revDir, "snapshot_*.json")
@@ -937,7 +949,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var revisions = new FilteredElementCollector(doc)
                     .OfClass(typeof(Revision))
                     .Cast<Revision>()
@@ -1043,7 +1057,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var revisions = new FilteredElementCollector(doc)
                     .OfClass(typeof(Revision))
                     .Cast<Revision>()
@@ -1126,7 +1142,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
 
                 // Find the latest revision
                 var latestRev = new FilteredElementCollector(doc)
@@ -1254,8 +1272,10 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var uidoc = _ctx.UIDoc;
+                var doc = _ctx.Doc;
                 var selIds = uidoc.Selection.GetElementIds();
 
                 if (selIds.Count == 0)
@@ -1325,7 +1345,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 string revDir = RevisionEngine.GetRevisionDir(doc);
                 var wb = new ClosedXML.Excel.XLWorkbook();
 
@@ -1462,7 +1484,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
 
                 // Load previous snapshot
                 var prevSnapshot = RevisionEngine.LoadLatestSnapshot(doc);
