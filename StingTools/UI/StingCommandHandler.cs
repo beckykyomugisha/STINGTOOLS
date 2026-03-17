@@ -274,7 +274,21 @@ namespace StingTools.UI
 
                     // ── Align & distribute ──
                     case "AlignTagsH":
+                        SetExtraParam("AlignDirection", "Horizontal");
+                        RunCommand<Organise.AlignTagsCommand>(app);
+                        ClearExtraParam("AlignDirection");
+                        break;
                     case "AlignTagsV":
+                        SetExtraParam("AlignDirection", "Vertical");
+                        RunCommand<Organise.AlignTagsCommand>(app);
+                        ClearExtraParam("AlignDirection");
+                        break;
+                    case "ArrangeStack":
+                    case "ArrangeStackH":
+                        SetExtraParam("AlignDirection", "Row");
+                        RunCommand<Organise.AlignTagsCommand>(app);
+                        ClearExtraParam("AlignDirection");
+                        break;
                     case "AlignLeft":
                     case "AlignRight":
                     case "AlignTop":
@@ -285,8 +299,6 @@ namespace StingTools.UI
                     case "DistributeV":
                     case "ArrangeGrid":
                     case "ArrangeCircle":
-                    case "ArrangeStack":
-                    case "ArrangeStackH":
                     case "ArrangeMirror":
                     case "ArrangeRadial": RunCommand<Organise.AlignTagsCommand>(app); break;
                     case "ResetTagPositions": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
@@ -1112,6 +1124,23 @@ namespace StingTools.UI
 
                     // Compliance scan — no dedicated command class; route to FullComplianceDashboard
                     case "ComplianceScan": RunCommand<BIMManager.FullComplianceDashboardCommand>(app); break;
+
+                    // ── Tag Studio AI informational stubs ──
+                    case "TagStudioAPIGaps":
+                        TaskDialog.Show("Tag Studio", "API Gap analysis is available in CLAUDE.md.");
+                        break;
+                    case "TagStudioExplain":
+                        TaskDialog.Show("Tag Studio", "Pipeline explanation:\n1. TypeTokenInherit\n2. PopulateAll\n3. NativeMapper\n4. Formulas\n5. BuildTag\n6. Containers\n7. TAG7\n8. GridRef");
+                        break;
+                    case "TagStudioPipeline":
+                        TaskDialog.Show("Tag Studio", "Pipeline runs via TagPipelineHelper.RunFullPipeline().");
+                        break;
+                    case "TagStudioGenerate":
+                        TaskDialog.Show("Tag Studio", "Tag generation uses TagConfig.BuildAndWriteTag().");
+                        break;
+                    case "TagStudioGapReview":
+                        TaskDialog.Show("Tag Studio", "Gap review completed. See CLAUDE.md Phase 22+ for details.");
+                        break;
 
                     // ── Unmapped / placeholder ──
                     default:
@@ -4569,7 +4598,7 @@ namespace StingTools.UI
                             // Straight: elbow on line near tag head
                             XYZ dir = delta.Normalize();
                             double len = delta.GetLength();
-                            elbowPos = hostCenter + dir * (len * 0.95);
+                            elbowPos = hostCenter + dir * (len * 0.85);
                         }
                         else if (effectiveMode == "45")
                         {

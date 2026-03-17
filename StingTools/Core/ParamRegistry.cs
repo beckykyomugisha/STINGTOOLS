@@ -138,6 +138,8 @@ namespace StingTools.Core
         public const string CLUSTER_COUNT_GUID = "D1E2F3A4-B5C6-4D7E-8F9A-0B1C2D3E4F5A";
         public const string CLUSTER_LABEL = "STING_CLUSTER_LABEL";
         public const string CLUSTER_LABEL_GUID = "D2E3F4A5-B6C7-4D8E-9F0A-1B2C3D4E5F6B";
+        /// <summary>FIX-B04: JSON array of cluster member bounding box centers for decluster restore.</summary>
+        public const string CLUSTER_MEMBER_POS = "STING_CLUSTER_MEMBER_POS_TXT";
         public const string DISPLAY_MODE = "STING_DISPLAY_MODE";
         public const string DISPLAY_MODE_GUID = "D0E1F2A3-B4C5-4D6E-8F7A-8B9C0D1E2F3A";
         /// <summary>

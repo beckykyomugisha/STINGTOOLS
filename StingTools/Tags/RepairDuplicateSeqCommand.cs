@@ -141,7 +141,12 @@ namespace StingTools.Tags
                             // FIX-R04: Write GridRef per element
                             if (rdGridLines != null && rdGridLines.Count > 0)
                             {
-                                try { SpatialAutoDetect.GetGridRef(el, rdGridLines); }
+                                try
+                                {
+                                    string gridRef = SpatialAutoDetect.GetGridRef(el, rdGridLines);
+                                    if (!string.IsNullOrEmpty(gridRef))
+                                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                                }
                                 catch (Exception grEx) { StingLog.Warn($"RepairDuplicateSeq GridRef for {el.Id}: {grEx.Message}"); }
                             }
                             retagged++;

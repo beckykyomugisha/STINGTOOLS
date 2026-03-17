@@ -120,6 +120,10 @@ namespace StingTools.Core
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
 
+                // FIX-C01: Reset selection scope to view-only on document switch
+                // Prevents stale project-wide scope from carrying over between projects
+                Select.SelectionScopeHelper.SetScope(false);
+
                 // C4 / G1.3: Reload TagConfig on document open — prefer project-adjacent config
                 // to prevent config bleed between projects
                 try
@@ -154,6 +158,24 @@ namespace StingTools.Core
 
                 Temp.FormulaEngine.InvalidateFormulaCache();
                 StingLog.Info("DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig");
+
+                // FIX-B10: Restore auto-tagger state from persisted config
+                try
+                {
+                    if (TagConfig.AutoTaggerEnabled.HasValue)
+                    {
+                        bool want = TagConfig.AutoTaggerEnabled.Value;
+                        if (want != StingAutoTagger.IsEnabled) StingAutoTagger.Toggle();
+                    }
+                    if (TagConfig.AutoTaggerVisual.HasValue)
+                        StingAutoTagger.SetVisualTagging(TagConfig.AutoTaggerVisual.Value);
+                    if (TagConfig.AutoTaggerStaleMarker.HasValue)
+                        StingStaleMarker.SetEnabled(TagConfig.AutoTaggerStaleMarker.Value);
+                }
+                catch (Exception atEx)
+                {
+                    StingLog.Warn($"AutoTagger state restore: {atEx.Message}");
+                }
 
                 // AL-07: Notify user of auto-run workflow on open
                 try

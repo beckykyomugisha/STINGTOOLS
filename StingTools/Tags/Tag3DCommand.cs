@@ -118,6 +118,11 @@ namespace StingTools.Tags
                 tx.Commit();
             }
 
+            // FIX-B09: Invalidate caches and check compliance gate after 3D tagging
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "Tag3D");
+
             string report = $"3D tags placed: {placed}";
             if (errors > 0) report += $"\nErrors: {errors}";
             TaskDialog.Show("Tag 3D", report);
