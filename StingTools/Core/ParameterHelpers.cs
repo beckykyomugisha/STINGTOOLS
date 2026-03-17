@@ -344,6 +344,18 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Find the solid fill pattern element in the document.
+        /// Used by color override commands and template configuration.
+        /// </summary>
+        public static FillPatternElement GetSolidFillPattern(Document doc)
+        {
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(FillPatternElement))
+                .Cast<FillPatternElement>()
+                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+        }
+
+        /// <summary>
         /// Find the Room containing an element, using the element's location point.
         /// Returns null if the element has no location point or is not in a room.
         /// </summary>
