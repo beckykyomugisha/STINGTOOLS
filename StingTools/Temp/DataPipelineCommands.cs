@@ -1791,7 +1791,7 @@ namespace StingTools.Temp
                 if (areaParam == null || !areaParam.HasValue || areaParam.AsDouble() <= 0)
                     areaParam = el.get_Parameter(BuiltInParameter.ROOM_AREA);
                 if (areaParam == null || !areaParam.HasValue || areaParam.AsDouble() <= 0)
-                    areaParam = el.get_Parameter(BuiltInParameter.CURTAIN_WALL_PANELS_HOST_AREA);
+                    areaParam = el.LookupParameter("Area");
                 if (areaParam != null && areaParam.HasValue && areaParam.AsDouble() > 0)
                     item.MeasuredArea_m2 = areaParam.AsDouble() * 0.092903;
 

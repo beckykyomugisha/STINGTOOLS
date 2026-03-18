@@ -510,16 +510,17 @@ namespace StingTools.Temp
                         ThisViewOnly = false
                     };
 
-                    ElementId linkId = doc.Link(dialog.FileName, linkOptions, doc.ActiveView, out var instanceId);
+                    ElementId instanceId = ElementId.InvalidElementId;
+                    bool linked = doc.Link(dialog.FileName, linkOptions, doc.ActiveView, out instanceId);
 
                     t.Commit();
 
-                    if (linkId != null && linkId != ElementId.InvalidElementId)
+                    if (linked && instanceId != null && instanceId != ElementId.InvalidElementId)
                     {
                         TaskDialog.Show("STING Link DWG",
                             $"DWG linked successfully.\n" +
                             $"File: {Path.GetFileName(dialog.FileName)}\n" +
-                            $"Link ID: {linkId}");
+                            $"Link ID: {instanceId}");
                     }
                     else
                     {

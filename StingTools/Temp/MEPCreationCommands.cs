@@ -179,7 +179,7 @@ namespace StingTools.Temp
                 sb.AppendLine($"HVAC Systems: {ductSystems.Count}");
                 foreach (var sys in ductSystems.Take(20))
                 {
-                    var equipCount = sys.DuctNetwork?.Count ?? 0;
+                    var equipCount = sys.DuctNetwork?.Size ?? 0;
                     sb.AppendLine($"  • {sys.Name} — Type: {sys.SystemType}, Elements: {equipCount}");
                 }
 
@@ -192,7 +192,7 @@ namespace StingTools.Temp
                 sb.AppendLine($"\nPiping Systems: {pipeSystems.Count}");
                 foreach (var sys in pipeSystems.Take(20))
                 {
-                    var pipeCount = sys.PipingNetwork?.Count ?? 0;
+                    var pipeCount = sys.PipingNetwork?.Size ?? 0;
                     sb.AppendLine($"  • {sys.Name} — Type: {sys.SystemType}, Elements: {pipeCount}");
                 }
 

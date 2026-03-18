@@ -1512,7 +1512,7 @@ namespace StingTools.Tags
 
             // Pick preset category first, then specific preset
             var presets = ParamDrivenStyleEngine.GetBuiltInPresets();
-            var preset = PickPreset(presets);
+            var preset = ParamDrivenStyleEngine.PickPreset(presets);
             if (preset == null) return Result.Cancelled;
 
             // Get tags and their hosts

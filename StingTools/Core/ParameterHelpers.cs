@@ -224,6 +224,24 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// Set an integer parameter. Returns true if set successfully.
+        /// </summary>
+        public static bool SetInt(Element el, string paramName, int value)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null || p.IsReadOnly) return false;
+            try
+            {
+                if (p.StorageType == StorageType.Integer) { p.Set(value); return true; }
+                if (p.StorageType == StorageType.Double) { p.Set((double)value); return true; }
+                if (p.StorageType == StorageType.String) { p.Set(value.ToString()); return true; }
+            }
+            catch (Exception ex) { StingLog.Warn($"SetInt({paramName}): {ex.Message}"); }
+            return false;
+        }
+
         /// <summary>Return a short level code from the element's host level.</summary>
         public static string GetLevelCode(Document doc, Element el)
         {
