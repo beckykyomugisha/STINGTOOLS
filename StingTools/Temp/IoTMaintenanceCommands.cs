@@ -27,8 +27,10 @@ namespace StingTools.Temp
         {
             try
             {
-                var uidoc = commandData.Application.ActiveUIDocument;
-                var doc = uidoc.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var uidoc = _ctx.UIDoc;
+                var doc = _ctx.Doc;
 
                 // Get all equipment for condition assessment
                 var equipmentCategories = new[]
@@ -135,7 +137,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("═══ MAINTENANCE SCHEDULE ═══\n");
 
@@ -217,7 +221,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 string folder = Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath();
                 string twinFolder = Path.Combine(folder, "STING_DigitalTwin");
                 Directory.CreateDirectory(twinFolder);
@@ -320,7 +326,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("═══ ENERGY ANALYSIS SUMMARY ═══\n");
 
@@ -369,7 +377,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var csvLines = new List<string> { "System,AssetTag,Category,Family,CheckItem,Status" };
 
                 var systemChecks = new Dictionary<string, string[]>
@@ -439,7 +449,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var rooms = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType()
                     .Cast<Autodesk.Revit.DB.Architecture.Room>().ToList();
@@ -489,7 +501,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("═══ LIFECYCLE COST ESTIMATE (60yr) ═══\n");
 
@@ -553,7 +567,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var csvLines = new List<string> { "AssetTag,Category,Family,WarrantyYears,InstallDate,ExpiryDate,Status" };
                 string installDate = DateTime.Now.ToString("yyyy-MM-dd");
                 int total = 0;
@@ -615,7 +631,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 string folder = Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath();
                 string hFolder = Path.Combine(folder, "STING_Handover");
                 Directory.CreateDirectory(hFolder);
@@ -697,7 +715,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var csvLines = new List<string> { "SensorType,AssetTag,Category,Family,Room,BMS_Address" };
                 int sensorCount = 0;
 

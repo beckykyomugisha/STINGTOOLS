@@ -187,8 +187,16 @@ namespace StingTools.Core
             return _enabled;
         }
 
-        /// <summary>Enable or disable visual tag placement during auto-tagging.</summary>
-        public static void SetVisualTagging(bool enabled) { _visualTaggingEnabled = enabled; }
+        /// <summary>Enable or disable visual tag placement during auto-tagging.
+        /// FIX-10.1: Persists the setting to project_config.json.</summary>
+        public static void SetVisualTagging(bool enabled)
+        {
+            _visualTaggingEnabled = enabled;
+            try { TagConfig.SetConfigValue("AUTO_TAGGER_VISUAL", enabled); }
+            catch (Exception ex) { StingLog.Warn($"SetVisualTagging persist: {ex.Message}"); }
+        }
+        /// <summary>FIX-10.2: Set visual tagging state without persisting (used during config load to avoid re-save loop).</summary>
+        public static void SetVisualTaggingQuiet(bool enabled) { _visualTaggingEnabled = enabled; }
         /// <summary>Get current visual tagging state.</summary>
         public static bool IsVisualTaggingEnabled => _visualTaggingEnabled;
 
@@ -661,8 +669,30 @@ namespace StingTools.Core
                 msg = "Real-time auto-tagging DISABLED.\n\n" +
                       $"Total elements auto-tagged this session: {StingAutoTagger.ProcessedCount}";
             }
+            // FIX-B10: Persist auto-tagger state to project_config.json
+            TagConfig.AutoTaggerEnabled = nowEnabled;
+            PersistAutoTaggerConfig(commandData);
+
             TaskDialog.Show("Auto-Tagger", msg);
             return Result.Succeeded;
+        }
+
+        /// <summary>FIX-B10: Save auto-tagger config keys to project_config.json adjacent to the .rvt file.</summary>
+        internal static void PersistAutoTaggerConfig(ExternalCommandData commandData)
+        {
+            try
+            {
+                var doc = commandData?.Application?.ActiveUIDocument?.Document;
+                if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
+                string dir = System.IO.Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(dir)) return;
+                string cfgPath = System.IO.Path.Combine(dir, "project_config.json");
+                TagConfig.SaveToFile(cfgPath);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AutoTagger config persist: {ex.Message}");
+            }
         }
     }
 
@@ -674,6 +704,11 @@ namespace StingTools.Core
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             StingAutoTagger.SetVisualTagging(!StingAutoTagger.IsVisualTaggingEnabled);
+
+            // FIX-B10: Persist visual tagging state
+            TagConfig.AutoTaggerVisual = StingAutoTagger.IsVisualTaggingEnabled;
+            AutoTaggerToggleCommand.PersistAutoTaggerConfig(commandData);
+
             TaskDialog.Show("STING Auto-Tagger",
                 $"Visual tag placement: {(StingAutoTagger.IsVisualTaggingEnabled ? "ENABLED" : "DISABLED")}\n\n" +
                 "When enabled, the auto-tagger will also place visual annotation tags on newly placed elements.");
@@ -706,9 +741,17 @@ namespace StingTools.Core
             td.CommonButtons = TaskDialogCommonButtons.Close;
             var result = td.Show();
             if (result == TaskDialogResult.CommandLink1)
+            {
                 StingAutoTagger.SetVisualTagging(!StingAutoTagger.IsVisualTaggingEnabled);
+                TagConfig.AutoTaggerVisual = StingAutoTagger.IsVisualTaggingEnabled;
+                AutoTaggerToggleCommand.PersistAutoTaggerConfig(commandData);
+            }
             else if (result == TaskDialogResult.CommandLink2)
+            {
                 StingStaleMarker.SetEnabled(!StingStaleMarker.IsEnabled);
+                TagConfig.AutoTaggerStaleMarker = StingStaleMarker.IsEnabled;
+                AutoTaggerToggleCommand.PersistAutoTaggerConfig(commandData);
+            }
             return Result.Succeeded;
         }
     }

@@ -138,6 +138,8 @@ namespace StingTools.Core
         public const string CLUSTER_COUNT_GUID = "D1E2F3A4-B5C6-4D7E-8F9A-0B1C2D3E4F5A";
         public const string CLUSTER_LABEL = "STING_CLUSTER_LABEL";
         public const string CLUSTER_LABEL_GUID = "D2E3F4A5-B6C7-4D8E-9F0A-1B2C3D4E5F6B";
+        /// <summary>FIX-B04: JSON array of cluster member bounding box centers for decluster restore.</summary>
+        public const string CLUSTER_MEMBER_POS = "STING_CLUSTER_MEMBER_POS_TXT";
         public const string DISPLAY_MODE = "STING_DISPLAY_MODE";
         public const string DISPLAY_MODE_GUID = "D0E1F2A3-B4C5-4D6E-8F7A-8B9C0D1E2F3A";
         /// <summary>
@@ -1227,6 +1229,30 @@ namespace StingTools.Core
                 // which called EnsureLoaded() — but _loaded is still false at this point, causing
                 // INFINITE RECURSION (C# lock is reentrant on the same thread).
                 _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
+
+                // FIX-12.4: Supplement GUID map from MR_PARAMETERS.txt
+                try
+                {
+                    string _mrFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                    if (!string.IsNullOrEmpty(_mrFile) && File.Exists(_mrFile))
+                    {
+                        if (_guidByName == null)
+                            _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
+                        int _sup = 0;
+                        foreach (string _ml in File.ReadAllLines(_mrFile))
+                        {
+                            if (!_ml.StartsWith("PARAM")) continue;
+                            var _mp = _ml.Split('\t');
+                            if (_mp.Length < 3) continue;
+                            string _mg = _mp[1]; string _mn = _mp[2];
+                            if (string.IsNullOrEmpty(_mn) || _guidByName.ContainsKey(_mn)) continue;
+                            if (Guid.TryParse(_mg, out Guid _gg))
+                            { _guidByName[_mn] = _gg; _sup++; }
+                        }
+                        StingLog.Info($"ParamRegistry: supplemented {_sup} GUIDs from MR_PARAMETERS.txt");
+                    }
+                }
+                catch (Exception _mrEx) { StingLog.Warn($"ParamRegistry MR supplement: {_mrEx.Message}"); }
 
                 StingLog.Info($"ParamRegistry loaded: {SourceTokens.Length} tokens, {ContainerGroups.Length} groups, {_allContainers.Length} containers, {_guidByName?.Count ?? 0} GUIDs");
             }

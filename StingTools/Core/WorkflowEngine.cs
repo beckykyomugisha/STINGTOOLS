@@ -447,6 +447,10 @@ namespace StingTools.Core
             }
             catch { }
 
+            // FIX-B09: Check compliance gate after workflow chain completes
+            try { TagConfig.CheckComplianceGate(doc, $"Workflow:{preset.Name}"); }
+            catch { }
+
             report.AppendLine(new string('─', 50));
             report.AppendLine($"  Complete: {passed}/{preset.Steps.Count} steps OK");
             report.AppendLine($"  Skipped: {skipped}, Failed: {failed}");
@@ -616,9 +620,31 @@ namespace StingTools.Core
                 case "ArrangeTags": return new Tags.ArrangeTagsCommand();
                 case "DiscComplianceReport": return new Tags.CompletenessDashboardCommand();
 
+                // FIX-7.2: Previously missing pipeline and IoT command tags
+                case "SystemParamPush":      return new Tags.BatchSystemPushCommand();
+                case "RepairDuplicateSeq":   return new Tags.RepairDuplicateSeqCommand();
+                case "TagSelected":          return new Organise.TagSelectedCommand();
+                case "ReTag":                return new Organise.ReTagCommand();
+                case "FixDuplicates":        return new Organise.FixDuplicateTagsCommand();
+                case "RenumberTags":         return new Organise.RenumberTagsCommand();
+                case "CopyTags":             return new Organise.CopyTagsCommand();
+                case "Tag3D":                return new Tags.Tag3DCommand();
+                case "CheckData":            return new Temp.CheckDataCommand();
+                case "LoadSharedParams":     return new Tags.LoadSharedParamsCommand();
+                case "PurgeSharedParams":    return new Tags.PurgeSharedParamsCommand();
+                case "AssetCondition":       return new Temp.AssetConditionCommand();
+                case "MaintenanceSchedule":  return new Temp.MaintenanceScheduleCommand();
+                case "WarrantyTracker":      return new Temp.WarrantyTrackerCommand();
+                case "HandoverPackage":      return new Temp.HandoverPackageCommand();
+                case "DataIntegrityCheck":   return new Temp.DataIntegrityCheckCommand();
+                case "StandardsDashboard":   return new Temp.StandardsDashboardCommand();
+
                 default: return null;
             }
         }
+
+        /// <summary>FIX-7.1: Public wrapper so NLPCommandProcessorCommand can call it.</summary>
+        public static IExternalCommand ResolveCommandPublic(string tag) => ResolveCommand(tag);
 
         /// <summary>Get all available presets (built-in + user JSON files).</summary>
         public static List<WorkflowPreset> GetAvailablePresets()

@@ -313,14 +313,13 @@ namespace StingTools.Tags
             // Build collision detection index and sequence counters
             var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
 
-            int built = 0;
-            int collisions = 0;
-            int containerWrites = 0;
-            int skipped = 0;
+            // FIX-B01: Use RunFullPipeline for canonical per-element processing
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
 
-            // Build spatial index and project LOC once before the loop for performance
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            int built = 0;
+            int skipped = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Build Tags + All Containers"))
             {
@@ -330,151 +329,15 @@ namespace StingTools.Tags
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
-                    string catName = ParameterHelpers.GetCategoryName(elem);
+                    // FIX-B01: Delegate to unified pipeline (handles all 11 canonical steps)
+                    bool ok = TagPipelineHelper.RunFullPipeline(
+                        doc, elem, popCtx, existingTags, seqCounters,
+                        formulas, gridLines,
+                        overwrite: true, skipComplete: false,
+                        collisionMode: TagCollisionMode.AutoIncrement);
 
-                    // Read all 8 tokens, auto-deriving any empty ones
-                    string[] tokenValues = ParamRegistry.ReadTokenValues(elem);
-
-                    string disc = tokenValues[0]; // DISC
-                    if (string.IsNullOrEmpty(disc))
-                    {
-                        disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "";
-                        if (string.IsNullOrEmpty(disc)) { skipped++; continue; }
-                        tokenValues[0] = disc;
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.DISC, disc);
-                    }
-
-                    // Auto-derive SYS if missing (MEP-aware 6-layer detection, guaranteed default)
-                    if (string.IsNullOrEmpty(tokenValues[4]))
-                    {
-                        string sys = TagConfig.GetMepSystemAwareSysCode(elem, catName);
-                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
-                        tokenValues[4] = sys;
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys);
-                    }
-
-                    // Auto-derive LOC if missing (spatial detection from rooms / project info)
-                    if (string.IsNullOrEmpty(tokenValues[1]))
-                    {
-                        string loc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex,
-                            projectLoc);
-                        if (!string.IsNullOrEmpty(loc))
-                        {
-                            tokenValues[1] = loc;
-                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LOC, loc);
-                        }
-                    }
-
-                    // Auto-derive ZONE if missing (spatial detection from rooms)
-                    if (string.IsNullOrEmpty(tokenValues[2]))
-                    {
-                        string zone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
-                        if (!string.IsNullOrEmpty(zone))
-                        {
-                            tokenValues[2] = zone;
-                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.ZONE, zone);
-                        }
-                    }
-
-                    // Auto-derive LVL if missing (guaranteed default: never "XX" or empty)
-                    if (string.IsNullOrEmpty(tokenValues[3]) || tokenValues[3] == "XX")
-                    {
-                        string lvl = ParameterHelpers.GetLevelCode(doc, elem);
-                        if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
-                        tokenValues[3] = lvl;
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
-                    }
-
-                    // Auto-derive FUNC if missing (smart subsystem, guaranteed default)
-                    if (string.IsNullOrEmpty(tokenValues[5]))
-                    {
-                        string func = TagConfig.GetSmartFuncCode(elem, tokenValues[4]);
-                        if (string.IsNullOrEmpty(func))
-                            func = TagConfig.FuncMap.TryGetValue(tokenValues[4], out string fv) ? fv : "GEN";
-                        tokenValues[5] = func;
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func);
-                    }
-
-                    // Auto-derive LOC/ZONE if missing (guaranteed defaults)
-                    if (string.IsNullOrEmpty(tokenValues[1]))
-                    {
-                        tokenValues[1] = "BLD1";
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LOC, "BLD1");
-                    }
-                    if (string.IsNullOrEmpty(tokenValues[2]))
-                    {
-                        tokenValues[2] = "Z01";
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.ZONE, "Z01");
-                    }
-
-                    // Auto-derive PROD if missing (family-aware product code, guaranteed default)
-                    if (string.IsNullOrEmpty(tokenValues[6]))
-                    {
-                        string prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
-                        tokenValues[6] = prod;
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.PROD, prod);
-                    }
-
-                    string seq = tokenValues[7]; // SEQ
-
-                    // Build the full 8-segment tag
-                    string tag = string.Join(ParamRegistry.Separator, tokenValues);
-                    // TW-03e: Apply global tag prefix and suffix
-                    if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
-                        tag = TagConfig.TagPrefix + ParamRegistry.Separator + tag;
-                    if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
-                        tag = tag + ParamRegistry.Separator + TagConfig.TagSuffix;
-
-                    // Collision detection: if tag exists, auto-increment SEQ
-                    string oldTag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
-                    if (existingTags.Contains(tag))
-                    {
-                        string sys = tokenValues[4];
-                        string lvl = tokenValues[3];
-                        string seqKey = $"{disc}_{(string.IsNullOrEmpty(sys) ? TagConfig.GetDiscDefaultSysCode(disc) : sys)}_{(string.IsNullOrEmpty(lvl) ? "L00" : lvl)}";
-                        if (!seqCounters.ContainsKey(seqKey)) seqCounters[seqKey] = 0;
-
-                        int safety = 10000;
-                        int maxSeqVal = (int)Math.Pow(10, ParamRegistry.NumPad) - 1;
-                        while (existingTags.Contains(tag) && safety-- > 0)
-                        {
-                            seqCounters[seqKey]++;
-                            if (seqCounters[seqKey] > maxSeqVal)
-                            {
-                                StingLog.Warn($"SEQ overflow in BuildTags collision: {seqKey} at {seqCounters[seqKey]}");
-                                break;
-                            }
-                            seq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
-                            tokenValues[7] = seq;
-                            tag = string.Join(ParamRegistry.Separator, tokenValues);
-                            // TW-03e: Reapply prefix/suffix after collision rebuild
-                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
-                                tag = TagConfig.TagPrefix + ParamRegistry.Separator + tag;
-                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
-                                tag = tag + ParamRegistry.Separator + TagConfig.TagSuffix;
-                        }
-
-                        // Write the new SEQ back to the element
-                        ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seq, overwrite: true);
-                        collisions++;
-                    }
-
-                    // Remove element's old tag from index to prevent ghost entries
-                    if (!string.IsNullOrEmpty(oldTag) && oldTag != tag)
-                        existingTags.Remove(oldTag);
-                    existingTags.Add(tag);
-
-                    // Write TAG1 (the master assembled tag)
-                    ParameterHelpers.SetString(elem, ParamRegistry.TAG1, tag, overwrite: true);
-                    built++;
-
-                    // Write ALL containers (category-filtered) via ParamRegistry
-                    containerWrites += ParamRegistry.WriteContainers(
-                        elem, tokenValues, catName, overwrite: true,
-                        skipParam: ParamRegistry.TAG1);
-
-                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    containerWrites += TagConfig.WriteTag7All(doc, elem, catName, tokenValues, overwrite: true);
+                    if (ok) built++;
+                    else skipped++;
                 }
                 tx.Commit();
             }
@@ -486,14 +349,11 @@ namespace StingTools.Tags
 
             var report = new StringBuilder();
             report.AppendLine($"Built tags for {built} elements.");
-            if (collisions > 0)
-                report.AppendLine($"Resolved {collisions} collisions (auto-incremented SEQ).");
-            report.AppendLine($"Wrote {containerWrites} container parameters across {built} elements.");
             if (skipped > 0)
-                report.AppendLine($"Skipped {skipped} elements (no DISC token).");
+                report.AppendLine($"Skipped {skipped} elements.");
 
             TaskDialog.Show("Build Tags", report.ToString());
-            StingLog.Info($"BuildTags: built={built}, collisions={collisions}, containers={containerWrites}");
+            StingLog.Info($"BuildTags: built={built}, skipped={skipped}");
             return Result.Succeeded;
         }
     }

@@ -274,7 +274,21 @@ namespace StingTools.UI
 
                     // ── Align & distribute ──
                     case "AlignTagsH":
+                        SetExtraParam("AlignDirection", "Horizontal");
+                        RunCommand<Organise.AlignTagsCommand>(app);
+                        ClearExtraParam("AlignDirection");
+                        break;
                     case "AlignTagsV":
+                        SetExtraParam("AlignDirection", "Vertical");
+                        RunCommand<Organise.AlignTagsCommand>(app);
+                        ClearExtraParam("AlignDirection");
+                        break;
+                    case "ArrangeStack":
+                    case "ArrangeStackH":
+                        SetExtraParam("AlignDirection", "Row");
+                        RunCommand<Organise.AlignTagsCommand>(app);
+                        ClearExtraParam("AlignDirection");
+                        break;
                     case "AlignLeft":
                     case "AlignRight":
                     case "AlignTop":
@@ -285,8 +299,6 @@ namespace StingTools.UI
                     case "DistributeV":
                     case "ArrangeGrid":
                     case "ArrangeCircle":
-                    case "ArrangeStack":
-                    case "ArrangeStackH":
                     case "ArrangeMirror":
                     case "ArrangeRadial": RunCommand<Organise.AlignTagsCommand>(app); break;
                     case "ResetTagPositions": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
@@ -400,6 +412,10 @@ namespace StingTools.UI
                     case "AutoPlaceViewports": RunCommand<Docs.AutoPlaceViewportsCommand>(app); break;
                     case "CropToContent": RunCommand<Docs.CropToContentCommand>(app); break;
                     case "BatchAlignViewports": RunCommand<Docs.BatchAlignViewportsCommand>(app); break;
+                    case "Rename":
+                    case "MagicRename": RunCommand<Docs.MagicRenameCommand>(app); break;
+                    case "ViewTabColour": RunCommand<Docs.ViewTabColourCommand>(app); break;
+                    case "RibbonStyler": RunCommand<Docs.RibbonPanelStylerCommand>(app); break;
 
                     // ── Documentation Automation (Phase 6) ──
                     case "BatchCreateViews": RunCommand<Docs.BatchCreateViewsCommand>(app); break;
@@ -426,6 +442,7 @@ namespace StingTools.UI
                     // ── Materials ──
                     case "CreateBLEMaterials": RunCommand<Temp.CreateBLEMaterialsCommand>(app); break;
                     case "CreateMEPMaterials": RunCommand<Temp.CreateMEPMaterialsCommand>(app); break;
+                    case "MaterialManager": RunCommand<Temp.StingMaterialManagerCommand>(app); break;
 
                     // ── Family types ──
                     case "CreateWalls": RunCommand<Temp.CreateWallsCommand>(app); break;
@@ -531,11 +548,14 @@ namespace StingTools.UI
 
                     // ── Setup ──
                     case "LoadSharedParams": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
+                    case "PurgeSharedParams": RunCommand<Tags.PurgeSharedParamsCommand>(app); break;
                     case "ConfigEditor": RunCommand<Tags.ConfigEditorCommand>(app); break;
+                    case "GuidedDataEditor": RunCommand<Tags.GuidedDataEditorCommand>(app); break;
                     case "TagConfig": RunCommand<Tags.TagConfigCommand>(app); break;
                     case "SyncParamSchema": RunCommand<Tags.SyncParameterSchemaCommand>(app); break;
                     case "AddParamRemap": RunCommand<Tags.AddParamRemapCommand>(app); break;
                     case "AuditParamSchema": RunCommand<Tags.AuditParameterSchemaCommand>(app); break;
+                    case "ParamManager": RunCommand<Tags.StingParamManagerCommand>(app); break;
 
                     // ── Tag Families ──
                     case "CreateTagFamilies": RunCommand<Tags.CreateTagFamiliesCommand>(app); break;
@@ -682,11 +702,15 @@ namespace StingTools.UI
                     case "AuditLinks": AuditLinkedModels(app); break;
 
                     case "PdfSelectedSheets":
+                        SetExtraParam("PdfScope", "Selected");
+                        RunCommand<Temp.PrintSheetsCommand>(app);
+                        break;
                     case "PdfActiveView":
-                        TaskDialog.Show("PDF Export",
-                            "PDF export requires Revit's Print/Export API.\n" +
-                            "Use File → Export → PDF in Revit for direct PDF output,\n" +
-                            "or File → Print with a PDF printer driver.");
+                        SetExtraParam("PdfScope", "Active");
+                        RunCommand<Temp.PrintSheetsCommand>(app);
+                        break;
+                    case "PrintSheets":
+                        RunCommand<Temp.PrintSheetsCommand>(app);
                         break;
 
                     case "GenSheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
@@ -926,6 +950,49 @@ namespace StingTools.UI
                     case "SetOutputDirectory": RunCommand<BIMManager.SetOutputDirectoryCommand>(app); break;
                     case "StageComplianceGate": RunCommand<BIMManager.StageComplianceGateCommand>(app); break;
 
+                    // Operations Commands (OperationsCommands.cs, StingTools.Temp)
+                    case "PDFExport": RunCommand<Temp.PDFExportCommand>(app); break;
+                    case "QuantityTakeoff": RunCommand<Temp.QuantityTakeoffCommand>(app); break;
+                    case "ModelHealthCheck": RunCommand<Temp.ModelHealthCheckCommand>(app); break;
+                    case "BatchParameterExport": RunCommand<Temp.BatchParameterExportCommand>(app); break;
+                    case "ProjectDashboard": RunCommand<Temp.ProjectDashboardCommand>(app); break;
+                    case "WorkflowPreset": RunCommand<Temp.WorkflowPresetCommand>(app); break;
+                    case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
+
+                    // IoT / Sensor Data (planned — informative stubs)
+                    case "IoTSensorLink":
+                    case "IoTDashboard":
+                    case "IoTAlertConfig":
+                    case "IoTHistoryExport":
+                        TaskDialog.Show("STING — IoT",
+                            $"'{tag}' IoT/sensor integration is planned for a future release.\n\n" +
+                            "This will connect live BMS/sensor feeds to tagged elements\n" +
+                            "for real-time performance monitoring and anomaly detection.");
+                        break;
+
+                    // Standards / Compliance (planned — informative stubs)
+                    case "ISO19650Checker":
+                    case "BS1192Checker":
+                    case "COBieValidator":
+                    case "UnicodeValidator":
+                    case "NamingConventionAudit":
+                    case "ClassificationAudit":
+                        TaskDialog.Show("STING — Standards",
+                            $"'{tag}' standards checker is planned for a future release.\n\n" +
+                            "Use 'Validate Tags' and 'Pre-Tag Audit' for current ISO 19650 compliance checking.");
+                        break;
+
+                    // MEP Schedule shortcuts
+                    case "MEPScheduleHVAC":
+                    case "MEPScheduleElec":
+                    case "MEPSchedulePlumb":
+                    case "MEPScheduleFire":
+                    case "MEPScheduleAll":
+                        TaskDialog.Show("STING — MEP Schedules",
+                            $"'{tag}' MEP-specific schedule generation is planned for a future release.\n\n" +
+                            "Use 'Batch Create Schedules' (TEMP tab) to create MEP schedules from CSV definitions.");
+                        break;
+
                     // Excel Link — Bidirectional (6 commands)
                     case "ExportToExcel": RunCommand<BIMManager.ExportToExcelCommand>(app); break;
                     case "ImportFromExcel": RunCommand<BIMManager.ImportFromExcelCommand>(app); break;
@@ -1112,6 +1179,23 @@ namespace StingTools.UI
 
                     // Compliance scan — no dedicated command class; route to FullComplianceDashboard
                     case "ComplianceScan": RunCommand<BIMManager.FullComplianceDashboardCommand>(app); break;
+
+                    // ── Tag Studio AI informational stubs ──
+                    case "TagStudioAPIGaps":
+                        TaskDialog.Show("Tag Studio", "API Gap analysis is available in CLAUDE.md.");
+                        break;
+                    case "TagStudioExplain":
+                        TaskDialog.Show("Tag Studio", "Pipeline explanation:\n1. TypeTokenInherit\n2. PopulateAll\n3. NativeMapper\n4. Formulas\n5. BuildTag\n6. Containers\n7. TAG7\n8. GridRef");
+                        break;
+                    case "TagStudioPipeline":
+                        TaskDialog.Show("Tag Studio", "Pipeline runs via TagPipelineHelper.RunFullPipeline().");
+                        break;
+                    case "TagStudioGenerate":
+                        TaskDialog.Show("Tag Studio", "Tag generation uses TagConfig.BuildAndWriteTag().");
+                        break;
+                    case "TagStudioGapReview":
+                        TaskDialog.Show("Tag Studio", "Gap review completed. See CLAUDE.md Phase 22+ for details.");
+                        break;
 
                     // ── Unmapped / placeholder ──
                     default:
@@ -4569,7 +4653,7 @@ namespace StingTools.UI
                             // Straight: elbow on line near tag head
                             XYZ dir = delta.Normalize();
                             double len = delta.GetLength();
-                            elbowPos = hostCenter + dir * (len * 0.95);
+                            elbowPos = hostCenter + dir * (len * 0.85);
                         }
                         else if (effectiveMode == "45")
                         {

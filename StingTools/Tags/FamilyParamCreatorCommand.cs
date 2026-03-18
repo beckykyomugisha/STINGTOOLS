@@ -47,6 +47,8 @@ namespace StingTools.Tags
             public bool InjectFormulas { get; set; } = true;
             public bool PlaceAnchor { get; set; } = false;
             public bool CreatePositionTypes { get; set; } = true;
+            /// <summary>FIX-9.1: When true, remove all ASS_*/STING_* family params before injecting.</summary>
+            public bool PurgeFirst { get; set; } = false;
             public List<string> ParamNames { get; set; } = new List<string>();
         }
 
@@ -662,6 +664,27 @@ namespace StingTools.Tags
                 {
                     tx.Start();
 
+                    // FIX-9.2: Purge existing ASS_*/STING_* params before injection if requested
+                    if (opts.PurgeFirst)
+                    {
+                        try
+                        {
+                            FamilyManager fmPurge = famDoc.FamilyManager;
+                            var toRemove = fmPurge.GetParameters()
+                                .Where(p => p.Definition.Name.StartsWith("ASS_", StringComparison.OrdinalIgnoreCase)
+                                         || p.Definition.Name.StartsWith("STING_", StringComparison.OrdinalIgnoreCase))
+                                .ToList();
+                            foreach (var fp in toRemove)
+                            {
+                                try { fmPurge.RemoveParameter(fp); }
+                                catch (Exception rpEx) { StingLog.Warn($"PurgeFirst '{fp.Definition.Name}': {rpEx.Message}"); }
+                            }
+                            if (toRemove.Count > 0)
+                                StingLog.Info($"PurgeFirst: removed {toRemove.Count} params from '{Path.GetFileName(rfaPath)}'");
+                        }
+                        catch (Exception purgeEx) { StingLog.Warn($"PurgeFirst: {purgeEx.Message}"); }
+                    }
+
                     // Inject shared parameters
                     var paramList = opts.ParamNames.Count > 0
                         ? opts.ParamNames
@@ -779,54 +802,90 @@ namespace StingTools.Tags
 
             var app = ctx.App.Application;
 
-            // Mode selection
+            // FIX-9.3: Mode selection with purge options and file/folder browser
             var modeTd = new TaskDialog("STING — Family Param Creator");
             modeTd.MainInstruction = "Family Parameter Injection Mode";
             modeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Single family", "Process one .rfa file");
+                "Single family — Add params", "Pick one .rfa file and inject STING parameters");
             modeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Batch folder", "Process all .rfa files in a folder");
+                "Batch folder — Add params", "Pick a folder and inject params into all .rfa files");
+            modeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Purge + Inject (single or batch)", "Remove existing ASS_*/STING_* params first, then re-inject");
             modeTd.CommonButtons = TaskDialogCommonButtons.Cancel;
             var modeResult = modeTd.Show();
 
             if (modeResult != TaskDialogResult.CommandLink1 &&
-                modeResult != TaskDialogResult.CommandLink2)
+                modeResult != TaskDialogResult.CommandLink2 &&
+                modeResult != TaskDialogResult.CommandLink3)
                 return Result.Cancelled;
 
-            bool isBatch = modeResult == TaskDialogResult.CommandLink2;
+            bool purgeFirst = modeResult == TaskDialogResult.CommandLink3;
+            bool isBatch;
+            if (purgeFirst)
+            {
+                // Ask single or batch for purge mode
+                var scopeTd = new TaskDialog("STING — Purge + Inject Scope");
+                scopeTd.MainInstruction = "Purge + Inject: Single file or batch folder?";
+                scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Single family file");
+                scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Batch folder");
+                scopeTd.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var scopeResult = scopeTd.Show();
+                if (scopeResult == TaskDialogResult.CommandLink1) isBatch = false;
+                else if (scopeResult == TaskDialogResult.CommandLink2) isBatch = true;
+                else return Result.Cancelled;
+            }
+            else
+            {
+                isBatch = modeResult == TaskDialogResult.CommandLink2;
+            }
 
             // Options
             var opts = new FamilyParamEngine.ProcessOptions
             {
                 InjectTagPos = true,
                 InjectFormulas = true,
-                CreatePositionTypes = true
+                CreatePositionTypes = true,
+                PurgeFirst = purgeFirst
             };
 
-            // Get file(s) to process
+            // Get file(s) to process using file/folder browser dialogs
             List<string> rfaFiles;
             string outputDir;
 
             if (isBatch)
             {
-                // Use folder dialog via a simple path prompt
-                string searchDir = StingToolsApp.DataPath ?? "";
-                if (string.IsNullOrEmpty(searchDir) || !Directory.Exists(searchDir))
+                // Use WPF-compatible SaveFileDialog to pick a folder (same pattern as OutputLocationHelper)
+                var dlg = new Microsoft.Win32.SaveFileDialog
                 {
-                    TaskDialog.Show("STING", "No valid data directory found for batch processing.");
-                    return Result.Failed;
-                }
-                rfaFiles = Directory.GetFiles(searchDir, "*.rfa", SearchOption.AllDirectories).ToList();
-                outputDir = searchDir;
+                    Title = "Select folder containing .rfa files (pick any file in target folder)",
+                    Filter = "Revit Family Files (*.rfa)|*.rfa",
+                    FileName = "select_this_folder.rfa",
+                    InitialDirectory = StingToolsApp.DataPath ?? ""
+                };
+                if (dlg.ShowDialog() != true)
+                    return Result.Cancelled;
+                string selectedDir = Path.GetDirectoryName(dlg.FileName);
+                if (string.IsNullOrEmpty(selectedDir) || !Directory.Exists(selectedDir))
+                    return Result.Cancelled;
+                rfaFiles = Directory.GetFiles(selectedDir, "*.rfa", SearchOption.AllDirectories).ToList();
+                outputDir = selectedDir;
             }
             else
             {
-                // For single file, look for .rfa in data path
-                string searchDir = StingToolsApp.DataPath ?? "";
-                rfaFiles = Directory.Exists(searchDir)
-                    ? Directory.GetFiles(searchDir, "*.rfa", SearchOption.TopDirectoryOnly).Take(1).ToList()
-                    : new List<string>();
-                outputDir = searchDir;
+                // Use WPF-compatible OpenFileDialog for single file selection
+                var ofd = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Select .rfa family file",
+                    Filter = "Revit Family Files (*.rfa)|*.rfa",
+                    InitialDirectory = StingToolsApp.DataPath ?? ""
+                };
+                if (ofd.ShowDialog() != true)
+                    return Result.Cancelled;
+                string selectedFile = ofd.FileName;
+                if (string.IsNullOrEmpty(selectedFile) || !File.Exists(selectedFile))
+                    return Result.Cancelled;
+                rfaFiles = new List<string> { selectedFile };
+                outputDir = Path.GetDirectoryName(selectedFile);
             }
 
             if (rfaFiles.Count == 0)
