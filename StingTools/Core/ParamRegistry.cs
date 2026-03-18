@@ -1604,7 +1604,7 @@ namespace StingTools.Core
             _extendedParams["ROOM_NAME"] = "ASS_ROOM_NAME_TXT"; _extendedParams["ROOM_NUM"] = "ASS_ROOM_NUM_TXT";
             _extendedParams["ROOM_AREA"] = "ASS_ROOM_AREA_SQ_M"; _extendedParams["ROOM_VOLUME"] = "ASS_ROOM_VOLUME_CU_M";
             _extendedParams["DEPT"] = "ASS_DEPARTMENT_ASSIGNMENT_TXT"; _extendedParams["GRID_REF"] = "PRJ_GRID_REF_TXT";
-            _extendedParams["BLE_ROOM_NAME"] = "BLE_ROOM_NAME_TXT"; _extendedParams["BLE_ROOM_NUM"] = "BLE_ROOM_NUMBER_TXT";
+            _extendedParams["BLE_ROOM_NAME"] = "BLE_ROOM_NAME_TXT"; _extendedParams["BLE_ROOM_NUM"] = "BLE_ROOM_NUM_TXT";
             // Extended tokens
             _extendedParams["ORIGIN"] = "ASS_ORIGIN_TXT"; _extendedParams["PROJECT"] = "ASS_PROJECT_TXT";
             _extendedParams["REV"] = "ASS_REV_TXT"; _extendedParams["VOLUME"] = "ASS_VOL_TXT";
@@ -1733,6 +1733,12 @@ namespace StingTools.Core
             _extendedParams["PRJ_PROJECT_COD"] = "PRJ_PROJECT_COD_TXT"; _extendedParams["PRJ_ORIGINATOR_COD"] = "PRJ_ORIGINATOR_COD_TXT";
             _extendedParams["PRJ_VOLUME_COD"] = "PRJ_VOLUME_COD_TXT"; _extendedParams["PRJ_STATUS_COD"] = "PRJ_STATUS_COD_TXT";
             _extendedParams["PRJ_REV_COD"] = "PRJ_REV_COD_TXT";
+            // COBie / warranty / commissioning / asset management
+            _extendedParams["BARCODE"] = "ASS_BARCODE_TXT"; _extendedParams["ASSET_ID"] = "ASS_ASSET_ID_TXT";
+            _extendedParams["CONDITION"] = "ASS_CONDITION_TXT"; _extendedParams["WARRANTY_START"] = "ASS_WARRANTY_START_TXT";
+            _extendedParams["WARR_GUAR_PARTS"] = "ASS_WARRANTY_PARTS_TXT"; _extendedParams["WARR_DUR_PARTS"] = "ASS_WARRANTY_DURATION_PARTS_YRS";
+            _extendedParams["WARR_GUAR_LABOR"] = "ASS_WARRANTY_LABOR_TXT"; _extendedParams["WARR_DUR_LABOR"] = "ASS_WARRANTY_DURATION_LABOR_YRS";
+            _extendedParams["WARR_DUR_UNIT"] = "ASS_WARRANTY_DUR_UNIT_TXT"; _extendedParams["MODEL_REF"] = "ASS_MODEL_REF_TXT";
 
             ContainerGroups = Array.Empty<ContainerGroupDef>();
             UniversalParams = new[]

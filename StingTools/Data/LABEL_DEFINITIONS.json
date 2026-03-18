@@ -1388,7 +1388,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -1886,7 +1886,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -2438,7 +2438,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -2978,7 +2978,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -3475,7 +3475,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -3937,7 +3937,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -4381,7 +4381,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -4850,7 +4850,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -5393,7 +5393,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -5885,7 +5885,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -6383,7 +6383,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -6859,7 +6859,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -7505,7 +7505,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -8068,7 +8068,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -8518,7 +8518,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -8977,7 +8977,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -9413,7 +9413,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -9847,7 +9847,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -10288,7 +10288,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -10724,7 +10724,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -11158,7 +11158,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -11585,7 +11585,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -12012,7 +12012,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -12439,7 +12439,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -12866,7 +12866,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -13309,7 +13309,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -13736,7 +13736,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -14163,7 +14163,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -14597,7 +14597,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -15024,7 +15024,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -15451,7 +15451,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -15878,7 +15878,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -16305,7 +16305,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -16739,7 +16739,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -17166,7 +17166,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -17609,7 +17609,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -18043,7 +18043,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -18479,7 +18479,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -18906,7 +18906,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -19333,7 +19333,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -19760,7 +19760,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -20201,7 +20201,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -20637,7 +20637,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -21073,7 +21073,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -21500,7 +21500,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -21941,7 +21941,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -22402,7 +22402,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -22843,7 +22843,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -23279,7 +23279,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -23759,7 +23759,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -24258,7 +24258,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -24748,7 +24748,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -25200,7 +25200,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -25627,7 +25627,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -26054,7 +26054,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -26481,7 +26481,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -26908,7 +26908,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -27335,7 +27335,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -27762,7 +27762,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -28189,7 +28189,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -28616,7 +28616,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -29043,7 +29043,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -29470,7 +29470,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -29897,7 +29897,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -30280,7 +30280,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -30670,7 +30670,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -31062,7 +31062,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -31496,7 +31496,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -31930,7 +31930,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -32364,7 +32364,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -32791,7 +32791,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -33225,7 +33225,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -33652,7 +33652,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -34086,7 +34086,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -34555,7 +34555,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -34999,7 +34999,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -35437,7 +35437,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -35941,7 +35941,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -36396,7 +36396,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -36911,7 +36911,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -37375,7 +37375,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -37819,7 +37819,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -38256,7 +38256,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -38769,7 +38769,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -39262,7 +39262,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -39747,7 +39747,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -40222,7 +40222,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -40661,7 +40661,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -41114,7 +41114,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -41544,7 +41544,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -42024,7 +42024,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -42594,7 +42594,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -43119,7 +43119,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -43603,7 +43603,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -44125,7 +44125,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -44585,7 +44585,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -45029,7 +45029,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -45472,7 +45472,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -45922,7 +45922,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -46366,7 +46366,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -46826,7 +46826,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -47286,7 +47286,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -47726,7 +47726,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -48160,7 +48160,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -48600,7 +48600,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -49034,7 +49034,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -49488,7 +49488,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -49915,7 +49915,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -50342,7 +50342,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -50776,7 +50776,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -51203,7 +51203,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -51630,7 +51630,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -52057,7 +52057,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -52504,7 +52504,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -52931,7 +52931,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -53358,7 +53358,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -53785,7 +53785,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -54212,7 +54212,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -54639,7 +54639,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -55066,7 +55066,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -55493,7 +55493,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -55920,7 +55920,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -56356,7 +56356,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -56783,7 +56783,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -57210,7 +57210,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",
@@ -57637,7 +57637,7 @@
           "note": "Maintenance access requirements"
         },
         {
-          "param": "COM_COMMISSIONING_STATUS_TXT",
+          "param": "COM_COMMISSION_STATUS_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Commission: ",

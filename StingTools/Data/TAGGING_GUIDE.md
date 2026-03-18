@@ -785,7 +785,7 @@ Builds an asset identity statement from:
 | PROD token | Product description lookup | "AHU" → "Air Handling Unit" |
 | Category name | Fallback if no PROD description | "Mechanical Equipment" |
 | `ASS_MFR_TXT` | Manufacturer name | "Daikin" |
-| `ASS_MODEL_TXT` | Model number | "FXS125" |
+| `ASS_MODEL_NR_TXT` | Model number | "FXS125" |
 | `ASS_FAMILY_NAME_TXT` | Family name (if no mfr/model) | "M_FCU_Horizontal" |
 | `ASS_TYPE_NAME_TXT` | Type configuration | "1200mm - 4 Pipe" |
 | `ASS_DESC_TXT` | Description | "Ceiling-mounted FCU" |
@@ -834,7 +834,7 @@ Built from room and spatial data parameters:
 |------------------|----------|---------|
 | `ASS_ROOM_NAME_TXT` | Room name | "Office 201" |
 | `ASS_ROOM_NUM_TXT` | Room number | "2.01" |
-| `ASS_DEPT_TXT` | Department | "Engineering" |
+| `ASS_DEPARTMENT_ASSIGNMENT_TXT` | Department | "Engineering" |
 | `ASS_GRID_REF_TXT` | Grid reference | "C4-D5" |
 | `BLE_ROOM_NAME_TXT` | BLE room name (fallback) | Used if ASS_ROOM_NAME is empty |
 | `BLE_ROOM_NUM_TXT` | BLE room number (fallback) | Used if ASS_ROOM_NUM is empty |

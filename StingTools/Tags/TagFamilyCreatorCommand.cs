@@ -184,13 +184,19 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_SiteProperty, "Generic Tag.rft" },
 
             // ── Additional (align with LABEL_DEFINITIONS v5.5) ───────────────
-            // Note: OST_AnalyticalDuctSegments, OST_AnalyticalPipeSegments, OST_AreaBasedLoads,
-            // OST_MEPAncillaries, OST_TemporaryStructures, OST_Wash are Revit 2026+ only
             { BuiltInCategory.OST_StructConnectionBolts, "Generic Tag.rft" },
             { BuiltInCategory.OST_SitePropertyLineSegment, "Generic Tag.rft" },
             { BuiltInCategory.OST_ToposolidLink, "Generic Tag.rft" },
             { BuiltInCategory.OST_StructConnectionWelds, "Generic Tag.rft" },
             { BuiltInCategory.OST_Wire, "Electrical Equipment Tag.rft" },
+
+            // ── Analytical & specialised (Revit 2025+) ──────────────────────
+            { BuiltInCategory.OST_AnalyticalDuctSegments, "Duct Tag.rft" },
+            { BuiltInCategory.OST_AnalyticalPipeSegments, "Pipe Tag.rft" },
+            { BuiltInCategory.OST_AreaBasedLoads, "Generic Tag.rft" },
+            { BuiltInCategory.OST_MEPAncillaries, "Generic Tag.rft" },
+            { BuiltInCategory.OST_TemporaryStructures, "Generic Tag.rft" },
+            { BuiltInCategory.OST_Wash, "Generic Tag.rft" },
         };
 
         /// <summary>
@@ -331,14 +337,45 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_SiteProperty, "Property Lines" },
 
             // Additional (align with LABEL_DEFINITIONS v5.5)
-            // Note: OST_AnalyticalDuctSegments, OST_AnalyticalPipeSegments, OST_AreaBasedLoads,
-            // OST_MEPAncillaries, OST_TemporaryStructures, OST_Wash are Revit 2026+ only
             { BuiltInCategory.OST_StructConnectionBolts, "Bolt" },
             { BuiltInCategory.OST_SitePropertyLineSegment, "Property Line Segments" },
             { BuiltInCategory.OST_ToposolidLink, "Toposolid Links" },
             { BuiltInCategory.OST_StructConnectionWelds, "Weld" },
             { BuiltInCategory.OST_Wire, "Wire" },
+
+            // Analytical & specialised (Revit 2025+)
+            { BuiltInCategory.OST_AnalyticalDuctSegments, "Analytical Duct Segments" },
+            { BuiltInCategory.OST_AnalyticalPipeSegments, "Analytical Pipe Segments" },
+            { BuiltInCategory.OST_AreaBasedLoads, "Area Based Loads" },
+            { BuiltInCategory.OST_MEPAncillaries, "MEP Ancillary" },
+            { BuiltInCategory.OST_TemporaryStructures, "Temporary Structures" },
+            { BuiltInCategory.OST_Wash, "Wash" },
         };
+
+        /// <summary>
+        /// Tie-in point tag families (ISO 19650-3 interface management).
+        /// These create ADDITIONAL tag families for existing BuiltInCategories,
+        /// so they cannot go in the CategoryTemplateMap dictionary (duplicate keys).
+        /// Each tuple: (BuiltInCategory, templateName, displayName, familySuffix)
+        /// </summary>
+        public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] TieInPointFamilies =
+        {
+            (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Pipe)",            "Tie-In Pipe"),
+            (BuiltInCategory.OST_DuctCurves,     "Duct Tag.rft",                "Tie-In Point (Duct)",            "Tie-In Duct"),
+            (BuiltInCategory.OST_Conduit,        "Conduit Tag.rft",             "Tie-In Point (Conduit)",         "Tie-In Conduit"),
+            (BuiltInCategory.OST_CableTray,      "Cable Tray Tag.rft",          "Tie-In Point (Cable Tray)",      "Tie-In Cable Tray"),
+            (BuiltInCategory.OST_Sprinklers,     "Sprinkler Tag.rft",           "Tie-In Point (Fire Protection)", "Tie-In Fire Protection"),
+            (BuiltInCategory.OST_GenericModel,    "Generic Tag.rft",             "Tie-In Point (Gas)",             "Tie-In Gas"),
+        };
+
+        /// <summary>Total tag family count including both standard categories and tie-in points.</summary>
+        public static int TotalFamilyCount => CategoryTemplateMap.Count + TieInPointFamilies.Length;
+
+        /// <summary>Generate tie-in family name from suffix.</summary>
+        public static string GetTieInFamilyName(string suffix) => $"{FamilyPrefix} - {suffix} Tag";
+
+        /// <summary>Generate tie-in family filename from suffix.</summary>
+        public static string GetTieInFamilyFileName(string suffix) => GetTieInFamilyName(suffix) + ".rfa";
 
         /// <summary>
         /// STING shared parameters to add to each tag family.
@@ -649,11 +686,11 @@ namespace StingTools.Tags
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  Create Tag Families — create all 50 tag families from templates
+    //  Create Tag Families — create all 132 tag families from templates
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Creates STING tag families (.rfa) for all 50 taggable categories.
+    /// Creates STING tag families (.rfa) for all 132 taggable categories (126 standard + 6 tie-in point).
     /// Each family is created from the appropriate Revit annotation template,
     /// configured with STING shared parameters, saved, and loaded into the project.
     ///
@@ -718,7 +755,7 @@ namespace StingTools.Tags
 
             // ── Step 4: Determine categories to process ──
             var categories = TagFamilyConfig.CategoryTemplateMap.Keys.ToList();
-            int total = categories.Count;
+            int total = TagFamilyConfig.TotalFamilyCount;
             int alreadyLoaded = 0;
             int created = 0;
             int loaded = 0;
@@ -731,6 +768,13 @@ namespace StingTools.Tags
             foreach (var bic in categories)
             {
                 string famName = TagFamilyConfig.GetFamilyName(bic);
+                if (loadedFamilies.Contains(famName))
+                    alreadyLoaded++;
+            }
+            // Also count tie-in point families
+            foreach (var tiein in TagFamilyConfig.TieInPointFamilies)
+            {
+                string famName = TagFamilyConfig.GetTieInFamilyName(tiein.suffix);
                 if (loadedFamilies.Contains(famName))
                     alreadyLoaded++;
             }
@@ -877,6 +921,140 @@ namespace StingTools.Tags
                     failures.Add($"{catDisplay}: {ex.Message}");
                     report.AppendLine($"  [FAIL] {catDisplay} — {ex.Message}");
                     StingLog.Error($"Tag family creation failed for {catDisplay}", ex);
+                }
+            }
+
+            // ── Step 5b: Create tie-in point tag families ──
+            report.AppendLine();
+            report.AppendLine("── Tie-In Point Families ──");
+            foreach (var tiein in TagFamilyConfig.TieInPointFamilies)
+            {
+                string famName = TagFamilyConfig.GetTieInFamilyName(tiein.suffix);
+                string fileName = TagFamilyConfig.GetTieInFamilyFileName(tiein.suffix);
+
+                if (loadedFamilies.Contains(famName))
+                {
+                    report.AppendLine($"  [SKIP] {tiein.display} — already loaded");
+                    continue;
+                }
+
+                // Check for existing .rfa on disk
+                string existingRfa = Path.Combine(outputDir, fileName);
+                if (File.Exists(existingRfa))
+                {
+                    try
+                    {
+                        using (Transaction t = new Transaction(doc, "STING Load Tie-In Tag"))
+                        {
+                            t.Start();
+                            doc.LoadFamily(existingRfa);
+                            t.Commit();
+                        }
+                        loaded++;
+                        report.AppendLine($"  [LOAD] {tiein.display} — loaded from existing .rfa");
+                        continue;
+                    }
+                    catch (Exception ex)
+                    {
+                        report.AppendLine($"  [FAIL] {tiein.display} — load failed: {ex.Message}");
+                    }
+                }
+
+                // Find template and create family
+                string tpl = null;
+                foreach (string dir in new[] { templateDir })
+                {
+                    string specific = Path.Combine(dir, tiein.template);
+                    if (File.Exists(specific)) { tpl = specific; break; }
+                    string metric = Path.Combine(dir, "Metric " + tiein.template);
+                    if (File.Exists(metric)) { tpl = metric; break; }
+                }
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    // Fallback to Generic Tag.rft
+                    string generic = Path.Combine(templateDir, "Generic Tag.rft");
+                    if (File.Exists(generic)) tpl = generic;
+                    else
+                    {
+                        string metricGeneric = Path.Combine(templateDir, "Metric Generic Tag.rft");
+                        if (File.Exists(metricGeneric)) tpl = metricGeneric;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    templateMissing++;
+                    report.AppendLine($"  [MISS] {tiein.display} — no template found");
+                    continue;
+                }
+
+                try
+                {
+                    Document famDoc = app.NewFamilyDocument(tpl);
+                    if (famDoc == null)
+                    {
+                        failed++;
+                        report.AppendLine($"  [FAIL] {tiein.display} — NewFamilyDocument returned null");
+                        continue;
+                    }
+
+                    // Add shared parameters (same as standard families)
+                    int paramCount = 0;
+                    using (Transaction t = new Transaction(famDoc, "STING Add Params"))
+                    {
+                        t.Start();
+                        app.SharedParametersFilename = sharedParamFile;
+                        var defFile = app.OpenSharedParameterFile();
+                        if (defFile != null)
+                        {
+                            foreach (string pName in TagFamilyConfig.TagParams
+                                .Concat(TagFamilyConfig.VisibilityParams)
+                                .Append("ASS_DESCRIPTION_TXT"))
+                            {
+                                foreach (DefinitionGroup grp in defFile.Groups)
+                                {
+                                    var def = grp.Definitions.get_Item(pName);
+                                    if (def != null)
+                                    {
+                                        try
+                                        {
+                                            famDoc.FamilyManager.AddParameter(
+                                                def as ExternalDefinition,
+                                                new ForgeTypeId("autodesk.spec.aec:identityData-2.0.0"),
+                                                false);
+                                            paramCount++;
+                                        }
+                                        catch { }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        t.Commit();
+                    }
+
+                    // Save and load
+                    string savePath = Path.Combine(outputDir, fileName);
+                    var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                    famDoc.SaveAs(savePath, saveOpts);
+                    famDoc.Close(false);
+                    created++;
+
+                    using (Transaction t = new Transaction(doc, "STING Load Tie-In Tag"))
+                    {
+                        t.Start();
+                        doc.LoadFamily(savePath);
+                        t.Commit();
+                    }
+                    loaded++;
+                    report.AppendLine($"  [OK]   {tiein.display} — created and loaded ({paramCount} params)");
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    failures.Add($"{tiein.display}: {ex.Message}");
+                    report.AppendLine($"  [FAIL] {tiein.display} — {ex.Message}");
+                    StingLog.Error($"Tie-in tag family creation failed for {tiein.display}", ex);
                 }
             }
 

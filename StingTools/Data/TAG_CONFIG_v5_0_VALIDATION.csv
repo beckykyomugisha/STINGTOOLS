@@ -180,3 +180,20 @@ CACHE_SETTING,PHASE_CACHE_ENABLED,TRUE,Cache phase list in PopulationContext for
 CACHE_SETTING,ROOM_INDEX_ENABLED,TRUE,Pre-build room spatial index for LOC/ZONE detection
 CACHE_SETTING,COMPLIANCE_CACHE_TTL_SEC,30,ComplianceScan cache stale duration
 CACHE_SETTING,AUTO_TAGGER_DEDUP_LIMIT,10000,StingAutoTagger processed ID cache clear threshold
+#
+# SECTION 13: TIE-IN POINT VALIDATION RULES (v5.1 — ISO 19650-3)
+# Format: TIEIN_RULE,Severity,ParamName,Condition,Standard,Description
+#
+TIEIN_RULE,CRITICAL,WARN_ASS_TIEIN_OPEN_GAS,STATUS=OPEN on gas system,BS 6891 / NFPA 54 / ISO 17484,Open gas tie-in — explosion/asphyxiation risk
+TIEIN_RULE,CRITICAL,WARN_ASS_TIEIN_OPEN_FIREPIPE,STATUS=OPEN on fire suppression,NFPA 13 / FM Global / BS EN 12845,Open fire suppression tie-in — life safety risk
+TIEIN_RULE,HIGH,WARN_ASS_TIEIN_OPEN_PIPE,STATUS=OPEN on pipe,ISO 10628-2 / PAS 1192,Open pipe tie-in — unresolved live termination
+TIEIN_RULE,HIGH,WARN_ASS_TIEIN_OPEN_DUCT,STATUS=OPEN on duct,SMACNA / CIBSE Guide B3,Open duct tie-in — unresolved duct stub
+TIEIN_RULE,HIGH,WARN_ASS_TIEIN_OPEN_CONDUIT,STATUS=OPEN on conduit,BS 7671 / IEC 60364,Open conduit tie-in — unresolved conduit stub
+TIEIN_RULE,HIGH,WARN_ASS_TIEIN_OPEN_CABLETRAY,STATUS=OPEN on cable tray,IEC 61537 / BS EN 61537,Open cable tray tie-in — dead-end unresolved
+TIEIN_RULE,HIGH,WARN_ASS_TIEIN_DEFERRED_FIREPIPE,STATUS=DEFERRED on fire suppression,NFPA 13 Cl. 8 / BS EN 12845 Cl. 10,Fire suppression tie-in deferred — AHJ notification required
+TIEIN_RULE,HIGH,WARN_ASS_TIEIN_DEFERRED_GAS,STATUS=DEFERRED on gas system,BS 6891 / Gas Safety Regulations,Gas tie-in deferred — gas authority notification required
+TIEIN_RULE,MEDIUM,WARN_ASS_TIEIN_DEFERRED_PIPE,STATUS=DEFERRED on pipe,ISO 19650-2 / PAS 1192-2,Pipe tie-in deferred — phase milestone impact risk
+TIEIN_RULE,MEDIUM,WARN_ASS_TIEIN_DEFERRED_DUCT,STATUS=DEFERRED on duct,CIBSE Guide B / ISO 19650-2,Duct tie-in deferred — scope gap risk
+TIEIN_RULE,MEDIUM,WARN_ASS_TIEIN_NO_PHASE,ASS_TIEIN_PHASE_TXT empty,ISO 19650-3,Tie-in has no construction phase assigned
+TIEIN_RULE,MEDIUM,WARN_ASS_TIEIN_NO_RESPONSIBLE,ASS_TIEIN_BY_TXT empty,ISO 19650-2,Tie-in has no responsible party assigned
+TIEIN_RULE,LOW,WARN_ASS_TIEIN_NO_IFC_REF,ASS_TIEIN_IFC_REF_TXT empty,ISO 19650-2,Tie-in has no IFC/interface reference

@@ -1957,7 +1957,7 @@ namespace StingTools.BIMManager
                     ["Description"] = ParameterHelpers.GetString(fs, "ASS_DESCRIPTION_TXT"),
                     ["AssetType"] = ClassifyAssetType(fs.Category?.Name ?? "", activePreset),
                     ["Manufacturer"] = ParameterHelpers.GetString(fs, "ASS_MANUFACTURER_TXT"),
-                    ["ModelNumber"] = ParameterHelpers.GetString(fs, "ASS_MODEL_TXT"),
+                    ["ModelNumber"] = ParameterHelpers.GetString(fs, "ASS_MODEL_NR_TXT"),
                     ["WarrantyGuarantorParts"] = warrantyParts,
                     ["WarrantyDurationParts"] = warrantyDurParts,
                     ["WarrantyGuarantorLabor"] = warrantyLabor,
@@ -2036,7 +2036,7 @@ namespace StingTools.BIMManager
                 };
 
                 // Extract serial number, installation date, warranty start, barcode from STING parameters
-                string serialNumber = ParameterHelpers.GetString(el, "ASS_SERIAL_NUMBER_TXT");
+                string serialNumber = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
                 string installDate = ParameterHelpers.GetString(el, "COM_INSTALL_DATE_TXT");
                 // Fallback: derive installation date from phase if STING param empty
                 if (string.IsNullOrEmpty(installDate))
@@ -2350,7 +2350,7 @@ namespace StingTools.BIMManager
                 .GroupBy(fs => fs.FamilyName).Select(g => g.First()))
             {
                 string manufacturer = ParameterHelpers.GetString(fs, "ASS_MANUFACTURER_TXT");
-                string model = ParameterHelpers.GetString(fs, "ASS_MODEL_TXT");
+                string model = ParameterHelpers.GetString(fs, "ASS_MODEL_NR_TXT");
                 if (string.IsNullOrEmpty(manufacturer) && string.IsNullOrEmpty(model)) continue;
                 spares.Add(new Dictionary<string, string>
                 {
@@ -2464,8 +2464,8 @@ namespace StingTools.BIMManager
                 // Tag containers
                 ParamRegistry.TAG1,
                 // Identity & description
-                "ASS_MANUFACTURER_TXT", "ASS_MODEL_TXT", "ASS_DESCRIPTION_TXT",
-                "ASS_SERIAL_NUMBER_TXT", "ASS_BARCODE_TXT",
+                "ASS_MANUFACTURER_TXT", "ASS_MODEL_NR_TXT", "ASS_DESCRIPTION_TXT",
+                "ASS_SERIAL_NR_TXT", "ASS_BARCODE_TXT",
                 // Lifecycle
                 "ASS_EXPECTED_LIFE_YEARS_YRS", "ASS_CST_UNIT_PRICE_UGX_NR",
                 "ASS_WARRANTY_PARTS_TXT", "ASS_WARRANTY_LABOR_TXT",
@@ -2473,7 +2473,7 @@ namespace StingTools.BIMManager
                 // Material / finish
                 "ASS_COLOR_TXT", "ASS_FINISH_TXT", "ASS_MATERIAL_TXT", "ASS_GRADE_TXT",
                 // Spatial
-                "ASS_ROOM_NAME_TXT", "ASS_ROOM_NUMBER_TXT", "ASS_DEPARTMENT_TXT", "ASS_GRID_REFERENCE_TXT",
+                "ASS_ROOM_NAME_TXT", "ASS_ROOM_NUM_TXT", "ASS_DEPARTMENT_ASSIGNMENT_TXT", "ASS_GRID_REF_TXT",
                 // Status & revision
                 "ASS_STATUS_TXT", "ASS_REV_TXT", "ASS_ORIGIN_TXT",
                 // Commissioning

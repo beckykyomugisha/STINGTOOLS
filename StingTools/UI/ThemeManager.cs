@@ -11,6 +11,11 @@ namespace StingTools.UI
     /// All themes use light content areas (matching the TAGS sub-tabs style)
     /// with coloured header/tab bars. Clean white/off-white backgrounds,
     /// dark text, subtle borders.
+    ///
+    /// IMPORTANT: In Revit's dockable pane hosting, Application.Current.Resources
+    /// may not propagate to the Page's DynamicResource lookups because the WPF
+    /// resource tree can be broken. Resources are set on BOTH the Page and
+    /// Application to ensure DynamicResource bindings resolve correctly.
     /// </summary>
     public static class ThemeManager
     {
@@ -18,7 +23,10 @@ namespace StingTools.UI
 
         private static readonly string[] ThemeOrder = { "Light", "Warm", "Cool", "Corporate" };
 
-        /// <summary>The registered panel element whose Resources dictionary receives theme brushes.</summary>
+        /// <summary>
+        /// Reference to the host Page/FrameworkElement for direct resource setting.
+        /// Set via RegisterTarget() from StingDockPanel constructor.
+        /// </summary>
         private static FrameworkElement _targetElement;
 
         private static readonly Dictionary<string, Dictionary<string, string>> Themes =
@@ -127,6 +135,12 @@ namespace StingTools.UI
             _targetElement = element;
         }
 
+        /// <summary>Alias for RegisterTarget for backwards compatibility.</summary>
+        public static void RegisterHost(FrameworkElement host)
+        {
+            RegisterTarget(host);
+        }
+
         /// <summary>Apply a named theme to both the panel and Application resources.</summary>
         public static void ApplyTheme(string themeName)
         {
@@ -138,8 +152,10 @@ namespace StingTools.UI
 
             var theme = Themes[themeName];
 
-            // Write to both targets for reliable DynamicResource resolution
+            // Set resources on the host element FIRST (direct, always works in Revit)
             ApplyToTarget(theme, _targetElement?.Resources);
+
+            // Also set on Application.Current for any child windows/dialogs
             ApplyToTarget(theme, Application.Current?.Resources);
 
             CurrentTheme = themeName;
@@ -170,9 +186,7 @@ namespace StingTools.UI
         public static void InitialiseResources()
         {
             if (!Themes.ContainsKey(CurrentTheme)) CurrentTheme = "Light";
-            var theme = Themes[CurrentTheme];
-            ApplyToTarget(theme, _targetElement?.Resources);
-            ApplyToTarget(theme, Application.Current?.Resources);
+            ApplyTheme(CurrentTheme);
         }
 
         /// <summary>Cycle to the next theme in order: Light -> Warm -> Cool -> Corporate.</summary>

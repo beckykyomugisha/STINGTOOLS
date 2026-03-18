@@ -376,7 +376,7 @@ namespace StingTools.Temp
                         wsComp.Cell(row, 2).Value = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                         wsComp.Cell(row, 3).Value = ParameterHelpers.GetCategoryName(el);
                         wsComp.Cell(row, 4).Value = ParameterHelpers.GetFamilySymbolName(el);
-                        wsComp.Cell(row, 5).Value = ParameterHelpers.GetString(el, "ASS_ROOM_TXT");
+                        wsComp.Cell(row, 5).Value = ParameterHelpers.GetString(el, "ASS_ROOM_NAME_TXT");
                         wsComp.Cell(row, 6).Value = ParameterHelpers.GetString(el, ParamRegistry.LVL);
                         row++;
                     }
@@ -778,7 +778,7 @@ namespace StingTools.Temp
 
                 string[] tokenParams = ParamRegistry.AllTokenParams;
                 string[] extraParams = { ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
-                    "ASS_ROOM_TXT", "ASS_GRID_TXT", "ASS_STATUS_TXT", "ASS_REV_TXT" };
+                    "ASS_ROOM_NAME_TXT", "ASS_GRID_REF_TXT", "ASS_STATUS_TXT", "ASS_REV_TXT" };
                 string[] allParams = tokenParams.Concat(extraParams).Distinct().ToArray();
 
                 string csvPath = OutputLocationHelper.PromptForExportPath(

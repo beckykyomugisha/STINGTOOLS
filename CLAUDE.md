@@ -44,8 +44,8 @@ STINGTOOLS/
     ├── Core/                           # Shared infrastructure (12 files, ~12,000 lines)
     │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI + dockable panel registration + ToggleDockPanelCommand + DocumentOpened quality gate
     │   ├── StingLog.cs                 # Thread-safe file logger (Info/Warn/Error) + EscapeChecker utility
-    │   ├── ParamRegistry.cs            # Single source of truth for parameter names, GUIDs, containers, bindings (loads from PARAMETER_REGISTRY.json) + stale/cluster/display/position constants
-    │   ├── ParameterHelpers.cs         # Parameter read/write + SpatialAutoDetect + NativeParamMapper + TokenAutoPopulator + PhaseAutoDetect + TypeTokenInherit + CopyTokensFromNearest + GetInt
+    │   ├── ParamRegistry.cs            # Single source of truth for parameter names, GUIDs, containers, bindings (loads from PARAMETER_REGISTRY.json) + stale/cluster/display/position + COBie/asset/style constants
+    │   ├── ParameterHelpers.cs         # Parameter read/write + SpatialAutoDetect + NativeParamMapper + TokenAutoPopulator + PhaseAutoDetect + TypeTokenInherit + CopyTokensFromNearest + GetInt + SetInt + CommandExecutionContext
     │   ├── SharedParamGuids.cs         # Backwards-compatible facade wrapping ParamRegistry (GUID lookups, category bindings)
     │   ├── TagConfig.cs               # ISO 19650 tag lookup tables, tag builder, TagIntelligence, TAG7 narrative builder + SeqScheme variants + BuildDisplayTag
     │   ├── StingAutoTagger.cs          # IUpdater — real-time auto-tagging + visual tag placement + discipline filter + StingStaleMarker IUpdater
@@ -159,7 +159,7 @@ STINGTOOLS/
     └── Data/                           # Runtime data files (42 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
-        ├── MR_PARAMETERS.txt           # Shared parameter file (1,549 params, 21 groups)
+        ├── MR_PARAMETERS.txt           # Shared parameter file (1,560+ params, 21 groups, 13 datatype fixes)
         ├── MR_PARAMETERS.csv           # Parameter definitions
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
@@ -173,12 +173,12 @@ STINGTOOLS/
         ├── PARAMETER_CATEGORIES.csv    # Parameter-category cross-reference
         ├── PARAMETER_REGISTRY.json     # Master parameter registry — single source of truth for ParamRegistry.cs
         ├── LABEL_DEFINITIONS.json      # 10,775-line label/legend definition specs (v5.5, 126 categories, warnings aligned to TAG7)
-        ├── TAG_CONFIG_v5_0_CONTAINERS.csv    # 122 tag container definitions (v5.0)
-        ├── TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv # 179 discipline/system/function code mappings (v5.0)
-        ├── TAG_CONFIG_v5_0_VALIDATION.csv    # 180 validation rules for tag tokens (v5.0)
-        ├── STING_TAG_CONFIG_v5_0_ARCH.csv    # Architectural tag family definitions (v5.0)
+        ├── TAG_CONFIG_v5_0_CONTAINERS.csv    # 122+ tag container definitions (v5.0) + Section 13: tie-in point containers (10 params + 4 TAG7 containers + 6 tag families)
+        ├── TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv # 179+ discipline/system/function code mappings (v5.0) + Section 7: 14 tie-in system mappings
+        ├── TAG_CONFIG_v5_0_VALIDATION.csv    # 180+ validation rules for tag tokens (v5.0) + Section 13: 13 tie-in validation rules
+        ├── STING_TAG_CONFIG_v5_0_ARCH.csv    # Architectural tag family definitions (v5.0, 111 warnings across 33 tag families)
         ├── STING_TAG_CONFIG_v5_0_GEN.csv     # General tag family definitions (v5.0)
-        ├── STING_TAG_CONFIG_v5_0_MEP.csv     # MEP tag family definitions (v5.0)
+        ├── STING_TAG_CONFIG_v5_0_MEP.csv     # MEP tag family definitions (v5.0, 183 warnings across 51 tag families including 6 tie-in point tags #46-#51)
         ├── STING_TAG_CONFIG_v5_0_STR.csv     # Structural tag family definitions (v5.0)
         ├── PYREVIT_SCRIPT_MANIFEST.csv # Legacy pyRevit script manifest
         ├── TAG_GUIDE.xlsx              # Tag reference guide (original)
@@ -577,7 +577,7 @@ STINGTOOLS/
 - **Tag format configuration**: `Separator`, `NumPad`, `SegmentOrder` — data-driven rather than hardcoded
 - **Typed string constants** for all 8 source tokens (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ) + universal containers (TAG1-TAG7, TAG7A-TAG7F)
 - **Phase 11 constants**: `STALE`/`STALE_GUID`, `CLUSTER_COUNT`/`CLUSTER_LABEL`, `DISPLAY_MODE`/`DISPLAY_TXT`, `TAG_POS`, `VIEW_TAG_STYLE` — system parameters for stale detection, clustering, display modes, and view-level tag style routing
-- **Extended parameter constants**: ~67+ parameters across identity, spatial, BLE dimensional, electrical, lighting, HVAC, and plumbing groups
+- **Extended parameter constants**: ~97+ parameters across identity, spatial, BLE dimensional, electrical, lighting, HVAC, plumbing, COBie, asset management, and style groups (30 additional constants added in Phase 29)
 - **GUID lookups**: `GetGuid(paramName)`, `GetParamName(guid)`, `AllParamGuids`
 - **Container management**: `AllContainers`, `ContainersForCategory(categoryName)`, `GetContainerTuples()`
 - **Token presets**: Named index arrays for partial tag strings
@@ -588,7 +588,9 @@ STINGTOOLS/
 - `GetString(el, paramName)` — read text parameter, returns empty string on null
 - `GetInt(el, paramName, defaultValue)` — read integer parameter with fallback (handles Integer, Double, String storage)
 - `SetString(el, paramName, value, overwrite)` — write text parameter, skips read-only/non-empty unless overwrite
+- `SetInt(el, paramName, value)` — write integer parameter (handles Integer and Double storage types)
 - `SetIfEmpty(el, paramName, value)` — set only when currently empty
+- `CommandExecutionContext` — encapsulates `UIApplication`, `UIDocument`, `Document` from `ExternalCommandData` with null-safe access
 - `GetLevelCode(doc, el)` — derives short level codes (L01, GF, B1, RF, XX)
 - `GetCategoryName(el)` — safe category name retrieval
 - `GetFamilyName(el)` — element family name retrieval
@@ -1671,6 +1673,25 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 275. **COBie reference data files** — 8 new CSV files (COBIE_TYPE_MAP, COBIE_SYSTEM_MAP, COBIE_PICKLISTS, COBIE_ATTRIBUTE_TEMPLATES, COBIE_JOB_TEMPLATES, COBIE_SPARE_PARTS, COBIE_DOCUMENT_TYPES, COBIE_ZONE_TYPES) totalling ~444 rows of structured reference data.
 276. **Material lookup database** — `MATERIAL_LOOKUP.csv` (237 rows): Comprehensive material reference with density, thermal, fire rating, acoustic, embodied carbon, cost properties.
 277. **Tag style rules** — `TAG_STYLE_RULES.json`: 128 type catalog with discipline presets and top-down rule evaluation for automated tag family type switching.
+
+#### Completed (Phase 29 — Data Alignment, Tie-In Points & Warning Expansion)
+
+278. **MR_PARAMETERS.txt alignment** — 113 missing parameters added from ParamRegistry constants to MR_PARAMETERS.txt (1,447→1,560+ PARAM lines). 13 datatype fixes (INTEGER→TEXT for flag/code parameters that store string values).
+279. **ARCH tag config warning expansion** — 56 new warnings added (55→111) across 33 architectural tag families in STING_TAG_CONFIG_v5_0_ARCH.csv.
+280. **MEP tag config warning expansion** — 126 new warnings added (57→183) across 51 MEP tag families in STING_TAG_CONFIG_v5_0_MEP.csv, including 6 new tie-in point tag families (#46-#51).
+281. **Tie-in point containers** — TAG_CONFIG_v5_0_CONTAINERS.csv expanded with Section 13: 10 tie-in point container parameters + 4 TAG7 containers + 6 tag family definitions.
+282. **Tie-in validation rules** — TAG_CONFIG_v5_0_VALIDATION.csv expanded with Section 13: 13 tie-in-specific validation rules.
+283. **Tie-in system mappings** — TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv expanded with Section 7: 14 tie-in system mappings.
+284. **ParamRegistry constants expansion** — 30 new COBie, asset management, and style constants added to ParamRegistry.cs.
+285. **ParameterHelpers enhancement** — Added `SetInt()` method for integer parameter writing. `CommandExecutionContext` class encapsulates null-safe command data access.
+286. **Build fixes** — 33+82+4 build errors resolved across merge phases (duplicate definitions, missing references, type mismatches).
+
+#### Completed (Phase 30 — Light Theme System & Merge Consolidation)
+
+287. **Light theme system** — All 4 themes redesigned to match TAGS sub-tabs: Light (white, orange accents), Warm (cream tint, brown header), Cool (blue-grey tint, navy header), Corporate (light grey, slate header). All use light content areas, dark text, subtle borders.
+288. **ThemeManager dual-write** — Resources applied to both Page.Resources and Application.Current.Resources for reliable DynamicResource resolution in Revit's hosted WPF.
+289. **Tab styling** — TabItem uses DynamicResource for Foreground/Background with selected tab matching content area colour.
+290. **Theme toggle** — CycleTheme handled directly in WPF click handler (no ExternalEvent round-trip needed).
 
 ### External Tool References
 
