@@ -19,6 +19,10 @@ TAG7: HVC_TAG_7_PARA_AT_TXT  •  Category: Air Terminals
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_NOISE_NC_AIR_TERMINALS,Noise level > NC 30,ASHRAE Ch 48 / CIBSE Guide B5,Common,Text,⚠ Warning: Air Terminal Noise,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_NOISE_NC_AIR_TERMINALS, """")"
+2,HIGH,WARN_HVC_AIRFLOW_CAPACITY_AIR_TERMINALS,Airflow exceeds terminal design capacity,CIBSE Guide B3 / ASHRAE Fundamentals,Common,Text,⚠ Warning: Air Terminal Airflow Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_AIRFLOW_CAPACITY_AIR_TERMINALS, """")"
+3,MEDIUM,WARN_HVC_THROW_DISTANCE_AIR_TERMINALS,Throw distance insufficient for room depth,ASHRAE Ch 57 / CIBSE Guide B3,Common,Text,⚠ Warning: Air Terminal Throw Distance,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_THROW_DISTANCE_AIR_TERMINALS, """")"
+4,MEDIUM,WARN_HVC_PRESSURE_DROP_AIR_TERMINALS,Pressure drop exceeds terminal rating,CIBSE Guide B3,Common,Text,⚠ Warning: Air Terminal Pressure Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_PRESSURE_DROP_AIR_TERMINALS, """")"
+5,LOW,WARN_HVC_MOUNTING_HEIGHT_AIR_TERMINALS,Mounting height outside recommended range,CIBSE Guide A / ASHRAE,Common,Text,⚠ Warning: Air Terminal Mounting Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_MOUNTING_HEIGHT_AIR_TERMINALS, """")"
 Tag Family #2: STING - Duct Accessory Tag
 TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Accessories
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -31,6 +35,9 @@ TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Accessories
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_DCT_PROPERTY_DUCT_ACC,Check parameter value,CIBSE Guide B3,Common,Text,⚠ Warning: Duct Accessory Check,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DCT_PROPERTY_DUCT_ACC, """")"
+2,HIGH,WARN_HVC_PRESSURE_DROP_DUCT_ACC,Pressure drop exceeds design allowance,CIBSE Guide B3 / ASHRAE Duct Fitting Database,Common,Text,⚠ Warning: Duct Accessory Pressure Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_PRESSURE_DROP_DUCT_ACC, """")"
+3,CRITICAL,WARN_HVC_FIRE_DAMPER_RATING_DUCT_ACC,Fire damper rating < compartment requirement,BS EN 15650 / BS 9999 / Building Regs Part B,Common,Text,⚠ Warning: Fire Damper Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_FIRE_DAMPER_RATING_DUCT_ACC, """")"
+4,MEDIUM,WARN_HVC_LEAKAGE_CLASS_DUCT_ACC,Leakage class not specified for sealed system,CIBSE DW/144 / BS EN 15727,Common,Text,⚠ Warning: Duct Accessory Leakage Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_LEAKAGE_CLASS_DUCT_ACC, """")"
 Tag Family #3: STING - Duct Fitting Tag
 TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Fittings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
