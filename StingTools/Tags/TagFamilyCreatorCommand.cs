@@ -190,13 +190,6 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_StructConnectionWelds, "Generic Tag.rft" },
             { BuiltInCategory.OST_Wire, "Electrical Equipment Tag.rft" },
 
-            // ── Analytical & specialised (Revit 2025+) ──────────────────────
-            { BuiltInCategory.OST_AnalyticalDuctSegments, "Duct Tag.rft" },
-            { BuiltInCategory.OST_AnalyticalPipeSegments, "Pipe Tag.rft" },
-            { BuiltInCategory.OST_AreaBasedLoads, "Generic Tag.rft" },
-            { BuiltInCategory.OST_MEPAncillaries, "Generic Tag.rft" },
-            { BuiltInCategory.OST_TemporaryStructures, "Generic Tag.rft" },
-            { BuiltInCategory.OST_Wash, "Generic Tag.rft" },
         };
 
         /// <summary>
@@ -343,13 +336,6 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_StructConnectionWelds, "Weld" },
             { BuiltInCategory.OST_Wire, "Wire" },
 
-            // Analytical & specialised (Revit 2025+)
-            { BuiltInCategory.OST_AnalyticalDuctSegments, "Analytical Duct Segments" },
-            { BuiltInCategory.OST_AnalyticalPipeSegments, "Analytical Pipe Segments" },
-            { BuiltInCategory.OST_AreaBasedLoads, "Area Based Loads" },
-            { BuiltInCategory.OST_MEPAncillaries, "MEP Ancillary" },
-            { BuiltInCategory.OST_TemporaryStructures, "Temporary Structures" },
-            { BuiltInCategory.OST_Wash, "Wash" },
         };
 
         /// <summary>

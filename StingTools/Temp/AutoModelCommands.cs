@@ -1243,7 +1243,7 @@ namespace StingTools.Temp
                 if (gObj is GeometryInstance geoInst)
                 {
                     // Block name may contain text info
-                    string symbolName = geoInst.GetSymbol()?.Name;
+                    string symbolName = geoInst.Symbol?.Name;
                     if (!string.IsNullOrEmpty(symbolName) && symbolName.Length > 1)
                     {
                         var instTransform = geoInst.Transform;
@@ -1272,7 +1272,7 @@ namespace StingTools.Temp
             {
                 if (gObj is GeometryInstance geoInst)
                 {
-                    string symbolName = geoInst.GetSymbol()?.Name;
+                    string symbolName = geoInst.Symbol?.Name;
                     if (!string.IsNullOrEmpty(symbolName))
                     {
                         var instTransform = geoInst.Transform;
