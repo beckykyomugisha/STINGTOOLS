@@ -274,15 +274,15 @@ namespace StingTools.Tags
                     // Knowledge base via StingListPicker
                     var kbItems = NLPEngine.BimKnowledge
                         .OrderBy(k => k.Key)
-                        .Select(k => $"{k.Key}: {k.Value}")
+                        .Select(k => new UI.StingListPicker.ListItem { Label = k.Key, Detail = k.Value })
                         .ToList();
-                    string selected = UI.StingListPicker.Show("BIM Knowledge Base",
+                    var selected = UI.StingListPicker.Show("BIM Knowledge Base",
                         "Search BIM terminology and standards:", kbItems);
-                    if (!string.IsNullOrEmpty(selected))
+                    if (selected != null && selected.Count > 0)
                     {
-                        string term = selected.Contains(":") ? selected.Substring(0, selected.IndexOf(':')) : selected;
-                        if (NLPEngine.BimKnowledge.TryGetValue(term.Trim(), out string definition))
-                            TaskDialog.Show($"BIM Knowledge: {term.Trim()}", definition);
+                        string term = selected[0].Label;
+                        if (NLPEngine.BimKnowledge.TryGetValue(term, out string definition))
+                            TaskDialog.Show($"BIM Knowledge: {term}", definition);
                     }
                     return Result.Succeeded;
                 }
@@ -290,39 +290,33 @@ namespace StingTools.Tags
                 if (choice == TaskDialogResult.CommandLink2)
                 {
                     // Quick commands — curated subset
-                    var quickItems = new List<string>
+                    var quickItems = new List<UI.StingListPicker.ListItem>
                     {
-                        "[TagAndCombine] One-click tag and combine pipeline",
-                        "[BatchTag] Tag all elements in project",
-                        "[Validate] Validate tag completeness",
-                        "[FullAutoPopulate] Full auto-populate pipeline",
-                        "[MasterSetup] One-click full project setup",
-                        "[CompletenessDash] Tag completeness dashboard",
-                        "[PreTagAudit] Dry-run tag prediction audit",
-                        "[FixDuplicates] Find and fix duplicate tags",
-                        "[CobieExport] Export COBie data",
-                        "[StandardsDashboard] Standards compliance dashboard",
+                        new UI.StingListPicker.ListItem { Label = "TagAndCombine", Detail = "One-click tag and combine pipeline" },
+                        new UI.StingListPicker.ListItem { Label = "BatchTag", Detail = "Tag all elements in project" },
+                        new UI.StingListPicker.ListItem { Label = "Validate", Detail = "Validate tag completeness" },
+                        new UI.StingListPicker.ListItem { Label = "FullAutoPopulate", Detail = "Full auto-populate pipeline" },
+                        new UI.StingListPicker.ListItem { Label = "MasterSetup", Detail = "One-click full project setup" },
+                        new UI.StingListPicker.ListItem { Label = "CompletenessDash", Detail = "Tag completeness dashboard" },
+                        new UI.StingListPicker.ListItem { Label = "PreTagAudit", Detail = "Dry-run tag prediction audit" },
+                        new UI.StingListPicker.ListItem { Label = "FixDuplicates", Detail = "Find and fix duplicate tags" },
+                        new UI.StingListPicker.ListItem { Label = "CobieExport", Detail = "Export COBie data" },
+                        new UI.StingListPicker.ListItem { Label = "StandardsDashboard", Detail = "Standards compliance dashboard" },
                     };
-                    string quickSel = UI.StingListPicker.Show("Quick Commands",
+                    var quickSel = UI.StingListPicker.Show("Quick Commands",
                         "Select a command to execute:", quickItems);
-                    if (!string.IsNullOrEmpty(quickSel))
+                    if (quickSel != null && quickSel.Count > 0)
                     {
-                        // Extract command tag from "[Tag] Description" format
-                        int openBracket = quickSel.IndexOf('[');
-                        int closeBracket = quickSel.IndexOf(']');
-                        if (openBracket >= 0 && closeBracket > openBracket)
+                        string cmdTag = quickSel[0].Label;
+                        var cmd = WorkflowEngine.ResolveCommandPublic(cmdTag);
+                        if (cmd != null)
                         {
-                            string cmdTag = quickSel.Substring(openBracket + 1, closeBracket - openBracket - 1);
-                            var cmd = WorkflowEngine.ResolveCommandPublic(cmdTag);
-                            if (cmd != null)
-                            {
-                                string refMsg = "";
-                                cmd.Execute(commandData, ref refMsg, elements);
-                                StingLog.Info($"NLP quick command executed: {cmdTag}");
-                            }
-                            else
-                                TaskDialog.Show("STING", $"Command '{cmdTag}' not found in workflow engine.");
+                            string refMsg = "";
+                            cmd.Execute(commandData, ref refMsg, elements);
+                            StingLog.Info($"NLP quick command executed: {cmdTag}");
                         }
+                        else
+                            TaskDialog.Show("STING", $"Command '{cmdTag}' not found in workflow engine.");
                     }
                     return Result.Succeeded;
                 }
@@ -334,27 +328,22 @@ namespace StingTools.Tags
                         .Select(p => (p.CommandTag, p.Description))
                         .Distinct()
                         .OrderBy(c => c.Description)
-                        .Select(c => $"[{c.CommandTag}] {c.Description}")
+                        .Select(c => new UI.StingListPicker.ListItem { Label = c.CommandTag, Detail = c.Description })
                         .ToList();
-                    string browseSel = UI.StingListPicker.Show("All STING Commands",
+                    var browseSel = UI.StingListPicker.Show("All STING Commands",
                         "Select a command to execute:", allItems);
-                    if (!string.IsNullOrEmpty(browseSel))
+                    if (browseSel != null && browseSel.Count > 0)
                     {
-                        int openBracket = browseSel.IndexOf('[');
-                        int closeBracket = browseSel.IndexOf(']');
-                        if (openBracket >= 0 && closeBracket > openBracket)
+                        string cmdTag = browseSel[0].Label;
+                        var cmd = WorkflowEngine.ResolveCommandPublic(cmdTag);
+                        if (cmd != null)
                         {
-                            string cmdTag = browseSel.Substring(openBracket + 1, closeBracket - openBracket - 1);
-                            var cmd = WorkflowEngine.ResolveCommandPublic(cmdTag);
-                            if (cmd != null)
-                            {
-                                string refMsg = "";
-                                cmd.Execute(commandData, ref refMsg, elements);
-                                StingLog.Info($"NLP browse command executed: {cmdTag}");
-                            }
-                            else
-                                TaskDialog.Show("STING", $"Command '{cmdTag}' is not directly executable from here.\nUse the STING dockable panel instead.");
+                            string refMsg = "";
+                            cmd.Execute(commandData, ref refMsg, elements);
+                            StingLog.Info($"NLP browse command executed: {cmdTag}");
                         }
+                        else
+                            TaskDialog.Show("STING", $"Command '{cmdTag}' is not directly executable from here.\nUse the STING dockable panel instead.");
                     }
                     return Result.Succeeded;
                 }
