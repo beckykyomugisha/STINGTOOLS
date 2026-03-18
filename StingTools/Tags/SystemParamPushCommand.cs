@@ -608,6 +608,8 @@ namespace StingTools.Tags
 
             // Execute push
             SystemParamPush.PushResult result;
+            HashSet<string> existingTags = null;
+            Dictionary<string, int> seqCounters = null;
             using (Transaction tx = new Transaction(doc, "STING System Parameter Push"))
             {
                 tx.Start();
@@ -616,7 +618,7 @@ namespace StingTools.Tags
                 // If FullAutoTag mode, also build tags
                 if (mode == SystemParamPush.PushMode.FullAutoTag)
                 {
-                    var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                    (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                     var stats = new TaggingStats();
 
                     foreach (var el in systemElementList)

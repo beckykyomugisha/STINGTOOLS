@@ -955,8 +955,8 @@ namespace StingTools.UI
                     case "QuantityTakeoff": RunCommand<Temp.QuantityTakeoffCommand>(app); break;
                     case "ModelHealthCheck": RunCommand<Temp.ModelHealthCheckCommand>(app); break;
                     case "BatchParameterExport": RunCommand<Temp.BatchParameterExportCommand>(app); break;
-                    case "ProjectDashboard": RunCommand<Temp.ProjectDashboardCommand>(app); break;
-                    case "WorkflowPreset": RunCommand<Temp.WorkflowPresetCommand>(app); break;
+                    case "ProjectDashboard": RunCommand<Temp.ProjectDashboardEnhancedCommand>(app); break;
+                    case "WorkflowPreset": RunCommand<Temp.WorkflowPresetRunnerCommand>(app); break;
                     case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
 
                     // IoT / Sensor Data (planned — informative stubs)
@@ -1170,15 +1170,6 @@ namespace StingTools.UI
                     // Workflow presets — XAML button uses "ListWorkflowPresets", dispatch
                     // already has "ListWorkflows". Add alias so both tags work.
                     case "ListWorkflowPresets": RunCommand<Core.ListWorkflowPresetsCommand>(app); break;
-
-                    // Retag stale elements (TagOperationCommands.cs, StingTools.Organise)
-                    case "RetagStale": RunCommand<Organise.RetagStaleCommand>(app); break;
-
-                    // Sequence numbering scheme (TokenWriterCommands.cs, StingTools.Tags)
-                    case "SetSeqScheme": RunCommand<Tags.SetSeqSchemeCommand>(app); break;
-
-                    // Compliance scan — no dedicated command class; route to FullComplianceDashboard
-                    case "ComplianceScan": RunCommand<BIMManager.FullComplianceDashboardCommand>(app); break;
 
                     // ── Tag Studio AI informational stubs ──
                     case "TagStudioAPIGaps":

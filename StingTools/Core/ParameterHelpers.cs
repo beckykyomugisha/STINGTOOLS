@@ -158,6 +158,28 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>Set an INTEGER parameter. Skips read-only params. Skips non-zero unless overwrite.</summary>
+        public static bool SetInt(Element el, string paramName, int value, bool overwrite = false)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null || p.IsReadOnly) return false;
+            if (p.StorageType == StorageType.Integer)
+            {
+                if (!overwrite && p.AsInteger() != 0) return false;
+                try { p.Set(value); return true; }
+                catch { return false; }
+            }
+            if (p.StorageType == StorageType.String)
+            {
+                string existing = p.AsString() ?? string.Empty;
+                if (!overwrite && existing.Length > 0) return false;
+                try { p.Set(value.ToString()); return true; }
+                catch { return false; }
+            }
+            return false;
+        }
+
         /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
         public static bool SetString(Element el, string paramName, string value,
             bool overwrite = false)

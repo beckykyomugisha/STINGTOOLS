@@ -12,6 +12,7 @@ using System.Linq;
 using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.DB.Electrical;
@@ -179,7 +180,7 @@ namespace StingTools.Temp
                 sb.AppendLine($"HVAC Systems: {ductSystems.Count}");
                 foreach (var sys in ductSystems.Take(20))
                 {
-                    var equipCount = sys.DuctNetwork?.Count ?? 0;
+                    var equipCount = sys.DuctNetwork?.Size ?? 0;
                     sb.AppendLine($"  • {sys.Name} — Type: {sys.SystemType}, Elements: {equipCount}");
                 }
 
@@ -192,7 +193,7 @@ namespace StingTools.Temp
                 sb.AppendLine($"\nPiping Systems: {pipeSystems.Count}");
                 foreach (var sys in pipeSystems.Take(20))
                 {
-                    var pipeCount = sys.PipingNetwork?.Count ?? 0;
+                    var pipeCount = sys.PipingNetwork?.Size ?? 0;
                     sb.AppendLine($"  • {sys.Name} — Type: {sys.SystemType}, Elements: {pipeCount}");
                 }
 

@@ -343,6 +343,38 @@ namespace StingTools.Core
         public static string PLM_FLOW_RATE  => Ext("PLM_FLOW_RATE");
         public static string PLM_PIPE_LENGTH => Ext("PLM_PIPE_LENGTH");
 
+        // ── COBie / Warranty / Asset fields ──
+        public static string WARR_GUAR_PARTS  => Ext("WARR_GUAR_PARTS");
+        public static string WARR_DUR_PARTS   => Ext("WARR_DUR_PARTS");
+        public static string WARR_GUAR_LABOR  => Ext("WARR_GUAR_LABOR");
+        public static string WARR_DUR_LABOR   => Ext("WARR_DUR_LABOR");
+        public static string WARR_DUR_UNIT    => Ext("WARR_DUR_UNIT");
+        public static string REPLACE_COST     => Ext("REPLACE_COST");
+        public static string DUR_UNIT         => Ext("DUR_UNIT");
+        public static string NOM_LENGTH       => Ext("NOM_LENGTH");
+        public static string NOM_WIDTH        => Ext("NOM_WIDTH");
+        public static string NOM_HEIGHT       => Ext("NOM_HEIGHT");
+        public static string MODEL_REF        => Ext("MODEL_REF");
+        public static string SHAPE            => Ext("SHAPE");
+        public static string COLOR            => Ext("COLOR");
+        public static string FINISH           => Ext("FINISH");
+        public static string GRADE            => Ext("GRADE");
+        public static string MATERIAL         => Ext("MATERIAL");
+        public static string CONSTITUENTS     => Ext("CONSTITUENTS");
+        public static string FEATURES         => Ext("FEATURES");
+        public static string ACCESS_PERF      => Ext("ACCESS_PERF");
+        public static string CODE_PERF        => Ext("CODE_PERF");
+        public static string SUSTAIN_PERF     => Ext("SUSTAIN_PERF");
+        public static string WARRANTY_START   => Ext("WARRANTY_START");
+        public static string BARCODE          => Ext("BARCODE");
+        public static string ASSET_ID         => Ext("ASSET_ID");
+        public static string CONDITION        => Ext("CONDITION");
+        public static string SUPPLIER         => Ext("SUPPLIER");
+
+        // ── Tag style fields ──
+        public static string STYLE_SIZE       => Ext("STYLE_SIZE");
+        public static string STYLE_WEIGHT     => Ext("STYLE_WEIGHT");
+
         // ── Paragraph visibility controls (v4.2, expanded to 10 states) ──
         /// <summary>Compact paragraph depth (State 1 only).</summary>
         public static string PARA_STATE_1 { get; private set; } = "TAG_PARA_STATE_1_BOOL";
@@ -870,9 +902,9 @@ namespace StingTools.Core
         /// </summary>
         internal static void OverrideTagFormat(string separator, int numPad, string[] segmentOrder)
         {
-            if (!string.IsNullOrEmpty(separator)) Separator = separator;
-            if (numPad > 0) NumPad = numPad;
-            if (segmentOrder != null && segmentOrder.Length > 0) SegmentOrder = segmentOrder;
+            if (!string.IsNullOrEmpty(separator)) _overrideSeparator = separator;
+            if (numPad > 0) _overrideNumPad = numPad;
+            if (segmentOrder != null && segmentOrder.Length > 0) _overrideSegmentOrder = segmentOrder;
         }
 
         /// <summary>Force reload from disk. Call after editing PARAMETER_REGISTRY.json.</summary>
