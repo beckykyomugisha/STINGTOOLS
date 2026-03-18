@@ -447,6 +447,10 @@ namespace StingTools.Core
             }
             catch { }
 
+            // FIX-B09: Check compliance gate after workflow chain completes
+            try { TagConfig.CheckComplianceGate(doc, $"Workflow:{preset.Name}"); }
+            catch { }
+
             report.AppendLine(new string('─', 50));
             report.AppendLine($"  Complete: {passed}/{preset.Steps.Count} steps OK");
             report.AppendLine($"  Skipped: {skipped}, Failed: {failed}");
