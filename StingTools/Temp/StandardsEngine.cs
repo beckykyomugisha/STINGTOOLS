@@ -197,7 +197,7 @@ namespace StingTools.Temp
                     string status = velocity < limits.MinVelocity ? "LOW" :
                                     velocity > limits.MaxVelocity ? "HIGH" : "OK";
                     if (status != "OK" || velocity > 0)
-                        results.Add(($"Duct {duct.Id.IntegerValue}", sysType, Math.Round(velocity, 2),
+                        results.Add(($"Duct {duct.Id.Value}", sysType, Math.Round(velocity, 2),
                             limits.MinVelocity, limits.MaxVelocity, status));
                 }
             }
@@ -225,7 +225,7 @@ namespace StingTools.Temp
                     string status = velocity < limits.MinVelocity ? "LOW" :
                                     velocity > limits.MaxVelocity ? "HIGH" : "OK";
                     if (status != "OK" || velocity > 0)
-                        results.Add(($"Pipe {pipe.Id.IntegerValue}", sysType, Math.Round(velocity, 2),
+                        results.Add(($"Pipe {pipe.Id.Value}", sysType, Math.Round(velocity, 2),
                             limits.MinVelocity, limits.MaxVelocity, status));
                 }
             }
@@ -244,7 +244,7 @@ namespace StingTools.Temp
 
             foreach (var circuit in circuits)
             {
-                string id = $"Circuit {circuit.Id.IntegerValue}";
+                string id = $"Circuit {circuit.Id.Value}";
                 string name = circuit.Name ?? "Unknown";
 
                 // Check circuit rating
@@ -343,7 +343,7 @@ namespace StingTools.Temp
                     double widthMM = widthParam.AsDouble() * 304.8; // ft to mm
                     string status = widthMM >= minDoorMM ? "PASS" : "FAIL";
                     if (status == "FAIL")
-                        results.Add(($"Door {door.Id.IntegerValue}", "Min Door Width",
+                        results.Add(($"Door {door.Id.Value}", "Min Door Width",
                             $"{minDoorMM}mm", $"{widthMM:F0}mm", status));
                 }
             }
@@ -364,7 +364,7 @@ namespace StingTools.Temp
                     double areaSqM = room.Area * 0.092903; // sq ft to sq m
                     double minArea = (Bs8300Requirements["MinWCRoomWidth"] / 1000.0) * (Bs8300Requirements["MinWCRoomDepth"] / 1000.0);
                     string status = areaSqM >= minArea ? "PASS" : "FAIL";
-                    results.Add(($"Room: {name} ({room.Id.IntegerValue})", "Min WC Area",
+                    results.Add(($"Room: {name} ({room.Id.Value})", "Min WC Area",
                         $"{minArea:F1}m²", $"{areaSqM:F1}m²", status));
                 }
             }
