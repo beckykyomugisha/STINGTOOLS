@@ -28,7 +28,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
@@ -193,7 +195,9 @@ namespace StingTools.Temp
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
@@ -299,7 +303,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             string scheduleName = "STING - Room Schedule";
 
@@ -437,7 +443,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
@@ -531,7 +539,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             // Build room index
             var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);

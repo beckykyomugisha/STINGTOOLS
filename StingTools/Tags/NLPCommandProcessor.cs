@@ -256,68 +256,100 @@ namespace StingTools.Tags
         {
             try
             {
-                // Prompt for natural language input
+                // FIX-7.3: Functional NLP command processor with browse, execute, and knowledge base
+                var ctx = ParameterHelpers.GetContext(commandData);
+
                 var inputDlg = new TaskDialog("STING Natural Language Command");
-                inputDlg.MainInstruction = "Type what you want to do:";
-                inputDlg.MainContent = "Examples:\n• \"Tag all elements in the project\"\n• \"Check ISO 19650 compliance\"\n• \"Export to IFC\"\n• \"Color elements by discipline\"\n• \"Create maintenance schedule\"";
-                inputDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Enter Command", "Type a natural language command");
-                inputDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Browse Commands", "See all available commands");
-                inputDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "BIM Knowledge Base", "Search BIM terminology");
+                inputDlg.MainInstruction = "How would you like to find a command?";
+                inputDlg.MainContent = "Browse all available commands, run a quick command,\nor explore the BIM Knowledge Base.";
+                inputDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Browse all commands", "See all available commands and execute one");
+                inputDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Quick commands", "Common workflows (tag, validate, export)");
+                inputDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "BIM Knowledge Base", "Search BIM terminology and standards");
+                inputDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
                 var choice = inputDlg.Show();
 
+                if (choice == TaskDialogResult.CommandLink3)
+                {
+                    // Knowledge base via StingListPicker
+                    var kbItems = NLPEngine.BimKnowledge
+                        .OrderBy(k => k.Key)
+                        .Select(k => new UI.StingListPicker.ListItem { Label = k.Key, Detail = k.Value })
+                        .ToList();
+                    var selected = UI.StingListPicker.Show("BIM Knowledge Base",
+                        "Search BIM terminology and standards:", kbItems);
+                    if (selected != null && selected.Count > 0)
+                    {
+                        string term = selected[0].Label;
+                        if (NLPEngine.BimKnowledge.TryGetValue(term, out string definition))
+                            TaskDialog.Show($"BIM Knowledge: {term}", definition);
+                    }
+                    return Result.Succeeded;
+                }
+
                 if (choice == TaskDialogResult.CommandLink2)
                 {
-                    // Show all commands
-                    var allCommands = NLPEngine.IntentPatterns
+                    // Quick commands — curated subset
+                    var quickItems = new List<UI.StingListPicker.ListItem>
+                    {
+                        new UI.StingListPicker.ListItem { Label = "TagAndCombine", Detail = "One-click tag and combine pipeline" },
+                        new UI.StingListPicker.ListItem { Label = "BatchTag", Detail = "Tag all elements in project" },
+                        new UI.StingListPicker.ListItem { Label = "Validate", Detail = "Validate tag completeness" },
+                        new UI.StingListPicker.ListItem { Label = "FullAutoPopulate", Detail = "Full auto-populate pipeline" },
+                        new UI.StingListPicker.ListItem { Label = "MasterSetup", Detail = "One-click full project setup" },
+                        new UI.StingListPicker.ListItem { Label = "CompletenessDash", Detail = "Tag completeness dashboard" },
+                        new UI.StingListPicker.ListItem { Label = "PreTagAudit", Detail = "Dry-run tag prediction audit" },
+                        new UI.StingListPicker.ListItem { Label = "FixDuplicates", Detail = "Find and fix duplicate tags" },
+                        new UI.StingListPicker.ListItem { Label = "CobieExport", Detail = "Export COBie data" },
+                        new UI.StingListPicker.ListItem { Label = "StandardsDashboard", Detail = "Standards compliance dashboard" },
+                    };
+                    var quickSel = UI.StingListPicker.Show("Quick Commands",
+                        "Select a command to execute:", quickItems);
+                    if (quickSel != null && quickSel.Count > 0)
+                    {
+                        string cmdTag = quickSel[0].Label;
+                        var cmd = WorkflowEngine.ResolveCommandPublic(cmdTag);
+                        if (cmd != null)
+                        {
+                            string refMsg = "";
+                            cmd.Execute(commandData, ref refMsg, elements);
+                            StingLog.Info($"NLP quick command executed: {cmdTag}");
+                        }
+                        else
+                            TaskDialog.Show("STING", $"Command '{cmdTag}' not found in workflow engine.");
+                    }
+                    return Result.Succeeded;
+                }
+
+                if (choice == TaskDialogResult.CommandLink1)
+                {
+                    // Browse all commands via StingListPicker
+                    var allItems = NLPEngine.IntentPatterns
                         .Select(p => (p.CommandTag, p.Description))
                         .Distinct()
                         .OrderBy(c => c.Description)
+                        .Select(c => new UI.StingListPicker.ListItem { Label = c.CommandTag, Detail = c.Description })
                         .ToList();
-
-                    var report = new System.Text.StringBuilder();
-                    report.AppendLine("═══ ALL STING COMMANDS ═══\n");
-                    var grouped = allCommands.GroupBy(c =>
+                    var browseSel = UI.StingListPicker.Show("All STING Commands",
+                        "Select a command to execute:", allItems);
+                    if (browseSel != null && browseSel.Count > 0)
                     {
-                        if (c.Description.Contains("tag") || c.Description.Contains("Tag")) return "Tagging";
-                        if (c.Description.Contains("Select")) return "Selection";
-                        if (c.Description.Contains("export") || c.Description.Contains("Export")) return "Export";
-                        if (c.Description.Contains("Create") || c.Description.Contains("create")) return "Creation";
-                        if (c.Description.Contains("compliance") || c.Description.Contains("Compliance") || c.Description.Contains("check")) return "Standards";
-                        return "Other";
-                    });
-
-                    foreach (var group in grouped.OrderBy(g => g.Key))
-                    {
-                        report.AppendLine($"── {group.Key} ──");
-                        foreach (var (tag, desc) in group)
-                            report.AppendLine($"  [{tag}] {desc}");
+                        string cmdTag = browseSel[0].Label;
+                        var cmd = WorkflowEngine.ResolveCommandPublic(cmdTag);
+                        if (cmd != null)
+                        {
+                            string refMsg = "";
+                            cmd.Execute(commandData, ref refMsg, elements);
+                            StingLog.Info($"NLP browse command executed: {cmdTag}");
+                        }
+                        else
+                            TaskDialog.Show("STING", $"Command '{cmdTag}' is not directly executable from here.\nUse the STING dockable panel instead.");
                     }
-
-                    TaskDialog.Show("STING Commands", report.ToString());
                     return Result.Succeeded;
                 }
-
-                if (choice == TaskDialogResult.CommandLink3)
-                {
-                    // Knowledge base
-                    var report = new System.Text.StringBuilder();
-                    report.AppendLine("═══ BIM KNOWLEDGE BASE ═══\n");
-                    foreach (var (term, def) in NLPEngine.BimKnowledge.OrderBy(k => k.Key))
-                        report.AppendLine($"  {term}: {def}\n");
-
-                    TaskDialog.Show("BIM Knowledge Base", report.ToString());
-                    return Result.Succeeded;
-                }
-
-                // For CommandLink1 - show intent processing info
-                var resultDlg = new TaskDialog("NLP Command");
-                resultDlg.MainInstruction = "Natural Language Processing";
-                resultDlg.MainContent = "The NLP engine recognises 90+ intent patterns across tagging, selection, export, standards, MEP, and facility management domains.\n\nUse the STING dockable panel buttons or type command tags directly.";
-                resultDlg.Show();
 
                 StingLog.Info("NLP command processor accessed");
-                return Result.Succeeded;
+                return Result.Cancelled;
             }
             catch (Exception ex)
             {
@@ -373,7 +405,9 @@ namespace StingTools.Tags
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("═══ SMART COMMAND SUGGESTIONS ═══\n");
                 report.AppendLine("Based on current model state:\n");

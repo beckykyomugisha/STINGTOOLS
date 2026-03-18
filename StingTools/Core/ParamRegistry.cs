@@ -1230,6 +1230,30 @@ namespace StingTools.Core
                 // INFINITE RECURSION (C# lock is reentrant on the same thread).
                 _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
 
+                // FIX-12.4: Supplement GUID map from MR_PARAMETERS.txt
+                try
+                {
+                    string _mrFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                    if (!string.IsNullOrEmpty(_mrFile) && File.Exists(_mrFile))
+                    {
+                        if (_guidByName == null)
+                            _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
+                        int _sup = 0;
+                        foreach (string _ml in File.ReadAllLines(_mrFile))
+                        {
+                            if (!_ml.StartsWith("PARAM")) continue;
+                            var _mp = _ml.Split('\t');
+                            if (_mp.Length < 3) continue;
+                            string _mg = _mp[1]; string _mn = _mp[2];
+                            if (string.IsNullOrEmpty(_mn) || _guidByName.ContainsKey(_mn)) continue;
+                            if (Guid.TryParse(_mg, out Guid _gg))
+                            { _guidByName[_mn] = _gg; _sup++; }
+                        }
+                        StingLog.Info($"ParamRegistry: supplemented {_sup} GUIDs from MR_PARAMETERS.txt");
+                    }
+                }
+                catch (Exception _mrEx) { StingLog.Warn($"ParamRegistry MR supplement: {_mrEx.Message}"); }
+
                 StingLog.Info($"ParamRegistry loaded: {SourceTokens.Length} tokens, {ContainerGroups.Length} groups, {_allContainers.Length} containers, {_guidByName?.Count ?? 0} GUIDs");
             }
             catch (Exception ex)

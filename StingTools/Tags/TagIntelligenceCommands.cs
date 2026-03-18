@@ -355,8 +355,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
 
             string configPath = TagIntelligenceHelper.GetRulesPath(doc);
             var ruleSet = TagIntelligenceHelper.LoadRules(configPath);
@@ -569,7 +571,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = _ctx.Doc;
             var tagElements = TagIntelligenceHelper.CollectTaggable(doc);
 
             if (tagElements.Count == 0)
@@ -741,7 +745,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = _ctx.Doc;
             int elementCount = TagIntelligenceHelper.CollectTaggable(doc).Count;
 
             // Confirm with user
@@ -888,7 +894,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = _ctx.Doc;
             string configPath = TagIntelligenceHelper.GetRulesPath(doc);
             var fmt = TagIntelligenceHelper.LoadFormatConfig(configPath);
             string sampleTag = TagIntelligenceHelper.BuildSampleTag(fmt);
@@ -983,7 +991,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = _ctx.Doc;
             string snapshotPath = TagIntelligenceHelper.GetSnapshotPath(doc);
             var snapshots = TagIntelligenceHelper.LoadSnapshots(snapshotPath);
 
@@ -1163,8 +1173,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
 
             // Require a selection — the source element(s)
             var selIds = uidoc.Selection.GetElementIds();
@@ -1297,7 +1309,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = _ctx.Doc;
             var tagElements = TagIntelligenceHelper.CollectTaggable(doc);
 
             if (tagElements.Count == 0)
@@ -1449,8 +1463,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
 
             string scopeLabel;
             var targets = TagIntelligenceHelper.CollectTargets(uidoc, out scopeLabel);

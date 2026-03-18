@@ -2,22 +2,23 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Title="STING Tools"
-      Background="#FAFAFA">
+      Background="{DynamicResource PrimaryBg}">
 
     <Page.Resources>
+        <!-- FIX-3.3: DynamicResource bindings — ThemeManager.CycleTheme() now works -->
         <Style x:Key="SectionHeader" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Margin" Value="0,6,0,3"/>
-            <Setter Property="Foreground" Value="#6A1B9A"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
         <Style x:Key="GroupBorder" TargetType="Border">
-            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="6"/>
             <Setter Property="Margin" Value="0,3"/>
-            <Setter Property="Background" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
         </Style>
         <Style x:Key="CatBtn" TargetType="Button">
             <Setter Property="MinWidth" Value="34"/>
@@ -25,8 +26,9 @@
             <Setter Property="Margin" Value="1"/>
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="Background" Value="#F0F0F0"/>
-            <Setter Property="BorderBrush" Value="#CCC"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
@@ -36,6 +38,9 @@
             <Setter Property="Margin" Value="1"/>
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="Padding" Value="5,2"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style x:Key="GreenBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
@@ -76,14 +81,15 @@
         </Style>
         <Style x:Key="SectionLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Foreground" Value="#6A1B9A"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Margin" Value="0,5,0,2"/>
             <Setter Property="FontWeight" Value="Bold"/>
         </Style>
         <Style x:Key="SubLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="9"/>
-            <Setter Property="Foreground" Value="#888"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
             <Setter Property="Margin" Value="0,3,0,1"/>
+            <Setter Property="Opacity" Value="0.7"/>
         </Style>
     </Page.Resources>
 
@@ -95,7 +101,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="#6A1B9A" Padding="8,5">
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" Padding="8,5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -105,20 +111,20 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <TextBlock Text="STINGTOOLS V2.1" FontWeight="Bold" FontSize="13" Foreground="White"/>
-                    <TextBlock x:Name="txtStatus" Text="Always on top: ON" FontSize="9" Foreground="#CE93D8"/>
+                    <TextBlock x:Name="txtStatus" Text="Always on top: ON" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.8"/>
                 </StackPanel>
-                <TextBlock Grid.Column="1" x:Name="txtSelCount" Text="sel 0" FontSize="9" Foreground="#CE93D8" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock Grid.Column="1" x:Name="txtSelCount" Text="sel 0" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.8" VerticalAlignment="Center" Margin="0,0,6,0"/>
                 <Button x:Name="btnPin" Grid.Column="2" Content="Pin" Width="30" Height="20"
-                        FontSize="9" Background="#7B1FA2" Foreground="White" BorderThickness="0"
+                        FontSize="9" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
                         ToolTip="Pin panel" Click="BtnPin_Click" Margin="0,0,2,0"/>
                 <Button Grid.Column="3" Content="&#x263E;" Width="26" Height="20"
-                        FontSize="11" Background="#7B1FA2" Foreground="White" BorderThickness="0"
+                        FontSize="11" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
                         ToolTip="Toggle theme (Dark/Light/Grey/Corporate)" Tag="CycleTheme" Click="Cmd_Click"/>
             </Grid>
         </Border>
 
         <!-- Tab control -->
-        <TabControl Grid.Row="1" x:Name="tabMain" SelectionChanged="TabMain_SelectionChanged">
+        <TabControl Grid.Row="1" x:Name="tabMain" SelectionChanged="TabMain_SelectionChanged" Background="{DynamicResource PrimaryBg}">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
                     <Setter Property="FontWeight" Value="Bold"/>
@@ -1336,7 +1342,11 @@
                             <StackPanel>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Load Shared Params" Tag="LoadSharedParams" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource RedBtn}" Content="Purge Params" Tag="PurgeSharedParams"
+                                            Click="Cmd_Click" ToolTip="Audit or remove orphaned/all STING shared param bindings"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Project Config" Tag="ConfigEditor" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Edit Data Files" Tag="GuidedDataEditor"
+                                            Click="Cmd_Click" ToolTip="Guided editor for project_config.json, MR_PARAMETERS.txt, materials — with sync"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Tag Config" Tag="TagConfig" Click="Cmd_Click" ToolTip="View/configure tag lookup tables"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sync Schema" Tag="SyncParamSchema" Click="Cmd_Click" ToolTip="Sync parameter schema"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit Schema" Tag="AuditParamSchema" Click="Cmd_Click" ToolTip="Audit parameter schema"/>
@@ -1540,7 +1550,7 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="ISO completeness · tag coverage · leader consistency · view naming · param fill rates · annotation density"
                                                FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Column="1" x:Name="txtHealthScore" Text="—/100" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Foreground="#6A1B9A"/>
+                                    <TextBlock Grid.Column="1" x:Name="txtHealthScore" Text="—/100" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
                                 </Grid>
                                 <WrapPanel Margin="0,4,0,0">
                                     <ComboBox x:Name="cmbHealthScope" Width="90" FontSize="10" Height="22">
@@ -1967,6 +1977,86 @@
                                             ToolTip="Generate cost report by discipline, level, system"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Cash Flow" Tag="CashFlow5D" Click="Cmd_Click"
                                             ToolTip="Generate S-curve cash flow from 4D schedule + 5D cost"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- IoT / SENSOR DATA -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="IoT — SENSOR DATA"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Live BMS/sensor feeds linked to tagged elements" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sensor Link" Tag="IoTSensorLink" Click="Cmd_Click"
+                                            ToolTip="Connect BMS/IoT sensor feeds to tagged elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="IoT Dashboard" Tag="IoTDashboard" Click="Cmd_Click"
+                                            ToolTip="View live sensor data dashboard for tagged assets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Alert Config" Tag="IoTAlertConfig" Click="Cmd_Click"
+                                            ToolTip="Configure anomaly detection alerts for sensor feeds"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="History Export" Tag="IoTHistoryExport" Click="Cmd_Click"
+                                            ToolTip="Export historical sensor data for tagged elements"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- STANDARDS / COMPLIANCE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="STANDARDS — COMPLIANCE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Standards validation and compliance checking" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ISO 19650" Tag="ISO19650Checker" Click="Cmd_Click"
+                                            ToolTip="Run ISO 19650 compliance checker"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BS 1192" Tag="BS1192Checker" Click="Cmd_Click"
+                                            ToolTip="Run BS 1192 naming convention checker"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Check" Tag="COBieValidator" Click="Cmd_Click"
+                                            ToolTip="Validate COBie data completeness"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Naming Audit" Tag="NamingConventionAudit" Click="Cmd_Click"
+                                            ToolTip="Audit element and view naming conventions"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Classification" Tag="ClassificationAudit" Click="Cmd_Click"
+                                            ToolTip="Audit Uniclass/OmniClass classification codes"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- DATA PIPELINE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DATA PIPELINE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Export, import, and batch data operations" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="PDF Export" Tag="PDFExport" Click="Cmd_Click"
+                                            ToolTip="Export sheets to PDF"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Quantity Takeoff" Tag="QuantityTakeoff" Click="Cmd_Click"
+                                            ToolTip="Export quantity takeoff to Excel"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clash Detection" Tag="ClashDetect" Click="Cmd_Click"
+                                            ToolTip="Run MEP vs structural clash detection"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Model Health" Tag="ModelHealthCheck" Click="Cmd_Click"
+                                            ToolTip="Run model health check"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Params" Tag="BatchParameterExport" Click="Cmd_Click"
+                                            ToolTip="Export all tag parameters to CSV"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Project Dashboard" Tag="ProjectDashboard" Click="Cmd_Click"
+                                            ToolTip="Display project-wide statistics dashboard"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- MEP SCHEDULES -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="MEP SCHEDULES"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Discipline-specific MEP schedule generation" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="HVAC" Tag="MEPScheduleHVAC" Click="Cmd_Click"
+                                            ToolTip="Generate HVAC equipment schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Electrical" Tag="MEPScheduleElec" Click="Cmd_Click"
+                                            ToolTip="Generate electrical equipment schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Plumbing" Tag="MEPSchedulePlumb" Click="Cmd_Click"
+                                            ToolTip="Generate plumbing equipment schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fire" Tag="MEPScheduleFire" Click="Cmd_Click"
+                                            ToolTip="Generate fire protection schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="All MEP" Tag="MEPScheduleAll" Click="Cmd_Click"
+                                            ToolTip="Generate all MEP discipline schedules"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

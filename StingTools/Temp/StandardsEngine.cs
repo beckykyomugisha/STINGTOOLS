@@ -440,7 +440,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("═══ ISO 19650 DEEP COMPLIANCE REPORT ═══\n");
 
@@ -513,7 +515,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var results = StandardsEngine.CheckCibseVelocities(doc);
 
                 var report = new System.Text.StringBuilder();
@@ -555,7 +559,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var issues = StandardsEngine.CheckBs7671Compliance(doc);
 
                 var report = new System.Text.StringBuilder();
@@ -592,7 +598,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var classifications = StandardsEngine.ClassifyUniclass(doc);
 
                 // Group by Uniclass code
@@ -652,7 +660,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var results = StandardsEngine.CheckBs8300Accessibility(doc);
 
                 var report = new System.Text.StringBuilder();
@@ -695,7 +705,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var results = StandardsEngine.CheckPartLCompliance(doc);
 
                 var report = new System.Text.StringBuilder();
@@ -736,7 +748,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("════════════════════════════════════════");
                 report.AppendLine("   STING STANDARDS COMPLIANCE DASHBOARD");
