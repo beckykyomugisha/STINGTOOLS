@@ -33,42 +33,42 @@ namespace StingTools.UI
             new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
             {
                 {
-                    // Clean white — matches TAGS sub-tabs exactly
+                    // Clean white — light header, no dark shade
                     "Light", new Dictionary<string, string>
                     {
                         { "PrimaryBg", "#FFFFFF" },
-                        { "SecondaryBg", "#F7F7F7" },
+                        { "SecondaryBg", "#FAFAFA" },
                         { "PanelFg", "#333333" },
-                        { "AccentBrush", "#D4760A" },   // Orange section headers
+                        { "AccentBrush", "#E88A1A" },   // Bright orange section headers
                         { "ButtonBg", "#F0F0F0" },
                         { "ButtonFg", "#333333" },
                         { "HoverBg", "#E2E2E2" },
-                        { "HeaderBg", "#2D2D2D" },       // Dark header bar
-                        { "HeaderFg", "#FFFFFF" },
-                        { "BorderColor", "#D0D0D0" },
+                        { "HeaderBg", "#F5F5F5" },       // Light header bar
+                        { "HeaderFg", "#333333" },
+                        { "BorderColor", "#E0E0E0" },
                         { "SuccessColor", "#2E7D32" },
                         { "WarningColor", "#F57C00" },
                         { "ErrorColor", "#D32F2F" },
-                        { "TabBg", "#E8E8E8" },
-                        { "TabFg", "#444444" },
+                        { "TabBg", "#EEEEEE" },
+                        { "TabFg", "#555555" },
                         { "TabSelectedBg", "#FFFFFF" },
                         { "TabSelectedFg", "#333333" },
                     }
                 },
                 {
-                    // Warm cream tint — still light, subtle warm tone
+                    // Warm cream tint — light warm header
                     "Warm", new Dictionary<string, string>
                     {
                         { "PrimaryBg", "#FFFDF8" },
-                        { "SecondaryBg", "#FFF8EE" },
+                        { "SecondaryBg", "#FFF9F0" },
                         { "PanelFg", "#3E3428" },
-                        { "AccentBrush", "#C75B12" },   // Warm orange headers
+                        { "AccentBrush", "#D46A14" },   // Warm orange headers
                         { "ButtonBg", "#F5EDE0" },
                         { "ButtonFg", "#3E3428" },
                         { "HoverBg", "#EBE0D0" },
-                        { "HeaderBg", "#4A3728" },       // Dark brown header
-                        { "HeaderFg", "#FFF5E6" },
-                        { "BorderColor", "#D9CCBB" },
+                        { "HeaderBg", "#F5EDE0" },       // Light warm header
+                        { "HeaderFg", "#4A3728" },
+                        { "BorderColor", "#E5D8C8" },
                         { "SuccessColor", "#558B2F" },
                         { "WarningColor", "#E65100" },
                         { "ErrorColor", "#C62828" },
@@ -79,19 +79,19 @@ namespace StingTools.UI
                     }
                 },
                 {
-                    // Cool blue-grey tint — light, clean, subtle cool tone
+                    // Cool blue-grey tint — light cool header
                     "Cool", new Dictionary<string, string>
                     {
                         { "PrimaryBg", "#F8FAFC" },
-                        { "SecondaryBg", "#F0F4F8" },
+                        { "SecondaryBg", "#F2F6FA" },
                         { "PanelFg", "#2D3748" },
-                        { "AccentBrush", "#2B6CB0" },   // Blue headers
+                        { "AccentBrush", "#3182CE" },   // Bright blue headers
                         { "ButtonBg", "#E8EEF4" },
                         { "ButtonFg", "#2D3748" },
                         { "HoverBg", "#D6DFE8" },
-                        { "HeaderBg", "#1A365D" },       // Dark navy header
-                        { "HeaderFg", "#EBF4FF" },
-                        { "BorderColor", "#C5D1DC" },
+                        { "HeaderBg", "#E8EEF4" },       // Light cool header
+                        { "HeaderFg", "#1A365D" },
+                        { "BorderColor", "#D0DAE4" },
                         { "SuccessColor", "#276749" },
                         { "WarningColor", "#C05621" },
                         { "ErrorColor", "#C53030" },
@@ -102,19 +102,19 @@ namespace StingTools.UI
                     }
                 },
                 {
-                    // Corporate — professional light grey
+                    // Corporate — light professional grey header
                     "Corporate", new Dictionary<string, string>
                     {
                         { "PrimaryBg", "#FAFAFA" },
-                        { "SecondaryBg", "#F0F0F0" },
+                        { "SecondaryBg", "#F3F3F3" },
                         { "PanelFg", "#37474F" },
-                        { "AccentBrush", "#1565C0" },   // Corporate blue headers
+                        { "AccentBrush", "#1976D2" },   // Corporate blue headers
                         { "ButtonBg", "#E8E8E8" },
                         { "ButtonFg", "#37474F" },
                         { "HoverBg", "#D5D5D5" },
-                        { "HeaderBg", "#263238" },       // Dark slate header
-                        { "HeaderFg", "#ECEFF1" },
-                        { "BorderColor", "#B0BEC5" },
+                        { "HeaderBg", "#ECEFF1" },       // Light slate header
+                        { "HeaderFg", "#263238" },
+                        { "BorderColor", "#CFD8DC" },
                         { "SuccessColor", "#2E7D32" },
                         { "WarningColor", "#E65100" },
                         { "ErrorColor", "#B71C1C" },
