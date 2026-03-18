@@ -2293,3 +2293,16 @@ PARAM	9e9e90d6-633d-5336-b7af-f0df0d016d31	STR_BEAM_SPAN_DEPTH	NUMBER		16	1	Beam
 PARAM	685e2989-211c-5480-88ae-38b18321c06f	STR_WLD_STRENGTH_MPA	NUMBER		16	1	Weld strength in MPa	1
 PARAM	fee0fc86-3a13-5c30-82c1-9ae1c7660873	STR_WLD_THROAT_MM	NUMBER		16	1	Weld throat thickness in mm	1
 PARAM	5405e636-fe10-5249-a19f-54cfd77741c0	ASS_WARRANTY_DUR_UNIT_TXT	TEXT		1	1	Warranty duration unit (years/months) [COBie V2.4]	1
+# ── Container params referenced in TAG_CONFIG_v5_0_CONTAINERS.csv ──
+PARAM	bc22c478-10bb-5ef8-8884-6cf7f6d74111	EQP_TAG_1_TXT	TEXT		1	1	Equipment tag container	1
+PARAM	81a1ab91-031c-54c0-8e29-8b4d192f9df6	FIN_TAG_1_TXT	TEXT		1	1	Finish tag container	1
+PARAM	c291d97e-8b21-54eb-b2b8-3240ed41c112	COMP_TAG_1_TXT	TEXT		3	1	Compliance tag container	1
+PARAM	26e933e4-83fd-52bc-b28d-d7b21a97c816	ELC_TAG_7_PARA_FIXTURE_TXT	TEXT		4	1	Electrical fixture TAG7 paragraph narrative	1
+PARAM	0a5e974a-3a5d-5847-bbf8-2470f5b70c84	PIP_TAG_7_PARA_PIPE_TXT	TEXT		6	1	Pipe system TAG7 paragraph narrative	1
+PARAM	1ef1b8bd-0455-5420-aa3c-b2f101c761ba	LTG_TAG_7_PARA_FIXTURE_TXT	TEXT		7	1	Lighting fixture TAG7 paragraph narrative	1
+PARAM	c48c8fcc-f3f6-5b91-9f13-3a4ceeb161d2	FLS_TAG_7_PARA_DEVICE_TXT	TEXT		8	1	Fire safety device TAG7 paragraph narrative	1
+PARAM	64ad7b98-b473-5cad-af29-71fccfc886d4	SPK_TAG_7_PARA_HEAD_TXT	TEXT		8	1	Sprinkler head TAG7 paragraph narrative	1
+PARAM	4d354f06-1612-534a-ac8c-73d7a340c6e8	ENV_TAG_1_TXT	TEXT		9	1	Environmental tag container	1
+PARAM	6ef7ae26-af91-5a43-9ea7-3a05d5cc2bf0	PERF_TAG_1_TXT	TEXT		9	1	Performance tag container	1
+PARAM	0dda60a9-c4b0-54dd-bca0-9f5a6076d49c	SUST_TAG_1_TXT	TEXT		9	1	Sustainability tag container	1
+PARAM	e51303da-3780-5409-9c41-2b3287b3042f	STR_TAG_1_TXT	TEXT		16	1	Structural tag container	1
