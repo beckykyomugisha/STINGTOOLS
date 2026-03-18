@@ -129,13 +129,13 @@
                 <Style TargetType="TabItem">
                     <Setter Property="FontWeight" Value="Bold"/>
                     <Setter Property="FontSize" Value="10"/>
-                    <Setter Property="Padding" Value="5,2"/>
-                    <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
-                    <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+                    <Setter Property="Padding" Value="5,3"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TabFg}"/>
+                    <Setter Property="Background" Value="{DynamicResource TabBg}"/>
                     <Style.Triggers>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Foreground" Value="White"/>
-                            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TabSelectedFg}"/>
+                            <Setter Property="Background" Value="{DynamicResource TabSelectedBg}"/>
                         </Trigger>
                     </Style.Triggers>
                 </Style>
