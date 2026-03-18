@@ -10,12 +10,20 @@ namespace StingTools.UI
     /// UI-01: Theme engine for STING Tools dockable panel.
     /// Provides Dark, Light, Grey, and Corporate themes with
     /// dynamic resource switching.
+    ///
+    /// Resources are applied to both Application.Current.Resources (global fallback)
+    /// and the registered panel FrameworkElement.Resources (local override).
+    /// This dual-write ensures DynamicResource bindings resolve correctly
+    /// inside Revit's hosted WPF environment.
     /// </summary>
     public static class ThemeManager
     {
-        public static string CurrentTheme { get; private set; } = "Light";
+        public static string CurrentTheme { get; private set; } = "Dark";
 
         private static readonly string[] ThemeOrder = { "Dark", "Light", "Grey", "Corporate" };
+
+        /// <summary>The registered panel element whose Resources dictionary receives theme brushes.</summary>
+        private static FrameworkElement _targetElement;
 
         private static readonly Dictionary<string, Dictionary<string, string>> Themes =
             new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
@@ -36,6 +44,10 @@ namespace StingTools.UI
                         { "SuccessColor", "#48BB78" },
                         { "WarningColor", "#ED8936" },
                         { "ErrorColor", "#FC8181" },
+                        { "TabBg", "#242D3E" },
+                        { "TabFg", "#A0AEC0" },
+                        { "TabSelectedBg", "#2E75B6" },
+                        { "TabSelectedFg", "#FFFFFF" },
                     }
                 },
                 {
@@ -54,6 +66,10 @@ namespace StingTools.UI
                         { "SuccessColor", "#2E7D32" },
                         { "WarningColor", "#F57C00" },
                         { "ErrorColor", "#D32F2F" },
+                        { "TabBg", "#E8E8E8" },
+                        { "TabFg", "#555555" },
+                        { "TabSelectedBg", "#1B3A5C" },
+                        { "TabSelectedFg", "#FFFFFF" },
                     }
                 },
                 {
@@ -72,6 +88,10 @@ namespace StingTools.UI
                         { "SuccessColor", "#66BB6A" },
                         { "WarningColor", "#FFA726" },
                         { "ErrorColor", "#EF5350" },
+                        { "TabBg", "#4A4A4A" },
+                        { "TabFg", "#B0B0B0" },
+                        { "TabSelectedBg", "#5E9FD4" },
+                        { "TabSelectedFg", "#FFFFFF" },
                     }
                 },
                 {
@@ -90,59 +110,69 @@ namespace StingTools.UI
                         { "SuccessColor", "#2E7D32" },
                         { "WarningColor", "#E65100" },
                         { "ErrorColor", "#B71C1C" },
+                        { "TabBg", "#E0E0E0" },
+                        { "TabFg", "#546E7A" },
+                        { "TabSelectedBg", "#1565C0" },
+                        { "TabSelectedFg", "#FFFFFF" },
                     }
                 },
             };
 
-        /// <summary>Apply a named theme to the application resources.</summary>
+        /// <summary>
+        /// Register the panel element that will receive theme resources.
+        /// Call once from the panel constructor after InitializeComponent().
+        /// </summary>
+        public static void RegisterTarget(FrameworkElement element)
+        {
+            _targetElement = element;
+        }
+
+        /// <summary>Apply a named theme to both the panel and Application resources.</summary>
         public static void ApplyTheme(string themeName)
         {
             if (!Themes.ContainsKey(themeName))
             {
-                StingLog.Warn($"ThemeManager: unknown theme '{themeName}', falling back to Light");
-                themeName = "Light";
+                StingLog.Warn($"ThemeManager: unknown theme '{themeName}', falling back to Dark");
+                themeName = "Dark";
             }
 
             var theme = Themes[themeName];
-            var app = Application.Current;
-            if (app == null) return;
 
+            // Write to both targets for reliable DynamicResource resolution
+            ApplyToTarget(theme, _targetElement?.Resources);
+            ApplyToTarget(theme, Application.Current?.Resources);
+
+            CurrentTheme = themeName;
+            StingLog.Info($"ThemeManager: applied '{themeName}' theme");
+        }
+
+        private static void ApplyToTarget(Dictionary<string, string> theme, ResourceDictionary resources)
+        {
+            if (resources == null) return;
             foreach (var kvp in theme)
             {
                 try
                 {
                     var color = (Color)ColorConverter.ConvertFromString(kvp.Value);
-                    app.Resources[kvp.Key] = new SolidColorBrush(color);
+                    resources[kvp.Key] = new SolidColorBrush(color);
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"ThemeManager: failed to set {kvp.Key}={kvp.Value}: {ex.Message}");
                 }
             }
-
-            CurrentTheme = themeName;
-            StingLog.Info($"ThemeManager: applied '{themeName}' theme");
         }
 
         /// <summary>
-        /// FIX-3.1: Seed all theme resource keys into Application.Resources at startup.
-        /// Required before any DynamicResource binding resolves. Without this call,
-        /// DynamicResource keys do not exist at first render and bindings fail silently.
+        /// Seed all theme resource keys at startup.
+        /// Must be called after InitializeComponent() and RegisterTarget().
         /// </summary>
         public static void InitialiseResources()
         {
-            var app = Application.Current;
-            if (app == null) return;
-            if (!Themes.ContainsKey(CurrentTheme)) CurrentTheme = "Light";
-            foreach (var kvp in Themes[CurrentTheme])
-            {
-                try
-                {
-                    var color = (Color)ColorConverter.ConvertFromString(kvp.Value);
-                    app.Resources[kvp.Key] = new SolidColorBrush(color);
-                }
-                catch { }
-            }
+            if (!Themes.ContainsKey(CurrentTheme)) CurrentTheme = "Dark";
+            var theme = Themes[CurrentTheme];
+            ApplyToTarget(theme, _targetElement?.Resources);
+            ApplyToTarget(theme, Application.Current?.Resources);
         }
 
         /// <summary>Cycle to the next theme in order: Dark -> Light -> Grey -> Corporate.</summary>

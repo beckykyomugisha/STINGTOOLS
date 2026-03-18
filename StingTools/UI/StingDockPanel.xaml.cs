@@ -41,7 +41,8 @@ namespace StingTools.UI
         public StingDockPanel()
         {
             InitializeComponent();
-            // FIX-3.2: Seed theme resource keys before DynamicResource bindings resolve
+            // Register this panel as the theme target before seeding resources
+            ThemeManager.RegisterTarget(this);
             ThemeManager.InitialiseResources();
 
             // CRASH FIX: Immediately after XAML parsing, detach content from all
@@ -161,6 +162,14 @@ namespace StingTools.UI
                     || cmdTag == "BatchTagTextSize")
                 {
                     SetTagStyleParams();
+                }
+
+                // Handle theme cycling directly in WPF thread (no Revit API needed)
+                if (cmdTag == "CycleTheme")
+                {
+                    string next = ThemeManager.CycleTheme();
+                    UpdateStatus($"Theme: {next}");
+                    return;
                 }
 
                 _handler?.SetCommand(cmdTag);

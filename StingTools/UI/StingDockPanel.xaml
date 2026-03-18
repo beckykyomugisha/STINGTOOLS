@@ -130,6 +130,14 @@
                     <Setter Property="FontWeight" Value="Bold"/>
                     <Setter Property="FontSize" Value="10"/>
                     <Setter Property="Padding" Value="5,2"/>
+                    <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+                    <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                        </Trigger>
+                    </Style.Triggers>
                 </Style>
             </TabControl.Resources>
 
@@ -3159,7 +3167,7 @@
         </TabControl>
 
         <!-- Bottom bar -->
-        <Border Grid.Row="2" Background="#F5F5F5" Padding="4,3" BorderBrush="#DDD" BorderThickness="0,1,0,0">
+        <Border Grid.Row="2" Background="{DynamicResource SecondaryBg}" Padding="4,3" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -3171,7 +3179,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="ft:" FontSize="9" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                <TextBlock Text="ft:" FontSize="9" Foreground="{DynamicResource PanelFg}" VerticalAlignment="Center" Margin="0,0,2,0"/>
                 <ComboBox Grid.Column="1" x:Name="cmbNudgeDist" Width="50" FontSize="9" Height="20">
                     <ComboBoxItem Content="0.25" IsSelected="True"/>
                     <ComboBoxItem Content="0.125"/>
@@ -3180,7 +3188,7 @@
                     <ComboBoxItem Content="2.0"/>
                 </ComboBox>
                 <Slider Grid.Column="2" x:Name="sldNudgeDist" Minimum="0.01" Maximum="2.0" Value="0.25" Width="60" VerticalAlignment="Center" Margin="4,0"/>
-                <TextBlock Grid.Column="3" Text="Always on top: ON" FontSize="9" Foreground="#888" VerticalAlignment="Center" Margin="4,0"/>
+                <TextBlock Grid.Column="3" Text="Always on top: ON" FontSize="9" Foreground="{DynamicResource PanelFg}" Opacity="0.6" VerticalAlignment="Center" Margin="4,0"/>
                 <Ellipse Grid.Column="4" Width="10" Height="10" Fill="#F44336" Margin="4,0" VerticalAlignment="Center"/>
                 <Button Grid.Column="5" Content="[Del]" FontSize="9" Width="30" Height="20" Margin="2,0" Tag="DeleteSelected" Click="Cmd_Click"/>
                 <Button Grid.Column="6" Content="?" FontSize="9" Width="20" Height="20" Margin="2,0" Tag="ShowHelp" Click="Cmd_Click"/>
