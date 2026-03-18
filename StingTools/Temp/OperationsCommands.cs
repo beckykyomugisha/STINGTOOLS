@@ -203,7 +203,7 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class IFCExportCommand : IExternalCommand
+    public class IFCSimpleExportCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
@@ -518,7 +518,7 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class ClashDetectionCommand : IExternalCommand
+    public class SimpleClashDetectionCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
