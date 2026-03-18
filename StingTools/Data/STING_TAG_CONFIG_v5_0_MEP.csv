@@ -808,6 +808,8 @@ TAG7: ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT  •  Category: MEP Fabrication Contain
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_FAB_CONTAINMENT_DIMENSIONS,Containment size mismatch,IEC 61537,Common,Text,⚠ Warning: Containment Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_CONTAINMENT_DIMENSIONS, """")"
+2,MEDIUM,WARN_FAB_CONTAINMENT_FILL_RATIO,Containment fill ratio > 50%,BS EN 61537 / IEC 61537,Common,Text,⚠ Warning: Containment Fill Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_CONTAINMENT_FILL_RATIO, """")"
+3,HIGH,WARN_FAB_CONTAINMENT_FIRE_RATING,Containment fire rating not specified at compartment boundary,Building Regs Part B / BS 8519,Common,Text,⚠ Warning: Containment Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_CONTAINMENT_FIRE_RATING, """")"
 Tag Family #38: STING - MEP Fabrication Ductwork Tag
 TAG7: HVC_TAG_7_PARA_FAB_DUCTWORK_TXT  •  Category: MEP Fabrication Ductwork
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -817,7 +819,9 @@ TAG7: HVC_TAG_7_PARA_FAB_DUCTWORK_TXT  •  Category: MEP Fabrication Ductwork
 4,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,MEDIUM,WARN_FAB_DCT_DIMENSIONS_DUCTWORK,Fabrication duct size mismatch,CIBSE DW/144 / SMACNA,Common,Text,⚠ Warning: Fab Duct Dimensions,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_DCT_DIMENSIONS_DUCTWORK, """")"
+1,MEDIUM,WARN_FAB_DCT_DIMENSIONS_DUCTWORK,Fabrication duct size mismatch with design,CIBSE DW/144 / SMACNA,Common,Text,⚠ Warning: Fab Duct Dimensions,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_DCT_DIMENSIONS_DUCTWORK, """")"
+2,MEDIUM,WARN_FAB_DCT_LEAKAGE_DUCTWORK,Fab duct leakage class not specified,CIBSE DW/144 / BS EN 15727,Common,Text,⚠ Warning: Fab Duct Leakage Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_DCT_LEAKAGE_DUCTWORK, """")"
+3,LOW,WARN_FAB_DCT_MATERIAL_DUCTWORK,Fab duct material gauge < minimum for duct class,SMACNA HVAC Duct Standards / CIBSE DW/144,Common,Text,⚠ Warning: Fab Duct Material Gauge,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_DCT_MATERIAL_DUCTWORK, """")"
 Tag Family #39: STING - MEP Fabrication Ductwork Stiffeners Tag
 TAG7: HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT  •  Category: MEP Fabrication Ductwork Stiffeners
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
