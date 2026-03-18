@@ -195,6 +195,8 @@ namespace StingTools.Core
             try { TagConfig.SetConfigValue("AUTO_TAGGER_VISUAL", enabled); }
             catch (Exception ex) { StingLog.Warn($"SetVisualTagging persist: {ex.Message}"); }
         }
+        /// <summary>FIX-10.2: Set visual tagging state without persisting (used during config load to avoid re-save loop).</summary>
+        public static void SetVisualTaggingQuiet(bool enabled) { _visualTaggingEnabled = enabled; }
         /// <summary>Get current visual tagging state.</summary>
         public static bool IsVisualTaggingEnabled => _visualTaggingEnabled;
 

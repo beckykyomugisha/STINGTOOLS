@@ -967,9 +967,9 @@ namespace StingTools.Core
                     else if (int.TryParse(gateObj?.ToString(), out int gi)) ComplianceGatePct = gi;
                 }
 
-                // FIX-10.2: Restore auto-tagger visual setting
+                // FIX-10.2: Restore auto-tagger visual setting (use SetVisualTaggingQuiet to avoid re-save loop)
                 if (data.TryGetValue("AUTO_TAGGER_VISUAL", out object _avt) && _avt is bool _avtb)
-                    try { Core.StingAutoTagger.SetVisualTagging(_avtb); } catch { }
+                    try { Core.StingAutoTagger.SetVisualTaggingQuiet(_avtb); } catch { }
 
                 // FL-03: Load separator history for cross-session tag validation compatibility
                 var sepHistory = TryDeserialize<List<string>>(data, "SEPARATOR_HISTORY");

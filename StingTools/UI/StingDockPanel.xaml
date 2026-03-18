@@ -2029,7 +2029,7 @@
                                             ToolTip="Export sheets to PDF"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Quantity Takeoff" Tag="QuantityTakeoff" Click="Cmd_Click"
                                             ToolTip="Export quantity takeoff to Excel"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Clash Detection" Tag="ClashDetection" Click="Cmd_Click"
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clash Detection" Tag="ClashDetect" Click="Cmd_Click"
                                             ToolTip="Run MEP vs structural clash detection"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Model Health" Tag="ModelHealthCheck" Click="Cmd_Click"
                                             ToolTip="Run model health check"/>

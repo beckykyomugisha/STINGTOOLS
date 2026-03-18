@@ -684,11 +684,15 @@ namespace StingTools.UI
                     case "AuditLinks": AuditLinkedModels(app); break;
 
                     case "PdfSelectedSheets":
+                        SetExtraParam("PdfScope", "Selected");
+                        RunCommand<Temp.PrintSheetsCommand>(app);
+                        break;
                     case "PdfActiveView":
-                        TaskDialog.Show("PDF Export",
-                            "PDF export requires Revit's Print/Export API.\n" +
-                            "Use File → Export → PDF in Revit for direct PDF output,\n" +
-                            "or File → Print with a PDF printer driver.");
+                        SetExtraParam("PdfScope", "Active");
+                        RunCommand<Temp.PrintSheetsCommand>(app);
+                        break;
+                    case "PrintSheets":
+                        RunCommand<Temp.PrintSheetsCommand>(app);
                         break;
 
                     case "GenSheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
@@ -931,7 +935,6 @@ namespace StingTools.UI
                     // Operations Commands (OperationsCommands.cs, StingTools.Temp)
                     case "PDFExport": RunCommand<Temp.PDFExportCommand>(app); break;
                     case "QuantityTakeoff": RunCommand<Temp.QuantityTakeoffCommand>(app); break;
-                    case "ClashDetection": RunCommand<Temp.ClashDetectionCommand>(app); break;
                     case "ModelHealthCheck": RunCommand<Temp.ModelHealthCheckCommand>(app); break;
                     case "BatchParameterExport": RunCommand<Temp.BatchParameterExportCommand>(app); break;
                     case "ProjectDashboard": RunCommand<Temp.ProjectDashboardCommand>(app); break;
