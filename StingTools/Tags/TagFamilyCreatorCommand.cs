@@ -856,20 +856,35 @@ namespace StingTools.Tags
                     }
 
                     // Check if .rfa already exists on disk (from previous run)
+                    // Verify it has parameters — if empty, delete and recreate
                     if (File.Exists(outputPath))
                     {
-                        if (LoadFamilyIntoProject(doc, outputPath, famName))
+                        bool hasParams = VerifyFamilyHasParams(app, outputPath);
+                        if (hasParams)
                         {
-                            report.AppendLine($"  [LOAD] {catDisplay} — loaded from existing .rfa");
-                            loaded++;
+                            if (LoadFamilyIntoProject(doc, outputPath, famName))
+                            {
+                                report.AppendLine($"  [LOAD] {catDisplay} — loaded from existing .rfa");
+                                loaded++;
+                            }
+                            else
+                            {
+                                report.AppendLine($"  [FAIL] {catDisplay} — load failed");
+                                failed++;
+                                failures.Add($"{catDisplay}: family load failed");
+                            }
+                            continue;
                         }
                         else
                         {
-                            report.AppendLine($"  [FAIL] {catDisplay} — load failed");
-                            failed++;
-                            failures.Add($"{catDisplay}: family load failed");
+                            // Empty family from previous failed run — delete and recreate
+                            StingLog.Info($"Deleting empty .rfa for {catDisplay} — will recreate with params");
+                            try { File.Delete(outputPath); }
+                            catch (Exception delEx)
+                            {
+                                StingLog.Warn($"Cannot delete {outputPath}: {delEx.Message}");
+                            }
                         }
-                        continue;
                     }
 
                     // Create family from template (Strategy 1 + 2 fallback)
@@ -885,6 +900,15 @@ namespace StingTools.Tags
                     // Add shared parameters: tag containers + visibility + category-specific
                     var allParams = TagFamilyConfig.GetAllFamilyParams(catDisplay);
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, allParams);
+
+                    // If no params were added, log detailed diagnostics
+                    if (!paramsAdded)
+                    {
+                        StingLog.Warn($"No params added to {catDisplay}. " +
+                            $"Param list count: {allParams.Count}, " +
+                            $"SharedParamFile: {sharedParamFile}, " +
+                            $"File exists: {File.Exists(sharedParamFile)}");
+                    }
 
                     // Attempt to rebind the existing Label to ASS_TAG_1_TXT
                     bool labelBound = TryRebindLabel(famDoc);
@@ -1110,9 +1134,22 @@ namespace StingTools.Tags
                 DefinitionFile defFile = app.OpenSharedParameterFile();
                 if (defFile == null)
                 {
-                    StingLog.Warn("Cannot open shared parameter file for tag family");
+                    StingLog.Warn($"Cannot open shared parameter file: {sharedParamFile}");
+                    StingLog.Warn($"File exists: {File.Exists(sharedParamFile)}, " +
+                        $"App.SharedParametersFilename: {app.SharedParametersFilename}");
                     return false;
                 }
+
+                // Log group count for diagnostics
+                int groupCount = 0;
+                int defCount = 0;
+                foreach (DefinitionGroup grp in defFile.Groups)
+                {
+                    groupCount++;
+                    foreach (Definition d in grp.Definitions)
+                        defCount++;
+                }
+                StingLog.Info($"Shared parameter file opened: {groupCount} groups, {defCount} definitions");
 
                 FamilyManager famMan = famDoc.FamilyManager;
                 int added = 0;
@@ -1281,6 +1318,49 @@ namespace StingTools.Tags
             catch (Exception ex)
             {
                 StingLog.Info($"Label rebind attempt (expected to fail): {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Verify that a .rfa file on disk contains STING shared parameters.
+        /// Opens the family document, checks FamilyManager.Parameters count,
+        /// and closes without saving. Returns false if the family is empty
+        /// (from a previous failed creation run).
+        /// </summary>
+        private bool VerifyFamilyHasParams(
+            Autodesk.Revit.ApplicationServices.Application app,
+            string rfaPath)
+        {
+            try
+            {
+                Document famDoc = app.OpenDocumentFile(rfaPath);
+                if (famDoc == null) return false;
+
+                int paramCount = 0;
+                FamilyManager famMan = famDoc.FamilyManager;
+                foreach (FamilyParameter fp in famMan.Parameters)
+                {
+                    // Count STING params (ASS_, TAG_, HVC_, etc.) — not built-in
+                    string name = fp.Definition?.Name ?? "";
+                    if (name.Contains("_"))
+                        paramCount++;
+                }
+
+                famDoc.Close(false);
+
+                if (paramCount < 5)
+                {
+                    StingLog.Info($"VerifyFamilyHasParams: {rfaPath} has only {paramCount} " +
+                        "STING params — treating as empty, will recreate");
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"VerifyFamilyHasParams failed for {rfaPath}: {ex.Message}");
                 return false;
             }
         }
