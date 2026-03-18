@@ -148,7 +148,7 @@ namespace StingTools.Docs
             {
                 lines = File.ReadAllLines(filePath);
             }
-            catch (IOException ex)
+            catch (IOException)
             {
                 // Journal may be locked by Revit — read with sharing
                 using (var fs = new FileStream(filePath, FileMode.Open,

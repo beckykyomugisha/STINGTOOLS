@@ -246,7 +246,7 @@ namespace StingTools.Temp
                     string number = room.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? "";
                     double area = room.Area * 0.092903;
                     string levelName = doc.GetElement(room.LevelId)?.Name ?? "";
-                    spatialJson.Add($"  {{\"id\":{room.Id.IntegerValue},\"name\":\"{EscapeJson(name)}\",\"number\":\"{number}\",\"area\":{area:F2},\"level\":\"{EscapeJson(levelName)}\"}},");
+                    spatialJson.Add($"  {{\"id\":{room.Id.Value},\"name\":\"{EscapeJson(name)}\",\"number\":\"{number}\",\"area\":{area:F2},\"level\":\"{EscapeJson(levelName)}\"}},");
                 }
                 if (spatialJson.Count > 1) spatialJson[spatialJson.Count - 1] = spatialJson.Last().TrimEnd(',');
                 spatialJson.Add("]");
@@ -272,7 +272,7 @@ namespace StingTools.Temp
                         string condition = ParameterHelpers.GetString(el, "ASS_CONDITION_TXT");
                         var loc = (el.Location as LocationPoint)?.Point;
                         string xyz = loc != null ? $"[{loc.X * 0.3048:F2},{loc.Y * 0.3048:F2},{loc.Z * 0.3048:F2}]" : "null";
-                        assetJson.Add($"  {{\"id\":{el.Id.IntegerValue},\"tag\":\"{EscapeJson(tag)}\",\"category\":\"{EscapeJson(catName)}\",\"family\":\"{EscapeJson(family)}\",\"condition\":\"{EscapeJson(condition)}\",\"position\":{xyz}}},");
+                        assetJson.Add($"  {{\"id\":{el.Id.Value},\"tag\":\"{EscapeJson(tag)}\",\"category\":\"{EscapeJson(catName)}\",\"family\":\"{EscapeJson(family)}\",\"condition\":\"{EscapeJson(condition)}\",\"position\":{xyz}}},");
                         assetCount++;
                     }
                 }
@@ -285,7 +285,7 @@ namespace StingTools.Temp
                 var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
                 var levelJson = new List<string> { "[" };
                 foreach (var lvl in levels)
-                    levelJson.Add($"  {{\"id\":{lvl.Id.IntegerValue},\"name\":\"{EscapeJson(lvl.Name)}\",\"elevation\":{lvl.Elevation * 0.3048:F2}}},");
+                    levelJson.Add($"  {{\"id\":{lvl.Id.Value},\"name\":\"{EscapeJson(lvl.Name)}\",\"elevation\":{lvl.Elevation * 0.3048:F2}}},");
                 if (levelJson.Count > 1) levelJson[levelJson.Count - 1] = levelJson.Last().TrimEnd(',');
                 levelJson.Add("]");
                 File.WriteAllLines(Path.Combine(twinFolder, "levels.json"), levelJson);

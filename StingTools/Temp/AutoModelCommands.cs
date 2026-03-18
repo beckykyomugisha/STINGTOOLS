@@ -1457,19 +1457,19 @@ namespace StingTools.Temp
 
             // Keyword matching for common blocks
             if (upper.Contains("DOOR"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_Doors);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_Doors);
             if (upper.Contains("WINDOW") || upper.Contains("WIN"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_Windows);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_Windows);
             if (upper.Contains("CHAIR") || upper.Contains("DESK") || upper.Contains("TABLE") || upper.Contains("FURN"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_Furniture);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_Furniture);
             if (upper.Contains("LIGHT") || upper.Contains("LTG") || upper.Contains("LAMP"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_LightingFixtures);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_LightingFixtures);
             if (upper.Contains("SPRINK"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_Sprinklers);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_Sprinklers);
             if (upper.Contains("TOILET") || upper.Contains("WC") || upper.Contains("SINK") || upper.Contains("BASIN"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_PlumbingFixtures);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_PlumbingFixtures);
             if (upper.Contains("SWITCH") || upper.Contains("OUTLET") || upper.Contains("SOCKET"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_ElectricalFixtures);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_ElectricalFixtures);
 
             return null;
         }
