@@ -854,16 +854,17 @@ namespace StingTools.Tags
 
             if (isBatch)
             {
-                // Use WinForms FolderBrowserDialog for folder selection
-                string selectedDir = null;
-                using (var fbd = new System.Windows.Forms.FolderBrowserDialog())
+                // Use WPF-compatible SaveFileDialog to pick a folder (same pattern as OutputLocationHelper)
+                var dlg = new Microsoft.Win32.SaveFileDialog
                 {
-                    fbd.Description = "Select folder containing .rfa family files";
-                    fbd.SelectedPath = StingToolsApp.DataPath ?? "";
-                    fbd.ShowNewFolderButton = false;
-                    if (fbd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-                        selectedDir = fbd.SelectedPath;
-                }
+                    Title = "Select folder containing .rfa files (pick any file in target folder)",
+                    Filter = "Revit Family Files (*.rfa)|*.rfa",
+                    FileName = "select_this_folder.rfa",
+                    InitialDirectory = StingToolsApp.DataPath ?? ""
+                };
+                if (dlg.ShowDialog() != true)
+                    return Result.Cancelled;
+                string selectedDir = Path.GetDirectoryName(dlg.FileName);
                 if (string.IsNullOrEmpty(selectedDir) || !Directory.Exists(selectedDir))
                     return Result.Cancelled;
                 rfaFiles = Directory.GetFiles(selectedDir, "*.rfa", SearchOption.AllDirectories).ToList();
@@ -871,16 +872,16 @@ namespace StingTools.Tags
             }
             else
             {
-                // Use WinForms OpenFileDialog for single file selection
-                string selectedFile = null;
-                using (var ofd = new System.Windows.Forms.OpenFileDialog())
+                // Use WPF-compatible OpenFileDialog for single file selection
+                var ofd = new Microsoft.Win32.OpenFileDialog
                 {
-                    ofd.Title = "Select .rfa family file";
-                    ofd.Filter = "Revit Family Files (*.rfa)|*.rfa";
-                    ofd.InitialDirectory = StingToolsApp.DataPath ?? "";
-                    if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-                        selectedFile = ofd.FileName;
-                }
+                    Title = "Select .rfa family file",
+                    Filter = "Revit Family Files (*.rfa)|*.rfa",
+                    InitialDirectory = StingToolsApp.DataPath ?? ""
+                };
+                if (ofd.ShowDialog() != true)
+                    return Result.Cancelled;
+                string selectedFile = ofd.FileName;
                 if (string.IsNullOrEmpty(selectedFile) || !File.Exists(selectedFile))
                     return Result.Cancelled;
                 rfaFiles = new List<string> { selectedFile };

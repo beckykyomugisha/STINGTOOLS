@@ -400,6 +400,10 @@ namespace StingTools.UI
                     case "AutoPlaceViewports": RunCommand<Docs.AutoPlaceViewportsCommand>(app); break;
                     case "CropToContent": RunCommand<Docs.CropToContentCommand>(app); break;
                     case "BatchAlignViewports": RunCommand<Docs.BatchAlignViewportsCommand>(app); break;
+                    case "Rename":
+                    case "MagicRename": RunCommand<Docs.MagicRenameCommand>(app); break;
+                    case "ViewTabColour": RunCommand<Docs.ViewTabColourCommand>(app); break;
+                    case "RibbonStyler": RunCommand<Docs.RibbonPanelStylerCommand>(app); break;
 
                     // ── Documentation Automation (Phase 6) ──
                     case "BatchCreateViews": RunCommand<Docs.BatchCreateViewsCommand>(app); break;
@@ -426,6 +430,7 @@ namespace StingTools.UI
                     // ── Materials ──
                     case "CreateBLEMaterials": RunCommand<Temp.CreateBLEMaterialsCommand>(app); break;
                     case "CreateMEPMaterials": RunCommand<Temp.CreateMEPMaterialsCommand>(app); break;
+                    case "MaterialManager": RunCommand<Temp.StingMaterialManagerCommand>(app); break;
 
                     // ── Family types ──
                     case "CreateWalls": RunCommand<Temp.CreateWallsCommand>(app); break;
@@ -538,6 +543,7 @@ namespace StingTools.UI
                     case "SyncParamSchema": RunCommand<Tags.SyncParameterSchemaCommand>(app); break;
                     case "AddParamRemap": RunCommand<Tags.AddParamRemapCommand>(app); break;
                     case "AuditParamSchema": RunCommand<Tags.AuditParameterSchemaCommand>(app); break;
+                    case "ParamManager": RunCommand<Tags.StingParamManagerCommand>(app); break;
 
                     // ── Tag Families ──
                     case "CreateTagFamilies": RunCommand<Tags.CreateTagFamiliesCommand>(app); break;
@@ -940,7 +946,6 @@ namespace StingTools.UI
                     case "ProjectDashboard": RunCommand<Temp.ProjectDashboardCommand>(app); break;
                     case "WorkflowPreset": RunCommand<Temp.WorkflowPresetCommand>(app); break;
                     case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
-                    case "PrintSheets": RunCommand<Temp.PrintSheetsCommand>(app); break;
 
                     // IoT / Sensor Data (planned — informative stubs)
                     case "IoTSensorLink":
