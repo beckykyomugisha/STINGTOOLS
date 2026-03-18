@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -804,6 +805,143 @@ namespace StingTools.Temp
             {
                 StingLog.Error("CreateMEPMaterialsCommand crashed", ex);
                 try { TaskDialog.Show("STING Tools", $"MEP Materials failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  StingMaterialManagerCommand — Unified material management UI
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Unified material management: browse project materials, create BLE/MEP
+    /// materials from CSV, and export material list to CSV.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StingMaterialManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                var dlg = new TaskDialog("STING Material Manager");
+                dlg.MainInstruction = "Material Management";
+                dlg.MainContent = "Choose an action for material management.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Browse Materials",
+                    "View all materials currently in this project.");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Create BLE Materials",
+                    "Create building element materials from BLE_MATERIALS.csv.");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Create MEP Materials",
+                    "Create MEP materials from MEP_MATERIALS.csv.");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Export Material List",
+                    "Export all project material names to CSV.");
+                dlg.CommonButtons = TaskDialogCommonButtons.Close;
+
+                var result = dlg.Show();
+
+                if (result == TaskDialogResult.CommandLink1)
+                {
+                    // Browse materials
+                    var materials = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Material))
+                        .Cast<Material>()
+                        .OrderBy(m => m.Name)
+                        .ToList();
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine($"Total materials: {materials.Count}\n");
+
+                    int stingCount = 0;
+                    foreach (var mat in materials)
+                    {
+                        string name = mat.Name ?? "(unnamed)";
+                        if (name.StartsWith("STING", StringComparison.OrdinalIgnoreCase) ||
+                            name.StartsWith("BLE_", StringComparison.OrdinalIgnoreCase) ||
+                            name.StartsWith("MEP_", StringComparison.OrdinalIgnoreCase))
+                            stingCount++;
+                    }
+
+                    sb.AppendLine($"STING/BLE/MEP materials: {stingCount}");
+                    sb.AppendLine($"Other materials: {materials.Count - stingCount}");
+                    sb.AppendLine();
+
+                    int shown = 0;
+                    foreach (var mat in materials)
+                    {
+                        sb.AppendLine($"  {mat.Name}");
+                        if (++shown >= 200)
+                        {
+                            sb.AppendLine($"  ... and {materials.Count - shown} more");
+                            break;
+                        }
+                    }
+
+                    TaskDialog.Show("Project Materials", sb.ToString());
+                    StingLog.Info($"MaterialManager: browsed {materials.Count} materials");
+                }
+                else if (result == TaskDialogResult.CommandLink2)
+                {
+                    // Delegate to CreateBLEMaterialsCommand
+                    string msg = "";
+                    var cmd = new CreateBLEMaterialsCommand();
+                    cmd.Execute(commandData, ref msg, elements);
+                }
+                else if (result == TaskDialogResult.CommandLink3)
+                {
+                    // Delegate to CreateMEPMaterialsCommand
+                    string msg = "";
+                    var cmd = new CreateMEPMaterialsCommand();
+                    cmd.Execute(commandData, ref msg, elements);
+                }
+                else if (result == TaskDialogResult.CommandLink4)
+                {
+                    // Export material list to CSV
+                    var materials = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Material))
+                        .Cast<Material>()
+                        .OrderBy(m => m.Name)
+                        .ToList();
+
+                    string outputDir = OutputLocationHelper.GetOutputDirectory(doc);
+                    string filePath = Path.Combine(outputDir, "STING_MATERIALS_EXPORT.csv");
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine("Name,Class,Color,Transparency");
+                    foreach (var mat in materials)
+                    {
+                        string name = (mat.Name ?? "").Replace(",", ";");
+                        string matClass = (mat.MaterialClass ?? "").Replace(",", ";");
+                        string color = "";
+                        try
+                        {
+                            var c = mat.Color;
+                            if (c != null && c.IsValid) color = $"RGB({c.Red},{c.Green},{c.Blue})";
+                        }
+                        catch { }
+                        int transparency = 0;
+                        try { transparency = mat.Transparency; } catch { }
+                        sb.AppendLine($"\"{name}\",\"{matClass}\",\"{color}\",{transparency}");
+                    }
+
+                    File.WriteAllText(filePath, sb.ToString());
+                    TaskDialog.Show("Export Materials",
+                        $"Exported {materials.Count} materials to:\n{filePath}");
+                    StingLog.Info($"MaterialManager: exported {materials.Count} materials to {filePath}");
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StingMaterialManagerCommand failed", ex);
+                try { TaskDialog.Show("STING", $"Material Manager failed:\n{ex.Message}"); } catch { }
                 return Result.Failed;
             }
         }

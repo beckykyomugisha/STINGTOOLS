@@ -27,8 +27,10 @@ namespace StingTools.Temp
         {
             try
             {
-                var uidoc = commandData.Application.ActiveUIDocument;
-                var doc = uidoc.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var uidoc = _ctx.UIDoc;
+                var doc = _ctx.Doc;
 
                 // Get all equipment for condition assessment
                 var equipmentCategories = new[]
@@ -135,7 +137,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("═══ MAINTENANCE SCHEDULE ═══\n");
 
@@ -217,7 +221,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 string folder = Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath();
                 string twinFolder = Path.Combine(folder, "STING_DigitalTwin");
                 Directory.CreateDirectory(twinFolder);
@@ -240,7 +246,7 @@ namespace StingTools.Temp
                     string number = room.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? "";
                     double area = room.Area * 0.092903;
                     string levelName = doc.GetElement(room.LevelId)?.Name ?? "";
-                    spatialJson.Add($"  {{\"id\":{room.Id.IntegerValue},\"name\":\"{EscapeJson(name)}\",\"number\":\"{number}\",\"area\":{area:F2},\"level\":\"{EscapeJson(levelName)}\"}},");
+                    spatialJson.Add($"  {{\"id\":{room.Id.Value},\"name\":\"{EscapeJson(name)}\",\"number\":\"{number}\",\"area\":{area:F2},\"level\":\"{EscapeJson(levelName)}\"}},");
                 }
                 if (spatialJson.Count > 1) spatialJson[spatialJson.Count - 1] = spatialJson.Last().TrimEnd(',');
                 spatialJson.Add("]");
@@ -266,7 +272,7 @@ namespace StingTools.Temp
                         string condition = ParameterHelpers.GetString(el, "ASS_CONDITION_TXT");
                         var loc = (el.Location as LocationPoint)?.Point;
                         string xyz = loc != null ? $"[{loc.X * 0.3048:F2},{loc.Y * 0.3048:F2},{loc.Z * 0.3048:F2}]" : "null";
-                        assetJson.Add($"  {{\"id\":{el.Id.IntegerValue},\"tag\":\"{EscapeJson(tag)}\",\"category\":\"{EscapeJson(catName)}\",\"family\":\"{EscapeJson(family)}\",\"condition\":\"{EscapeJson(condition)}\",\"position\":{xyz}}},");
+                        assetJson.Add($"  {{\"id\":{el.Id.Value},\"tag\":\"{EscapeJson(tag)}\",\"category\":\"{EscapeJson(catName)}\",\"family\":\"{EscapeJson(family)}\",\"condition\":\"{EscapeJson(condition)}\",\"position\":{xyz}}},");
                         assetCount++;
                     }
                 }
@@ -279,7 +285,7 @@ namespace StingTools.Temp
                 var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
                 var levelJson = new List<string> { "[" };
                 foreach (var lvl in levels)
-                    levelJson.Add($"  {{\"id\":{lvl.Id.IntegerValue},\"name\":\"{EscapeJson(lvl.Name)}\",\"elevation\":{lvl.Elevation * 0.3048:F2}}},");
+                    levelJson.Add($"  {{\"id\":{lvl.Id.Value},\"name\":\"{EscapeJson(lvl.Name)}\",\"elevation\":{lvl.Elevation * 0.3048:F2}}},");
                 if (levelJson.Count > 1) levelJson[levelJson.Count - 1] = levelJson.Last().TrimEnd(',');
                 levelJson.Add("]");
                 File.WriteAllLines(Path.Combine(twinFolder, "levels.json"), levelJson);
@@ -320,7 +326,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("═══ ENERGY ANALYSIS SUMMARY ═══\n");
 
@@ -369,7 +377,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var csvLines = new List<string> { "System,AssetTag,Category,Family,CheckItem,Status" };
 
                 var systemChecks = new Dictionary<string, string[]>
@@ -405,7 +415,7 @@ namespace StingTools.Temp
                                 csvLines.Add($"{sys},{tag},{el.Category?.Name},{family},{check},PENDING");
                                 totalChecks++;
                             }
-                            ParameterHelpers.SetString(el, "ASS_COMMISSION_STATUS_TXT", "PENDING", false);
+                            ParameterHelpers.SetString(el, "COM_COMMISSION_STATUS_TXT", "PENDING", false);
                         }
                     }
                     t.Commit();
@@ -439,7 +449,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var rooms = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType()
                     .Cast<Autodesk.Revit.DB.Architecture.Room>().ToList();
@@ -489,7 +501,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("═══ LIFECYCLE COST ESTIMATE (60yr) ═══\n");
 
@@ -553,7 +567,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var csvLines = new List<string> { "AssetTag,Category,Family,WarrantyYears,InstallDate,ExpiryDate,Status" };
                 string installDate = DateTime.Now.ToString("yyyy-MM-dd");
                 int total = 0;
@@ -579,7 +595,7 @@ namespace StingTools.Temp
                         {
                             string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                             ParameterHelpers.SetString(el, "ASS_WARRANTY_TXT", $"{yrs} years", false);
-                            ParameterHelpers.SetString(el, "ASS_WARRANTY_EXPIRY_TXT", expiry, false);
+                            ParameterHelpers.SetString(el, "ASS_WARRANTY_EXPIRATION_DATE_TXT", expiry, false);
                             csvLines.Add($"{tag},{name},{ParameterHelpers.GetFamilyName(el)},{yrs},{installDate},{expiry},ACTIVE");
                             total++;
                         }
@@ -615,7 +631,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 string folder = Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath();
                 string hFolder = Path.Combine(folder, "STING_Handover");
                 Directory.CreateDirectory(hFolder);
@@ -697,7 +715,9 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var csvLines = new List<string> { "SensorType,AssetTag,Category,Family,Room,BMS_Address" };
                 int sensorCount = 0;
 

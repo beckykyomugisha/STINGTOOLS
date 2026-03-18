@@ -32,8 +32,10 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
-            var doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var uidoc = _ctx.UIDoc;
+            var doc = _ctx.Doc;
 
             try
             {
@@ -207,7 +209,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             try
             {
@@ -341,7 +345,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             try
             {
@@ -474,11 +480,13 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class LinkDWGCommand : IExternalCommand
+    public class LinkDWGAdvancedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             try
             {
@@ -502,16 +510,17 @@ namespace StingTools.Temp
                         ThisViewOnly = false
                     };
 
-                    ElementId linkId = doc.Link(dialog.FileName, linkOptions, doc.ActiveView, out var instanceId);
+                    ElementId instanceId = ElementId.InvalidElementId;
+                    bool linked = doc.Link(dialog.FileName, linkOptions, doc.ActiveView, out instanceId);
 
                     t.Commit();
 
-                    if (linkId != null && linkId != ElementId.InvalidElementId)
+                    if (linked && instanceId != null && instanceId != ElementId.InvalidElementId)
                     {
                         TaskDialog.Show("STING Link DWG",
                             $"DWG linked successfully.\n" +
                             $"File: {Path.GetFileName(dialog.FileName)}\n" +
-                            $"Link ID: {linkId}");
+                            $"Link ID: {instanceId}");
                     }
                     else
                     {
@@ -540,7 +549,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             try
             {
@@ -606,7 +617,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             try
             {

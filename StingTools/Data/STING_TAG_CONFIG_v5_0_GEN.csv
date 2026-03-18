@@ -16,6 +16,8 @@ TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Generic Models
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_GEN_TAG_INCOMPLETE_TXT,Primary tag ASS_TAG_1_TXT empty,ISO 19650-2,Common,Text,⚠ Warning: Tag Incomplete,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_TAG_INCOMPLETE_TXT, """")"
+2,MEDIUM,WARN_GEN_NO_MANUFACTURER,Manufacturer not specified,ISO 19650-2 / COBie V2.4,Common,Text,⚠ Warning: No Manufacturer,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_NO_MANUFACTURER, """")"
+3,MEDIUM,WARN_GEN_NO_EXPECTED_LIFE,Expected life not specified for asset management,BS 15686 / ISO 19650-3,Common,Text,⚠ Warning: No Expected Life,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_NO_EXPECTED_LIFE, """")"
 
 Tag Family #2: STING - Specialty Equipment Tag
 TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Specialty Equipment
@@ -33,6 +35,8 @@ TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Specialty Equipment
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_GEN_SPEC_EQUIP_NO_SYS,ASS_SYSTEM_TYPE_TXT empty — system not assigned,ISO 19650-2 / CIBSE,Common,Text,⚠ Warning: No System Assigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_SYS, """")"
+2,MEDIUM,WARN_GEN_SPEC_EQUIP_NO_COMMISSION,Commissioning requirements not specified,BSRIA BG 8/2009 / CIBSE Commissioning Code,Common,Text,⚠ Warning: No Commissioning Req,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_COMMISSION, """")"
+3,MEDIUM,WARN_GEN_SPEC_EQUIP_LEAD_TIME,Lead time > 12 weeks — procurement risk,ISO 19650-3 / PAS 1192-2,Common,Text,⚠ Warning: Long Lead Time,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_LEAD_TIME, """")"
 
 Tag Family #3: STING - Site Tag
 TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Site
@@ -48,6 +52,8 @@ TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Site
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SITE_LOC_MISSING,ASS_LOC_TXT empty — location not defined,ISO 19650-2,Common,Text,⚠ Warning: Site Location Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_LOC_MISSING, """")"
+2,HIGH,WARN_SITE_ROAD_GRADIENT,Road gradient > 1:20 — accessibility issue,BS 7263 / Part M,Common,Text,⚠ Warning: Road Gradient,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_ROAD_GRADIENT, """")"
+3,MEDIUM,WARN_SITE_PARKING_WIDTH,Parking bay width < 2400mm,BS 8300 / Part M,Common,Text,⚠ Warning: Parking Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_PARKING_WIDTH, """")"
 
 Tag Family #4: STING - Planting Tag
 TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Planting

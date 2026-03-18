@@ -275,6 +275,9 @@ namespace StingTools.Tags
             // so the dashboard shows updated GREEN status, not stale RED
             ComplianceScan.InvalidateCache();
 
+            // FIX-B09: Check compliance gate after resolving all issues
+            TagConfig.CheckComplianceGate(doc, "ResolveAllIssues");
+
             // Phase 4: Post-fix verification scan (fresh collector to capture any elements
             // added during Phase 3 and ensure compliance % reflects actual post-fix state)
             int postNoTag = 0, postIncomplete = 0, postUnresolved = 0;

@@ -902,7 +902,7 @@ BLE_ROOF_TYPE_TXT,Roofs,Type,True
 BLE_ROOF_WATERPROOFING_SYSTEM_TXT,Generic Models,Type,True
 BLE_ROOF_WATERPROOFING_SYSTEM_TXT,Roofs,Type,True
 BLE_ROOM_NAME_TXT,Rooms,Type,True
-BLE_ROOM_NUMBER_TXT,Rooms,Type,True
+BLE_ROOM_NUM_TXT,Rooms,Type,True
 BLE_STAIR_GOING_MM,Generic Models,Type,True
 BLE_STAIR_GOING_MM,Stairs,Type,True
 BLE_STAIR_HANDRAIL_HEIGHT_MM,Generic Models,Type,True
@@ -8087,10 +8087,10 @@ ELC_CBL_LENGTH_M,Electrical Equipment,Type,True
 PRJ_AREA_NAME_TXT,Electrical Equipment,Type,True
 BLE_RAMP_SLOPE_PCT,Rooms,Type,True
 BLE_RAMP_WIDTH_MM,Rooms,Type,True
-BLE_ROOM_NUMBER_TXT,Air Terminals,Type,True
-BLE_ROOM_NUMBER_TXT,Ceilings,Type,True
+BLE_ROOM_NUM_TXT,Air Terminals,Type,True
+BLE_ROOM_NUM_TXT,Ceilings,Type,True
 ELC_PNL_CKT_SOURCE_NAME_TXT,Electrical Circuits,Type,True
-BLE_ROOM_NUMBER_TXT,Doors,Type,True
+BLE_ROOM_NUM_TXT,Doors,Type,True
 ASS_MANUFACTURER_TXT,Pipe Accessories,Type,True
 ASS_ID_TXT,Fire Alarm Devices,Type,True
 ASS_LOC_TXT,Fire Alarm Devices,Type,True
@@ -8098,11 +8098,11 @@ ASS_LVL_COD_TXT,Fire Alarm Devices,Type,True
 ASS_MANUFACTURER_TXT,Fire Alarm Devices,Type,True
 ASS_MODEL_NR_TXT,Fire Alarm Devices,Type,True
 ASS_TAG_1_TXT,Fire Alarm Devices,Type,True
-BLE_ROOM_NUMBER_TXT,Fire Alarm Devices,Type,True
-BLE_ROOM_NUMBER_TXT,Lighting Fixtures,Type,True
-BLE_ROOM_NUMBER_TXT,Plumbing Fixtures,Type,True
+BLE_ROOM_NUM_TXT,Fire Alarm Devices,Type,True
+BLE_ROOM_NUM_TXT,Lighting Fixtures,Type,True
+BLE_ROOM_NUM_TXT,Plumbing Fixtures,Type,True
 ASS_MODEL_NR_TXT,Pipe Accessories,Type,True
-BLE_ROOM_NUMBER_TXT,Windows,Type,True
+BLE_ROOM_NUM_TXT,Windows,Type,True
 COM_BMS_RANGE_TXT,Mechanical Equipment,Type,True
 ASS_SYSTEM_TYPE_TXT,Ducts,Type,True
 FLS_SFTY_DEV_TYPE_TXT,Fire Alarm Devices,Type,True
@@ -10901,7 +10901,7 @@ ASS_MANUFACTURER_TXT,Columns,Type,True
 ASS_MODEL_NR_TXT,Columns,Type,True
 ASS_RM_COD_TXT,Columns,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Columns,Type,True
-BLE_ROOM_NUMBER_TXT,Columns,Type,True
+BLE_ROOM_NUM_TXT,Columns,Type,True
 BLE_FACADE_TYPE_TXT,Columns,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Columns,Type,True
 BLE_FACADE_INS_BOOL,Columns,Type,True
@@ -11195,7 +11195,7 @@ ASS_MANUFACTURER_TXT,Curtain Systems,Type,True
 ASS_MODEL_NR_TXT,Curtain Systems,Type,True
 ASS_RM_COD_TXT,Curtain Systems,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Curtain Systems,Type,True
-BLE_ROOM_NUMBER_TXT,Curtain Systems,Type,True
+BLE_ROOM_NUM_TXT,Curtain Systems,Type,True
 BLE_FACADE_TYPE_TXT,Curtain Systems,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Curtain Systems,Type,True
 BLE_FACADE_INS_BOOL,Curtain Systems,Type,True
@@ -11489,7 +11489,7 @@ ASS_MANUFACTURER_TXT,Flex Pipes,Type,True
 ASS_MODEL_NR_TXT,Flex Pipes,Type,True
 ASS_RM_COD_TXT,Flex Pipes,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Flex Pipes,Type,True
-BLE_ROOM_NUMBER_TXT,Flex Pipes,Type,True
+BLE_ROOM_NUM_TXT,Flex Pipes,Type,True
 BLE_FACADE_TYPE_TXT,Flex Pipes,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Flex Pipes,Type,True
 BLE_FACADE_INS_BOOL,Flex Pipes,Type,True
@@ -11783,7 +11783,7 @@ ASS_MANUFACTURER_TXT,Furniture Systems,Type,True
 ASS_MODEL_NR_TXT,Furniture Systems,Type,True
 ASS_RM_COD_TXT,Furniture Systems,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Furniture Systems,Type,True
-BLE_ROOM_NUMBER_TXT,Furniture Systems,Type,True
+BLE_ROOM_NUM_TXT,Furniture Systems,Type,True
 BLE_FACADE_TYPE_TXT,Furniture Systems,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Furniture Systems,Type,True
 BLE_FACADE_INS_BOOL,Furniture Systems,Type,True
@@ -12077,7 +12077,7 @@ ASS_MANUFACTURER_TXT,Medical Equipment,Type,True
 ASS_MODEL_NR_TXT,Medical Equipment,Type,True
 ASS_RM_COD_TXT,Medical Equipment,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Medical Equipment,Type,True
-BLE_ROOM_NUMBER_TXT,Medical Equipment,Type,True
+BLE_ROOM_NUM_TXT,Medical Equipment,Type,True
 BLE_FACADE_TYPE_TXT,Medical Equipment,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Medical Equipment,Type,True
 BLE_FACADE_INS_BOOL,Medical Equipment,Type,True
@@ -12371,7 +12371,7 @@ ASS_MANUFACTURER_TXT,Plumbing Equipment,Type,True
 ASS_MODEL_NR_TXT,Plumbing Equipment,Type,True
 ASS_RM_COD_TXT,Plumbing Equipment,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Plumbing Equipment,Type,True
-BLE_ROOM_NUMBER_TXT,Plumbing Equipment,Type,True
+BLE_ROOM_NUM_TXT,Plumbing Equipment,Type,True
 BLE_FACADE_TYPE_TXT,Plumbing Equipment,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Plumbing Equipment,Type,True
 BLE_FACADE_INS_BOOL,Plumbing Equipment,Type,True
@@ -12665,7 +12665,7 @@ ASS_MANUFACTURER_TXT,Railings,Type,True
 ASS_MODEL_NR_TXT,Railings,Type,True
 ASS_RM_COD_TXT,Railings,Type,True
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,Railings,Type,True
-BLE_ROOM_NUMBER_TXT,Railings,Type,True
+BLE_ROOM_NUM_TXT,Railings,Type,True
 BLE_FACADE_TYPE_TXT,Railings,Type,True
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Railings,Type,True
 BLE_FACADE_INS_BOOL,Railings,Type,True

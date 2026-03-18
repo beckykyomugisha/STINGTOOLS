@@ -608,6 +608,8 @@ namespace StingTools.Tags
 
             // Execute push
             SystemParamPush.PushResult result;
+            HashSet<string> existingTags = null;
+            Dictionary<string, int> seqCounters = null;
             using (Transaction tx = new Transaction(doc, "STING System Parameter Push"))
             {
                 tx.Start();
@@ -616,7 +618,7 @@ namespace StingTools.Tags
                 // If FullAutoTag mode, also build tags
                 if (mode == SystemParamPush.PushMode.FullAutoTag)
                 {
-                    var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                    (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                     var stats = new TaggingStats();
 
                     foreach (var el in systemElementList)
@@ -649,7 +651,11 @@ namespace StingTools.Tags
                 tx.Commit();
             }
             // Save SEQ sidecar + invalidate caches after system push
-            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            try
+            {
+                var (_, sysSeqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                TagConfig.SaveSeqSidecar(doc, sysSeqCounters);
+            }
             catch (Exception ssEx) { StingLog.Warn($"SystemParamPush SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
@@ -877,7 +883,12 @@ namespace StingTools.Tags
                             // Write GridRef per element
                             if (spGridLines != null && spGridLines.Count > 0)
                             {
-                                try { SpatialAutoDetect.GetGridRef(el, spGridLines); }
+                                try
+                                {
+                                    string gridRef = SpatialAutoDetect.GetGridRef(el, spGridLines);
+                                    if (!string.IsNullOrEmpty(gridRef))
+                                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                                }
                                 catch (Exception grEx) { StingLog.Warn($"BatchSystemPush GridRef for {el.Id}: {grEx.Message}"); }
                             }
                         }

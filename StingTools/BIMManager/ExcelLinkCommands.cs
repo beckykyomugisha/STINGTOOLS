@@ -1095,6 +1095,9 @@ namespace StingTools.BIMManager
                                 try
                                 {
                                     string catName = ParameterHelpers.GetCategoryName(el);
+                                    // Inherit family-type token defaults before rebuild
+                                    try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
+                                    catch (Exception tiEx) { StingLog.Warn($"ExcelLink TypeTokenInherit for {el.Id}: {tiEx.Message}"); }
                                     // FIX-10: Bridge native params before tag rebuild
                                     try { NativeParamMapper.MapAll(doc, el); }
                                     catch (Exception nmEx) { StingLog.Warn($"ExcelLink NativeMapper for {el.Id}: {nmEx.Message}"); }
@@ -1134,7 +1137,12 @@ namespace StingTools.BIMManager
                                     // FIX-R07: Write GridRef per element
                                     if (elGridLines != null && elGridLines.Count > 0)
                                     {
-                                        try { SpatialAutoDetect.GetGridRef(el, elGridLines); }
+                                        try
+                                        {
+                                            string gridRef = SpatialAutoDetect.GetGridRef(el, elGridLines);
+                                            if (!string.IsNullOrEmpty(gridRef))
+                                                ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                                        }
                                         catch (Exception grEx) { StingLog.Warn($"ExcelLink GridRef for {el.Id}: {grEx.Message}"); }
                                     }
                                     rebuilt++;
@@ -1399,6 +1407,9 @@ namespace StingTools.BIMManager
                                 try
                                 {
                                     string catName = ParameterHelpers.GetCategoryName(el);
+                                    // Inherit family-type token defaults before round-trip rebuild
+                                    try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
+                                    catch (Exception tiEx) { StingLog.Warn($"ExcelLink RoundTrip TypeTokenInherit for {el.Id}: {tiEx.Message}"); }
                                     // Phase2: Bridge native params before tag rebuild
                                     try { NativeParamMapper.MapAll(doc, el); }
                                     catch (Exception nmEx) { StingLog.Warn($"ExcelLink RoundTrip NativeMapper for {el.Id}: {nmEx.Message}"); }
@@ -1438,7 +1449,12 @@ namespace StingTools.BIMManager
                                     // FIX-R07: Write GridRef per element
                                     if (rtGridLines != null && rtGridLines.Count > 0)
                                     {
-                                        try { SpatialAutoDetect.GetGridRef(el, rtGridLines); }
+                                        try
+                                        {
+                                            string gridRef = SpatialAutoDetect.GetGridRef(el, rtGridLines);
+                                            if (!string.IsNullOrEmpty(gridRef))
+                                                ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                                        }
                                         catch (Exception grEx) { StingLog.Warn($"ExcelLink RoundTrip GridRef for {el.Id}: {grEx.Message}"); }
                                     }
                                     rebuilt++;

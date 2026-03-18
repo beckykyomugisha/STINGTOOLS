@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 
@@ -26,8 +27,10 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
 
             try
             {
@@ -161,8 +164,10 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
             View activeView = doc.ActiveView;
 
             try
@@ -326,8 +331,10 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
             View activeView = doc.ActiveView;
 
             try
@@ -463,8 +470,10 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
             View activeView = doc.ActiveView;
 
             try
@@ -610,8 +619,10 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
             View activeView = doc.ActiveView;
 
             try
@@ -764,8 +775,10 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
 
             try
             {
@@ -1050,8 +1063,10 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
             View activeView = doc.ActiveView;
 
             try
@@ -1228,7 +1243,7 @@ namespace StingTools.Temp
                 if (gObj is GeometryInstance geoInst)
                 {
                     // Block name may contain text info
-                    string symbolName = geoInst.Symbol?.Name;
+                    string symbolName = geoInst.GetSymbol()?.Name;
                     if (!string.IsNullOrEmpty(symbolName) && symbolName.Length > 1)
                     {
                         var instTransform = geoInst.Transform;
@@ -1257,7 +1272,7 @@ namespace StingTools.Temp
             {
                 if (gObj is GeometryInstance geoInst)
                 {
-                    string symbolName = geoInst.Symbol?.Name;
+                    string symbolName = geoInst.GetSymbol()?.Name;
                     if (!string.IsNullOrEmpty(symbolName))
                     {
                         var instTransform = geoInst.Transform;
@@ -1442,19 +1457,19 @@ namespace StingTools.Temp
 
             // Keyword matching for common blocks
             if (upper.Contains("DOOR"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_Doors);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_Doors);
             if (upper.Contains("WINDOW") || upper.Contains("WIN"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_Windows);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_Windows);
             if (upper.Contains("CHAIR") || upper.Contains("DESK") || upper.Contains("TABLE") || upper.Contains("FURN"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_Furniture);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_Furniture);
             if (upper.Contains("LIGHT") || upper.Contains("LTG") || upper.Contains("LAMP"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_LightingFixtures);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_LightingFixtures);
             if (upper.Contains("SPRINK"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_Sprinklers);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_Sprinklers);
             if (upper.Contains("TOILET") || upper.Contains("WC") || upper.Contains("SINK") || upper.Contains("BASIN"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_PlumbingFixtures);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_PlumbingFixtures);
             if (upper.Contains("SWITCH") || upper.Contains("OUTLET") || upper.Contains("SOCKET"))
-                return symbols.FirstOrDefault(s => s.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_ElectricalFixtures);
+                return symbols.FirstOrDefault(s => s.Category?.Id.Value == (int)BuiltInCategory.OST_ElectricalFixtures);
 
             return null;
         }

@@ -217,15 +217,14 @@ namespace StingTools.Core
                             AddIssue(result, "Missing STATUS");
                         }
 
-                        // A5: Container spot-check (first 3 applicable containers) (FIX-N01: moved inside foreach loop)
+                        // A5: Container check — all applicable containers (FIX-B06: removed Math.Min(3) limit for full accuracy)
                         try
                         {
                             var containers = ParamRegistry.ContainersForCategory(cat);
                             if (containers != null && containers.Length > 0)
                             {
                                 int emptyCount = 0;
-                                int checkCount = Math.Min(3, containers.Length);
-                                for (int ci = 0; ci < checkCount; ci++)
+                                for (int ci = 0; ci < containers.Length; ci++)
                                 {
                                     if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, containers[ci].ParamName)))
                                         emptyCount++;

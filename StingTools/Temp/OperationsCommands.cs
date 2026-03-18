@@ -29,7 +29,7 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class WorkflowPresetCommand : IExternalCommand
+    public class WorkflowPresetRunnerCommand : IExternalCommand
     {
         internal static readonly Dictionary<string, string[]> Workflows = new()
         {
@@ -45,7 +45,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
 
                 var dlg = new TaskDialog("Workflow Presets")
                 {
@@ -131,7 +133,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
                 var sheets = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet))
                     .Cast<ViewSheet>()
@@ -145,9 +149,11 @@ namespace StingTools.Temp
                     return Result.Cancelled;
                 }
 
-                string outputDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"STING_PDF_{DateTime.Now:yyyyMMdd}");
+                string pdfPrompt = OutputLocationHelper.PromptForExportPath(
+                    doc, $"STING_PDF_{DateTime.Now:yyyyMMdd}",
+                    "PDF Files|*.pdf|All Files|*.*", "PDF");
+                if (pdfPrompt == null) return Result.Cancelled;
+                string outputDir = Path.GetDirectoryName(pdfPrompt);
                 Directory.CreateDirectory(outputDir);
 
                 var sheetIds = sheets.Select(s => s.Id).ToList();
@@ -197,17 +203,21 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class IFCExportCommand : IExternalCommand
+    public class IFCExportEnhancedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
-                string outputDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"STING_IFC_{DateTime.Now:yyyyMMdd}");
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
+                string ifcPrompt = OutputLocationHelper.PromptForExportPath(
+                    doc, $"STING_IFC_{DateTime.Now:yyyyMMdd}",
+                    "IFC Files|*.ifc|All Files|*.*", "IFC");
+                if (ifcPrompt == null) return Result.Cancelled;
+                string outputDir = Path.GetDirectoryName(ifcPrompt);
                 Directory.CreateDirectory(outputDir);
 
                 string fileName = (doc.Title ?? "STING_Export") + ".ifc";
@@ -270,17 +280,20 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class COBieExportCommand : IExternalCommand
+    public class COBieExportEnhancedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
-                string outputPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"STING_COBie_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
+                string outputPath = OutputLocationHelper.PromptForExportPath(
+                    doc, $"STING_COBie_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx",
+                    "Excel Files|*.xlsx|All Files|*.*", "COBie")
+                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_COBie", ".xlsx");
 
                 int levelCount = 0;
                 int roomCount = 0;
@@ -363,7 +376,7 @@ namespace StingTools.Temp
                         wsComp.Cell(row, 2).Value = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                         wsComp.Cell(row, 3).Value = ParameterHelpers.GetCategoryName(el);
                         wsComp.Cell(row, 4).Value = ParameterHelpers.GetFamilySymbolName(el);
-                        wsComp.Cell(row, 5).Value = ParameterHelpers.GetString(el, "ASS_ROOM_TXT");
+                        wsComp.Cell(row, 5).Value = ParameterHelpers.GetString(el, "ASS_ROOM_NAME_TXT");
                         wsComp.Cell(row, 6).Value = ParameterHelpers.GetString(el, ParamRegistry.LVL);
                         row++;
                     }
@@ -409,10 +422,13 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
-                string outputPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"STING_Quantities_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
+                string outputPath = OutputLocationHelper.PromptForExportPath(
+                    doc, $"STING_Quantities_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx",
+                    "Excel Files|*.xlsx|All Files|*.*", "Quantities")
+                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Quantities", ".xlsx");
 
                 var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
                 var allElements = new FilteredElementCollector(doc)
@@ -502,14 +518,16 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class ClashDetectionCommand : IExternalCommand
+    public class ClashDetectionEnhancedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
                 var sw = System.Diagnostics.Stopwatch.StartNew();
 
                 var mepElements = CollectWithBB(doc, BuiltInCategory.OST_DuctCurves)
@@ -558,9 +576,10 @@ namespace StingTools.Temp
                 }
 
                 // Export CSV
-                string csvPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"STING_Clashes_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                string csvPath = OutputLocationHelper.PromptForExportPath(
+                    doc, $"STING_Clashes_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
+                    "CSV Files|*.csv|All Files|*.*", "Clashes")
+                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Clashes", ".csv");
                 var csv = new StringBuilder("MEP_Id,MEP_Cat,Struct_Id,Struct_Cat,X,Y,Z\n");
                 foreach (var (mep, str, pt) in clashes)
                 {
@@ -623,7 +642,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
                 var report = new StringBuilder();
                 report.AppendLine("Model Health Check");
                 report.AppendLine(new string('=', 50));
@@ -724,8 +745,10 @@ namespace StingTools.Temp
         {
             try
             {
-                UIDocument uidoc = commandData.Application.ActiveUIDocument;
-                Document doc = uidoc.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                UIDocument uidoc = _ctx.UIDoc;
+                Document doc = _ctx.Doc;
 
                 var selectedIds = uidoc.Selection.GetElementIds();
                 List<Element> exportElements;
@@ -755,12 +778,13 @@ namespace StingTools.Temp
 
                 string[] tokenParams = ParamRegistry.AllTokenParams;
                 string[] extraParams = { ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
-                    "ASS_ROOM_TXT", "ASS_GRID_TXT", "ASS_STATUS_TXT", "ASS_REV_TXT" };
+                    "ASS_ROOM_NAME_TXT", "ASS_GRID_REF_TXT", "ASS_STATUS_TXT", "ASS_REV_TXT" };
                 string[] allParams = tokenParams.Concat(extraParams).Distinct().ToArray();
 
-                string csvPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"STING_Params_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                string csvPath = OutputLocationHelper.PromptForExportPath(
+                    doc, $"STING_Params_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
+                    "CSV Files|*.csv|All Files|*.*", "BatchParams")
+                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Params", ".csv");
 
                 var sb = new StringBuilder();
                 sb.Append("ElementId,Category,Family,Type");
@@ -808,14 +832,16 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class ProjectDashboardCommand : IExternalCommand
+    public class ProjectDashboardEnhancedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
                 var report = new StringBuilder();
                 report.AppendLine("STING Project Dashboard");
                 report.AppendLine(new string('=', 50));
@@ -904,7 +930,9 @@ namespace StingTools.Temp
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = _ctx.Doc;
 
                 var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
                 var allElements = new FilteredElementCollector(doc)
@@ -998,6 +1026,148 @@ namespace StingTools.Temp
             {
                 StingLog.Error("Cancellable operation failed", ex);
                 message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  PrintSheetsCommand — PDF/Print export for sheets
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Export sheets to PDF. Supports scope selection (all sheets, selected
+    /// sheets, active view) via TaskDialog or ExtraParam "PdfScope".
+    /// Uses Revit's built-in PDF export API when available.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PrintSheetsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                // Check for ExtraParam scope override from StingCommandHandler
+                string scopeOverride = UI.StingCommandHandler.GetExtraParam("PdfScope");
+                UI.StingCommandHandler.ClearExtraParam("PdfScope");
+
+                string scope = scopeOverride;
+                if (string.IsNullOrEmpty(scope))
+                {
+                    var dlg = new TaskDialog("STING Print/PDF Export");
+                    dlg.MainInstruction = "PDF Export Scope";
+                    dlg.MainContent = "Select which sheets to export to PDF.";
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "All Sheets",
+                        "Export every sheet in the project.");
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Selected Sheets",
+                        "Export only currently selected sheets.");
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Active View",
+                        "Export the currently active view/sheet.");
+                    dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                    var result = dlg.Show();
+                    if (result == TaskDialogResult.CommandLink1) scope = "All";
+                    else if (result == TaskDialogResult.CommandLink2) scope = "Selected";
+                    else if (result == TaskDialogResult.CommandLink3) scope = "Active";
+                    else return Result.Cancelled;
+                }
+
+                // Collect target sheets/views
+                var sheetIds = new List<ElementId>();
+
+                if (scope == "All")
+                {
+                    var sheets = new FilteredElementCollector(doc)
+                        .OfClass(typeof(ViewSheet))
+                        .Cast<ViewSheet>()
+                        .Where(s => !s.IsPlaceholder)
+                        .OrderBy(s => s.SheetNumber)
+                        .ToList();
+                    sheetIds.AddRange(sheets.Select(s => s.Id));
+                }
+                else if (scope == "Selected")
+                {
+                    var sel = ctx.UIDoc.Selection.GetElementIds();
+                    foreach (var id in sel)
+                    {
+                        if (doc.GetElement(id) is ViewSheet sheet && !sheet.IsPlaceholder)
+                            sheetIds.Add(id);
+                    }
+                    if (sheetIds.Count == 0)
+                    {
+                        TaskDialog.Show("STING", "No sheets selected. Select sheets in the Project Browser first.");
+                        return Result.Cancelled;
+                    }
+                }
+                else if (scope == "Active")
+                {
+                    var view = ctx.ActiveView;
+                    if (view != null)
+                        sheetIds.Add(view.Id);
+                    else
+                    {
+                        TaskDialog.Show("STING", "No active view available.");
+                        return Result.Cancelled;
+                    }
+                }
+
+                if (sheetIds.Count == 0)
+                {
+                    TaskDialog.Show("STING", "No sheets found for export.");
+                    return Result.Cancelled;
+                }
+
+                // Attempt PDF export using Revit API
+                string outputDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string pdfDir = Path.Combine(outputDir, "PDF_Export");
+                if (!Directory.Exists(pdfDir))
+                    Directory.CreateDirectory(pdfDir);
+
+                // Try Revit 2022+ PDF export API
+                try
+                {
+                    var pdfOptions = new PDFExportOptions();
+                    pdfOptions.FileName = doc.Title ?? "STING_Export";
+                    pdfOptions.Combine = sheetIds.Count > 1;
+
+                    bool exported = doc.Export(pdfDir, sheetIds, pdfOptions);
+                    if (exported)
+                    {
+                        TaskDialog.Show("PDF Export",
+                            $"Successfully exported {sheetIds.Count} sheet(s) to:\n{pdfDir}");
+                        StingLog.Info($"PrintSheets: exported {sheetIds.Count} sheets to {pdfDir}");
+                        return Result.Succeeded;
+                    }
+                    else
+                    {
+                        TaskDialog.Show("PDF Export",
+                            $"PDF export returned false for {sheetIds.Count} sheet(s).\n" +
+                            $"Check that a valid PDF printer is installed.\n\n" +
+                            $"Alternative: Use File > Export > PDF in Revit.");
+                        return Result.Failed;
+                    }
+                }
+                catch (Exception pdfEx)
+                {
+                    StingLog.Warn($"PDF export API failed: {pdfEx.Message}");
+                    TaskDialog.Show("PDF Export",
+                        $"PDF export is not available in this Revit version.\n\n" +
+                        $"Found {sheetIds.Count} sheet(s) for export.\n" +
+                        $"Use File > Export > PDF in Revit, or install a PDF printer driver\n" +
+                        $"and use File > Print.");
+                    return Result.Failed;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PrintSheetsCommand failed", ex);
+                try { TaskDialog.Show("STING", $"Print/PDF failed:\n{ex.Message}"); } catch { }
                 return Result.Failed;
             }
         }

@@ -1583,7 +1583,7 @@
       "required": false
     },
     {
-      "param_name": "COM_COMMISSIONING_STATUS_TXT",
+      "param_name": "COM_COMMISSION_STATUS_TXT",
       "guid": "c01c5ff4-c401-9d93-c7b8-dd83a8bc15b6",
       "description": "Commissioning status (NOT_STARTED/IN_PROGRESS/PASSED/FAILED)",
       "binding": "universal",
@@ -2741,7 +2741,7 @@
       },
       {
         "key": "BLE_ROOM_NUM",
-        "param_name": "BLE_ROOM_NUMBER_TXT",
+        "param_name": "BLE_ROOM_NUM_TXT",
         "description": "BLE room number (fallback)"
       }
     ],

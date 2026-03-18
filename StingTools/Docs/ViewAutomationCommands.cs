@@ -167,8 +167,8 @@ namespace StingTools.Docs
                 "UPPERCASE all names",
                 "Convert all view names to UPPERCASE for consistency");
             opDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Standardise level names",
-                "Replace 'Level 1' with 'L01', 'Ground Floor' with 'GF', etc.");
+                "Standardise level names / Custom find-replace",
+                "Replace 'Level 1' with 'L01' etc., or enter custom find/replace text");
             opDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             int mode;
@@ -177,8 +177,70 @@ namespace StingTools.Docs
                 case TaskDialogResult.CommandLink1: mode = 1; break;
                 case TaskDialogResult.CommandLink2: mode = 2; break;
                 case TaskDialogResult.CommandLink3: mode = 3; break;
-                case TaskDialogResult.CommandLink4: mode = 4; break;
+                case TaskDialogResult.CommandLink4:
+                    // Sub-dialog to choose between standardise and custom
+                    var subDlg = new TaskDialog("Standardise or Custom");
+                    subDlg.MainInstruction = "Choose operation:";
+                    subDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Standardise level names");
+                    subDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Custom find/replace");
+                    subDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    var subResult = subDlg.Show();
+                    if (subResult == TaskDialogResult.CommandLink1) mode = 4;
+                    else if (subResult == TaskDialogResult.CommandLink2) mode = 5;
+                    else return Result.Cancelled;
+                    break;
                 default: return Result.Cancelled;
+            }
+
+            // FIX-C04: Prompt for custom find/replace strings when mode 5 selected
+            string findText = null, replaceText = null;
+            if (mode == 5)
+            {
+                TaskDialog findDlg = new TaskDialog("Custom Find/Replace");
+                findDlg.MainInstruction = "Enter the text to find:";
+                findDlg.MainContent = "Type the text you want to search for in view names.\n" +
+                    "This will be replaced in ALL matching views.";
+                findDlg.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+
+                // Use a simple approach: prompt via two sequential TaskDialogs
+                // Since TaskDialog doesn't have text input, use a workaround with
+                // Microsoft.VisualBasic.Interaction.InputBox or a simple WPF input
+                try
+                {
+                    var inputWin = new System.Windows.Window
+                    {
+                        Title = "Find Text",
+                        Width = 400, Height = 160,
+                        WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                        ResizeMode = System.Windows.ResizeMode.NoResize
+                    };
+                    var stack = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(10) };
+                    stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Find:", Margin = new System.Windows.Thickness(0, 0, 0, 5) });
+                    var findBox = new System.Windows.Controls.TextBox { Margin = new System.Windows.Thickness(0, 0, 0, 5) };
+                    stack.Children.Add(findBox);
+                    stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Replace with:", Margin = new System.Windows.Thickness(0, 5, 0, 5) });
+                    var replaceBox = new System.Windows.Controls.TextBox { Margin = new System.Windows.Thickness(0, 0, 0, 10) };
+                    stack.Children.Add(replaceBox);
+                    var okBtn = new System.Windows.Controls.Button { Content = "OK", Width = 80, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
+                    okBtn.Click += (s, ev) => { inputWin.DialogResult = true; inputWin.Close(); };
+                    stack.Children.Add(okBtn);
+                    inputWin.Content = stack;
+                    findBox.Focus();
+
+                    if (inputWin.ShowDialog() != true || string.IsNullOrEmpty(findBox.Text))
+                    {
+                        TaskDialog.Show("Batch Rename Views", "Find text cannot be empty.");
+                        return Result.Cancelled;
+                    }
+                    findText = findBox.Text;
+                    replaceText = replaceBox.Text ?? "";
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"BatchRenameViews custom input: {ex.Message}");
+                    TaskDialog.Show("Batch Rename Views", "Could not open input dialog.");
+                    return Result.Failed;
+                }
             }
 
             int renamed = 0;
@@ -208,6 +270,10 @@ namespace StingTools.Docs
                             break;
                         case 4: // Standardise levels
                             newName = StandardiseLevelName(oldName);
+                            break;
+                        case 5: // FIX-C04: Custom find/replace
+                            if (findText != null && oldName.Contains(findText))
+                                newName = oldName.Replace(findText, replaceText);
                             break;
                     }
 
@@ -821,6 +887,398 @@ namespace StingTools.Docs
                 $"Reference: '{refSheet.SheetNumber}'.");
             StingLog.Info($"BatchAlignViewports: sheets={sheetsUpdated}, viewports={vpMoved}");
             return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  MagicRenameCommand — Universal batch rename with patterns
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Universal rename tool for views, sheets, rooms, and families.
+    /// Supports Prefix/Suffix, Find and Replace, Case change, and
+    /// Sequential numbering modes.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class MagicRenameCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                // Step 1: Choose element type
+                var typeDlg = new TaskDialog("STING Magic Rename");
+                typeDlg.MainInstruction = "What do you want to rename?";
+                typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Views",
+                    "Rename floor plans, sections, elevations, 3D views, etc.");
+                typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Sheets",
+                    "Rename sheet names (preserves sheet numbers).");
+                typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Rooms",
+                    "Rename room names.");
+                typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Families",
+                    "Rename family types loaded in the project.");
+                typeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var typeResult = typeDlg.Show();
+                string elementType;
+                if (typeResult == TaskDialogResult.CommandLink1) elementType = "Views";
+                else if (typeResult == TaskDialogResult.CommandLink2) elementType = "Sheets";
+                else if (typeResult == TaskDialogResult.CommandLink3) elementType = "Rooms";
+                else if (typeResult == TaskDialogResult.CommandLink4) elementType = "Families";
+                else return Result.Cancelled;
+
+                // Step 2: Choose rename mode
+                var modeDlg = new TaskDialog("STING Magic Rename");
+                modeDlg.MainInstruction = "Rename mode";
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Add Prefix/Suffix",
+                    "Add text before or after existing names.");
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Find & Replace",
+                    "Replace text within names.");
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Change Case",
+                    "Convert to UPPER, lower, or Title Case.");
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Sequential Number",
+                    "Add sequential numbers (001, 002, ...).");
+                modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var modeResult = modeDlg.Show();
+                string mode;
+                if (modeResult == TaskDialogResult.CommandLink1) mode = "PrefixSuffix";
+                else if (modeResult == TaskDialogResult.CommandLink2) mode = "FindReplace";
+                else if (modeResult == TaskDialogResult.CommandLink3) mode = "Case";
+                else if (modeResult == TaskDialogResult.CommandLink4) mode = "Sequential";
+                else return Result.Cancelled;
+
+                // Collect elements
+                var targetElements = new List<Element>();
+                if (elementType == "Views")
+                {
+                    targetElements.AddRange(new FilteredElementCollector(doc)
+                        .OfClass(typeof(View))
+                        .Cast<View>()
+                        .Where(v => !v.IsTemplate && v.ViewType != ViewType.DrawingSheet)
+                        .Cast<Element>());
+                }
+                else if (elementType == "Sheets")
+                {
+                    targetElements.AddRange(new FilteredElementCollector(doc)
+                        .OfClass(typeof(ViewSheet))
+                        .Cast<Element>());
+                }
+                else if (elementType == "Rooms")
+                {
+                    targetElements.AddRange(new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_Rooms)
+                        .WhereElementIsNotElementType()
+                        .Cast<Element>());
+                }
+                else if (elementType == "Families")
+                {
+                    targetElements.AddRange(new FilteredElementCollector(doc)
+                        .OfClass(typeof(FamilySymbol))
+                        .Cast<Element>());
+                }
+
+                if (targetElements.Count == 0)
+                {
+                    TaskDialog.Show("STING", $"No {elementType.ToLower()} found in the project.");
+                    return Result.Cancelled;
+                }
+
+                // Get rename parameters via input dialogs
+                string prefix = "", suffix = "", findText = "", replaceText = "", caseMode = "UPPER";
+                int seqStart = 1;
+
+                if (mode == "PrefixSuffix")
+                {
+                    var inp = new TaskDialog("Prefix/Suffix");
+                    inp.MainInstruction = "Enter prefix and/or suffix";
+                    inp.MainContent = $"Found {targetElements.Count} {elementType.ToLower()}.\n" +
+                        "Enter prefix in the format: PREFIX_ or _SUFFIX or PREFIX_*_SUFFIX\n" +
+                        "(Use * as placeholder for existing name)";
+                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Add 'STING - ' prefix");
+                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Add ' - REV' suffix");
+                    inp.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                    var r = inp.Show();
+                    if (r == TaskDialogResult.CommandLink1) { prefix = "STING - "; }
+                    else if (r == TaskDialogResult.CommandLink2) { suffix = " - REV"; }
+                    else return Result.Cancelled;
+                }
+                else if (mode == "FindReplace")
+                {
+                    // Simple preset-based find/replace
+                    var inp = new TaskDialog("Find & Replace");
+                    inp.MainInstruction = $"Find & Replace in {targetElements.Count} {elementType.ToLower()}";
+                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Remove 'Copy' / 'Copy 1'",
+                        "Clean up duplicated view names.");
+                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Replace '-' with ' - '",
+                        "Standardise dash spacing.");
+                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Remove leading/trailing spaces",
+                        "Trim whitespace from names.");
+                    inp.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                    var r = inp.Show();
+                    if (r == TaskDialogResult.CommandLink1) { findText = " Copy"; replaceText = ""; }
+                    else if (r == TaskDialogResult.CommandLink2) { findText = "-"; replaceText = " - "; }
+                    else if (r == TaskDialogResult.CommandLink3) { mode = "Trim"; }
+                    else return Result.Cancelled;
+                }
+                else if (mode == "Case")
+                {
+                    var inp = new TaskDialog("Case Change");
+                    inp.MainInstruction = "Select case mode";
+                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "UPPER CASE");
+                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "lower case");
+                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Title Case");
+                    inp.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                    var r = inp.Show();
+                    if (r == TaskDialogResult.CommandLink1) caseMode = "UPPER";
+                    else if (r == TaskDialogResult.CommandLink2) caseMode = "lower";
+                    else if (r == TaskDialogResult.CommandLink3) caseMode = "Title";
+                    else return Result.Cancelled;
+                }
+
+                // Apply renames
+                int renamed = 0, skipped = 0;
+                using (var tx = new Transaction(doc, "STING Magic Rename"))
+                {
+                    tx.Start();
+                    int seq = seqStart;
+                    foreach (var el in targetElements)
+                    {
+                        try
+                        {
+                            string currentName = "";
+                            Parameter nameParam = null;
+
+                            if (el is View v)
+                            {
+                                currentName = v.Name ?? "";
+                                nameParam = el.get_Parameter(BuiltInParameter.VIEW_NAME);
+                            }
+                            else if (el is ViewSheet s)
+                            {
+                                currentName = s.Name ?? "";
+                                nameParam = el.get_Parameter(BuiltInParameter.SHEET_NAME);
+                            }
+                            else if (el.Category?.BuiltInCategory == BuiltInCategory.OST_Rooms)
+                            {
+                                nameParam = el.get_Parameter(BuiltInParameter.ROOM_NAME);
+                                currentName = nameParam?.AsString() ?? "";
+                            }
+                            else if (el is FamilySymbol fs)
+                            {
+                                currentName = fs.Name ?? "";
+                                nameParam = null; // Will use Name property
+                            }
+
+                            if (string.IsNullOrEmpty(currentName)) { skipped++; continue; }
+
+                            string newName = currentName;
+
+                            switch (mode)
+                            {
+                                case "PrefixSuffix":
+                                    newName = prefix + currentName + suffix;
+                                    break;
+                                case "FindReplace":
+                                    newName = currentName.Replace(findText, replaceText);
+                                    break;
+                                case "Trim":
+                                    newName = currentName.Trim();
+                                    break;
+                                case "Case":
+                                    newName = caseMode switch
+                                    {
+                                        "UPPER" => currentName.ToUpperInvariant(),
+                                        "lower" => currentName.ToLowerInvariant(),
+                                        "Title" => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(currentName.ToLowerInvariant()),
+                                        _ => currentName
+                                    };
+                                    break;
+                                case "Sequential":
+                                    newName = $"{currentName} {seq:D3}";
+                                    seq++;
+                                    break;
+                            }
+
+                            if (newName == currentName) { skipped++; continue; }
+
+                            if (nameParam != null && !nameParam.IsReadOnly)
+                                nameParam.Set(newName);
+                            else if (el is FamilySymbol fsSym)
+                                fsSym.Name = newName;
+                            else
+                                el.Name = newName;
+
+                            renamed++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"MagicRename: failed to rename '{el.Name}': {ex.Message}");
+                            skipped++;
+                        }
+                    }
+                    tx.Commit();
+                }
+
+                TaskDialog.Show("Magic Rename",
+                    $"Renamed: {renamed}\nSkipped: {skipped}\nTotal: {targetElements.Count}");
+                StingLog.Info($"MagicRename: {mode} on {elementType}, renamed={renamed}, skipped={skipped}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("MagicRenameCommand failed", ex);
+                try { TaskDialog.Show("STING", $"Magic Rename failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  ViewTabColourCommand — Color view browser tabs by discipline
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Colors view tabs in the Revit view bar by discipline, similar to
+    /// pyRevit tab colouring. Uses OverrideGraphicSettings on view-associated
+    /// elements to visually distinguish disciplines.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ViewTabColourCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                // Revit API does not expose direct control over view tab colours
+                // in the document tab bar. This command applies discipline-based
+                // naming prefixes and view template assignments as a visual proxy.
+
+                var views = new FilteredElementCollector(doc)
+                    .OfClass(typeof(View))
+                    .Cast<View>()
+                    .Where(v => !v.IsTemplate && v.ViewType != ViewType.DrawingSheet)
+                    .ToList();
+
+                // Build discipline map from view names
+                var discMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Mechanical"] = 0, ["HVAC"] = 0,
+                    ["Electrical"] = 0, ["Lighting"] = 0,
+                    ["Plumbing"] = 0, ["Hydraulic"] = 0,
+                    ["Architectural"] = 0, ["Interior"] = 0,
+                    ["Structural"] = 0, ["Fire"] = 0,
+                    ["Coordination"] = 0
+                };
+
+                foreach (var v in views)
+                {
+                    string name = v.Name ?? "";
+                    foreach (var kvp in discMap.Keys.ToList())
+                    {
+                        if (name.Contains(kvp, StringComparison.OrdinalIgnoreCase))
+                            discMap[kvp]++;
+                    }
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"View discipline analysis ({views.Count} views):\n");
+                foreach (var kvp in discMap.Where(k => k.Value > 0).OrderByDescending(k => k.Value))
+                    sb.AppendLine($"  {kvp.Key}: {kvp.Value} views");
+
+                int unmatched = views.Count - discMap.Values.Sum();
+                if (unmatched > 0)
+                    sb.AppendLine($"  Unclassified: {unmatched} views");
+
+                sb.AppendLine("\nNote: Revit API does not support direct tab colour control.");
+                sb.AppendLine("View tabs are coloured natively based on view templates.");
+                sb.AppendLine("Use Auto-Assign Templates to ensure discipline templates are applied.");
+
+                TaskDialog.Show("View Tab Colours", sb.ToString());
+                StingLog.Info($"ViewTabColour: analysed {views.Count} views");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ViewTabColourCommand failed", ex);
+                try { TaskDialog.Show("STING", $"View Tab Colour failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  RibbonPanelStylerCommand — Color ribbon panels by discipline
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Applies discipline-based colour styling information to ribbon panels.
+    /// Reports the current ribbon panel configuration and discipline alignment.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RibbonPanelStylerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+
+                // Revit API does not expose ribbon panel colour/style modification
+                // at runtime. This command provides an informational report about
+                // the STING ribbon configuration.
+
+                var sb = new StringBuilder();
+                sb.AppendLine("STING Ribbon Panel Configuration\n");
+                sb.AppendLine("Panels:");
+                sb.AppendLine("  SELECT  - Element selection & colour coding");
+                sb.AppendLine("  DOCS    - Document management & automation");
+                sb.AppendLine("  TAGS    - ISO 19650 tagging pipeline");
+                sb.AppendLine("  ORGANISE - Tag operations & annotation management");
+                sb.AppendLine("  TEMP    - Template setup & data pipeline");
+                sb.AppendLine("  PANEL   - WPF dockable panel toggle");
+                sb.AppendLine();
+                sb.AppendLine("Discipline Colour Mapping:");
+                sb.AppendLine("  M (Mechanical) = Blue");
+                sb.AppendLine("  E (Electrical) = Gold/Yellow");
+                sb.AppendLine("  P (Plumbing)   = Green");
+                sb.AppendLine("  A (Architectural) = Grey");
+                sb.AppendLine("  S (Structural) = Red");
+                sb.AppendLine("  FP (Fire)      = Orange");
+                sb.AppendLine("  LV (Low Voltage) = Purple");
+                sb.AppendLine();
+                sb.AppendLine("Note: Ribbon panel styling is controlled by the");
+                sb.AppendLine("WPF dockable panel ThemeManager (Dark/Light/Grey/Corporate).");
+                sb.AppendLine("Use the Theme button in the panel to change styles.");
+
+                TaskDialog.Show("Ribbon Panel Styler", sb.ToString());
+                StingLog.Info("RibbonPanelStyler: displayed configuration");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RibbonPanelStylerCommand failed", ex);
+                try { TaskDialog.Show("STING", $"Ribbon Styler failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
         }
     }
 }

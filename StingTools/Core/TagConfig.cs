@@ -609,6 +609,13 @@ namespace StingTools.Core
         /// <summary>AL-07: Workflow preset name to auto-run on DocumentOpened. Empty = disabled.</summary>
         public static string AutoRunWorkflowOnOpen { get; internal set; } = string.Empty;
 
+        /// <summary>FIX-B10: Persisted auto-tagger enabled state. Null = not set in config (use default).</summary>
+        public static bool? AutoTaggerEnabled { get; internal set; }
+        /// <summary>FIX-B10: Persisted auto-tagger visual state. Null = not set in config.</summary>
+        public static bool? AutoTaggerVisual { get; internal set; }
+        /// <summary>FIX-B10: Persisted stale marker state. Null = not set in config.</summary>
+        public static bool? AutoTaggerStaleMarker { get; internal set; }
+
         /// <summary>FE-06: Full per-category token overrides. Key=category name, Value=dict of token->value.</summary>
         public static Dictionary<string, Dictionary<string, string>> CategoryTokenOverrides { get; internal set; }
             = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
@@ -648,6 +655,25 @@ namespace StingTools.Core
             if (SeqIncludeZone)
             {
                 string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
+                return $"{disc}_{zone}_{sys}_{lvl}";
+            }
+
+            return $"{disc}_{sys}_{lvl}";
+        }
+
+        /// <summary>
+        /// Build a canonical SEQ key from explicit token values.
+        /// Matches the same format as BuildSeqKey(Element) for consistency.
+        /// </summary>
+        public static string BuildSeqKey(string disc, string sys, string func, string prod, string lvl, string zone = null)
+        {
+            if (string.IsNullOrEmpty(disc)) disc = "A";
+            if (string.IsNullOrEmpty(sys))  sys  = "GEN";
+            if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
+
+            if (SeqIncludeZone)
+            {
                 if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
                 return $"{disc}_{zone}_{sys}_{lvl}";
             }
@@ -829,7 +855,8 @@ namespace StingTools.Core
                     "SEQ_INCLUDE_ZONE","SEQ_LEVEL_RESET","STATUS_DEFAULT","REV_DEFAULT",
                     "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT",
                     "SEPARATOR_HISTORY","AUTO_RUN_WORKFLOW_ON_OPEN","ACTIVE_PRESET",
-                    "CATEGORY_TOKEN_OVERRIDES","tag3DFamilyPath"
+                    "CATEGORY_TOKEN_OVERRIDES","tag3DFamilyPath",
+                    "AUTO_TAGGER_ENABLED","AUTO_TAGGER_VISUAL","AUTO_TAGGER_STALE_MARKER"
                 };
                 var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
                 if (unknownKeys.Count > 0)
@@ -967,6 +994,10 @@ namespace StingTools.Core
                     else if (int.TryParse(gateObj?.ToString(), out int gi)) ComplianceGatePct = gi;
                 }
 
+                // FIX-10.2: Restore auto-tagger visual setting (use SetVisualTaggingQuiet to avoid re-save loop)
+                if (data.TryGetValue("AUTO_TAGGER_VISUAL", out object _avt) && _avt is bool _avtb)
+                    try { Core.StingAutoTagger.SetVisualTaggingQuiet(_avtb); } catch { }
+
                 // FL-03: Load separator history for cross-session tag validation compatibility
                 var sepHistory = TryDeserialize<List<string>>(data, "SEPARATOR_HISTORY");
                 if (sepHistory != null && sepHistory.Count > 0)
@@ -987,7 +1018,33 @@ namespace StingTools.Core
                     foreach (var kvp in catOverrides) CategoryTokenOverrides[kvp.Key] = kvp.Value;
 
 
-                ConfigSource = "project_config.json";
+                // Load auto-tagger state from config
+                if (data.TryGetValue("AUTO_TAGGER_ENABLED", out object ateObj))
+                {
+                    bool ateVal = false;
+                    if (ateObj is bool atb) ateVal = atb;
+                    else if (ateObj is string ats) ateVal = ats.Equals("true", StringComparison.OrdinalIgnoreCase);
+                    AutoTaggerEnabled = ateVal;
+                }
+                else { AutoTaggerEnabled = null; }
+                if (data.TryGetValue("AUTO_TAGGER_VISUAL", out object atvObj))
+                {
+                    bool atvVal = false;
+                    if (atvObj is bool avb) atvVal = avb;
+                    else if (atvObj is string avs) atvVal = avs.Equals("true", StringComparison.OrdinalIgnoreCase);
+                    AutoTaggerVisual = atvVal;
+                }
+                else { AutoTaggerVisual = null; }
+                if (data.TryGetValue("AUTO_TAGGER_STALE_MARKER", out object atsmObj))
+                {
+                    bool atsmVal = false;
+                    if (atsmObj is bool asmb) atsmVal = asmb;
+                    else if (atsmObj is string asms) atsmVal = asms.Equals("true", StringComparison.OrdinalIgnoreCase);
+                    AutoTaggerStaleMarker = atsmVal;
+                }
+                else { AutoTaggerStaleMarker = null; }
+
+                ConfigSource = path;
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
                 LoadCategoryWarningsFromLabels();
@@ -1236,8 +1293,14 @@ namespace StingTools.Core
                     ["COMPLIANCE_GATE_PCT"] = ComplianceGatePct,
                     ["SEPARATOR_HISTORY"] = SeparatorHistory,
                     ["AUTO_RUN_WORKFLOW_ON_OPEN"] = AutoRunWorkflowOnOpen ?? "",
-                    ["CATEGORY_TOKEN_OVERRIDES"] = CategoryTokenOverrides
+                    ["CATEGORY_TOKEN_OVERRIDES"] = CategoryTokenOverrides,
+                    ["AUTO_TAGGER_VISUAL"] = Core.StingAutoTagger.IsVisualTaggingEnabled
                 };
+
+                // FIX-B10: Persist auto-tagger state
+                if (AutoTaggerEnabled.HasValue) data["AUTO_TAGGER_ENABLED"] = AutoTaggerEnabled.Value;
+                if (AutoTaggerVisual.HasValue) data["AUTO_TAGGER_VISUAL"] = AutoTaggerVisual.Value;
+                if (AutoTaggerStaleMarker.HasValue) data["AUTO_TAGGER_STALE_MARKER"] = AutoTaggerStaleMarker.Value;
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);
                 string dir = Path.GetDirectoryName(path);
@@ -1251,6 +1314,24 @@ namespace StingTools.Core
             {
                 StingLog.Error($"TagConfig save failed to {path}: {ex.Message}", ex);
                 return false;
+            }
+        }
+
+        /// <summary>FIX-10.1: Set a single config key and persist to project_config.json (if ConfigSource is a file path).</summary>
+        public static void SetConfigValue(string key, object value)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(ConfigSource) || !File.Exists(ConfigSource)) return;
+                string json = File.ReadAllText(ConfigSource);
+                var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
+                    ?? new Dictionary<string, object>();
+                data[key] = value;
+                File.WriteAllText(ConfigSource, JsonConvert.SerializeObject(data, Formatting.Indented));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetConfigValue '{key}': {ex.Message}");
             }
         }
 
@@ -4054,7 +4135,7 @@ namespace StingTools.Core
             string designOption  = ParameterHelpers.GetString(el, "ASS_DESIGN_OPTION_TXT");
             string mntFreq       = ParameterHelpers.GetString(el, "MNT_FREQUENCY_TXT");
             string mntWarranty   = ParameterHelpers.GetString(el, "MNT_WARRANTY_EXPIRY_TXT");
-            string comStatus     = ParameterHelpers.GetString(el, "COM_COMMISSIONING_STATUS_TXT");
+            string comStatus     = ParameterHelpers.GetString(el, "COM_COMMISSION_STATUS_TXT");
             string expectedLife  = ParameterHelpers.GetString(el, "PER_EXPECTED_LIFE_YEARS");
             string accessReqs    = ParameterHelpers.GetString(el, "MNT_ACCESS_REQUIREMENTS_TXT");
 
