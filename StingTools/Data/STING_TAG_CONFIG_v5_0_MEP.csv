@@ -882,6 +882,8 @@ TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_PROP_FIRE_RATING_MATERIALS,Fire rating not specified,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Material Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_FIRE_RATING_MATERIALS, """")"
 2,MEDIUM,WARN_PER_SUST_EPD_MATERIALS,EPD reference missing,ISO 14025 / EN 15804,Common,Text,⚠ Warning: Material EPD Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_EPD_MATERIALS, """")"
+3,MEDIUM,WARN_PROP_THERMAL_COND_MATERIALS,Thermal conductivity exceeds limit for insulation application,BS 5422 / CIBSE Guide A,Common,Text,⚠ Warning: Material Thermal Conductivity,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_THERMAL_COND_MATERIALS, """")"
+4,LOW,WARN_PER_SUST_RECYCLABILITY_MATERIALS,Recyclability percentage < project sustainability target,BREEAM / ISO 14040,Common,Text,⚠ Warning: Material Recyclability,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_RECYCLABILITY_MATERIALS, """")"
 
 Tag Family #43: STING - Audio Visual Devices Tag
 TAG7: ELC_TAG_7_PARA_COMM_TXT  •  Category: Audio Visual Devices
@@ -899,6 +901,8 @@ TAG7: ELC_TAG_7_PARA_COMM_TXT  •  Category: Audio Visual Devices
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_RGL_STD_AV_DEVICES,AV device lacks electromagnetic compatibility (EMC) certification,BS EN 55032 / CE marking,Common,Text,⚠ Warning: AV Device EMC,"if(TAG_WARN_VISIBLE_BOOL, WARN_RGL_STD_AV_DEVICES, """")"
+2,MEDIUM,WARN_AV_POWER_SUPPLY_AV_DEVICES,AV device power supply not specified or insufficient,BS 7671 / Manufacturer specification,Common,Text,⚠ Warning: AV Device Power Supply,"if(TAG_WARN_VISIBLE_BOOL, WARN_AV_POWER_SUPPLY_AV_DEVICES, """")"
+3,LOW,WARN_AV_COVERAGE_AV_DEVICES,AV device placement does not meet coverage requirements,BS EN 50173 / Project AV specification,Common,Text,⚠ Warning: AV Device Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_AV_COVERAGE_AV_DEVICES, """")"
 
 6G — HVAC Spaces/Zones
 Tag Family #44: STING - Spaces Tag
