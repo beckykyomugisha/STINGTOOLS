@@ -248,7 +248,7 @@ ASS_STATUS_TXT,TEXT,Lifecycle,YES,NEW,"Element status: NEW/EXISTING/DEMOLISHED/T
 ASS_REV_TXT,TEXT,Lifecycle,NO,P01,"Revision code (e.g. P01/P02/C01)","Element properties or auto-detected from Project Revisions","Set project-wide in Project Information."
 ASS_DESCRIPTION_TXT,TEXT,Identity,NO,Auto,"Element description for BOQ/schedules","Element properties panel","Enter meaningful descriptions for BOQ export. Auto-generated from family/type if empty."
 ASS_MANUFACTURER_TXT,TEXT,Identity,NO,""," Manufacturer name","Element properties panel","Enter for TAG7A section content and procurement schedules."
-ASS_MODEL_TXT,TEXT,Identity,NO,"","Model number/reference","Element properties panel","Enter for TAG7A section content and O&M documentation."
+ASS_MODEL_NR_TXT,TEXT,Identity,NO,"","Model number/reference","Element properties panel","Enter for TAG7A section content and O&M documentation."
 ASS_CST_UNIT_PRICE_UGX_NR,NUMBER,Cost,NO,0,"Unit price in Ugandan Shillings (UGX)","Element properties panel","Enter for BOQ export. Required for accurate cost estimation."
 ASS_CST_QUANTITY_NR,NUMBER,Cost,NO,MEASURED,"Quantity override (overrides measured geometry)","Element properties panel","Enter only if measured quantity is incorrect."
 ASS_CST_TOTAL_UGX_NR,NUMBER,Cost,NO,CALCULATED,"Total cost override (overrides Unit Price × Quantity)","Element properties panel","Enter only for lump-sum items."

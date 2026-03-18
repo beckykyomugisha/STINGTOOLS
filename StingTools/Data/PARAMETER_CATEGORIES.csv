@@ -332,7 +332,7 @@ BLE_ROOF_STRUCTURE_TYPE_TXT,Roof Structure Type,TEXT,Type,"Generic Models, Roofs
 BLE_ROOF_TYPE_TXT,Roof Type,TEXT,Type,"Generic Models, Roofs",CST_PROC,85a719ec-5f20-5541-994f-b588c8491fbe,Ble Roof Type Txt [ISO 19650-1:2018]
 BLE_ROOF_WATERPROOFING_SYSTEM_TXT,Roof Waterproofing System,TEXT,Type,"Generic Models, Roofs",CST_PROC,ff29c3dc-01cd-5c14-b41e-c1d8fca3cfc9,Ble Roof Waterproofing System Txt [ISO 19650-1:2018]
 BLE_ROOM_NAME_TXT,Room Name,TEXT,Type,Rooms,CST_PROC,0bf56335-3e98-58cb-81eb-a998c017d657,Ble Room Name Txt [ISO 19650-1:2018]
-BLE_ROOM_NUMBER_TXT,Room Number,TEXT,Type,Rooms,CST_PROC,08c45bc2-6903-5a41-b295-9c3111de6882,Ble Room Number Txt [ISO 19650-1:2018]
+BLE_ROOM_NUM_TXT,Room Number,TEXT,Type,Rooms,CST_PROC,08c45bc2-6903-5a41-b295-9c3111de6882,Ble Room Number Txt [ISO 19650-1:2018]
 BLE_STAIR_GOING_MM,Stair Going,LENGTH,Type,"Generic Models, Stairs",CST_PROC,3cb19d18-6500-5dc5-b461-d03a276b645f,Ble Stair Going Mm [ISO 19650-1:2018]
 BLE_STAIR_HANDRAIL_HEIGHT_MM,Stair Handrail Height,LENGTH,Type,"Generic Models, Stairs",CST_PROC,1ef12b1c-c3f9-57ba-a454-212d5b5f8c0b,Ble Stair Handrail Height Mm [ISO 19650-1:2018]
 BLE_STAIR_RISE_MM,Stair Rise,LENGTH,Type,"Generic Models, Stairs",CST_PROC,0dcbfb44-1130-51b2-bea9-832d4ee087f7,Ble Stair Rise Mm [ISO 19650-1:2018]

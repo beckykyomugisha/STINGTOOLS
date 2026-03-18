@@ -2747,7 +2747,7 @@ namespace StingTools.Temp
                 "IfcBuildingElement,IfcDistributionElement");
             string descParam = "ASS_DESCRIPTION_TXT";
             string mfgParam = "ASS_MANUFACTURER_TXT";
-            string modelParam = "ASS_MODEL_TXT";
+            string modelParam = "ASS_MODEL_NR_TXT";
             sb.AppendLine($"\t{descParam}\tText");
             sb.AppendLine($"\t{mfgParam}\tText");
             sb.AppendLine($"\t{modelParam}\tText");
@@ -3773,7 +3773,7 @@ namespace StingTools.Temp
                 case TaskDialogResult.CommandLink2: // Identity + Spatial + Cost
                     selectedParams.AddRange(coreParams);
                     foreach (string p in new[] { "ASS_ROOM_NAME_TXT", "ASS_ROOM_NUM_TXT",
-                        "ASS_DEPT_TXT", "ASS_GRID_REF_TXT",
+                        "ASS_DEPARTMENT_ASSIGNMENT_TXT", "ASS_GRID_REF_TXT",
                         "ASS_CST_UNIT_PRICE_UGX_NR", "ASS_CST_QUANTITY_NR", "ASS_CST_TOTAL_UGX_NR",
                         "ASS_PMT_INV_UNIT_TXT", "ASS_SIZE_TXT",
                         "BLE_WALL_HEIGHT_NR", "BLE_WALL_LENGTH_NR", "BLE_WALL_THICKNESS_NR",

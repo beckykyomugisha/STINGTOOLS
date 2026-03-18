@@ -4135,7 +4135,7 @@ namespace StingTools.Core
             string designOption  = ParameterHelpers.GetString(el, "ASS_DESIGN_OPTION_TXT");
             string mntFreq       = ParameterHelpers.GetString(el, "MNT_FREQUENCY_TXT");
             string mntWarranty   = ParameterHelpers.GetString(el, "MNT_WARRANTY_EXPIRY_TXT");
-            string comStatus     = ParameterHelpers.GetString(el, "COM_COMMISSIONING_STATUS_TXT");
+            string comStatus     = ParameterHelpers.GetString(el, "COM_COMMISSION_STATUS_TXT");
             string expectedLife  = ParameterHelpers.GetString(el, "PER_EXPECTED_LIFE_YEARS");
             string accessReqs    = ParameterHelpers.GetString(el, "MNT_ACCESS_REQUIREMENTS_TXT");
 
