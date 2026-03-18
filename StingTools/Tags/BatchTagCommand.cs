@@ -525,7 +525,12 @@ namespace StingTools.Tags
                         // FIX-R06: Write GridRef per element
                         if (mfGridLines != null && mfGridLines.Count > 0)
                         {
-                            try { SpatialAutoDetect.GetGridRef(el, mfGridLines); }
+                            try
+                            {
+                                string gridRef = SpatialAutoDetect.GetGridRef(el, mfGridLines);
+                                if (!string.IsNullOrEmpty(gridRef))
+                                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                            }
                             catch (Exception grEx) { StingLog.Warn($"Migration GridRef for {el.Id}: {grEx.Message}"); }
                         }
 
@@ -817,7 +822,12 @@ namespace StingTools.Tags
                             // FIX-R03: Write GridRef per element
                             if (tcGridLines != null && tcGridLines.Count > 0)
                             {
-                                try { SpatialAutoDetect.GetGridRef(el, tcGridLines); }
+                                try
+                                {
+                                    string gridRef = SpatialAutoDetect.GetGridRef(el, tcGridLines);
+                                    if (!string.IsNullOrEmpty(gridRef))
+                                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                                }
                                 catch (Exception grEx) { StingLog.Warn($"TagChanged GridRef for {el.Id}: {grEx.Message}"); }
                             }
 

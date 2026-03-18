@@ -877,7 +877,12 @@ namespace StingTools.Tags
                             // Write GridRef per element
                             if (spGridLines != null && spGridLines.Count > 0)
                             {
-                                try { SpatialAutoDetect.GetGridRef(el, spGridLines); }
+                                try
+                                {
+                                    string gridRef = SpatialAutoDetect.GetGridRef(el, spGridLines);
+                                    if (!string.IsNullOrEmpty(gridRef))
+                                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                                }
                                 catch (Exception grEx) { StingLog.Warn($"BatchSystemPush GridRef for {el.Id}: {grEx.Message}"); }
                             }
                         }

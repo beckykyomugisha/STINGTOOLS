@@ -169,6 +169,9 @@ namespace StingTools.Docs
             opDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
                 "Standardise level names",
                 "Replace 'Level 1' with 'L01', 'Ground Floor' with 'GF', etc.");
+            opDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink5,
+                "Custom find/replace",
+                "Enter custom text to find and replace in all view names");
             opDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             int mode;
@@ -178,7 +181,59 @@ namespace StingTools.Docs
                 case TaskDialogResult.CommandLink2: mode = 2; break;
                 case TaskDialogResult.CommandLink3: mode = 3; break;
                 case TaskDialogResult.CommandLink4: mode = 4; break;
+                case TaskDialogResult.CommandLink5: mode = 5; break;
                 default: return Result.Cancelled;
+            }
+
+            // FIX-C04: Prompt for custom find/replace strings when mode 5 selected
+            string findText = null, replaceText = null;
+            if (mode == 5)
+            {
+                TaskDialog findDlg = new TaskDialog("Custom Find/Replace");
+                findDlg.MainInstruction = "Enter the text to find:";
+                findDlg.MainContent = "Type the text you want to search for in view names.\n" +
+                    "This will be replaced in ALL matching views.";
+                findDlg.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+
+                // Use a simple approach: prompt via two sequential TaskDialogs
+                // Since TaskDialog doesn't have text input, use a workaround with
+                // Microsoft.VisualBasic.Interaction.InputBox or a simple WPF input
+                try
+                {
+                    var inputWin = new System.Windows.Window
+                    {
+                        Title = "Find Text",
+                        Width = 400, Height = 160,
+                        WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                        ResizeMode = System.Windows.ResizeMode.NoResize
+                    };
+                    var stack = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(10) };
+                    stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Find:", Margin = new System.Windows.Thickness(0, 0, 0, 5) });
+                    var findBox = new System.Windows.Controls.TextBox { Margin = new System.Windows.Thickness(0, 0, 0, 5) };
+                    stack.Children.Add(findBox);
+                    stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Replace with:", Margin = new System.Windows.Thickness(0, 5, 0, 5) });
+                    var replaceBox = new System.Windows.Controls.TextBox { Margin = new System.Windows.Thickness(0, 0, 0, 10) };
+                    stack.Children.Add(replaceBox);
+                    var okBtn = new System.Windows.Controls.Button { Content = "OK", Width = 80, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
+                    okBtn.Click += (s, ev) => { inputWin.DialogResult = true; inputWin.Close(); };
+                    stack.Children.Add(okBtn);
+                    inputWin.Content = stack;
+                    findBox.Focus();
+
+                    if (inputWin.ShowDialog() != true || string.IsNullOrEmpty(findBox.Text))
+                    {
+                        TaskDialog.Show("Batch Rename Views", "Find text cannot be empty.");
+                        return Result.Cancelled;
+                    }
+                    findText = findBox.Text;
+                    replaceText = replaceBox.Text ?? "";
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"BatchRenameViews custom input: {ex.Message}");
+                    TaskDialog.Show("Batch Rename Views", "Could not open input dialog.");
+                    return Result.Failed;
+                }
             }
 
             int renamed = 0;
@@ -208,6 +263,10 @@ namespace StingTools.Docs
                             break;
                         case 4: // Standardise levels
                             newName = StandardiseLevelName(oldName);
+                            break;
+                        case 5: // FIX-C04: Custom find/replace
+                            if (findText != null && oldName.Contains(findText))
+                                newName = oldName.Replace(findText, replaceText);
                             break;
                     }
 

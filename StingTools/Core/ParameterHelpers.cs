@@ -1078,6 +1078,21 @@ namespace StingTools.Core
     public static class TokenAutoPopulator
     {
         /// <summary>
+        /// FIX-B05: MEP categories that benefit from connector traversal for SYS detection.
+        /// Non-MEP categories (Walls, Doors, Furniture, etc.) skip the expensive MEP detection.
+        /// </summary>
+        private static readonly HashSet<string> _mepConnectorCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Mechanical Equipment", "Ducts", "Duct Fittings", "Duct Accessories", "Duct Insulations", "Duct Linings",
+            "Flex Ducts", "Air Terminals",
+            "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulations", "Flex Pipes",
+            "Plumbing Fixtures", "Sprinklers",
+            "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures", "Lighting Devices",
+            "Communication Devices", "Data Devices", "Fire Alarm Devices", "Nurse Call Devices", "Security Devices",
+            "Cable Trays", "Cable Tray Fittings", "Conduits", "Conduit Fittings",
+        };
+
+        /// <summary>
         /// Pre-built context for batch operations. Build once, reuse for all elements.
         /// Wraps all the indexes and project-level values needed for token population.
         /// </summary>
@@ -1242,16 +1257,32 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
                 return result;
 
+            // FIX-B05: Only run MEP connector traversal for MEP categories
+            bool isMepCategory = _mepConnectorCategories.Contains(catName);
+
             // ENH-01: Inherit tokens from connected MEP elements before population
             // so that PopulateAll's SetIfEmpty calls won't overwrite inherited values
-            ConnectorInherit(doc, el);
+            if (isMepCategory)
+                ConnectorInherit(doc, el);
 
             // DISC — deterministic from category (default "A" for unmapped categories)
             string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
 
             // SYS — 6-layer MEP system-aware detection (must come before DISC correction)
             // LOG-01: Track which detection layer produced the SYS code
-            var (sys, sysLayer) = TagConfig.GetMepSystemAwareSysCodeWithLayer(el, catName);
+            // FIX-B05: Skip expensive MEP connector traversal for non-MEP categories
+            string sys;
+            int sysLayer;
+            if (isMepCategory)
+            {
+                (sys, sysLayer) = TagConfig.GetMepSystemAwareSysCodeWithLayer(el, catName);
+            }
+            else
+            {
+                // Non-MEP: use category fallback directly (layers 5-6 in GetMepSystemAwareSysCodeWithLayer)
+                sys = TagConfig.GetSysCode(catName);
+                sysLayer = 6; // category fallback
+            }
             // Guaranteed SYS default: derive from discipline when MEP detection returns empty
             if (string.IsNullOrEmpty(sys))
             {

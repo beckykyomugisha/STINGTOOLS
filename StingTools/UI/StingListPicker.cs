@@ -316,6 +316,15 @@ namespace StingTools.Select
             List<ListItem> items, bool allowMultiSelect = false)
         {
             var dlg = new StingListPicker(title, subtitle, items, allowMultiSelect);
+
+            // FIX-B13: Set Revit main window as owner so the dialog stays on top
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(dlg);
+                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch { }
+
             dlg.ShowDialog();
             return dlg._result;
         }

@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Organise
 {
@@ -362,7 +363,8 @@ namespace StingTools.Organise
 
                         if (string.IsNullOrEmpty(disc)) continue;
 
-                        string seqKey = $"{disc}_{sys}_{lvl}";
+                        // FIX-B02: Use canonical BuildSeqKey for consistent key format
+                        string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
                         if (!seqCounters.ContainsKey(seqKey)) seqCounters[seqKey] = 0;
 
                         // Find next unique SEQ
@@ -559,6 +561,23 @@ namespace StingTools.Organise
                 string key = $"{disc}_{sys}_{lvl}";
                 if (!groups.ContainsKey(key)) groups[key] = new List<Element>();
                 groups[key].Add(elem);
+            }
+
+            // FIX-C03: Sort elements within each group spatially (by level, then X, then Y)
+            // so renumbering follows a logical spatial order instead of arbitrary collection order
+            foreach (var key in groups.Keys.ToList())
+            {
+                groups[key] = groups[key]
+                    .OrderBy(e => ParameterHelpers.GetString(e, ParamRegistry.LVL))
+                    .ThenBy(e => {
+                        var loc = (e as FamilyInstance)?.Location as LocationPoint;
+                        return loc?.Point.X ?? 0;
+                    })
+                    .ThenBy(e => {
+                        var loc = (e as FamilyInstance)?.Location as LocationPoint;
+                        return loc?.Point.Y ?? 0;
+                    })
+                    .ToList();
             }
 
             // BUG-008: Build existing tag index for post-renumber collision check
@@ -1085,6 +1104,10 @@ namespace StingTools.Organise
                 return Result.Cancelled;
 
             int copied = 0;
+            // FIX-C02: Prepare tag index and SEQ counters for BuildAndWriteTag collision detection
+            Dictionary<string, int> seqCounters = null;
+            HashSet<string> existingTags = null;
+
             using (Transaction tx = new Transaction(doc, "STING Copy Tags"))
             {
                 tx.Start();
@@ -1097,26 +1120,23 @@ namespace StingTools.Organise
                         ParameterHelpers.SetString(target, kvp.Key, kvp.Value, overwrite: true);
                     }
 
-                    // Rebuild TAG1 from copied tokens and update all containers
+                    // FIX-C02: Use BuildAndWriteTag for proper SEQ collision detection
+                    // instead of manual string concatenation
                     try
                     {
                         string catName = ParameterHelpers.GetCategoryName(target);
-                        string[] tokenVals = ParamRegistry.ReadTokenValues(target);
-                        if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                        if (seqCounters == null)
                         {
-                            // Rebuild TAG1 from the copied token values
-                            string rebuiltTag = string.Join(ParamRegistry.Separator, tokenVals);
-                            // FIX-WR13: Apply TAG_PREFIX/TAG_SUFFIX for consistency
-                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
-                                rebuiltTag = TagConfig.TagPrefix + ParamRegistry.Separator + rebuiltTag;
-                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
-                                rebuiltTag = rebuiltTag + ParamRegistry.Separator + TagConfig.TagSuffix;
-                            ParameterHelpers.SetString(target, ParamRegistry.TAG1, rebuiltTag, overwrite: true);
-                            ParamRegistry.WriteContainers(target, tokenVals, catName, overwrite: true);
+                            var indexResult = TagConfig.BuildTagIndexAndCounters(doc);
+                            seqCounters = indexResult.Item2;
+                            existingTags = indexResult.Item1;
                         }
-                        // Rebuild TAG7 narrative
-                        string[] tvCopy = ParamRegistry.ReadTokenValues(target);
-                        TagConfig.WriteTag7All(doc, target, catName, tvCopy, overwrite: true);
+                        TagConfig.BuildAndWriteTag(doc, target, seqCounters,
+                            skipComplete: false, existingTags: existingTags,
+                            collisionMode: TagCollisionMode.AutoIncrement);
+                        string[] tokenVals = ParamRegistry.ReadTokenValues(target);
+                        ParamRegistry.WriteContainers(target, tokenVals, catName, overwrite: true);
+                        TagConfig.WriteTag7All(doc, target, catName, tokenVals, overwrite: true);
                     }
                     catch (Exception ex)
                     {
@@ -3296,22 +3316,39 @@ namespace StingTools.Organise
             }
             double autoSpacing = maxTagWidth * 1.2; // 20% gap between tags
 
-            // Ask alignment direction
-            TaskDialog dlg = new TaskDialog("Align Tags");
-            dlg.MainInstruction = $"Align {tags.Count} tags";
-            dlg.MainContent = "Choose alignment direction:";
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Align Horizontally", "Align all tag heads to same Y as first selected tag");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Align Vertically", "Align all tag heads to same X as first selected tag");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Row (auto-spaced)", $"Distribute in row with auto-calculated spacing ({autoSpacing * 304.8:F0}mm)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Column (auto-spaced)", "Distribute in vertical column with auto-calculated spacing");
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // FIX-B07: Check ExtraParam for pre-set direction (skip dialog)
+            TaskDialogResult result;
+            string presetDir = StingCommandHandler.GetExtraParam("AlignDirection");
+            if (!string.IsNullOrEmpty(presetDir))
+            {
+                switch (presetDir.ToUpperInvariant())
+                {
+                    case "HORIZONTAL": result = TaskDialogResult.CommandLink1; break;
+                    case "VERTICAL": result = TaskDialogResult.CommandLink2; break;
+                    case "ROW": result = TaskDialogResult.CommandLink3; break;
+                    case "COLUMN": result = TaskDialogResult.CommandLink4; break;
+                    default: result = TaskDialogResult.CommandLink1; break;
+                }
+            }
+            else
+            {
+                // Ask alignment direction
+                TaskDialog dlg = new TaskDialog("Align Tags");
+                dlg.MainInstruction = $"Align {tags.Count} tags";
+                dlg.MainContent = "Choose alignment direction:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Align Horizontally", "Align all tag heads to same Y as first selected tag");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Align Vertically", "Align all tag heads to same X as first selected tag");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "Row (auto-spaced)", $"Distribute in row with auto-calculated spacing ({autoSpacing * 304.8:F0}mm)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                    "Column (auto-spaced)", "Distribute in vertical column with auto-calculated spacing");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
-            var result = dlg.Show();
-            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+                result = dlg.Show();
+                if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+            }
 
             XYZ refPoint = tags[0].TagHeadPosition;
             int aligned = 0;
@@ -3628,6 +3665,34 @@ namespace StingTools.Organise
                 .Select(id => doc.GetElement(id))
                 .OfType<IndependentTag>()
                 .ToList();
+        }
+
+        /// <summary>
+        /// Resolve a set of selected element IDs (which may be host elements rather
+        /// than annotation tags) to the IndependentTag annotations that tag them in
+        /// the given view. This bridges the gap when users select host elements
+        /// (walls, ducts, equipment) instead of the annotation tags themselves.
+        /// </summary>
+        public static List<IndependentTag> ResolveToAnnotationTags(Document doc, View view, ICollection<ElementId> selectedIds)
+        {
+            var tags = new List<IndependentTag>();
+            if (selectedIds == null || selectedIds.Count == 0 || view == null)
+                return tags;
+
+            var hostIds = new HashSet<ElementId>(selectedIds);
+            foreach (var tag in new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>())
+            {
+                try
+                {
+                    var taggedIds = tag.GetTaggedLocalElementIds();
+                    if (taggedIds.Any(id => hostIds.Contains(id)))
+                        tags.Add(tag);
+                }
+                catch { }
+            }
+            return tags;
         }
 
         /// <summary>
@@ -5044,6 +5109,20 @@ namespace StingTools.Organise
                                     Parameter lbl = rep.host.LookupParameter(ParamRegistry.CLUSTER_LABEL);
                                     if (lbl != null && !lbl.IsReadOnly)
                                         lbl.Set($"[×{cluster.Count}]");
+
+                                    // FIX-B04: Store cluster member positions as JSON for decluster restore
+                                    Parameter posPar = rep.host.LookupParameter(ParamRegistry.CLUSTER_MEMBER_POS);
+                                    if (posPar != null && !posPar.IsReadOnly)
+                                    {
+                                        var memberPositions = new List<string>();
+                                        foreach (int ci in cluster)
+                                        {
+                                            var memberPos = items[ci].pos;
+                                            var hostId = items[ci].host.Id.Value;
+                                            memberPositions.Add($"{hostId}:{memberPos.X:F4},{memberPos.Y:F4},{memberPos.Z:F4}");
+                                        }
+                                        posPar.Set(string.Join("|", memberPositions));
+                                    }
                                 }
                                 catch { }
                             }
